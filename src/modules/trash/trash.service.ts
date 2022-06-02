@@ -11,6 +11,20 @@ export class TrashService {
   @Inject(FolderService)
   private readonly folderService: FolderService;
 
+  async getTrash(user) {
+    const folderId = user.rootFolderId;
+    const [currentFolder, childrenFolders, files] = await Promise.all([
+      this.folderService.getFolder(folderId),
+      this.folderService.getChildrenFoldersToUser(folderId, user.id, true),
+      this.fileService.getByFolderAndUser(folderId, user.id, true),
+    ]);
+    return {
+      ...currentFolder,
+      children: childrenFolders,
+      files,
+    };
+  }
+
   async addItems(userId, { items }: MoveItemsToTrashDto): Promise<void> {
     for (const item of items) {
       if (item.type === 'file') {

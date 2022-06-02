@@ -4,7 +4,12 @@ import { Folder } from './folder.model';
 
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;
-  findOne(folderId: number): Promise<Folder | null>;
+  findAllByParentIdAndUserId(
+    parentId: number,
+    userId: string,
+    deleted: boolean,
+  ): Promise<Array<Folder> | []>;
+  findById(folderId: number): Promise<Folder | null>;
   updateByFolderId(folderId: number, update: Partial<Folder>): Promise<Folder>;
 }
 
@@ -18,8 +23,16 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findAll(): Promise<Array<Folder> | []> {
     return await this.folderModel.findAll();
   }
-
-  async findOne(folderId: number): Promise<Folder> {
+  async findAllByParentIdAndUserId(
+    parentId: number,
+    userId: string,
+    deleted: boolean,
+  ): Promise<Array<Folder> | []> {
+    return await this.folderModel.findAll({
+      where: { parentId, userId, deleted: deleted ? 1 : 0 },
+    });
+  }
+  async findById(folderId: number): Promise<Folder> {
     return await this.folderModel.findOne({
       where: {
         id: folderId,

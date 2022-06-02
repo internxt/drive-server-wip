@@ -1,11 +1,11 @@
 import {
   Body,
-  Headers,
   Controller,
   Post,
   HttpCode,
   Logger,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -26,6 +26,16 @@ export class TrashController {
     private trashService: TrashService,
     private readonly logger: Logger,
   ) {}
+
+  @Get('/')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Add items of files and folders to trash',
+  })
+  @ApiOkResponse({ description: 'All items moved to trash' })
+  async getTrash(@User() user: any) {
+    return await this.trashService.getTrash(user);
+  }
 
   @Post('add')
   @HttpCode(200)
