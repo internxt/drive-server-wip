@@ -1,36 +1,57 @@
-# Opinionated NestJS Boilerplate.
+# Drive Server
 
-After making my mind up of what is my ideal setup for NestJS I created this opinionated starter.
+## Prerrequisites
 
-- It spins up a Swagger OPEN API in localhost:3000/api
-- Uses Postgres
-- Uses JWT Tokens for authentication
-- Every saved password uses a different salt
-- Makes sure the architecture divides business logic nicely for if we wanted to replace Postgres with another DB, business logic remains almost entirely untouched.
+* Node v10
 
-Sample endpoints are for a Note taking application but can be used to start whichever application
+  ```nvm install v10```
+  
+  (Cannot be upgraded to higher version until [node-lib](https://github.com/internxt/node-lib) bindings fixed).
 
+* Yarn
+
+  ```npm i -g yarn```
+
+* PM2
+
+  ```npm i -g pm2```
+
+* Node-gyp essentials
+
+  Ubuntu: ```sudo apt install python build-essential```
+
+  Windows: ```npm i -g windows-build-tools```
+
+  Mac: ```xcode-select --install```
+
+# Install
+
+- Create a `.npmrc` file from the `.npmrc.template` example provided in the repo. 
+- Replace `TOKEN` with your own [Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token) with `read:packages` permission **ONLY**
+- Use `yarn` to install project dependencies.
+
+#### Database setup (MariaDB)
+
+Create schema and configure `config/environments/development.json`
+
+Run `yarn run migrate` to create tables.
+
+#### Start app
+
+Run `yarn start` to start server in production mode.
+
+Run `yarn run dev` to start with nodemon and development environment.
 # Running:
 
 With docker-compose:
 
 `docker-compose up`
 
-Note: postgres is running on port 5433
-
 Checkout localhost:3000/api to see every endpoint of the app along documentation
-
-With skaffold:
-
-//TODO DOC
 
 Locally:
 
-Make sure to have postgres running in port 5432 and run: `yarn start:dev`
-
-# Tests
-
-Right now there are both Unit tests and End to end tests
+Make sure to have mariadb running in port 6603 and run: `yarn start:dev`
 
 # Unit testing
 
@@ -40,15 +61,11 @@ You can run unit tests with:
 
 # End to End Testing
 
-Running e2e test requires creating a database named 'notes_test' first (check .env.test file)
+Running e2e test requires creating a database first (check .env.test file)
 
 You can either run :
 
-`yarn run test:e2e // If you have postgres running locally`
+`yarn run test:e2e // If you have mariadb running locally`
 
 Or you can run:
 `docker-compose -f docker-compose.end-to-end.yaml up`
-
-# Rationale:
-
-TODO
