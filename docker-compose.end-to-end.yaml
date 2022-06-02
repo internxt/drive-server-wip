@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  nest:
+    build:
+      context: .
+      dockerfile: ./infrastructure/end-to-end.Dockerfile
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - '3000:3000'
+    networks:
+      - api
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=notes_test
+      - POSTGRES_PORT=5432
+      - POSTGRES_HOST=postgres
+      - JWT_SECRET=-@N*cbdtBhS4D-$x%ZU#AEQPC_'cBuxM.rb<9QyyJK2smj.L);?n?J=j~UyHN}=U
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:14
+    networks:
+      - api
+    ports:
+      - '5433:5432'
+    environment:
+      - POSTGRES_DB=notes_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+networks:
+ api:
