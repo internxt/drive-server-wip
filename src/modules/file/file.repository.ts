@@ -4,6 +4,11 @@ import { File } from './file.model';
 
 export interface FileRepository {
   findAll(): Promise<Array<File> | []>;
+  findAllByFolderIdAndUserId(
+    folderId: number,
+    userId: string,
+    deleted: boolean,
+  ): Promise<Array<File> | []>;
   findOne(fileId: string, userId: string): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: string,
@@ -21,6 +26,15 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findAll(): Promise<Array<File> | []> {
     return this.fileModel.findAll();
+  }
+  async findAllByFolderIdAndUserId(
+    folderId: number,
+    userId: string,
+    deleted: boolean,
+  ): Promise<Array<File> | []> {
+    return await this.fileModel.findAll({
+      where: { folderId, userId, deleted: deleted ? 1 : 0 },
+    });
   }
 
   findOne(fileId: string, userId: string): Promise<any> {
