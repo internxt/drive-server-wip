@@ -16,7 +16,8 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { MoveItemsToTrashDto } from './dto/move-items-to-trash.dto';
 import { TrashService } from './trash.service';
-import { User } from '../auth/user.decorator';
+import { User } from '../auth/decorators/user.decorator';
+import { Client } from '../auth/decorators/client.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -30,9 +31,9 @@ export class TrashController {
   @Get('/')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Add items of files and folders to trash',
+    summary: 'Get trash content',
   })
-  @ApiOkResponse({ description: 'All items moved to trash' })
+  @ApiOkResponse({ description: 'Get all folders and files in trash' })
   async getTrash(@User() user: any) {
     return await this.trashService.getTrash(user);
   }
@@ -47,7 +48,8 @@ export class TrashController {
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @User() user: any,
+    @Client() clientId: string,
   ) {
-    return await this.trashService.addItems(user.id, moveItemsDto);
+    return await this.trashService.addItems(user, clientId, moveItemsDto);
   }
 }

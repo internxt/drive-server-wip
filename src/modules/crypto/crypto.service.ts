@@ -20,6 +20,21 @@ export class CryptoService {
     return this.probabilisticEncryption(name);
   }
 
+  deterministicEncryption(content, salt) {
+    try {
+      const key = CryptoJS.enc.Hex.parse(this.cryptoSecret);
+      const iv = salt ? CryptoJS.enc.Hex.parse(salt.toString()) : key;
+
+      const encrypt = CryptoJS.AES.encrypt(content, key, { iv }).toString();
+      const b64 = CryptoJS.enc.Base64.parse(encrypt);
+      const eHex = b64.toString(CryptoJS.enc.Hex);
+
+      return eHex;
+    } catch (e) {
+      return null;
+    }
+  }
+
   probabilisticEncryption(content) {
     try {
       const b64 = CryptoJS.AES.encrypt(

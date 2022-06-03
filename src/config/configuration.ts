@@ -13,4 +13,10 @@ export default () => ({
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
   },
+  apis: {
+    notifications: {
+      url: process.env.NOTIFICATIONS_URL,
+      key: process.env.NOTIFICATIONS_API_KEY,
+    },
+  },
 });

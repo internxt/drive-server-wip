@@ -8,4 +8,8 @@ export class UserService {
   async getUserByUsername(email: string) {
     return await this.userRepository.findByUsername(email);
   }
+
+  async getWorkspaceMembersByBrigeUser(bridgeUser: string) {
+    return await this.userRepository.findAllBy({ bridgeUser });
+  }
 }

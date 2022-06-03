@@ -702,6 +702,13 @@
     semver "^7.3.5"
     tar "^6.1.11"
 
+"@nestjs/axios@^0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@nestjs/axios/-/axios-0.0.8.tgz#4e321e36b6bc3ab0f02d80bafe04ae39edfdcacf"
+  integrity sha512-oJyfR9/h9tVk776il0829xyj3b2e81yTu6HjPraxynwNtMNGqZBHHmAQL24yMB3tVbBM0RvG3eUXH8+pRCGwlg==
+  dependencies:
+    axios "0.27.2"
+
 "@nestjs/cli@^8.0.0":
   version "8.2.6"
   resolved "https://registry.yarnpkg.com/@nestjs/cli/-/cli-8.2.6.tgz#915aef9c1c025280ab8ebc915530fa0090bcbe49"
@@ -762,6 +769,13 @@
     path-to-regexp "3.2.0"
     tslib "2.4.0"
     uuid "8.3.2"
+
+"@nestjs/event-emitter@^1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@nestjs/event-emitter/-/event-emitter-1.1.1.tgz#430b1493de6febd0644b9f6406eaf63def34e1fe"
+  integrity sha512-fOcV1sjOSeLA6hj7c++Ga3pZG62BcmSKn5sAE/M0fYwuKn3T3Bx9BQm9siLTRLwSY/kJjwHbhTgfnL1bfEqY3w==
+  dependencies:
+    eventemitter2 "6.4.5"
 
 "@nestjs/jwt@^8.0.1":
   version "8.0.1"
@@ -2566,6 +2580,11 @@ event-emitter@^0.3.5:
   dependencies:
     d "1"
     es5-ext "~0.10.14"
+
+eventemitter2@6.4.5:
+  version "6.4.5"
+  resolved "https://registry.yarnpkg.com/eventemitter2/-/eventemitter2-6.4.5.tgz#97380f758ae24ac15df8353e0cc27f8b95644655"
+  integrity sha512-bXE7Dyc1i6oQElDG0jMRZJrRAn9QR2xyyFGmBdZleNmyQX0FqGYmhZIrIrpPfm/w//LTo4tVQGOGQcGCb5q9uw==
 
 events@^3.2.0:
   version "3.3.0"
