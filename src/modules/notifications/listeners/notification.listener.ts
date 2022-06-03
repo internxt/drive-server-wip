@@ -1,21 +1,21 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../events/notification.event';
-import { map } from 'rxjs';
-import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { HttpClient } from 'src/modules/http/http.service';
 
 @Injectable()
 export class NotificationListener {
   constructor(
-    private http: HttpService,
+    @Inject(HttpClient)
+    private http: HttpClient,
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {}
 
   @OnEvent('notification.*')
   async handleNotificationEvent(event: NotificationEvent) {
-    Logger.log(`event ${event.name} handleded`, 'NotificationListener');
+    Logger.log(`event ${event.name} handled`, 'NotificationListener');
     const apiNotificationURL: string = this.configService.get(
       'apis.notifications.url',
     );
@@ -32,7 +32,6 @@ export class NotificationListener {
       .post(apiNotificationURL, eventData, {
         headers,
       })
-      .toPromise()
       .catch((err) => {
         Logger.error(`eror in event ${event.name}`, err);
       });
