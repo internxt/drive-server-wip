@@ -1,12 +1,14 @@
 import { Logger, Module } from '@nestjs/common';
 import { FileModule } from 'src/modules/file/file.module';
 import { FolderModule } from 'src/modules/folder/folder.module';
+import { NotificationModule } from '../notifications/notifications.module';
+import { UserModule } from '../user/user.module';
 import { TrashController } from './trash.controller';
 // import { SequelizeModule } from '@nestjs/sequelize';
 import { TrashService } from './trash.service';
 
 @Module({
-  imports: [FileModule, FolderModule],
+  imports: [FileModule, FolderModule, NotificationModule, UserModule],
   controllers: [TrashController],
   providers: [TrashService, Logger],
 })
