@@ -17,7 +17,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json"
+    "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json",
+    "test:e2e:watch": "NODE_ENV=test jest --config ./test/jest-e2e.json --watchAll"
   },
   "dependencies": {
     "@hapi/joi": "^17.1.1",
@@ -64,7 +65,7 @@
     "@types/jest": "27.5.0",
     "@types/node": "^17.0.38",
     "@types/sequelize": "^4.28.13",
-    "@types/supertest": "^2.0.11",
+    "@types/supertest": "^2.0.12",
     "@types/uuid": "^8.3.4",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",

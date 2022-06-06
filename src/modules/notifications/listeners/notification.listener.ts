@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../events/notification.event';
 import { ConfigService } from '@nestjs/config';
-import { HttpClient } from 'src/services/http/http.service';
+import { HttpClient } from '../../../services/http/http.service';
 
 @Injectable()
 export class NotificationListener {

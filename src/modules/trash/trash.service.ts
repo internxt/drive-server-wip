@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { FileService } from '../file/file.service';
 import { FolderService } from '../folder/folder.service';
 import { ItemsToTrashEvent } from '../notifications/events/items-to-trash.event';
@@ -44,6 +44,8 @@ export class TrashService {
         await this.fileService.moveFileToTrash(item.id, user.id);
       } else if (item.type === 'folder') {
         await this.folderService.moveFolderToTrash(parseInt(item.id));
+      } else {
+        throw new BadRequestException(`type ${item.type} invalid`);
       }
     }
 
