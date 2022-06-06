@@ -9,7 +9,6 @@ import {
   AllowNull,
   BelongsTo,
   ForeignKey,
-  Index,
   Unique,
 } from 'sequelize-typescript';
 

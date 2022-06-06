@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File as FileModel } from './file.model';
 import { File } from './file.domain';
-import { domainToASCII } from 'url';
+
 export interface FileRepository {
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
