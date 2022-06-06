@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
-import { TransformInterceptor } from '../src/transform.interceptor';
+import { TransformInterceptor } from '../src/lib/transform.interceptor';
 
 // Running e2e tests require a database named "notes_test" in the postgres database first.
 describe('AppController (e2e)', () => {
@@ -22,25 +22,25 @@ describe('AppController (e2e)', () => {
   });
 
   describe('HTTP tests', () => {
-    it('/notes (GET) - Unauthorized first call for notes', async () => {
-      return request(app.getHttpServer()).get('/notes').expect(401);
-    });
+    // it('/notes (GET) - Unauthorized first call for notes', async () => {
+    //   return request(app.getHttpServer()).get('/notes').expect(401);
+    // });
 
-    describe('User registration errors', () => {
-      it('/signup (POST) -  Request to signup', async () => {
-        const response = await request(app.getHttpServer())
-          .post('/auth/signup')
-          .send({
-            email: 'example@example.com',
-            password: 'example',
-          })
-          .expect(400);
-        const body = response.body;
-        expect(body.message.includes());
-        console.log(body);
-        // expect(response.body.message).toBe('Validation failed');
-      });
-    });
+    // describe('User registration errors', () => {
+    //   it('/signup (POST) -  Request to signup', async () => {
+    //     const response = await request(app.getHttpServer())
+    //       .post('/auth/signup')
+    //       .send({
+    //         email: 'example@example.com',
+    //         password: 'example',
+    //       })
+    //       .expect(400);
+    //     const body = response.body;
+    //     expect(body.message.includes());
+    //     console.log(body);
+    //     // expect(response.body.message).toBe('Validation failed');
+    //   });
+    // });
 
     // describe('User flow', () => {
     //   let token: string;
