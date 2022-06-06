@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File as FileModel } from './file.model';
 import { File } from './file.domain';
+import { Op } from 'sequelize';
 
 export interface FileRepository {
   findAll(): Promise<Array<File> | []>;
@@ -72,6 +73,26 @@ export class SequelizeFileRepository implements FileRepository {
     file.set(update);
     await file.save();
     return this.toDomain(file);
+  }
+
+  async updateManyByFieldIdAndUserId(
+    fileIds: string[],
+    userId: string,
+    update: Partial<File>,
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        update,
+      },
+      {
+        where: {
+          userId,
+          id: {
+            [Op.in]: fileIds,
+          },
+        },
+      },
+    );
   }
 
   toDomain(model): File {

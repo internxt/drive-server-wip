@@ -28,6 +28,10 @@ export class FileService {
     return filesWithNameDecrypted;
   }
 
+  async moveFilesToTrash(fileIds: string[], userId: string): Promise<void> {
+    await this.fileRepository.updateManyByFieldIdAndUserId(fileIds, userId, {
+      deleted: true,
+      deletedAt: new Date(),
     });
   }
 
