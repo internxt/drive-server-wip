@@ -6,6 +6,6 @@ COPY yarn.lock ./
 RUN yarn
 COPY . ./
 
-RUN npm run  build
+RUN npm run build
 
 CMD ["yarn", "start:prod"]
