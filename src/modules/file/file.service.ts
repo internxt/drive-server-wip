@@ -15,9 +15,19 @@ export class FileService {
       userId,
       deleted,
     );
-    return files.map((file) => {
-      file.name = this.cryptoService.decryptName(file.name, folderId);
-      return file;
+
+    const filesWithNameDecrypted = [];
+
+    for (const file of files) {
+      filesWithNameDecrypted.push({
+        ...file,
+        name: this.cryptoService.decryptName(file.name, folderId),
+      });
+    }
+
+    return filesWithNameDecrypted;
+  }
+
     });
   }
 
