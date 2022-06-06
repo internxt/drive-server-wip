@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { TransformInterceptor } from '../src/lib/transform.interceptor';
 
-// Running e2e tests require a database named "notes_test" in the postgres database first.
+const token = process.env.TEST_AUTH_TOKEN;
+// Running e2e tests require a database named "Xcloud_test" in the mariadb database first.
 describe('AppController (e2e)', () => {
   let app: INestApplication;
 
@@ -21,71 +22,58 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   describe('HTTP tests', () => {
-    // it('/notes (GET) - Unauthorized first call for notes', async () => {
-    //   return request(app.getHttpServer()).get('/notes').expect(401);
-    // });
+    describe('TRASH Endpoints', () => {
+      describe('Get Trash', () => {
+        it('/storage/trash (GET) - Unauthorized', async () => {
+          return request(app.getHttpServer()).get('/storage/trash').expect(401);
+        });
 
-    // describe('User registration errors', () => {
-    //   it('/signup (POST) -  Request to signup', async () => {
-    //     const response = await request(app.getHttpServer())
-    //       .post('/auth/signup')
-    //       .send({
-    //         email: 'example@example.com',
-    //         password: 'example',
-    //       })
-    //       .expect(400);
-    //     const body = response.body;
-    //     expect(body.message.includes());
-    //     console.log(body);
-    //     // expect(response.body.message).toBe('Validation failed');
-    //   });
-    // });
+        it('/storage/trash (GET) - Return 200', async () => {
+          return request(app.getHttpServer())
+            .get('/storage/trash')
+            .set('Authorization', 'Bearer ' + token)
+            .expect(200);
+        });
+      });
 
-    // describe('User flow', () => {
-    //   let token: string;
+      describe('Move Items To Trash', () => {
+        it('/storage/trash/add (POST) - Unauthorized', async () => {
+          return request(app.getHttpServer())
+            .post('/storage/trash/add')
+            .expect(401);
+        });
 
-    //   beforeAll(async () => {
-    //     const response = await request(app.getHttpServer())
-    //       .post('/auth/login')
-    //       .send({
-    //         email: 'example@example.com',
-    //         password: 'example',
-    //       });
-    //     token = response.body.token;
-    //   });
+        it('/storage/trash/add (POST) - Return 200', async () => {
+          return request(app.getHttpServer())
+            .post('/storage/trash/add')
+            .set('Authorization', 'Bearer ' + token)
+            .send({
+              items: [{ id: '4', type: 'folder' }],
+            })
+            .expect(200);
+        });
 
-    //   it('/notes (GET) - Authorized request for notes', async () => {
-    //     return request(app.getHttpServer())
-    //       .get('/notes')
-    //       .set('Authorization', `Bearer ${token}`)
-    //       .expect(200);
-    //   });
+        it('/storage/trash/add (POST) - Return 400 - types invalid', async () => {
+          const response = await request(app.getHttpServer())
+            .post('/storage/trash/add')
+            .set('Authorization', 'Bearer ' + token)
+            .send({
+              items: [{ id: '4', type: 'folder2' }],
+            });
 
-    //   it('/notes (POST) - Authorized first call for notes', async () => {
-    //     return request(app.getHttpServer())
-    //       .post('/notes')
-    //       .set('Authorization', `Bearer ${token}`)
-    //       .send({
-    //         title: 'Test title',
-    //         content: 'Test content',
-    //       })
-    //       .expect(201);
-    //   });
-
-    //   it('/notes (GET) - Authorized second call for notes', async () => {
-    //     return request(app.getHttpServer())
-    //       .get('/notes')
-    //       .set('Authorization', `Bearer ${token}`)
-    //       .expect(200);
-    //   });
-
-    //   it('/notes (GET) - Authorized third call for notes', async () => {
-    //     return request(app.getHttpServer())
-    //       .get('/notes')
-    //       .set('Authorization', `Bearer ${token}`)
-    //       .expect(200);
-    //   });
-    // });
+          expect(response.status).toBe(400);
+          expect(response.body).toEqual({
+            error: 'Bad Request',
+            message: 'type folder2 invalid',
+            statusCode: 400,
+          });
+        });
+      });
+    });
   });
 });
