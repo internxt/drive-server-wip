@@ -1,4 +1,5 @@
 import { WinstonModuleOptions } from 'nest-winston';
+import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
 import os from 'os';
 
@@ -6,7 +7,7 @@ const { splat, combine, printf, timestamp } = winston.format;
 const serverHostname = os.hostname();
 const colorize = winston.format.colorize({ all: true });
 
-export class WinstonLoggerConfig {
+export class WinstonLogger {
   private static prodOptions = {
     level: 'info',
     exitOnError: true,
@@ -45,11 +46,13 @@ export class WinstonLoggerConfig {
     ),
     transports: [new winston.transports.Console()],
   };
-  static getConfig(): WinstonModuleOptions {
-    return this.isProduction() ? this.prodOptions : this.devOptions;
-  }
 
-  static isProduction() {
-    return process.env.NODE_ENV === 'staging';
+  static getLogger() {
+    const configs = {
+      production: WinstonModule.createLogger(this.prodOptions),
+      staging: WinstonModule.createLogger(this.prodOptions),
+      development: null,
+    };
+    return configs[process.env.NODE_EV] || null;
   }
 }

@@ -14,7 +14,6 @@ import { NotificationModule } from './modules/notifications/notifications.module
   imports: [
     ConfigModule.forRoot({
       envFilePath: [`.env.${process.env.NODE_ENV}`],
-      // validationSchema: configValidationSchema
       load: [configuration],
     }),
     SequelizeModule.forRootAsync({
