@@ -12,26 +12,8 @@ services:
       - 3004:3000
     networks:
       - internxt
-    environment:
-      # - POSTGRES_USER=postgres
-      # - POSTGRES_PASSWORD=postgres
-      # - POSTGRES_DB=notes
-      # - POSTGRES_PORT=5432
-      # - POSTGRES_HOST=postgres
-      #- JWT_SECRET=-@N*cbdtBhS4D-$x%ZU#AEQPC_'cBuxM.rb<9QyyJK2smj.L);?n?J=j~UyHN}=U
-
-  # postgres:
-  #   image: postgres:14
-  #   networks:
-  #     - api
-  #   ports:
-  #     - '5433:5432'
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #     - POSTGRES_DB=notes
+    env_file:
+      - ./env.development
 
 networks:
   internxt:
