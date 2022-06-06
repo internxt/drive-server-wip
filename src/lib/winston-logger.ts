@@ -1,4 +1,3 @@
-import { WinstonModuleOptions } from 'nest-winston';
 import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
 import os from 'os';

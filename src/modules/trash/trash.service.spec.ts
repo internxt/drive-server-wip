@@ -1,12 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Global, Module } from '@nestjs/common';
 import { TrashService } from './trash.service';
 import { FileService } from '../file/file.service';
 import { FolderService } from '../folder/folder.service';
 import { ItemType, MoveItemsToTrashDto } from './dto/move-items-to-trash.dto';
 
-import { FileModule } from '../file/file.module';
-import { FolderModule } from '../folder/folder.module';
 import { NotificationService } from '../notifications/notification.service';
 import { UserService } from '../user/user.service';
 
