@@ -1,13 +1,11 @@
 FROM node:16
 
-ENV NODE_ENV development
-
 COPY package.json ./
 COPY yarn.lock ./
 
 RUN yarn
 COPY . ./
 
-RUN yarn build
+RUN npm run  build
 
-CMD ["yarn", "start:dev"]
+CMD ["yarn", "start:prod"]

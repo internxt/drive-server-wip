@@ -2,9 +2,7 @@ version: '3.9'
 
 services:
   drive-server-wip:
-    build:
-      context: .
-      dockerfile: ./infrastructure/development.Dockerfile
+    image: .
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -14,6 +12,8 @@ services:
       - internxt
     env_file:
       - ./env.development
+    command:
+      - yarn start:dev
 
 networks:
   internxt:
