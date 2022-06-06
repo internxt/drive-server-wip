@@ -21,8 +21,8 @@ export class FileService {
     });
   }
 
-  async moveFileToTrash(fileId: string, userId: string) {
-    return await this.fileRepository.updateByFieldIdAndUserId(fileId, userId, {
+  moveFileToTrash(fileId: string, userId: string) {
+    return this.fileRepository.updateByFieldIdAndUserId(fileId, userId, {
       deleted: true,
       deletedAt: new Date(),
     });
