@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CryptoService } from '../crypto/crypto.service';
+import { CryptoService } from '../../services/crypto/crypto.service';
 import { SequelizeFileRepository } from './file.repository';
 
 @Injectable()
@@ -15,10 +15,9 @@ export class FileService {
       userId,
       deleted,
     );
-    // decrypt name here
     return files.map((file) => {
-      file.name = this.cryptoService.decryptName(file.name, folderId)
-      return file.toJSON();
+      file.name = this.cryptoService.decryptName(file.name, folderId);
+      return file;
     });
   }
 

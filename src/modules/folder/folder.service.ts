@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CryptoService } from '../crypto/crypto.service';
+import { CryptoService } from '../../services/crypto/crypto.service';
 import { Folder } from './folder.model';
 import { SequelizeFolderRepository } from './folder.repository';
 
@@ -28,7 +28,6 @@ export class FolderService {
       userId,
       deleted,
     );
-    // decrypt name here
     return folders.map((folder) => {
       folder.name = this.cryptoService.decryptName(folder.name, folderId);
       return folder.toJSON();

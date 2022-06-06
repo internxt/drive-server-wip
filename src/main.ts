@@ -9,7 +9,7 @@ import {
   SwaggerCustomOptions,
   SwaggerModule,
 } from '@nestjs/swagger';
-import { TransformInterceptor } from './transform.interceptor';
+import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerMiddleware } from './middlewares/requests-logger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
@@ -39,7 +39,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
   app.use(helmet());
-  // app.use(addRequestId());
+
   app.use(RequestLoggerMiddleware);
   app.setGlobalPrefix('api');
   app.disable('x-powered-by');
