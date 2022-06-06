@@ -65,11 +65,12 @@ describe('TrashService', () => {
     userService = module.get<UserService>(UserService);
   });
 
-  it('should be defined', () => {
+  it('Should be defined', () => {
     expect(service).toBeDefined();
   });
-  describe('getTrash', () => {
-    it('calls getTrash and return trash', async () => {
+
+  describe('Get items from the trash', () => {
+    it('When the trash is requested, files inside the trash are return', async () => {
       folderService.getFolder.mockResolvedValue({ id: 4, name: 'test' });
       folderService.getChildrenFoldersToUser.mockResolvedValue([]);
       fileService.getByFolderAndUser.mockResolvedValue([]);
@@ -97,8 +98,8 @@ describe('TrashService', () => {
     });
   });
 
-  describe('addItems', () => {
-    it('calls addItems with file', async () => {
+  describe('Add items to the trash', () => {
+    it('Should add files to the trash', async () => {
       const mockItems: MoveItemsToTrashDto = {
         items: [{ id: fileId, type: ItemType.FILE }],
       };
@@ -122,7 +123,7 @@ describe('TrashService', () => {
       expect(notificationService.add).toHaveBeenCalledTimes(1);
     });
 
-    it('calls addItems with file and folder', async () => {
+    it('Should add files and folders to the trash', async () => {
       const mockItems: MoveItemsToTrashDto = {
         items: [
           { id: fileId, type: ItemType.FILE },
