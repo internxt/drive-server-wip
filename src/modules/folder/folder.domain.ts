@@ -1,84 +1,80 @@
-export interface FileAttributes {
+export interface FolderAttributes {
   id: number;
-  fileId: string;
+  parentId: number;
+  parent?: any;
   name: string;
-  type: string;
-  size: bigint;
   bucket: string;
-  folderId: number;
+  userId: number;
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
-  userId: number;
-  modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
 }
-export class File implements FileAttributes {
+
+export class Folder implements FolderAttributes {
   id: number;
-  fileId: string;
+  parentId: number;
+  _parent: Folder;
   name: string;
-  type: string;
-  size: bigint;
   bucket: string;
-  folderId: number;
+  userId: number;
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
-  userId: number;
-  modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
   constructor({
     id,
-    fileId,
+    parentId,
+    parent,
     name,
-    type,
-    size,
     bucket,
-    folderId,
+    userId,
     encryptVersion,
     deleted,
     deletedAt,
-    userId,
-    modificationTime,
     createdAt,
     updatedAt,
-  }: FileAttributes) {
+  }: FolderAttributes) {
     this.id = id;
-    this.fileId = fileId;
+    this.parentId = parentId;
+    this.parent = parent;
     this.name = name;
-    this.type = type;
-    this.size = size;
     this.bucket = bucket;
-    this.folderId = folderId;
+    this.userId = userId;
     this.encryptVersion = encryptVersion;
     this.deleted = deleted;
     this.deletedAt = deletedAt;
-    this.userId = userId;
-    this.modificationTime = modificationTime;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
 
-  static build(file: FileAttributes): File {
-    return new File(file);
+  static build(file: FolderAttributes): Folder {
+    return new Folder(file);
+  }
+
+  set parent(parent) {
+    if (parent && !(parent instanceof Folder)) {
+      throw Error('parent folder invalid');
+    }
+    this._parent = parent;
+  }
+
+  get parent() {
+    return this._parent;
   }
 
   toJSON() {
     return {
       id: this.id,
-      fileId: this.fileId,
+      parentId: this.parentId,
       name: this.name,
-      type: this.type,
-      size: this.size,
       bucket: this.bucket,
-      folderId: this.folderId,
+      userId: this.userId,
       encryptVersion: this.encryptVersion,
       deleted: this.deleted,
       deletedAt: this.deletedAt,
-      userId: this.userId,
-      modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

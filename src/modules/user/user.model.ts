@@ -13,11 +13,12 @@ import {
 } from 'sequelize-typescript';
 
 import { Folder } from '../folder/folder.model';
+import { UserAttributes } from './user.domain';
 @Table({
   underscored: true,
   timestamps: true,
 })
-export class User extends Model {
+export class User extends Model implements UserAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column

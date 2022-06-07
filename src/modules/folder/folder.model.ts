@@ -11,12 +11,13 @@ import {
   ForeignKey,
   Index,
 } from 'sequelize-typescript';
+import { FolderAttributes } from './folder.domain';
 
 @Table({
   underscored: true,
   timestamps: true,
 })
-export class Folder extends Model {
+export class Folder extends Model implements FolderAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column
@@ -50,4 +51,10 @@ export class Folder extends Model {
   @AllowNull
   @Column
   deletedAt: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }

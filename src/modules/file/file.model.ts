@@ -6,12 +6,13 @@ import {
   DataType,
   Index,
 } from 'sequelize-typescript';
+import { FileAttributes } from './file.domain';
 
 @Table({
   underscored: true,
   timestamps: true,
 })
-export class File extends Model {
+export class File extends Model implements FileAttributes {
   @PrimaryKey
   @Column
   id: number;
@@ -49,4 +50,10 @@ export class File extends Model {
 
   @Column
   modificationTime: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }

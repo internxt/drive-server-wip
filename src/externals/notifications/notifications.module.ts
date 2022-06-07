@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { ConfigModule } from '@nestjs/config';
 import { NotificationListener } from './listeners/notification.listener';
-import { HttpClientModule } from '../../services/http/http.module';
+import { HttpClientModule } from '../http/http.module';
 @Module({
   imports: [ConfigModule, HttpClientModule],
   controllers: [],

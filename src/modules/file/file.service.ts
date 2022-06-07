@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { CryptoService } from '../../services/crypto/crypto.service';
+import { CryptoService } from '../../externals/crypto/crypto.service';
+import { FolderAttributes } from '../folder/folder.domain';
+import { FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 
 @Injectable()
@@ -9,7 +11,11 @@ export class FileService {
     private cryptoService: CryptoService,
   ) {}
 
-  async getByFolderAndUser(folderId: number, userId: string, deleted = false) {
+  async getByFolderAndUser(
+    folderId: FolderAttributes['id'],
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'] = false,
+  ) {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
       folderId,
       userId,
@@ -28,14 +34,20 @@ export class FileService {
     return filesWithNameDecrypted;
   }
 
-  async moveFilesToTrash(fileIds: string[], userId: string): Promise<void> {
+  async moveFilesToTrash(
+    fileIds: FileAttributes['fileId'][],
+    userId: FileAttributes['userId'],
+  ): Promise<void> {
     await this.fileRepository.updateManyByFieldIdAndUserId(fileIds, userId, {
       deleted: true,
       deletedAt: new Date(),
     });
   }
 
-  moveFileToTrash(fileId: string, userId: string) {
+  moveFileToTrash(
+    fileId: FileAttributes['fileId'],
+    userId: FileAttributes['userId'],
+  ) {
     return this.fileRepository.updateByFieldIdAndUserId(fileId, userId, {
       deleted: true,
       deletedAt: new Date(),
