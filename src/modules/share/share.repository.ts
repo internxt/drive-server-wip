@@ -26,10 +26,10 @@ export class SequelizeShareRepository implements ShareRepository {
       include: [
         {
           model: this.fileModel,
-          as: 'fileInfo',
-          where: { userId: user.id },
+          where: { user_id: 1 },
         },
       ],
+      attributes: ['token', 'file', 'encryptionKey', 'bucket', 'fileToken', 'isFolder', 'views'],
     });
     return files.map((file) => {
       return this.toDomain(file);

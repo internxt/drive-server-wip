@@ -5,7 +5,9 @@ import {
   PrimaryKey,
   DataType,
   Index,
+  HasMany
 } from 'sequelize-typescript';
+import { Share } from '../share/share.model';
 
 @Table({
   underscored: true,
@@ -49,4 +51,7 @@ export class File extends Model {
 
   @Column
   modificationTime: Date;
+
+  @HasMany(() => Share)
+  shares: Share[];
 }
