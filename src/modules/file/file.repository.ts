@@ -1,22 +1,32 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File as FileModel } from './file.model';
-import { File } from './file.domain';
+import { File, FileAttributes } from './file.domain';
 import { Op } from 'sequelize';
 
 export interface FileRepository {
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
-    folderId: number,
-    userId: string,
-    deleted: boolean,
+    folderId: FileAttributes['folderId'],
+    userId: FileAttributes['userId'],
+    deleted: FileAttributes['deleted'],
   ): Promise<Array<File> | []>;
-  findOne(fileId: string, userId: string): Promise<File | null>;
+  findOne(
+    fileId: FileAttributes['fileId'],
+    userId: FileAttributes['userId'],
+  ): Promise<File | null>;
   updateByFieldIdAndUserId(
-    fileId: string,
-    userId: string,
+    fileId: FileAttributes['fileId'],
+    userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<File>;
+  updateManyByFieldIdAndUserId(
+    fileIds: FileAttributes['fileId'][],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ): Promise<void>;
+  _toDomain(model: FileModel): File;
+  _toModel(domain: File): Partial<FileAttributes>;
 }
 
 @Injectable()
@@ -29,35 +39,38 @@ export class SequelizeFileRepository implements FileRepository {
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
-      return this.toDomain(file);
+      return this._toDomain(file);
     });
   }
   async findAllByFolderIdAndUserId(
-    folderId: number,
-    userId: string,
-    deleted: boolean,
+    folderId: FileAttributes['folderId'],
+    userId: FileAttributes['userId'],
+    deleted: FileAttributes['deleted'],
   ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       where: { folderId, userId, deleted: deleted ? 1 : 0 },
     });
     return files.map((file) => {
-      return this.toDomain(file);
+      return this._toDomain(file);
     });
   }
 
-  async findOne(fileId: string, userId: string): Promise<File | null> {
+  async findOne(
+    fileId: FileAttributes['fileId'],
+    userId: FileAttributes['userId'],
+  ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         fileId,
         userId,
       },
     });
-    return file ? this.toDomain(file) : null;
+    return file ? this._toDomain(file) : null;
   }
 
   async updateByFieldIdAndUserId(
-    fileId: string,
-    userId: string,
+    fileId: FileAttributes['fileId'],
+    userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<File> {
     const file = await this.fileModel.findOne({
@@ -72,35 +85,30 @@ export class SequelizeFileRepository implements FileRepository {
     }
     file.set(update);
     await file.save();
-    return this.toDomain(file);
+    return this._toDomain(file);
   }
 
   async updateManyByFieldIdAndUserId(
-    fileIds: string[],
-    userId: string,
+    fileIds: FileAttributes['fileId'][],
+    userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void> {
-    await this.fileModel.update(
-      {
-        update,
-      },
-      {
-        where: {
-          userId,
-          id: {
-            [Op.in]: fileIds,
-          },
+    await this.fileModel.update(update, {
+      where: {
+        userId,
+        fileId: {
+          [Op.in]: fileIds,
         },
       },
-    );
+    });
   }
 
-  toDomain(model): File {
+  _toDomain(model: FileModel): File {
     const file = File.build(model.toJSON());
     return file;
   }
 
-  toModel(domain) {
+  _toModel(domain: File): Partial<FileAttributes> {
     return domain.toJSON();
   }
 }
