@@ -33,10 +33,10 @@ export class Share extends Model {
 
   @ForeignKey(() => File)
   @Column(DataType.STRING(24))
-  file: string;
+  fileId: string;
 
-  @BelongsTo(() => File)
-  fileInfo: File;
+  @BelongsTo(() => File, 'file')
+  fileinfo: File;
 
   @Column(DataType.STRING(64))
   encryptionKey: string;
