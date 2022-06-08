@@ -6,6 +6,7 @@ import {
   Logger,
   UseGuards,
   Get,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -14,17 +15,25 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { MoveItemsToTrashDto } from './dto/move-items-to-trash.dto';
-import { TrashService } from './trash.service';
+import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
+// import { TrashService } from './trash.service';
 import { User } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
+import { FileService } from '../file/file.service';
+import { FolderService } from '../folder/folder.service';
+import { UserService } from '../user/user.service';
+import { ItemsToTrashEvent } from 'src/externals/notifications/events/items-to-trash.event';
+import { NotificationService } from 'src/externals/notifications/notification.service';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
 @UseGuards(AuthGuard('jwt'))
 export class TrashController {
   constructor(
-    private trashService: TrashService,
+    private fileService: FileService,
+    private folderService: FolderService,
+    private userService: UserService,
+    private notificationService: NotificationService,
     private readonly logger: Logger,
   ) {}
 
@@ -35,7 +44,17 @@ export class TrashController {
   })
   @ApiOkResponse({ description: 'Get all folders and files in trash' })
   async getTrash(@User() user: any) {
-    return await this.trashService.getTrash(user);
+    const folderId = user.rootFolderId;
+    const [currentFolder, childrenFolders, files] = await Promise.all([
+      this.folderService.getFolder(folderId),
+      this.folderService.getChildrenFoldersToUser(folderId, user.id, true),
+      this.fileService.getByFolderAndUser(folderId, user.id, true),
+    ]);
+    return {
+      ...currentFolder,
+      children: childrenFolders,
+      files,
+    };
   }
 
   @Post('add')
@@ -50,6 +69,33 @@ export class TrashController {
     @User() user: any,
     @Client() clientId: string,
   ) {
-    return await this.trashService.addItems(user, clientId, moveItemsDto);
+    const fileIds: string[] = [];
+    const folderIds: number[] = [];
+    for (const item of moveItemsDto.items) {
+      if (item.type === 'file') {
+        fileIds.push(item.id);
+      } else if (item.type === 'folder') {
+        folderIds.push(parseInt(item.id));
+      } else {
+        throw new BadRequestException(`type ${item.type} invalid`);
+      }
+    }
+    await Promise.all([
+      this.fileService.moveFilesToTrash(fileIds, user.id),
+      this.folderService.moveFoldersToTrash(folderIds),
+    ]);
+
+    const workspaceMembers =
+      await this.userService.getWorkspaceMembersByBrigeUser(user.bridgeUser);
+
+    workspaceMembers.forEach(({ email }: { email: string }) => {
+      const itemsToTrashEvent = new ItemsToTrashEvent(
+        moveItemsDto.items,
+        email,
+        clientId,
+      );
+      this.notificationService.add(itemsToTrashEvent);
+    });
+    return;
   }
 }

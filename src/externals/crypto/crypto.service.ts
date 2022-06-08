@@ -108,5 +108,4 @@ export class CryptoService {
       return null;
     }
   }
-  
 }

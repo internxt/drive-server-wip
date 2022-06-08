@@ -1,28 +1,11 @@
 # Drive Server
+[![ci](https://github.com/internxt/drive-server-wip/actions/workflows/code-coverage.yml/badge.svg)](https://github.com/internxt/drive-server-wip/actions/workflows/code-coverage.yml)
+[![codecov](https://codecov.io/gh/internxt/drive-server-wip/branch/master/graph/badge.svg?token=5D9UW1HSCK)](https://codecov.io/gh/internxt/drive-server-wip)
+[![node](https://img.shields.io/badge/node-16-brightgreen)](https://nodejs.org/download/release/latest-fermium/)
 
-## Prerrequisites
-
-* Node v10
-
-  ```nvm install v10```
-  
-  (Cannot be upgraded to higher version until [node-lib](https://github.com/internxt/node-lib) bindings fixed).
-
-* Yarn
+## Quick setup
 
   ```npm i -g yarn```
-
-* PM2
-
-  ```npm i -g pm2```
-
-* Node-gyp essentials
-
-  Ubuntu: ```sudo apt install python build-essential```
-
-  Windows: ```npm i -g windows-build-tools```
-
-  Mac: ```xcode-select --install```
 
 # Install
 
@@ -32,15 +15,14 @@
 
 #### Database setup (MariaDB)
 
-Create schema and configure `config/environments/development.json`
 
-Run `yarn run migrate` to create tables.
 
 #### Start app
 
 Run `yarn start` to start server in production mode.
 
 Run `yarn run dev` to start with nodemon and development environment.
+
 # Running:
 
 With docker-compose:

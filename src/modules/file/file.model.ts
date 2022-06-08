@@ -7,13 +7,14 @@ import {
   Index,
   HasMany
 } from 'sequelize-typescript';
+import { FileAttributes } from './file.domain';
 import { Share } from '../share/share.model';
 
 @Table({
   underscored: true,
   timestamps: true,
 })
-export class File extends Model {
+export class File extends Model implements FileAttributes {
   @PrimaryKey
   @Column
   id: number;
@@ -51,6 +52,12 @@ export class File extends Model {
 
   @Column
   modificationTime: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 
   @HasMany(() => Share)
   shares: Share[];
