@@ -1,4 +1,4 @@
-import { CryptoService } from 'src/externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto';
 
 export interface FileAttributes {
   id: number;
