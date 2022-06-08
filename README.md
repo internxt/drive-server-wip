@@ -4,14 +4,11 @@
 [![node](https://img.shields.io/badge/node-16-brightgreen)](https://nodejs.org/download/release/latest-fermium/)
 
 Drive server wip is the new API to Drive based in NestJS and following Clean Arquitecture and DDD(Domain Driven Design).
-## Quick Setup
 
-* Yarn
-
-  ```npm i -g yarn```
 
 ## Table of Contents
 
+- [Quick Setup](#quick-setup)
 - [Install](#how-to-install)
 - [Start the app](#start-app)
   - [Start with docker](#running-in-docker)
@@ -29,6 +26,12 @@ Drive server wip is the new API to Drive based in NestJS and following Clean Arq
   - [Middlewares](#middlewares)
   - [Libs](#libs)
 - [API Documentation](#api-documentation)
+
+## Quick Setup
+
+* Yarn
+
+  ```npm i -g yarn```
 
 ## How to Install
 
@@ -103,7 +106,15 @@ As an example, a 'file' module would be `src/modules/file`:
 Based in <a href="https://docs.nestjs.com/controllers" target="blank">Nest.js Controllers</a>. Contains endpoints for exposing the bussines logic of module.
 #### Defining Use Cases
 
+The use case is a function what include a real functional use case from user.
 
+To identify Use cases we can use: "As <User>, I want ... for ... Example: "As Web User I want move files to trash for delete later permanently"
+
+<strong>How coding use case?</strong>
+
+1. Use repository to get information from entity in database, repository return always domains.
+2. Update properties of domains o call functions with business-logic. Ex: File.moveToTrash()
+3. Persist repository in database with domain.
 
 #### Defining Domain
 
