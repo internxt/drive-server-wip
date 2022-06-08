@@ -20,8 +20,15 @@ Drive server wip is the new API to Drive based in NestJS and following Clean Arq
   - [End to End Testing](#end-to-end-testing)
 - [Guideline Nest.js](#guideline-nest.js)
   - [Modules](#modules)
+    - [Controllers](#defining-controllers)
+    - [Use Cases](#defining-use-cases)
+    - [Domain](#defining-domain)
+    - [Repository](#defining-repository)
   - [Externals](#externals)
-- [Swagger](#api-documentation-with-swagger)
+  - [Config](#conig)
+  - [Middlewares](#middlewares)
+  - [Libs](#libs)
+- [API Documentation](#api-documentation)
 
 ## How to Install
 
@@ -62,38 +69,56 @@ yarn run test:e2e
 
 
 ## Guideline Nest.js
-This project is based in <a href="http://nestjs.com/" target="blank">NestJS</a> and implement DDD (Domain Driven Design).
-Important in DDD is separate this layers:
+This project is based in <a href="http://nestjs.com/" target="blank">NestJS</a> and implements DDD (Domain Driven Design).
+Our implementation has these layers:
 - Use cases
 - Persistence
 - Domain
 - Controllers
 
-So, following best practices in NestJS we have 2 primary folders:
+The project has this main folders
 - Modules
 - Externals
+- Config
+- Middlewares
+- Lib
 
 ### Modules
-In this folder we have all "use cases" or "context" and following nest.js modules structure, we have 3 concepts of files:
+In this folder we have all "use cases" or "context" where the business logic and the controllers (to respect Nest architecture) are located:
 - <strong>Module:</strong> files with `*.module.ts`
-- <strong>Providers:</strong> files with `*.service.ts`
+- <strong>Use Cases:</strong> files with `*.usecase.ts`
 - <strong>Controllers:</strong> files with `*.controller.ts`
-- <strong>Model:</strong> files with `*.model.ts`
-
-And following DDD we include this concepts:
 - <strong>Domain:</strong> files with `*.domain.ts`
 - <strong>Repository:</strong> files with `*.repository.ts`
 
-So, example of module "File" `src/modules/file`:
-- <strong>Controllers:</strong> `file.controller.ts` http Requests with endpoints: POST /file/:id/move
-- <strong>Services:</strong> `file.service.ts` use cases of files: moveFile, call Repository to move file in database, and work with domains.
+As an example, a 'file' module would be `src/modules/file`:
+- <strong>Controllers:</strong> `file.controller.ts` Endpoints for exposing the business logic of the file module.
+- <strong>Use Cases:</strong> `file.usecase.ts` Contains all the use-cases that are related to the file domain: moving a file, removing a file, etc.
 - <strong>Domain:</strong> `file.domain.ts` Class File, all attributes and business-logic is here, but in this class we not include nothing about persistence or use cases.
-- <strong>Model:</strong> `file.model.ts` Entity Model in Sequelize(MariaDB)
-- <strong>Repository:</strong> `file.repository.ts` Class with all querys using model, but important, Repository response with domains(File) but never with model directly.
+- <strong>Repository:</strong> `file.repository.ts` Class with all querys to database using model.
 - <strong>Module:</strong> `file.module.ts` Module of Nest.js
 
+#### Defining Controllers
+
+Based in <a href="https://docs.nestjs.com/controllers" target="blank">Nest.js Controllers</a>. Contains endpoints for exposing the bussines logic of module.
+#### Defining Use Cases
+
+
+
+#### Defining Domain
+
+Domain is a "entity" agnostic with all properties and business-logic including global functionality to this domain. Domain ignore persistence layer, so, in domain never implement persistence,  as SQL, Redis or other.
+
+#### Defining Repository
+
+The repository is inside the persistence layer.
+Repository have model and query functions to search, insert,update, remove entities in specific database implementation.
+The repository always return Domain or collection of domains, so Repository have adapters from Model to Domain and Domain to Model.
+
+Information about repository pattern <a href="https://medium.com/@pererikbergman/repository-design-pattern-e28c0f3e4a30" target="blank">here<a>.
+
 ### Externals
-In this folder we have all librarys of third partys or not business-based.
+This folder contains third-party dependencies and external services whose usage could be necessary but is not business-related
 This structure is based in modules of <a href="http://nestjs.com/" target="blank">Nest.js</a> too.
 
 You require include your module in externals if:
@@ -103,7 +128,17 @@ You require include your module in externals if:
 - Your module have logic to call requests to externals APIS.
 - Your module doesn't have any business logic.
 
-## Api documentation with Swagger
+### Config
+
+In this folder include configuration file and map `process.env` variables.
+### Middlewares
+
+In this folder include middlewares to http requests, you have <a href="https://docs.nestjs.com/middleware" target="blank">documentation</a> about middlewares in Nest.js.
+
+### Libs
+
+In this folder include only librarys to server http and Nest.js
+## Api documentation
 We include swagger library in <a href="http://nestjs.com/" target="blank">Nest.js</a>, to show how use in project you have <a href="https://docs.nestjs.com/openapi/operations" target="blank">Official Documentation</a>.
 
 To show swagger when your server is up go to `localhost:3000/api`
