@@ -1,16 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AesService } from './aes.service';
+import { Logger } from '@nestjs/common';
+import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
-import { ConfigService } from '@nestjs/config';
+// import { ConfigService } from '@nestjs/config';
 
-@Injectable()
 export class CryptoService {
+  private aesService: AesService;
   private cryptoSecret: string;
-  constructor(
-    private aesService: AesService,
-    private configService: ConfigService,
-  ) {
-    this.cryptoSecret = configService.get('secrets.cryptoSecret');
+  constructor() {
+    this.aesService = new AesService();
+    this.cryptoSecret = process.env.CRYPTO_SECRET;
   }
 
   encryptName(name, salt) {
@@ -37,10 +35,7 @@ export class CryptoService {
 
   probabilisticEncryption(content) {
     try {
-      const b64 = CryptoJS.AES.encrypt(
-        content,
-        this.configService.get('secrets').cryptoSecret,
-      ).toString();
+      const b64 = CryptoJS.AES.encrypt(content, this.cryptoSecret).toString();
       const e64 = CryptoJS.enc.Base64.parse(b64);
       const eHex = e64.toString(CryptoJS.enc.Hex);
 

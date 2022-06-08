@@ -1,3 +1,5 @@
+import { CryptoService } from 'src/externals/crypto/crypto';
+
 export interface FileAttributes {
   id: number;
   fileId: string;
@@ -47,11 +49,11 @@ export class File implements FileAttributes {
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
-    this.name = name;
+    this.folderId = folderId;
+    this.name = this.decryptName(name);
     this.type = type;
     this.size = size;
     this.bucket = bucket;
-    this.folderId = folderId;
     this.encryptVersion = encryptVersion;
     this.deleted = deleted;
     this.deletedAt = deletedAt;
@@ -63,6 +65,10 @@ export class File implements FileAttributes {
 
   static build(file: FileAttributes): File {
     return new File(file);
+  }
+  decryptName(name) {
+    const cryptoService = new CryptoService();
+    return cryptoService.decryptName(name, this.folderId);
   }
 
   toJSON() {

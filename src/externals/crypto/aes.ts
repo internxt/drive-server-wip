@@ -18,21 +18,16 @@
 //            it has to be cryptographic safe - this means randomBytes or derived by pbkdf2 (for example)
 // TEXT:      data (utf8 string) which should be encoded. modify the code to use Buffer for binary data!
 // ENCDATA:   encrypted data as base64 string (format mentioned on top)
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-// import { ConfigService } from '@nestjs/config';
 import crypto from 'crypto';
 
-@Injectable()
 export class AesService {
   private magicIv;
   private magicSalt;
   private cryptoKey;
-  constructor(configService: ConfigService) {
-    const { magicIv, magicSalt, cryptoSecret2 } = configService.get('secrets'); // TODO: Config custom
-    this.magicIv = magicIv;
-    this.magicSalt = magicSalt;
-    this.cryptoKey = cryptoSecret2;
+  constructor() {
+    this.magicIv = process.env.MAGIC_IV;
+    this.magicSalt = process.env.MAGIC_SALT;
+    this.cryptoKey = process.env.CRYPTO_SECRET2;
   }
 
   encrypt(text, originalSalt, randomIv = false) {
