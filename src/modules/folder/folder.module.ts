@@ -3,10 +3,9 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFolderRepository } from './folder.repository';
 import { Folder } from './folder.model';
 import { FolderService } from './folder.service';
-import { CryptoModule } from '../../externals/crypto/crypto.module';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Folder]), CryptoModule],
+  imports: [SequelizeModule.forFeature([Folder])],
   controllers: [],
   providers: [SequelizeFolderRepository, FolderService],
   exports: [FolderService],
