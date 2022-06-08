@@ -1,47 +1,60 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Folder } from './folder.model';
-
+import { Folder as FolderModel } from './folder.model';
+import { Folder, FolderAttributes } from './folder.domain';
+import { Op } from 'sequelize';
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
-    parentId: number,
-    userId: string,
-    deleted: boolean,
+    parentId: FolderAttributes['parentId'],
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []>;
-  findById(folderId: number): Promise<Folder | null>;
-  updateByFolderId(folderId: number, update: Partial<Folder>): Promise<Folder>;
+  findById(folderId: FolderAttributes['id']): Promise<Folder | null>;
+  updateByFolderId(
+    folderId: FolderAttributes['id'],
+    update: Partial<Folder>,
+  ): Promise<Folder>;
+  updateManyByFolderId(
+    folderIds: FolderAttributes['id'][],
+    update: Partial<Folder>,
+  ): Promise<void>;
+  _toDomain(model: FolderModel): Folder;
+  _toModel(domain: Folder): Partial<FolderAttributes>;
 }
 
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
   constructor(
-    @InjectModel(Folder)
-    private folderModel: typeof Folder,
+    @InjectModel(FolderModel)
+    private folderModel: typeof FolderModel,
   ) {}
 
   async findAll(): Promise<Array<Folder> | []> {
-    return await this.folderModel.findAll();
+    const folders = await this.folderModel.findAll();
+    return folders.map((folder) => this._toDomain(folder));
   }
   async findAllByParentIdAndUserId(
-    parentId: number,
-    userId: string,
-    deleted: boolean,
+    parentId: FolderAttributes['parentId'],
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []> {
-    return await this.folderModel.findAll({
+    const folders = await this.folderModel.findAll({
       where: { parentId, userId, deleted: deleted ? 1 : 0 },
     });
+    return folders.map((folder) => this._toDomain(folder));
   }
-  async findById(folderId: number): Promise<Folder> {
-    return await this.folderModel.findOne({
+  async findById(folderId: FolderAttributes['id']): Promise<Folder> {
+    const folder = await this.folderModel.findOne({
       where: {
         id: folderId,
       },
     });
+    return this._toDomain(folder);
   }
 
   async updateByFolderId(
-    folderId: number,
+    folderId: FolderAttributes['id'],
     update: Partial<Folder>,
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({
@@ -55,6 +68,30 @@ export class SequelizeFolderRepository implements FolderRepository {
     }
     folder.set(update);
     await folder.save();
-    return folder;
+    return this._toDomain(folder);
+  }
+
+  async updateManyByFolderId(
+    folderIds: FolderAttributes['id'][],
+    update: Partial<Folder>,
+  ): Promise<void> {
+    await this.folderModel.update(update, {
+      where: {
+        id: {
+          [Op.in]: folderIds,
+        },
+      },
+    });
+  }
+
+  _toDomain(model: FolderModel): Folder {
+    return Folder.build({
+      ...model.toJSON(),
+      parent: model.parent ? Folder.build(model.parent) : null,
+    });
+  }
+
+  _toModel(domain: Folder): Partial<FolderAttributes> {
+    return domain.toJSON();
   }
 }
