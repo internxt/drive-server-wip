@@ -16,6 +16,7 @@ import { NotificationModule } from './externals/notifications/notifications.modu
     ConfigModule.forRoot({
       envFilePath: [`.env.${process.env.NODE_ENV}`],
       load: [configuration],
+      isGlobal: true,
     }),
     SequelizeModule.forRootAsync({
       imports: [ConfigModule],
@@ -51,7 +52,7 @@ import { NotificationModule } from './externals/notifications/notifications.modu
           } else {
             Logger.debug(`Could not parse sql content: ${content}`);
           }
-        }
+        },
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),

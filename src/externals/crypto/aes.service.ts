@@ -19,15 +19,16 @@
 // TEXT:      data (utf8 string) which should be encoded. modify the code to use Buffer for binary data!
 // ENCDATA:   encrypted data as base64 string (format mentioned on top)
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 // import { ConfigService } from '@nestjs/config';
 import crypto from 'crypto';
 
 @Injectable()
 export class AesService {
-  magicIv;
-  magicSalt;
-  cryptoKey;
-  constructor(configService) {
+  private magicIv;
+  private magicSalt;
+  private cryptoKey;
+  constructor(configService: ConfigService) {
     const { magicIv, magicSalt, cryptoSecret2 } = configService.get('secrets'); // TODO: Config custom
     this.magicIv = magicIv;
     this.magicSalt = magicSalt;
@@ -103,10 +104,11 @@ export class AesService {
     );
 
     // AES 256 GCM Mode
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    const decipher: any = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
 
     // encrypt the given text
+
     const decrypted =
       decipher.update(text, 'binary', 'utf8') + decipher.final('utf-8');
 
