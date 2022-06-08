@@ -18,8 +18,8 @@ Drive server wip is the new API to Drive based in NestJS and following Clean Arq
 - [Guideline Nest.js](#guideline-nest.js)
   - [Modules](#modules)
     - [Controllers](#defining-controllers)
-    - [Use Cases](#defining-use-cases)
     - [Domain](#defining-domain)
+    - [Use Cases](#defining-use-cases)
     - [Repository](#defining-repository)
   - [Externals](#externals)
   - [Config](#conig)
@@ -104,6 +104,40 @@ As an example, a 'file' module would be `src/modules/file`:
 #### Defining Controllers
 
 Based in <a href="https://docs.nestjs.com/controllers" target="blank">Nest.js Controllers</a>. Contains endpoints for exposing the bussines logic of module.
+
+#### Defining Domain
+
+Domain is a "entity" agnostic with all properties and business-logic including global functionality to this domain. Domain ignore persistence layer, so, in domain never implement persistence,  as SQL, Redis or other.
+
+Example of Domain
+```
+# file.domain.ts
+
+export class File implements FileAttributes{
+  fileId: number;
+  deleted: boolean;
+  deletedAt: boolean;
+  bucket: string;
+
+  constructor({...}){
+    ...
+  }
+
+  moveToTrash() {
+    this.deleted = true;
+    this.deletedAt = new Date();
+  }
+
+  moveTo(bucket) {
+    if(this.bucket === bucket) {
+      throw Error('you cannot move file to this directory')
+    }
+    this.bucket = bucket;
+  }
+}
+
+```
+
 #### Defining Use Cases
 
 The use case is a function what include a real functional use case from user.
@@ -116,9 +150,39 @@ To identify Use cases we can use: "As <User>, I want ... for ... Example: "As We
 2. Update properties of domains o call functions with business-logic. Ex: File.moveToTrash()
 3. Persist repository in database with domain.
 
-#### Defining Domain
+Example of use case:
+```
+# file.usecase.ts
 
-Domain is a "entity" agnostic with all properties and business-logic including global functionality to this domain. Domain ignore persistence layer, so, in domain never implement persistence,  as SQL, Redis or other.
+export class FileUseCase {
+  constructor(private fileRepository: FileRepository) {}
+
+  async moveToTrash(fileId) {
+    const file = await this.fileRepository.findOne({ fileId });
+    if(!file) {
+      throw new Error('file not found');
+    }
+    file.moveToTrash();
+
+    await this.fileRepository.update(file)
+
+    return file;
+  }
+
+  async moveTo(fileId, destination) {
+    const file = await this.fileRepository.findOne({ fileId });
+    if(!file) {
+      throw new Error('file not found');
+    }
+    file.moveTo(destination);
+
+    await this.fileRepository.update(file)
+
+    return file;
+  }
+}
+
+```
 
 #### Defining Repository
 
