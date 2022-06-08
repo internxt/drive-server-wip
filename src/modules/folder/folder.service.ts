@@ -1,21 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CryptoService } from '../../externals/crypto/crypto.service';
 import { Folder, FolderAttributes } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
 
 @Injectable()
 export class FolderService {
-  constructor(
-    private folderRepository: SequelizeFolderRepository,
-    private cryptoService: CryptoService,
-  ) {}
+  constructor(private folderRepository: SequelizeFolderRepository) {}
 
   async getFolder(folderId: FolderAttributes['id']) {
     const folder = await this.folderRepository.findById(folderId);
     if (!folder) {
       throw new NotFoundException(`Folder with ID ${folderId} not found`);
     }
-    folder.name = this.cryptoService.decryptName(folder.name, folderId);
     return folder.toJSON();
   }
 
@@ -30,16 +25,7 @@ export class FolderService {
       deleted,
     );
 
-    const foldersWithNameDecrypted = [];
-
-    for (const folder of folders) {
-      foldersWithNameDecrypted.push({
-        ...folder,
-        name: this.cryptoService.decryptName(folder.name, folderId),
-      });
-    }
-
-    return foldersWithNameDecrypted;
+    return folders;
   }
 
   async moveFolderToTrash(folderId: FolderAttributes['id']): Promise<Folder> {
