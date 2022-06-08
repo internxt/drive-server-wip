@@ -1,4 +1,17 @@
-export class Share {
+export interface ShareAttributes {
+  id: number;
+  token: string;
+  mnemonic: string;
+  user: number;
+  file: string;
+  encryptionKey: string;
+  bucket: string;
+  fileToken: string;
+  isFolder: boolean;
+  views: number;
+}
+
+export class Share implements ShareAttributes {
   id: number;
   token: string;
   mnemonic: string;
@@ -33,30 +46,8 @@ export class Share {
     this.views = views;
   }
 
-  static build({
-    id,
-    token,
-    mnemonic,
-    user,
-    file,
-    encryptionKey,
-    bucket,
-    fileToken,
-    isFolder,
-    views,
-  }) {
-    return new Share({
-      id,
-      token,
-      mnemonic,
-      user,
-      file,
-      encryptionKey,
-      bucket,
-      fileToken,
-      isFolder,
-      views,
-    });
+  static build(share: ShareAttributes): Share {
+    return new Share(share);
   }
 
   toJSON() {
@@ -73,5 +64,4 @@ export class Share {
       views: this.views,
     };
   }
-
 }
