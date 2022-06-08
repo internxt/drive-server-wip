@@ -2,19 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FileService } from './file.service';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { NotFoundException } from '@nestjs/common';
-import { CryptoService } from '../../services/crypto/crypto.service';
 
 const mockFileRepository = () => ({
   updateByFieldIdAndUserId: jest.fn(),
   findAllByFolderIdAndUserId: jest.fn(),
 });
 
-const mockCryptoService = () => ({
-  decryptName: jest.fn(),
-});
-
 const fileId = '6295c99a241bb000083f1c6a';
-const userId = '1';
+const userId = 1;
 const folderId = 4;
 describe('FileService', () => {
   let service: FileService;
@@ -29,16 +24,11 @@ describe('FileService', () => {
           provide: SequelizeFileRepository,
           useFactory: mockFileRepository,
         },
-        {
-          provide: CryptoService,
-          useFactory: mockCryptoService,
-        },
       ],
     }).compile();
 
     service = module.get<FileService>(FileService);
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
-    cryptoService = module.get<CryptoService>(CryptoService);
   });
 
   it('should be defined', () => {
@@ -79,7 +69,6 @@ describe('FileService', () => {
         userId,
         false,
       );
-      expect(cryptoService.decryptName).not.toHaveBeenCalled();
     });
 
     it('calls getByFolderAndUser and return files', async () => {
@@ -87,7 +76,6 @@ describe('FileService', () => {
       fileRepository.findAllByFolderIdAndUserId.mockResolvedValue([
         { id: '1', name: 'test' },
       ]);
-      cryptoService.decryptName.mockReturnValue('test');
       const result = await service.getByFolderAndUser(folderId, userId, false);
       expect(result).toEqual(mockFile);
       expect(fileRepository.findAllByFolderIdAndUserId).toHaveBeenNthCalledWith(
@@ -95,11 +83,6 @@ describe('FileService', () => {
         folderId,
         userId,
         false,
-      );
-      expect(cryptoService.decryptName).toHaveBeenNthCalledWith(
-        1,
-        'test',
-        folderId,
       );
     });
   });
