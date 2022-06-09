@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFileRepository } from './file.repository';
-import { FileService } from './file.service';
+import { FileService } from './file.usecase';
 import { FileModel } from './file.repository';
 
 @Module({
