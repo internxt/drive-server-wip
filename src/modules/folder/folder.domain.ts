@@ -1,3 +1,4 @@
+import { CryptoService } from '../../externals/crypto/crypto';
 export interface FolderAttributes {
   id: number;
   parentId: number;
@@ -40,7 +41,7 @@ export class Folder implements FolderAttributes {
     this.id = id;
     this.parentId = parentId;
     this.parent = parent;
-    this.name = name;
+    this.name = this.decryptName(name);
     this.bucket = bucket;
     this.userId = userId;
     this.encryptVersion = encryptVersion;
@@ -52,6 +53,10 @@ export class Folder implements FolderAttributes {
 
   static build(file: FolderAttributes): Folder {
     return new Folder(file);
+  }
+  decryptName(nameEncrypted) {
+    const cryptoService = CryptoService.getInstance();
+    return cryptoService.decryptName(nameEncrypted, this.parentId);
   }
 
   set parent(parent) {
