@@ -1,15 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderAttributes } from '../folder/folder.domain';
 import { FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
-
 @Injectable()
 export class FileService {
-  constructor(
-    private fileRepository: SequelizeFileRepository,
-    private cryptoService: CryptoService,
-  ) {}
+  constructor(private fileRepository: SequelizeFileRepository) {}
 
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
@@ -22,16 +17,7 @@ export class FileService {
       deleted,
     );
 
-    const filesWithNameDecrypted = [];
-
-    for (const file of files) {
-      filesWithNameDecrypted.push({
-        ...file,
-        name: this.cryptoService.decryptName(file.name, folderId),
-      });
-    }
-
-    return filesWithNameDecrypted;
+    return files;
   }
 
   async moveFilesToTrash(

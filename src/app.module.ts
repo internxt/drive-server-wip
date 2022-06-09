@@ -17,6 +17,7 @@ import { ShareModule } from './modules/share/share.module';
     ConfigModule.forRoot({
       envFilePath: [`.env.${process.env.NODE_ENV}`],
       load: [configuration],
+      isGlobal: true,
     }),
     SequelizeModule.forRootAsync({
       imports: [ConfigModule],

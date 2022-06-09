@@ -18,20 +18,16 @@
 //            it has to be cryptographic safe - this means randomBytes or derived by pbkdf2 (for example)
 // TEXT:      data (utf8 string) which should be encoded. modify the code to use Buffer for binary data!
 // ENCDATA:   encrypted data as base64 string (format mentioned on top)
-import { Injectable } from '@nestjs/common';
-// import { ConfigService } from '@nestjs/config';
 import crypto from 'crypto';
 
-@Injectable()
 export class AesService {
-  magicIv;
-  magicSalt;
-  cryptoKey;
-  constructor(configService) {
-    const { magicIv, magicSalt, cryptoSecret2 } = configService.get('secrets'); // TODO: Config custom
-    this.magicIv = magicIv;
-    this.magicSalt = magicSalt;
-    this.cryptoKey = cryptoSecret2;
+  private magicIv;
+  private magicSalt;
+  private cryptoKey;
+  constructor() {
+    this.magicIv = process.env.MAGIC_IV;
+    this.magicSalt = process.env.MAGIC_SALT;
+    this.cryptoKey = process.env.CRYPTO_SECRET2;
   }
 
   encrypt(text, originalSalt, randomIv = false) {
@@ -75,13 +71,13 @@ export class AesService {
 
   decrypt(encdata, folderId) {
     // base64 decoding
-    const bData = Buffer.from(encdata, 'base64');
+    const bData: Buffer = Buffer.from(encdata, 'base64');
 
     // convert data to buffers
-    const salt = bData.slice(0, 64);
-    const iv = bData.slice(64, 80);
-    const tag = bData.slice(80, 96);
-    const text = bData.slice(96);
+    const salt: Buffer = bData.slice(0, 64);
+    const iv: Buffer = bData.slice(64, 80);
+    const tag: Buffer = bData.slice(80, 96);
+    const text: Buffer = bData.slice(96);
 
     if (
       salt.length === 0 ||
@@ -94,7 +90,7 @@ export class AesService {
     }
 
     // derive key using; 32 byte key length
-    const key = crypto.pbkdf2Sync(
+    const key: crypto.CipherKey = crypto.pbkdf2Sync(
       `${this.cryptoKey}-${folderId}`,
       salt,
       2145,
@@ -103,12 +99,17 @@ export class AesService {
     );
 
     // AES 256 GCM Mode
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    const decipher: crypto.DecipherCCM = crypto.createDecipheriv(
+      'aes-256-gcm',
+      key,
+      iv,
+    );
     decipher.setAuthTag(tag);
 
     // encrypt the given text
-    const decrypted =
-      decipher.update(text, 'binary', 'utf8') + decipher.final('utf-8');
+    const decrypted: string =
+      decipher.update(text as unknown as string, 'binary', 'utf8') +
+      decipher.final('utf-8');
 
     return decrypted;
   }
