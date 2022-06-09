@@ -5,7 +5,8 @@ import {
   PrimaryKey,
   DataType,
   Index,
-  HasMany
+  HasOne,
+  HasMany,
 } from 'sequelize-typescript';
 import { FileAttributes } from './file.domain';
 import { Share } from '../share/share.model';
@@ -59,6 +60,6 @@ export class File extends Model implements FileAttributes {
   @Column
   updatedAt: Date;
 
-  @HasMany(() => Share)
-  shares: Share[];
+  @HasMany(() => Share, 'file')
+  share: Share;
 }
