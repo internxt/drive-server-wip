@@ -1,10 +1,12 @@
+import { File } from '../file/file.domain';
+
 export interface ShareAttributes {
   id: number;
   token: string;
   mnemonic: string;
   user: number;
-  file: string;
-  fileInfo: object;
+  fileId: string;
+  file: any;
   encryptionKey: string;
   bucket: string;
   fileToken: string;
@@ -17,8 +19,8 @@ export class Share implements ShareAttributes {
   token: string;
   mnemonic: string;
   user: number;
-  file: string;
-  fileInfo: object;
+  fileId: string;
+  file: File;
   encryptionKey: string;
   bucket: string;
   fileToken: string;
@@ -29,8 +31,8 @@ export class Share implements ShareAttributes {
     token,
     mnemonic,
     user,
+    fileId,
     file,
-    fileInfo,
     encryptionKey,
     bucket,
     fileToken,
@@ -41,8 +43,8 @@ export class Share implements ShareAttributes {
     this.token = token;
     this.mnemonic = mnemonic;
     this.user = user;
-    this.file = file;
-    this.fileInfo = fileInfo;
+    this.file = fileId;
+    this.setFile(file);
     this.encryptionKey = encryptionKey;
     this.bucket = bucket;
     this.fileToken = fileToken;
@@ -52,6 +54,12 @@ export class Share implements ShareAttributes {
 
   static build(share: ShareAttributes): Share {
     return new Share(share);
+  }
+  setFile(file) {
+    if (file && !(file instanceof File)) {
+      throw Error('file invalid');
+    }
+    this.file = file;
   }
 
   toJSON() {

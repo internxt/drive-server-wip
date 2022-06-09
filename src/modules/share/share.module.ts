@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { File } from '../file/file.model';
-import { Folder } from '../folder/folder.model';
+import { FileModel } from '../file/file.repository';
+import { FolderModel } from '../folder/folder.repository';
 import { ShareController } from './share.controller';
-import { Share } from './share.model';
-import { SequelizeShareRepository } from './share.repository';
+import { SequelizeShareRepository, ShareModel } from './share.repository';
 import { ShareService } from './share.service';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Share, File, Folder])],
+  imports: [SequelizeModule.forFeature([ShareModel, FileModel, FolderModel])],
   controllers: [ShareController],
   providers: [SequelizeShareRepository, ShareService],
 })
