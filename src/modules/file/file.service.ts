@@ -1,13 +1,10 @@
 import { Injectable } from '@nestjs/common';
-// import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderAttributes } from '../folder/folder.domain';
 import { FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 @Injectable()
 export class FileService {
-  constructor(
-    private fileRepository: SequelizeFileRepository, // private cryptoService: CryptoService,
-  ) {}
+  constructor(private fileRepository: SequelizeFileRepository) {}
 
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],

@@ -67,7 +67,7 @@ export class File implements FileAttributes {
     return new File(file);
   }
   decryptName(name) {
-    const cryptoService = new CryptoService();
+    const cryptoService = CryptoService.getInstance();
     return cryptoService.decryptName(name, this.folderId);
   }
 

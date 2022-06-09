@@ -71,13 +71,13 @@ export class AesService {
 
   decrypt(encdata, folderId) {
     // base64 decoding
-    const bData = Buffer.from(encdata, 'base64');
+    const bData: Buffer = Buffer.from(encdata, 'base64');
 
     // convert data to buffers
-    const salt = bData.slice(0, 64);
-    const iv = bData.slice(64, 80);
-    const tag = bData.slice(80, 96);
-    const text = bData.slice(96);
+    const salt: Buffer = bData.slice(0, 64);
+    const iv: Buffer = bData.slice(64, 80);
+    const tag: Buffer = bData.slice(80, 96);
+    const text: Buffer = bData.slice(96);
 
     if (
       salt.length === 0 ||
@@ -90,7 +90,7 @@ export class AesService {
     }
 
     // derive key using; 32 byte key length
-    const key = crypto.pbkdf2Sync(
+    const key: crypto.CipherKey = crypto.pbkdf2Sync(
       `${this.cryptoKey}-${folderId}`,
       salt,
       2145,
@@ -99,13 +99,17 @@ export class AesService {
     );
 
     // AES 256 GCM Mode
-    const decipher: any = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    const decipher: crypto.DecipherCCM = crypto.createDecipheriv(
+      'aes-256-gcm',
+      key,
+      iv,
+    );
     decipher.setAuthTag(tag);
 
     // encrypt the given text
-
-    const decrypted =
-      decipher.update(text, 'binary', 'utf8') + decipher.final('utf-8');
+    const decrypted: string =
+      decipher.update(text as unknown as string, 'binary', 'utf8') +
+      decipher.final('utf-8');
 
     return decrypted;
   }
