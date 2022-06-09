@@ -1,4 +1,6 @@
 import { CryptoService } from '../../externals/crypto/crypto';
+import { Folder } from '../folder/folder.domain';
+import { User } from '../user/user.domain';
 
 export interface FileAttributes {
   id: number;
@@ -8,10 +10,12 @@ export interface FileAttributes {
   size: bigint;
   bucket: string;
   folderId: number;
+  folder?: any;
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
   userId: number;
+  user?: any;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -24,10 +28,12 @@ export class File implements FileAttributes {
   size: bigint;
   bucket: string;
   folderId: number;
+  folder: Folder;
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
   userId: number;
+  user: User;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -39,10 +45,12 @@ export class File implements FileAttributes {
     size,
     bucket,
     folderId,
+    folder,
     encryptVersion,
     deleted,
     deletedAt,
     userId,
+    user,
     modificationTime,
     createdAt,
     updatedAt,
@@ -50,6 +58,7 @@ export class File implements FileAttributes {
     this.id = id;
     this.fileId = fileId;
     this.folderId = folderId;
+    this.setFolder(folder);
     this.name = this.decryptName(name);
     this.type = type;
     this.size = size;
@@ -58,6 +67,7 @@ export class File implements FileAttributes {
     this.deleted = deleted;
     this.deletedAt = deletedAt;
     this.userId = userId;
+    this.setUser(user);
     this.modificationTime = modificationTime;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -66,9 +76,31 @@ export class File implements FileAttributes {
   static build(file: FileAttributes): File {
     return new File(file);
   }
-  decryptName(name) {
+  private decryptName(name) {
     const cryptoService = CryptoService.getInstance();
     return cryptoService.decryptName(name, this.folderId);
+  }
+
+  setFolder(folder) {
+    if (folder && !(folder instanceof Folder)) {
+      throw Error('folder invalid');
+    }
+    this.folder = folder;
+  }
+  setUser(user) {
+    if (user && !(user instanceof User)) {
+      throw Error('user invalid');
+    }
+    this.user = user;
+  }
+  moveToTrash() {
+    this.deleted = true;
+    this.deletedAt = new Date();
+  }
+
+  removeFromTrash() {
+    this.deleted = false;
+    this.deletedAt = null;
   }
 
   toJSON() {
@@ -80,10 +112,12 @@ export class File implements FileAttributes {
       size: this.size,
       bucket: this.bucket,
       folderId: this.folderId,
+      folder: this.folder,
       encryptVersion: this.encryptVersion,
       deleted: this.deleted,
       deletedAt: this.deletedAt,
       userId: this.userId,
+      user: this.user,
       modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,

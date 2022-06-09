@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FolderService } from './folder.service';
+import { FolderService } from './folder.usecase';
 import {
   SequelizeFolderRepository,
   FolderRepository,
@@ -7,7 +7,7 @@ import {
 import { NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { Folder } from './folder.domain';
-import { Folder as FolderModel } from './folder.model';
+import { FolderModel } from './folder.repository';
 
 const folderId = 4;
 const userId = 1;
@@ -78,10 +78,19 @@ describe('FolderService', () => {
         deletedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
+        user: null,
+        parent: null,
       });
       jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
       const result = await service.getFolder(folderId);
-      expect(result).toEqual(mockFolder);
+      expect(result).toMatchObject({
+        id: 1,
+        bucket: 'bucket',
+        userId: 1,
+        encryptVersion: '2',
+        deleted: true,
+        parent: null,
+      });
       expect(folderRepository.findById).toHaveBeenNthCalledWith(1, folderId);
     });
 
