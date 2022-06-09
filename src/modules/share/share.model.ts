@@ -10,6 +10,7 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { File } from '../file/file.model';
+import { Folder } from '../folder/folder.model';
 
 @Table({
   underscored: true,
@@ -32,11 +33,13 @@ export class Share extends Model {
   user: number;
 
   @ForeignKey(() => File)
+  @ForeignKey(() => Folder)
   @Column(DataType.STRING(24))
   fileId: string;
 
   @BelongsTo(() => File, 'file')
-  fileinfo: File;
+  @BelongsTo(() => Folder, 'id')
+  item: File;
 
   @Column(DataType.STRING(64))
   encryptionKey: string;

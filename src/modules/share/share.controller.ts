@@ -15,7 +15,7 @@ export class ShareController {
   @ApiOperation({
     summary: 'Get share list',
   })
-  @ApiOkResponse({ description: 'Get all sahres in a list' })
+  @ApiOkResponse({ description: 'Get all shares in a list' })
   async listShares(@User() user: any) {
     return await this.shareService.listByUser(user);
   }

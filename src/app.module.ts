@@ -52,17 +52,17 @@ import { ShareModule } from './modules/share/share.module';
           } else {
             Logger.debug(`Could not parse sql content: ${content}`);
           }
-        }
+        },
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
     NotificationModule,
     FileModule,
     FolderModule,
+    ShareModule,
     TrashModule,
     AuthModule,
     UserModule,
-    ShareModule,
   ],
   controllers: [],
   providers: [],
