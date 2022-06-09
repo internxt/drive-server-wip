@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFolderRepository } from './folder.repository';
-import { Folder } from './folder.model';
 import { FolderService } from './folder.service';
+import { FolderModel } from './folder.repository';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Folder])],
+  imports: [SequelizeModule.forFeature([FolderModel])],
   controllers: [],
   providers: [SequelizeFolderRepository, FolderService],
   exports: [FolderService],

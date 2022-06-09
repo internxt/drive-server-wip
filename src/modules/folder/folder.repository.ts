@@ -1,8 +1,67 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Folder as FolderModel } from './folder.model';
 import { Folder, FolderAttributes } from './folder.domain';
 import { Op } from 'sequelize';
+import {
+  Column,
+  Model,
+  Table,
+  PrimaryKey,
+  DataType,
+  Default,
+  AutoIncrement,
+  AllowNull,
+  BelongsTo,
+  ForeignKey,
+  Index,
+} from 'sequelize-typescript';
+@Table({
+  underscored: true,
+  timestamps: true,
+  tableName: 'folders',
+})
+export class FolderModel extends Model implements FolderAttributes {
+  @PrimaryKey
+  @AutoIncrement
+  @Column
+  id: number;
+
+  @ForeignKey(() => FolderModel)
+  @Column
+  parentId: number;
+
+  @BelongsTo(() => FolderModel)
+  parent: Folder;
+
+  @Index
+  @Column
+  name: string;
+
+  @Column(DataType.STRING(24))
+  bucket: string;
+
+  // TODO: References user
+  @Column
+  userId: number;
+
+  @Column
+  encryptVersion: string;
+
+  @Default(false)
+  @Column
+  deleted: boolean;
+
+  @AllowNull
+  @Column
+  deletedAt: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
+}
+
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
