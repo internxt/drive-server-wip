@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FileService } from './file.service';
+import { FileService } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { NotFoundException } from '@nestjs/common';
 import { File as FileModel } from './file.model';

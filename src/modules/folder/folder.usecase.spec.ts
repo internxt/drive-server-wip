@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FolderService } from './folder.service';
+import { FolderService } from './folder.usecase';
 import {
   SequelizeFolderRepository,
   FolderRepository,
