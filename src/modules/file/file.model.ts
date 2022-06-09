@@ -60,6 +60,6 @@ export class File extends Model implements FileAttributes {
   @Column
   updatedAt: Date;
 
-  @HasMany(() => Share, 'file')
+  @HasMany(() => Share, 'fileId')
   share: Share;
 }

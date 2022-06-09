@@ -4,6 +4,7 @@ export interface ShareAttributes {
   mnemonic: string;
   user: number;
   file: string;
+  fileInfo: object;
   encryptionKey: string;
   bucket: string;
   fileToken: string;
@@ -17,6 +18,7 @@ export class Share implements ShareAttributes {
   mnemonic: string;
   user: number;
   file: string;
+  fileInfo: object;
   encryptionKey: string;
   bucket: string;
   fileToken: string;
@@ -28,6 +30,7 @@ export class Share implements ShareAttributes {
     mnemonic,
     user,
     file,
+    fileInfo,
     encryptionKey,
     bucket,
     fileToken,
@@ -39,6 +42,7 @@ export class Share implements ShareAttributes {
     this.mnemonic = mnemonic;
     this.user = user;
     this.file = file;
+    this.fileInfo = fileInfo;
     this.encryptionKey = encryptionKey;
     this.bucket = bucket;
     this.fileToken = fileToken;
