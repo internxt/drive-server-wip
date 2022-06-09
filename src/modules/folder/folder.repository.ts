@@ -15,6 +15,8 @@ import {
   ForeignKey,
   Index,
 } from 'sequelize-typescript';
+import { UserModel } from '../user/user.repository';
+import { User } from '../user/user.domain';
 @Table({
   underscored: true,
   timestamps: true,
@@ -31,7 +33,7 @@ export class FolderModel extends Model implements FolderAttributes {
   parentId: number;
 
   @BelongsTo(() => FolderModel)
-  parent: Folder;
+  parent: FolderModel;
 
   @Index
   @Column
@@ -40,9 +42,12 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column(DataType.STRING(24))
   bucket: string;
 
-  // TODO: References user
+  @ForeignKey(() => UserModel)
   @Column
   userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
 
   @Column
   encryptVersion: string;
@@ -147,6 +152,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     return Folder.build({
       ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
+      user: model.user ? User.build(model.user) : null,
     });
   }
 

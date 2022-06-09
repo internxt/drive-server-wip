@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes } from './file.domain';
 import { Op } from 'sequelize';
+import { FolderModel } from '../folder/folder.repository';
 
 import {
   Column,
@@ -10,7 +11,12 @@ import {
   PrimaryKey,
   DataType,
   Index,
+  BelongsTo,
+  ForeignKey,
 } from 'sequelize-typescript';
+import { UserModel } from '../user/user.repository';
+import { User } from '../user/user.domain';
+import { Folder } from '../folder/folder.domain';
 @Table({
   underscored: true,
   timestamps: true,
@@ -37,8 +43,12 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.STRING(24))
   bucket: string;
 
+  @ForeignKey(() => FolderModel)
   @Column(DataType.INTEGER)
   folderId: number;
+
+  @BelongsTo(() => FolderModel)
+  folder: FolderModel;
 
   @Column
   encryptVersion: string;
@@ -49,8 +59,12 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   deletedAt: Date;
 
+  @ForeignKey(() => UserModel)
   @Column
   userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
 
   @Column
   modificationTime: Date;
@@ -162,7 +176,11 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   _toDomain(model: FileModel): File {
-    const file = File.build(model.toJSON());
+    const file = File.build({
+      ...model.toJSON(),
+      folder: model.folder ? Folder.build(model.folder) : null,
+      user: model.user ? User.build(model.user) : null,
+    });
     return file;
   }
 
