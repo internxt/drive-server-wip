@@ -74,7 +74,6 @@ export class SequelizeShareRepository implements ShareRepository {
   ) {}
 
   async findAllByUser(user): Promise<Array<Share> | []> {
-    console.log(user.id);
     const files = await this.shareModel.findAll({
       where: {
         user: user.email,
@@ -83,13 +82,11 @@ export class SequelizeShareRepository implements ShareRepository {
       include: [
         {
           model: this.fileModel,
-          // where: { user_id: 1 },
+          where: { userId: user.id },
         },
       ],
     });
     return files.map((file) => {
-      console.log(file);
-      // return file;
       return this.toDomain(file);
     });
   }
