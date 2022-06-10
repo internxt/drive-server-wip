@@ -1,8 +1,80 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { File as FileModel } from './file.model';
 import { File, FileAttributes } from './file.domain';
 import { Op } from 'sequelize';
+import { FolderModel } from '../folder/folder.repository';
+
+import {
+  Column,
+  Model,
+  Table,
+  PrimaryKey,
+  DataType,
+  Index,
+  BelongsTo,
+  ForeignKey,
+} from 'sequelize-typescript';
+import { UserModel } from '../user/user.repository';
+import { User } from '../user/user.domain';
+import { Folder } from '../folder/folder.domain';
+@Table({
+  underscored: true,
+  timestamps: true,
+  tableName: 'files',
+})
+export class FileModel extends Model implements FileAttributes {
+  @PrimaryKey
+  @Column
+  id: number;
+
+  @Column(DataType.STRING(24))
+  fileId: string;
+
+  @Index
+  @Column
+  name: string;
+
+  @Column
+  type: string;
+
+  @Column(DataType.BIGINT.UNSIGNED)
+  size: bigint;
+
+  @Column(DataType.STRING(24))
+  bucket: string;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.INTEGER)
+  folderId: number;
+
+  @BelongsTo(() => FolderModel)
+  folder: FolderModel;
+
+  @Column
+  encryptVersion: string;
+
+  @Column
+  deleted: boolean;
+
+  @Column
+  deletedAt: Date;
+
+  @ForeignKey(() => UserModel)
+  @Column
+  userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
+
+  @Column
+  modificationTime: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
+}
 
 export interface FileRepository {
   findAll(): Promise<Array<File> | []>;
@@ -104,7 +176,11 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   _toDomain(model: FileModel): File {
-    const file = File.build(model.toJSON());
+    const file = File.build({
+      ...model.toJSON(),
+      folder: model.folder ? Folder.build(model.folder) : null,
+      user: model.user ? User.build(model.user) : null,
+    });
     return file;
   }
 

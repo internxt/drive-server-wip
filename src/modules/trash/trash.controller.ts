@@ -19,9 +19,9 @@ import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
 // import { TrashService } from './trash.service';
 import { User } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
-import { FileService } from '../file/file.service';
-import { FolderService } from '../folder/folder.service';
-import { UserService } from '../user/user.service';
+import { FileService } from '../file/file.usecase';
+import { FolderService } from '../folder/folder.usecase';
+import { UserService } from '../user/user.usecase';
 import { ItemsToTrashEvent } from 'src/externals/notifications/events/items-to-trash.event';
 import { NotificationService } from 'src/externals/notifications/notification.service';
 

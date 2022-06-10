@@ -17,7 +17,7 @@ export class FileService {
       deleted,
     );
 
-    return files;
+    return files.map((file) => file.toJSON());
   }
 
   async moveFilesToTrash(
