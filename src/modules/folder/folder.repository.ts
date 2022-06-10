@@ -1,8 +1,72 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Folder as FolderModel } from './folder.model';
 import { Folder, FolderAttributes } from './folder.domain';
 import { Op } from 'sequelize';
+import {
+  Column,
+  Model,
+  Table,
+  PrimaryKey,
+  DataType,
+  Default,
+  AutoIncrement,
+  AllowNull,
+  BelongsTo,
+  ForeignKey,
+  Index,
+} from 'sequelize-typescript';
+import { UserModel } from '../user/user.repository';
+import { User } from '../user/user.domain';
+@Table({
+  underscored: true,
+  timestamps: true,
+  tableName: 'folders',
+})
+export class FolderModel extends Model implements FolderAttributes {
+  @PrimaryKey
+  @AutoIncrement
+  @Column
+  id: number;
+
+  @ForeignKey(() => FolderModel)
+  @Column
+  parentId: number;
+
+  @BelongsTo(() => FolderModel)
+  parent: FolderModel;
+
+  @Index
+  @Column
+  name: string;
+
+  @Column(DataType.STRING(24))
+  bucket: string;
+
+  @ForeignKey(() => UserModel)
+  @Column
+  userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
+
+  @Column
+  encryptVersion: string;
+
+  @Default(false)
+  @Column
+  deleted: boolean;
+
+  @AllowNull
+  @Column
+  deletedAt: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
+}
+
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
@@ -88,6 +152,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     return Folder.build({
       ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
+      user: model.user ? User.build(model.user) : null,
     });
   }
 
