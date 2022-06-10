@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Share } from './share.domain';
-import { File } from '../file/file.domain';
+import { Share, ShareAttributes } from './share.domain';
+import { File, FileAttributes } from '../file/file.domain';
 import {
   Column,
   Model,
@@ -12,11 +12,16 @@ import {
   DataType,
   Default,
   Unique,
+  AllowNull,
 } from 'sequelize-typescript';
 import { FileModel } from '../file/file.repository';
+import { User, UserAttributes } from '../user/user.domain';
+import { UserModel } from '../user/user.repository';
+import { FolderModel } from '../folder/folder.repository';
+import { Folder } from '../folder/folder.domain';
 @Table({
   underscored: true,
-  timestamps: false,
+  timestamps: true,
   tableName: 'shares',
 })
 export class ShareModel extends Model {
@@ -31,16 +36,26 @@ export class ShareModel extends Model {
   @Column(DataType.BLOB)
   mnemonic: string;
 
-  // relation??
+  @ForeignKey(() => UserModel)
   @Column
-  user: number;
+  userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
 
   @ForeignKey(() => FileModel)
-  @Column(DataType.STRING(24))
-  fileId: string;
+  @Column
+  fileId: number;
 
   @BelongsTo(() => FileModel, 'fileId')
   file: FileModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column
+  folderId: number;
+
+  @BelongsTo(() => FolderModel, 'folderId')
+  folder: FolderModel;
 
   @Column(DataType.STRING(64))
   encryptionKey: string;
@@ -58,10 +73,24 @@ export class ShareModel extends Model {
   @Default(1)
   @Column
   views: number;
+
+  @AllowNull
+  @Column
+  timesValid: number;
+
+  @Default(true)
+  @Column
+  active: boolean;
 }
 
 export interface ShareRepository {
-  findAllByUser(user: any): Promise<Array<Share> | []>;
+  findByToken(token: string): Promise<Share | null>;
+  findAllByUserPaginated(
+    user: any,
+    page: number,
+    perPage: number,
+  ): Promise<{ count: number; items: Array<Share> | [] }>;
+  update(share: Share): Promise<true>;
 }
 
 @Injectable()
@@ -71,10 +100,57 @@ export class SequelizeShareRepository implements ShareRepository {
     private shareModel: typeof ShareModel,
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
+    @InjectModel(UserModel)
+    private userModel: typeof UserModel,
   ) {}
 
-  async findAllByUser(user): Promise<Array<Share> | []> {
-    const files = await this.shareModel.findAll({
+  async findByFileIdAndUser(
+    fileId: FileAttributes['id'],
+    userId: UserAttributes['id'],
+  ) {
+    const share = await this.shareModel.findOne({
+      where: { fileId, userId },
+      include: [this.fileModel, this.userModel],
+    });
+    if (!share) {
+      throw new NotFoundException('share not found');
+    }
+    return this.toDomain(share);
+  }
+
+  async findByToken(token: string): Promise<Share | null> {
+    const share = await this.shareModel.findOne({
+      where: { token },
+      include: [this.fileModel, this.userModel],
+    });
+    if (!share) {
+      throw new NotFoundException('share not found');
+    }
+    return this.toDomain(share);
+  }
+  async create(share: Share): Promise<void> {
+    const shareModel = this.toModel(share);
+    delete shareModel.id;
+    await this.shareModel.create(shareModel);
+  }
+
+  async update(share: Share): Promise<true> {
+    const shareModel = await this.shareModel.findByPk(share.id);
+    if (!shareModel) {
+      throw new NotFoundException(`Share with ID ${share.id} not found`);
+    }
+    shareModel.set(this.toModel(share));
+    shareModel.save();
+    return true;
+  }
+
+  async findAllByUserPaginated(
+    user: User,
+    page: number,
+    perPage: number,
+  ): Promise<{ count: number; items: Array<Share> | [] }> {
+    const { offset, limit } = this.calculatePagination(page, perPage);
+    const shares = await this.shareModel.findAndCountAll({
       where: {
         user: user.email,
         mnemonic: '',
@@ -84,21 +160,82 @@ export class SequelizeShareRepository implements ShareRepository {
           model: this.fileModel,
           where: { userId: user.id },
         },
+        this.userModel,
       ],
+      offset,
+      limit,
     });
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
+    return {
+      count: shares.count,
+      items: shares.rows.map((share) => {
+        return this.toDomain(share);
+      }),
+    };
   }
 
-  toDomain(model): Share {
+  private toDomain(model): Share {
+    let item: File | Folder = null;
+    if (model.isFolder) {
+      item = Folder.build(model.folder);
+    } else {
+      item = File.build(model.file);
+    }
     return Share.build({
-      ...model.toJSON(),
-      file: model.file ? File.build(model.file) : null,
+      id: model.id,
+      token: model.token,
+      mnemonic: model.mnemonic,
+      item,
+      encryptionKey: model.encryptionKey,
+      bucket: model.bucket,
+      itemToken: model.fileToken,
+      isFolder: model.isFolder,
+      views: model.views,
+      timesValid: model.timesValid,
+      active: model.active,
+      user: model.user ? User.build(model.user) : null,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
     });
   }
 
-  toModel(domain) {
-    return domain.toJSON();
+  private toModel({
+    id,
+    token,
+    mnemonic,
+    user,
+    item,
+    encryptionKey,
+    bucket,
+    itemToken,
+    isFolder,
+    views,
+    timesValid,
+    active,
+    createdAt,
+    updatedAt,
+  }) {
+    return {
+      id,
+      token,
+      mnemonic,
+      userId: user.id,
+      fileId: !isFolder ? item.id : null,
+      folderId: isFolder ? item.id : null,
+      encryptionKey,
+      bucket,
+      fileToken: itemToken,
+      isFolder,
+      views,
+      timesValid,
+      active,
+      createdAt,
+      updatedAt,
+    };
+  }
+  private calculatePagination(page: number, perPage: number) {
+    const offset = (page - 1) * perPage;
+    const limit = perPage;
+
+    return { offset, limit };
   }
 }
