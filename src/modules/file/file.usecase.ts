@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { FolderAttributes } from '../folder/folder.domain';
+import { UserAttributes } from '../user/user.domain';
 import { FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 @Injectable()
-export class FileService {
+export class FileUseCases {
   constructor(private fileRepository: SequelizeFileRepository) {}
 
+  async getByFileIdAndUser(
+    fileId: FileAttributes['fileId'],
+    userId: UserAttributes['id'],
+  ) {
+    const file = await this.fileRepository.findOne(fileId, userId);
+    return file.toJSON();
+  }
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],

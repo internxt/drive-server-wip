@@ -1,65 +1,98 @@
 import { File } from '../file/file.domain';
+import { Folder } from '../folder/folder.domain';
+import { User } from '../user/user.domain';
 
 export interface ShareAttributes {
   id: number;
   token: string;
   mnemonic: string;
-  user: number;
-  fileId: string;
-  file: any;
+  user: any;
+  item: any;
   encryptionKey: string;
   bucket: string;
-  fileToken: string;
+  itemToken: string;
   isFolder: boolean;
   views: number;
+  timesValid: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class Share implements ShareAttributes {
   id: number;
   token: string;
   mnemonic: string;
-  user: number;
-  fileId: string;
-  file: File;
+  user: User;
+  item: File | Folder;
   encryptionKey: string;
   bucket: string;
-  fileToken: string;
+  itemToken: string;
   isFolder: boolean;
   views: number;
+  timesValid: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   constructor({
     id,
     token,
     mnemonic,
     user,
-    fileId,
-    file,
+    item,
     encryptionKey,
     bucket,
-    fileToken,
+    itemToken,
     isFolder,
     views,
+    timesValid,
+    active,
+    createdAt,
+    updatedAt,
   }) {
     this.id = id;
     this.token = token;
     this.mnemonic = mnemonic;
-    this.user = user;
-    this.file = fileId;
-    this.setFile(file);
+    this.setUser(user);
+    this.item = item;
     this.encryptionKey = encryptionKey;
     this.bucket = bucket;
-    this.fileToken = fileToken;
+    this.itemToken = itemToken;
     this.isFolder = isFolder;
     this.views = views;
+    this.timesValid = timesValid;
+    this.active = active;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
   static build(share: ShareAttributes): Share {
     return new Share(share);
   }
-  setFile(file) {
-    if (file && !(file instanceof File)) {
-      throw Error('file invalid');
+
+  setUser(user) {
+    if (user && !(user instanceof User)) {
+      throw Error('user invalid');
     }
-    this.file = file;
+    this.user = user;
+  }
+
+  incrementView() {
+    this.views += 1;
+  }
+
+  canHaveView() {
+    return (
+      this.active && (this.timesValid === null || this.timesValid > this.views)
+    );
+  }
+
+  deactivate() {
+    this.active = false;
+  }
+
+  isOwner(userId) {
+    return this.user.id === userId;
   }
 
   toJSON() {
@@ -67,13 +100,17 @@ export class Share implements ShareAttributes {
       id: this.id,
       token: this.token,
       mnemonic: this.mnemonic,
-      user: this.user,
-      file: this.file,
+      user: this.user.toJSON(),
+      item: this.item.toJSON(),
       encryptionKey: this.encryptionKey,
       bucket: this.bucket,
-      fileToken: this.fileToken,
+      itemToken: this.itemToken,
       isFolder: this.isFolder,
       views: this.views,
+      timesValid: this.timesValid,
+      active: this.active,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
     };
   }
 }
