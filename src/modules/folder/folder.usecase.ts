@@ -72,4 +72,13 @@ export class FolderUseCases {
 
     return totalSize;
   }
+
+  async getFoldersByParent(folderId: number, page, perPage) {
+    return this.folderRepository.findAllByParentId(
+      folderId,
+      false,
+      page,
+      perPage,
+    );
+  }
 }

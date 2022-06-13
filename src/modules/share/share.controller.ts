@@ -142,6 +142,23 @@ export class ShareController {
     return { files, last: parseInt(perPage) > files.length };
   }
 
+  @Get('down/folders')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Generate Shared Token by folder Id',
+  })
+  @ApiOkResponse({ description: 'Get all shares in a list' })
+  async getDownFolders(@User() user: any, @Query() query: GetDownFilesDto) {
+    const { token, folderId, page, perPage } = query;
+    await this.shareUseCases.getShareByToken(token, user);
+    const folders = await this.folderUseCases.getFoldersByParent(
+      folderId,
+      page,
+      perPage,
+    );
+    return { folders, last: parseInt(perPage) > folders.length };
+  }
+
   @Get(':shareId/folder/:folderId/size')
   @HttpCode(200)
   @ApiOperation({
