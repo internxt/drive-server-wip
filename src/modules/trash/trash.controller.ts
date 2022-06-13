@@ -27,7 +27,6 @@ import { NotificationService } from 'src/externals/notifications/notification.se
 
 @ApiTags('Trash')
 @Controller('storage/trash')
-@UseGuards(AuthGuard('jwt'))
 export class TrashController {
   constructor(
     private fileUseCases: FileUseCases,

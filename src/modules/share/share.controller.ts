@@ -12,7 +12,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { ShareUseCases } from './share.usecase';
 import { User } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
@@ -21,10 +20,10 @@ import { GetDownFilesDto } from './dto/get-down-files.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Share')
 @Controller('storage/share')
-@UseGuards(AuthGuard('jwt'))
 export class ShareController {
   constructor(
     private shareUseCases: ShareUseCases,
@@ -58,6 +57,7 @@ export class ShareController {
     summary: 'Get share list',
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
+  @Public()
   async getShareByToken(@User() user: any, @Param('token') token: string) {
     const share = await this.shareUseCases.getShareByToken(token, user);
     // notify no analytics if not folder
@@ -165,9 +165,10 @@ export class ShareController {
     summary: 'Generate Shared Token by folder Id',
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
+  @Public()
   async getShareFolderSize(
-    @Query('shareId') shareId: number,
-    @Query('folderId') folderId: number,
+    @Param('shareId') shareId: number,
+    @Param('folderId') folderId: number,
   ) {
     const share = this.shareUseCases.getShareById(shareId);
     if (!share) {
