@@ -18,5 +18,8 @@ export default () => ({
       url: process.env.NOTIFICATIONS_URL,
       key: process.env.NOTIFICATIONS_API_KEY,
     },
+    storage: {
+      url: process.env.STORAGE_API_URL || 'https://api.internxt.com',
+    },
   },
 });

@@ -18,7 +18,7 @@ export class ShareUseCases {
   async getShareByToken(token: string, user: User) {
     const share = await this.shareRepository.findByToken(token);
     // if is owner, not increment view
-    if (!share.isOwner(user.id)) {
+    if (!share.isOwner(user.id) || !user) {
       if (share.canHaveView()) {
         share.incrementView();
         if (!share.canHaveView()) {
@@ -30,14 +30,16 @@ export class ShareUseCases {
         throw new NotFoundException('cannot view this share');
       }
     }
-    return {
-      id: share.id,
-      token: share.token,
-      item: share.item,
-      isFolder: share.isFolder,
-      bucket: share.bucket,
-      bucketToken: share.itemToken,
-    };
+    // if file send analytics track, but not in folder?
+    return share;
+    // return {
+    //   id: share.id,
+    //   token: share.token,
+    //   item: share.item,
+    //   isFolder: share.isFolder,
+    //   bucket: share.bucket,
+    //   bucketToken: share.itemToken,
+    // };
   }
   async listByUserPaginated(user: any, page: number, perPage = 50) {
     const { count, items } = await this.shareRepository.findAllByUserPaginated(

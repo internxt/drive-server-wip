@@ -16,12 +16,21 @@ import { ShareUseCases } from './share.usecase';
 import { User } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
 import { Response } from 'express';
+import { GetDownFilesDto } from './dto/get-down-files.dto';
+import { FileUseCases } from '../file/file.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { UserUseCases } from '../user/user.usecase';
 
 @ApiTags('Share')
 @Controller('storage/share')
 @UseGuards(AuthGuard('jwt'))
 export class ShareController {
-  constructor(private shareUseCases: ShareUseCases) {}
+  constructor(
+    private shareUseCases: ShareUseCases,
+    private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
+    private userUseCases: UserUseCases,
+  ) {}
 
   @Get('/list')
   @HttpCode(200)
@@ -95,5 +104,40 @@ export class ShareController {
       created: share.created,
       token: share.item.token,
     });
+  }
+
+  @Get('down/files')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Generate Shared Token by folder Id',
+  })
+  @ApiOkResponse({ description: 'Get all shares in a list' })
+  async getDownFiles(@User() user: any, @Query() query: GetDownFilesDto) {
+    const { token, folderId, code, page, perPage } = query;
+    const share = await this.shareUseCases.getShareByToken(token, user);
+    share.decryptMnemonic(code);
+    const network = await this.userUseCases.getNetworkByUserId(
+      user.id,
+      share.mnemonic,
+    );
+    const files = await this.fileUseCases.getByFolderAndUser(
+      folderId,
+      user,
+      false,
+      parseInt(page),
+      parseInt(perPage),
+    );
+
+    for (const file of files) {
+      file.encryptionKey =
+        await this.fileUseCases.getEncryptionKeyFileFromShare(
+          file.fileId,
+          network,
+          share,
+          code,
+        );
+    }
+
+    return { files, last: parseInt(perPage) > files.length };
   }
 }

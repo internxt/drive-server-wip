@@ -19,6 +19,7 @@ import { User, UserAttributes } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Pagination } from 'src/lib/pagination';
 @Table({
   underscored: true,
   timestamps: true,
@@ -131,7 +132,7 @@ export class SequelizeShareRepository implements ShareRepository {
   async findByToken(token: string): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { token },
-      include: [this.fileModel, this.userModel],
+      include: [this.fileModel, this.folderModel, this.userModel],
     });
     if (!share) {
       throw new NotFoundException('share not found');
@@ -159,7 +160,7 @@ export class SequelizeShareRepository implements ShareRepository {
     page: number,
     perPage: number,
   ): Promise<{ count: number; items: Array<Share> | [] }> {
-    const { offset, limit } = this.calculatePagination(page, perPage);
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
     const shares = await this.shareModel.findAndCountAll({
       where: {
         user: user.email,
@@ -171,6 +172,7 @@ export class SequelizeShareRepository implements ShareRepository {
           where: { userId: user.id },
         },
         this.userModel,
+        this.folderModel,
       ],
       offset,
       limit,
@@ -241,11 +243,5 @@ export class SequelizeShareRepository implements ShareRepository {
       createdAt,
       updatedAt,
     };
-  }
-  private calculatePagination(page: number, perPage: number) {
-    const offset = (page - 1) * perPage;
-    const limit = perPage;
-
-    return { offset, limit };
   }
 }

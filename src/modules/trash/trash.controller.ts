@@ -21,7 +21,7 @@ import { User } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { UserService } from '../user/user.usecase';
+import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from 'src/externals/notifications/events/items-to-trash.event';
 import { NotificationService } from 'src/externals/notifications/notification.service';
 
@@ -32,7 +32,7 @@ export class TrashController {
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
-    private userService: UserService,
+    private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private readonly logger: Logger,
   ) {}
@@ -86,7 +86,7 @@ export class TrashController {
     ]);
 
     const workspaceMembers =
-      await this.userService.getWorkspaceMembersByBrigeUser(user.bridgeUser);
+      await this.userUseCases.getWorkspaceMembersByBrigeUser(user.bridgeUser);
 
     workspaceMembers.forEach(({ email }: { email: string }) => {
       const itemsToTrashEvent = new ItemsToTrashEvent(
