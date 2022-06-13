@@ -71,4 +71,8 @@ export class FileUseCases {
     );
     return encryptionKey.toString('hex');
   }
+
+  async getTotalSizeOfFilesFromFolder(folderId: number) {
+    return await this.fileRepository.getTotalSizeByFolderId(folderId);
+  }
 }

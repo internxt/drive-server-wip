@@ -16,8 +16,9 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from 'src/lib/pagination';
+import sequelize from 'sequelize';
 @Table({
   underscored: true,
   timestamps: true,
@@ -185,6 +186,18 @@ export class SequelizeFileRepository implements FileRepository {
         },
       },
     });
+  }
+
+  async getTotalSizeByFolderId(folderId: FolderAttributes['id']) {
+    const result = this.fileModel.findAll({
+      attributes: [[sequelize.fn('sum', sequelize.col('size')), 'total']],
+      where: {
+        folderId,
+      },
+      raw: true,
+    });
+
+    return result[0].total || 0;
   }
 
   toDomain(model: FileModel): File {

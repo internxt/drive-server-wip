@@ -9,6 +9,7 @@ import {
   Body,
   Res,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -139,5 +140,26 @@ export class ShareController {
     }
 
     return { files, last: parseInt(perPage) > files.length };
+  }
+
+  @Get(':shareId/folder/:folderId/size')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Generate Shared Token by folder Id',
+  })
+  @ApiOkResponse({ description: 'Get all shares in a list' })
+  async getShareFolderSize(
+    @Query('shareId') shareId: number,
+    @Query('folderId') folderId: number,
+  ) {
+    const share = this.shareUseCases.getShareById(shareId);
+    if (!share) {
+      throw new NotFoundException(`share with id ${shareId} not found`);
+    }
+
+    const size = await this.folderUseCases.getFolderSize(folderId);
+    return {
+      size,
+    };
   }
 }

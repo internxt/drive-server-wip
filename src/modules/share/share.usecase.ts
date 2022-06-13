@@ -15,6 +15,10 @@ export class ShareUseCases {
     private folderUseCases: FolderUseCases,
   ) {}
 
+  async getShareById(id: number) {
+    return await this.shareRepository.findById(id);
+  }
+
   async getShareByToken(token: string, user: User) {
     const share = await this.shareRepository.findByToken(token);
     // if is owner, not increment view
