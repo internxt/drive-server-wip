@@ -1,3 +1,4 @@
+import { aes } from '@internxt/lib';
 import { File } from '../file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
@@ -93,6 +94,11 @@ export class Share implements ShareAttributes {
 
   isOwner(userId) {
     return this.user.id === userId;
+  }
+
+  decryptMnemonic(code) {
+    this.mnemonic = aes.decrypt(this.mnemonic.toString(), code);
+    return this.mnemonic;
   }
 
   toJSON() {

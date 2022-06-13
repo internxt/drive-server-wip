@@ -17,6 +17,7 @@ import {
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
+import { Pagination } from 'src/lib/pagination';
 @Table({
   underscored: true,
   timestamps: true,
@@ -82,6 +83,8 @@ export interface FileRepository {
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
     deleted: FileAttributes['deleted'],
+    page: number,
+    perPage: number,
   ): Promise<Array<File> | []>;
   findOne(
     fileId: FileAttributes['fileId'],
@@ -118,10 +121,19 @@ export class SequelizeFileRepository implements FileRepository {
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
     deleted: FileAttributes['deleted'],
+    page: number,
+    perPage: number,
   ): Promise<Array<File> | []> {
-    const files = await this.fileModel.findAll({
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    const query: any = {
       where: { folderId, userId, deleted: deleted ? 1 : 0 },
-    });
+      order: [['id', 'ASC']],
+    };
+    if (page && perPage) {
+      query.offset = offset;
+      query.limit = limit;
+    }
+    const files = await this.fileModel.findAll(query);
     return files.map((file) => {
       return this.toDomain(file);
     });
