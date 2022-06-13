@@ -20,7 +20,7 @@ import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
 import { User } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
-import { FolderService } from '../folder/folder.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
 import { UserService } from '../user/user.usecase';
 import { ItemsToTrashEvent } from 'src/externals/notifications/events/items-to-trash.event';
 import { NotificationService } from 'src/externals/notifications/notification.service';
@@ -31,7 +31,7 @@ import { NotificationService } from 'src/externals/notifications/notification.se
 export class TrashController {
   constructor(
     private fileUseCases: FileUseCases,
-    private folderService: FolderService,
+    private folderUseCases: FolderUseCases,
     private userService: UserService,
     private notificationService: NotificationService,
     private readonly logger: Logger,
@@ -46,12 +46,12 @@ export class TrashController {
   async getTrash(@User() user: any) {
     const folderId = user.rootFolderId;
     const [currentFolder, childrenFolders, files] = await Promise.all([
-      this.folderService.getFolder(folderId),
-      this.folderService.getChildrenFoldersToUser(folderId, user.id, true),
+      this.folderUseCases.getFolder(folderId),
+      this.folderUseCases.getChildrenFoldersToUser(folderId, user.id, true),
       this.fileUseCases.getByFolderAndUser(folderId, user.id, true),
     ]);
     return {
-      ...currentFolder,
+      ...currentFolder.toJSON(),
       children: childrenFolders,
       files,
     };
@@ -82,7 +82,7 @@ export class TrashController {
     }
     await Promise.all([
       this.fileUseCases.moveFilesToTrash(fileIds, user.id),
-      this.folderService.moveFoldersToTrash(folderIds),
+      this.folderUseCases.moveFoldersToTrash(folderIds),
     ]);
 
     const workspaceMembers =

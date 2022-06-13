@@ -12,7 +12,7 @@ export class FileUseCases {
     userId: UserAttributes['id'],
   ) {
     const file = await this.fileRepository.findOne(fileId, userId);
-    return file.toJSON();
+    return file;
   }
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],

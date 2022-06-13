@@ -2,35 +2,31 @@ import { IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateShareDto {
-  @IsNotEmpty()
   @ApiProperty({
     example: '4',
     description: 'Id of file or folder',
   })
   timesValid: number;
 
-  @IsNotEmpty()
   @ApiProperty({
-    example: '4',
-    description: 'Id of file or folder',
+    example: 'file',
+    description: 'Type of item: file or folder',
   })
-  active: boolean;
+  encryptionKey = '';
+
+  @ApiProperty({
+    example: 'file',
+    description: 'Type of item: file or folder',
+  })
+  mnemonic = '';
 
   @IsNotEmpty()
   @ApiProperty({
     example: 'file',
     description: 'Type of item: file or folder',
   })
-  encryptionKey: string;
+  itemToken: string;
 
-  @IsNotEmpty()
-  @ApiProperty({
-    example: 'file',
-    description: 'Type of item: file or folder',
-  })
-  fileToken: string;
-
-  @IsNotEmpty()
   @ApiProperty({
     example: 'file',
     description: 'Type of item: file or folder',

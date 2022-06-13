@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FolderService } from './folder.usecase';
+import { FolderUseCases } from './folder.usecase';
 import {
   SequelizeFolderRepository,
   FolderRepository,
@@ -11,13 +11,13 @@ import { FolderModel } from './folder.repository';
 
 const folderId = 4;
 const userId = 1;
-describe('FolderService', () => {
-  let service: FolderService;
+describe('FolderUseCases', () => {
+  let service: FolderUseCases;
   let folderRepository: FolderRepository;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        FolderService,
+        FolderUseCases,
         SequelizeFolderRepository,
         {
           provide: getModelToken(FolderModel),
@@ -26,7 +26,7 @@ describe('FolderService', () => {
       ],
     }).compile();
 
-    service = module.get<FolderService>(FolderService);
+    service = module.get<FolderUseCases>(FolderUseCases);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
   });
 

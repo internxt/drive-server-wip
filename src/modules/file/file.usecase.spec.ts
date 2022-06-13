@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FileService } from './file.usecase';
+import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
@@ -9,14 +9,14 @@ import { FileModel } from './file.repository';
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
-describe('FileService', () => {
-  let service: FileService;
+describe('FileUseCases', () => {
+  let service: FileUseCases;
   let fileRepository: FileRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        FileService,
+        FileUseCases,
         SequelizeFileRepository,
         {
           provide: getModelToken(FileModel),
@@ -25,7 +25,7 @@ describe('FileService', () => {
       ],
     }).compile();
 
-    service = module.get<FileService>(FileService);
+    service = module.get<FileUseCases>(FileUseCases);
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
   });
 

@@ -7,12 +7,15 @@ import {
   Query,
   Post,
   Body,
+  Res,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ShareUseCases } from './share.usecase';
 import { User } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
+import { Response } from 'express';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -31,7 +34,6 @@ export class ShareController {
     @Query('page') page: string,
     @Query('perPage') perPage: string,
   ) {
-    console.log(page, perPage);
     const shares = await this.shareUseCases.listByUserPaginated(
       user,
       parseInt(page) || 1,
@@ -52,19 +54,46 @@ export class ShareController {
     return share;
   }
 
-  @Post('/file/:fileId')
-  @HttpCode(200)
+  @Post('file/:fileId')
   @ApiOperation({
     summary: 'Generate Shared Token by file Id',
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
-  async generateSharedTokenToItem(
+  async generateSharedTokenToFile(
     @User() user: any,
     @Param('fileId') fileId: string,
     @Body() body: CreateShareDto,
+    @Res() res: Response,
   ) {
     const share = await this.shareUseCases.createShareFile(fileId, user, body);
 
-    return share;
+    res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      created: share.created,
+      token: share.item.token,
+    });
+  }
+
+  @Post('folder/:folderId')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Generate Shared Token by folder Id',
+  })
+  @ApiOkResponse({ description: 'Get all shares in a list' })
+  async generateSharedTokenToFolder(
+    @User() user: any,
+    @Param('folderId') folderId: string,
+    @Body() body: CreateShareDto,
+    @Res() res: Response,
+  ) {
+    const share = await this.shareUseCases.createShareFolder(
+      parseInt(folderId),
+      user,
+      body,
+    );
+
+    res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      created: share.created,
+      token: share.item.token,
+    });
   }
 }

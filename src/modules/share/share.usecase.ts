@@ -5,12 +5,14 @@ import { CreateShareDto } from './dto/create-share.dto';
 import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
 import crypto from 'crypto';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 @Injectable()
 export class ShareUseCases {
   constructor(
     private shareRepository: SequelizeShareRepository,
     private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
   ) {}
 
   async getShareByToken(token: string, user: User) {
@@ -68,7 +70,7 @@ export class ShareUseCases {
   async createShareFile(
     fileId: string,
     user: User,
-    { timesValid, active, encryptionKey, fileToken, bucket }: CreateShareDto,
+    { timesValid, encryptionKey, itemToken, bucket }: CreateShareDto,
   ) {
     const file = await this.fileUseCases.getByFileIdAndUser(fileId, user.id);
     if (!file) {
@@ -79,7 +81,7 @@ export class ShareUseCases {
       user.id,
     );
     if (share) {
-      return share.toJSON();
+      return { item: share.toJSON(), created: false };
     }
     const token = crypto.randomBytes(10).toString('hex');
     const shareCreated = Share.build({
@@ -90,15 +92,54 @@ export class ShareUseCases {
       item: file,
       encryptionKey,
       bucket,
-      itemToken: fileToken,
+      itemToken,
       isFolder: false,
       views: 0,
       timesValid,
-      active,
+      active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    // await this.shareRepository.create(shareCreated);
-    return shareCreated.toJSON();
+    await this.shareRepository.create(shareCreated);
+    // apply userReferral to share-file
+    return { item: shareCreated.toJSON(), created: true };
+  }
+
+  async createShareFolder(
+    folderId: number,
+    user: User,
+    { timesValid, encryptionKey, itemToken, bucket }: CreateShareDto,
+  ) {
+    const folder = await this.folderUseCases.getFolder(folderId);
+    if (!folder) {
+      throw new NotFoundException(`folder with id ${folderId} not found`);
+    }
+    const share = await this.shareRepository.findByFolderIdAndUser(
+      folder.id,
+      user.id,
+    );
+    if (share) {
+      return { item: share.toJSON(), created: false };
+    }
+    const token = crypto.randomBytes(10).toString('hex');
+    const shareCreated = Share.build({
+      id: 1,
+      token,
+      mnemonic: '',
+      user: user,
+      item: folder,
+      encryptionKey,
+      bucket,
+      itemToken,
+      isFolder: true,
+      views: 0,
+      timesValid,
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await this.shareRepository.create(shareCreated);
+
+    return { item: shareCreated.toJSON(), created: true };
   }
 }

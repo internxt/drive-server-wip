@@ -3,7 +3,7 @@ import { Folder, FolderAttributes } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
 
 @Injectable()
-export class FolderService {
+export class FolderUseCases {
   constructor(private folderRepository: SequelizeFolderRepository) {}
 
   async getFolder(folderId: FolderAttributes['id']) {
@@ -11,7 +11,7 @@ export class FolderService {
     if (!folder) {
       throw new NotFoundException(`Folder with ID ${folderId} not found`);
     }
-    return folder.toJSON();
+    return folder;
   }
 
   async getChildrenFoldersToUser(
