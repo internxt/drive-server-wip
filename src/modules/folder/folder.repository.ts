@@ -17,6 +17,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
+import { Pagination } from 'src/lib/pagination';
 @Table({
   underscored: true,
   timestamps: true,
@@ -106,6 +107,25 @@ export class SequelizeFolderRepository implements FolderRepository {
     const folders = await this.folderModel.findAll({
       where: { parentId, userId, deleted: deleted ? 1 : 0 },
     });
+    return folders.map((folder) => this._toDomain(folder));
+  }
+
+  async findAllByParentId(
+    parentId: FolderAttributes['parentId'],
+    deleted: FolderAttributes['deleted'],
+    page: number = null,
+    perPage: number = null,
+  ): Promise<Array<Folder> | []> {
+    const query: any = {
+      where: { parentId, deleted: deleted ? 1 : 0 },
+      order: [['id', 'ASC']],
+    };
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    if (page && perPage) {
+      query.offset = offset;
+      query.limit = limit;
+    }
+    const folders = await this.folderModel.findAll(query);
     return folders.map((folder) => this._toDomain(folder));
   }
   async findById(folderId: FolderAttributes['id']): Promise<Folder> {
