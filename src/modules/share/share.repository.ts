@@ -18,7 +18,7 @@ import { FileModel } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
-import { Folder } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
 @Table({
   underscored: true,
   timestamps: true,
@@ -100,6 +100,8 @@ export class SequelizeShareRepository implements ShareRepository {
     private shareModel: typeof ShareModel,
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
+    @InjectModel(FolderModel)
+    private folderModel: typeof FolderModel,
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
   ) {}
@@ -112,10 +114,18 @@ export class SequelizeShareRepository implements ShareRepository {
       where: { fileId, userId },
       include: [this.fileModel, this.userModel],
     });
-    if (!share) {
-      throw new NotFoundException('share not found');
-    }
-    return this.toDomain(share);
+    return share ? this.toDomain(share) : null;
+  }
+
+  async findByFolderIdAndUser(
+    folderId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+  ) {
+    const share = await this.shareModel.findOne({
+      where: { folderId, userId },
+      include: [this.folderModel, this.userModel],
+    });
+    return share ? this.toDomain(share) : null;
   }
 
   async findByToken(token: string): Promise<Share | null> {
