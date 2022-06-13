@@ -85,6 +85,7 @@ export class ShareModel extends Model {
 }
 
 export interface ShareRepository {
+  findById(id: number): Promise<Share | null>;
   findByToken(token: string): Promise<Share | null>;
   findAllByUserPaginated(
     user: any,
@@ -106,6 +107,11 @@ export class SequelizeShareRepository implements ShareRepository {
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
   ) {}
+
+  async findById(id: ShareAttributes['id']) {
+    const share = await this.shareModel.findByPk(id);
+    return share ? this.toDomain(share) : null;
+  }
 
   async findByFileIdAndUser(
     fileId: FileAttributes['id'],
