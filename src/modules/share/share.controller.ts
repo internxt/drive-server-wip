@@ -59,6 +59,9 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get all shares in a list' })
   @Public()
   async getShareByToken(@User() user: any, @Param('token') token: string) {
+    if (!user.id && user.email) {
+      user = await this.userUseCases.getUserByUsername(user.email);
+    }
     const share = await this.shareUseCases.getShareByToken(token, user);
     // notify no analytics if not folder
     return share;
@@ -113,8 +116,12 @@ export class ShareController {
     summary: 'Generate Shared Token by folder Id',
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
+  @Public()
   async getDownFiles(@User() user: any, @Query() query: GetDownFilesDto) {
     const { token, folderId, code, page, perPage } = query;
+    if (!user.id && user.email) {
+      user = await this.userUseCases.getUserByUsername(user.email);
+    }
     const share = await this.shareUseCases.getShareByToken(token, user);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
@@ -148,8 +155,12 @@ export class ShareController {
     summary: 'Generate Shared Token by folder Id',
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
+  @Public()
   async getDownFolders(@User() user: any, @Query() query: GetDownFilesDto) {
     const { token, folderId, page, perPage } = query;
+    if (!user.id && user.email) {
+      user = await this.userUseCases.getUserByUsername(user.email);
+    }
     await this.shareUseCases.getShareByToken(token, user);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
