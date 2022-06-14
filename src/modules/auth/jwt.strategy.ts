@@ -22,11 +22,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<User> {
-    const { email, bridgeUser } = payload;
-    const isGuest = bridgeUser && email !== bridgeUser;
-    const username = isGuest ? bridgeUser : email;
-    const user = await this.userUseCases.getUserByUsername(username);
+  async validate(payload): Promise<User> {
+    const { username } = payload.payload;
+    let user = await this.userUseCases.getUserByUsername(username);
+    const isGuest = user?.bridgeUser && user?.email !== user.bridgeUser;
+    if (isGuest) {
+      user = await this.userUseCases.getUserByUsername(user.bridgeUser);
+    }
     if (!user) {
       throw new UnauthorizedException();
     }
