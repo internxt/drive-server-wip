@@ -169,17 +169,10 @@ export class SequelizeShareRepository implements ShareRepository {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
     const shares = await this.shareModel.findAndCountAll({
       where: {
-        user: user.email,
+        user_id: user.id,
         mnemonic: '',
       },
-      include: [
-        {
-          model: this.fileModel,
-          where: { userId: user.id },
-        },
-        this.userModel,
-        this.folderModel,
-      ],
+      include: [this.fileModel, this.userModel, this.folderModel],
       offset,
       limit,
     });
