@@ -103,7 +103,6 @@ export class ShareUseCases {
     if (share) {
       return { item: share.toJSON(), created: false };
     }
-    console.log(user, file, share);
     const token = crypto.randomBytes(10).toString('hex');
     const shareCreated = Share.build({
       id: 1,
