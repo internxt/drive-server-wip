@@ -10,18 +10,22 @@ import {
   Res,
   HttpStatus,
   NotFoundException,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
 import { User } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { GetDownFilesDto } from './dto/get-down-files.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { UpdateShareDto } from './dto/update-share.dto';
+import { NotificationService } from 'src/externals/notifications/notification.service';
+import { ShareLinkViewEvent } from 'src/externals/notifications/events/share-link-view.event';
+import { RequestContext } from 'src/lib/request-context';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -31,6 +35,7 @@ export class ShareController {
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
+    private notificationService: NotificationService,
   ) {}
 
   @Get('/list')
@@ -59,12 +64,27 @@ export class ShareController {
   })
   @ApiOkResponse({ description: 'Get share' })
   @Public()
-  async getShareByToken(@User() user: any, @Param('token') token: string) {
+  async getShareByToken(
+    @User() user: any,
+    @Param('token') token: string,
+    @Req() req: Request,
+  ) {
     if (user && !user.id && user.email) {
       user = await this.userUseCases.getUserByUsername(user.email);
     }
     const share = await this.shareUseCases.getShareByToken(token, user);
-    // notify no analytics if not folder
+
+    if ((user && !share.isOwner(user.id)) || !user) {
+      const context = new RequestContext(req);
+      const shareLinkViewEvent = new ShareLinkViewEvent(
+        'share.view',
+        user,
+        share,
+        await context.getContext(),
+        {},
+      );
+      this.notificationService.add(shareLinkViewEvent);
+    }
     return share.toJSON();
   }
 

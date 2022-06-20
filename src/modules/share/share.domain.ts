@@ -110,7 +110,6 @@ export class Share implements ShareAttributes {
   }
 
   toJSON() {
-    console.log(this.item);
     return {
       id: this.id,
       token: this.token,
