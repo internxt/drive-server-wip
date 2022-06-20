@@ -8,6 +8,8 @@ import { NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { Folder } from './folder.domain';
 import { FolderModel } from './folder.repository';
+import { FileUseCases } from '../file/file.usecase';
+import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 
 const folderId = 4;
 const userId = 1;
@@ -18,9 +20,15 @@ describe('FolderUseCases', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FolderUseCases,
+        FileUseCases,
+        SequelizeFileRepository,
         SequelizeFolderRepository,
         {
           provide: getModelToken(FolderModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(FileModel),
           useValue: jest.fn(),
         },
       ],

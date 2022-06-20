@@ -45,7 +45,7 @@ export class ShareUseCases {
     const share = await this.shareRepository.findByToken(token);
     // if is owner, not increment view
     if ((user && !share.isOwner(user.id)) || !user) {
-      if (share.canHaveView() && share.isActive()) {
+      if (share.isActive() && share.canHaveView()) {
         share.incrementView();
         if (!share.canHaveView()) {
           // if next viewer cant view deactivate share

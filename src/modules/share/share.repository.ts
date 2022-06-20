@@ -19,7 +19,7 @@ import { User, UserAttributes } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { Pagination } from 'src/lib/pagination';
+import { Pagination } from '../../lib/pagination';
 @Table({
   underscored: true,
   timestamps: true,

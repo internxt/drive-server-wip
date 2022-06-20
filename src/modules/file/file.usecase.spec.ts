@@ -29,6 +29,10 @@ describe('FileUseCases', () => {
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
@@ -99,6 +103,8 @@ describe('FileUseCases', () => {
         folderId,
         userId,
         false,
+        undefined,
+        undefined,
       );
     });
 
@@ -129,6 +135,8 @@ describe('FileUseCases', () => {
         folderId,
         userId,
         false,
+        undefined,
+        undefined,
       );
     });
   });

@@ -17,7 +17,7 @@ import {
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { Pagination } from 'src/lib/pagination';
+import { Pagination } from '../../lib/pagination';
 import sequelize from 'sequelize';
 @Table({
   underscored: true,
