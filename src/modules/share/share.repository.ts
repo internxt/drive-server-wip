@@ -109,7 +109,9 @@ export class SequelizeShareRepository implements ShareRepository {
   ) {}
 
   async findById(id: ShareAttributes['id']) {
-    const share = await this.shareModel.findByPk(id);
+    const share = await this.shareModel.findByPk(id, {
+      include: [this.fileModel, this.userModel, this.folderModel],
+    });
     return share ? this.toDomain(share) : null;
   }
 

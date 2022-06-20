@@ -4,34 +4,34 @@ import { ApiProperty } from '@nestjs/swagger';
 export class GetDownFilesDto {
   @IsNotEmpty()
   @ApiProperty({
-    example: '4',
-    description: 'Id of file or folder',
+    example: 'token',
+    description: 'Token of share',
   })
   token: string;
 
   @IsNotEmpty()
   @ApiProperty({
-    example: 'file',
-    description: 'Type of item: file or folder',
+    example: 'code',
+    description: 'Code of share',
   })
   code: string;
 
   @IsNotEmpty()
   @ApiProperty({
-    example: 'file',
-    description: 'Type of item: file or folder',
+    example: 'folderId1',
+    description: 'Folder Id',
   })
   folderId: number;
 
   @ApiProperty({
-    example: 'file',
-    description: 'Type of item: file or folder',
+    example: '1',
+    description: 'Page of pagination',
   })
   page: string;
 
   @ApiProperty({
-    example: 'file',
-    description: 'Type of item: file or folder',
+    example: '50',
+    description: 'Number of items per page',
   })
   perPage: string;
 }
