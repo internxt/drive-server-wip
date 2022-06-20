@@ -26,7 +26,6 @@ export default class Analytics {
     try {
       this.analytics.track(params);
     } catch (err: unknown) {
-      console.log(err);
       this.logger.error(err);
     }
   }
