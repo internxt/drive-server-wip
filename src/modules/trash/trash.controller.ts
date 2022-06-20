@@ -22,9 +22,8 @@ import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
-import { ItemsToTrashEvent } from 'src/externals/notifications/events/items-to-trash.event';
-import { NotificationService } from 'src/externals/notifications/notification.service';
-
+import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
+import { NotificationService } from '../../externals/notifications/notification.service';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
