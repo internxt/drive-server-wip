@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
 import { CreateShareDto } from './dto/create-share.dto';
@@ -6,6 +10,7 @@ import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
 import crypto from 'crypto';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { UpdateShareDto } from './dto/update-share.dto';
 
 @Injectable()
 export class ShareUseCases {
@@ -19,11 +24,28 @@ export class ShareUseCases {
     return await this.shareRepository.findById(id);
   }
 
+  async updateShareById(
+    id: number,
+    user: User,
+    content: Partial<UpdateShareDto>,
+  ) {
+    const share = await this.shareRepository.findById(id);
+    console.log(share.user, user);
+    if (share.user.id !== user.id) {
+      throw new UnauthorizedException(`You are not owner of this share`);
+    }
+    share.timesValid = content.timesValid;
+    share.active = content.active;
+
+    await this.shareRepository.update(share);
+    return share.toJSON();
+  }
+
   async getShareByToken(token: string, user: User) {
     const share = await this.shareRepository.findByToken(token);
     // if is owner, not increment view
-    if (!share.isOwner(user.id) || !user) {
-      if (share.canHaveView()) {
+    if ((user && !share.isOwner(user.id)) || !user) {
+      if (share.canHaveView() && share.isActive()) {
         share.incrementView();
         if (!share.canHaveView()) {
           // if next viewer cant view deactivate share

@@ -88,6 +88,14 @@ export class Share implements ShareAttributes {
     );
   }
 
+  isActive() {
+    return this.active;
+  }
+
+  activate() {
+    this.active = true;
+  }
+
   deactivate() {
     this.active = false;
   }
@@ -107,8 +115,8 @@ export class Share implements ShareAttributes {
       id: this.id,
       token: this.token,
       mnemonic: this.mnemonic,
-      user: this.user.toJSON(),
-      item: this.item.toJSON(),
+      user: this.user ? this.user.toJSON() : null,
+      item: this.item ? this.item.toJSON() : null,
       encryptionKey: this.encryptionKey,
       bucket: this.bucket,
       itemToken: this.itemToken,

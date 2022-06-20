@@ -1,8 +1,8 @@
 import {
   Controller,
   HttpCode,
-  UseGuards,
   Get,
+  Put,
   Param,
   Query,
   Post,
@@ -21,6 +21,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { Public } from '../auth/decorators/public.decorator';
+import { UpdateShareDto } from './dto/update-share.dto';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -54,15 +55,39 @@ export class ShareController {
   @Get('/:token')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Get share list',
+    summary: 'Get share by token',
   })
-  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @ApiOkResponse({ description: 'Get share' })
   @Public()
   async getShareByToken(@User() user: any, @Param('token') token: string) {
-    if (!user.id && user.email) {
+    if (user && !user.id && user.email) {
       user = await this.userUseCases.getUserByUsername(user.email);
     }
     const share = await this.shareUseCases.getShareByToken(token, user);
+    // notify no analytics if not folder
+    return share.toJSON();
+  }
+
+  @Put('/:shareId')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Update share by id',
+  })
+  @ApiOkResponse({ description: 'Get share updated' })
+  @Public()
+  async updateShareByToken(
+    @User() user: any,
+    @Param('shareId') shareId: string,
+    @Body() content: UpdateShareDto,
+  ) {
+    if (!user.id && user.email) {
+      user = await this.userUseCases.getUserByUsername(user.email);
+    }
+    const share = await this.shareUseCases.updateShareById(
+      parseInt(shareId),
+      user,
+      content,
+    );
     // notify no analytics if not folder
     return share;
   }
@@ -71,7 +96,7 @@ export class ShareController {
   @ApiOperation({
     summary: 'Generate Shared Token by file Id',
   })
-  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @ApiOkResponse({ description: 'Get Token of share' })
   async generateSharedTokenToFile(
     @User() user: any,
     @Param('fileId') fileId: string,
@@ -91,7 +116,7 @@ export class ShareController {
   @ApiOperation({
     summary: 'Generate Shared Token by folder Id',
   })
-  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @ApiOkResponse({ description: 'Get token of share' })
   async generateSharedTokenToFolder(
     @User() user: any,
     @Param('folderId') folderId: string,
@@ -113,9 +138,9 @@ export class ShareController {
   @Get('down/files')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Generate Shared Token by folder Id',
+    summary: 'Get all files by token paginated',
   })
-  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @ApiOkResponse({ description: 'Get all files' })
   @Public()
   async getDownFiles(@User() user: any, @Query() query: GetDownFilesDto) {
     const { token, folderId, code, page, perPage } = query;
@@ -152,9 +177,9 @@ export class ShareController {
   @Get('down/folders')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Generate Shared Token by folder Id',
+    summary: 'Get all folders by token paginated',
   })
-  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @ApiOkResponse({ description: 'Get all folders' })
   @Public()
   async getDownFolders(@User() user: any, @Query() query: GetDownFilesDto) {
     const { token, folderId, page, perPage } = query;
@@ -173,9 +198,9 @@ export class ShareController {
   @Get(':shareId/folder/:folderId/size')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Generate Shared Token by folder Id',
+    summary: 'Get size of folder by folderId',
   })
-  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @ApiOkResponse({ description: 'Get size of folder' })
   @Public()
   async getShareFolderSize(
     @Param('shareId') shareId: number,
