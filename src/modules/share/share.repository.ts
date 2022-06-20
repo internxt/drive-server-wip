@@ -93,6 +93,15 @@ export interface ShareRepository {
     perPage: number,
   ): Promise<{ count: number; items: Array<Share> | [] }>;
   update(share: Share): Promise<true>;
+  create(share: Share): Promise<void>;
+  findByFileIdAndUser(
+    fileId: FileAttributes['id'],
+    userId: UserAttributes['id'],
+  ): Promise<Share>;
+  findByFolderIdAndUser(
+    folderId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+  ): Promise<Share>;
 }
 
 @Injectable()
@@ -118,7 +127,7 @@ export class SequelizeShareRepository implements ShareRepository {
   async findByFileIdAndUser(
     fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
-  ) {
+  ): Promise<Share> {
     const share = await this.shareModel.findOne({
       where: { fileId, userId },
       include: [this.fileModel, this.userModel],
