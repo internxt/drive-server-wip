@@ -17,7 +17,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
-import { Pagination } from 'src/lib/pagination';
+import { Pagination } from '../../lib/pagination';
 @Table({
   underscored: true,
   timestamps: true,
