@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
 import { UserAttributes } from '../user/user.domain';
-import { FileAttributes } from './file.domain';
+import { File, FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 @Injectable()
 export class FileUseCases {
@@ -13,7 +13,7 @@ export class FileUseCases {
   async getByFileIdAndUser(
     fileId: FileAttributes['fileId'],
     userId: UserAttributes['id'],
-  ) {
+  ): Promise<File> {
     const file = await this.fileRepository.findOne(fileId, userId);
     return file;
   }

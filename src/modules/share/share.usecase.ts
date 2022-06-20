@@ -30,7 +30,6 @@ export class ShareUseCases {
     content: Partial<UpdateShareDto>,
   ) {
     const share = await this.shareRepository.findById(id);
-    console.log(share.user, user);
     if (share.user.id !== user.id) {
       throw new UnauthorizedException(`You are not owner of this share`);
     }
@@ -58,14 +57,6 @@ export class ShareUseCases {
     }
     // if file send analytics track, but not in folder?
     return share;
-    // return {
-    //   id: share.id,
-    //   token: share.token,
-    //   item: share.item,
-    //   isFolder: share.isFolder,
-    //   bucket: share.bucket,
-    //   bucketToken: share.itemToken,
-    // };
   }
   async listByUserPaginated(user: any, page: number, perPage = 50) {
     const { count, items } = await this.shareRepository.findAllByUserPaginated(
