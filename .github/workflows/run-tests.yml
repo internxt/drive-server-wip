@@ -24,3 +24,4 @@ jobs:
       - run: echo "always-auth=true" >> .npmrc
       - name: Lint & Test
         run: yarn && yarn run test
+
