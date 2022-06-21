@@ -64,7 +64,7 @@ export class ShareController {
       user = await this.userUseCases.getUserByUsername(user.email);
     }
     const share = await this.shareUseCases.getShareByToken(token, user);
-    // notify no analytics if not folder
+
     return share.toJSON();
   }
 

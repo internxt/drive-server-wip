@@ -4,7 +4,6 @@ import {
   Post,
   HttpCode,
   Logger,
-  UseGuards,
   Get,
   BadRequestException,
 } from '@nestjs/common';
@@ -14,16 +13,15 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
-// import { TrashService } from './trash.service';
-import { User } from '../auth/decorators/user.decorator';
+import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
+import { User } from '../user/user.domain';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -32,7 +30,6 @@ export class TrashController {
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
-    private readonly logger: Logger,
   ) {}
 
   @Get('/')
@@ -41,7 +38,7 @@ export class TrashController {
     summary: 'Get trash content',
   })
   @ApiOkResponse({ description: 'Get all folders and files in trash' })
-  async getTrash(@User() user: any) {
+  async getTrash(@UserDecorator() user: User) {
     const folderId = user.rootFolderId;
     const [currentFolder, childrenFolders, files] = await Promise.all([
       this.folderUseCases.getFolder(folderId),
@@ -64,7 +61,7 @@ export class TrashController {
   @ApiBadRequestResponse({ description: 'Any item id is invalid' })
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
-    @User() user: any,
+    @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
     const fileIds: string[] = [];
