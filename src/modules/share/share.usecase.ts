@@ -43,7 +43,8 @@ export class ShareUseCases {
   async getShareByToken(token: string, user: User) {
     const share = await this.shareRepository.findByToken(token);
     // if is owner, not increment view
-    if ((user && !share.isOwner(user.id)) || !user) {
+    const isTheOwner = user && share.isOwner(user.id);
+    if (!isTheOwner) {
       if (share.isActive() && share.canHaveView()) {
         share.incrementView();
         if (!share.canHaveView()) {
@@ -55,7 +56,7 @@ export class ShareUseCases {
         throw new NotFoundException('cannot view this share');
       }
     }
-    // if file send analytics track, but not in folder?
+
     return share;
   }
   async listByUserPaginated(user: any, page: number, perPage = 50) {

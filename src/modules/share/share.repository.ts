@@ -92,16 +92,16 @@ export interface ShareRepository {
     page: number,
     perPage: number,
   ): Promise<{ count: number; items: Array<Share> | [] }>;
-  update(share: Share): Promise<true>;
+  update(share: Share): Promise<void>;
   create(share: Share): Promise<void>;
   findByFileIdAndUser(
     fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
-  ): Promise<Share>;
+  ): Promise<Share | null>;
   findByFolderIdAndUser(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
-  ): Promise<Share>;
+  ): Promise<Share | null>;
 }
 
 @Injectable()
@@ -127,7 +127,7 @@ export class SequelizeShareRepository implements ShareRepository {
   async findByFileIdAndUser(
     fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
-  ): Promise<Share> {
+  ): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { fileId, userId },
       include: [this.fileModel, this.userModel],
@@ -138,7 +138,7 @@ export class SequelizeShareRepository implements ShareRepository {
   async findByFolderIdAndUser(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
-  ) {
+  ): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { folderId, userId },
       include: [this.folderModel, this.userModel],
@@ -162,14 +162,13 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.create(shareModel);
   }
 
-  async update(share: Share): Promise<true> {
+  async update(share: Share): Promise<void> {
     const shareModel = await this.shareModel.findByPk(share.id);
     if (!shareModel) {
       throw new NotFoundException(`Share with ID ${share.id} not found`);
     }
     shareModel.set(this.toModel(share));
     shareModel.save();
-    return true;
   }
 
   async findAllByUserPaginated(
