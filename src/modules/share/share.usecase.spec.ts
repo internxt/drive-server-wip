@@ -235,7 +235,7 @@ describe('Share Use Cases', () => {
       shareFolder.views = 0;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
-      jest.spyOn(shareRepository, 'update').mockResolvedValue(true);
+      jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
       const result = await service.getShareByToken(token, userMock);
       expect(result).toMatchObject({
         id: 1,
@@ -251,7 +251,7 @@ describe('Share Use Cases', () => {
       shareFolder.views = 0;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
-      jest.spyOn(shareRepository, 'update').mockResolvedValue(true);
+      jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
       const result = await service.getShareByToken(token, null);
       expect(result).toMatchObject({
         id: 1,
@@ -274,7 +274,7 @@ describe('Share Use Cases', () => {
       shareFolder.views = 9;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
-      jest.spyOn(shareRepository, 'update').mockResolvedValue(true);
+      jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
       const result = await service.getShareByToken(token, null);
       expect(result).toMatchObject({
         id: 1,
@@ -312,7 +312,7 @@ describe('Share Use Cases', () => {
   describe('update share by id', () => {
     it('should return share updated', async () => {
       jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
-      jest.spyOn(shareRepository, 'update').mockResolvedValue(true);
+      jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
       const result = await service.updateShareById(1, userOwnerMock, {
         timesValid: 20,
         active: true,
@@ -329,7 +329,7 @@ describe('Share Use Cases', () => {
 
     it('should return not owner', async () => {
       jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
-      jest.spyOn(shareRepository, 'update').mockResolvedValue(true);
+      jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
       await expect(
         service.updateShareById(1, userMock, {
           timesValid: 20,
