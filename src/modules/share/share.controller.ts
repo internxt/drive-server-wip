@@ -25,7 +25,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { UpdateShareDto } from './dto/update-share.dto';
 import { NotificationService } from 'src/externals/notifications/notification.service';
 import { ShareLinkViewEvent } from 'src/externals/notifications/events/share-link-view.event';
-import { RequestContext } from 'src/lib/request-context';
+import { ShareLinkCreatedEvent } from 'src/externals/notifications/events/share-link-created.event';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -75,12 +75,11 @@ export class ShareController {
     const share = await this.shareUseCases.getShareByToken(token, user);
     const isTheOwner = user && share.isOwner(user.id);
     if (!isTheOwner) {
-      const context = new RequestContext(req);
       const shareLinkViewEvent = new ShareLinkViewEvent(
         'share.view',
         user,
         share,
-        await context.getContext(),
+        req,
         {},
       );
       this.notificationService.add(shareLinkViewEvent);
@@ -122,12 +121,26 @@ export class ShareController {
     @Param('fileId') fileId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
+    @Req() req: Request,
   ) {
-    const share = await this.shareUseCases.createShareFile(fileId, user, body);
+    const { item, created } = await this.shareUseCases.createShareFile(
+      fileId,
+      user,
+      body,
+    );
 
-    res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
-      created: share.created,
-      token: share.item.token,
+    const shareLinkViewEvent = new ShareLinkCreatedEvent(
+      'share.created',
+      user,
+      item,
+      req,
+      {},
+    );
+    this.notificationService.add(shareLinkViewEvent);
+
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      created,
+      token: item.token,
     });
   }
 
@@ -142,16 +155,26 @@ export class ShareController {
     @Param('folderId') folderId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
+    @Req() req: Request,
   ) {
-    const share = await this.shareUseCases.createShareFolder(
+    const { item, created } = await this.shareUseCases.createShareFolder(
       parseInt(folderId),
       user,
       body,
     );
 
-    res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
-      created: share.created,
-      token: share.item.token,
+    const shareLinkViewEvent = new ShareLinkCreatedEvent(
+      'share.created',
+      user,
+      item,
+      req,
+      {},
+    );
+    this.notificationService.add(shareLinkViewEvent);
+
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      created,
+      token: item.token,
     });
   }
 

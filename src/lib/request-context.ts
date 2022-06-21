@@ -27,21 +27,21 @@ export class RequestContext {
       this.logger.error(err),
     );
 
-    const campaign = this.getCampaign(this.req);
+    const campaign = this.getUTM(this.req.headers.referrer);
 
     const app = {
       name: this.req.headers['internxt-client'],
       version: this.req.headers['internxt-version'],
     };
-
-    const deviceContext = this.getDeviceContext(this.req);
+    const userAgent = this.req.headers['user-agent'];
+    const deviceContext = this.getDeviceContext(userAgent);
 
     const context = {
       app,
       campaign,
       ip: ipaddress,
       location,
-      userAgent: this.req.headers['user-agent'],
+      userAgent,
       locale: { language: this.req.headers['accept-language'] },
       ...deviceContext,
     };
@@ -49,8 +49,7 @@ export class RequestContext {
     return context;
   }
 
-  getDeviceContext(req: Request) {
-    const userAgent = req.headers['user-agent'];
+  getDeviceContext(userAgent: string) {
     let deviceContext = {};
     try {
       if (userAgent) {
@@ -98,10 +97,6 @@ export class RequestContext {
       city: location.city,
       timezone: location.timezone,
     };
-  }
-  getCampaign(req: Request) {
-    const campaign = this.getUTM(req.headers.referrer);
-    return campaign;
   }
 
   getUTM(referrer: any) {

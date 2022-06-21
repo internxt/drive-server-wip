@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 
 export enum AnalyticsTrackName {
   ShareLinkViewed = 'Share Link Viewed',
+  ShareLinkCopied = 'Share Link Copied',
 }
 
 export default class Analytics {

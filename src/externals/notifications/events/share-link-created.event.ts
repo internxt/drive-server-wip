@@ -3,7 +3,7 @@ import { Share } from 'src/modules/share/share.domain';
 import { User } from 'src/modules/user/user.domain';
 import { Event } from './event';
 
-export class ShareLinkViewEvent extends Event {
+export class ShareLinkCreatedEvent extends Event {
   user?: User;
   request?: Request;
   share: Share;
