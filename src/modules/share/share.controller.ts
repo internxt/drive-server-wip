@@ -73,8 +73,8 @@ export class ShareController {
       user = await this.userUseCases.getUserByUsername(user.email);
     }
     const share = await this.shareUseCases.getShareByToken(token, user);
-
-    if ((user && !share.isOwner(user.id)) || !user) {
+    const isTheOwner = user && share.isOwner(user.id);
+    if (!isTheOwner) {
       const context = new RequestContext(req);
       const shareLinkViewEvent = new ShareLinkViewEvent(
         'share.view',
