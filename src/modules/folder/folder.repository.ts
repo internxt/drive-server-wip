@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Folder, FolderAttributes } from './folder.domain';
-import { Op } from 'sequelize';
+import { FindOptions, Op } from 'sequelize';
 import {
   Column,
   Model,
@@ -116,7 +116,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     page: number = null,
     perPage: number = null,
   ): Promise<Array<Folder> | []> {
-    const query: any = {
+    const query: FindOptions = {
       where: { parentId, deleted: deleted ? 1 : 0 },
       order: [['id', 'ASC']],
     };
@@ -128,7 +128,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     const folders = await this.folderModel.findAll(query);
     return folders.map((folder) => this.toDomain(folder));
   }
-  async findById(folderId: FolderAttributes['id']): Promise<Folder> {
+  async findById(folderId: FolderAttributes['id']): Promise<Folder | null> {
     const folder = await this.folderModel.findOne({
       where: {
         id: folderId,

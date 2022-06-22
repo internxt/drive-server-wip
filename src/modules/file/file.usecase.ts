@@ -14,8 +14,7 @@ export class FileUseCases {
     fileId: FileAttributes['fileId'],
     userId: UserAttributes['id'],
   ): Promise<File> {
-    const file = await this.fileRepository.findOne(fileId, userId);
-    return file;
+    return await this.fileRepository.findOne(fileId, userId);
   }
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
@@ -72,7 +71,7 @@ export class FileUseCases {
     return encryptionKey.toString('hex');
   }
 
-  async getTotalSizeOfFilesFromFolder(folderId: number) {
-    return await this.fileRepository.getTotalSizeByFolderId(folderId);
+  getTotalSizeOfFilesFromFolder(folderId: number) {
+    return this.fileRepository.getTotalSizeByFolderId(folderId);
   }
 }

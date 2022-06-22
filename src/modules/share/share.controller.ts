@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
-import { User } from '../auth/decorators/user.decorator';
+import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
 import { Response } from 'express';
 import { GetDownFilesDto } from './dto/get-down-files.dto';
@@ -22,6 +22,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { UpdateShareDto } from './dto/update-share.dto';
+import { User } from '../user/user.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -40,7 +41,7 @@ export class ShareController {
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
   async listShares(
-    @User() user: any,
+    @UserDecorator() user: User,
     @Query('page') page: string,
     @Query('perPage') perPage: string,
   ) {
@@ -59,7 +60,10 @@ export class ShareController {
   })
   @ApiOkResponse({ description: 'Get share' })
   @Public()
-  async getShareByToken(@User() user: any, @Param('token') token: string) {
+  async getShareByToken(
+    @UserDecorator() user: User,
+    @Param('token') token: string,
+  ) {
     if (user && !user.id && user.email) {
       user = await this.userUseCases.getUserByUsername(user.email);
     }
@@ -76,7 +80,7 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get share updated' })
   @Public()
   async updateShareByToken(
-    @User() user: any,
+    @UserDecorator() user: User,
     @Param('shareId') shareId: string,
     @Body() content: UpdateShareDto,
   ) {
@@ -88,7 +92,6 @@ export class ShareController {
       user,
       content,
     );
-    // notify no analytics if not folder
     return share;
   }
 
@@ -98,7 +101,7 @@ export class ShareController {
   })
   @ApiOkResponse({ description: 'Get Token of share' })
   async generateSharedTokenToFile(
-    @User() user: any,
+    @UserDecorator() user: User,
     @Param('fileId') fileId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
@@ -117,8 +120,8 @@ export class ShareController {
     summary: 'Generate Shared Token by folder Id',
   })
   @ApiOkResponse({ description: 'Get token of share' })
-  async generateSharedTokenToFolder(
-    @User() user: any,
+  async generateSharedTokenForFolder(
+    @UserDecorator() user: User,
     @Param('folderId') folderId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
@@ -142,7 +145,10 @@ export class ShareController {
   })
   @ApiOkResponse({ description: 'Get all files' })
   @Public()
-  async getDownFiles(@User() user: any, @Query() query: GetDownFilesDto) {
+  async getDownFiles(
+    @UserDecorator() user: User,
+    @Query() query: GetDownFilesDto,
+  ) {
     const { token, folderId, code, page, perPage } = query;
     if (!user.id && user.email) {
       user = await this.userUseCases.getUserByUsername(user.email);
@@ -155,7 +161,7 @@ export class ShareController {
     );
     const files = await this.fileUseCases.getByFolderAndUser(
       folderId,
-      user,
+      user.id,
       false,
       parseInt(page),
       parseInt(perPage),
@@ -181,7 +187,10 @@ export class ShareController {
   })
   @ApiOkResponse({ description: 'Get all folders' })
   @Public()
-  async getDownFolders(@User() user: any, @Query() query: GetDownFilesDto) {
+  async getDownFolders(
+    @UserDecorator() user: User,
+    @Query() query: GetDownFilesDto,
+  ) {
     const { token, folderId, page, perPage } = query;
     if (!user.id && user.email) {
       user = await this.userUseCases.getUserByUsername(user.email);
