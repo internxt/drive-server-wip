@@ -64,9 +64,7 @@ export class ShareController {
     @UserDecorator() user: User,
     @Param('token') token: string,
   ) {
-    if (user && !user.id && user.email) {
-      user = await this.userUseCases.getUserByUsername(user.email);
-    }
+    user = await this.getUserWhenPublic(user);
     const share = await this.shareUseCases.getShareByToken(token, user);
 
     return share.toJSON();
@@ -84,9 +82,7 @@ export class ShareController {
     @Param('shareId') shareId: string,
     @Body() content: UpdateShareDto,
   ) {
-    if (!user.id && user.email) {
-      user = await this.userUseCases.getUserByUsername(user.email);
-    }
+    user = await this.getUserWhenPublic(user);
     const share = await this.shareUseCases.updateShareById(
       parseInt(shareId),
       user,
@@ -150,9 +146,7 @@ export class ShareController {
     @Query() query: GetDownFilesDto,
   ) {
     const { token, folderId, code, page, perPage } = query;
-    if (!user.id && user.email) {
-      user = await this.userUseCases.getUserByUsername(user.email);
-    }
+    user = await this.getUserWhenPublic(user);
     const share = await this.shareUseCases.getShareByToken(token, user);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
@@ -192,9 +186,7 @@ export class ShareController {
     @Query() query: GetDownFilesDto,
   ) {
     const { token, folderId, page, perPage } = query;
-    if (!user.id && user.email) {
-      user = await this.userUseCases.getUserByUsername(user.email);
-    }
+    user = await this.getUserWhenPublic(user);
     await this.shareUseCases.getShareByToken(token, user);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
@@ -215,7 +207,7 @@ export class ShareController {
     @Param('shareId') shareId: number,
     @Param('folderId') folderId: number,
   ) {
-    const share = this.shareUseCases.getShareById(shareId);
+    const share = await this.shareUseCases.getShareById(shareId);
     if (!share) {
       throw new NotFoundException(`share with id ${shareId} not found`);
     }
@@ -224,5 +216,12 @@ export class ShareController {
     return {
       size,
     };
+  }
+
+  async getUserWhenPublic(user) {
+    if (user) {
+      user = await this.userUseCases.getUserByUsername(user.username);
+    }
+    return user;
   }
 }

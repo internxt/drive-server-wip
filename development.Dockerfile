@@ -11,4 +11,4 @@ COPY . ./
 
 RUN yarn build
 
-CMD yarn start:prod
+CMD yarn migrate && yarn start:dev

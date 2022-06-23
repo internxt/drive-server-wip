@@ -31,6 +31,9 @@ import { ShareModule } from './modules/share/share.module';
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
+        replication: !configService.get('isDevelopment')
+          ? configService.get('database.replication')
+          : false,
         dialectOptions: {
           connectTimeout: 20000,
           options: {
