@@ -28,6 +28,10 @@ module.exports = {
       type: Sequelize.DATE,
       defaultValue: Sequelize.NOW,
     });
+
+    await queryInterface.sequelize.query(
+      'UPDATE shares INNER JOIN users ON shares.user = users.email SET shares.user_id = users.id',
+    );
   },
 
   down: async (queryInterface) => {

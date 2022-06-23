@@ -48,7 +48,7 @@ export class FolderUseCases {
   async getFolderSize(folderId) {
     const folder = await this.folderRepository.findById(folderId);
     if (!folder) {
-      throw new NotFoundException(`folder with id ${folderId} not exist`);
+      throw new NotFoundException(`folder with id ${folderId} not exists`);
     }
 
     const foldersToCheck = [folder.id];
