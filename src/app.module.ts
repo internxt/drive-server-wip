@@ -12,6 +12,7 @@ import { UserModule } from './modules/user/user.module';
 import configuration from './config/configuration';
 import { NotificationModule } from './externals/notifications/notifications.module';
 import { ShareModule } from './modules/share/share.module';
+import { SendModule } from './modules/send/send.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -67,6 +68,7 @@ import { ShareModule } from './modules/share/share.module';
     TrashModule,
     AuthModule,
     UserModule,
+    SendModule,
   ],
   controllers: [],
   providers: [],

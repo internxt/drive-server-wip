@@ -1,15 +1,93 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FileAttributes } from '../file/file.domain';
-import { toDomain as toDomainFile } from '../file/file.repository';
+import { FileModel, toDomain as toDomainFile } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
-import { toDomain as toDomainFolder } from '../folder/folder.repository';
+import {
+  FolderModel,
+  toDomain as toDomainFolder,
+} from '../folder/folder.repository';
 import { FolderAttributes } from '../folder/folder.domain';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
-import { SendLinkModel } from './models/send-link.model';
-import { SendLinkItemModel } from './models/send-link-item.model';
+
+import {
+  Column,
+  Model,
+  Table,
+  PrimaryKey,
+  ForeignKey,
+  BelongsTo,
+  DataType,
+  AllowNull,
+  HasMany,
+  Sequelize,
+} from 'sequelize-typescript';
+
+@Table({
+  underscored: true,
+  timestamps: true,
+  tableName: 'send_links',
+})
+export class SendLinkModel extends Model {
+  @PrimaryKey
+  @Column
+  id: string;
+
+  @Column
+  views: number;
+
+  @ForeignKey(() => UserModel)
+  @Column
+  userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
+
+  @Column
+  receiver: string;
+
+  @Column
+  code: string;
+
+  @HasMany(() => SendLinkItemModel)
+  items: SendLinkItemModel[];
+}
+
+@Table({
+  underscored: true,
+  timestamps: true,
+  tableName: 'send_links_items',
+})
+export class SendLinkItemModel extends Model {
+  @PrimaryKey
+  @Column
+  id: string;
+
+  @Column
+  name: string;
+
+  @Column
+  type: string;
+
+  @ForeignKey(() => SendLinkModel)
+  @Column
+  linkId: number;
+
+  @BelongsTo(() => SendLinkModel)
+  link: any;
+
+  @AllowNull
+  @Column
+  networkId: string;
+
+  @Column(DataType.STRING(64))
+  encryptionKey: string;
+
+  @Column
+  size: bigint;
+}
 
 export interface SendRepository {
   findById(id: SendLinkAttributes['id']): Promise<SendLink | null>;
@@ -32,6 +110,7 @@ export class SequelizeSendRepository implements SendRepository {
     private sendLinkItemModel: typeof SendLinkItemModel,
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
+    private sequelize: Sequelize,
   ) {}
 
   async findById(id: SendLinkAttributes['id']) {
@@ -77,19 +156,15 @@ export class SequelizeSendRepository implements SendRepository {
 
   async createSendLinkWithItems(sendLink: SendLink): Promise<void> {
     const sendLinkModel = this.toModel(sendLink);
-    const send = await this.sendLinkModel.create({
-      id: sendLink.id,
-      views: sendLink.views,
-      user: sendLink.user,
-      receiver: sendLink.receiver,
-      createdAt: sendLink.createdAt,
-      updatedAt: sendLink.updatedAt,
-    });
-    for (const item of sendLinkModel.items) {
-      await this.sendLinkItemModel.create({
-        id: item.id,
-        fileId: item.type === 'FILE' ? item.item.id : null,
+    const transaction = await this.sequelize.transaction();
+    try {
+      await this.sendLinkModel.create(sendLinkModel, { transaction });
+      await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
+        transaction,
       });
+      transaction.commit();
+    } catch {
+      transaction.rollback();
     }
   }
 
@@ -103,6 +178,7 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toDomain(model): SendLink {
+    console.log('model', model);
     const sendLink = SendLink.build({
       id: model.id,
       views: model.views,
@@ -111,36 +187,61 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       receiver: model.receiver,
+      code: model.code,
     });
-    const items = model.items.map((item: SendLinkItemModel) => {
-      return SendLinkItem.build({
-        id: item.id,
-        type: item.type,
-        item:
-          item.itemType === 'FILE'
-            ? toDomainFile(item.file)
-            : toDomainFolder(item.folder),
-        link: sendLink,
-        networkId: item.networkId,
-        encryptionKey: item.encryptionKey,
-        size: item.size,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-      });
-    });
-    sendLink.setItems(items);
+    // const items =
+    //   model.items.length > 0
+    //     ? model.items.map((item: SendLinkItemModel) => {
+    //         return SendLinkItem.build({
+    //           id: item.id,
+    //           type: item.type,
+    //           name: item.name,
+    //           link: sendLink,
+    //           networkId: item.networkId,
+    //           encryptionKey: item.encryptionKey,
+    //           size: item.size,
+    //           createdAt: item.createdAt,
+    //           updatedAt: item.updatedAt,
+    //         });
+    //       })
+    //     : [];
+    // sendLink.setItems(items);
     return sendLink;
   }
 
-  private toModel({ id, views, user, items, receiver, createdAt, updatedAt }) {
+  private toModel({
+    id,
+    views,
+    user,
+    items,
+    receiver,
+    code,
+    createdAt,
+    updatedAt,
+  }) {
     return {
       id,
       views,
-      user,
-      items,
+      userId: user.id,
+      items: items.map((item) => this.toModelItem(item)),
       receiver,
+      code,
       createdAt,
       updatedAt,
+    };
+  }
+
+  private toModelItem(domain) {
+    return {
+      id: domain.id,
+      name: domain.name,
+      type: domain.type,
+      linkId: domain.linkId,
+      networkId: domain.networkId,
+      encryptionKey: domain.encryptionKey,
+      size: domain.size,
+      createdAt: domain.createdAt,
+      updatedAt: domain.updatedAt,
     };
   }
 }

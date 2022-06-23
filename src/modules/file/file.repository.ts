@@ -20,7 +20,7 @@ import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import sequelize from 'sequelize';
-import { SendLinkItemModel } from '../send/models/send-link-item.model';
+import { SendLinkItemModel } from '../send/send-link.repository';
 @Table({
   underscored: true,
   timestamps: true,
@@ -78,13 +78,6 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column
   updatedAt: Date;
-
-  @HasMany(() => SendLinkItemModel, {
-    foreignKey: 'send_link_item_id_fk',
-    constraints: false,
-    scope: { itemType: 'file' },
-  })
-  sendLinkItems: SendLinkItemModel[];
 }
 
 export interface FileRepository {

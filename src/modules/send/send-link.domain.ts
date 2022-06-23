@@ -2,29 +2,41 @@ import { User } from '../user/user.domain';
 import { SendLinkItem } from './send-link-item.domain';
 
 export interface SendLinkAttributes {
-  id: number;
+  id: string;
   views: number;
   user: User | null;
   items: any;
   receiver: string;
+  code: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export class SendLink implements SendLinkAttributes {
-  id: number;
+  id: string;
   views: number;
   user: User | null;
   items: any;
   receiver: string;
+  code: string;
   createdAt: Date;
   updatedAt: Date;
-  constructor({ id, views, user, items, receiver, createdAt, updatedAt }) {
+  constructor({
+    id,
+    views,
+    user,
+    items,
+    receiver,
+    code,
+    createdAt,
+    updatedAt,
+  }) {
     this.id = id;
     this.setUser(user);
     this.views = views;
     this.setItems(items);
     this.receiver = receiver;
+    this.code = code;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -65,6 +77,7 @@ export class SendLink implements SendLinkAttributes {
       items: this.items.map((item) => item.toJSON()),
       views: this.views,
       receiver: this.receiver,
+      code: this.code,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

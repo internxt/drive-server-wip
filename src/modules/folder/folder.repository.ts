@@ -19,7 +19,7 @@ import {
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
-import { SendLinkItemModel } from '../send/models/send-link-item.model';
+import { SendLinkItemModel } from '../send/send-link.repository';
 @Table({
   underscored: true,
   timestamps: true,
@@ -68,13 +68,6 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   updatedAt: Date;
-
-  @HasMany(() => SendLinkItemModel, {
-    foreignKey: 'send_link_item_id_fk',
-    constraints: false,
-    scope: { itemType: 'folder' },
-  })
-  sendLinkItems: SendLinkItemModel[];
 }
 
 export interface FolderRepository {
