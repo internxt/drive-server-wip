@@ -14,10 +14,12 @@ import {
   BelongsTo,
   ForeignKey,
   Index,
+  HasMany,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
+import { SendLinkItemModel } from '../send/models/send-link-item.model';
 @Table({
   underscored: true,
   timestamps: true,
@@ -66,6 +68,13 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   updatedAt: Date;
+
+  @HasMany(() => SendLinkItemModel, {
+    foreignKey: 'send_link_item_id_fk',
+    constraints: false,
+    scope: { itemType: 'folder' },
+  })
+  sendLinkItems: SendLinkItemModel[];
 }
 
 export interface FolderRepository {
@@ -84,10 +93,18 @@ export interface FolderRepository {
     folderIds: FolderAttributes['id'][],
     update: Partial<Folder>,
   ): Promise<void>;
-  toDomain(model: FolderModel): Folder;
-  toModel(domain: Folder): Partial<FolderAttributes>;
 }
+export const toDomain = (model: FolderModel): Folder => {
+  return Folder.build({
+    ...model.toJSON(),
+    parent: model.parent ? Folder.build(model.parent) : null,
+    user: model.user ? User.build(model.user) : null,
+  });
+};
 
+export const toModel = (domain: Folder): Partial<FolderAttributes> => {
+  return domain.toJSON();
+};
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
   constructor(
@@ -97,7 +114,7 @@ export class SequelizeFolderRepository implements FolderRepository {
 
   async findAll(): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll();
-    return folders.map((folder) => this.toDomain(folder));
+    return folders.map((folder) => toDomain(folder));
   }
   async findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
@@ -107,7 +124,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     const folders = await this.folderModel.findAll({
       where: { parentId, userId, deleted: deleted ? 1 : 0 },
     });
-    return folders.map((folder) => this.toDomain(folder));
+    return folders.map((folder) => toDomain(folder));
   }
 
   async findAllByParentId(
@@ -126,7 +143,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       query.limit = limit;
     }
     const folders = await this.folderModel.findAll(query);
-    return folders.map((folder) => this.toDomain(folder));
+    return folders.map((folder) => toDomain(folder));
   }
   async findById(folderId: FolderAttributes['id']): Promise<Folder | null> {
     const folder = await this.folderModel.findOne({
@@ -134,7 +151,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         id: folderId,
       },
     });
-    return folder ? this.toDomain(folder) : null;
+    return folder ? toDomain(folder) : null;
   }
 
   async updateByFolderId(
@@ -152,7 +169,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     }
     folder.set(update);
     await folder.save();
-    return this.toDomain(folder);
+    return toDomain(folder);
   }
 
   async updateManyByFolderId(
@@ -166,17 +183,5 @@ export class SequelizeFolderRepository implements FolderRepository {
         },
       },
     });
-  }
-
-  toDomain(model: FolderModel): Folder {
-    return Folder.build({
-      ...model.toJSON(),
-      parent: model.parent ? Folder.build(model.parent) : null,
-      user: model.user ? User.build(model.user) : null,
-    });
-  }
-
-  toModel(domain: Folder): Partial<FolderAttributes> {
-    return domain.toJSON();
   }
 }

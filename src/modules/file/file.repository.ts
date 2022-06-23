@@ -13,12 +13,14 @@ import {
   Index,
   BelongsTo,
   ForeignKey,
+  HasMany,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import sequelize from 'sequelize';
+import { SendLinkItemModel } from '../send/models/send-link-item.model';
 @Table({
   underscored: true,
   timestamps: true,
@@ -76,6 +78,13 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column
   updatedAt: Date;
+
+  @HasMany(() => SendLinkItemModel, {
+    foreignKey: 'send_link_item_id_fk',
+    constraints: false,
+    scope: { itemType: 'file' },
+  })
+  sendLinkItems: SendLinkItemModel[];
 }
 
 export interface FileRepository {
@@ -101,10 +110,20 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  toDomain(model: FileModel): File;
-  toModel(domain: File): Partial<FileAttributes>;
 }
 
+export const toDomain = (model: FileModel): File => {
+  const file = File.build({
+    ...model.toJSON(),
+    folder: model.folder ? Folder.build(model.folder) : null,
+    user: model.user ? User.build(model.user) : null,
+  });
+  return file;
+};
+
+export const toModel = (domain: File): Partial<FileAttributes> => {
+  return domain.toJSON();
+};
 @Injectable()
 export class SequelizeFileRepository implements FileRepository {
   constructor(
@@ -115,7 +134,7 @@ export class SequelizeFileRepository implements FileRepository {
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
-      return this.toDomain(file);
+      return toDomain(file);
     });
   }
   async findAllByFolderIdAndUserId(
@@ -136,7 +155,7 @@ export class SequelizeFileRepository implements FileRepository {
     }
     const files = await this.fileModel.findAll(query);
     return files.map((file) => {
-      return this.toDomain(file);
+      return toDomain(file);
     });
   }
 
@@ -150,7 +169,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
       },
     });
-    return file ? this.toDomain(file) : null;
+    return file ? toDomain(file) : null;
   }
 
   async updateByFieldIdAndUserId(
@@ -170,7 +189,7 @@ export class SequelizeFileRepository implements FileRepository {
     }
     file.set(update);
     await file.save();
-    return this.toDomain(file);
+    return toDomain(file);
   }
 
   async updateManyByFieldIdAndUserId(
@@ -197,18 +216,5 @@ export class SequelizeFileRepository implements FileRepository {
     })) as unknown as Promise<{ total: number }[]>;
 
     return result[0].total;
-  }
-
-  toDomain(model: FileModel): File {
-    const file = File.build({
-      ...model.toJSON(),
-      folder: model.folder ? Folder.build(model.folder) : null,
-      user: model.user ? User.build(model.user) : null,
-    });
-    return file;
-  }
-
-  toModel(domain: File): Partial<FileAttributes> {
-    return domain.toJSON();
   }
 }

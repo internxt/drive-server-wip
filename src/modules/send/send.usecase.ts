@@ -5,12 +5,7 @@ import {
 } from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
-import { CreateShareDto } from './dto/create-share.dto';
-import { Share } from './share.domain';
-import { SequelizeShareRepository } from './share.repository';
-import crypto from 'crypto';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { UpdateShareDto } from './dto/update-share.dto';
 import { SequelizeSendRepository } from './send-link.repository';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { CreateSendLinkDto, SendLinkItemDto } from './dto/create-send-link.dto';
@@ -120,6 +115,6 @@ export class SendUseCases {
     // });
     // await this.shareRepository.create(shareCreated);
     // apply userReferral to share-file
-    return { item: shareCreated.toJSON(), created: true };
+    // return { item: shareCreated.toJSON(), created: true };
   }
 }
