@@ -168,7 +168,7 @@ export class SequelizeShareRepository implements ShareRepository {
       throw new NotFoundException(`Share with ID ${share.id} not found`);
     }
     shareModel.set(this.toModel(share));
-    shareModel.save();
+    await shareModel.save();
   }
 
   async findAllByUserPaginated(

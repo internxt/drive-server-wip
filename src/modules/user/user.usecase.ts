@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { SequelizeUserRepository } from './user.repository';
 
 import { Environment } from '@internxt/inxt-js';
-import { aes } from '@internxt/lib';
 import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class UserUseCases {
