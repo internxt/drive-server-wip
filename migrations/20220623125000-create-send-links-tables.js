@@ -14,6 +14,9 @@ module.exports = {
       receiver: {
         type: Sequelize.STRING,
       },
+      code: {
+        type: Sequelize.STRING,
+      },
       user_id: {
         type: Sequelize.INTEGER,
         references: { model: 'users', key: 'id' },
@@ -38,6 +41,9 @@ module.exports = {
         allowNull: false,
         defaultValue: Sequelize.UUIDV4,
       },
+      name: {
+        type: Sequelize.STRING,
+      },
       type: {
         type: Sequelize.STRING,
       },
@@ -47,12 +53,6 @@ module.exports = {
           model: 'send_links',
           key: 'id',
         },
-      },
-      item_id: {
-        type: Sequelize.INTEGER,
-      },
-      item_type: {
-        type: Sequelize.STRING,
       },
       network_id: {
         type: Sequelize.STRING,

@@ -1,12 +1,11 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFileRepository } from './file.repository';
 import { FileUseCases } from './file.usecase';
 import { FileModel } from './file.repository';
-import { SendLinkItemModel } from '../send/models/send-link-item.model';
 
 @Module({
-  imports: [SequelizeModule.forFeature([FileModel, SendLinkItemModel])],
+  imports: [SequelizeModule.forFeature([FileModel])],
   controllers: [],
   providers: [SequelizeFileRepository, FileUseCases],
   exports: [FileUseCases],

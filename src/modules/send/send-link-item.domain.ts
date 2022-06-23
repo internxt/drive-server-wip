@@ -1,16 +1,11 @@
 import { File } from '../file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { SendLink } from './send-link.domain';
-export const SendLinkItemTypes = {
-  FILE: 'file',
-  FOLDER: 'folder',
-};
-
 export interface SendLinkItemAttributes {
   id: string;
-  item: any;
+  name: string;
   type: string;
-  link: SendLink;
+  linkId: string;
   networkId: string;
   encryptionKey: string;
   size: bigint;
@@ -20,9 +15,9 @@ export interface SendLinkItemAttributes {
 
 export class SendLinkItem implements SendLinkItemAttributes {
   id: string;
-  item: any;
+  name: string;
   type: string;
-  link: any;
+  linkId: string;
   networkId: string;
   encryptionKey: string;
   size: bigint;
@@ -30,9 +25,9 @@ export class SendLinkItem implements SendLinkItemAttributes {
   updatedAt: Date;
   constructor({
     id,
-    item,
+    name,
     type,
-    link,
+    linkId,
     networkId,
     encryptionKey,
     size,
@@ -40,9 +35,9 @@ export class SendLinkItem implements SendLinkItemAttributes {
     updatedAt,
   }) {
     this.id = id;
-    this.setItem(item);
-    this.setType(type);
-    this.setLink(link);
+    this.name = name;
+    this.type = type;
+    this.linkId = linkId;
     this.networkId = networkId;
     this.encryptionKey = encryptionKey;
     this.size = size;
@@ -53,30 +48,12 @@ export class SendLinkItem implements SendLinkItemAttributes {
   static build(sendLinkItem: SendLinkItemAttributes): SendLinkItem {
     return new SendLinkItem(sendLinkItem);
   }
-  setItem(item) {
-    if (!(item instanceof File) && !(item instanceof Folder)) {
-      throw new Error('item must be instance of File or Folder');
-    }
-    this.item = item;
-  }
-
-  setType(type) {
-    if (!Object.values(SendLinkItemTypes).includes(type)) {
-      throw new Error(`type ${type} is not valid`);
-    }
-    this.type = type;
-  }
-  setLink(link) {
-    if (!(link instanceof SendLink)) {
-      throw new Error('link must be instance of SendLink');
-    }
-    this.link = link;
-  }
   toJSON() {
     return {
       id: this.id,
+      name: this.name,
       type: this.type,
-      link: this.link,
+      linkId: this.linkId,
       networkId: this.networkId,
       encryptionKey: this.encryptionKey,
       size: this.size,
