@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from '../user/user.domain';
-import { UserService } from '../user/user.usecase';
+import { UserUseCases } from '../user/user.usecase';
 
 export interface JwtPayload {
   email: string;
@@ -12,9 +12,9 @@ export interface JwtPayload {
 
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    @Inject(UserService)
-    private userService: UserService,
-    private configService: ConfigService,
+    @Inject(UserUseCases)
+    private userUseCases: UserUseCases,
+    configService: ConfigService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -22,11 +22,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<User> {
-    const { email, bridgeUser } = payload;
-    const isGuest = bridgeUser && email !== bridgeUser;
-    const username = isGuest ? bridgeUser : email;
-    const user = await this.userService.getUserByUsername(username);
+  async validate(payload): Promise<User> {
+    const { username } = payload.payload;
+    const user = await this.userUseCases.getUserByUsername(username);
     if (!user) {
       throw new UnauthorizedException();
     }

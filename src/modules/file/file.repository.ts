@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes } from './file.domain';
-import { Op } from 'sequelize';
+import { FindOptions, Op } from 'sequelize';
 import { FolderModel } from '../folder/folder.repository';
 
 import {
@@ -16,7 +16,9 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Pagination } from '../../lib/pagination';
+import sequelize from 'sequelize';
 @Table({
   underscored: true,
   timestamps: true,
@@ -82,6 +84,8 @@ export interface FileRepository {
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
     deleted: FileAttributes['deleted'],
+    page: number,
+    perPage: number,
   ): Promise<Array<File> | []>;
   findOne(
     fileId: FileAttributes['fileId'],
@@ -97,8 +101,8 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  _toDomain(model: FileModel): File;
-  _toModel(domain: File): Partial<FileAttributes>;
+  toDomain(model: FileModel): File;
+  toModel(domain: File): Partial<FileAttributes>;
 }
 
 @Injectable()
@@ -111,19 +115,28 @@ export class SequelizeFileRepository implements FileRepository {
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
-      return this._toDomain(file);
+      return this.toDomain(file);
     });
   }
   async findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
     deleted: FileAttributes['deleted'],
+    page: number,
+    perPage: number,
   ): Promise<Array<File> | []> {
-    const files = await this.fileModel.findAll({
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    const query: FindOptions = {
       where: { folderId, userId, deleted: deleted ? 1 : 0 },
-    });
+      order: [['id', 'ASC']],
+    };
+    if (page && perPage) {
+      query.offset = offset;
+      query.limit = limit;
+    }
+    const files = await this.fileModel.findAll(query);
     return files.map((file) => {
-      return this._toDomain(file);
+      return this.toDomain(file);
     });
   }
 
@@ -137,7 +150,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
       },
     });
-    return file ? this._toDomain(file) : null;
+    return file ? this.toDomain(file) : null;
   }
 
   async updateByFieldIdAndUserId(
@@ -157,7 +170,7 @@ export class SequelizeFileRepository implements FileRepository {
     }
     file.set(update);
     await file.save();
-    return this._toDomain(file);
+    return this.toDomain(file);
   }
 
   async updateManyByFieldIdAndUserId(
@@ -175,7 +188,18 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  _toDomain(model: FileModel): File {
+  async getTotalSizeByFolderId(folderId: FolderAttributes['id']) {
+    const result = (await this.fileModel.findAll({
+      attributes: [[sequelize.fn('sum', sequelize.col('size')), 'total']],
+      where: {
+        folderId,
+      },
+    })) as unknown as Promise<{ total: number }[]>;
+
+    return result[0].total;
+  }
+
+  toDomain(model: FileModel): File {
     const file = File.build({
       ...model.toJSON(),
       folder: model.folder ? Folder.build(model.folder) : null,
@@ -184,7 +208,7 @@ export class SequelizeFileRepository implements FileRepository {
     return file;
   }
 
-  _toModel(domain: File): Partial<FileAttributes> {
+  toModel(domain: File): Partial<FileAttributes> {
     return domain.toJSON();
   }
 }

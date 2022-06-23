@@ -1,5 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
@@ -12,6 +12,7 @@ import {
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerMiddleware } from './middlewares/requests-logger';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { AuthGuard } from './modules/auth/auth.guard';
 
 const APP_PORT = process.env.PORT || 3000;
 async function bootstrap() {
@@ -38,12 +39,16 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
+
   app.use(helmet());
 
   app.use(RequestLoggerMiddleware);
   app.setGlobalPrefix('api');
   app.disable('x-powered-by');
   app.enableShutdownHooks();
+
+  const reflector = app.get(Reflector);
+  app.useGlobalGuards(new AuthGuard(reflector));
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Drive Desktop')
     .setDescription('Drive Desktop API')

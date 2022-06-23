@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FolderService } from './folder.usecase';
+import { FolderUseCases } from './folder.usecase';
 import {
   SequelizeFolderRepository,
   FolderRepository,
@@ -8,25 +8,33 @@ import { NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { Folder } from './folder.domain';
 import { FolderModel } from './folder.repository';
+import { FileUseCases } from '../file/file.usecase';
+import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 
 const folderId = 4;
 const userId = 1;
-describe('FolderService', () => {
-  let service: FolderService;
+describe('FolderUseCases', () => {
+  let service: FolderUseCases;
   let folderRepository: FolderRepository;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        FolderService,
+        FolderUseCases,
+        FileUseCases,
+        SequelizeFileRepository,
         SequelizeFolderRepository,
         {
           provide: getModelToken(FolderModel),
           useValue: jest.fn(),
         },
+        {
+          provide: getModelToken(FileModel),
+          useValue: jest.fn(),
+        },
       ],
     }).compile();
 
-    service = module.get<FolderService>(FolderService);
+    service = module.get<FolderUseCases>(FolderUseCases);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
   });
 

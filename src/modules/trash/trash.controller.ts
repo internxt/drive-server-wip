@@ -4,7 +4,6 @@ import {
   Post,
   HttpCode,
   Logger,
-  UseGuards,
   Get,
   BadRequestException,
 } from '@nestjs/common';
@@ -14,27 +13,23 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
-// import { TrashService } from './trash.service';
-import { User } from '../auth/decorators/user.decorator';
+import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
-import { FileService } from '../file/file.usecase';
-import { FolderService } from '../folder/folder.usecase';
-import { UserService } from '../user/user.usecase';
-import { ItemsToTrashEvent } from 'src/externals/notifications/events/items-to-trash.event';
-import { NotificationService } from 'src/externals/notifications/notification.service';
-
+import { FileUseCases } from '../file/file.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { UserUseCases } from '../user/user.usecase';
+import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
+import { NotificationService } from '../../externals/notifications/notification.service';
+import { User } from '../user/user.domain';
 @ApiTags('Trash')
 @Controller('storage/trash')
-@UseGuards(AuthGuard('jwt'))
 export class TrashController {
   constructor(
-    private fileService: FileService,
-    private folderService: FolderService,
-    private userService: UserService,
+    private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
+    private userUseCases: UserUseCases,
     private notificationService: NotificationService,
-    private readonly logger: Logger,
   ) {}
 
   @Get('/')
@@ -43,15 +38,15 @@ export class TrashController {
     summary: 'Get trash content',
   })
   @ApiOkResponse({ description: 'Get all folders and files in trash' })
-  async getTrash(@User() user: any) {
+  async getTrash(@UserDecorator() user: User) {
     const folderId = user.rootFolderId;
     const [currentFolder, childrenFolders, files] = await Promise.all([
-      this.folderService.getFolder(folderId),
-      this.folderService.getChildrenFoldersToUser(folderId, user.id, true),
-      this.fileService.getByFolderAndUser(folderId, user.id, true),
+      this.folderUseCases.getFolder(folderId),
+      this.folderUseCases.getChildrenFoldersToUser(folderId, user.id, true),
+      this.fileUseCases.getByFolderAndUser(folderId, user.id, true),
     ]);
     return {
-      ...currentFolder,
+      ...currentFolder.toJSON(),
       children: childrenFolders,
       files,
     };
@@ -66,7 +61,7 @@ export class TrashController {
   @ApiBadRequestResponse({ description: 'Any item id is invalid' })
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
-    @User() user: any,
+    @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
     const fileIds: string[] = [];
@@ -81,12 +76,12 @@ export class TrashController {
       }
     }
     await Promise.all([
-      this.fileService.moveFilesToTrash(fileIds, user.id),
-      this.folderService.moveFoldersToTrash(folderIds),
+      this.fileUseCases.moveFilesToTrash(fileIds, user.id),
+      this.folderUseCases.moveFoldersToTrash(folderIds),
     ]);
 
     const workspaceMembers =
-      await this.userService.getWorkspaceMembersByBrigeUser(user.bridgeUser);
+      await this.userUseCases.getWorkspaceMembersByBrigeUser(user.bridgeUser);
 
     workspaceMembers.forEach(({ email }: { email: string }) => {
       const itemsToTrashEvent = new ItemsToTrashEvent(
