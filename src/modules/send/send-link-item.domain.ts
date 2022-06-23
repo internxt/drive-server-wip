@@ -8,7 +8,7 @@ export const SendLinkItemTypes = {
 
 export interface SendLinkItemAttributes {
   id: string;
-  item: File | Folder | null;
+  item: any;
   type: string;
   link: SendLink;
   networkId: string;
@@ -20,7 +20,7 @@ export interface SendLinkItemAttributes {
 
 export class SendLinkItem implements SendLinkItemAttributes {
   id: string;
-  item: File | Folder | null;
+  item: any;
   type: string;
   link: any;
   networkId: string;
