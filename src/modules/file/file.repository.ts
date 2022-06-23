@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes } from './file.domain';
-import { Op } from 'sequelize';
+import { FindOptions, Op } from 'sequelize';
 import { FolderModel } from '../folder/folder.repository';
 
 import {
@@ -126,7 +126,7 @@ export class SequelizeFileRepository implements FileRepository {
     perPage: number,
   ): Promise<Array<File> | []> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const query: any = {
+    const query: FindOptions = {
       where: { folderId, userId, deleted: deleted ? 1 : 0 },
       order: [['id', 'ASC']],
     };
@@ -189,15 +189,14 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async getTotalSizeByFolderId(folderId: FolderAttributes['id']) {
-    const result = this.fileModel.findAll({
+    const result = (await this.fileModel.findAll({
       attributes: [[sequelize.fn('sum', sequelize.col('size')), 'total']],
       where: {
         folderId,
       },
-      raw: true,
-    });
+    })) as unknown as Promise<{ total: number }[]>;
 
-    return result[0].total || 0;
+    return result[0].total;
   }
 
   toDomain(model: FileModel): File {
