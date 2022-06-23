@@ -124,10 +124,11 @@ export class UserModel extends Model implements UserAttributes {
 }
 
 export interface UserRepository {
+  findById(id: number): Promise<User | null>;
   findAllBy(where: any): Promise<Array<User> | []>;
   findByUsername(username: string): Promise<User | null>;
-  _toDomain(model: UserModel): User;
-  _toModel(domain: User): Partial<UserAttributes>;
+  toDomain(model: UserModel): User;
+  toModel(domain: User): Partial<UserAttributes>;
 }
 
 @Injectable()
@@ -136,10 +137,14 @@ export class SequelizeUserRepository implements UserRepository {
     @InjectModel(UserModel)
     private modelUser: typeof UserModel,
   ) {}
+  async findById(id: number): Promise<User | null> {
+    const user = await this.modelUser.findByPk(id);
+    return user ? this.toDomain(user) : null;
+  }
 
   async findAllBy(where: any): Promise<Array<User> | []> {
     const users = await this.modelUser.findAll({ where });
-    return users.map((user) => this._toDomain(user));
+    return users.map((user) => this.toDomain(user));
   }
 
   async findByUsername(username: string): Promise<User | null> {
@@ -148,17 +153,17 @@ export class SequelizeUserRepository implements UserRepository {
         username,
       },
     });
-    return user ? this._toDomain(user) : null;
+    return user ? this.toDomain(user) : null;
   }
 
-  _toDomain(model: UserModel): User {
+  toDomain(model: UserModel): User {
     return User.build({
       ...model.toJSON(),
       rootFolder: model.rootFolder ? Folder.build(model.rootFolder) : null,
     });
   }
 
-  _toModel(domain: User): Partial<UserAttributes> {
+  toModel(domain: User): Partial<UserAttributes> {
     return domain.toJSON();
   }
 }

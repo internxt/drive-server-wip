@@ -28,6 +28,7 @@ export class Folder implements FolderAttributes {
   deletedAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  size: number;
   constructor({
     id,
     parentId,
@@ -54,6 +55,7 @@ export class Folder implements FolderAttributes {
     this.deletedAt = deletedAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.size = 0;
   }
 
   static build(file: FolderAttributes): Folder {
@@ -95,6 +97,7 @@ export class Folder implements FolderAttributes {
       bucket: this.bucket,
       userId: this.userId,
       encryptVersion: this.encryptVersion,
+      size: this.size,
       deleted: this.deleted,
       deletedAt: this.deletedAt,
       createdAt: this.createdAt,

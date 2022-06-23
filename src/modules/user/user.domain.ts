@@ -139,11 +139,7 @@ export class User implements UserAttributes {
       email: this.email,
       username: this.username,
       bridgeUser: this.bridgeUser,
-      password: this.password,
-      mnemonic: this.mnemonic,
       rootFolderId: this.rootFolderId,
-      hKey: this.hKey,
-      secret_2FA: this.secret_2FA,
       errorLoginCount: this.errorLoginCount,
       isEmailActivitySended: this.isEmailActivitySended,
       referralCode: this.referralCode,
@@ -156,7 +152,6 @@ export class User implements UserAttributes {
       registerCompleted: this.registerCompleted,
       backupsBucket: this.backupsBucket,
       sharedWorkspace: this.sharedWorkspace,
-      tempKey: this.tempKey,
       avatar: this.avatar,
     };
   }

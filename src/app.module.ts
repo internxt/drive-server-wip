@@ -11,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import configuration from './config/configuration';
 import { NotificationModule } from './externals/notifications/notifications.module';
+import { ShareModule } from './modules/share/share.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -30,6 +31,9 @@ import { NotificationModule } from './externals/notifications/notifications.modu
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
+        replication: !configService.get('isDevelopment')
+          ? configService.get('database.replication')
+          : false,
         dialectOptions: {
           connectTimeout: 20000,
           options: {
@@ -59,6 +63,7 @@ import { NotificationModule } from './externals/notifications/notifications.modu
     NotificationModule,
     FileModule,
     FolderModule,
+    ShareModule,
     TrashModule,
     AuthModule,
     UserModule,
