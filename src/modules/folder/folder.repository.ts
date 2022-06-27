@@ -14,12 +14,10 @@ import {
   BelongsTo,
   ForeignKey,
   Index,
-  HasMany,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
-import { SendLinkItemModel } from '../send/send-link.repository';
 @Table({
   underscored: true,
   timestamps: true,

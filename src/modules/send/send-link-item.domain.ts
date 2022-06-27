@@ -1,6 +1,3 @@
-import { File } from '../file/file.domain';
-import { Folder } from '../folder/folder.domain';
-import { SendLink } from './send-link.domain';
 export interface SendLinkItemAttributes {
   id: string;
   name: string;
