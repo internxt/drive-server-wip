@@ -11,6 +11,9 @@ module.exports = {
         type: Sequelize.INTEGER,
         defaultValue: 0,
       },
+      sender: {
+        type: Sequelize.STRING,
+      },
       receiver: {
         type: Sequelize.STRING,
       },

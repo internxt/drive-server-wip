@@ -4,16 +4,16 @@ import { User } from '../user/user.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { SequelizeSendRepository } from './send-link.repository';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
-import { CreateSendLinkDto, SendLinkItemDto } from './dto/create-send-link.dto';
 import { SendLinkItem } from './send-link-item.domain';
 import { v4 as uuidv4 } from 'uuid';
+import { NotificationService } from '../../externals/notifications/notification.service';
+import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 
 @Injectable()
 export class SendUseCases {
   constructor(
     private sendRepository: SequelizeSendRepository,
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
+    private notificationService: NotificationService,
   ) {}
 
   async getById(id: SendLinkAttributes['id']) {
@@ -22,17 +22,12 @@ export class SendUseCases {
     return sendLink;
   }
 
-  // instance sendlink
-  // each item
-  // check exists
-  // instance domain sendItem
-  // after bucle:
-  // save sendLink with items
   async createSendLinks(
-    user: User,
+    user: User | null,
     items: any,
     code: string,
     receiver: string,
+    sender: string,
   ) {
     const sendLink = SendLink.build({
       id: uuidv4(),
@@ -41,6 +36,7 @@ export class SendUseCases {
       items: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      sender,
       receiver,
       code,
     });
@@ -60,6 +56,13 @@ export class SendUseCases {
     }
 
     await this.sendRepository.createSendLinkWithItems(sendLink);
+
+    const sendLinkCreatedEvent = new SendLinkCreatedEvent({
+      sendLink,
+      receiver,
+    });
+
+    this.notificationService.add(sendLinkCreatedEvent);
 
     return sendLink;
   }

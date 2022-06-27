@@ -178,7 +178,6 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toDomain(model): SendLink {
-    console.log('model', model);
     const sendLink = SendLink.build({
       id: model.id,
       views: model.views,
@@ -186,26 +185,12 @@ export class SequelizeSendRepository implements SendRepository {
       items: [],
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      sender: model.sender,
       receiver: model.receiver,
       code: model.code,
     });
-    // const items =
-    //   model.items.length > 0
-    //     ? model.items.map((item: SendLinkItemModel) => {
-    //         return SendLinkItem.build({
-    //           id: item.id,
-    //           type: item.type,
-    //           name: item.name,
-    //           link: sendLink,
-    //           networkId: item.networkId,
-    //           encryptionKey: item.encryptionKey,
-    //           size: item.size,
-    //           createdAt: item.createdAt,
-    //           updatedAt: item.updatedAt,
-    //         });
-    //       })
-    //     : [];
-    // sendLink.setItems(items);
+    const items = model.items.map((item) => this.toDomainItem(item));
+    sendLink.setItems(items);
     return sendLink;
   }
 
@@ -214,6 +199,7 @@ export class SequelizeSendRepository implements SendRepository {
     views,
     user,
     items,
+    sender,
     receiver,
     code,
     createdAt,
@@ -224,11 +210,25 @@ export class SequelizeSendRepository implements SendRepository {
       views,
       userId: user.id,
       items: items.map((item) => this.toModelItem(item)),
+      sender,
       receiver,
       code,
       createdAt,
       updatedAt,
     };
+  }
+  private toDomainItem(model): SendLinkItem {
+    return SendLinkItem.build({
+      id: model.id,
+      type: model.type,
+      name: model.name,
+      linkId: model.linkId,
+      networkId: model.networkId,
+      encryptionKey: model.encryptionKey,
+      size: model.size,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+    });
   }
 
   private toModelItem(domain) {

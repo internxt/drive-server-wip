@@ -25,16 +25,18 @@ export class SendController {
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
   async createLinks(@UserDecorator() user: User, @Body() content: any) {
-    const { items, code, receiver } = content;
+    const { items, code, receiver, sender } = content;
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
       items,
       code,
       receiver,
+      sender,
     );
     return {
       id: sendLink.id,
       code: sendLink.code,
+      sender: sendLink.sender,
       receiver: sendLink.receiver,
       views: sendLink.views,
       userId: user.id,
