@@ -13,10 +13,44 @@ export class SendLinkListener {
   @OnEvent('sendLink.created')
   async handleSendLinkCreated(event: SendLinkCreatedEvent) {
     Logger.log(`event ${event.name} handled`, 'SendLinkListener');
-    const { sender, receiver } = event.payload.sendLink;
-    Promise.all([
-      this.mailer.send(sender, '', {}),
-      this.mailer.send(receiver, '', {}),
-    ]);
+    const {
+      sender,
+      receivers,
+      items,
+      link,
+      title,
+      subject,
+      expirationAt,
+      size,
+    } = event.payload.sendLink;
+
+    const itemsToMail = items.map((item) => {
+      return {
+        title: item.name,
+        type: item.type,
+        size: item.size,
+      };
+    });
+
+    for (const receiver of receivers) {
+      await this.mailer.send(receiver, 'sendLink', {
+        sender,
+        items: itemsToMail,
+        count: items.length,
+        link,
+        title,
+        message: subject,
+        date: expirationAt,
+        size,
+      });
+    }
+    await this.mailer.send(sender, '', {
+      sender,
+      receivers,
+      items: itemsToMail,
+      link,
+      title,
+      subject,
+    });
   }
 }
