@@ -14,10 +14,8 @@ export class SendUseCases {
     private notificationService: NotificationService,
   ) {}
 
-  async getById(id: SendLinkAttributes['id']) {
-    const sendLink = await this.sendRepository.findById(id);
-    //return items with pagination
-    return sendLink;
+  getById(id: SendLinkAttributes['id']) {
+    return this.sendRepository.findById(id);
   }
 
   async createSendLinks(

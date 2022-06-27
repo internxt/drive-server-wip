@@ -160,9 +160,9 @@ export class SequelizeSendRepository implements SendRepository {
       await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
         transaction,
       });
-      transaction.commit();
+      await transaction.commit();
     } catch {
-      transaction.rollback();
+      await transaction.rollback();
     }
   }
 
@@ -172,7 +172,7 @@ export class SequelizeSendRepository implements SendRepository {
       throw new NotFoundException(`sendLink with ID ${sendLink.id} not found`);
     }
     sendLinkModel.set(this.toModel(sendLink));
-    sendLinkModel.save();
+    await sendLinkModel.save();
   }
 
   private toDomain(model): SendLink {
