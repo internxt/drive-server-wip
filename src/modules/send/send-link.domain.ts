@@ -6,6 +6,7 @@ export interface SendLinkAttributes {
   views: number;
   user: User | null;
   items: any;
+  sender: string;
   receiver: string;
   code: string;
   createdAt: Date;
@@ -17,6 +18,7 @@ export class SendLink implements SendLinkAttributes {
   views: number;
   user: User | null;
   items: any;
+  sender: string;
   receiver: string;
   code: string;
   createdAt: Date;
@@ -26,6 +28,7 @@ export class SendLink implements SendLinkAttributes {
     views,
     user,
     items,
+    sender,
     receiver,
     code,
     createdAt,
@@ -35,6 +38,7 @@ export class SendLink implements SendLinkAttributes {
     this.setUser(user);
     this.views = views;
     this.setItems(items);
+    this.sender = sender;
     this.receiver = receiver;
     this.code = code;
     this.createdAt = createdAt;
