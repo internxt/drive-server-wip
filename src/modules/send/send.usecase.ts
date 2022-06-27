@@ -22,9 +22,13 @@ export class SendUseCases {
     user: User | null,
     items: any,
     code: string,
-    receiver: string,
+    receivers: string[],
     sender: string,
+    title: string,
+    subject: string,
   ) {
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 15);
     const sendLink = SendLink.build({
       id: uuidv4(),
       views: 0,
@@ -33,8 +37,11 @@ export class SendUseCases {
       createdAt: new Date(),
       updatedAt: new Date(),
       sender,
-      receiver,
+      receivers,
       code,
+      title,
+      subject,
+      expirationAt,
     });
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({
@@ -55,7 +62,6 @@ export class SendUseCases {
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
       sendLink,
-      receiver,
     });
 
     this.notificationService.add(sendLinkCreatedEvent);
