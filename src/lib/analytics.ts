@@ -13,7 +13,7 @@ export default class Analytics {
   static instance: Analytics;
   constructor() {
     this.logger = new Logger();
-    this.analytics = new AnalyticsSegment(process.env.APP_SEGMENT_KEY || 'xxx');
+    this.analytics = new AnalyticsSegment(process.env.APP_SEGMENT_KEY);
   }
 
   static getInstance() {
