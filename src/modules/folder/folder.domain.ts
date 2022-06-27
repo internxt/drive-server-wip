@@ -19,6 +19,7 @@ export class Folder implements FolderAttributes {
   id: number;
   parentId: number;
   parent: Folder;
+  type: string;
   name: string;
   bucket: string;
   userId: number;
@@ -43,6 +44,7 @@ export class Folder implements FolderAttributes {
     createdAt,
     updatedAt,
   }: FolderAttributes) {
+    this.type = 'folder';
     this.id = id;
     this.parentId = parentId;
     this.name = this.decryptName(name);
