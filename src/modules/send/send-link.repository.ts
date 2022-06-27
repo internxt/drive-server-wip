@@ -46,6 +46,9 @@ export class SendLinkModel extends Model {
   user: UserModel;
 
   @Column
+  sender: string;
+
+  @Column
   receiver: string;
 
   @Column
