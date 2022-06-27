@@ -103,18 +103,6 @@ export interface FileRepository {
   ): Promise<void>;
 }
 
-export const toDomain = (model: FileModel): File => {
-  const file = File.build({
-    ...model.toJSON(),
-    folder: model.folder ? Folder.build(model.folder) : null,
-    user: model.user ? User.build(model.user) : null,
-  });
-  return file;
-};
-
-export const toModel = (domain: File): Partial<FileAttributes> => {
-  return domain.toJSON();
-};
 @Injectable()
 export class SequelizeFileRepository implements FileRepository {
   constructor(
@@ -125,7 +113,7 @@ export class SequelizeFileRepository implements FileRepository {
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
-      return toDomain(file);
+      return this.toDomain(file);
     });
   }
   async findAllByFolderIdAndUserId(
@@ -146,7 +134,7 @@ export class SequelizeFileRepository implements FileRepository {
     }
     const files = await this.fileModel.findAll(query);
     return files.map((file) => {
-      return toDomain(file);
+      return this.toDomain(file);
     });
   }
 
@@ -160,7 +148,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
       },
     });
-    return file ? toDomain(file) : null;
+    return file ? this.toDomain(file) : null;
   }
 
   async updateByFieldIdAndUserId(
@@ -180,7 +168,7 @@ export class SequelizeFileRepository implements FileRepository {
     }
     file.set(update);
     await file.save();
-    return toDomain(file);
+    return this.toDomain(file);
   }
 
   async updateManyByFieldIdAndUserId(
@@ -207,5 +195,18 @@ export class SequelizeFileRepository implements FileRepository {
     })) as unknown as Promise<{ total: number }[]>;
 
     return result[0].total;
+  }
+
+  private toDomain(model: FileModel): File {
+    const file = File.build({
+      ...model.toJSON(),
+      folder: model.folder ? Folder.build(model.folder) : null,
+      user: model.user ? User.build(model.user) : null,
+    });
+    return file;
+  }
+
+  private toModel(domain: File): Partial<FileAttributes> {
+    return domain.toJSON();
   }
 }
