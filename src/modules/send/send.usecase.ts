@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
-import { FolderUseCases } from '../folder/folder.usecase';
 import { SequelizeSendRepository } from './send-link.repository';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';

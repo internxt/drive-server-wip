@@ -43,12 +43,21 @@ export class CreateSendLinkDto {
     example: 'fake@mail.com',
     description: 'Email of destinatary',
   })
+  @IsNotEmpty()
   receiver: string;
+
+  @ApiProperty({
+    example: 'sender@mail.com',
+    description: 'Email of sender',
+  })
+  @IsNotEmpty()
+  sender: string;
 
   @ApiProperty({
     example: 'code',
     description: 'Code to send link',
   })
+  @IsNotEmpty()
   code: string;
 
   @ApiProperty({

@@ -1,10 +1,9 @@
-import { Controller, HttpCode, Get, Query, Post, Body } from '@nestjs/common';
+import { Controller, HttpCode, Post, Body } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
-import { Public } from '../auth/decorators/public.decorator';
 import { User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
 

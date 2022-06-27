@@ -1,13 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FileAttributes } from '../file/file.domain';
-import { FileModel, toDomain as toDomainFile } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
-import {
-  FolderModel,
-  toDomain as toDomainFolder,
-} from '../folder/folder.repository';
 import { FolderAttributes } from '../folder/folder.domain';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';

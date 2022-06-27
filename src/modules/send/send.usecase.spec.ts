@@ -3,13 +3,6 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { FileModel, SequelizeFileRepository } from '../file/file.repository';
-import { FileUseCases } from '../file/file.usecase';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import {
@@ -21,7 +14,7 @@ import {
 import { SendUseCases } from './send.usecase';
 
 describe('Send Use Cases', () => {
-  let service, fileService, folderService, notificationService, sendRepository;
+  let service, notificationService, sendRepository;
   const userMock = User.build({
     id: 2,
     userId: 'userId',
@@ -56,11 +49,7 @@ describe('Send Use Cases', () => {
       providers: [
         SendUseCases,
         NotificationService,
-        FolderUseCases,
-        FileUseCases,
         SequelizeSendRepository,
-        SequelizeFileRepository,
-        SequelizeFolderRepository,
         EventEmitter2,
         {
           provide: Sequelize,
@@ -75,14 +64,6 @@ describe('Send Use Cases', () => {
           useValue: jest.fn(),
         },
         {
-          provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        {
           provide: getModelToken(UserModel),
           useValue: jest.fn(),
         },
@@ -90,8 +71,6 @@ describe('Send Use Cases', () => {
     }).compile();
 
     service = module.get<SendUseCases>(SendUseCases);
-    fileService = module.get<FileUseCases>(FileUseCases);
-    folderService = module.get<FolderUseCases>(FolderUseCases);
     notificationService = module.get<NotificationService>(NotificationService);
     sendRepository = module.get<SendRepository>(SequelizeSendRepository);
   });
