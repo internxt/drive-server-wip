@@ -57,7 +57,6 @@ export class SendUseCases {
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
       sendLink,
-      receiver,
     });
 
     this.notificationService.add(sendLinkCreatedEvent);

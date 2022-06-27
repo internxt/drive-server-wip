@@ -1,5 +1,6 @@
 export default () => ({
   isDevelopment: process.env.NODE_ENV === 'development',
+  isProduction: process.env.NODE_ENV === 'production',
   port: parseInt(process.env.PORT) || 3000,
   database: {
     host: process.env.RDS_HOSTNAME,
@@ -43,5 +44,13 @@ export default () => ({
     storage: {
       url: process.env.STORAGE_API_URL,
     },
+  },
+  mailer: {
+    host: process.env.INXT_MAILER_HOST,
+    port: process.env.INXT_MAILER_PORT,
+    username: process.env.INXT_MAILER_USERNAME,
+    password: process.env.INXT_MAILER_PASSWORD,
+    from: process.env.INXT_MAILER_FROM || 'hello@internxt.com',
+    apiKey: process.env.SENDGRID_API_KEY || null,
   },
 });
