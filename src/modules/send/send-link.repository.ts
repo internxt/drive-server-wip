@@ -206,7 +206,7 @@ export class SequelizeSendRepository implements SendRepository {
     return {
       id,
       views,
-      userId: user.id,
+      userId: user ? user.id : null,
       items: items.map((item) => this.toModelItem(item)),
       sender,
       receiver,

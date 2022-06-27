@@ -1,19 +1,16 @@
 import { Controller, HttpCode, Post, Body } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { FileUseCases } from '../file/file.usecase';
-import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Sends')
 @Controller('links')
 export class SendController {
   constructor(
     private sendUseCases: SendUseCases,
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
   ) {}
 
@@ -23,7 +20,9 @@ export class SendController {
     summary: 'Create send link',
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
-  async createLinks(@UserDecorator() user: User, @Body() content: any) {
+  @Public()
+  async createLinks(@UserDecorator() user: User | null, @Body() content: any) {
+    user = await this.getUserWhenPublic(user);
     const { items, code, receiver, sender } = content;
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
@@ -38,7 +37,7 @@ export class SendController {
       sender: sendLink.sender,
       receiver: sendLink.receiver,
       views: sendLink.views,
-      userId: user.id,
+      userId: user ? user.id : null,
       items: sendLink.items,
       createdAt: sendLink.createdAt,
       updatedAt: sendLink.updatedAt,
