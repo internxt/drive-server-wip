@@ -44,10 +44,25 @@ export class SendLinkModel extends Model {
   sender: string;
 
   @Column
-  receiver: string;
+  receivers: string;
 
   @Column
   code: string;
+
+  @Column
+  title: string;
+
+  @Column
+  subject: string;
+
+  @Column
+  expirationAt: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 
   @HasMany(() => SendLinkItemModel)
   items: SendLinkItemModel[];
@@ -85,6 +100,12 @@ export class SendLinkItemModel extends Model {
 
   @Column
   size: bigint;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }
 
 export interface SendRepository {
@@ -161,8 +182,9 @@ export class SequelizeSendRepository implements SendRepository {
         transaction,
       });
       await transaction.commit();
-    } catch {
+    } catch (err) {
       await transaction.rollback();
+      throw err;
     }
   }
 
@@ -184,8 +206,11 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       sender: model.sender,
-      receiver: model.receiver,
+      receivers: model.receivers.split(',') || [],
       code: model.code,
+      title: model.title,
+      subject: model.subject,
+      expirationAt: model.expirationAt,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
     sendLink.setItems(items);
@@ -198,8 +223,11 @@ export class SequelizeSendRepository implements SendRepository {
     user,
     items,
     sender,
-    receiver,
+    receivers,
     code,
+    title,
+    subject,
+    expirationAt,
     createdAt,
     updatedAt,
   }) {
@@ -209,8 +237,11 @@ export class SequelizeSendRepository implements SendRepository {
       userId: user ? user.id : null,
       items: items.map((item) => this.toModelItem(item)),
       sender,
-      receiver,
+      receivers: receivers.join(','),
       code,
+      title,
+      subject,
+      expirationAt,
       createdAt,
       updatedAt,
     };

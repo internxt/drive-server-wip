@@ -7,10 +7,13 @@ export interface SendLinkAttributes {
   user: User | null;
   items: SendLinkItem[];
   sender: string;
-  receiver: string;
+  receivers: string[];
   code: string;
+  title: string;
+  subject: string;
   createdAt: Date;
   updatedAt: Date;
+  expirationAt: Date;
 }
 
 export class SendLink implements SendLinkAttributes {
@@ -19,30 +22,39 @@ export class SendLink implements SendLinkAttributes {
   user: User | null;
   items: SendLinkItem[];
   sender: string;
-  receiver: string;
+  receivers: string[];
   code: string;
+  title: string;
+  subject: string;
   createdAt: Date;
   updatedAt: Date;
+  expirationAt: Date;
   constructor({
     id,
     views,
     user,
     items,
     sender,
-    receiver,
+    receivers,
     code,
+    title,
+    subject,
     createdAt,
     updatedAt,
+    expirationAt,
   }) {
     this.id = id;
     this.setUser(user);
     this.views = views;
     this.setItems(items);
     this.sender = sender;
-    this.receiver = receiver;
+    this.receivers = receivers;
     this.code = code;
+    this.title = title;
+    this.subject = subject;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.expirationAt = expirationAt;
   }
 
   static build(send: SendLinkAttributes): SendLink {
@@ -74,10 +86,13 @@ export class SendLink implements SendLinkAttributes {
       user: this.user ? this.user.toJSON() : null,
       items: this.items.map((item) => item.toJSON()),
       views: this.views,
-      receiver: this.receiver,
+      receivers: this.receivers,
       code: this.code,
+      title: this.title,
+      subject: this.subject,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      expirationAt: this.expirationAt,
     };
   }
 }
