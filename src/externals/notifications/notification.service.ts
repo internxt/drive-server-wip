@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { NotificationEvent } from './events/notification.event';
+import { Event } from './events/event';
 
 @Injectable()
 export class NotificationService {
   constructor(private eventEmitter: EventEmitter2) {}
-  add(event: NotificationEvent): Promise<void> {
+  add(event: Event): Promise<void> {
     this.eventEmitter.emit(event.name, event);
     return;
   }

@@ -102,7 +102,7 @@ export class ShareUseCases {
       user.id,
     );
     if (share) {
-      return { item: share.toJSON(), created: false };
+      return { item: share, created: false };
     }
     const token = crypto.randomBytes(10).toString('hex');
     const shareCreated = Share.build({
@@ -123,7 +123,7 @@ export class ShareUseCases {
     });
     await this.shareRepository.create(shareCreated);
     // apply userReferral to share-file
-    return { item: shareCreated.toJSON(), created: true };
+    return { item: shareCreated, created: true };
   }
 
   async createShareFolder(
@@ -140,7 +140,7 @@ export class ShareUseCases {
       user.id,
     );
     if (share) {
-      return { item: share.toJSON(), created: false };
+      return { item: share, created: false };
     }
     const token = crypto.randomBytes(10).toString('hex');
     const shareCreated = Share.build({
@@ -161,6 +161,6 @@ export class ShareUseCases {
     });
     await this.shareRepository.create(shareCreated);
 
-    return { item: shareCreated.toJSON(), created: true };
+    return { item: shareCreated, created: true };
   }
 }

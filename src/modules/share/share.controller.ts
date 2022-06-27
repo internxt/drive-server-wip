@@ -10,18 +10,22 @@ import {
   Res,
   HttpStatus,
   NotFoundException,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { GetDownFilesDto } from './dto/get-down-files.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { UpdateShareDto } from './dto/update-share.dto';
+import { NotificationService } from 'src/externals/notifications/notification.service';
+import { ShareLinkViewEvent } from 'src/externals/notifications/events/share-link-view.event';
+import { ShareLinkCreatedEvent } from 'src/externals/notifications/events/share-link-created.event';
 import { User } from '../user/user.domain';
 
 @ApiTags('Share')
@@ -32,6 +36,7 @@ export class ShareController {
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
+    private notificationService: NotificationService,
   ) {}
 
   @Get('/list')
@@ -63,10 +68,21 @@ export class ShareController {
   async getShareByToken(
     @UserDecorator() user: User,
     @Param('token') token: string,
+    @Req() req: Request,
   ) {
     user = await this.getUserWhenPublic(user);
     const share = await this.shareUseCases.getShareByToken(token, user);
-
+    const isTheOwner = user && share.isOwner(user.id);
+    if (!isTheOwner) {
+      const shareLinkViewEvent = new ShareLinkViewEvent(
+        'share.view',
+        user,
+        share,
+        req,
+        {},
+      );
+      this.notificationService.add(shareLinkViewEvent);
+    }
     return share.toJSON();
   }
 
@@ -101,12 +117,26 @@ export class ShareController {
     @Param('fileId') fileId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
+    @Req() req: Request,
   ) {
-    const share = await this.shareUseCases.createShareFile(fileId, user, body);
+    const { item, created } = await this.shareUseCases.createShareFile(
+      fileId,
+      user,
+      body,
+    );
 
-    res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
-      created: share.created,
-      token: share.item.token,
+    const shareLinkViewEvent = new ShareLinkCreatedEvent(
+      'share.created',
+      user,
+      item,
+      req,
+      {},
+    );
+    this.notificationService.add(shareLinkViewEvent);
+
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      created,
+      token: item.token,
     });
   }
 
@@ -121,16 +151,26 @@ export class ShareController {
     @Param('folderId') folderId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
+    @Req() req: Request,
   ) {
-    const share = await this.shareUseCases.createShareFolder(
+    const { item, created } = await this.shareUseCases.createShareFolder(
       parseInt(folderId),
       user,
       body,
     );
 
-    res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
-      created: share.created,
-      token: share.item.token,
+    const shareLinkViewEvent = new ShareLinkCreatedEvent(
+      'share.created',
+      user,
+      item,
+      req,
+      {},
+    );
+    this.notificationService.add(shareLinkViewEvent);
+
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      created,
+      token: item.token,
     });
   }
 
