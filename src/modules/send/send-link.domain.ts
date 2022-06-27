@@ -5,7 +5,7 @@ export interface SendLinkAttributes {
   id: string;
   views: number;
   user: User | null;
-  items: any;
+  items: SendLinkItem[];
   sender: string;
   receiver: string;
   code: string;
@@ -17,7 +17,7 @@ export class SendLink implements SendLinkAttributes {
   id: string;
   views: number;
   user: User | null;
-  items: any;
+  items: SendLinkItem[];
   sender: string;
   receiver: string;
   code: string;
@@ -49,27 +49,21 @@ export class SendLink implements SendLinkAttributes {
     return new SendLink(send);
   }
 
-  setUser(user) {
-    if (user && !(user instanceof User)) {
-      throw Error('user invalid');
-    }
+  setUser(user: User | null) {
     this.user = user;
   }
-  setItems(items) {
+  setItems(items: SendLinkItem[]) {
     this.clearItems();
     items.forEach((item) => this.addItem(item));
   }
-  addItem(item) {
-    if (item && !(item instanceof SendLinkItem)) {
-      throw Error('send link item invalid');
-    }
+  addItem(item: SendLinkItem) {
     this.items.push(item);
   }
   clearItems() {
     this.items = [];
   }
-  removeItem(item) {
-    const indexItem = this.items.find((it) => it.id === item.id);
+  removeItem(item: SendLinkItem) {
+    const indexItem = this.items.findIndex((it) => it.id === item.id);
     if (indexItem > -1) {
       this.items.slice(indexItem, 1);
     }
