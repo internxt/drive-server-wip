@@ -101,8 +101,6 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  toDomain(model: FileModel): File;
-  toModel(domain: File): Partial<FileAttributes>;
 }
 
 @Injectable()
@@ -199,7 +197,7 @@ export class SequelizeFileRepository implements FileRepository {
     return result[0].total;
   }
 
-  toDomain(model: FileModel): File {
+  private toDomain(model: FileModel): File {
     const file = File.build({
       ...model.toJSON(),
       folder: model.folder ? Folder.build(model.folder) : null,
@@ -208,7 +206,7 @@ export class SequelizeFileRepository implements FileRepository {
     return file;
   }
 
-  toModel(domain: File): Partial<FileAttributes> {
+  private toModel(domain: File): Partial<FileAttributes> {
     return domain.toJSON();
   }
 }

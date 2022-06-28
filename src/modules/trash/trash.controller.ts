@@ -3,7 +3,6 @@ import {
   Controller,
   Post,
   HttpCode,
-  Logger,
   Get,
   BadRequestException,
 } from '@nestjs/common';

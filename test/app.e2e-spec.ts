@@ -75,5 +75,29 @@ describe('AppController (e2e)', () => {
         });
       });
     });
+
+    describe('Send Links Endpoints', () => {
+      describe('Create Send Link', () => {
+        it('/links (POST) - Return 200', async () => {
+          const response = await request(app.getHttpServer())
+            .post('/links')
+            .send({
+              items: [
+                {
+                  name: 'test',
+                  type: 'jpg',
+                  networkId: 'test',
+                  encryptionKey: 'test',
+                  size: 1000,
+                },
+              ],
+              sender: 'sender@internxt.com',
+              receiver: 'receiver@internxt.com',
+              code: 'code',
+            });
+          expect(response.status).toBe(200);
+        });
+      });
+    });
   });
 });
