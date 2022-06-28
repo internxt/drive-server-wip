@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
+import { formatBytes } from 'src/lib/bytes-formater';
 import { MailerService } from '../../mailer/mailer.service';
 import { SendLinkCreatedEvent } from '../events/send-link-created.event';
 
@@ -22,9 +23,10 @@ export class SendLinkListener {
     const itemsToMail = items.map((item) => {
       return {
         name: `${item.name}.${item.type}`,
-        size: item.size,
+        size: formatBytes(item.size),
       };
     });
+    const sizeFormated = formatBytes(size);
     await this.mailer.send(
       sender,
       this.configService.get('mailer.templates.sendLinkCreateSender'),
@@ -36,7 +38,7 @@ export class SendLinkListener {
         title,
         message: subject,
         expirationDate: expirationAt,
-        size,
+        size: sizeFormated,
         token: id,
       },
     );
@@ -52,7 +54,7 @@ export class SendLinkListener {
           title,
           message: subject,
           expirationDate: expirationAt,
-          size,
+          size: sizeFormated,
           token: id,
         },
       );
