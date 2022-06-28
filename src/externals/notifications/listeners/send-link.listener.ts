@@ -23,34 +23,34 @@ export class SendLinkListener {
       expirationAt,
       size,
     } = event.payload.sendLink;
+    console.log(event.payload.sendLink);
 
     const itemsToMail = items.map((item) => {
       return {
-        title: item.name,
-        type: item.type,
+        name: `${item.name}.${item.type}`,
         size: item.size,
       };
     });
-
+    console.log(receivers);
     for (const receiver of receivers) {
-      await this.mailer.send(receiver, 'sendLink', {
+      await this.mailer.send(receiver, 'd-7889146930fa421083b4bf1cdcaedab3', {
         sender,
         items: itemsToMail,
         count: items.length,
         link,
         title,
         message: subject,
-        date: expirationAt,
+        expirationDate: expirationAt,
         size,
       });
     }
-    await this.mailer.send(sender, '', {
-      sender,
-      receivers,
-      items: itemsToMail,
-      link,
-      title,
-      subject,
-    });
+    // await this.mailer.send(sender, '', {
+    //   sender,
+    //   receivers,
+    //   items: itemsToMail,
+    //   link,
+    //   title,
+    //   subject,
+    // });
   }
 }

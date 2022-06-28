@@ -24,7 +24,7 @@ export class SendUseCases {
     user: User | null,
     items: any,
     code: string,
-    receiver: string,
+    receivers: string[],
     sender: string,
   ) {
     const sendLink = SendLink.build({
@@ -35,7 +35,7 @@ export class SendUseCases {
       createdAt: new Date(),
       updatedAt: new Date(),
       sender,
-      receiver,
+      receivers,
       code,
     });
     for (const item of items) {

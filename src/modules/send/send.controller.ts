@@ -23,19 +23,19 @@ export class SendController {
   @Public()
   async createLinks(@UserDecorator() user: User | null, @Body() content: any) {
     user = await this.getUserWhenPublic(user);
-    const { items, code, receiver, sender } = content;
+    const { items, code, receivers, sender } = content;
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
       items,
       code,
-      receiver,
+      receivers,
       sender,
     );
     return {
       id: sendLink.id,
       code: sendLink.code,
       sender: sendLink.sender,
-      receiver: sendLink.receiver,
+      receivers: sendLink.receivers,
       views: sendLink.views,
       userId: user ? user.id : null,
       items: sendLink.items,

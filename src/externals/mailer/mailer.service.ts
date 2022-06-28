@@ -1,30 +1,33 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import InternxtMailer from 'inxt-service-mailer';
+import sendgrid from '@sendgrid/mail';
 @Injectable()
 export class MailerService {
-  instance: InternxtMailer;
   constructor(
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {
-    const mailConfig = {
-      sendgrid: {
-        api_key: this.configService.get('mailer.apiKey'),
-      },
-      from: this.configService.get('mailer.from'),
-    };
-    this.instance = new InternxtMailer(mailConfig);
+    sendgrid.setApiKey(this.configService.get('mailer.apiKey'));
   }
 
-  send(email, template, context) {
-    return new Promise((resolve, reject) => {
-      this.instance.dispatchSendGrid(email, template, context, (err) => {
-        if (err) {
-          return reject(Error(`Could not send verification mail: ${err}`));
-        }
-        return resolve(true);
-      });
-    });
+  async send(email, templateId, context) {
+    const msg = {
+      to: email,
+      from: this.configService.get('mailer.from'),
+      subject: '',
+      text: '',
+      personalizations: [
+        {
+          to: [
+            {
+              email,
+            },
+          ],
+          dynamic_template_data: context,
+        },
+      ],
+      template_id: templateId,
+    };
+    await sendgrid.send(msg);
   }
 }

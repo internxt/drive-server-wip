@@ -44,7 +44,7 @@ export class SendLinkModel extends Model {
   sender: string;
 
   @Column
-  receiver: string;
+  receivers: string;
 
   @Column
   code: string;
@@ -184,7 +184,7 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       sender: model.sender,
-      receiver: model.receiver,
+      receivers: model.receivers.split(','),
       code: model.code,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
@@ -198,7 +198,7 @@ export class SequelizeSendRepository implements SendRepository {
     user,
     items,
     sender,
-    receiver,
+    receivers,
     code,
     createdAt,
     updatedAt,
@@ -209,7 +209,7 @@ export class SequelizeSendRepository implements SendRepository {
       userId: user ? user.id : null,
       items: items.map((item) => this.toModelItem(item)),
       sender,
-      receiver,
+      receivers: receivers.join(','),
       code,
       createdAt,
       updatedAt,
