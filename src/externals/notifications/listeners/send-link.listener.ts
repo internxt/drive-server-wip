@@ -1,10 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
-import { formatBytes } from 'src/lib/bytes-formater';
 import { MailerService } from '../../mailer/mailer.service';
 import { SendLinkCreatedEvent } from '../events/send-link-created.event';
-
+import pretty from 'prettysize';
 @Injectable()
 export class SendLinkListener {
   constructor(
@@ -23,10 +22,10 @@ export class SendLinkListener {
     const itemsToMail = items.map((item) => {
       return {
         name: `${item.name}.${item.type}`,
-        size: formatBytes(item.size),
+        size: pretty(item.size),
       };
     });
-    const sizeFormated = formatBytes(size);
+    const sizeFormated = pretty(size);
     await this.mailer.send(
       sender,
       this.configService.get('mailer.templates.sendLinkCreateSender'),

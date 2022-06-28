@@ -51,6 +51,7 @@
     "node-device-detector": "^2.0.3",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.0",
+    "prettysize": "^2.0.0",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^7.2.0",
