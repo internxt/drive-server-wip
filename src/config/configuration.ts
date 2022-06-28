@@ -1,5 +1,6 @@
 export default () => ({
   isDevelopment: process.env.NODE_ENV === 'development',
+  isProduction: process.env.NODE_ENV === 'production',
   port: parseInt(process.env.PORT) || 3000,
   database: {
     host: process.env.RDS_HOSTNAME,
@@ -42,6 +43,16 @@ export default () => ({
     },
     storage: {
       url: process.env.STORAGE_API_URL,
+    },
+  },
+  mailer: {
+    from: process.env.SENDGRID_FROM || 'hello@internxt.com',
+    apiKey: process.env.SENDGRID_API_KEY || null,
+    templates: {
+      sendLinkCreateSender:
+        process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_SENDER || '',
+      sendLinkCreateReceiver:
+        process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_RECEIVER || '',
     },
   },
 });

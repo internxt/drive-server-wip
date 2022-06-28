@@ -8,7 +8,7 @@
     "prebuild": "rimraf dist",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "NODE_ENV=production nest start",
     "start:dev": "NODE_ENV=development nest start --watch",
     "start:debug": "NODE_ENV=development nest start --debug --watch",
     "start:prod": "NODE_ENV=production node dist/main",
@@ -20,7 +20,9 @@
     "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json",
     "test:e2e:watch": "NODE_ENV=test jest --config ./test/jest-e2e.json --watchAll",
     "migrate": "NODE_ENV=development sequelize db:migrate",
-    "migrate:undo": "NODE_ENV=development sequelize db:migrate:undo"
+    "migrate:undo": "NODE_ENV=development sequelize db:migrate:undo",
+    "migrate:prod": "NODE_ENV=production sequelize db:migrate",
+    "migrate:undo:prod": "NODE_ENV=production sequelize db:migrate:undo"
   },
   "dependencies": {
     "@hapi/joi": "^17.1.1",
@@ -37,6 +39,7 @@
     "@nestjs/platform-express": "^8.0.0",
     "@nestjs/sequelize": "^8.0.0",
     "@nestjs/swagger": "^5.2.1",
+    "@sendgrid/mail": "^7.7.0",
     "@types/passport-jwt": "^3.0.6",
     "analytics-node": "^6.0.0",
     "class-transformer": "^0.5.1",
@@ -50,6 +53,7 @@
     "node-device-detector": "^2.0.3",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.0",
+    "prettysize": "^2.0.0",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^7.2.0",
