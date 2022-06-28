@@ -74,7 +74,7 @@ module.exports = {
         type: Sequelize.STRING,
       },
       size: {
-        type: Sequelize.BIGINT,
+        type: Sequelize.INTEGER.UNSIGNED,
       },
       created_at: {
         type: Sequelize.DATE,
