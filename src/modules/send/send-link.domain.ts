@@ -5,24 +5,30 @@ export interface SendLinkAttributes {
   id: string;
   views: number;
   user: User | null;
-  items: any;
+  items: SendLinkItem[];
   sender: string;
   receivers: string[];
   code: string;
+  title: string;
+  subject: string;
   createdAt: Date;
   updatedAt: Date;
+  expirationAt: Date;
 }
 
 export class SendLink implements SendLinkAttributes {
   id: string;
   views: number;
   user: User | null;
-  items: any;
+  items: SendLinkItem[];
   sender: string;
   receivers: string[];
   code: string;
+  title: string;
+  subject: string;
   createdAt: Date;
   updatedAt: Date;
+  expirationAt: Date;
   constructor({
     id,
     views,
@@ -31,8 +37,11 @@ export class SendLink implements SendLinkAttributes {
     sender,
     receivers,
     code,
+    title,
+    subject,
     createdAt,
     updatedAt,
+    expirationAt,
   }) {
     this.id = id;
     this.setUser(user);
@@ -41,35 +50,32 @@ export class SendLink implements SendLinkAttributes {
     this.sender = sender;
     this.receivers = receivers;
     this.code = code;
+    this.title = title;
+    this.subject = subject;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.expirationAt = expirationAt;
   }
 
   static build(send: SendLinkAttributes): SendLink {
     return new SendLink(send);
   }
 
-  setUser(user) {
-    if (user && !(user instanceof User)) {
-      throw Error('user invalid');
-    }
+  setUser(user: User | null) {
     this.user = user;
   }
-  setItems(items) {
+  setItems(items: SendLinkItem[]) {
     this.clearItems();
     items.forEach((item) => this.addItem(item));
   }
-  addItem(item) {
-    if (item && !(item instanceof SendLinkItem)) {
-      throw Error('send link item invalid');
-    }
+  addItem(item: SendLinkItem) {
     this.items.push(item);
   }
   clearItems() {
     this.items = [];
   }
-  removeItem(item) {
-    const indexItem = this.items.find((it) => it.id === item.id);
+  removeItem(item: SendLinkItem) {
+    const indexItem = this.items.findIndex((it) => it.id === item.id);
     if (indexItem > -1) {
       this.items.slice(indexItem, 1);
     }
@@ -82,8 +88,11 @@ export class SendLink implements SendLinkAttributes {
       views: this.views,
       receivers: this.receivers,
       code: this.code,
+      title: this.title,
+      subject: this.subject,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      expirationAt: this.expirationAt,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 export enum ItemType {
@@ -40,11 +40,12 @@ export class SendLinkItemDto {
 }
 export class CreateSendLinkDto {
   @ApiProperty({
-    example: 'fake@mail.com',
-    description: 'Email of destinatary',
+    example: '[fake@mail.com]',
+    description: 'Emails of destinatary',
   })
   @IsNotEmpty()
-  receivers: string[];
+  @IsArray()
+  receivers: Array<string>;
 
   @ApiProperty({
     example: 'sender@mail.com',
@@ -59,6 +60,20 @@ export class CreateSendLinkDto {
   })
   @IsNotEmpty()
   code: string;
+
+  @ApiProperty({
+    example: 'Test title',
+    description: 'Title to send link',
+  })
+  @IsNotEmpty()
+  title: string;
+
+  @ApiProperty({
+    example: 'Subject',
+    description: 'Subject to send link',
+  })
+  @IsNotEmpty()
+  subject: string;
 
   @ApiProperty({
     description: 'List of items of files and folders',

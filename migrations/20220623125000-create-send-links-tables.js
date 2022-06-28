@@ -14,10 +14,16 @@ module.exports = {
       sender: {
         type: Sequelize.STRING,
       },
-      receiver: {
+      receivers: {
         type: Sequelize.STRING,
       },
       code: {
+        type: Sequelize.STRING,
+      },
+      title: {
+        type: Sequelize.STRING,
+      },
+      subject: {
         type: Sequelize.STRING,
       },
       user_id: {
@@ -33,6 +39,10 @@ module.exports = {
       updated_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,
+        allowNull: false,
+      },
+      expiration_at: {
+        type: Sequelize.DATE,
         allowNull: false,
       },
     });

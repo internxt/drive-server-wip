@@ -7,7 +7,6 @@ import { FolderModule } from '../folder/folder.module';
 import { FolderModel } from '../folder/folder.repository';
 import { UserModule } from '../user/user.module';
 import { UserModel } from '../user/user.repository';
-// import { SendLinkItemModel } from './models/send-link-item.model';
 import {
   SendLinkItemModel,
   SendLinkModel,

@@ -14,10 +14,8 @@ export class SendUseCases {
     private notificationService: NotificationService,
   ) {}
 
-  async getById(id: SendLinkAttributes['id']) {
-    const sendLink = await this.sendRepository.findById(id);
-    //return items with pagination
-    return sendLink;
+  getById(id: SendLinkAttributes['id']) {
+    return this.sendRepository.findById(id);
   }
 
   async createSendLinks(
@@ -26,7 +24,11 @@ export class SendUseCases {
     code: string,
     receivers: string[],
     sender: string,
+    title: string,
+    subject: string,
   ) {
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 15);
     const sendLink = SendLink.build({
       id: uuidv4(),
       views: 0,
@@ -37,6 +39,9 @@ export class SendUseCases {
       sender,
       receivers,
       code,
+      title,
+      subject,
+      expirationAt,
     });
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({

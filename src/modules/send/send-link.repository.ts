@@ -49,6 +49,21 @@ export class SendLinkModel extends Model {
   @Column
   code: string;
 
+  @Column
+  title: string;
+
+  @Column
+  subject: string;
+
+  @Column
+  expirationAt: Date;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
+
   @HasMany(() => SendLinkItemModel)
   items: SendLinkItemModel[];
 }
@@ -85,6 +100,12 @@ export class SendLinkItemModel extends Model {
 
   @Column
   size: bigint;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }
 
 export interface SendRepository {
@@ -160,9 +181,10 @@ export class SequelizeSendRepository implements SendRepository {
       await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
         transaction,
       });
-      transaction.commit();
-    } catch {
-      transaction.rollback();
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
     }
   }
 
@@ -172,7 +194,7 @@ export class SequelizeSendRepository implements SendRepository {
       throw new NotFoundException(`sendLink with ID ${sendLink.id} not found`);
     }
     sendLinkModel.set(this.toModel(sendLink));
-    sendLinkModel.save();
+    await sendLinkModel.save();
   }
 
   private toDomain(model): SendLink {
@@ -184,8 +206,11 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       sender: model.sender,
-      receivers: model.receivers.split(','),
+      receivers: model.receivers.split(',') || [],
       code: model.code,
+      title: model.title,
+      subject: model.subject,
+      expirationAt: model.expirationAt,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
     sendLink.setItems(items);
@@ -200,6 +225,9 @@ export class SequelizeSendRepository implements SendRepository {
     sender,
     receivers,
     code,
+    title,
+    subject,
+    expirationAt,
     createdAt,
     updatedAt,
   }) {
@@ -211,6 +239,9 @@ export class SequelizeSendRepository implements SendRepository {
       sender,
       receivers: receivers.join(','),
       code,
+      title,
+      subject,
+      expirationAt,
       createdAt,
       updatedAt,
     };

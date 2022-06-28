@@ -95,8 +95,10 @@ describe('Send Use Cases', () => {
       null,
       [],
       'code',
-      'receiver@gmail.com',
+      ['receiver@gmail.com'],
       'sender@gmail.com',
+      'title',
+      'subject',
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
@@ -104,7 +106,7 @@ describe('Send Use Cases', () => {
       user: null,
       code: 'code',
       sender: 'sender@gmail.com',
-      receiver: 'receiver@gmail.com',
+      receivers: ['receiver@gmail.com'],
       items: [],
     });
   });
@@ -118,8 +120,10 @@ describe('Send Use Cases', () => {
       userMock,
       [],
       'code',
-      'receiver@gmail.com',
+      ['receiver@gmail.com'],
       'sender@gmail.com',
+      'title',
+      'subject',
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
@@ -127,7 +131,7 @@ describe('Send Use Cases', () => {
       user: userMock,
       code: 'code',
       sender: 'sender@gmail.com',
-      receiver: 'receiver@gmail.com',
+      receivers: ['receiver@gmail.com'],
       items: [],
     });
   });

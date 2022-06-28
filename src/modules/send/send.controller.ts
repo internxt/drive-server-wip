@@ -5,6 +5,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
 import { Public } from '../auth/decorators/public.decorator';
+import { CreateSendLinkDto } from './dto/create-send-link.dto';
 
 @ApiTags('Sends')
 @Controller('links')
@@ -21,18 +22,25 @@ export class SendController {
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
   @Public()
-  async createLinks(@UserDecorator() user: User | null, @Body() content: any) {
+  async createLinks(
+    @UserDecorator() user: User | null,
+    @Body() content: CreateSendLinkDto,
+  ) {
     user = await this.getUserWhenPublic(user);
-    const { items, code, receivers, sender } = content;
+    const { items, code, receivers, sender, title, subject } = content;
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
       items,
       code,
       receivers,
       sender,
+      title,
+      subject,
     );
     return {
       id: sendLink.id,
+      title: sendLink.title,
+      subject: sendLink.subject,
       code: sendLink.code,
       sender: sendLink.sender,
       receivers: sendLink.receivers,
@@ -41,6 +49,7 @@ export class SendController {
       items: sendLink.items,
       createdAt: sendLink.createdAt,
       updatedAt: sendLink.updatedAt,
+      expirationAt: sendLink.expirationAt,
     };
   }
 
