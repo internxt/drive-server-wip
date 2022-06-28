@@ -52,5 +52,11 @@ export default () => ({
     password: process.env.INXT_MAILER_PASSWORD,
     from: process.env.INXT_MAILER_FROM || 'hello@internxt.com',
     apiKey: process.env.SENDGRID_API_KEY || null,
+    templates: {
+      sendLinkCreateSender:
+        process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_SENDER || '',
+      sendLinkCreateReceiver:
+        process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_RECEIVER || '',
+    },
   },
 });

@@ -1,13 +1,15 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sendgrid from '@sendgrid/mail';
 @Injectable()
 export class MailerService {
+  logger: Logger;
   constructor(
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {
     sendgrid.setApiKey(this.configService.get('mailer.apiKey'));
+    this.logger = new Logger();
   }
 
   async send(email, templateId, context) {
@@ -15,7 +17,8 @@ export class MailerService {
       to: email,
       from: this.configService.get('mailer.from'),
       subject: '',
-      text: '',
+      text: 'send link',
+      html: 'send link',
       personalizations: [
         {
           to: [
@@ -28,6 +31,8 @@ export class MailerService {
       ],
       template_id: templateId,
     };
-    await sendgrid.send(msg);
+    await sendgrid.send(msg).catch((err) => {
+      this.logger.error(err.response.body.errors);
+    });
   }
 }

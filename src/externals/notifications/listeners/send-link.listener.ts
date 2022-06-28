@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { MailerService } from '../../mailer/mailer.service';
 import { SendLinkCreatedEvent } from '../events/send-link-created.event';
@@ -8,6 +9,8 @@ export class SendLinkListener {
   constructor(
     @Inject(MailerService)
     private mailer: MailerService,
+    @Inject(ConfigService)
+    private configService: ConfigService,
   ) {}
 
   @OnEvent('sendLink.created')
@@ -23,7 +26,6 @@ export class SendLinkListener {
       expirationAt,
       size,
     } = event.payload.sendLink;
-    console.log(event.payload.sendLink);
 
     const itemsToMail = items.map((item) => {
       return {
@@ -31,10 +33,12 @@ export class SendLinkListener {
         size: item.size,
       };
     });
-    console.log(receivers);
-    for (const receiver of receivers) {
-      await this.mailer.send(receiver, 'd-7889146930fa421083b4bf1cdcaedab3', {
+    await this.mailer.send(
+      sender,
+      this.configService.get('mailer.templates.sendLinkCreateSender'),
+      {
         sender,
+        receivers,
         items: itemsToMail,
         count: items.length,
         link,
@@ -42,15 +46,24 @@ export class SendLinkListener {
         message: subject,
         expirationDate: expirationAt,
         size,
-      });
+      },
+    );
+
+    for (const receiver of receivers) {
+      await this.mailer.send(
+        receiver,
+        this.configService.get('mailer.templates.sendLinkCreateReceiver'),
+        {
+          sender,
+          items: itemsToMail,
+          count: items.length,
+          link,
+          title,
+          message: subject,
+          expirationDate: expirationAt,
+          size,
+        },
+      );
     }
-    // await this.mailer.send(sender, '', {
-    //   sender,
-    //   receivers,
-    //   items: itemsToMail,
-    //   link,
-    //   title,
-    //   subject,
-    // });
   }
 }
