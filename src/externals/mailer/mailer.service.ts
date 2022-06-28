@@ -31,8 +31,6 @@ export class MailerService {
       ],
       template_id: templateId,
     };
-    await sendgrid.send(msg).catch((err) => {
-      this.logger.error(err.response.body.errors);
-    });
+    await sendgrid.send(msg);
   }
 }
