@@ -5,7 +5,7 @@ export interface SendLinkItemAttributes {
   linkId: string;
   networkId: string;
   encryptionKey: string;
-  size: bigint;
+  size: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,7 +17,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
   linkId: string;
   networkId: string;
   encryptionKey: string;
-  size: bigint;
+  size: number;
   createdAt: Date;
   updatedAt: Date;
   constructor({

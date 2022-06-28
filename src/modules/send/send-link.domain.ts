@@ -80,6 +80,14 @@ export class SendLink implements SendLinkAttributes {
       this.items.slice(indexItem, 1);
     }
   }
+
+  get size() {
+    return this.items.reduce((acc, item) => acc + item.size, 0);
+  }
+
+  addView() {
+    this.views++;
+  }
   toJSON() {
     return {
       id: this.id,
