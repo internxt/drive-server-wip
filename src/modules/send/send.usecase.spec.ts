@@ -5,6 +5,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
+import { SendLink } from './send-link.domain';
 import {
   SendLinkItemModel,
   SendLinkModel,
@@ -78,12 +79,71 @@ describe('Send Use Cases', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+  describe('get By Id use case', () => {
+    it('throw not found when id invalid', async () => {
+      jest.spyOn(sendRepository, 'findById').mockResolvedValue(null);
 
-  it('get by id', async () => {
-    jest.spyOn(sendRepository, 'findById').mockResolvedValue(null);
+      await expect(service.getById('id')).rejects.toThrow(
+        `SendLink with id id not found`,
+      );
+    });
 
-    const result = await service.getById('id');
-    expect(result).toBe(null);
+    it('throw not found when expiration', async () => {
+      const expirationAt = new Date();
+      expirationAt.setDate(expirationAt.getDate() - 1);
+      const sendLinkMock = SendLink.build({
+        id: 'id',
+        views: 0,
+        user: userMock,
+        items: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: 'sender@gmail.com',
+        receivers: ['receiver@gmail.com'],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+        expirationAt,
+      });
+      jest.spyOn(sendRepository, 'findById').mockResolvedValue(sendLinkMock);
+
+      await expect(service.getById('id')).rejects.toThrow(
+        `SendLink with id id expired`,
+      );
+    });
+
+    it('should return sendLink valid', async () => {
+      const expirationAt = new Date();
+      expirationAt.setDate(expirationAt.getDate() + 1);
+      const sendLinkMock = SendLink.build({
+        id: 'id',
+        views: 0,
+        user: userMock,
+        items: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: 'sender@gmail.com',
+        receivers: ['receiver@gmail.com'],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+        expirationAt,
+      });
+      jest.spyOn(sendRepository, 'findById').mockResolvedValue(sendLinkMock);
+      jest.spyOn(sendRepository, 'update').mockResolvedValue(undefined);
+
+      const result = await service.getById('id');
+      expect(result).toMatchObject({
+        id: 'id',
+        views: 1,
+        items: [],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+      });
+      expect(sendRepository.findById).toHaveBeenCalledTimes(1);
+      expect(sendRepository.update).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('create send links without user', async () => {
