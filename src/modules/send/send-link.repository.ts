@@ -98,8 +98,8 @@ export class SendLinkItemModel extends Model {
   @Column(DataType.STRING(64))
   encryptionKey: string;
 
-  @Column
-  size: bigint;
+  @Column(DataType.INTEGER.UNSIGNED)
+  size: number;
 
   @Column
   createdAt: Date;
@@ -110,14 +110,7 @@ export class SendLinkItemModel extends Model {
 
 export interface SendRepository {
   findById(id: SendLinkAttributes['id']): Promise<SendLink | null>;
-  findByFileIdAndUser(
-    fileId: FileAttributes['id'],
-    userId: UserAttributes['id'],
-  ): Promise<SendLink | null>;
-  findByFolderIdAndUser(
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-  ): Promise<SendLink | null>;
+  update(sendLink: SendLink): void;
 }
 
 @Injectable()
@@ -135,40 +128,6 @@ export class SequelizeSendRepository implements SendRepository {
   async findById(id: SendLinkAttributes['id']) {
     const sendLink = await this.sendLinkModel.findByPk(id, {
       include: [this.userModel, this.sendLinkItemModel],
-    });
-    return sendLink ? this.toDomain(sendLink) : null;
-  }
-
-  async findByFileIdAndUser(
-    fileId: FileAttributes['id'],
-    userId: UserAttributes['id'],
-  ): Promise<SendLink | null> {
-    const sendLink = await this.sendLinkModel.findOne({
-      where: { userId },
-      include: [
-        this.userModel,
-        {
-          model: this.sendLinkItemModel,
-          where: { fileId },
-        },
-      ],
-    });
-    return sendLink ? this.toDomain(sendLink) : null;
-  }
-
-  async findByFolderIdAndUser(
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-  ): Promise<SendLink | null> {
-    const sendLink = await this.sendLinkModel.findOne({
-      where: { userId },
-      include: [
-        this.userModel,
-        {
-          model: this.sendLinkItemModel,
-          where: { folderId },
-        },
-      ],
     });
     return sendLink ? this.toDomain(sendLink) : null;
   }

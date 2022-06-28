@@ -1,4 +1,4 @@
-import { Controller, HttpCode, Post, Body } from '@nestjs/common';
+import { Controller, HttpCode, Post, Body, Get, Param } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { UserUseCases } from '../user/user.usecase';
@@ -50,6 +50,33 @@ export class SendController {
       createdAt: sendLink.createdAt,
       updatedAt: sendLink.updatedAt,
       expirationAt: sendLink.expirationAt,
+    };
+  }
+
+  @Get('/:linkId')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'get Send Link by id and return files',
+  })
+  @ApiOkResponse({ description: 'Get all shares in a list' })
+  @Public()
+  async getSendLink(@Param('linkId') linkId: string) {
+    const sendLink = await this.sendUseCases.getById(linkId);
+
+    return {
+      id: sendLink.id,
+      title: sendLink.title,
+      subject: sendLink.subject,
+      code: sendLink.code,
+      sender: sendLink.sender,
+      receivers: sendLink.receivers,
+      views: sendLink.views,
+      userId: sendLink.user ? sendLink.user.id : null,
+      items: sendLink.items,
+      createdAt: sendLink.createdAt,
+      updatedAt: sendLink.updatedAt,
+      expirationAt: sendLink.expirationAt,
+      size: sendLink.size,
     };
   }
 

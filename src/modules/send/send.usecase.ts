@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { SequelizeSendRepository } from './send-link.repository';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
@@ -14,10 +14,20 @@ export class SendUseCases {
     private notificationService: NotificationService,
   ) {}
 
-  getById(id: SendLinkAttributes['id']) {
-    return this.sendRepository.findById(id);
+  async getById(id: SendLinkAttributes['id']) {
+    const sendLink = await this.sendRepository.findById(id);
+    if (!sendLink) {
+      throw new NotFoundException(`SendLink with id ${id} not found`);
+    }
+    const now = new Date();
+    if (now > sendLink.expirationAt) {
+      throw new NotFoundException(`SendLink with id ${id} expired`);
+    }
+    sendLink.addView();
+    sendLink.updatedAt = now;
+    await this.sendRepository.update(sendLink);
+    return sendLink;
   }
-
   async createSendLinks(
     user: User | null,
     items: any,
