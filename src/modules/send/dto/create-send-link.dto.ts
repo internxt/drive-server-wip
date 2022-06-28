@@ -1,11 +1,4 @@
-import {
-  isArray,
-  IsArray,
-  IsEnum,
-  IsNotEmpty,
-  Length,
-  MaxLength,
-} from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 export enum ItemType {
@@ -87,6 +80,6 @@ export class CreateSendLinkDto {
   })
   @Type(() => SendLinkItemDto)
   @IsArray()
-  @MaxLength(50, { each: true })
+  @ArrayMaxSize(50)
   items: SendLinkItemDto[];
 }
