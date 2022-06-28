@@ -46,11 +46,7 @@ export default () => ({
     },
   },
   mailer: {
-    host: process.env.INXT_MAILER_HOST,
-    port: process.env.INXT_MAILER_PORT,
-    username: process.env.INXT_MAILER_USERNAME,
-    password: process.env.INXT_MAILER_PASSWORD,
-    from: process.env.INXT_MAILER_FROM || 'hello@internxt.com',
+    from: process.env.SENDGRID_FROM || 'hello@internxt.com',
     apiKey: process.env.SENDGRID_API_KEY || null,
     templates: {
       sendLinkCreateSender:
