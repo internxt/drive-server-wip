@@ -16,16 +16,8 @@ export class SendLinkListener {
   @OnEvent('sendLink.created')
   async handleSendLinkCreated(event: SendLinkCreatedEvent) {
     Logger.log(`event ${event.name} handled`, 'SendLinkListener');
-    const {
-      sender,
-      receivers,
-      items,
-      link,
-      title,
-      subject,
-      expirationAt,
-      size,
-    } = event.payload.sendLink;
+    const { sender, receivers, items, title, subject, expirationAt, size, id } =
+      event.payload.sendLink;
 
     const itemsToMail = items.map((item) => {
       return {
@@ -41,11 +33,11 @@ export class SendLinkListener {
         receivers,
         items: itemsToMail,
         count: items.length,
-        link,
         title,
         message: subject,
         expirationDate: expirationAt,
         size,
+        token: id,
       },
     );
 
@@ -57,11 +49,11 @@ export class SendLinkListener {
           sender,
           items: itemsToMail,
           count: items.length,
-          link,
           title,
           message: subject,
           expirationDate: expirationAt,
           size,
+          token: id,
         },
       );
     }
