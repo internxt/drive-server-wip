@@ -82,11 +82,7 @@ export class SendLink implements SendLinkAttributes {
   }
 
   get size() {
-    let size = '';
-    this.items.forEach((item) => {
-      size += item.size;
-    });
-    return `${size}n`;
+    return this.items.reduce((acc, item) => acc + item.size, 0);
   }
 
   addView() {
