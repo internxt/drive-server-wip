@@ -43,7 +43,7 @@ module.exports = {
       acquire: 20000,
     },
   },
-  staging: {
+  production: {
     host: process.env.RDS_HOSTNAME,
     database: process.env.RDS_DBNAME,
     username: process.env.RDS_USERNAME,
