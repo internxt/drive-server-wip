@@ -44,7 +44,7 @@ export class CreateSendLinkDto {
     description: 'Email of destinatary',
   })
   @IsNotEmpty()
-  receiver: string;
+  receivers: string[];
 
   @ApiProperty({
     example: 'sender@mail.com',
