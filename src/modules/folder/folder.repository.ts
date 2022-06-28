@@ -84,10 +84,7 @@ export interface FolderRepository {
     folderIds: FolderAttributes['id'][],
     update: Partial<Folder>,
   ): Promise<void>;
-  toDomain(model: FolderModel): Folder;
-  toModel(domain: Folder): Partial<FolderAttributes>;
 }
-
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
   constructor(
@@ -168,7 +165,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
-  toDomain(model: FolderModel): Folder {
+  private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
@@ -176,7 +173,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
-  toModel(domain: Folder): Partial<FolderAttributes> {
+  private toModel(domain: Folder): Partial<FolderAttributes> {
     return domain.toJSON();
   }
 }
