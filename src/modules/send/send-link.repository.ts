@@ -98,8 +98,8 @@ export class SendLinkItemModel extends Model {
   @Column(DataType.STRING(64))
   encryptionKey: string;
 
-  @Column
-  size: bigint;
+  @Column(DataType.INTEGER.UNSIGNED)
+  size: number;
 
   @Column
   createdAt: Date;
