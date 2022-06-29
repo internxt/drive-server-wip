@@ -18,7 +18,7 @@ module.exports = {
         type: Sequelize.STRING,
       },
       code: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(400),
       },
       title: {
         type: Sequelize.STRING,
@@ -71,7 +71,7 @@ module.exports = {
         type: Sequelize.STRING,
       },
       encryption_key: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(400),
       },
       size: {
         type: Sequelize.INTEGER.UNSIGNED,
@@ -88,7 +88,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.dropTable('send_links');
     await queryInterface.dropTable('send_links_items');
+    await queryInterface.dropTable('send_links');
   },
 };
