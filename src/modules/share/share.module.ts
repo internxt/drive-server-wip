@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { NotificationModule } from 'src/externals/notifications/notifications.module';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
 import { FileModel } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
