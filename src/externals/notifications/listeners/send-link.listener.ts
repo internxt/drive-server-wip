@@ -19,6 +19,8 @@ export class SendLinkListener {
     const { sender, receivers, items, title, subject, expirationAt, size, id } =
       event.payload.sendLink;
 
+    if (!sender || !receivers) return;
+
     const itemsToMail = items.map((item) => {
       return {
         name: `${item.name}.${item.type}`,

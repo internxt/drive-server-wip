@@ -13,18 +13,22 @@ module.exports = {
       },
       sender: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       receivers: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       code: {
         type: Sequelize.STRING(400),
       },
       title: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       subject: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       user_id: {
         type: Sequelize.INTEGER,
