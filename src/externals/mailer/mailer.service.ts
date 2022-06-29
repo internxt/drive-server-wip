@@ -30,6 +30,11 @@ export class MailerService {
         },
       ],
       template_id: templateId,
+      mail_settings: {
+        sandbox_mode: {
+          enable: this.configService.get('mailer.sandbox'),
+        },
+      },
     };
     await sendgrid.send(msg);
   }

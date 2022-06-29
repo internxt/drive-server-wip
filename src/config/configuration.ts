@@ -46,6 +46,7 @@ export default () => ({
     },
   },
   mailer: {
+    sandbox: process.env.SENDGRID_MODE_SANDBOX === 'true' || false,
     from: process.env.SENDGRID_FROM || 'hello@internxt.com',
     apiKey: process.env.SENDGRID_API_KEY || null,
     templates: {
