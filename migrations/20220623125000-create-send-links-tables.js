@@ -88,7 +88,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.dropTable('send_links');
     await queryInterface.dropTable('send_links_items');
+    await queryInterface.dropTable('send_links');
   },
 };
