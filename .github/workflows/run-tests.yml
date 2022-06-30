@@ -5,6 +5,7 @@ on:
       - "master"
 jobs:
   run-tests:
+    environment: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -41,7 +42,7 @@ jobs:
           RDS_PASSWORD: example
           RDS_PORT: 3306
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          SENDGRID_MODE_SANDBOX: false
+          SENDGRID_MODE_SANDBOX: true
           APP_SEGMENT_KEY:  ${{ secrets.APP_SEGMENT_KEY }}
         run: yarn migrate:test && yarn run test:e2e
 
