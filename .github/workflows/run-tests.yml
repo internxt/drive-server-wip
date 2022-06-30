@@ -42,5 +42,5 @@ jobs:
         run: yarn && yarn run test
 
       - name: Test E2E
-        run: yarn migrate && yarn run test:e2e
+        run: yarn migrate:test && yarn run test:e2e
 
