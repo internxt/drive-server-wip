@@ -107,12 +107,7 @@ describe('AppController (e2e)', () => {
             .send({});
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body.message).toMatchObject([
-            'receivers must be an array',
-            'receivers should not be empty',
-            'sender should not be empty',
             'code should not be empty',
-            'title should not be empty',
-            'subject should not be empty',
             'items must contain not more than 50 elements',
             'items must be an array',
           ]);
