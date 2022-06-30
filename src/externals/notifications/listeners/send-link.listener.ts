@@ -19,6 +19,8 @@ export class SendLinkListener {
     const { sender, receivers, items, title, subject, expirationAt, size, id } =
       event.payload.sendLink;
 
+    if (!sender || !receivers) return;
+
     const itemsToMail = items.map((item) => {
       return {
         name: `${item.name}.${item.type}`,
@@ -26,28 +28,13 @@ export class SendLinkListener {
       };
     });
     const sizeFormated = pretty(size);
-    await this.mailer.send(
-      sender,
-      this.configService.get('mailer.templates.sendLinkCreateSender'),
-      {
-        sender,
-        receivers,
-        items: itemsToMail,
-        count: items.length,
-        title,
-        message: subject,
-        expirationDate: expirationAt,
-        size: sizeFormated,
-        token: id,
-      },
-    );
-
-    for (const receiver of receivers) {
+    try {
       await this.mailer.send(
-        receiver,
-        this.configService.get('mailer.templates.sendLinkCreateReceiver'),
+        sender,
+        this.configService.get('mailer.templates.sendLinkCreateSender'),
         {
           sender,
+          receivers,
           items: itemsToMail,
           count: items.length,
           title,
@@ -57,6 +44,25 @@ export class SendLinkListener {
           token: id,
         },
       );
+
+      for (const receiver of receivers) {
+        await this.mailer.send(
+          receiver,
+          this.configService.get('mailer.templates.sendLinkCreateReceiver'),
+          {
+            sender,
+            items: itemsToMail,
+            count: items.length,
+            title,
+            message: subject,
+            expirationDate: expirationAt,
+            size: sizeFormated,
+            token: id,
+          },
+        );
+      }
+    } catch (err) {
+      Logger.error(err, 'SendLinkListener');
     }
   }
 }

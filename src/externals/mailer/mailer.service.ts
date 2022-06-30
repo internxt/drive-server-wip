@@ -1,15 +1,13 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sendgrid from '@sendgrid/mail';
 @Injectable()
 export class MailerService {
-  logger: Logger;
   constructor(
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {
     sendgrid.setApiKey(this.configService.get('mailer.apiKey'));
-    this.logger = new Logger();
   }
 
   async send(email, templateId, context) {

@@ -13,18 +13,22 @@ module.exports = {
       },
       sender: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       receivers: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       code: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(400),
       },
       title: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       subject: {
         type: Sequelize.STRING,
+        allowNull: true,
       },
       user_id: {
         type: Sequelize.INTEGER,
@@ -71,10 +75,10 @@ module.exports = {
         type: Sequelize.STRING,
       },
       encryption_key: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(400),
       },
       size: {
-        type: Sequelize.INTEGER.UNSIGNED,
+        type: Sequelize.INTEGER(20).UNSIGNED,
       },
       created_at: {
         type: Sequelize.DATE,
@@ -88,7 +92,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.dropTable('send_links');
     await queryInterface.dropTable('send_links_items');
+    await queryInterface.dropTable('send_links');
   },
 };
