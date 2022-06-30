@@ -15,8 +15,6 @@ jobs:
         with:
           mysql database: 'xCloud_test'
           mysql root password: example
-      - name: Dump database
-        run: docker exec -i mariadb sh -c 'exec mysql -u root -p example' < ./migrations/structure_db.sql
 
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
