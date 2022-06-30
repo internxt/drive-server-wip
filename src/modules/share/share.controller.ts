@@ -23,9 +23,9 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { UpdateShareDto } from './dto/update-share.dto';
-import { NotificationService } from 'src/externals/notifications/notification.service';
-import { ShareLinkViewEvent } from 'src/externals/notifications/events/share-link-view.event';
-import { ShareLinkCreatedEvent } from 'src/externals/notifications/events/share-link-created.event';
+import { NotificationService } from '../../externals/notifications/notification.service';
+import { ShareLinkViewEvent } from '../../externals/notifications/events/share-link-view.event';
+import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
 import { User } from '../user/user.domain';
 
 @ApiTags('Share')

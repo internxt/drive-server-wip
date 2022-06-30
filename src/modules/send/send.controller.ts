@@ -1,4 +1,12 @@
-import { Controller, HttpCode, Post, Body, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  HttpCode,
+  Post,
+  Body,
+  Get,
+  Param,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { UserUseCases } from '../user/user.usecase';
@@ -16,7 +24,7 @@ export class SendController {
   ) {}
 
   @Post('/')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create send link',
   })
@@ -52,7 +60,7 @@ export class SendController {
   }
 
   @Get('/:linkId')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'get Send Link by id and return files',
   })

@@ -23,11 +23,13 @@ module.exports = {
     },
   },
   test: {
-    username: 'root',
-    password: null,
-    database: 'drive_test',
-    host: '127.0.0.1',
     dialect: 'mariadb',
+    host: process.env.RDS_HOSTNAME,
+    database: process.env.RDS_DBNAME,
+    username: process.env.RDS_USERNAME,
+    password: process.env.RDS_PASSWORD,
+    port: process.env.RDS_PORT,
+    logging: true,
     dialectOptions: {
       connectTimeout: 20000,
       options: {

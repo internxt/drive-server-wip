@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { ShareLinkViewEvent } from '../events/share-link-view.event';
-import Analytics, { AnalyticsTrackName } from 'src/lib/analytics';
+import Analytics, { AnalyticsTrackName } from '../../../lib/analytics';
 import { ShareLinkCreatedEvent } from '../events/share-link-created.event';
-import { RequestContext } from 'src/lib/request-context';
+import { RequestContext } from '../../../lib/request-context';
 
 @Injectable()
 export class AnalyticsListener {

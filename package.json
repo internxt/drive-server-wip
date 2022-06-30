@@ -22,7 +22,9 @@
     "migrate": "NODE_ENV=development sequelize db:migrate",
     "migrate:undo": "NODE_ENV=development sequelize db:migrate:undo",
     "migrate:prod": "NODE_ENV=production sequelize db:migrate",
-    "migrate:undo:prod": "NODE_ENV=production sequelize db:migrate:undo"
+    "migrate:prod:undo": "NODE_ENV=production sequelize db:migrate:undo",
+    "migrate:test": "NODE_ENV=test sequelize db:migrate",
+    "migrate:test:undo": "NODE_ENV=test sequelize db:migrate:undo"
   },
   "dependencies": {
     "@hapi/joi": "^17.1.1",
