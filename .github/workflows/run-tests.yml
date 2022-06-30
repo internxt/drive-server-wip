@@ -6,23 +6,15 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
-    environment:
-      name: development
-    env:
-      RDS_HOSTNAME: localhost
-      RDS_DBNAME: xCloud_test
-      RDS_USERNAME: root
-      RDS_PASSWORD: example
-      RDS_PORT: 3306
-      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-      SENDGRID_MODE_SANDBOX: false
-      APP_SEGMENT_KEY:  ${{ secrets.APP_SEGMENT_KEY }}
     strategy:
       matrix:
         node-version: [16.x]
     steps:
       - name: Start Mariadb
-        run: docker run -p 3306:3006 -d --env MARIADB_ROOT_PASSWORD=example --env MARIADB_DATABASE=xCloud_test mariadb:latest
+        uses: getong/mariadb-action@v1.1
+        with:
+          mysql database: 'xCloud_test'
+          mysql root password: example
 
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
@@ -42,5 +34,14 @@ jobs:
         run: yarn && yarn run test
 
       - name: Test E2E
+        env:
+          RDS_HOSTNAME: localhost
+          RDS_DBNAME: xCloud_test
+          RDS_USERNAME: root
+          RDS_PASSWORD: example
+          RDS_PORT: 3306
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SENDGRID_MODE_SANDBOX: false
+          APP_SEGMENT_KEY:  ${{ secrets.APP_SEGMENT_KEY }}
         run: yarn migrate:test && yarn run test:e2e
 
