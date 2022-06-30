@@ -6,11 +6,11 @@ export interface SendLinkAttributes {
   views: number;
   user: User | null;
   items: SendLinkItem[];
-  sender: string;
-  receivers: string[];
+  sender: string | null;
+  receivers: string[] | null;
   code: string;
-  title: string;
-  subject: string;
+  title: string | null;
+  subject: string | null;
   createdAt: Date;
   updatedAt: Date;
   expirationAt: Date;
@@ -21,8 +21,8 @@ export class SendLink implements SendLinkAttributes {
   views: number;
   user: User | null;
   items: SendLinkItem[];
-  sender: string;
-  receivers: string[];
+  sender: string | null;
+  receivers: string[] | null;
   code: string;
   title: string;
   subject: string;
@@ -94,6 +94,7 @@ export class SendLink implements SendLinkAttributes {
       user: this.user ? this.user.toJSON() : null,
       items: this.items.map((item) => item.toJSON()),
       views: this.views,
+      sender: this.sender,
       receivers: this.receivers,
       code: this.code,
       title: this.title,
