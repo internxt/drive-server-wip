@@ -22,11 +22,11 @@ module.exports = {
     });
     await queryInterface.addColumn('shares', 'created_at', {
       type: Sequelize.DATE,
-      defaultValue: Sequelize.NOW,
+      defaultValue: Sequelize.fn('now'),
     });
     await queryInterface.addColumn('shares', 'updated_at', {
       type: Sequelize.DATE,
-      defaultValue: Sequelize.NOW,
+      defaultValue: Sequelize.fn('now'),
     });
 
     await queryInterface.sequelize.query(
