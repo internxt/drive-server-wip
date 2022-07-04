@@ -19,6 +19,7 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
+import { items } from '@internxt/lib';
 
 @Table({
   underscored: true,
@@ -102,6 +103,9 @@ export class SendLinkItemModel extends Model {
   size: number;
 
   @Column
+  path: string;
+
+  @Column
   createdAt: Date;
 
   @Column
@@ -135,9 +139,15 @@ export class SequelizeSendRepository implements SendRepository {
   async createSendLinkWithItems(sendLink: SendLink): Promise<void> {
     const sendLinkModel = this.toModel(sendLink);
     const transaction = await this.sequelize.transaction();
+    const childs = [];
+    sendLinkModel.items.forEach((item) => {
+      childs.push(item);
+      const childrens = this.getChildrens(item);
+      childs.push(...childrens);
+    });
     try {
       await this.sendLinkModel.create(sendLinkModel, { transaction });
-      await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
+      await this.sendLinkItemModel.bulkCreate(childs, {
         transaction,
       });
       await transaction.commit();
@@ -206,6 +216,12 @@ export class SequelizeSendRepository implements SendRepository {
     };
   }
   private toDomainItem(model): SendLinkItem {
+    const pathArray = model.path.split(',');
+    let parentId = null;
+    if (pathArray.length > 1) {
+      parentId = pathArray[pathArray.length - 1];
+    }
+
     return SendLinkItem.build({
       id: model.id,
       type: model.type,
@@ -214,6 +230,8 @@ export class SequelizeSendRepository implements SendRepository {
       networkId: model.networkId,
       encryptionKey: model.encryptionKey,
       size: model.size,
+      parentId,
+      childrens: [],
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
     });
@@ -227,9 +245,22 @@ export class SequelizeSendRepository implements SendRepository {
       linkId: domain.linkId,
       networkId: domain.networkId,
       encryptionKey: domain.encryptionKey,
+      path: domain.path,
       size: domain.size,
+      childrens: domain.childrens.map((child) => this.toModelItem(child)),
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
     };
+  }
+
+  private getChildrens(item) {
+    const childrens = [];
+    if (item.childrens) {
+      item.childrens.forEach((child) => {
+        childrens.push(child);
+        childrens.push(...this.getChildrens(child));
+      });
+    }
+    return childrens;
   }
 }
