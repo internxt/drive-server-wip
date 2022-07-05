@@ -19,7 +19,7 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
-import { fromBinary, toBinary } from 'src/lib/binary-converter';
+import { fromBinary, toBinary } from '../../lib/binary-converter';
 
 @Table({
   underscored: true,
