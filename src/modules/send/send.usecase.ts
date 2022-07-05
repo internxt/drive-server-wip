@@ -71,7 +71,7 @@ export class SendUseCases {
     await this.sendRepository.createSendLinkWithItems(sendLink);
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
-      sendLink,
+      sendLink: await this.sendRepository.findById(sendLink.id),
     });
 
     this.notificationService.add(sendLinkCreatedEvent);
