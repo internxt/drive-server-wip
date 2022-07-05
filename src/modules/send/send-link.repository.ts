@@ -19,6 +19,7 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
+import { fromBinary, toBinary } from 'src/lib/binary-converter';
 
 @Table({
   underscored: true,
@@ -209,7 +210,7 @@ export class SequelizeSendRepository implements SendRepository {
     return SendLinkItem.build({
       id: model.id,
       type: model.type,
-      name: model.name,
+      name: fromBinary(atob(model.name)),
       linkId: model.linkId,
       networkId: model.networkId,
       encryptionKey: model.encryptionKey,
@@ -222,7 +223,7 @@ export class SequelizeSendRepository implements SendRepository {
   private toModelItem(domain) {
     return {
       id: domain.id,
-      name: domain.name,
+      name: btoa(toBinary(domain.name)),
       type: domain.type,
       linkId: domain.linkId,
       networkId: domain.networkId,
