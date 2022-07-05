@@ -141,7 +141,7 @@ describe('Send Use Cases', () => {
         title: 'title',
         subject: 'subject',
       });
-      expect(sendRepository.findById).toHaveBeenCalledTimes(1);
+      expect(sendRepository.findById).toHaveBeenCalledTimes(2);
       expect(sendRepository.update).toHaveBeenCalledTimes(1);
     });
   });

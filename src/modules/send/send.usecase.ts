@@ -26,7 +26,7 @@ export class SendUseCases {
     sendLink.addView();
     sendLink.updatedAt = now;
     await this.sendRepository.update(sendLink);
-    return sendLink;
+    return await this.sendRepository.findById(id);
   }
   async createSendLinks(
     user: User | null,
