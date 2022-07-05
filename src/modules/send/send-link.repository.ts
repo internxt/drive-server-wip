@@ -1,9 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FileAttributes } from '../file/file.domain';
-import { User, UserAttributes } from '../user/user.domain';
+import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
-import { FolderAttributes } from '../folder/folder.domain';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
 
@@ -19,7 +17,10 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
-import { items } from '@internxt/lib';
+import {
+  getStringFromBinary,
+  convertStringToBinary,
+} from '../../lib/binary-converter';
 
 @Table({
   underscored: true,
@@ -248,10 +249,24 @@ export class SequelizeSendRepository implements SendRepository {
     };
   }
 
+  private toDomainItem(model): SendLinkItem {
+    return SendLinkItem.build({
+      id: model.id,
+      type: model.type,
+      name: getStringFromBinary(atob(model.name)),
+      linkId: model.linkId,
+      networkId: model.networkId,
+      encryptionKey: model.encryptionKey,
+      size: model.size,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+    });
+  }
+
   private toModelItem(domain) {
     return {
       id: domain.id,
-      name: domain.name,
+      name: btoa(convertStringToBinary(domain.name)),
       type: domain.type,
       linkId: domain.linkId,
       networkId: domain.networkId,
