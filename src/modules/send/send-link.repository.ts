@@ -249,20 +249,6 @@ export class SequelizeSendRepository implements SendRepository {
     };
   }
 
-  private toDomainItem(model): SendLinkItem {
-    return SendLinkItem.build({
-      id: model.id,
-      type: model.type,
-      name: getStringFromBinary(atob(model.name)),
-      linkId: model.linkId,
-      networkId: model.networkId,
-      encryptionKey: model.encryptionKey,
-      size: model.size,
-      createdAt: model.createdAt,
-      updatedAt: model.updatedAt,
-    });
-  }
-
   private toModelItem(domain) {
     return {
       id: domain.id,
