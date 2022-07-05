@@ -160,7 +160,11 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toDomain(model): SendLink {
-    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
+    if (
+      model.title &&
+      model.subject &&
+      model.createdAt > ENCRYPTION_DATE_RELEASE
+    ) {
       model.title = getStringFromBinary(atob(model.title));
       model.subject = getStringFromBinary(atob(model.subject));
     }
@@ -198,7 +202,7 @@ export class SequelizeSendRepository implements SendRepository {
     createdAt,
     updatedAt,
   }) {
-    if (createdAt > ENCRYPTION_DATE_RELEASE) {
+    if (title && subject && createdAt > ENCRYPTION_DATE_RELEASE) {
       title = btoa(convertStringToBinary(title));
       subject = btoa(convertStringToBinary(subject));
     }
