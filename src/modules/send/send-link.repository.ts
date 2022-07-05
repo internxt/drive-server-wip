@@ -160,12 +160,10 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toDomain(model): SendLink {
-    console.log(model.createdAt, ENCRYPTION_DATE_RELEASE);
     if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
       model.title = getStringFromBinary(atob(model.title));
       model.subject = getStringFromBinary(atob(model.subject));
     }
-    console.log('domain', model.title, model.subject);
 
     const sendLink = SendLink.build({
       id: model.id,
@@ -204,7 +202,6 @@ export class SequelizeSendRepository implements SendRepository {
       title = btoa(convertStringToBinary(title));
       subject = btoa(convertStringToBinary(subject));
     }
-    console.log('toModel', title, subject);
     return {
       id,
       views,
