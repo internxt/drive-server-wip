@@ -182,8 +182,40 @@ export class SequelizeSendRepository implements SendRepository {
       expirationAt: model.expirationAt,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
+    //
+
+    model.items
+      .sort((a, b) => {
+        return a.path.split('/').length - b.path.split('/').length;
+      })
+      .forEach((item) => {
+        console.log(item.path);
+        // const paths = item.path.split('/');
+      });
     sendLink.setItems(items);
     return sendLink;
+  }
+
+  private toDomainItem(model): SendLinkItem {
+    const pathArray = model.path.split(',');
+    let parentId = null;
+    if (pathArray.length > 1) {
+      parentId = pathArray[pathArray.length - 1];
+    }
+
+    return SendLinkItem.build({
+      id: model.id,
+      type: model.type,
+      name: model.name,
+      linkId: model.linkId,
+      networkId: model.networkId,
+      encryptionKey: model.encryptionKey,
+      size: model.size,
+      parentId,
+      childrens: [],
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+    });
   }
 
   private toModel({
@@ -214,27 +246,6 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt,
       updatedAt,
     };
-  }
-  private toDomainItem(model): SendLinkItem {
-    const pathArray = model.path.split(',');
-    let parentId = null;
-    if (pathArray.length > 1) {
-      parentId = pathArray[pathArray.length - 1];
-    }
-
-    return SendLinkItem.build({
-      id: model.id,
-      type: model.type,
-      name: model.name,
-      linkId: model.linkId,
-      networkId: model.networkId,
-      encryptionKey: model.encryptionKey,
-      size: model.size,
-      parentId,
-      childrens: [],
-      createdAt: model.createdAt,
-      updatedAt: model.updatedAt,
-    });
   }
 
   private toModelItem(domain) {
