@@ -169,8 +169,8 @@ export class SequelizeSendRepository implements SendRepository {
       sender: model.sender,
       receivers: model.receivers ? model.receivers.split(',') || [] : null,
       code: model.code,
-      title: model.title,
-      subject: model.subject,
+      title: getStringFromBinary(atob(model.title)),
+      subject: getStringFromBinary(atob(model.subject)),
       expirationAt: model.expirationAt,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
@@ -200,8 +200,8 @@ export class SequelizeSendRepository implements SendRepository {
       sender,
       receivers: receivers ? receivers.join(',') : null,
       code,
-      title,
-      subject,
+      title: btoa(convertStringToBinary(title)),
+      subject: btoa(convertStringToBinary(subject)),
       expirationAt,
       createdAt,
       updatedAt,
