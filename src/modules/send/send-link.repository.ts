@@ -233,6 +233,7 @@ export class SequelizeSendRepository implements SendRepository {
       updatedAt: model.updatedAt,
     });
   }
+
   private generateChildrens(items, currentItem) {
     let isChild = false;
     const pathArray = currentItem.path.split('/');
@@ -254,10 +255,11 @@ export class SequelizeSendRepository implements SendRepository {
       }
     });
     if (!isChild) {
-      items.push(currentItem);
+      items.push(this.toDomainItem(currentItem));
     }
     return items;
   }
+
   private toModel({
     id,
     views,
