@@ -21,6 +21,7 @@ import {
   getStringFromBinary,
   convertStringToBinary,
 } from '../../lib/binary-converter';
+import { chain, groupBy, map, sortBy } from 'lodash';
 
 const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
 @Table({
@@ -105,6 +106,9 @@ export class SendLinkItemModel extends Model {
   size: number;
 
   @Column
+  path: string;
+
+  @Column
   createdAt: Date;
 
   @Column
@@ -138,9 +142,15 @@ export class SequelizeSendRepository implements SendRepository {
   async createSendLinkWithItems(sendLink: SendLink): Promise<void> {
     const sendLinkModel = this.toModel(sendLink);
     const transaction = await this.sequelize.transaction();
+    const childs = [];
+    sendLinkModel.items.forEach((item) => {
+      childs.push(item);
+      const childrens = this.getChildrens(item);
+      childs.push(...childrens);
+    });
     try {
       await this.sendLinkModel.create(sendLinkModel, { transaction });
-      await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
+      await this.sendLinkItemModel.bulkCreate(childs, {
         transaction,
       });
       await transaction.commit();
@@ -159,7 +169,7 @@ export class SequelizeSendRepository implements SendRepository {
     await sendLinkModel.save();
   }
 
-  private toDomain(model): SendLink {
+  private toDomain(model): any {
     if (
       model.title &&
       model.subject &&
@@ -183,9 +193,71 @@ export class SequelizeSendRepository implements SendRepository {
       subject: model.subject,
       expirationAt: model.expirationAt,
     });
-    const items = model.items.map((item) => this.toDomainItem(item));
-    sendLink.setItems(items);
+
+    const grouped = [];
+
+    sortBy(model.items, (item) => item.path.split('/').length).forEach(
+      (item) => {
+        const itemParsed = item.toJSON();
+        itemParsed.childrens = [];
+        this.generateChildrens(grouped, itemParsed);
+      },
+    );
+    sendLink.setItems(grouped);
     return sendLink;
+  }
+
+  private toDomainItem(model): SendLinkItem {
+    const pathArray = model.path.split('/');
+    let parentId = null;
+    if (pathArray.length > 1) {
+      parentId = pathArray[pathArray.length - 2];
+    }
+
+    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
+      model.name = getStringFromBinary(atob(model.name));
+    }
+
+    return SendLinkItem.build({
+      id: model.id,
+      type: model.type,
+      name: model.name,
+      linkId: model.linkId,
+      networkId: model.networkId,
+      encryptionKey: model.encryptionKey,
+      size: model.size,
+      parentId,
+      childrens: [],
+      path: model.path,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+    });
+  }
+
+  private generateChildrens(items, currentItem) {
+    let isChild = false;
+    const pathArray = currentItem.path.split('/');
+    const parentId = pathArray[pathArray.length - 2];
+    items.forEach((item) => {
+      if (item.id === parentId) {
+        const children = item.childrens.find(
+          (child) => child.id === currentItem.id,
+        );
+        if (!children) {
+          isChild = true;
+          item.childrens.push(this.toDomainItem(currentItem));
+        }
+      } else {
+        isChild = true;
+        if (item.childrens.length > 0) {
+          this.generateChildrens(item.childrens, currentItem);
+        }
+      }
+    });
+    if (!isChild) {
+      items.push(this.toDomainItem(currentItem));
+    }
+    return items;
   }
 
   private toModel({
@@ -221,22 +293,6 @@ export class SequelizeSendRepository implements SendRepository {
       updatedAt,
     };
   }
-  private toDomainItem(model): SendLinkItem {
-    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
-      model.name = getStringFromBinary(atob(model.name));
-    }
-    return SendLinkItem.build({
-      id: model.id,
-      type: model.type,
-      name: model.name,
-      linkId: model.linkId,
-      networkId: model.networkId,
-      encryptionKey: model.encryptionKey,
-      size: model.size,
-      createdAt: model.createdAt,
-      updatedAt: model.updatedAt,
-    });
-  }
 
   private toModelItem(domain) {
     if (domain.createdAt > ENCRYPTION_DATE_RELEASE) {
@@ -249,9 +305,22 @@ export class SequelizeSendRepository implements SendRepository {
       linkId: domain.linkId,
       networkId: domain.networkId,
       encryptionKey: domain.encryptionKey,
+      path: domain.path,
       size: domain.size,
+      childrens: domain.childrens.map((child) => this.toModelItem(child)),
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
     };
+  }
+
+  private getChildrens(item) {
+    const childrens = [];
+    if (item.childrens) {
+      item.childrens.forEach((child) => {
+        childrens.push(child);
+        childrens.push(...this.getChildrens(child));
+      });
+    }
+    return childrens;
   }
 }
