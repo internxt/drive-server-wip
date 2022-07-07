@@ -141,7 +141,7 @@ describe('Send Use Cases', () => {
         title: 'title',
         subject: 'subject',
       });
-      expect(sendRepository.findById).toHaveBeenCalledTimes(1);
+      expect(sendRepository.findById).toHaveBeenCalledTimes(2);
       expect(sendRepository.update).toHaveBeenCalledTimes(1);
     });
   });
@@ -151,6 +151,7 @@ describe('Send Use Cases', () => {
     jest
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
     const sendLink = await service.createSendLinks(
       null,
       [],
@@ -162,6 +163,7 @@ describe('Send Use Cases', () => {
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
+    expect(sendRepository.findById).toHaveBeenCalledTimes(1);
     expect(sendLink).toMatchObject({
       user: null,
       code: 'code',
@@ -176,6 +178,7 @@ describe('Send Use Cases', () => {
     jest
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
     const sendLink = await service.createSendLinks(
       userMock,
       [],
@@ -187,6 +190,7 @@ describe('Send Use Cases', () => {
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
+    expect(sendRepository.findById).toHaveBeenCalledTimes(1);
     expect(sendLink).toMatchObject({
       user: userMock,
       code: 'code',
