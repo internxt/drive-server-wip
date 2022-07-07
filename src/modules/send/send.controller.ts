@@ -69,6 +69,7 @@ export class SendController {
   @Public()
   async getSendLink(@Param('linkId') linkId: string) {
     const sendLink = await this.sendUseCases.getById(linkId);
+    return sendLink;
     return {
       id: sendLink.id,
       title: sendLink.title,
@@ -76,28 +77,23 @@ export class SendController {
       code: sendLink.code,
       views: sendLink.views,
       userId: sendLink.user ? sendLink.user.id : null,
-      size: sendLink.size,
+      items: sendLink.items.map((item) => {
+        return {
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          networkId: item.networkId,
+          encryptionKey: item.encryptionKey,
+          size: item.size,
+          parentId: item.parentId,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        };
+      }),
       createdAt: sendLink.createdAt,
       updatedAt: sendLink.updatedAt,
       expirationAt: sendLink.expirationAt,
-      items: sendLink.items.map((item) => this.getSendLinkResponseItem(item)),
-    };
-  }
-
-  getSendLinkResponseItem(item) {
-    return {
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      networkId: item.networkId,
-      encryptionKey: item.encryptionKey,
-      size: item.size,
-      parentId: item.parentId || null,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      childrens: item.childrens.map((child) =>
-        this.getSendLinkResponseItem(child),
-      ),
+      size: sendLink.size,
     };
   }
 
