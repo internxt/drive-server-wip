@@ -21,7 +21,7 @@ import {
   getStringFromBinary,
   convertStringToBinary,
 } from '../../lib/binary-converter';
-import { chain, groupBy, map, sortBy } from 'lodash';
+import { sortBy } from 'lodash';
 
 const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
 @Table({
