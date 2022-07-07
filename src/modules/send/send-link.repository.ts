@@ -21,7 +21,9 @@ import {
   getStringFromBinary,
   convertStringToBinary,
 } from '../../lib/binary-converter';
+import { chain, groupBy, map, sortBy } from 'lodash';
 
+const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
 @Table({
   underscored: true,
   timestamps: true,
@@ -167,7 +169,16 @@ export class SequelizeSendRepository implements SendRepository {
     await sendLinkModel.save();
   }
 
-  private toDomain(model): SendLink {
+  private toDomain(model): any {
+    if (
+      model.title &&
+      model.subject &&
+      model.createdAt > ENCRYPTION_DATE_RELEASE
+    ) {
+      model.title = getStringFromBinary(atob(model.title));
+      model.subject = getStringFromBinary(atob(model.subject));
+    }
+
     const sendLink = SendLink.build({
       id: model.id,
       views: model.views,
@@ -178,25 +189,21 @@ export class SequelizeSendRepository implements SendRepository {
       sender: model.sender,
       receivers: model.receivers ? model.receivers.split(',') || [] : null,
       code: model.code,
-      title: getStringFromBinary(atob(model.title)),
-      subject: getStringFromBinary(atob(model.subject)),
+      title: model.title,
+      subject: model.subject,
       expirationAt: model.expirationAt,
     });
-    const items = model.items.map((item) => this.toDomainItem(item));
-    //
-    // const parents = [];
-    // items
-    //   .sort((a, b) => {
-    //     return a.path.split('/').length - b.path.split('/').length;
-    //   })
-    //   .forEach((item) => {
-    //     // console.log(item.path);
-    //     // const paths = item.path.split('/');
-    //     // item.parentId = paths[paths.length > 1 ? paths.length - 1 : 0];
-    //     // console.log(item);
-    //   });
-    console.log(items);
-    sendLink.setItems(items);
+
+    const grouped = [];
+
+    sortBy(model.items, (item) => item.path.split('/').length).forEach(
+      (item) => {
+        const itemParsed = item.toJSON();
+        itemParsed.childrens = [];
+        this.generateChildrens(grouped, itemParsed);
+      },
+    );
+    sendLink.setItems(grouped);
     return sendLink;
   }
 
@@ -204,7 +211,11 @@ export class SequelizeSendRepository implements SendRepository {
     const pathArray = model.path.split('/');
     let parentId = null;
     if (pathArray.length > 1) {
-      parentId = pathArray[pathArray.length - 1];
+      parentId = pathArray[pathArray.length - 2];
+    }
+
+    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
+      model.name = getStringFromBinary(atob(model.name));
     }
 
     return SendLinkItem.build({
@@ -217,11 +228,36 @@ export class SequelizeSendRepository implements SendRepository {
       size: model.size,
       parentId,
       childrens: [],
+      path: model.path,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
     });
   }
-
+  private generateChildrens(items, currentItem) {
+    let isChild = false;
+    const pathArray = currentItem.path.split('/');
+    const parentId = pathArray[pathArray.length - 2];
+    items.forEach((item) => {
+      if (item.id === parentId) {
+        const children = item.childrens.find(
+          (child) => child.id === currentItem.id,
+        );
+        if (!children) {
+          isChild = true;
+          item.childrens.push(this.toDomainItem(currentItem));
+        }
+      } else {
+        isChild = true;
+        if (item.childrens.length > 0) {
+          this.generateChildrens(item.childrens, currentItem);
+        }
+      }
+    });
+    if (!isChild) {
+      items.push(currentItem);
+    }
+    return items;
+  }
   private toModel({
     id,
     views,
@@ -236,6 +272,10 @@ export class SequelizeSendRepository implements SendRepository {
     createdAt,
     updatedAt,
   }) {
+    if (title && subject && createdAt > ENCRYPTION_DATE_RELEASE) {
+      title = btoa(convertStringToBinary(title));
+      subject = btoa(convertStringToBinary(subject));
+    }
     return {
       id,
       views,
@@ -244,8 +284,8 @@ export class SequelizeSendRepository implements SendRepository {
       sender,
       receivers: receivers ? receivers.join(',') : null,
       code,
-      title: btoa(convertStringToBinary(title)),
-      subject: btoa(convertStringToBinary(subject)),
+      title,
+      subject,
       expirationAt,
       createdAt,
       updatedAt,
@@ -253,9 +293,12 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toModelItem(domain) {
+    if (domain.createdAt > ENCRYPTION_DATE_RELEASE) {
+      domain.name = btoa(convertStringToBinary(domain.name));
+    }
     return {
       id: domain.id,
-      name: btoa(convertStringToBinary(domain.name)),
+      name: domain.name,
       type: domain.type,
       linkId: domain.linkId,
       networkId: domain.networkId,
