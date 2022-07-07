@@ -6,6 +6,7 @@ export interface SendLinkItemAttributes {
   networkId: string;
   encryptionKey: string;
   size: number;
+  path: string | null;
   parentId: string | null;
   childrens: Array<SendLinkItem>;
   createdAt: Date;
@@ -33,6 +34,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
     networkId,
     encryptionKey,
     size,
+    path,
     parentId,
     createdAt,
     updatedAt,
@@ -46,7 +48,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
     this.size = size;
     this.parentId = parentId;
     this.childrens = [];
-    this.path = null;
+    this.path = path || null;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
