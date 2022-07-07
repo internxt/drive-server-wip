@@ -23,7 +23,7 @@ export class SendLinkListener {
 
     const itemsToMail = items.map((item) => {
       return {
-        name: `${item.name}`,
+        name: item.name,
         size: pretty(item.size),
       };
     });
