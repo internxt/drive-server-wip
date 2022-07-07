@@ -183,19 +183,6 @@ export class SequelizeSendRepository implements SendRepository {
       expirationAt: model.expirationAt,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
-    //
-    // const parents = [];
-    // items
-    //   .sort((a, b) => {
-    //     return a.path.split('/').length - b.path.split('/').length;
-    //   })
-    //   .forEach((item) => {
-    //     // console.log(item.path);
-    //     // const paths = item.path.split('/');
-    //     // item.parentId = paths[paths.length > 1 ? paths.length - 1 : 0];
-    //     // console.log(item);
-    //   });
-    console.log(items);
     sendLink.setItems(items);
     return sendLink;
   }

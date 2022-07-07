@@ -74,7 +74,7 @@ export class SendUseCases {
     return sendLink;
   }
 
-  async createSendLinkItem(item, parent, linkId) {
+  private async createSendLinkItem(item, parent, linkId) {
     const itemId = uuidv4();
     const sendLinkItem = SendLinkItem.build({
       id: itemId,
