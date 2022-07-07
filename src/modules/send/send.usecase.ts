@@ -26,7 +26,7 @@ export class SendUseCases {
     sendLink.addView();
     sendLink.updatedAt = now;
     await this.sendRepository.update(sendLink);
-    return await this.sendRepository.findById(id);
+    return sendLink;
   }
   async createSendLinks(
     user: User | null,
@@ -66,7 +66,7 @@ export class SendUseCases {
     await this.sendRepository.createSendLinkWithItems(sendLink);
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
-      sendLink: await this.sendRepository.findById(sendLink.id),
+      sendLink,
     });
 
     this.notificationService.add(sendLinkCreatedEvent);
