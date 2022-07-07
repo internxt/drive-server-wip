@@ -86,7 +86,6 @@ export class SendUseCases {
       size: item.size,
       parentId: parent ? parent.id : null,
       childrens: [],
-      path: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
