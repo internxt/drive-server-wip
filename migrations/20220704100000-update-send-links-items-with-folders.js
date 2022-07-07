@@ -5,6 +5,10 @@ module.exports = {
       allowNull: true,
       after: 'size',
     });
+
+    await queryInterface.sequelize.query(
+      'UPDATE send_links_items SET path = id WHERE path IS NULL',
+    );
   },
 
   down: async (queryInterface) => {
