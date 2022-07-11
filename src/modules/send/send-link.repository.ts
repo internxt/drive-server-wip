@@ -22,6 +22,7 @@ import {
   convertStringToBinary,
 } from '../../lib/binary-converter';
 
+const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
 @Table({
   underscored: true,
   timestamps: true,
@@ -104,9 +105,6 @@ export class SendLinkItemModel extends Model {
   size: number;
 
   @Column
-  path: string;
-
-  @Column
   createdAt: Date;
 
   @Column
@@ -140,15 +138,9 @@ export class SequelizeSendRepository implements SendRepository {
   async createSendLinkWithItems(sendLink: SendLink): Promise<void> {
     const sendLinkModel = this.toModel(sendLink);
     const transaction = await this.sequelize.transaction();
-    const childs = [];
-    sendLinkModel.items.forEach((item) => {
-      childs.push(item);
-      const childrens = this.getChildrens(item);
-      childs.push(...childrens);
-    });
     try {
       await this.sendLinkModel.create(sendLinkModel, { transaction });
-      await this.sendLinkItemModel.bulkCreate(childs, {
+      await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
         transaction,
       });
       await transaction.commit();
@@ -168,6 +160,15 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toDomain(model): SendLink {
+    if (
+      model.title &&
+      model.subject &&
+      model.createdAt > ENCRYPTION_DATE_RELEASE
+    ) {
+      model.title = getStringFromBinary(atob(model.title));
+      model.subject = getStringFromBinary(atob(model.subject));
+    }
+
     const sendLink = SendLink.build({
       id: model.id,
       views: model.views,
@@ -178,35 +179,13 @@ export class SequelizeSendRepository implements SendRepository {
       sender: model.sender,
       receivers: model.receivers ? model.receivers.split(',') || [] : null,
       code: model.code,
-      title: getStringFromBinary(atob(model.title)),
-      subject: getStringFromBinary(atob(model.subject)),
+      title: model.title,
+      subject: model.subject,
       expirationAt: model.expirationAt,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
     sendLink.setItems(items);
     return sendLink;
-  }
-
-  private toDomainItem(model): SendLinkItem {
-    const pathArray = model.path.split('/');
-    let parentId = null;
-    if (pathArray.length > 1) {
-      parentId = pathArray[pathArray.length - 1];
-    }
-
-    return SendLinkItem.build({
-      id: model.id,
-      type: model.type,
-      name: model.name,
-      linkId: model.linkId,
-      networkId: model.networkId,
-      encryptionKey: model.encryptionKey,
-      size: model.size,
-      parentId,
-      childrens: [],
-      createdAt: model.createdAt,
-      updatedAt: model.updatedAt,
-    });
   }
 
   private toModel({
@@ -223,6 +202,10 @@ export class SequelizeSendRepository implements SendRepository {
     createdAt,
     updatedAt,
   }) {
+    if (title && subject && createdAt > ENCRYPTION_DATE_RELEASE) {
+      title = btoa(convertStringToBinary(title));
+      subject = btoa(convertStringToBinary(subject));
+    }
     return {
       id,
       views,
@@ -231,38 +214,44 @@ export class SequelizeSendRepository implements SendRepository {
       sender,
       receivers: receivers ? receivers.join(',') : null,
       code,
-      title: btoa(convertStringToBinary(title)),
-      subject: btoa(convertStringToBinary(subject)),
+      title,
+      subject,
       expirationAt,
       createdAt,
       updatedAt,
     };
   }
+  private toDomainItem(model): SendLinkItem {
+    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
+      model.name = getStringFromBinary(atob(model.name));
+    }
+    return SendLinkItem.build({
+      id: model.id,
+      type: model.type,
+      name: model.name,
+      linkId: model.linkId,
+      networkId: model.networkId,
+      encryptionKey: model.encryptionKey,
+      size: model.size,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+    });
+  }
 
   private toModelItem(domain) {
+    if (domain.createdAt > ENCRYPTION_DATE_RELEASE) {
+      domain.name = btoa(convertStringToBinary(domain.name));
+    }
     return {
       id: domain.id,
-      name: btoa(convertStringToBinary(domain.name)),
+      name: domain.name,
       type: domain.type,
       linkId: domain.linkId,
       networkId: domain.networkId,
       encryptionKey: domain.encryptionKey,
-      path: domain.path,
       size: domain.size,
-      childrens: domain.childrens.map((child) => this.toModelItem(child)),
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
     };
-  }
-
-  private getChildrens(item) {
-    const childrens = [];
-    if (item.childrens) {
-      item.childrens.forEach((child) => {
-        childrens.push(child);
-        childrens.push(...this.getChildrens(child));
-      });
-    }
-    return childrens;
   }
 }
