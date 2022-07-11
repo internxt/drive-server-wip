@@ -53,18 +53,13 @@ export class SendUseCases {
       subject,
       expirationAt,
     });
+
     for (const item of items) {
-      const sendLinkItem = SendLinkItem.build({
-        id: uuidv4(),
-        name: item.name,
-        type: item.type,
-        linkId: sendLink.id,
-        networkId: item.networkId,
-        encryptionKey: item.encryptionKey,
-        size: item.size,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      const sendLinkItem = await this.createSendLinkItem(
+        item,
+        null,
+        sendLink.id,
+      );
       sendLink.addItem(sendLinkItem);
     }
 
@@ -77,5 +72,36 @@ export class SendUseCases {
     this.notificationService.add(sendLinkCreatedEvent);
 
     return sendLink;
+  }
+
+  private async createSendLinkItem(item, parent, linkId) {
+    const itemId = uuidv4();
+    const sendLinkItem = SendLinkItem.build({
+      id: itemId,
+      name: item.name,
+      type: item.type,
+      linkId,
+      networkId: item.networkId,
+      encryptionKey: item.encryptionKey,
+      size: item.size,
+      parentId: parent ? parent.id : null,
+      childrens: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    sendLinkItem.generatePath(parent ? parent.id : '');
+    if (item.childrens?.length > 0) {
+      await item.childrens.forEach(async (child) => {
+        const childItem = await this.createSendLinkItem(
+          child,
+          sendLinkItem,
+          linkId,
+        );
+        childItem.generatePath(sendLinkItem.path);
+        sendLinkItem.addChildren(childItem);
+      });
+    }
+
+    return sendLinkItem;
   }
 }

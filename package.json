@@ -50,6 +50,7 @@
     "crypto-js": "^4.1.1",
     "geoip-lite": "^1.4.5",
     "helmet": "^5.1.0",
+    "lodash": "^4.17.21",
     "mariadb": "^3.0.0",
     "nest-winston": "^1.6.2",
     "node-device-detector": "^2.0.3",
