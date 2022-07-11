@@ -13,7 +13,10 @@ export class MailerService {
   async send(email, templateId, context) {
     const msg = {
       to: email,
-      from: this.configService.get('mailer.from'),
+      from: {
+        email: this.configService.get('mailer.from'),
+        name: this.configService.get('mailer.name')
+      },
       subject: '',
       text: 'send link',
       html: 'send link',
