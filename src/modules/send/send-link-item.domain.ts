@@ -6,8 +6,6 @@ export interface SendLinkItemAttributes {
   networkId: string;
   encryptionKey: string;
   size: number;
-  parentId: string | null;
-  childrens: Array<SendLinkItem>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,9 +18,6 @@ export class SendLinkItem implements SendLinkItemAttributes {
   networkId: string;
   encryptionKey: string;
   size: number;
-  parentId: string | null;
-  childrens: Array<SendLinkItem>;
-  path: string | null;
   createdAt: Date;
   updatedAt: Date;
   constructor({
@@ -33,7 +28,6 @@ export class SendLinkItem implements SendLinkItemAttributes {
     networkId,
     encryptionKey,
     size,
-    parentId,
     createdAt,
     updatedAt,
   }) {
@@ -44,9 +38,6 @@ export class SendLinkItem implements SendLinkItemAttributes {
     this.networkId = networkId;
     this.encryptionKey = encryptionKey;
     this.size = size;
-    this.parentId = parentId;
-    this.childrens = [];
-    this.path = null;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -54,35 +45,6 @@ export class SendLinkItem implements SendLinkItemAttributes {
   static build(sendLinkItem: SendLinkItemAttributes): SendLinkItem {
     return new SendLinkItem(sendLinkItem);
   }
-
-  setChildrens(childrens: Array<SendLinkItem>) {
-    this.childrens = childrens;
-  }
-  addChildren(children: SendLinkItem) {
-    this.childrens.push(children);
-  }
-  removeChildren(children: SendLinkItem) {
-    this.childrens.splice(this.childrens.indexOf(children), 1);
-  }
-  getChildrens() {
-    return this.childrens;
-  }
-  clearChildrens() {
-    this.childrens = [];
-  }
-
-  getPath() {
-    return this.path;
-  }
-
-  generatePath(prefix = '') {
-    if (prefix != '') {
-      this.path = prefix + '/' + this.id;
-    } else {
-      this.path = this.id;
-    }
-  }
-
   toJSON() {
     return {
       id: this.id,
