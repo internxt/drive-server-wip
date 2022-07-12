@@ -2,8 +2,12 @@ import {
   ArrayMaxSize,
   IsArray,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
+  Max,
+  Min,
+  ValidateNested
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -26,6 +30,9 @@ export class SendLinkItemDto {
   })
   type: ItemType;
 
+  @IsInt()
+  @Min(0)
+  @Max(5368709120, { message: 'size must not be greater than 5G'})
   @ApiProperty({
     example: '100',
     description: 'size of item',
@@ -86,6 +93,7 @@ export class CreateSendLinkDto {
   })
   @Type(() => SendLinkItemDto)
   @IsArray()
+  @ValidateNested({ each: true })
   @ArrayMaxSize(50)
   items: SendLinkItemDto[];
 }
