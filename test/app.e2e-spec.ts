@@ -86,7 +86,7 @@ describe('AppController (e2e)', () => {
               items: [
                 {
                   name: 'test',
-                  type: 'jpg',
+                  type: 'file',
                   networkId: 'test',
                   encryptionKey: 'test',
                   size: 100000,
@@ -112,12 +112,36 @@ describe('AppController (e2e)', () => {
             'items must be an array',
           ]);
         });
+        it('/links (POST) - Return 400 - Max size of item', async () => {
+          const response = await request(app.getHttpServer())
+            .post('/links')
+            .send({
+              items: [
+                {
+                  name: 'test',
+                  type: 'file',
+                  networkId: 'test',
+                  encryptionKey: 'test',
+                  size: 606870910000,
+                },
+              ],
+              sender: 'clopez@internxt.com',
+              receivers: ['clopez@internxt.com'],
+              code: 'code',
+              title: 'File Test',
+              subject: 'Esto es una prueba de archivo',
+            });
+          expect(response.status).toBe(HttpStatus.BAD_REQUEST);
+          expect(response.body.message).toMatchObject([
+            'items.0.size must not be greater than 5G',
+          ]);
+        });
         it('/links (POST) - Return 400 - Max 50 items', async () => {
           const items = [];
           for (let i = 0; i <= 51; i++) {
             items.push({
               name: 'test',
-              type: 'jpg',
+              type: 'file',
               networkId: 'test',
               encryptionKey: 'test',
               size: 100000,
