@@ -108,7 +108,7 @@ describe('AppController (e2e)', () => {
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body.message).toMatchObject([
             'code should not be empty',
-            'items must contain not more than 50 elements',
+            'items must contain not more than 100 elements',
             'items must be an array',
           ]);
         });
@@ -136,9 +136,9 @@ describe('AppController (e2e)', () => {
             'items.0.size must not be greater than 5G',
           ]);
         });
-        it('/links (POST) - Return 400 - Max 50 items', async () => {
+        it('/links (POST) - Return 400 - Max 100 items', async () => {
           const items = [];
-          for (let i = 0; i <= 51; i++) {
+          for (let i = 0; i <= 101; i++) {
             items.push({
               name: 'test',
               type: 'file',
@@ -160,7 +160,7 @@ describe('AppController (e2e)', () => {
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body).toMatchObject({
             error: 'Bad Request',
-            message: ['items must contain not more than 50 elements'],
+            message: ['items must contain not more than 100 elements'],
             statusCode: HttpStatus.BAD_REQUEST,
           });
         });
