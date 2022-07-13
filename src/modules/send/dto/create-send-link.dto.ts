@@ -94,6 +94,6 @@ export class CreateSendLinkDto {
   @Type(() => SendLinkItemDto)
   @IsArray()
   @ValidateNested({ each: true })
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(100)
   items: SendLinkItemDto[];
 }
