@@ -89,7 +89,7 @@ export class SendLinkItemModel extends Model {
 
   @ForeignKey(() => SendLinkModel)
   @Column
-  linkId: number;
+  linkId: string;
 
   @BelongsTo(() => SendLinkModel)
   link: any;
@@ -109,6 +109,9 @@ export class SendLinkItemModel extends Model {
 
   @Column
   updatedAt: Date;
+
+  @Column(DataType.INTEGER)
+  version: number;
 }
 
 export interface SendRepository {
@@ -221,7 +224,7 @@ export class SequelizeSendRepository implements SendRepository {
       updatedAt,
     };
   }
-  private toDomainItem(model): SendLinkItem {
+  private toDomainItem(model: SendLinkItemModel): SendLinkItem {
     if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
       model.name = getStringFromBinary(atob(model.name));
     }
@@ -235,10 +238,11 @@ export class SequelizeSendRepository implements SendRepository {
       size: model.size,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      version: model.version,
     });
   }
 
-  private toModelItem(domain) {
+  private toModelItem(domain: SendLinkItem) {
     if (domain.createdAt > ENCRYPTION_DATE_RELEASE) {
       domain.name = btoa(convertStringToBinary(domain.name));
     }
@@ -252,6 +256,7 @@ export class SequelizeSendRepository implements SendRepository {
       size: domain.size,
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
+      version: domain.version,
     };
   }
 }

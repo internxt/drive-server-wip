@@ -7,7 +7,7 @@ import {
   IsOptional,
   Max,
   Min,
-  ValidateNested
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -32,7 +32,7 @@ export class SendLinkItemDto {
 
   @IsInt()
   @Min(0)
-  @Max(5368709120, { message: 'size must not be greater than 5G'})
+  @Max(5368709120, { message: 'size must not be greater than 5G' })
   @ApiProperty({
     example: '100',
     description: 'size of item',
@@ -69,7 +69,7 @@ export class CreateSendLinkDto {
 
   @ApiProperty({
     example: 'code',
-    description: 'Code to send link',
+    description: 'Encrypted code used before in plain, to encrypt the mnemonic',
   })
   @IsNotEmpty()
   code: string;
