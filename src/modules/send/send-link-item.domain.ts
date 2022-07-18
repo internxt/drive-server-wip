@@ -8,6 +8,7 @@ export interface SendLinkItemAttributes {
   size: number;
   createdAt: Date;
   updatedAt: Date;
+  version: number;
 }
 
 export class SendLinkItem implements SendLinkItemAttributes {
@@ -20,6 +21,8 @@ export class SendLinkItem implements SendLinkItemAttributes {
   size: number;
   createdAt: Date;
   updatedAt: Date;
+  version: number;
+
   constructor({
     id,
     name,
@@ -30,7 +33,8 @@ export class SendLinkItem implements SendLinkItemAttributes {
     size,
     createdAt,
     updatedAt,
-  }) {
+    version,
+  }: SendLinkItemAttributes) {
     this.id = id;
     this.name = name;
     this.type = type;
@@ -40,11 +44,13 @@ export class SendLinkItem implements SendLinkItemAttributes {
     this.size = size;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.version = version;
   }
 
   static build(sendLinkItem: SendLinkItemAttributes): SendLinkItem {
     return new SendLinkItem(sendLinkItem);
   }
+
   toJSON() {
     return {
       id: this.id,
@@ -56,6 +62,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
       size: this.size,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      version: this.version,
     };
   }
 }
