@@ -30,7 +30,7 @@ module.exports = {
     });
 
     await queryInterface.sequelize.query(
-      'UPDATE shares INNER JOIN users ON shares.user = users.email SET shares.user_id = users.id',
+      'UPDATE shares SET user_id = users.id FROM users WHERE shares.user = users.email;',
     );
   },
 

@@ -7,41 +7,45 @@ module.exports = {
         type: Sequelize.INTEGER,
         primaryKey: true,
         allowNull: false,
-        autoIncrement: true
+        autoIncrement: true,
       },
       user_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'users',
-          key: 'id'
+          key: 'id',
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'CASCADE',
       },
       mail_type: {
-        type: Sequelize.ENUM('invite_friend', 'reset_password', 'remove_account'),
-        allowNull: false
+        type: Sequelize.ENUM(
+          'invite_friend',
+          'reset_password',
+          'remove_account',
+        ),
+        allowNull: false,
       },
       attempts_count: {
         type: Sequelize.INTEGER(10),
         allowNull: false,
-        defaultValue: 0
+        defaultValue: 0,
       },
       attempts_limit: {
         type: Sequelize.INTEGER(10),
         allowNull: false,
-        defaultValue: 0
+        defaultValue: 0,
       },
       last_mail_sent: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: new Date(0)
+        defaultValue: new Date(0),
       },
     });
   },
 
   down: async (queryInterface) => {
     await queryInterface.dropTable('mail_limits');
-  }
+  },
 };
