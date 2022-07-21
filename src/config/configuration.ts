@@ -1,4 +1,5 @@
 export default () => ({
+  environment: process.env.NODE_ENV,
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
   port: parseInt(process.env.PORT) || 3000,
@@ -57,5 +58,8 @@ export default () => ({
       sendLinkCreateReceiver:
         process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_RECEIVER || '',
     },
+  },
+  sentry: {
+    dsn: process.env.SENTRY_DSN,
   },
 });

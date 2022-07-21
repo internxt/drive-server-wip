@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { format } from 'sql-formatter';
-
+import { SentryModule } from '@ntegral/nestjs-sentry';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
 import { FolderModule } from './modules/folder/folder.module';
@@ -19,6 +19,14 @@ import { SendModule } from './modules/send/send.module';
       envFilePath: [`.env.${process.env.NODE_ENV}`],
       load: [configuration],
       isGlobal: true,
+    }),
+    SentryModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        dsn: configService.get('sentry.dsn'),
+        environment: configService.get('environment'),
+      }),
     }),
     SequelizeModule.forRootAsync({
       imports: [ConfigModule],
