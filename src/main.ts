@@ -1,5 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
+import * as Sentry from '@sentry/node';
+import '@sentry/tracing';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
@@ -17,6 +19,11 @@ import { AuthGuard } from './modules/auth/auth.guard';
 const APP_PORT = process.env.PORT || 3000;
 async function bootstrap() {
   const logger = new Logger();
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV,
+    tracesSampleRate: 1.0,
+  });
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
       allowedHeaders: [
