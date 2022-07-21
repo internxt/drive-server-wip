@@ -3,7 +3,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
-import { WinstonLogger } from './lib/winston-logger';
+// import { WinstonLogger } from './lib/winston-logger';
 import {
   DocumentBuilder,
   SwaggerCustomOptions,
@@ -17,7 +17,6 @@ import { AuthGuard } from './modules/auth/auth.guard';
 const APP_PORT = process.env.PORT || 3000;
 async function bootstrap() {
   const logger = new Logger();
-
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
       allowedHeaders: [
@@ -34,7 +33,7 @@ async function bootstrap() {
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
     },
-    logger: WinstonLogger.getLogger(),
+    // logger: WinstonLogger.getLogger(),
   });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
