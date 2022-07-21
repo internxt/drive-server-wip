@@ -35,6 +35,7 @@ export default () => ({
     magicSalt: process.env.MAGIC_SALT,
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
+    jwt: process.env.JWT_SECRET,
   },
   apis: {
     notifications: {
