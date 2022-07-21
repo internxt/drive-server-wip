@@ -15,7 +15,7 @@ import { UserUseCases } from '../user/user.usecase';
       imports: [ConfigModule, UserModule],
       inject: [ConfigService, UserUseCases],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET'),
+        secret: configService.get('secrets.jwt'),
         signOptions: {
           expiresIn: 3600, // 1 hour
         },
