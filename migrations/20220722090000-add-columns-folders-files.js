@@ -5,7 +5,7 @@ module.exports = {
     await queryInterface.addColumn('folders', 'deleted', {
       type: Sequelize.BOOLEAN,
       allowNull: false,
-      defaultValue: true,
+      defaultValue: false,
     });
     await queryInterface.addColumn('folders', 'deleted_at', {
       type: Sequelize.DATE,
