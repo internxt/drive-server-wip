@@ -13,6 +13,8 @@ import {
   Index,
   BelongsTo,
   ForeignKey,
+  Default,
+  AllowNull,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
@@ -55,9 +57,11 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   encryptVersion: string;
 
+  @Default(false)
   @Column
   deleted: boolean;
 
+  @AllowNull
   @Column
   deletedAt: Date;
 
