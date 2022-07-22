@@ -197,9 +197,9 @@ export class SequelizeShareRepository implements ShareRepository {
   private toDomain(model): Share {
     let item: File | Folder = null;
     if (model.isFolder) {
-      item = Folder.build(model.folder);
+      item = model.folder ? Folder.build(model.folder) : null;
     } else {
-      item = File.build(model.file);
+      item = model.file ? File.build(model.file) : null;
     }
     return Share.build({
       id: model.id,
@@ -240,8 +240,8 @@ export class SequelizeShareRepository implements ShareRepository {
       token,
       mnemonic,
       userId: user.id,
-      fileId: !isFolder ? item.id : null,
-      folderId: isFolder ? item.id : null,
+      fileId: !isFolder ? item?.id : null,
+      folderId: isFolder ? item?.id : null,
       encryptionKey,
       bucket,
       fileToken: itemToken,
