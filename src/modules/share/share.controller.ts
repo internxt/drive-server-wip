@@ -11,6 +11,7 @@ import {
   HttpStatus,
   NotFoundException,
   Req,
+  Delete,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
@@ -105,6 +106,28 @@ export class ShareController {
       content,
     );
     return share;
+  }
+
+  @Delete('/:shareId')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Delete share by id',
+  })
+  @ApiOkResponse({ description: 'Delete share by id' })
+  @Public()
+  async deleteShareByToken(
+    @UserDecorator() user: User,
+    @Param('shareId') shareId: string,
+  ) {
+    user = await this.getUserWhenPublic(user);
+    const deleted = await this.shareUseCases.deleteShareById(
+      parseInt(shareId),
+      user,
+    );
+    return {
+      deleted,
+      shareId,
+    };
   }
 
   @Post('file/:fileId')

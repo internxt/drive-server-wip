@@ -338,6 +338,21 @@ describe('Share Use Cases', () => {
       ).rejects.toThrow('You are not owner of this share');
     });
   });
+  describe('delete share by id', () => {
+    it('should return share deleted', async () => {
+      jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
+      jest.spyOn(shareRepository, 'delete').mockResolvedValue(undefined);
+      const result = await service.deleteShareById(1, userOwnerMock);
+      expect(result).toBe(true);
+    });
+
+    it('should return not owner', async () => {
+      jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
+      await expect(service.deleteShareById(1, userMock)).rejects.toThrow(
+        'You are not owner of this share',
+      );
+    });
+  });
 
   describe('create share file', () => {
     it('should return share pre exist', async () => {

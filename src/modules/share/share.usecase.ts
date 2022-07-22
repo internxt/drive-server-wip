@@ -88,6 +88,15 @@ export class ShareUseCases {
     };
   }
 
+  async deleteShareById(id: number, user: User) {
+    const share = await this.shareRepository.findById(id);
+    if (share.user.id !== user.id) {
+      throw new UnauthorizedException(`You are not owner of this share`);
+    }
+    await this.shareRepository.delete(share);
+    return true;
+  }
+
   async createShareFile(
     fileId: string,
     user: User,
