@@ -93,6 +93,7 @@ export interface ShareRepository {
     perPage: number,
   ): Promise<{ count: number; items: Array<Share> | [] }>;
   update(share: Share): Promise<void>;
+  delete(share: Share): Promise<void>;
   create(share: Share): Promise<void>;
   findByFileIdAndUser(
     fileId: FileAttributes['id'],
@@ -169,6 +170,14 @@ export class SequelizeShareRepository implements ShareRepository {
     }
     shareModel.set(this.toModel(share));
     await shareModel.save();
+  }
+
+  async delete(share: Share): Promise<void> {
+    const shareModel = await this.shareModel.findByPk(share.id);
+    if (!shareModel) {
+      throw new NotFoundException(`Share with ID ${share.id} not found`);
+    }
+    await shareModel.destroy();
   }
 
   async findAllByUserPaginated(
