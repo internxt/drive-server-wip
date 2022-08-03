@@ -6,20 +6,20 @@ import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
 
 import {
-  Column,
-  Model,
-  Table,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  DataType,
   AllowNull,
+  BelongsTo,
+  Column,
+  DataType,
+  ForeignKey,
   HasMany,
+  Model,
+  PrimaryKey,
   Sequelize,
+  Table,
 } from 'sequelize-typescript';
 import {
-  getStringFromBinary,
   convertStringToBinary,
+  getStringFromBinary,
 } from '../../lib/binary-converter';
 
 const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
@@ -129,9 +129,13 @@ export class SequelizeSendRepository implements SendRepository {
   ) {}
 
   async findById(id: SendLinkAttributes['id']) {
-    const sendLink = await this.sendLinkModel.findByPk(id, {
-      include: [this.userModel, this.sendLinkItemModel],
-    });
+    const sendLink = await this.sendLinkModel
+      .findByPk(id, {
+        include: [this.userModel, this.sendLinkItemModel],
+      })
+      .catch((err) => {
+        return null;
+      });
     return sendLink ? this.toDomain(sendLink) : null;
   }
 
