@@ -6,15 +6,15 @@ module.exports = {
       $$
       BEGIN
       INSERT INTO deleted_files(file_id, user_id, folder_id, bucket) select file_id, user_id, folder_id, bucket from files where files.folder_id = OLD.id;
-      RETURN NEW;
+      RETURN OLD;
       END;
       $$
       LANGUAGE 'plpgsql';`);
     await queryInterface.sequelize.query(
-      `DROP TRIGGER IF EXISTS copy_deleted_files_on_delete ON folders;`,
+        `DROP TRIGGER IF EXISTS copy_deleted_files_on_delete ON folders;`,
     );
     await queryInterface.sequelize.query(
-      `CREATE TRIGGER copy_deleted_files_on_delete BEFORE DELETE on folders
+        `CREATE TRIGGER copy_deleted_files_on_delete BEFORE DELETE on folders
 			FOR EACH ROW
 			EXECUTE PROCEDURE insert_deleted_files()`,
     );
@@ -22,7 +22,7 @@ module.exports = {
 
   down: async (queryInterface) => {
     await queryInterface.sequelize.query(
-      `DROP TRIGGER IF EXISTS copy_deleted_files_on_delete ON folders;`,
+        `DROP TRIGGER IF EXISTS copy_deleted_files_on_delete ON folders;`,
     );
   },
 };

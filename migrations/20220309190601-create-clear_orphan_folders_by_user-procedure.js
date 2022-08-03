@@ -15,7 +15,7 @@ module.exports = {
 
   down: async (queryInterface) => {
     await queryInterface.sequelize.query(
-      'drop procedure clear_orphan_folders_by_user;',
+      'drop procedure xCloud.clear_orphan_folders_by_user;',
     );
   },
 };
