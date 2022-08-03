@@ -11,11 +11,12 @@ jobs:
       matrix:
         node-version: [16.x]
     steps:
-      - name: Start Mariadb
-        uses: getong/mariadb-action@v1.1
+      - name: Start PostgresSQL
+        uses: harmon758/postgresql-action@v1
         with:
-          mysql database: 'xCloud_test'
-          mysql root password: example
+          postgresql db: 'xCloud_test'
+          postgresql user: 'admin'
+          postgresql password: example
 
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
