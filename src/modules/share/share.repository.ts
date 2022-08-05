@@ -184,8 +184,12 @@ export class SequelizeShareRepository implements ShareRepository {
     user: User,
     page: number,
     perPage: number,
-  ): Promise<{ count: number; items: Array<Share> | [] }> {
+    orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
+  ): Promise<{ count: number; items: Array<Share> }> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+    const order = orderBy?.split(':');
+
     const shares = await this.shareModel.findAndCountAll({
       where: {
         user_id: user.id,
@@ -194,6 +198,7 @@ export class SequelizeShareRepository implements ShareRepository {
       include: [this.fileModel, this.userModel, this.folderModel],
       offset,
       limit,
+      order,
     });
     return {
       count: shares.count,
