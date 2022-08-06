@@ -188,7 +188,9 @@ export class SequelizeShareRepository implements ShareRepository {
   ): Promise<{ count: number; items: Array<Share> }> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy?.split(':');
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
 
     const shares = await this.shareModel.findAndCountAll({
       where: {
