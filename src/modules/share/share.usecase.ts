@@ -60,11 +60,17 @@ export class ShareUseCases {
 
     return share;
   }
-  async listByUserPaginated(user: any, page: number, perPage = 50) {
+  async listByUserPaginated(
+    user: any,
+    page = 0,
+    perPage = 50,
+    orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
+  ) {
     const { count, items } = await this.shareRepository.findAllByUserPaginated(
       user,
       page,
       perPage,
+      orderBy,
     );
 
     return {
@@ -72,6 +78,7 @@ export class ShareUseCases {
         page,
         perPage,
         countAll: count,
+        orderBy,
       },
       items: items.map((share) => {
         return {

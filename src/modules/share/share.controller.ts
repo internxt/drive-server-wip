@@ -12,6 +12,7 @@ import {
   NotFoundException,
   Req,
   Delete,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
@@ -50,11 +51,29 @@ export class ShareController {
     @UserDecorator() user: User,
     @Query('page') page: string,
     @Query('perPage') perPage: string,
+    @Query('orderBy') orderBy: string,
   ) {
+    const possibleOrderByValues = [
+      'views:ASC',
+      'views:DESC',
+      'createdAt:ASC',
+      'createdAt:DESC',
+    ];
+
+    if (orderBy !== undefined && !possibleOrderByValues.includes(orderBy)) {
+      throw new BadRequestException(
+        `${orderBy} is not valid as a sortBy param`,
+      );
+    }
     const shares = await this.shareUseCases.listByUserPaginated(
       user,
-      parseInt(page) || 1,
+      parseInt(page) || 0,
       parseInt(perPage) || 50,
+      orderBy as
+        | 'views:ASC'
+        | 'views:DESC'
+        | 'createdAt:ASC'
+        | 'createdAt:DESC',
     );
     return shares;
   }
