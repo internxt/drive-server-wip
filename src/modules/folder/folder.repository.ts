@@ -165,6 +165,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
+  async updateManyByFolderIdAndUserId(
+    folderIds: FolderAttributes['id'][],
+    userId: FolderAttributes['userId'],
+    update: Partial<Folder>,
+  ): Promise<void> {
+    await this.folderModel.update(update, {
+      where: {
+        userId,
+        id: {
+          [Op.in]: folderIds,
+        },
+      },
+    });
+  }
+
   private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),

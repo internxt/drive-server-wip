@@ -76,7 +76,7 @@ export class TrashController {
     }
     await Promise.all([
       this.fileUseCases.moveFilesToTrash(fileIds, user.id),
-      this.folderUseCases.moveFoldersToTrash(folderIds),
+      this.folderUseCases.moveFoldersToTrash(folderIds, user.id),
     ]);
 
     const workspaceMembers =

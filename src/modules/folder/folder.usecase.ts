@@ -38,8 +38,11 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
-  async moveFoldersToTrash(folderIds: FolderAttributes['id'][]): Promise<void> {
-    this.folderRepository.updateManyByFolderId(folderIds, {
+  async moveFoldersToTrash(
+    folderIds: FolderAttributes['id'][],
+    userId: FolderAttributes['userId'],
+  ): Promise<void> {
+    this.folderRepository.updateManyByFolderIdAndUserId(folderIds, userId, {
       deleted: true,
       deletedAt: new Date(),
     });
