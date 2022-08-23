@@ -68,6 +68,10 @@ export class Folder implements FolderAttributes {
     return cryptoService.decryptName(nameEncrypted, this.parentId);
   }
 
+  isRootFolder(): boolean {
+    return this.parentId === null;
+  }
+
   moveToTrash() {
     this.deleted = true;
     this.deletedAt = new Date();
