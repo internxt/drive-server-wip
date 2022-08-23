@@ -3,21 +3,22 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Folder, FolderAttributes } from './folder.domain';
 import { FindOptions, Op } from 'sequelize';
 import {
+  AllowNull,
+  AutoIncrement,
+  BelongsTo,
   Column,
-  Model,
-  Table,
-  PrimaryKey,
   DataType,
   Default,
-  AutoIncrement,
-  AllowNull,
-  BelongsTo,
   ForeignKey,
   Index,
+  Model,
+  PrimaryKey,
+  Table,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -90,6 +91,8 @@ export class SequelizeFolderRepository implements FolderRepository {
   constructor(
     @InjectModel(FolderModel)
     private folderModel: typeof FolderModel,
+    @InjectModel(UserModel)
+    private userModel: typeof UserModel,
   ) {}
 
   async findAll(): Promise<Array<Folder> | []> {
@@ -130,6 +133,11 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: {
         id: folderId,
       },
+      include: [
+        {
+          model: this.userModel,
+        },
+      ],
     });
     return folder ? this.toDomain(folder) : null;
   }

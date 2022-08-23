@@ -3,16 +3,16 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import {
-  Column,
-  Model,
-  Table,
-  PrimaryKey,
-  ForeignKey,
+  AllowNull,
   BelongsTo,
+  Column,
   DataType,
   Default,
+  ForeignKey,
+  Model,
+  PrimaryKey,
+  Table,
   Unique,
-  AllowNull,
 } from 'sequelize-typescript';
 import { FileModel } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
@@ -20,6 +20,7 @@ import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -82,6 +83,10 @@ export class ShareModel extends Model {
   @Default(true)
   @Column
   active: boolean;
+
+  @AllowNull
+  @Column
+  code: string;
 }
 
 export interface ShareRepository {
@@ -195,7 +200,6 @@ export class SequelizeShareRepository implements ShareRepository {
     const shares = await this.shareModel.findAndCountAll({
       where: {
         user_id: user.id,
-        mnemonic: '',
       },
       include: [this.fileModel, this.userModel, this.folderModel],
       offset,
@@ -230,6 +234,7 @@ export class SequelizeShareRepository implements ShareRepository {
       timesValid: model.timesValid,
       active: model.active,
       user: model.user ? User.build(model.user) : null,
+      code: model.code,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
     });
@@ -248,6 +253,7 @@ export class SequelizeShareRepository implements ShareRepository {
     views,
     timesValid,
     active,
+    code,
     createdAt,
     updatedAt,
   }) {
@@ -265,6 +271,7 @@ export class SequelizeShareRepository implements ShareRepository {
       views,
       timesValid,
       active,
+      code,
       createdAt,
       updatedAt,
     };
