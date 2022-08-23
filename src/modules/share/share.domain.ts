@@ -16,6 +16,7 @@ export interface ShareAttributes {
   views: number;
   timesValid: number;
   active: boolean;
+  code: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +34,7 @@ export class Share implements ShareAttributes {
   views: number;
   timesValid: number;
   active: boolean;
+  code: string | null;
   createdAt: Date;
   updatedAt: Date;
   constructor({
@@ -48,6 +50,7 @@ export class Share implements ShareAttributes {
     views,
     timesValid,
     active,
+    code,
     createdAt,
     updatedAt,
   }) {
@@ -63,6 +66,7 @@ export class Share implements ShareAttributes {
     this.views = views;
     this.timesValid = timesValid;
     this.active = active;
+    this.code = code;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -84,7 +88,7 @@ export class Share implements ShareAttributes {
 
   canHaveView() {
     return (
-      this.active && (this.timesValid === null || this.timesValid > this.views)
+      this.active && (this.timesValid == -1 || this.timesValid > this.views)
     );
   }
 
@@ -123,6 +127,7 @@ export class Share implements ShareAttributes {
       views: this.views,
       timesValid: this.timesValid,
       active: this.active,
+      code: this.code,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

@@ -1,20 +1,20 @@
 import {
-  Controller,
-  HttpCode,
-  Get,
-  Put,
-  Param,
-  Query,
-  Post,
+  BadRequestException,
   Body,
-  Res,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
+  Post,
+  Put,
+  Query,
   Req,
-  Delete,
-  BadRequestException,
+  Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
@@ -232,12 +232,12 @@ export class ShareController {
     const share = await this.shareUseCases.getShareByToken(token, user);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
-      user.id,
+      share.user.id,
       share.mnemonic,
     );
     const files = await this.fileUseCases.getByFolderAndUser(
       folderId,
-      user.id,
+      share.user.id,
       false,
       parseInt(page),
       parseInt(perPage),
@@ -272,8 +272,8 @@ export class ShareController {
     await this.shareUseCases.getShareByToken(token, user);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
-      page,
-      perPage,
+      parseInt(page),
+      parseInt(perPage),
     );
     return { folders, last: parseInt(perPage) > folders.length };
   }

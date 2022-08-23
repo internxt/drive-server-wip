@@ -2,7 +2,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
@@ -89,6 +88,7 @@ export class ShareUseCases {
           timesValid: share.timesValid,
           active: share.active,
           isFolder: share.isFolder,
+          code: share.code,
           createdAt: share.createdAt,
           updatedAt: share.updatedAt,
         };
@@ -135,6 +135,7 @@ export class ShareUseCases {
       views: 0,
       timesValid,
       active: true,
+      code: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -146,7 +147,14 @@ export class ShareUseCases {
   async createShareFolder(
     folderId: number,
     user: User,
-    { timesValid, encryptionKey, itemToken, bucket }: CreateShareDto,
+    {
+      timesValid,
+      encryptionKey,
+      itemToken,
+      bucket,
+      mnemonic,
+      code,
+    }: CreateShareDto,
   ) {
     const folder = await this.folderUseCases.getFolder(folderId);
     if (!folder) {
@@ -163,7 +171,7 @@ export class ShareUseCases {
     const shareCreated = Share.build({
       id: 1,
       token,
-      mnemonic: '',
+      mnemonic,
       user: user,
       item: folder,
       encryptionKey,
@@ -173,6 +181,7 @@ export class ShareUseCases {
       views: 0,
       timesValid,
       active: true,
+      code,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
