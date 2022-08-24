@@ -4,7 +4,10 @@ import {
   SequelizeFolderRepository,
   FolderRepository,
 } from './folder.repository';
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { Folder } from './folder.domain';
 import { FolderModel } from './folder.repository';
@@ -164,6 +167,92 @@ describe('FolderUseCases', () => {
       expect(
         folderRepository.findAllByParentIdAndUserId,
       ).toHaveBeenNthCalledWith(1, folderId, userId, false);
+    });
+  });
+
+  describe('delete folder use case', () => {
+    it('should be able to delete a trashed folder', async () => {
+      const folderId = 2713105696;
+      const folder = Folder.build({
+        id: folderId,
+        parentId: 3388762609,
+        name: 'name',
+        bucket: 'bucket',
+        userId: 1,
+        encryptVersion: '2',
+        deleted: true,
+        deletedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: null,
+        parent: null,
+      });
+
+      jest
+        .spyOn(folderRepository, 'deleteById')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      await service.deleteFolderPermanently(folder);
+
+      expect(folderRepository.deleteById).toHaveBeenCalledWith(folderId);
+    });
+
+    it('should fail when the folder trying to delete has not been trashed', async () => {
+      const folderId = 2713105696;
+      const folder = Folder.build({
+        id: folderId,
+        parentId: 3388762609,
+        name: 'name',
+        bucket: 'bucket',
+        userId: 1,
+        encryptVersion: '2',
+        deleted: false,
+        deletedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: null,
+        parent: null,
+      });
+
+      jest
+        .spyOn(folderRepository, 'deleteById')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      expect(service.deleteFolderPermanently(folder)).rejects.toThrow(
+        new UnprocessableEntityException(
+          `folder with id ${folderId} cannot be permanently deleted`,
+        ),
+      );
+      expect(folderRepository.deleteById).toHaveBeenCalledTimes(0);
+    });
+
+    it('should fail when the folder trying to delete is a root folder', async () => {
+      const folderId = 2713105696;
+      const folder = Folder.build({
+        id: folderId,
+        parentId: null,
+        name: 'name',
+        bucket: 'bucket',
+        userId: 1,
+        encryptVersion: '2',
+        deleted: false,
+        deletedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: null,
+        parent: null,
+      });
+
+      jest
+        .spyOn(folderRepository, 'deleteById')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      expect(service.deleteFolderPermanently(folder)).rejects.toThrow(
+        new UnprocessableEntityException(
+          `folder with id ${folderId} is a root folder`,
+        ),
+      );
+      expect(folderRepository.deleteById).toHaveBeenCalledTimes(0);
     });
   });
 });

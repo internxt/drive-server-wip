@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { File } from './file.domain';
 import { FileModel } from './file.repository';
@@ -138,6 +141,67 @@ describe('FileUseCases', () => {
         undefined,
         undefined,
       );
+    });
+  });
+
+  describe('delete file use case', () => {
+    it('should be able to delete a trashed file', async () => {
+      const fileId = '6f10f732-59b1-525c-a2d0-ff538f687903';
+      const file = File.build({
+        id: 1,
+        fileId,
+        name: '',
+        type: '',
+        size: null,
+        bucket: '',
+        folderId: 4,
+        encryptVersion: '',
+        deleted: true,
+        deletedAt: new Date(),
+        userId: 1,
+        modificationTime: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      jest
+        .spyOn(fileRepository, 'deleteByFileId')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      await service.deleteFilePermanently(file);
+
+      expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
+    });
+
+    it('should fail when the folder trying to delete has not been trashed', async () => {
+      const fileId = 2618494108;
+      const file = File.build({
+        id: fileId,
+        fileId: '6f10f732-59b1-525c-a2d0-ff538f687903',
+        name: '',
+        type: '',
+        size: null,
+        bucket: '',
+        folderId: 4,
+        encryptVersion: '',
+        deleted: false,
+        deletedAt: new Date(),
+        userId: 1,
+        modificationTime: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      jest
+        .spyOn(fileRepository, 'deleteByFileId')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      expect(service.deleteFilePermanently(file)).rejects.toThrow(
+        new UnprocessableEntityException(
+          `file with id ${fileId} cannot be permanently deleted`,
+        ),
+      );
+      expect(fileRepository.deleteByFileId).toHaveBeenCalledTimes(0);
     });
   });
 });

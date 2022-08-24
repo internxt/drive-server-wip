@@ -1,6 +1,6 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
 import { UserAttributes } from '../user/user.domain';
@@ -73,5 +73,15 @@ export class FileUseCases {
 
   getTotalSizeOfFilesFromFolder(folderId: number) {
     return this.fileRepository.getTotalSizeByFolderId(folderId);
+  }
+
+  async deleteFilePermanently(file: File) {
+    if (!file.deleted) {
+      throw new UnprocessableEntityException(
+        `file with id ${file.id} cannot be permanently deleted`,
+      );
+    }
+
+    await this.fileRepository.deleteByFileId(file.fileId);
   }
 }

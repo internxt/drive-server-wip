@@ -84,6 +84,7 @@ export interface FolderRepository {
     folderIds: FolderAttributes['id'][],
     update: Partial<Folder>,
   ): Promise<void>;
+  deleteById(folderId: FolderAttributes['id']): Promise<void>;
 }
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
@@ -161,6 +162,14 @@ export class SequelizeFolderRepository implements FolderRepository {
         id: {
           [Op.in]: folderIds,
         },
+      },
+    });
+  }
+
+  async deleteById(folderId: number): Promise<void> {
+    await this.folderModel.destroy({
+      where: {
+        id: { [Op.eq]: folderId },
       },
     });
   }
