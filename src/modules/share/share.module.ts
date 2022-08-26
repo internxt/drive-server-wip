@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
@@ -14,7 +14,7 @@ import { ShareUseCases } from './share.usecase';
 @Module({
   imports: [
     SequelizeModule.forFeature([ShareModel, FileModel, FolderModel, UserModel]),
-    FileModule,
+    forwardRef(() => FileModule),
     FolderModule,
     UserModule,
     NotificationModule,

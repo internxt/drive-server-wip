@@ -8,6 +8,12 @@ import {
 import { getModelToken } from '@nestjs/sequelize';
 import { File } from './file.domain';
 import { FileModel } from './file.repository';
+import { User } from '../user/user.domain';
+import { ShareUseCases } from '../share/share.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { SequelizeShareRepository, ShareModel } from '../share/share.repository';
+import { FolderModel, SequelizeFolderRepository } from '../folder/folder.repository';
+import { FileModule } from './file.module';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -23,6 +29,12 @@ describe('FileUseCases', () => {
         SequelizeFileRepository,
         {
           provide: getModelToken(FileModel),
+          useValue: jest.fn(),
+        },
+        ShareUseCases,
+        SequelizeShareRepository,
+        {
+          provide: getModelToken(ShareModel),
           useValue: jest.fn(),
         },
       ],
@@ -145,6 +157,35 @@ describe('FileUseCases', () => {
   });
 
   describe('delete file use case', () => {
+    const userMock = User.build({
+      id: 2,
+      userId: 'userId',
+      name: 'User Owner',
+      lastname: 'Lastname',
+      email: 'fake@internxt.com',
+      username: 'fake',
+      bridgeUser: null,
+      rootFolderId: 1,
+      errorLoginCount: 0,
+      isEmailActivitySended: 1,
+      referralCode: null,
+      referrer: null,
+      syncDate: new Date(),
+      uuid: 'uuid',
+      lastResend: new Date(),
+      credit: null,
+      welcomePack: true,
+      registerCompleted: true,
+      backupsBucket: 'bucket',
+      sharedWorkspace: true,
+      avatar: 'avatar',
+      password: '',
+      mnemonic: '',
+      hKey: undefined,
+      secret_2FA: '',
+      tempKey: '',
+    });
+
     it('should be able to delete a trashed file', async () => {
       const fileId = '6f10f732-59b1-525c-a2d0-ff538f687903';
       const file = File.build({
@@ -168,7 +209,7 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
 
-      await service.deleteFilePermanently(file);
+      await service.deleteFilePermanently(file, userMock);
 
       expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
     });
@@ -196,7 +237,7 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
 
-      expect(service.deleteFilePermanently(file)).rejects.toThrow(
+      expect(service.deleteFilePermanently(file, userMock)).rejects.toThrow(
         new UnprocessableEntityException(
           `file with id ${fileId} cannot be permanently deleted`,
         ),

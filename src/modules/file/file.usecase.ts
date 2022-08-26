@@ -3,12 +3,16 @@ import { aes } from '@internxt/lib';
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
-import { UserAttributes } from '../user/user.domain';
+import { ShareUseCases } from '../share/share.usecase';
+import { User, UserAttributes } from '../user/user.domain';
 import { File, FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 @Injectable()
 export class FileUseCases {
-  constructor(private fileRepository: SequelizeFileRepository) {}
+  constructor(
+    private fileRepository: SequelizeFileRepository,
+    private shareUseCases: ShareUseCases,
+  ) {}
 
   async getByFileIdAndUser(
     fileId: FileAttributes['fileId'],
@@ -75,13 +79,15 @@ export class FileUseCases {
     return this.fileRepository.getTotalSizeByFolderId(folderId);
   }
 
-  async deleteFilePermanently(file: File) {
+  async deleteFilePermanently(file: File, user: User): Promise<void> {
     if (!file.deleted) {
       throw new UnprocessableEntityException(
         `file with id ${file.id} cannot be permanently deleted`,
       );
     }
 
+    await this.shareUseCases.deleteShareById(file.id, user);
+    // TODO: delete file from bridge
     await this.fileRepository.deleteByFileId(file.fileId);
   }
 }
