@@ -180,4 +180,17 @@ export class ShareUseCases {
 
     return { item: shareCreated, created: true };
   }
+
+  async deleteFileShare(fileId: number, user: User): Promise<void> {
+    const share = await this.shareRepository.findByFileIdAndUser(
+      fileId,
+      user.id,
+    );
+
+    if (share.user.id !== user.id) {
+      throw new ForbiddenException(`You are not owner of this share`);
+    }
+
+    return this.shareRepository.delete(share);
+  }
 }

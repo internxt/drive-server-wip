@@ -4,6 +4,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
+import { UserAttributes } from '../user/user.domain';
 import { Folder, FolderAttributes } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
 
@@ -100,5 +101,15 @@ export class FolderUseCases {
     }
 
     await this.folderRepository.deleteById(folder.id);
+  }
+
+  async deleteOrphansFolders(userId: UserAttributes['id']): Promise<void> {
+    const remainingFolders = await this.folderRepository.clearOrphansFolders(
+      userId,
+    );
+
+    if (remainingFolders > 0) {
+      this.deleteOrphansFolders(userId);
+    }
   }
 }
