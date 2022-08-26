@@ -1,6 +1,11 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
@@ -11,6 +16,7 @@ import { SequelizeFileRepository } from './file.repository';
 export class FileUseCases {
   constructor(
     private fileRepository: SequelizeFileRepository,
+    @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
   ) {}
 
