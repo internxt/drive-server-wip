@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -477,6 +478,47 @@ describe('Share Use Cases', () => {
         },
         created: true,
       });
+    });
+  });
+
+  describe('delete share by fileId', () => {
+    it('should delete the share if its from the user', async () => {
+      jest.spyOn(shareRepository, 'delete').mockResolvedValueOnce();
+      jest
+        .spyOn(shareRepository, 'findByFileIdAndUser')
+        .mockResolvedValueOnce({ user: { id: userMock.id } } as Share);
+
+      await service.deleteFileShare(885045478, userMock);
+
+      expect(shareRepository.findByFileIdAndUser).toBeCalled();
+      expect(shareRepository.delete).toBeCalled();
+    });
+
+    it('should not fail if there is no share its not from the user', async () => {
+      jest.spyOn(shareRepository, 'delete');
+      jest
+        .spyOn(shareRepository, 'findByFileIdAndUser')
+        .mockResolvedValueOnce({ user: { id: userMock.id + 1 } } as Share);
+
+      await service.deleteFileShare(885045478, userMock).catch((error) => {
+        expect(error).toBeInstanceOf(ForbiddenException);
+        expect(error.message).toBe(`You are not owner of this share`);
+      });
+
+      expect(shareRepository.findByFileIdAndUser).toBeCalled();
+      expect(shareRepository.delete).toBeCalledTimes(0);
+    });
+
+    it('should not fail if there is no share for the file', async () => {
+      jest.spyOn(shareRepository, 'delete');
+      jest
+        .spyOn(shareRepository, 'findByFileIdAndUser')
+        .mockResolvedValueOnce(null);
+
+      await service.deleteFileShare(885045478, userMock);
+
+      expect(shareRepository.findByFileIdAndUser).toBeCalled();
+      expect(shareRepository.delete).toBeCalledTimes(0);
     });
   });
 });
