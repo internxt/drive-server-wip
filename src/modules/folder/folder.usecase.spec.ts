@@ -13,6 +13,12 @@ import { Folder } from './folder.domain';
 import { FolderModel } from './folder.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
+import {
+  SequelizeShareRepository,
+  ShareModel,
+} from '../share/share.repository';
+import { ShareUseCases } from '../share/share.usecase';
+import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 
 const folderId = 4;
 const userId = 1;
@@ -32,6 +38,17 @@ describe('FolderUseCases', () => {
         },
         {
           provide: getModelToken(FileModel),
+          useValue: jest.fn(),
+        },
+        ShareUseCases,
+        SequelizeShareRepository,
+        {
+          provide: getModelToken(ShareModel),
+          useValue: jest.fn(),
+        },
+        SequelizeUserRepository,
+        {
+          provide: getModelToken(UserModel),
           useValue: jest.fn(),
         },
       ],
@@ -253,6 +270,36 @@ describe('FolderUseCases', () => {
         ),
       );
       expect(folderRepository.deleteById).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('delete Orphaned folders', () => {
+    const userId = 3135417944;
+    it('should delete orphan folders until there are none', async () => {
+      jest
+        .spyOn(folderRepository, 'clearOrphansFolders')
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(39)
+        .mockResolvedValueOnce(4)
+        .mockResolvedValueOnce(0);
+
+      jest.spyOn(service, 'deleteOrphansFolders');
+
+      await service.deleteOrphansFolders(userId);
+
+      expect(service.deleteOrphansFolders).toBeCalledTimes(4);
+    });
+
+    it('should avoid recursion if not needed', async () => {
+      jest
+        .spyOn(folderRepository, 'clearOrphansFolders')
+        .mockResolvedValueOnce(0);
+
+      jest.spyOn(service, 'deleteOrphansFolders');
+
+      await service.deleteOrphansFolders(userId);
+
+      expect(service.deleteOrphansFolders).toBeCalledTimes(1);
     });
   });
 });

@@ -112,7 +112,7 @@ export class FolderUseCases {
     );
 
     if (remainingFolders > 0) {
-      this.deleteOrphansFolders(userId);
+      await this.deleteOrphansFolders(userId);
     }
   }
 }
