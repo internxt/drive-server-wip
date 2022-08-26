@@ -14,6 +14,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { SequelizeShareRepository, ShareModel } from '../share/share.repository';
 import { FolderModel, SequelizeFolderRepository } from '../folder/folder.repository';
 import { FileModule } from './file.module';
+import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -35,6 +36,17 @@ describe('FileUseCases', () => {
         SequelizeShareRepository,
         {
           provide: getModelToken(ShareModel),
+          useValue: jest.fn(),
+        },
+        FolderUseCases,
+        SequelizeFolderRepository,
+        {
+          provide: getModelToken(FolderModel),
+          useValue: jest.fn(),
+        },
+        SequelizeUserRepository,
+        {
+          provide: getModelToken(UserModel),
           useValue: jest.fn(),
         },
       ],

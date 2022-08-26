@@ -15,11 +15,12 @@ import { ShareUseCases } from './share.usecase';
   imports: [
     SequelizeModule.forFeature([ShareModel, FileModel, FolderModel, UserModel]),
     forwardRef(() => FileModule),
-    FolderModule,
+    forwardRef(() => FolderModule),
     UserModule,
     NotificationModule,
   ],
   controllers: [ShareController],
   providers: [SequelizeShareRepository, ShareUseCases],
+  exports: [ShareUseCases],
 })
 export class ShareModule {}
