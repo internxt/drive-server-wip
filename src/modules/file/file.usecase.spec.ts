@@ -11,9 +11,14 @@ import { FileModel } from './file.repository';
 import { User } from '../user/user.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { SequelizeShareRepository, ShareModel } from '../share/share.repository';
-import { FolderModel, SequelizeFolderRepository } from '../folder/folder.repository';
-import { FileModule } from './file.module';
+import {
+  SequelizeShareRepository,
+  ShareModel,
+} from '../share/share.repository';
+import {
+  FolderModel,
+  SequelizeFolderRepository,
+} from '../folder/folder.repository';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 
 const fileId = '6295c99a241bb000083f1c6a';
@@ -22,6 +27,7 @@ const folderId = 4;
 describe('FileUseCases', () => {
   let service: FileUseCases;
   let fileRepository: FileRepository;
+  let shareUseCases: ShareUseCases;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +60,7 @@ describe('FileUseCases', () => {
 
     service = module.get<FileUseCases>(FileUseCases);
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
+    shareUseCases = module.get<ShareUseCases>(ShareUseCases);
   });
 
   afterEach(() => {
@@ -200,26 +207,41 @@ describe('FileUseCases', () => {
 
     it('should be able to delete a trashed file', async () => {
       const fileId = '6f10f732-59b1-525c-a2d0-ff538f687903';
-      const file = File.build({
+      const file = {
         id: 1,
         fileId,
-        name: '',
-        type: '',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
         deleted: true,
-        deletedAt: new Date(),
-        userId: 1,
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      } as File;
 
       jest
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
+
+      jest
+        .spyOn(shareUseCases, 'deleteFileShare')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      await service.deleteFilePermanently(file, userMock);
+
+      expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
+      expect(shareUseCases.deleteFileShare).toHaveBeenCalledTimes(1);
+    });
+
+    it('should be able to delete a trashed file when file share does not exist', async () => {
+      const fileId = '6f10f732-59b1-525c-a2d0-ff538f687903';
+      const file = {
+        id: 1,
+        fileId,
+        deleted: true,
+      } as File;
+
+      jest
+        .spyOn(fileRepository, 'deleteByFileId')
+        .mockImplementationOnce(() => Promise.resolve());
+
+      jest
+        .spyOn(shareUseCases, 'deleteFileShare')
+        .mockImplementationOnce(() => Promise.reject());
 
       await service.deleteFilePermanently(file, userMock);
 
