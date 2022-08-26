@@ -97,6 +97,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
+              plainCode: '03849067907409723908abcdef',
             });
           expect(response.status).toBe(HttpStatus.CREATED);
           sendLink = response.body;
@@ -108,6 +109,7 @@ describe('AppController (e2e)', () => {
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body.message).toMatchObject([
             'code should not be empty',
+            'plainCode should not be empty',
             'items must contain not more than 100 elements',
             'items must be an array',
           ]);
@@ -130,6 +132,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
+              plainCode: '03849067907409723908abcdef',
             });
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body.message).toMatchObject([
@@ -156,6 +159,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
+              plainCode: '03849067907409723908abcdef',
             });
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body).toMatchObject({
