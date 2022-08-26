@@ -96,7 +96,7 @@ export interface ShareRepository {
   delete(share: Share): Promise<void>;
   create(share: Share): Promise<void>;
   findByFileIdAndUser(
-    fileId: FileAttributes['id'],
+    fileId: FileAttributes['fileId'],
     userId: UserAttributes['id'],
   ): Promise<Share | null>;
   findByFolderIdAndUser(
@@ -126,7 +126,7 @@ export class SequelizeShareRepository implements ShareRepository {
   }
 
   async findByFileIdAndUser(
-    fileId: FileAttributes['id'],
+    fileId: FileAttributes['fileId'],
     userId: UserAttributes['id'],
   ): Promise<Share | null> {
     const share = await this.shareModel.findOne({

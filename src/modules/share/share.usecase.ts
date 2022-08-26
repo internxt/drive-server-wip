@@ -115,7 +115,7 @@ export class ShareUseCases {
       throw new NotFoundException(`file with id ${fileId} not found`);
     }
     const share = await this.shareRepository.findByFileIdAndUser(
-      file.id,
+      file.fileId,
       user.id,
     );
     if (share) {
