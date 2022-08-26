@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Sequelize } from 'sequelize-typescript';
 import { TrashUseCases } from './trash.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 import { File } from '../file/file.domain';
@@ -13,11 +14,12 @@ import { Folder } from '../folder/folder.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ShareUseCases } from '../share/share.usecase';
-import {
-  SequelizeShareRepository,
-  ShareModel,
-} from '../share/share.repository';
+import { ShareModel } from '../share/share.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { SequelizeShareRepository } from '../share/share.repository';
+import { FileModule } from '../file/file.module';
+import { FolderModule } from '../folder/folder.module';
+import { UserModule } from '../user/user.module';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -54,11 +56,19 @@ describe('Trash Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [FileModule, FolderModule, UserModule, BridgeModule],
       providers: [
         TrashUseCases,
         FileUseCases,
+        FolderUseCases,
         SequelizeFileRepository,
+        SequelizeFolderRepository,
+        ShareUseCases,
+        SequelizeShareRepository,
+        {
+          provide: Sequelize,
+          useValue: jest.fn(),
+        },
         {
           provide: getModelToken(FileModel),
           useValue: jest.fn(),
@@ -94,12 +104,26 @@ describe('Trash Use Cases', () => {
 
   describe('clear trash', () => {
     it('should delete orphaned folders', async () => {
+      const folder = Folder.build({
+        id: 2725517497,
+        parentId: 3388762609,
+        name: 'name',
+        bucket: 'bucket',
+        userId: 1,
+        encryptVersion: '2',
+        deleted: true,
+        deletedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: null,
+        parent: null,
+      });
       jest
         .spyOn(fileUseCases, 'getByFolderAndUser')
         .mockImplementationOnce(() => Promise.resolve([]));
       jest
         .spyOn(folderUseCases, 'getChildrenFoldersToUser')
-        .mockResolvedValueOnce([{} as Folder]);
+        .mockResolvedValueOnce([folder]);
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
         .mockImplementationOnce(() => Promise.resolve());
@@ -131,19 +155,48 @@ describe('Trash Use Cases', () => {
       expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(0);
     });
 
-    it('should delete all files and folder founded', async () => {
-      const filesToDelete: Array<File> = Array(32).fill({} as File);
-      const foldersToDelete: Array<Folder> = Array(26).fill({} as Folder);
+    it('should delete all files and folder found', async () => {
+      const folder = Folder.build({
+        id: 2725517497,
+        parentId: 3388762609,
+        name: 'name',
+        bucket: 'bucket',
+        userId: 1,
+        encryptVersion: '2',
+        deleted: true,
+        deletedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: null,
+        parent: null,
+      });
+
+      const file = File.build({
+        id: 1,
+        fileId: 'd666933f-0b1a-52c6-92d2-7ac1fc6d27fa',
+        name: '',
+        type: '',
+        size: null,
+        bucket: '',
+        folderId: 4,
+        encryptVersion: '',
+        deleted: true,
+        deletedAt: new Date(),
+        userId: 1,
+        modificationTime: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       jest
         .spyOn(fileUseCases, 'getByFolderAndUser')
-        .mockResolvedValueOnce(filesToDelete);
+        .mockResolvedValueOnce([file, file, file]);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
         .mockImplementation(() => Promise.resolve());
       jest
         .spyOn(folderUseCases, 'getChildrenFoldersToUser')
-        .mockResolvedValueOnce(foldersToDelete);
+        .mockResolvedValueOnce([folder, folder]);
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
         .mockImplementation(() => Promise.resolve());
@@ -154,13 +207,10 @@ describe('Trash Use Cases', () => {
       await service.clearTrash(userMock);
 
       expect(fileUseCases.getByFolderAndUser).toHaveBeenCalledTimes(1);
-      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
-        filesToDelete.length,
-      );
       expect(folderUseCases.getChildrenFoldersToUser).toHaveBeenCalledTimes(1);
-      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
-        foldersToDelete.length,
-      );
+      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(3);
+      expect(folderUseCases.getChildrenFoldersToUser).toHaveBeenCalledTimes(1);
+      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(2);
       expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(1);
     });
 

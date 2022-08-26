@@ -101,7 +101,9 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
-  clearTrash(@UserDecorator() user: User) {
-    this.trashUseCases.clearTrash(user);
+  async clearTrash(@UserDecorator() user: User) {
+    await this.trashUseCases.clearTrash(user);
+
+    return;
   }
 }
