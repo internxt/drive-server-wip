@@ -4,7 +4,6 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';

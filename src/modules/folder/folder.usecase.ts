@@ -14,6 +14,7 @@ import { SequelizeFolderRepository } from './folder.repository';
 export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
+    @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
   ) {}
 

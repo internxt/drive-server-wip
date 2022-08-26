@@ -23,13 +23,17 @@ export class TrashUseCases {
   }
 
   private async deleteFolders(folders: Array<Folder>, user: User) {
+    if (folders.length === 0) {
+      return;
+    }
+
     const folderDeletion = folders.map((folder: Folder) =>
       this.folderUseCases
         .deleteFolderPermanently(folder)
         .catch((err) => Logger.error(err.message)),
     );
 
-    await Promise.all(folderDeletion);
+    await Promise.allSettled(folderDeletion);
 
     await this.folderUseCases.deleteOrphansFolders(user.id);
   }

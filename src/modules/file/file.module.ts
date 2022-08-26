@@ -4,11 +4,13 @@ import { SequelizeFileRepository } from './file.repository';
 import { FileUseCases } from './file.usecase';
 import { FileModel } from './file.repository';
 import { ShareModel } from '../share/share.repository';
+import { ShareModule } from '../share/share.module';
+import { FolderModule } from '../folder/folder.module';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FileModel]),
-    forwardRef(() => ShareModel),
+    SequelizeModule.forFeature([FileModel, ShareModel]),
+    forwardRef(() => ShareModule),
   ],
   controllers: [],
   providers: [SequelizeFileRepository, FileUseCases],
