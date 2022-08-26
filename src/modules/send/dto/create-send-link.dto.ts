@@ -75,6 +75,14 @@ export class CreateSendLinkDto {
   code: string;
 
   @ApiProperty({
+    example: '03849067907409723908abcdef',
+    description:
+      'Code in plain, which is required to share this link with anyone',
+  })
+  @IsNotEmpty()
+  plainCode: string;
+
+  @ApiProperty({
     example: 'Test title',
     description: 'Title to send link',
   })
