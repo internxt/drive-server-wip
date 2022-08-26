@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -17,7 +19,9 @@ import { UpdateShareDto } from './dto/update-share.dto';
 export class ShareUseCases {
   constructor(
     private shareRepository: SequelizeShareRepository,
+    @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
   ) {}
 
