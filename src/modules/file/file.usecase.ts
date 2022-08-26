@@ -92,7 +92,7 @@ export class FileUseCases {
       );
     }
 
-    await this.shareUseCases.deleteShareById(file.id, user);
+    await this.shareUseCases.deleteFileShare(file.id, user);
     // TODO: delete file from bridge
     await this.fileRepository.deleteByFileId(file.fileId);
   }

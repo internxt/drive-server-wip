@@ -227,27 +227,6 @@ describe('FileUseCases', () => {
       expect(shareUseCases.deleteFileShare).toHaveBeenCalledTimes(1);
     });
 
-    it('should be able to delete a trashed file when file share does not exist', async () => {
-      const fileId = '6f10f732-59b1-525c-a2d0-ff538f687903';
-      const file = {
-        id: 1,
-        fileId,
-        deleted: true,
-      } as File;
-
-      jest
-        .spyOn(fileRepository, 'deleteByFileId')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.reject());
-
-      await service.deleteFilePermanently(file, userMock);
-
-      expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
-    });
-
     it('should fail when the folder trying to delete has not been trashed', async () => {
       const fileId = 2618494108;
       const file = File.build({
