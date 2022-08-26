@@ -190,6 +190,10 @@ export class ShareUseCases {
       user.id,
     );
 
+    if (!share) {
+      return;
+    }
+
     if (share.user.id !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
