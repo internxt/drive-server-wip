@@ -35,7 +35,9 @@ export class SendController {
     @Body() content: CreateSendLinkDto,
   ) {
     user = await this.getUserWhenPublic(user);
-    const { items, code, receivers, sender, title, subject } = content;
+    const { items, code, receivers, sender, title, subject, plainCode } =
+      content;
+
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
       items,
@@ -44,6 +46,7 @@ export class SendController {
       sender,
       title,
       subject,
+      plainCode,
     );
     return {
       id: sendLink.id,
