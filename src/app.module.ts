@@ -32,7 +32,7 @@ import { SendModule } from './modules/send/send.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        dialect: 'mariadb',
+        dialect: 'postgres',
         autoLoadModels: true,
         synchronize: false,
         host: configService.get('database.host'),
@@ -43,12 +43,6 @@ import { SendModule } from './modules/send/send.module';
         replication: !configService.get('isDevelopment')
           ? configService.get('database.replication')
           : false,
-        dialectOptions: {
-          connectTimeout: 20000,
-          options: {
-            requestTimeout: 4000,
-          },
-        },
         pool: {
           maxConnections: Number.MAX_SAFE_INTEGER,
           maxIdleTime: 30000,
