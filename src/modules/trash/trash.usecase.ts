@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
+import { File, FileAttributes } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
+import { NotFoundError } from 'rxjs';
 
 @Injectable()
 export class TrashUseCases {
@@ -49,6 +50,37 @@ export class TrashUseCases {
     const foldersDeletion = this.folderUseCases
       .getChildrenFoldersToUser(folderId, userId, deleted)
       .then((folders: Array<Folder>) => this.deleteFolders(folders, user));
+
+    await Promise.allSettled([filesDeletion, foldersDeletion]);
+  }
+
+  public async deleteItems(
+    filesId: Array<FileAttributes['fileId']>,
+    foldersId: Array<FileAttributes['id']>,
+    user: User,
+  ) {
+    const files = await Promise.all(
+      filesId.map((fileId: string) =>
+        this.fileUseCases
+          .getByFileIdAndUser(fileId, user.id)
+          .then((result: File | null) => {
+            if (result === null) {
+              throw new NotFoundException(`file with id ${fileId} not found`);
+            }
+
+            return result;
+          }),
+      ),
+    );
+
+    const folders = await Promise.all(
+      foldersId.map((folderId: number) =>
+        this.folderUseCases.getFolder(folderId),
+      ),
+    );
+
+    const filesDeletion = this.deleteFiles(files, user);
+    const foldersDeletion = this.deleteFolders(folders, user);
 
     await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
