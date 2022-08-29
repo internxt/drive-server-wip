@@ -22,14 +22,11 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
 import { TrashUseCases } from './trash.usecase';
 import {
   DeleteItemsDto,
   DeleteItemType,
 } from './dto/controllers/delete-items.dto';
-import { Folder } from '../folder/folder.domain';
-import { items } from '@internxt/lib';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -136,7 +133,5 @@ export class TrashController {
       .map((item) => parseInt(item.id));
 
     this.trashUseCases.deleteItems(filesId, foldersId, user);
-
-    return;
   }
 }

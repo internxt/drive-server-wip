@@ -4,7 +4,6 @@ import { User } from '../user/user.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { NotFoundError } from 'rxjs';
 
 @Injectable()
 export class TrashUseCases {
@@ -57,7 +56,7 @@ export class TrashUseCases {
     filesId: Array<FileAttributes['fileId']>,
     foldersId: Array<FileAttributes['id']>,
     user: User,
-  ) {
+  ): Promise<void> {
     const files = await Promise.all(
       filesId.map((fileId: string) =>
         this.fileUseCases
