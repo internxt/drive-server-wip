@@ -19,6 +19,7 @@ import {
 } from '../share/share.repository';
 import { ShareUseCases } from '../share/share.usecase';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
 
 const folderId = 4;
 const userId = 1;
@@ -27,6 +28,7 @@ describe('FolderUseCases', () => {
   let folderRepository: FolderRepository;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [BridgeModule],
       providers: [
         FolderUseCases,
         FileUseCases,

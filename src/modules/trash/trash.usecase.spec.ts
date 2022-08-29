@@ -17,6 +17,7 @@ import {
   SequelizeShareRepository,
   ShareModel,
 } from '../share/share.repository';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -53,6 +54,7 @@ describe('Trash Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [BridgeModule],
       providers: [
         TrashUseCases,
         FileUseCases,
