@@ -36,6 +36,7 @@ export class SendUseCases {
     sender: string,
     title: string,
     subject: string,
+    plainCode: string,
   ) {
     const expirationAt = new Date();
     expirationAt.setDate(expirationAt.getDate() + 15);
@@ -72,7 +73,10 @@ export class SendUseCases {
     await this.sendRepository.createSendLinkWithItems(sendLink);
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
-      sendLink: await this.sendRepository.findById(sendLink.id),
+      sendLink: {
+        ...(await this.sendRepository.findById(sendLink.id)),
+        plainCode,
+      },
     });
 
     this.notificationService.add(sendLinkCreatedEvent);
