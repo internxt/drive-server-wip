@@ -224,10 +224,18 @@ describe('Trash Use Cases', () => {
 
       await service.deleteItems(filesIdToDelete, foldersIdToDelete, {} as User);
 
-      expect(fileUseCases.getByFileIdAndUser).toHaveBeenCalledTimes(3);
-      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(3);
-      expect(folderUseCases.getFolder).toHaveBeenCalledTimes(3);
-      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(3);
+      expect(fileUseCases.getByFileIdAndUser).toHaveBeenCalledTimes(
+        filesIdToDelete.length,
+      );
+      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
+        filesIdToDelete.length,
+      );
+      expect(folderUseCases.getFolder).toHaveBeenCalledTimes(
+        foldersIdToDelete.length,
+      );
+      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
+        foldersIdToDelete.length,
+      );
     });
 
     it('should fail if a file is not found', async () => {
@@ -238,6 +246,8 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(fileUseCases, 'getByFileIdAndUser')
         .mockResolvedValueOnce(null);
+      jest.spyOn(fileUseCases, 'deleteFilePermanently');
+      jest.spyOn(folderUseCases, 'deleteFolderPermanently');
 
       try {
         await service.deleteItems(filesIdToDelete, [], {} as User);
@@ -247,6 +257,83 @@ describe('Trash Use Cases', () => {
           `file with id bbe6d386-e215-53a0-88ef-1e4c318e6ff9 not found`,
         );
       }
+
+      expect(fileUseCases.deleteFilePermanently).not.toHaveBeenCalled();
+      expect(folderUseCases.deleteFolderPermanently).not.toHaveBeenCalled();
+    });
+
+    it('shoul fail if a folder is not found', async () => {
+      const error = Error('random error');
+      const foldersIdToDelete: Array<FolderAttributes['id']> = [
+        2176796544, 505779655, 724413021,
+      ];
+
+      jest.spyOn(fileUseCases, 'getByFileIdAndUser');
+      jest
+        .spyOn(folderUseCases, 'getFolder')
+        .mockImplementationOnce(() => Promise.resolve({} as Folder))
+        .mockImplementationOnce(() => Promise.reject(error))
+        .mockImplementationOnce(() => Promise.resolve({} as Folder));
+      jest.spyOn(fileUseCases, 'deleteFilePermanently');
+      jest.spyOn(folderUseCases, 'deleteFolderPermanently');
+
+      try {
+        await service.deleteItems([], foldersIdToDelete, {} as User);
+      } catch (err) {
+        expect(err).toBeDefined();
+      }
+
+      expect(fileUseCases.deleteFilePermanently).not.toHaveBeenCalled();
+      expect(folderUseCases.deleteFolderPermanently).not.toHaveBeenCalled();
+    });
+
+    it('should try to delete all items even if a deletion fails', async () => {
+      const error = new Error('unkown test error');
+      const filesIdToDelete: Array<FileAttributes['fileId']> = [
+        'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+        'ca6b473d-221f-5832-a95e-8dd11f2af268',
+        'fda03f0d-3006-5a86-b54b-8216da471fb0',
+        '38473164-6261-51af-8eb3-223c334986ce',
+        '5e98661c-9b06-5b3f-ac3d-64e16caa1001',
+      ];
+
+      const foldersIdToDelete: Array<FolderAttributes['id']> = [
+        2176796544, 505779655, 724413021, 2751197087, 3468856620,
+      ];
+
+      jest
+        .spyOn(fileUseCases, 'getByFileIdAndUser')
+        .mockResolvedValue({} as File);
+      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
+      jest
+        .spyOn(fileUseCases, 'deleteFilePermanently')
+        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() => Promise.reject(error))
+        .mockImplementationOnce(() => Promise.reject(error))
+        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() => Promise.reject(error));
+      jest
+        .spyOn(folderUseCases, 'deleteFolderPermanently')
+        .mockImplementationOnce(() => Promise.reject(error))
+        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() => Promise.reject(error))
+        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() => Promise.reject(error));
+
+      await service.deleteItems(filesIdToDelete, foldersIdToDelete, {} as User);
+
+      expect(fileUseCases.getByFileIdAndUser).toHaveBeenCalledTimes(
+        filesIdToDelete.length,
+      );
+      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
+        filesIdToDelete.length,
+      );
+      expect(folderUseCases.getFolder).toHaveBeenCalledTimes(
+        foldersIdToDelete.length,
+      );
+      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
+        foldersIdToDelete.length,
+      );
     });
   });
 });
