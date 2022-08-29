@@ -1,11 +1,14 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
+  Logger,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { BridgeService } from '../../externals/bridge/bridge.service';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
@@ -18,6 +21,7 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    private bridgeService: BridgeService,
   ) {}
 
   async getByFileIdAndUser(
@@ -86,14 +90,24 @@ export class FileUseCases {
   }
 
   async deleteFilePermanently(file: File, user: User): Promise<void> {
+    if (file.user.id !== user.id) {
+      Logger.error(
+        `User with id: ${user.id} tryed to delete a file that does not own.`,
+      );
+      throw new ForbiddenException(`You are not owner of this share`);
+    }
+
     if (!file.deleted) {
+      Logger.error(
+        `User with id: ${user.id} tryed to delete a non trashed file`,
+      );
       throw new UnprocessableEntityException(
         `file with id ${file.id} cannot be permanently deleted`,
       );
     }
 
     await this.shareUseCases.deleteFileShare(file.id, user);
-    // TODO: delete file from bridge
+    await this.bridgeService.deleteFile(user, file.bucket, file.fileId);
     await this.fileRepository.deleteByFileId(file.fileId);
   }
 }
