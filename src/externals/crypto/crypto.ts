@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
+import crypto from 'crypto';
 
 export class CryptoService {
   private static instance: CryptoService;
@@ -103,6 +104,16 @@ export class CryptoService {
       return plain;
     } catch (error) {
       Logger.error(`(probabilisticDecryption): ${error}`);
+
+      return null;
+    }
+  }
+
+  hashSha256(text: string | Buffer): string | null {
+    try {
+      return crypto.createHash('sha256').update(text).digest('hex');
+    } catch (error) {
+      Logger.error('[CRYPTO sha256] ', error);
 
       return null;
     }
