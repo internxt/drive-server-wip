@@ -11,7 +11,7 @@ import { BridgeService } from './bridge.service';
     BridgeService,
     {
       provide: CryptoService,
-      useValue: new CryptoService(),
+      useValue: CryptoService.getInstance(),
     },
   ],
   exports: [BridgeService],
