@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { TrashUseCases } from './trash.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
-import { File } from '../file/file.domain';
+import { File, FileAttributes } from '../file/file.domain';
 import {
   FolderModel,
   SequelizeFolderRepository,
@@ -9,7 +10,7 @@ import {
 import { getModelToken } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
-import { Folder } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ShareUseCases } from '../share/share.usecase';
@@ -223,6 +224,57 @@ describe('Trash Use Cases', () => {
         foldersToDelete.length,
       );
       expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('delete items', () => {
+    it('should delete all items', async () => {
+      const filesIdToDelete: Array<FileAttributes['fileId']> = [
+        'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+        'ca6b473d-221f-5832-a95e-8dd11f2af268',
+        'fda03f0d-3006-5a86-b54b-8216da471fb0',
+      ];
+
+      const foldersIdToDelete: Array<FolderAttributes['id']> = [
+        2176796544, 505779655, 724413021,
+      ];
+
+      jest
+        .spyOn(fileUseCases, 'getByFileIdAndUser')
+        .mockResolvedValue({} as File);
+      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
+      jest
+        .spyOn(fileUseCases, 'deleteFilePermanently')
+        .mockImplementation(() => Promise.resolve());
+      jest
+        .spyOn(folderUseCases, 'deleteFolderPermanently')
+        .mockImplementation(() => Promise.resolve());
+
+      await service.deleteItems(filesIdToDelete, foldersIdToDelete, {} as User);
+
+      expect(fileUseCases.getByFileIdAndUser).toHaveBeenCalledTimes(3);
+      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(3);
+      expect(folderUseCases.getFolder).toHaveBeenCalledTimes(3);
+      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(3);
+    });
+
+    it('should fail if a file is not found', async () => {
+      const filesIdToDelete: Array<FileAttributes['fileId']> = [
+        'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+      ];
+
+      jest
+        .spyOn(fileUseCases, 'getByFileIdAndUser')
+        .mockResolvedValueOnce(null);
+
+      try {
+        await service.deleteItems(filesIdToDelete, [], {} as User);
+      } catch (err) {
+        expect(err).toBeInstanceOf(NotFoundException);
+        expect(err.message).toBe(
+          `file with id bbe6d386-e215-53a0-88ef-1e4c318e6ff9 not found`,
+        );
+      }
     });
   });
 });
