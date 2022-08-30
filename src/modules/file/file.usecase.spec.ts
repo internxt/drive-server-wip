@@ -181,8 +181,9 @@ describe('FileUseCases', () => {
   });
 
   describe('delete file use case', () => {
+    const incrementalUserId = 15494;
     const userMock = User.build({
-      id: 2,
+      id: incrementalUserId,
       userId: 'userId',
       name: 'User Owner',
       lastname: 'Lastname',
@@ -216,7 +217,7 @@ describe('FileUseCases', () => {
         id: 1,
         fileId,
         deleted: true,
-        user: userMock,
+        userId: incrementalUserId,
       } as File;
 
       jest
@@ -250,11 +251,10 @@ describe('FileUseCases', () => {
         encryptVersion: '',
         deleted: false,
         deletedAt: new Date(),
-        userId: 1,
+        userId: incrementalUserId,
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        user: userMock,
       });
 
       jest.spyOn(fileRepository, 'deleteByFileId');
@@ -269,9 +269,7 @@ describe('FileUseCases', () => {
 
     it('should fail when the folder trying to delete is not owned by the user', async () => {
       const file = {
-        user: {
-          id: userMock.id + 1,
-        },
+        userId: incrementalUserId + 1,
         deleted: true,
       } as File;
 
@@ -300,11 +298,10 @@ describe('FileUseCases', () => {
         encryptVersion: '',
         deleted: true,
         deletedAt: new Date(),
-        userId: 1,
+        userId: incrementalUserId,
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        user: userMock,
       });
 
       const errorReason = new Error('reason');
@@ -338,7 +335,7 @@ describe('FileUseCases', () => {
         encryptVersion: '',
         deleted: true,
         deletedAt: new Date(),
-        userId: 1,
+        userId: incrementalUserId,
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),

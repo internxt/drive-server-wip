@@ -90,7 +90,7 @@ export class FileUseCases {
   }
 
   async deleteFilePermanently(file: File, user: User): Promise<void> {
-    if (file.user.id !== user.id) {
+    if (file.userId !== user.id) {
       Logger.error(
         `User with id: ${user.id} tryed to delete a file that does not own.`,
       );
