@@ -52,6 +52,12 @@ import { BridgeModule } from './externals/bridge/bridge.module';
           idle: 20000,
           acquire: 20000,
         },
+        dialectOptions: {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        },
         logging: (content: string) => {
           const parse = content.match(/^(Executing \(.*\):) (.*)$/);
           if (parse) {
