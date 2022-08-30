@@ -80,6 +80,8 @@ describe('Send Use Cases', () => {
     expect(service).toBeDefined();
   });
   describe('get By Id use case', () => {
+    const sendLinkMockId = '53cf59ce-599d-4bc3-8497-09b72301d2a4';
+
     it('throw not found when id invalid', async () => {
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(null);
 
@@ -87,8 +89,6 @@ describe('Send Use Cases', () => {
         `SendLink with id ${sendLinkMockId} not found`,
       );
     });
-
-    const sendLinkMockId = '53cf59ce-599d-4bc3-8497-09b72301d2a4';
 
     it('throw not found when expiration', async () => {
       const expirationAt = new Date();
