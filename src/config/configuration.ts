@@ -8,6 +8,7 @@ export default () => ({
     host2: process.env.RDS_HOSTNAME2,
     host3: process.env.RDS_HOSTNAME3,
     port: parseInt(process.env.RDS_PORT) || 3306,
+    debug: process.env.RDS_DEBUG === 'true' || false,
     username: process.env.RDS_USERNAME,
     password: process.env.RDS_PASSWORD,
     database: process.env.RDS_DBNAME,

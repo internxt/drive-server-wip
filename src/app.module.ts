@@ -14,6 +14,7 @@ import { NotificationModule } from './externals/notifications/notifications.modu
 import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
 import { BridgeModule } from './externals/bridge/bridge.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -58,15 +59,17 @@ import { BridgeModule } from './externals/bridge/bridge.module';
             rejectUnauthorized: false,
           },
         },
-        logging: (content: string) => {
-          const parse = content.match(/^(Executing \(.*\):) (.*)$/);
-          if (parse) {
-            const prettySql = format(parse[2]);
-            Logger.debug(`${parse[1]}\n${prettySql}`);
-          } else {
-            Logger.debug(`Could not parse sql content: ${content}`);
-          }
-        },
+        logging: !configService.get('database.debug')
+          ? false
+          : (content: string) => {
+              const parse = content.match(/^(Executing \(.*\):) (.*)$/);
+              if (parse) {
+                const prettySql = format(parse[2]);
+                Logger.debug(`${parse[1]}\n${prettySql}`);
+              } else {
+                Logger.debug(`Could not parse sql content: ${content}`);
+              }
+            },
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
