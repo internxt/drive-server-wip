@@ -6,6 +6,7 @@ import {
   Get,
   Delete,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -132,6 +133,12 @@ export class TrashController {
       .filter((item) => item.type === DeleteItemType.FOLDER)
       .map((item) => parseInt(item.id));
 
-    this.trashUseCases.deleteItems(filesId, foldersId, user);
+    await this.trashUseCases
+      .deleteItems(filesId, foldersId, user)
+      .catch((err) => {
+        if (err instanceof HttpException) {
+          throw err;
+        }
+      });
   }
 }

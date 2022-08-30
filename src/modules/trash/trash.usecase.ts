@@ -57,25 +57,22 @@ export class TrashUseCases {
     foldersId: Array<FileAttributes['id']>,
     user: User,
   ): Promise<void> {
-    const files = await Promise.all(
-      filesId.map((fileId: string) =>
-        this.fileUseCases
-          .getByFileIdAndUser(fileId, user.id)
-          .then((result: File | null) => {
-            if (result === null) {
-              throw new NotFoundException(`file with id ${fileId} not found`);
-            }
+    const files: Array<File> = [];
+    const folders: Array<Folder> = [];
 
-            return result;
-          }),
-      ),
-    );
+    for (const fileId of filesId) {
+      const file = await this.fileUseCases.getByFileIdAndUser(fileId, user.id);
+      if (file === null) {
+        throw new NotFoundException(`file with id ${fileId} not found`);
+      }
 
-    const folders = await Promise.all(
-      foldersId.map((folderId: number) =>
-        this.folderUseCases.getFolder(folderId),
-      ),
-    );
+      files.push(file);
+    }
+
+    for (const folderId of foldersId) {
+      const folder = await this.folderUseCases.getFolder(folderId);
+      folders.push(folder);
+    }
 
     const filesDeletion = this.deleteFiles(files, user);
     const foldersDeletion = this.deleteFolders(folders, user);
