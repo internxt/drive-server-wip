@@ -94,6 +94,7 @@ describe('AppController (e2e)', () => {
               ],
               sender: 'clopez@internxt.com',
               receivers: ['clopez@internxt.com'],
+              plainCode: 'code',
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
@@ -108,6 +109,7 @@ describe('AppController (e2e)', () => {
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body.message).toMatchObject([
             'code should not be empty',
+            'plainCode should not be empty',
             'items must contain not more than 100 elements',
             'items must be an array',
           ]);
@@ -127,6 +129,7 @@ describe('AppController (e2e)', () => {
               ],
               sender: 'clopez@internxt.com',
               receivers: ['clopez@internxt.com'],
+              plainCode: 'code',
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
@@ -153,6 +156,7 @@ describe('AppController (e2e)', () => {
               items,
               sender: 'clopez@internxt.com',
               receivers: ['clopez@internxt.com'],
+              plainCode: 'code',
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
@@ -171,11 +175,10 @@ describe('AppController (e2e)', () => {
           const response = await request(app.getHttpServer())
             .get(`/links/test`)
             .send();
-          expect(response.status).toBe(HttpStatus.NOT_FOUND);
           expect(response.body).toMatchObject({
-            error: 'Not Found',
-            message: 'SendLink with id test not found',
-            statusCode: HttpStatus.NOT_FOUND,
+            error: 'Bad Request',
+            message: 'id is not in uuid format',
+            statusCode: HttpStatus.BAD_REQUEST,
           });
         });
         it('/links/:linkId (GET) - Return 200 - Found', async () => {
