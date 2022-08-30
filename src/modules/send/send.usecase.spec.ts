@@ -80,11 +80,13 @@ describe('Send Use Cases', () => {
     expect(service).toBeDefined();
   });
   describe('get By Id use case', () => {
+    const sendLinkMockId = '53cf59ce-599d-4bc3-8497-09b72301d2a4';
+
     it('throw not found when id invalid', async () => {
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(null);
 
-      await expect(service.getById('id')).rejects.toThrow(
-        `SendLink with id id not found`,
+      await expect(service.getById(sendLinkMockId)).rejects.toThrow(
+        `SendLink with id ${sendLinkMockId} not found`,
       );
     });
 
@@ -92,7 +94,7 @@ describe('Send Use Cases', () => {
       const expirationAt = new Date();
       expirationAt.setDate(expirationAt.getDate() - 1);
       const sendLinkMock = SendLink.build({
-        id: 'id',
+        id: sendLinkMockId,
         views: 0,
         user: userMock,
         items: [],
@@ -107,8 +109,8 @@ describe('Send Use Cases', () => {
       });
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(sendLinkMock);
 
-      await expect(service.getById('id')).rejects.toThrow(
-        `SendLink with id id expired`,
+      await expect(service.getById(sendLinkMockId)).rejects.toThrow(
+        `SendLink with id ${sendLinkMockId} expired`,
       );
     });
 
@@ -116,7 +118,7 @@ describe('Send Use Cases', () => {
       const expirationAt = new Date();
       expirationAt.setDate(expirationAt.getDate() + 1);
       const sendLinkMock = SendLink.build({
-        id: 'id',
+        id: sendLinkMockId,
         views: 0,
         user: userMock,
         items: [],
@@ -132,9 +134,9 @@ describe('Send Use Cases', () => {
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(sendLinkMock);
       jest.spyOn(sendRepository, 'update').mockResolvedValue(undefined);
 
-      const result = await service.getById('id');
+      const result = await service.getById(sendLinkMockId);
       expect(result).toMatchObject({
-        id: 'id',
+        id: sendLinkMockId,
         views: 1,
         items: [],
         code: 'code',
