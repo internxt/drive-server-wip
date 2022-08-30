@@ -256,7 +256,6 @@ describe('FileUseCases', () => {
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        user: userMock,
       });
 
       jest.spyOn(fileRepository, 'deleteByFileId');
