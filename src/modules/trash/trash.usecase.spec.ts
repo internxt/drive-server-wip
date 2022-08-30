@@ -165,6 +165,7 @@ describe('Trash Use Cases', () => {
     });
 
     it('should continue deleting if a item cannot be deleted', async () => {
+      const errorToBeThrown = new Error('an error');
       const foldersToDelete: Array<Folder> = Array(3).fill({} as Folder);
       const filesToDelete: Array<File> = Array(6).fill({} as File);
 
@@ -173,7 +174,7 @@ describe('Trash Use Cases', () => {
         .mockResolvedValueOnce(filesToDelete);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementationOnce(() => Promise.reject())
+        .mockImplementationOnce(() => Promise.reject(errorToBeThrown))
         .mockImplementation(() => Promise.resolve());
       jest
         .spyOn(folderUseCases, 'getChildrenFoldersToUser')
@@ -181,7 +182,7 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
         .mockImplementation(() => Promise.resolve())
-        .mockImplementationOnce(() => Promise.reject());
+        .mockImplementationOnce(() => Promise.reject(errorToBeThrown));
       jest
         .spyOn(folderUseCases, 'deleteOrphansFolders')
         .mockImplementation(() => Promise.resolve());

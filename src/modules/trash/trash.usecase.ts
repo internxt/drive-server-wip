@@ -12,28 +12,27 @@ export class TrashUseCases {
     private folderUseCases: FolderUseCases,
   ) {}
 
-  private async deleteFiles(files: Array<File>, user: User) {
-    await Promise.all(
-      files.map((file: File) =>
-        this.fileUseCases
-          .deleteFilePermanently(file, user)
-          .catch((err) => Logger.error(err.message)),
-      ),
-    );
+  private async deleteFiles(files: Array<File>, user: User): Promise<void> {
+    for (const file of files) {
+      await this.fileUseCases
+        .deleteFilePermanently(file, user)
+        .catch((err) => Logger.error(err.message));
+    }
   }
 
-  private async deleteFolders(folders: Array<Folder>, user: User) {
+  private async deleteFolders(
+    folders: Array<Folder>,
+    user: User,
+  ): Promise<void> {
     if (folders.length === 0) {
       return;
     }
 
-    const folderDeletion = folders.map((folder: Folder) =>
-      this.folderUseCases
+    for (const folder of folders) {
+      await this.folderUseCases
         .deleteFolderPermanently(folder)
-        .catch((err) => Logger.error(err.message)),
-    );
-
-    await Promise.allSettled(folderDeletion);
+        .catch((err) => Logger.error(err.message));
+    }
 
     await this.folderUseCases.deleteOrphansFolders(user.id);
   }
