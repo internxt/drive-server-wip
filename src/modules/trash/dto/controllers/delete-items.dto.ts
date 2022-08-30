@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsNotEmpty, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsEnum, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum DeleteItemType {
@@ -28,7 +28,7 @@ export class DeleteItemsDto {
   @ApiProperty({
     description: 'Array of items with files and folders ids',
   })
-  @MaxLength(50)
+  @ArrayMaxSize(50)
   @Type(() => DeleteItem)
   items: DeleteItem[];
 }
