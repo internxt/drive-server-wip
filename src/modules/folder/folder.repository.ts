@@ -3,21 +3,22 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Folder, FolderAttributes } from './folder.domain';
 import { FindOptions, Op } from 'sequelize';
 import {
+  AllowNull,
+  AutoIncrement,
+  BelongsTo,
   Column,
-  Model,
-  Table,
-  PrimaryKey,
   DataType,
   Default,
-  AutoIncrement,
-  AllowNull,
-  BelongsTo,
   ForeignKey,
   Index,
+  Model,
+  PrimaryKey,
+  Table,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -103,7 +104,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({
-      where: { parentId, userId, deleted: deleted ? 1 : 0 },
+      where: { parentId, userId, deleted },
     });
     return folders.map((folder) => this.toDomain(folder));
   }
@@ -115,7 +116,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     perPage: number = null,
   ): Promise<Array<Folder> | []> {
     const query: FindOptions = {
-      where: { parentId, deleted: deleted ? 1 : 0 },
+      where: { parentId, deleted },
       order: [['id', 'ASC']],
     };
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
