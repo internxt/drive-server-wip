@@ -6,6 +6,7 @@ import {
   Get,
   Delete,
   BadRequestException,
+  Param,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -135,5 +136,29 @@ export class TrashController {
       .map((item) => parseInt(item.id));
 
     this.trashUseCases.deleteItems(filesId, foldersId, user);
+  }
+
+  @Delete('/file/:fileId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes a single file form user's trash",
+  })
+  async deleteFile(
+    @Param('fileId') fileId: string,
+    @UserDecorator() user: User,
+  ) {
+    await this.trashUseCases.deleteItems([fileId], [], user);
+  }
+
+  @Delete('/folder/:folderId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes a single file form user's trash",
+  })
+  async deleteFolder(
+    @Param('folderId') folderId: number,
+    @UserDecorator() user: User,
+  ) {
+    await this.trashUseCases.deleteItems([], [folderId], user);
   }
 }
