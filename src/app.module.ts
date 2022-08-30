@@ -13,6 +13,7 @@ import configuration from './config/configuration';
 import { NotificationModule } from './externals/notifications/notifications.module';
 import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
+import { BridgeModule } from './externals/bridge/bridge.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -71,6 +72,7 @@ import { SendModule } from './modules/send/send.module';
     AuthModule,
     UserModule,
     SendModule,
+    BridgeModule,
   ],
   controllers: [],
   providers: [],
