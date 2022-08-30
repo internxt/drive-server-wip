@@ -10,6 +10,6 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    return queryInterface.removeColumn('send_link_items', 'version');
+    return queryInterface.removeColumn('send_links_items', 'version');
   },
 };

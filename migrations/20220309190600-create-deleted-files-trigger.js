@@ -24,7 +24,8 @@ module.exports = {
 
   down: async (queryInterface) => {
     await queryInterface.sequelize.query(
-      'drop trigger copy_deleted_files_on_delete;',
+      'drop trigger copy_deleted_files_on_delete on folders;',
     );
+    await queryInterface.sequelize.query('drop function insert_deleted_files;');
   },
 };
