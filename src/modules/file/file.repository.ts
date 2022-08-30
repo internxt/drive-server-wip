@@ -1,26 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes } from './file.domain';
-import { FindOptions, Op } from 'sequelize';
+import sequelize, { FindOptions, Op } from 'sequelize';
 import { FolderModel } from '../folder/folder.repository';
 
 import {
-  Column,
-  Model,
-  Table,
-  PrimaryKey,
-  DataType,
-  Index,
-  BelongsTo,
-  ForeignKey,
-  Default,
   AllowNull,
+  BelongsTo,
+  Column,
+  DataType,
+  Default,
+  ForeignKey,
+  Index,
+  Model,
+  PrimaryKey,
+  Table,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
-import sequelize from 'sequelize';
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -130,7 +130,7 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<Array<File> | []> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
     const query: FindOptions = {
-      where: { folderId, userId, deleted: deleted ? 1 : 0 },
+      where: { folderId, userId, deleted },
       order: [['id', 'ASC']],
     };
     if (page && perPage) {
