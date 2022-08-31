@@ -135,27 +135,6 @@ describe('Trash Use Cases', () => {
       expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(0);
     });
 
-    it('should delete all files and folder found', async () => {
-      const folder = Folder.build({
-        id: 2725517497,
-        parentId: 3388762609,
-        name: 'name',
-        bucket: 'bucket',
-        userId: 1,
-        encryptVersion: '2',
-        deleted: true,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: null,
-        parent: null,
-      });
-
-      await service.clearTrash(userMock);
-
-      expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(0);
-    });
-
     it('should delete all files and folder founded', async () => {
       const filesToDelete: Array<File> = Array(32).fill({} as File);
       const foldersToDelete: Array<Folder> = Array(26).fill({} as Folder);
