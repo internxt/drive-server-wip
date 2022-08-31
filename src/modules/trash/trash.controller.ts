@@ -7,6 +7,7 @@ import {
   HttpCode,
   Post,
   Delete,
+  Param,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -140,5 +141,29 @@ export class TrashController {
           throw err;
         }
       });
+  }
+
+  @Delete('/file/:fileId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes a single file form user's trash",
+  })
+  async deleteFile(
+    @Param('fileId') fileId: string,
+    @UserDecorator() user: User,
+  ) {
+    await this.trashUseCases.deleteItems([fileId], [], user);
+  }
+
+  @Delete('/folder/:folderId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes a single file form user's trash",
+  })
+  async deleteFolder(
+    @Param('folderId') folderId: number,
+    @UserDecorator() user: User,
+  ) {
+    await this.trashUseCases.deleteItems([], [folderId], user);
   }
 }

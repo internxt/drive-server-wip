@@ -13,7 +13,6 @@ export class TrashUseCases {
   ) {}
 
   private async deleteFiles(files: Array<File>, user: User): Promise<void> {
-
     for (const file of files) {
       await this.fileUseCases
         .deleteFilePermanently(file, user)
