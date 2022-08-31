@@ -1,10 +1,10 @@
 # Drive Server WIP
+
 [![ci](https://github.com/internxt/drive-server-wip/actions/workflows/code-coverage.yml/badge.svg)](https://github.com/internxt/drive-server-wip/actions/workflows/code-coverage.yml)
 [![codecov](https://codecov.io/gh/internxt/drive-server-wip/branch/master/graph/badge.svg?token=5D9UW1HSCK)](https://codecov.io/gh/internxt/drive-server-wip)
 [![node](https://img.shields.io/badge/node-16-brightgreen)](https://nodejs.org/download/release/latest-fermium/)
 
 Drive server WIP is the new API to Drive based on NestJS and following Clean Architecture and DDD(Domain Driven Design).
-
 
 ## Table of Contents
 
@@ -29,13 +29,14 @@ Drive server WIP is the new API to Drive based on NestJS and following Clean Arc
 
 ## Quick Setup
 
-* Yarn
+- Yarn
 
-  ```npm i -g yarn```
+  `npm i -g yarn`
 
 ## How to Install
 
-- Create a `.npmrc` file from the `.npmrc.template` example provided in the repo. 
+- You need Node.js v15 or greater to run this project
+- Create a `.npmrc` file from the `.npmrc.template` example provided in the repo.
 - Replace `TOKEN` with your own [Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token) with `read:packages` permission **ONLY**
 - Use `yarn` to install project dependencies.
 
@@ -48,11 +49,13 @@ Run `yarn start:dev` to start with nodemon and development environment.
 ### Running in docker:
 
 With docker-compose:
+
 ```bash
 docker-compose up
 ```
 
 ## Testing
+
 ### Unit testing
 
 You can run unit tests with:
@@ -69,16 +72,18 @@ Running e2e test requires creating a database first (check .env.test file), and 
 yarn run test:e2e
 ```
 
-
 ## Guideline Nest.js
+
 This project is based on <a href="http://nestjs.com/" target="blank">NestJS</a> and implements DDD (Domain Driven Design).
 Our implementation has these layers:
+
 - Use cases
 - Persistence
 - Domain
 - Controllers
 
 The project has these main folders
+
 - Modules
 - Externals
 - Config
@@ -86,7 +91,9 @@ The project has these main folders
 - Lib
 
 ### Modules
+
 In this folder we have all "use cases" or "context" where the business logic and the controllers (to respect Nest architecture) are located:
+
 - <strong>Module:</strong> files with `*.module.ts`
 - <strong>Use Cases:</strong> files with `*.usecase.ts`
 - <strong>Controllers:</strong> files with `*.controller.ts`
@@ -94,6 +101,7 @@ In this folder we have all "use cases" or "context" where the business logic and
 - <strong>Repository:</strong> files with `*.repository.ts`
 
 As an example, a 'file' module would be `src/modules/file`:
+
 - <strong>Controllers:</strong> `file.controller.ts` Endpoints for exposing the business logic of the file module.
 - <strong>Use Cases:</strong> `file.usecase.ts` Contains all the use-cases that are related to the file domain: moving a file, removing a file, etc.
 - <strong>Domain:</strong> `file.domain.ts` Class File, all attributes and business logic are here, but we do not include anything about persistence or use cases.
@@ -109,6 +117,7 @@ Based on <a href="https://docs.nestjs.com/controllers" target="blank">Nest.js Co
 Domain is an agnostic "entity" with the properties and the business logic, including global functionality to this domain. The domain <strong> does not persist the information </strong>, just changes the entity according to the situation.
 
 Example of the File domain
+
 ```
 # file.domain.ts
 
@@ -148,6 +157,7 @@ The use case is a function that includes a real functional use case from the bus
 3. Persist changes using a repository.
 
 Example of use case:
+
 ```
 # file.usecase.ts
 
@@ -156,11 +166,11 @@ export class FileUsecase {
 
   async moveToTrash(fileId) {
     const file = await this.fileRepository.findOne({ fileId });
-  
+
     if(!file) {
       throw new Error('file not found');
     }
-  
+
     file.moveToTrash();
 
     await this.fileRepository.update(file);
@@ -170,11 +180,11 @@ export class FileUsecase {
 
   async moveTo(fileId, destination) {
     const file = await this.fileRepository.findOne({ fileId });
-  
+
     if(!file) {
       throw new Error('file not found');
     }
-  
+
     file.moveTo(destination);
 
     await this.fileRepository.update(file);
@@ -195,6 +205,7 @@ The repository <strong>always returns an entity domain</strong> or a collection 
 Information about the repository pattern could be found <a href="https://medium.com/@pererikbergman/repository-design-pattern-e28c0f3e4a30" target="blank">here<a>.
 
 ### Externals
+
 This folder contains third-party dependencies and external services whose usage could be necessary but it is not business-related.
 This structure is based on `modules` structure of <a href="http://nestjs.com/" target="blank">Nest.js</a>.
 A module can be found here if:
@@ -205,11 +216,10 @@ A module can be found here if:
   - `sendAnalytics()` -> AnalyticsService
   - `parseStringToDate()` -> StringService
 
-
 ### config
 
 This folder contains config files for the app.
-  
+
 ### middlewares
 
 This folder includes middlewares of any kind. You can find documentation about middlewares in <a href="https://docs.nestjs.com/middleware" target="blank">Nest.js</a>.
@@ -217,10 +227,11 @@ This folder includes middlewares of any kind. You can find documentation about m
 ### lib
 
 In this folder include only libraries to server HTTP and Nest.js
-  
+
 ## API documentation
+
 We use Swagger, which can be found up and running at `/api` endpoint via HTTP. You can find documentation of how to use it with Nest.js <a href="https://docs.nestjs.com/openapi/operations" target="blank">here</a>.
 
-
 ## License
+
 This project is based on GNU License. You can show it in the [License](LICENSE) file.

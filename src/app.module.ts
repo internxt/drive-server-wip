@@ -13,6 +13,8 @@ import configuration from './config/configuration';
 import { NotificationModule } from './externals/notifications/notifications.module';
 import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
+import { BridgeModule } from './externals/bridge/bridge.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -32,7 +34,7 @@ import { SendModule } from './modules/send/send.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        dialect: 'mariadb',
+        dialect: 'postgres',
         autoLoadModels: true,
         synchronize: false,
         host: configService.get('database.host'),
@@ -43,12 +45,6 @@ import { SendModule } from './modules/send/send.module';
         replication: !configService.get('isDevelopment')
           ? configService.get('database.replication')
           : false,
-        dialectOptions: {
-          connectTimeout: 20000,
-          options: {
-            requestTimeout: 4000,
-          },
-        },
         pool: {
           maxConnections: Number.MAX_SAFE_INTEGER,
           maxIdleTime: 30000,
@@ -57,15 +53,23 @@ import { SendModule } from './modules/send/send.module';
           idle: 20000,
           acquire: 20000,
         },
-        logging: (content: string) => {
-          const parse = content.match(/^(Executing \(.*\):) (.*)$/);
-          if (parse) {
-            const prettySql = format(parse[2]);
-            Logger.debug(`${parse[1]}\n${prettySql}`);
-          } else {
-            Logger.debug(`Could not parse sql content: ${content}`);
-          }
+        dialectOptions: {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
         },
+        logging: !configService.get('database.debug')
+          ? false
+          : (content: string) => {
+              const parse = content.match(/^(Executing \(.*\):) (.*)$/);
+              if (parse) {
+                const prettySql = format(parse[2]);
+                Logger.debug(`${parse[1]}\n${prettySql}`);
+              } else {
+                Logger.debug(`Could not parse sql content: ${content}`);
+              }
+            },
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
@@ -77,6 +81,7 @@ import { SendModule } from './modules/send/send.module';
     AuthModule,
     UserModule,
     SendModule,
+    BridgeModule,
   ],
   controllers: [],
   providers: [],

@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { SequelizeSendRepository } from './send-link.repository';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 
@@ -15,6 +19,9 @@ export class SendUseCases {
   ) {}
 
   async getById(id: SendLinkAttributes['id']) {
+    if (!validate(id)) {
+      throw new BadRequestException('id is not in uuid format');
+    }
     const sendLink = await this.sendRepository.findById(id);
     if (!sendLink) {
       throw new NotFoundException(`SendLink with id ${id} not found`);
@@ -28,6 +35,7 @@ export class SendUseCases {
     await this.sendRepository.update(sendLink);
     return this.sendRepository.findById(id);
   }
+
   async createSendLinks(
     user: User | null,
     items: any,
@@ -36,6 +44,7 @@ export class SendUseCases {
     sender: string,
     title: string,
     subject: string,
+    plainCode: string,
   ) {
     const expirationAt = new Date();
     expirationAt.setDate(expirationAt.getDate() + 15);
@@ -72,7 +81,10 @@ export class SendUseCases {
     await this.sendRepository.createSendLinkWithItems(sendLink);
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
-      sendLink: await this.sendRepository.findById(sendLink.id),
+      sendLink: {
+        ...(await this.sendRepository.findById(sendLink.id)),
+        plainCode,
+      },
     });
 
     this.notificationService.add(sendLinkCreatedEvent);

@@ -22,8 +22,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
-import { File } from '../file/file.domain';
+import { TrashUseCases } from './trash.usecase';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -32,6 +31,7 @@ export class TrashController {
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
+    private trashUseCases: TrashUseCases,
   ) {}
 
   @Get('/')
@@ -97,27 +97,11 @@ export class TrashController {
   }
 
   @Delete('/all')
-  @HttpCode(204)
+  @HttpCode(202)
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
-  async clearTrash(@UserDecorator() user: User) {
-    const { rootFolderId: folderId, id: userId } = user;
-    const deleted = true;
-
-    await Promise.all([
-      await this.fileUseCases
-        .getByFolderAndUser(folderId, userId, deleted)
-        .then((files: Array<File>) =>
-          files.map(this.fileUseCases.deleteFilePermanently),
-        ),
-      await this.folderUseCases
-        .getChildrenFoldersToUser(folderId, userId, deleted)
-        .then((folders: Array<Folder>) =>
-          folders.map(this.folderUseCases.deleteFolderPermanently),
-        ),
-    ]);
-
-    return;
+  clearTrash(@UserDecorator() user: User) {
+    this.trashUseCases.clearTrash(user);
   }
 }

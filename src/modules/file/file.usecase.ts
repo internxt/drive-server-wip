@@ -1,14 +1,28 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { BridgeService } from '../../externals/bridge/bridge.service';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
-import { UserAttributes } from '../user/user.domain';
+import { ShareUseCases } from '../share/share.usecase';
+import { User, UserAttributes } from '../user/user.domain';
 import { File, FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 @Injectable()
 export class FileUseCases {
-  constructor(private fileRepository: SequelizeFileRepository) {}
+  constructor(
+    private fileRepository: SequelizeFileRepository,
+    @Inject(forwardRef(() => ShareUseCases))
+    private shareUseCases: ShareUseCases,
+    private bridgeService: BridgeService,
+  ) {}
 
   async getByFileIdAndUser(
     fileId: FileAttributes['fileId'],
@@ -75,13 +89,25 @@ export class FileUseCases {
     return this.fileRepository.getTotalSizeByFolderId(folderId);
   }
 
-  async deleteFilePermanently(file: File) {
+  async deleteFilePermanently(file: File, user: User): Promise<void> {
+    if (file.userId !== user.id) {
+      Logger.error(
+        `User with id: ${user.id} tryed to delete a file that does not own.`,
+      );
+      throw new ForbiddenException(`You are not owner of this share`);
+    }
+
     if (!file.deleted) {
+      Logger.error(
+        `User with id: ${user.id} tryed to delete a non trashed file`,
+      );
       throw new UnprocessableEntityException(
         `file with id ${file.id} cannot be permanently deleted`,
       );
     }
 
+    await this.shareUseCases.deleteFileShare(file.id, user);
+    await this.bridgeService.deleteFile(user, file.bucket, file.fileId);
     await this.fileRepository.deleteByFileId(file.fileId);
   }
 }
