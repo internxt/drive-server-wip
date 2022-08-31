@@ -6,6 +6,7 @@ import {
   Get,
   Delete,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -23,6 +24,10 @@ import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
 import { TrashUseCases } from './trash.usecase';
+import {
+  DeleteItemsDto,
+  DeleteItemType,
+} from './dto/controllers/delete-item.dto';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -103,5 +108,37 @@ export class TrashController {
   })
   clearTrash(@UserDecorator() user: User) {
     this.trashUseCases.clearTrash(user);
+  }
+
+  @Delete('/')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: "Deletes all items from user's trash",
+  })
+  async deleteItems(
+    @Body() deleteItemsDto: DeleteItemsDto,
+    @UserDecorator() user: User,
+  ) {
+    deleteItemsDto.items.forEach((item) => {
+      if (!Object.values(DeleteItemType).includes(item.type)) {
+        throw new BadRequestException(`item type ${item.type} is not valid`);
+      }
+    });
+
+    const filesId = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FILE)
+      .map((item) => item.id);
+
+    const foldersId = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FOLDER)
+      .map((item) => parseInt(item.id));
+
+    await this.trashUseCases
+      .deleteItems(filesId, foldersId, user)
+      .catch((err) => {
+        if (err instanceof HttpException) {
+          throw err;
+        }
+      });
   }
 }
