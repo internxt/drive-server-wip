@@ -22,8 +22,6 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
-import { File } from '../file/file.domain';
 
 import { TrashUseCases } from './trash.usecase';
 @ApiTags('Trash')
@@ -53,6 +51,7 @@ export class TrashController {
     const files = await this.fileUseCases.getByUserExceptParents(
       user.id,
       childrenFoldersIds,
+      true,
     );
     return {
       ...currentFolder.toJSON(),
