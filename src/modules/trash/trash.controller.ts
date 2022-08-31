@@ -2,10 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
+  HttpException,
   Get,
   HttpCode,
   Post,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -24,6 +25,10 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { User } from '../user/user.domain';
 
 import { TrashUseCases } from './trash.usecase';
+import {
+  DeleteItemsDto,
+  DeleteItemType,
+} from './dto/controllers/delete-item.dto';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -109,5 +114,31 @@ export class TrashController {
   })
   clearTrash(@UserDecorator() user: User) {
     this.trashUseCases.clearTrash(user);
+  }
+
+  @Delete('/')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: "Deletes all items from user's trash",
+  })
+  async deleteItems(
+    @Body() deleteItemsDto: DeleteItemsDto,
+    @UserDecorator() user: User,
+  ) {
+    const filesId = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FILE)
+      .map((item) => item.id);
+
+    const foldersId = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FOLDER)
+      .map((item) => parseInt(item.id));
+
+    await this.trashUseCases
+      .deleteItems(filesId, foldersId, user)
+      .catch((err) => {
+        if (err instanceof HttpException) {
+          throw err;
+        }
+      });
   }
 }
