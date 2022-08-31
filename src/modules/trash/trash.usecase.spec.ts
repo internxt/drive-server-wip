@@ -22,7 +22,6 @@ import {
   SequelizeShareRepository,
   ShareModel,
 } from '../share/share.repository';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
