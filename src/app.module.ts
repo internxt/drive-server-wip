@@ -53,12 +53,14 @@ import { BridgeModule } from './externals/bridge/bridge.module';
           idle: 20000,
           acquire: 20000,
         },
-        dialectOptions: {
-          ssl: {
-            require: true,
-            rejectUnauthorized: false,
-          },
-        },
+        dialectOptions: configService.get('isProduction')
+          ? {
+              ssl: {
+                require: true,
+                rejectUnauthorized: false,
+              },
+            }
+          : {},
         logging: !configService.get('database.debug')
           ? false
           : (content: string) => {
