@@ -1,17 +1,17 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  Post,
-  HttpCode,
-  Get,
   Delete,
-  BadRequestException,
+  Get,
+  HttpCode,
+  Post,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiOkResponse,
-  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -22,6 +22,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
+
 import { TrashUseCases } from './trash.usecase';
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -42,11 +43,16 @@ export class TrashController {
   @ApiOkResponse({ description: 'Get all folders and files in trash' })
   async getTrash(@UserDecorator() user: User) {
     const folderId = user.rootFolderId;
-    const [currentFolder, childrenFolders, files] = await Promise.all([
+    const [currentFolder, childrenFolders] = await Promise.all([
       this.folderUseCases.getFolder(folderId),
       this.folderUseCases.getChildrenFoldersToUser(folderId, user.id, true),
-      this.fileUseCases.getByFolderAndUser(folderId, user.id, true),
     ]);
+    const childrenFoldersIds = childrenFolders.map(({ id }) => id);
+    const files = await this.fileUseCases.getByUserExceptParents(
+      user.id,
+      childrenFoldersIds,
+      true,
+    );
     return {
       ...currentFolder.toJSON(),
       children: childrenFolders,

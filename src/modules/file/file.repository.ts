@@ -143,6 +143,28 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async findAllByUserIdExceptFolderIds(
+    userId: FileAttributes['userId'],
+    exceptFolderIds: FileAttributes['folderId'][],
+    deleted: FileAttributes['deleted'],
+    page: number,
+    perPage: number,
+  ): Promise<Array<File> | []> {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    const query: FindOptions = {
+      where: { userId, deleted, folderId: { [Op.notIn]: exceptFolderIds } },
+      order: [['id', 'ASC']],
+    };
+    if (page && perPage) {
+      query.offset = offset;
+      query.limit = limit;
+    }
+    const files = await this.fileModel.findAll(query);
+    return files.map((file) => {
+      return this.toDomain(file);
+    });
+  }
+
   async findOne(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
