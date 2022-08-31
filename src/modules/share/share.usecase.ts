@@ -1,8 +1,9 @@
 import {
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
@@ -17,7 +18,9 @@ import { UpdateShareDto } from './dto/update-share.dto';
 export class ShareUseCases {
   constructor(
     private shareRepository: SequelizeShareRepository,
+    @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
   ) {}
 
@@ -179,5 +182,22 @@ export class ShareUseCases {
     await this.shareRepository.create(shareCreated);
 
     return { item: shareCreated, created: true };
+  }
+
+  async deleteFileShare(fileId: number, user: User): Promise<void> {
+    const share = await this.shareRepository.findByFileIdAndUser(
+      fileId,
+      user.id,
+    );
+
+    if (!share) {
+      return;
+    }
+
+    if (share.user.id !== user.id) {
+      throw new ForbiddenException(`You are not owner of this share`);
+    }
+
+    return this.shareRepository.delete(share);
   }
 }

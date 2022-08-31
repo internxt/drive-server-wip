@@ -17,7 +17,7 @@ export class BridgeService {
   ) {}
 
   private authorizationHeaders(user: string, password: string | number) {
-    const hashedPassword = this.cryptoService.hashSha256(String(password));
+    const hashedPassword = this.cryptoService.hashSha256(password.toString());
     const credential = Buffer.from(`${user}:${hashedPassword}`).toString(
       'base64',
     );
@@ -35,15 +35,12 @@ export class BridgeService {
     const params = {
       headers: {
         'Content-Type': 'application/json',
-        ...this.authorizationHeaders(user.bridgeUser, user.id),
+        ...this.authorizationHeaders(user.bridgeUser, user.userId),
       },
     };
 
     Logger.log(
-      '[INXT removeFile]: User: %s, Bucket: %s, File: %s',
-      user.bridgeUser,
-      bucket,
-      bucketEntry,
+      `[INXT removeFile]: User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
     );
 
     await this.httpClient.delete(
