@@ -13,6 +13,7 @@ export class TrashUseCases {
   ) {}
 
   private async deleteFiles(files: Array<File>, user: User): Promise<void> {
+
     for (const file of files) {
       await this.fileUseCases
         .deleteFilePermanently(file, user)
@@ -41,13 +42,21 @@ export class TrashUseCases {
     const { rootFolderId: folderId, id: userId } = user;
     const deleted = true;
 
+    const foldersToDelete = await this.folderUseCases.getChildrenFoldersToUser(
+      folderId,
+      userId,
+      deleted,
+    );
+
+    const foldersIdToDelete = foldersToDelete.map(
+      (folder: Folder) => folder.id,
+    );
+
     const filesDeletion = this.fileUseCases
-      .getByFolderAndUser(folderId, user.id, deleted)
+      .getByUserExceptParents(userId, foldersIdToDelete, deleted)
       .then((files: Array<File>) => this.deleteFiles(files, user));
 
-    const foldersDeletion = this.folderUseCases
-      .getChildrenFoldersToUser(folderId, userId, deleted)
-      .then((folders: Array<Folder>) => this.deleteFolders(folders, user));
+    const foldersDeletion = this.deleteFolders(foldersToDelete, user);
 
     await Promise.allSettled([filesDeletion, foldersDeletion]);
   }

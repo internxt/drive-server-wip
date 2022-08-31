@@ -137,7 +137,7 @@ describe('Trash Use Cases', () => {
       const foldersToDelete: Array<Folder> = Array(26).fill({} as Folder);
 
       jest
-        .spyOn(fileUseCases, 'getByFolderAndUser')
+        .spyOn(fileUseCases, 'getByUserExceptParents')
         .mockResolvedValueOnce(filesToDelete);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
@@ -154,7 +154,7 @@ describe('Trash Use Cases', () => {
 
       await service.clearTrash(userMock);
 
-      expect(fileUseCases.getByFolderAndUser).toHaveBeenCalledTimes(1);
+      expect(fileUseCases.getByUserExceptParents).toHaveBeenCalledTimes(1);
       expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
         filesToDelete.length,
       );
@@ -171,7 +171,7 @@ describe('Trash Use Cases', () => {
       const filesToDelete: Array<File> = Array(6).fill({} as File);
 
       jest
-        .spyOn(fileUseCases, 'getByFolderAndUser')
+        .spyOn(fileUseCases, 'getByUserExceptParents')
         .mockResolvedValueOnce(filesToDelete);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
@@ -190,7 +190,7 @@ describe('Trash Use Cases', () => {
 
       await service.clearTrash(userMock);
 
-      expect(fileUseCases.getByFolderAndUser).toHaveBeenCalledTimes(1);
+      expect(fileUseCases.getByUserExceptParents).toHaveBeenCalledTimes(1);
       expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
         filesToDelete.length,
       );
