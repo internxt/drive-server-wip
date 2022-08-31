@@ -86,6 +86,7 @@ export interface FolderRepository {
     update: Partial<Folder>,
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
+  clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
 }
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
@@ -106,7 +107,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({
-      where: { parentId, userId, deleted: deleted ? 1 : 0 },
+      where: { parentId, userId, deleted },
     });
     return folders.map((folder) => this.toDomain(folder));
   }
@@ -118,7 +119,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     perPage: number = null,
   ): Promise<Array<Folder> | []> {
     const query: FindOptions = {
-      where: { parentId, deleted: deleted ? 1 : 0 },
+      where: { parentId, deleted },
       order: [['id', 'ASC']],
     };
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
@@ -180,6 +181,19 @@ export class SequelizeFolderRepository implements FolderRepository {
         id: { [Op.eq]: folderId },
       },
     });
+  }
+
+  async clearOrphansFolders(
+    userId: FolderAttributes['userId'],
+  ): Promise<number> {
+    const clear = await this.folderModel.sequelize.query(
+      'CALL clear_orphan_folders_by_user (:userId, :output)',
+      {
+        replacements: { userId, output: null },
+      },
+    );
+
+    return (clear[0] as any).total_left;
   }
 
   private toDomain(model: FolderModel): Folder {
