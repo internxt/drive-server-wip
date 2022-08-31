@@ -2,11 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
-  BadRequestException,
   HttpException,
   Get,
   HttpCode,
   Post,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -125,12 +125,6 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    deleteItemsDto.items.forEach((item) => {
-      if (!Object.values(DeleteItemType).includes(item.type)) {
-        throw new BadRequestException(`item type ${item.type} is not valid`);
-      }
-    });
-
     const filesId = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FILE)
       .map((item) => item.id);
