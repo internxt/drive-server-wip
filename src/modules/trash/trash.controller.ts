@@ -4,6 +4,7 @@ import {
   Post,
   HttpCode,
   Get,
+  Delete,
   BadRequestException,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,8 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
+import { Folder } from '../folder/folder.domain';
+import { File } from '../file/file.domain';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -90,6 +93,31 @@ export class TrashController {
       );
       this.notificationService.add(itemsToTrashEvent);
     });
+    return;
+  }
+
+  @Delete('/all')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes all items from user's trash",
+  })
+  async clearTrash(@UserDecorator() user: User) {
+    const { rootFolderId: folderId, id: userId } = user;
+    const deleted = true;
+
+    await Promise.all([
+      await this.fileUseCases
+        .getByFolderAndUser(folderId, userId, deleted)
+        .then((files: Array<File>) =>
+          files.map(this.fileUseCases.deleteFilePermanently),
+        ),
+      await this.folderUseCases
+        .getChildrenFoldersToUser(folderId, userId, deleted)
+        .then((folders: Array<Folder>) =>
+          folders.map(this.folderUseCases.deleteFolderPermanently),
+        ),
+    ]);
+
     return;
   }
 }

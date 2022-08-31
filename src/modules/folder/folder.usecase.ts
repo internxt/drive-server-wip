@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, FolderAttributes } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
@@ -80,5 +84,21 @@ export class FolderUseCases {
       page,
       perPage,
     );
+  }
+
+  async deleteFolderPermanently(folder: Folder): Promise<void> {
+    if (folder.isRootFolder()) {
+      throw new UnprocessableEntityException(
+        `folder with id ${folder.id} is a root folder`,
+      );
+    }
+
+    if (!folder.deleted) {
+      throw new UnprocessableEntityException(
+        `folder with id ${folder.id} cannot be permanently deleted`,
+      );
+    }
+
+    await this.folderRepository.deleteById(folder.id);
   }
 }

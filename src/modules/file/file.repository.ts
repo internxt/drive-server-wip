@@ -105,6 +105,7 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
+  deleteByFileId(fileId: FileAttributes['fileId']): Promise<void>;
 }
 
 @Injectable()
@@ -199,6 +200,14 @@ export class SequelizeFileRepository implements FileRepository {
     })) as unknown as Promise<{ total: number }[]>;
 
     return result[0].total;
+  }
+
+  async deleteByFileId(fileId: FileAttributes['fileId']): Promise<void> {
+    await this.fileModel.destroy({
+      where: {
+        fileId,
+      },
+    });
   }
 
   private toDomain(model: FileModel): File {
