@@ -98,6 +98,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
+              plainCode: '03849067907409723908abcdef',
             });
           expect(response.status).toBe(HttpStatus.CREATED);
           sendLink = response.body;
@@ -133,6 +134,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
+              plainCode: '03849067907409723908abcdef',
             });
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body.message).toMatchObject([
@@ -160,6 +162,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
+              plainCode: '03849067907409723908abcdef',
             });
           expect(response.status).toBe(HttpStatus.BAD_REQUEST);
           expect(response.body).toMatchObject({
