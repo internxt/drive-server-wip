@@ -235,7 +235,7 @@ export class SequelizeSendRepository implements SendRepository {
       linkId: model.linkId,
       networkId: model.networkId,
       encryptionKey: model.encryptionKey,
-      size: model.size,
+      size: parseInt(model.size as unknown as string),
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       version: model.version,
