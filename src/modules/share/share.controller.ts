@@ -166,7 +166,6 @@ export class ShareController {
     const { item, created, encryptedCode } =
       await this.shareUseCases.createShareFile(fileId, user, body);
 
-
     const shareLinkViewEvent = new ShareLinkCreatedEvent(
       'share.created',
       user,

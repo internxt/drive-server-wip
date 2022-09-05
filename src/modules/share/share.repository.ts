@@ -4,6 +4,7 @@ import { Share, ShareAttributes } from './share.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import {
   AllowNull,
+  AutoIncrement,
   BelongsTo,
   Column,
   DataType,
@@ -28,6 +29,7 @@ import { Pagination } from '../../lib/pagination';
 })
 export class ShareModel extends Model {
   @PrimaryKey
+  @AutoIncrement
   @Column
   id: number;
 
@@ -98,7 +100,7 @@ export interface ShareRepository {
     perPage: number,
   ): Promise<{ count: number; items: Array<Share> | [] }>;
   update(share: Share): Promise<void>;
-  delete(share: Share): Promise<void>;
+  deleteById(shareId: Share['id']): Promise<void>;
   create(share: Share): Promise<void>;
   findByFileIdAndUser(
     fileId: FileAttributes['id'],
@@ -155,13 +157,13 @@ export class SequelizeShareRepository implements ShareRepository {
   async findByToken(token: string): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { token },
-      include: [this.fileModel, this.folderModel, this.userModel],
     });
     if (!share) {
-      throw new NotFoundException('share not found');
+      return null;
     }
     return this.toDomain(share);
   }
+
   async create(share: Share): Promise<void> {
     const shareModel = this.toModel(share);
     delete shareModel.id;
@@ -177,12 +179,8 @@ export class SequelizeShareRepository implements ShareRepository {
     await shareModel.save();
   }
 
-  async delete(share: Share): Promise<void> {
-    const shareModel = await this.shareModel.findByPk(share.id);
-    if (!shareModel) {
-      throw new NotFoundException(`Share with ID ${share.id} not found`);
-    }
-    await shareModel.destroy();
+  async deleteById(shareId: Share['id']): Promise<void> {
+    await this.shareModel.destroy({ where: { id: shareId } });
   }
 
   async findAllByUserPaginated(
@@ -221,34 +219,37 @@ export class SequelizeShareRepository implements ShareRepository {
     } else {
       item = model.file ? File.build(model.file) : null;
     }
-    return Share.build({
+    const share = Share.build({
       id: model.id,
       token: model.token,
-      mnemonic: model.mnemonic,
-      item,
-      encryptionKey: model.encryptionKey,
+      mnemonic: model.mnemonic.toString(),
       bucket: model.bucket,
-      itemToken: model.fileToken,
+      fileToken: model.fileToken,
       isFolder: model.isFolder,
       views: model.views,
       timesValid: model.timesValid,
       active: model.active,
-      user: model.user ? User.build(model.user) : null,
+      userId: model.userId ? model.userId : null,
       code: model.code,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      fileId: model.fileId,
+      folderId: model.folderId,
     });
+
+    share.item = item;
+
+    return share;
   }
 
   private toModel({
     id,
     token,
     mnemonic,
-    user,
-    item,
-    encryptionKey,
+    fileId,
+    folderId,
     bucket,
-    itemToken,
+    fileToken,
     isFolder,
     views,
     timesValid,
@@ -256,17 +257,18 @@ export class SequelizeShareRepository implements ShareRepository {
     code,
     createdAt,
     updatedAt,
+    userId,
   }) {
     return {
       id,
       token,
       mnemonic,
-      userId: user.id,
-      fileId: !isFolder ? item?.id : null,
-      folderId: isFolder ? item?.id : null,
-      encryptionKey,
+      userId,
+      fileId,
+      folderId,
+      encryptionKey: '',
       bucket,
-      fileToken: itemToken,
+      fileToken,
       isFolder,
       views,
       timesValid,

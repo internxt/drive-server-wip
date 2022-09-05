@@ -5,21 +5,27 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FileUseCases } from '../file/file.usecase';
+import crypto from 'crypto';
+import { Environment } from '@internxt/inxt-js';
+
+import getEnv from '../../config/configuration';
 import { User } from '../user/user.domain';
 import { CreateShareDto } from './dto/create-share.dto';
 import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
-import crypto from 'crypto';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UpdateShareDto } from './dto/update-share.dto';
+import { SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
 
 @Injectable()
 export class ShareUseCases {
   constructor(
     private shareRepository: SequelizeShareRepository,
-    @Inject(forwardRef(() => FileUseCases))
-    private fileUseCases: FileUseCases,
+    private filesRepository: SequelizeFileRepository,
+    private foldersRepository: SequelizeFolderRepository,
+    private usersRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
   ) {}
@@ -34,7 +40,7 @@ export class ShareUseCases {
     content: Partial<UpdateShareDto>,
   ) {
     const share = await this.shareRepository.findById(id);
-    if (share.user.id !== user.id) {
+    if (share.userId !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
     share.timesValid = content.timesValid;
@@ -44,25 +50,57 @@ export class ShareUseCases {
     return share.toJSON();
   }
 
-  async getShareByToken(token: string, user: User) {
+  async getShareByToken(
+    token: string,
+    user: User,
+    code?: string,
+  ): Promise<Share> {
     const share = await this.shareRepository.findByToken(token);
-    // if is owner, not increment view
-    const isTheOwner = user && share.isOwner(user.id);
-    if (!isTheOwner) {
-      if (share.isActive() && share.canHaveView()) {
-        share.incrementView();
-        if (!share.canHaveView()) {
-          // if next viewer cant view deactivate share
-          share.deactivate();
-        }
-        await this.shareRepository.update(share);
-      } else {
-        throw new NotFoundException('cannot view this share');
+
+    if (!share) {
+      throw new NotFoundException('Share not found');
+    }
+
+    if (!share.isActive()) {
+      throw new NotFoundException('Share expired');
+    }
+
+    if (share.isFolder) {
+      share.item = await this.foldersRepository.findById(share.folderId);
+    } else {
+      share.item = await this.filesRepository.findOne(
+        share.fileId,
+        share.userId,
+      );
+
+      if (code) {
+        const shareOwner = await this.usersRepository.findById(share.userId);
+        const fileInfo = await new Environment({
+          bridgePass: shareOwner.userId,
+          bridgeUser: shareOwner.bridgeUser,
+          bridgeUrl: getEnv().apis.storage.url,
+        }).getFileInfo(share.bucket, share.item.fileId);
+
+        const encryptionKey = await Environment.utils.generateFileKey(
+          share.decryptMnemonic(code),
+          share.bucket,
+          Buffer.from(fileInfo.index, 'hex'),
+        );
+
+        share.encryptionKey = encryptionKey.toString('hex');
       }
+    }
+
+    const isTheOwner = user && share.userId === user.id;
+
+    if (!isTheOwner) {
+      share.incrementView();
+      await this.shareRepository.update(share);
     }
 
     return share;
   }
+
   async listByUserPaginated(
     user: any,
     page = 0,
@@ -102,50 +140,56 @@ export class ShareUseCases {
 
   async deleteShareById(id: number, user: User) {
     const share = await this.shareRepository.findById(id);
-    if (share.user.id !== user.id) {
+    if (share.userId !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
-    await this.shareRepository.delete(share);
+    await this.shareRepository.deleteById(share.id);
     return true;
   }
 
   async createShareFile(
-    fileId: string,
+    fileId: number,
     user: User,
-    { timesValid, encryptionKey, itemToken, bucket }: CreateShareDto,
+    {
+      timesValid,
+      encryptedCode,
+      encryptedMnemonic,
+      itemToken,
+      bucket,
+    }: CreateShareDto,
   ) {
-    const file = await this.fileUseCases.getByFileIdAndUser(fileId, user.id);
+    const file = await this.filesRepository.findOne(fileId, user.id);
     if (!file) {
-      throw new NotFoundException(`file with id ${fileId} not found`);
+      throw new NotFoundException(`File ${fileId} not found`);
     }
     const share = await this.shareRepository.findByFileIdAndUser(
       file.id,
       user.id,
     );
     if (share) {
-      return { item: share, created: false };
+      return { item: share, created: false, encryptedCode: share.code };
     }
     const token = crypto.randomBytes(10).toString('hex');
-    const shareCreated = Share.build({
+    const newShare = Share.build({
       id: 1,
       token,
-      mnemonic: '',
-      user: user,
-      item: file,
-      encryptionKey,
+      mnemonic: encryptedMnemonic,
+      userId: user.id,
       bucket,
-      itemToken,
+      fileToken: itemToken,
+      folderId: null,
       isFolder: false,
       views: 0,
       timesValid,
       active: true,
-      code: null,
+      code: encryptedCode,
       createdAt: new Date(),
       updatedAt: new Date(),
+      fileId,
     });
-    await this.shareRepository.create(shareCreated);
+    await this.shareRepository.create(newShare);
     // apply userReferral to share-file
-    return { item: shareCreated, created: true };
+    return { item: newShare, created: true };
   }
 
   async createShareFolder(
@@ -153,34 +197,32 @@ export class ShareUseCases {
     user: User,
     {
       timesValid,
-      encryptionKey,
       itemToken,
       bucket,
-      mnemonic,
-      code,
+      encryptedMnemonic: mnemonic,
+      encryptedCode: code,
     }: CreateShareDto,
   ) {
-    const folder = await this.folderUseCases.getFolder(folderId);
+    const folder = await this.foldersRepository.findById(folderId);
     if (!folder) {
-      throw new NotFoundException(`folder with id ${folderId} not found`);
+      throw new NotFoundException(`Folder ${folderId} not found`);
     }
     const share = await this.shareRepository.findByFolderIdAndUser(
       folder.id,
       user.id,
     );
     if (share) {
-      return { item: share, created: false };
+      return { item: share, created: false, encryptedCode: share.code };
     }
     const token = crypto.randomBytes(10).toString('hex');
-    const shareCreated = Share.build({
+    const newShare = Share.build({
       id: 1,
       token,
       mnemonic,
-      user: user,
-      item: folder,
-      encryptionKey,
+      userId: user.id,
       bucket,
-      itemToken,
+      fileToken: itemToken,
+      fileId: null,
       isFolder: true,
       views: 0,
       timesValid,
@@ -188,10 +230,11 @@ export class ShareUseCases {
       code,
       createdAt: new Date(),
       updatedAt: new Date(),
+      folderId,
     });
-    await this.shareRepository.create(shareCreated);
+    await this.shareRepository.create(newShare);
 
-    return { item: shareCreated, created: true };
+    return { item: newShare, created: true };
   }
 
   async deleteFileShare(fileId: number, user: User): Promise<void> {
@@ -204,10 +247,10 @@ export class ShareUseCases {
       return;
     }
 
-    if (share.user.id !== user.id) {
+    if (share.userId !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
 
-    return this.shareRepository.delete(share);
+    return this.shareRepository.deleteById(share.id);
   }
 }
