@@ -18,7 +18,7 @@ export class CreateShareDto {
     example: 'mnemonic mnemonic',
     description: 'Mnemonic',
   })
-  mnemonic = '';
+  encryptedMnemonic: string;
 
   @IsNotEmpty()
   @ApiProperty({
@@ -37,5 +37,5 @@ export class CreateShareDto {
     example: 'code',
     description: 'Code Encrypted',
   })
-  code: string;
+  encryptedCode: string;
 }
