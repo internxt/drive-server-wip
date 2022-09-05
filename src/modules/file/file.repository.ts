@@ -92,7 +92,7 @@ export interface FileRepository {
     perPage: number,
   ): Promise<Array<File> | []>;
   findOne(
-    fileId: FileAttributes['fileId'],
+    fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
   ): Promise<File | null>;
   updateByFieldIdAndUserId(
@@ -121,6 +121,7 @@ export class SequelizeFileRepository implements FileRepository {
       return this.toDomain(file);
     });
   }
+
   async findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
@@ -144,12 +145,12 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async findOne(
-    fileId: FileAttributes['fileId'],
+    fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
-        fileId,
+        id: fileId,
         userId,
       },
     });

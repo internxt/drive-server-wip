@@ -24,12 +24,13 @@ export class FileUseCases {
     private bridgeService: BridgeService,
   ) {}
 
-  async getByFileIdAndUser(
-    fileId: FileAttributes['fileId'],
+  getByFileIdAndUser(
+    fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
   ): Promise<File> {
-    return await this.fileRepository.findOne(fileId, userId);
+    return this.fileRepository.findOne(fileId, userId);
   }
+
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
@@ -78,7 +79,7 @@ export class FileUseCases {
     const mnemonic = aes.decrypt(encryptedMnemonic, code);
     const { index } = await network.getFileInfo(share.bucket, fileId);
     const encryptionKey = await Environment.utils.generateFileKey(
-      mnemonic,
+      share.mnemonic.toString(),
       share.bucket,
       Buffer.from(index, 'hex'),
     );
