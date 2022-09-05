@@ -135,11 +135,6 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: {
         id: folderId,
       },
-      include: [
-        {
-          model: this.userModel,
-        },
-      ],
     });
     return folder ? this.toDomain(folder) : null;
   }
