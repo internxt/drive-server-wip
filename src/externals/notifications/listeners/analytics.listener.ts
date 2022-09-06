@@ -20,7 +20,7 @@ export class AnalyticsListener {
       userId: user.uuid,
       event: AnalyticsTrackName.ShareLinkCopied,
       properties: {
-        owner: share.user.username,
+        owner: user.username,
         item_type: share.isFolder ? 'folder' : 'file',
         size: share.item.size,
         extension: share.item.type,
