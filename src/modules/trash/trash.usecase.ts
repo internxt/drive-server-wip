@@ -13,7 +13,6 @@ export class TrashUseCases {
   ) {}
 
   private async deleteFiles(files: Array<File>, user: User): Promise<void> {
-
     for (const file of files) {
       await this.fileUseCases
         .deleteFilePermanently(file, user)
@@ -39,11 +38,10 @@ export class TrashUseCases {
   }
 
   public async clearTrash(user: User) {
-    const { rootFolderId: folderId, id: userId } = user;
+    const { id: userId } = user;
     const deleted = true;
 
-    const foldersToDelete = await this.folderUseCases.getChildrenFoldersToUser(
-      folderId,
+    const foldersToDelete = await this.folderUseCases.getFoldersToUser(
       userId,
       deleted,
     );
