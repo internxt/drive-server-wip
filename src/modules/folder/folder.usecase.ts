@@ -40,6 +40,18 @@ export class FolderUseCases {
     return folders;
   }
 
+  async getFoldersToUser(
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'] = false,
+  ) {
+    const folders = await this.folderRepository.findAll({
+      userId,
+      deleted,
+    });
+
+    return folders;
+  }
+
   async moveFolderToTrash(folderId: FolderAttributes['id']): Promise<Folder> {
     return this.folderRepository.updateByFolderId(folderId, {
       deleted: true,
