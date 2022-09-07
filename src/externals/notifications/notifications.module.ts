@@ -6,6 +6,7 @@ import { HttpClientModule } from '../http/http.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { SendLinkListener } from './listeners/send-link.listener';
 import { AnalyticsListener } from './listeners/analytics.listener';
+import { ShareLinkListener } from './listeners/share-link.listener';
 @Module({
   imports: [ConfigModule, HttpClientModule, MailerModule],
   controllers: [],
@@ -14,6 +15,7 @@ import { AnalyticsListener } from './listeners/analytics.listener';
     NotificationListener,
     AnalyticsListener,
     SendLinkListener,
+    ShareLinkListener,
   ],
   exports: [NotificationService],
 })
