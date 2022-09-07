@@ -47,6 +47,9 @@ export default () => ({
     storage: {
       url: process.env.STORAGE_API_URL,
     },
+    drive: {
+      url: process.env.DRIVE_API_URL,
+    },
   },
   mailer: {
     sandbox: process.env.SENDGRID_MODE_SANDBOX === 'true' || false,
