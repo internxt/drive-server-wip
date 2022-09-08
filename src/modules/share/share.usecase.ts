@@ -133,6 +133,7 @@ export class ShareUseCases {
           code: share.code,
           createdAt: share.createdAt,
           updatedAt: share.updatedAt,
+          fileSize: share.fileSize,
         };
       }),
     };
@@ -186,6 +187,7 @@ export class ShareUseCases {
       createdAt: new Date(),
       updatedAt: new Date(),
       fileId,
+      fileSize: file.size,
     });
     await this.shareRepository.create(newShare);
     // apply userReferral to share-file
@@ -231,6 +233,7 @@ export class ShareUseCases {
       createdAt: new Date(),
       updatedAt: new Date(),
       folderId,
+      fileSize: null,
     });
     await this.shareRepository.create(newShare);
 

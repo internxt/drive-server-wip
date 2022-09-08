@@ -14,6 +14,7 @@ export interface ShareAttributes {
   timesValid: number;
   userId: UserAttributes['id'];
   fileId: FileAttributes['id'];
+  fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
   active: boolean;
   code: string;
@@ -32,6 +33,7 @@ export class Share implements ShareAttributes {
   timesValid: number;
   userId: UserAttributes['id'];
   fileId: FileAttributes['id'];
+  fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
   active: boolean;
   code: string;
@@ -57,6 +59,7 @@ export class Share implements ShareAttributes {
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
     this.fileId = attributes.fileId;
+    this.fileSize = attributes.fileSize;
     this.folderId = attributes.folderId;
     this.fileToken = attributes.fileToken;
     this.userId = attributes.userId;
@@ -106,6 +109,7 @@ export class Share implements ShareAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       fileId: this.fileId,
+      fileSize: this.fileSize,
       folderId: this.folderId,
       fileToken: this.fileToken,
       item: this.item,
