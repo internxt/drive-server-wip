@@ -146,7 +146,7 @@ export class TrashController {
   @Delete('/file/:fileId')
   @HttpCode(204)
   @ApiOperation({
-    summary: "Deletes a single file form user's trash",
+    summary: "Deletes a single file from user's trash",
   })
   async deleteFile(
     @Param('fileId') fileId: string,
