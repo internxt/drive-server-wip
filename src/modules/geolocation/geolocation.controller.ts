@@ -17,7 +17,12 @@ export class GeolocationController {
   @Public()
   @UseGuards(AuthGuard('basic'))
   async getLocation(@Body('ip') ip: string) {
-    const location: any = await this.geolocationService.getLocation(ip);
+    const location: {
+      country: string;
+      region: string;
+      city: string;
+      timezone: string;
+    } = await this.geolocationService.getLocation(ip);
     return {
       country: location.country,
       region: location.region,
