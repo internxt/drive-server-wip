@@ -2,7 +2,7 @@ import { Body, Controller, Post, HttpCode, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
-import { GeolocationService } from './geolocation.service';
+import { GeolocationService, Location } from './geolocation.service';
 @ApiTags('Geolocation')
 @Controller('geolocation')
 export class GeolocationController {
@@ -17,12 +17,7 @@ export class GeolocationController {
   @Public()
   @UseGuards(AuthGuard('basic'))
   async getLocation(@Body('ip') ip: string) {
-    const location: {
-      country: string;
-      region: string;
-      city: string;
-      timezone: string;
-    } = await this.geolocationService.getLocation(ip);
+    const location: Location = await this.geolocationService.getLocation(ip);
     return {
       country: location.country,
       region: location.region,
