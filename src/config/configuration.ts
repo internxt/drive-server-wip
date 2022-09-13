@@ -66,4 +66,10 @@ export default () => ({
   sentry: {
     dsn: process.env.SENTRY_DSN,
   },
+  auth: {
+    basic: {
+      username: process.env.AUTH_BASIC_USERNAME,
+      password: process.env.AUTH_BASIC_PASSWORD,
+    },
+  },
 });
