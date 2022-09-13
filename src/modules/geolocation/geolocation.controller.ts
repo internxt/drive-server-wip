@@ -1,4 +1,5 @@
-import { Body, Controller, Post, HttpCode } from '@nestjs/common';
+import { Body, Controller, Post, HttpCode, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { GeolocationService } from './geolocation.service';
@@ -14,6 +15,7 @@ export class GeolocationController {
   })
   @ApiOkResponse({ description: 'Get geolocation by ip' })
   @Public()
+  @UseGuards(AuthGuard('basic'))
   async getLocation(@Body('ip') ip: string) {
     const location: any = await this.geolocationService.getLocation(ip);
     return {
