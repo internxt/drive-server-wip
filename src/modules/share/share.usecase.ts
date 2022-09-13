@@ -52,7 +52,7 @@ export class ShareUseCases {
 
   async getShareByToken(
     token: string,
-    user: User,
+    //user: User,
     code?: string,
   ): Promise<Share> {
     const share = await this.shareRepository.findByToken(token);
@@ -91,12 +91,12 @@ export class ShareUseCases {
       }
     }
 
-    const isTheOwner = user && share.userId === user.id;
+    /*const isTheOwner = user && share.userId === user.id;
 
     if (!isTheOwner) {
       share.incrementView();
       await this.shareRepository.update(share);
-    }
+    }*/
 
     return share;
   }

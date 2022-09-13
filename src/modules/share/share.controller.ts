@@ -87,14 +87,14 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get share' })
   @Public()
   async getShareByToken(
-    @UserDecorator() user: User,
+    //@UserDecorator() user: User,
     @Param('token') token: string,
     @Req() req: Request,
     @Query('code') code: string,
   ) {
-    user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, user, code);
-    const isTheOwner = user && share.userId === user.id;
+    //user = await this.getUserWhenPublic(user);
+    const share = await this.shareUseCases.getShareByToken(token, code);
+    //const isTheOwner = user && share.userId === user.id;
     // if (!isTheOwner) {
     //   const shareLinkViewEvent = new ShareLinkViewEvent(
     //     'share.view',
@@ -231,7 +231,7 @@ export class ShareController {
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, user);
+    const share = await this.shareUseCases.getShareByToken(token);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
       share.userId,
@@ -271,7 +271,7 @@ export class ShareController {
   ) {
     const { token, folderId, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token, user);
+    await this.shareUseCases.getShareByToken(token);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
       parseInt(page),
