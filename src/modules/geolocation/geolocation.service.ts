@@ -9,7 +9,7 @@ export type Location = {
 };
 @Injectable()
 export class GeolocationService {
-  async getLocation(ip: string) {
+  async getLocation(ip: string): Promise<Location> {
     const location = await geoip.lookup(ip);
     if (!location) {
       throw new BadRequestException('no location available');
