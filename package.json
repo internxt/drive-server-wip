@@ -51,7 +51,7 @@
     "class-validator": "^0.13.2",
     "crypto": "^1.0.1",
     "crypto-js": "^4.1.1",
-    "geoip-lite": "^1.4.5",
+    "geoip-lite": "^1.4.6",
     "helmet": "^5.1.0",
     "mariadb": "^3.0.0",
     "nest-winston": "^1.6.2",
