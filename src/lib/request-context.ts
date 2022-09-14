@@ -1,9 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Request } from 'express';
 import geoip from 'geoip-lite';
-import DeviceDetector from 'node-device-detector';
-
-const deviceDetector = new DeviceDetector();
+import { getDeviceContextByUserAgent } from './device-context';
 
 export interface Location {
   country: string;
@@ -34,7 +32,7 @@ export class RequestContext {
       version: this.req.headers['internxt-version'],
     };
     const userAgent = this.req.headers['user-agent'];
-    const deviceContext = this.getDeviceContext(userAgent);
+    const deviceContext = getDeviceContextByUserAgent(userAgent);
 
     const context = {
       app,
@@ -47,39 +45,6 @@ export class RequestContext {
     };
 
     return context;
-  }
-
-  getDeviceContext(userAgent: string) {
-    let deviceContext = {};
-    try {
-      if (userAgent) {
-        const deviceDetected = deviceDetector.detect(userAgent);
-        const os = {
-          version: deviceDetected.os.version,
-          name: deviceDetected.os.name,
-          short_name: deviceDetected.os.short_name,
-          family: deviceDetected.os.family,
-        };
-        const device = {
-          type: deviceDetected.device.type,
-          manufacturer: deviceDetected.device.brand,
-          model: deviceDetected.device.model,
-          brand: deviceDetected.device.brand,
-          brand_id: deviceDetected.device.id,
-        };
-        const client = deviceDetected.client;
-
-        deviceContext = {
-          os,
-          device,
-          client,
-        };
-      }
-    } catch (err) {
-      this.logger.error(err);
-    }
-
-    return deviceContext;
   }
   async getLocation(ipaddress: string): Promise<Location> {
     let location: Location = null;
