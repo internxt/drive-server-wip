@@ -14,7 +14,6 @@ import { NotificationModule } from './externals/notifications/notifications.modu
 import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
 import { BridgeModule } from './externals/bridge/bridge.module';
-import { GeolocationModule } from './modules/geolocation/geolocation.module';
 import { DeviceModule } from './modules/device/device.module';
 
 @Module({
@@ -86,7 +85,6 @@ import { DeviceModule } from './modules/device/device.module';
     UserModule,
     SendModule,
     BridgeModule,
-    GeolocationModule,
     DeviceModule,
   ],
   controllers: [],

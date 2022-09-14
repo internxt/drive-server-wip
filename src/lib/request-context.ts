@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { Request } from 'express';
 import geoip from 'geoip-lite';
 import { getDeviceContextByUserAgent } from './device-context';
+import { getLocation } from './location';
 
 export interface Location {
   country: string;
@@ -21,7 +22,7 @@ export class RequestContext {
   async getContext() {
     const ipaddress =
       this.req.header('x-forwarded-for') || this.req.socket.remoteAddress || '';
-    const location = await this.getLocation(ipaddress).catch((err) =>
+    const location = await getLocation(ipaddress).catch((err) =>
       this.logger.error(err),
     );
 
@@ -45,23 +46,6 @@ export class RequestContext {
     };
 
     return context;
-  }
-  async getLocation(ipaddress: string): Promise<Location> {
-    let location: Location = null;
-    try {
-      location = await geoip.lookup(ipaddress);
-      if (!location) {
-        throw Error('No location available');
-      }
-    } catch (err) {
-      throw new Error(err.message || 'No message');
-    }
-    return {
-      country: location.country,
-      region: location.region,
-      city: location.city,
-      timezone: location.timezone,
-    };
   }
 
   getUTM(referrer: any) {
