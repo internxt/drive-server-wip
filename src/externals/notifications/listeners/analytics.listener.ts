@@ -22,8 +22,8 @@ export class AnalyticsListener {
       properties: {
         owner: user.username,
         item_type: share.isFolder ? 'folder' : 'file',
-        size: share.item.size,
-        extension: share.item.type,
+        size: share.isFolder ? null : share.fileSize,
+        extension: share.item?.type,
       },
       context: await requestContext.getContext(),
     });
