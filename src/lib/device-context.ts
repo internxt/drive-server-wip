@@ -2,9 +2,14 @@ import DeviceDetector from 'node-device-detector';
 import { Logger } from '@nestjs/common';
 const logger = new Logger();
 
+const deviceDetector = new DeviceDetector({
+  clientIndexes: true,
+  deviceIndexes: true,
+  deviceAliasCode: false,
+});
+
 export function getDeviceContextByUserAgent(userAgent: string) {
   try {
-    const deviceDetector = new DeviceDetector();
     const deviceDetected = deviceDetector.detect(userAgent);
     return {
       os: {
