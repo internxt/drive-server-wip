@@ -101,6 +101,17 @@ export class ShareUseCases {
     return share;
   }
 
+  async incrementShareView(share: Share, user: User) {
+    const isTheOwner = user && share.userId === user.id;
+
+    if (!isTheOwner) {
+      share.incrementView();
+      await this.shareRepository.update(share);
+    }
+
+    return true;
+  }
+
   async listByUserPaginated(
     user: any,
     page = 0,

@@ -35,7 +35,7 @@ export class AnalyticsListener {
     const { user, share, request } = event;
     const requestContext = new RequestContext(request);
     this.analytics.track({
-      userId: user.uuid,
+      userId: user ? user.uuid : 'incognito',
       event: AnalyticsTrackName.ShareLinkViewed,
       properties: {
         views: share.views,

@@ -87,25 +87,45 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get share' })
   @Public()
   async getShareByToken(
-    //@UserDecorator() user: User,
     @Param('token') token: string,
-    @Req() req: Request,
     @Query('code') code: string,
   ) {
-    //user = await this.getUserWhenPublic(user);
     const share = await this.shareUseCases.getShareByToken(token, code);
-    //const isTheOwner = user && share.userId === user.id;
-    // if (!isTheOwner) {
-    //   const shareLinkViewEvent = new ShareLinkViewEvent(
-    //     'share.view',
-    //     user,
-    //     share,
-    //     req,
-    //     {},
-    //   );
-    //   this.notificationService.add(shareLinkViewEvent);
-    // }
     return share.toJSON();
+  }
+
+  @Put(':shareId/view')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Increment share view by id',
+  })
+  @ApiOkResponse({ description: 'Increment share view by id' })
+  @Public()
+  async incrementViewById(
+    @UserDecorator() user: User,
+    @Param('shareId') shareId: string,
+    @Req() req: Request,
+  ) {
+    user = await this.getUserWhenPublic(user);
+    const share = await this.shareUseCases.getShareById(Number(shareId));
+    const incremented = await this.shareUseCases.incrementShareView(
+      share,
+      user,
+    );
+    if (incremented) {
+      const shareLinkViewEvent = new ShareLinkViewEvent(
+        'share.view',
+        user,
+        share,
+        req,
+        {},
+      );
+      this.notificationService.add(shareLinkViewEvent);
+    }
+    return {
+      incremented,
+      shareId,
+    };
   }
 
   @Put('/:shareId')
