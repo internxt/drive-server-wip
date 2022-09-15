@@ -4563,7 +4563,7 @@ next-tick@1, next-tick@^1.1.0:
   resolved "https://registry.yarnpkg.com/next-tick/-/next-tick-1.1.0.tgz#1836ee30ad56d67ef281b22bd199f709449b35eb"
   integrity sha512-CXdUiJembsNjuToQvxayPZF9Vqht7hewsvy2sOWafLvi2awflj9mOC6bHIg50orX8IJvWKY9wYQ/zB2kogPslQ==
 
-node-device-detector@^2.0.3:
+node-device-detector@2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/node-device-detector/-/node-device-detector-2.0.3.tgz#be3e380ef1bb0809bb155067b1ba5e069856cd49"
   integrity sha512-sXDGVRJx1a6eKlk+2YPXFB0kBl5dBb/SMEffUFA3kPsgJkiJF5C2oxtNKfrPkSbCnFU4vHWOohNnoH4AupBoWw==
