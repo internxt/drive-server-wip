@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Get,
   Headers,
   HttpCode,
   Post,
@@ -16,7 +15,7 @@ import { Public } from '../auth/decorators/public.decorator';
 @ApiTags('Device')
 @Controller('device')
 export class DeviceController {
-  @Get('/context')
+  @Post('/context')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get Device Context',
@@ -24,11 +23,11 @@ export class DeviceController {
   @ApiOkResponse({ description: 'Get Device Context by user agent' })
   @Public()
   @UseGuards(AuthGuard('basic'))
-  async getDevice(@Headers('user-agent') userAgent: string) {
-    if (!userAgent) {
+  async getDevice(@Headers('user-agent') userAgent: string, @Body() body) {
+    if (!body.userAgent && !userAgent) {
       throw new BadRequestException('no user-agent available');
     }
-    const context = getDeviceContextByUserAgent(userAgent);
+    const context = getDeviceContextByUserAgent(body.userAgent || userAgent);
     return context;
   }
 
