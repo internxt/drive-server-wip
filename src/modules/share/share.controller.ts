@@ -94,20 +94,20 @@ export class ShareController {
     return share.toJSON();
   }
 
-  @Put(':shareId/view')
+  @Put(':token/view')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Increment share view by id',
+    summary: 'Increment share view by token',
   })
-  @ApiOkResponse({ description: 'Increment share view by id' })
+  @ApiOkResponse({ description: 'Increment share view by token' })
   @Public()
   async incrementViewById(
     @UserDecorator() user: User,
-    @Param('shareId') shareId: string,
+    @Param('token') token: string,
     @Req() req: Request,
   ) {
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareById(Number(shareId));
+    const share = await this.shareUseCases.getShareByToken(token);
     const incremented = await this.shareUseCases.incrementShareView(
       share,
       user,
@@ -124,7 +124,7 @@ export class ShareController {
     }
     return {
       incremented,
-      shareId,
+      token,
     };
   }
 
