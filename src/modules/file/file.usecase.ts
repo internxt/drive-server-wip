@@ -79,7 +79,7 @@ export class FileUseCases {
     const mnemonic = aes.decrypt(encryptedMnemonic, code);
     const { index } = await network.getFileInfo(share.bucket, fileId);
     const encryptionKey = await Environment.utils.generateFileKey(
-      share.mnemonic.toString(),
+      mnemonic,
       share.bucket,
       Buffer.from(index, 'hex'),
     );
