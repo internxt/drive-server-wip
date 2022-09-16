@@ -155,7 +155,6 @@ export class ShareController {
     summary: 'Delete share by id',
   })
   @ApiOkResponse({ description: 'Delete share by id' })
-  @Public()
   async deleteShareByToken(
     @UserDecorator() user: User,
     @Param('shareId') shareId: string,
