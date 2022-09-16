@@ -97,10 +97,11 @@ export class SequelizeFolderRepository implements FolderRepository {
     private userModel: typeof UserModel,
   ) {}
 
-  async findAll(): Promise<Array<Folder> | []> {
-    const folders = await this.folderModel.findAll();
+  async findAll(where = {}): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({ where });
     return folders.map((folder) => this.toDomain(folder));
   }
+
   async findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
     userId: FolderAttributes['userId'],
