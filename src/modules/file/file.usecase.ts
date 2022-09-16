@@ -15,6 +15,7 @@ import { ShareUseCases } from '../share/share.usecase';
 import { User, UserAttributes } from '../user/user.domain';
 import { File, FileAttributes } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
+
 @Injectable()
 export class FileUseCases {
   constructor(
@@ -41,6 +42,24 @@ export class FileUseCases {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
       folderId,
       userId,
+      deleted,
+      page,
+      perPage,
+    );
+
+    return files.map((file) => file.toJSON());
+  }
+
+  async getByUserExceptParents(
+    userId: FolderAttributes['userId'],
+    exceptFolderIds: FolderAttributes['id'][],
+    deleted: FolderAttributes['deleted'] = false,
+    page?: number,
+    perPage?: number,
+  ) {
+    const files = await this.fileRepository.findAllByUserIdExceptFolderIds(
+      userId,
+      exceptFolderIds,
       deleted,
       page,
       perPage,

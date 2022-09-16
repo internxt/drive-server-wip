@@ -1,17 +1,18 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  Post,
-  HttpCode,
+  HttpException,
   Get,
+  HttpCode,
+  Post,
   Delete,
-  BadRequestException,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiOkResponse,
-  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -22,7 +23,12 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
+
 import { TrashUseCases } from './trash.usecase';
+import {
+  DeleteItemsDto,
+  DeleteItemType,
+} from './dto/controllers/delete-item.dto';
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -42,11 +48,16 @@ export class TrashController {
   @ApiOkResponse({ description: 'Get all folders and files in trash' })
   async getTrash(@UserDecorator() user: User) {
     const folderId = user.rootFolderId;
-    const [currentFolder, childrenFolders, files] = await Promise.all([
+    const [currentFolder, childrenFolders] = await Promise.all([
       this.folderUseCases.getFolder(folderId),
       this.folderUseCases.getChildrenFoldersToUser(folderId, user.id, true),
-      this.fileUseCases.getByFolderAndUser(folderId, user.id, true),
     ]);
+    const childrenFoldersIds = childrenFolders.map(({ id }) => id);
+    const files = await this.fileUseCases.getByUserExceptParents(
+      user.id,
+      childrenFoldersIds,
+      true,
+    );
     return {
       ...currentFolder.toJSON(),
       children: childrenFolders,
@@ -103,5 +114,31 @@ export class TrashController {
   })
   clearTrash(@UserDecorator() user: User) {
     this.trashUseCases.clearTrash(user);
+  }
+
+  @Delete('/')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: "Deletes all items from user's trash",
+  })
+  async deleteItems(
+    @Body() deleteItemsDto: DeleteItemsDto,
+    @UserDecorator() user: User,
+  ) {
+    const filesId = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FILE)
+      .map((item) => item.id);
+
+    const foldersId = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FOLDER)
+      .map((item) => parseInt(item.id));
+
+    await this.trashUseCases
+      .deleteItems(filesId, foldersId, user)
+      .catch((err) => {
+        if (err instanceof HttpException) {
+          throw err;
+        }
+      });
   }
 }

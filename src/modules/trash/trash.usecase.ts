@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
+import { File, FileAttributes } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 
@@ -13,6 +13,7 @@ export class TrashUseCases {
   ) {}
 
   private async deleteFiles(files: Array<File>, user: User): Promise<void> {
+
     for (const file of files) {
       await this.fileUseCases
         .deleteFilePermanently(file, user)
@@ -41,13 +42,49 @@ export class TrashUseCases {
     const { rootFolderId: folderId, id: userId } = user;
     const deleted = true;
 
+    const foldersToDelete = await this.folderUseCases.getChildrenFoldersToUser(
+      folderId,
+      userId,
+      deleted,
+    );
+
+    const foldersIdToDelete = foldersToDelete.map(
+      (folder: Folder) => folder.id,
+    );
+
     const filesDeletion = this.fileUseCases
-      .getByFolderAndUser(folderId, user.id, deleted)
+      .getByUserExceptParents(userId, foldersIdToDelete, deleted)
       .then((files: Array<File>) => this.deleteFiles(files, user));
 
-    const foldersDeletion = this.folderUseCases
-      .getChildrenFoldersToUser(folderId, userId, deleted)
-      .then((folders: Array<Folder>) => this.deleteFolders(folders, user));
+    const foldersDeletion = this.deleteFolders(foldersToDelete, user);
+
+    await Promise.allSettled([filesDeletion, foldersDeletion]);
+  }
+
+  public async deleteItems(
+    filesId: Array<FileAttributes['fileId']>,
+    foldersId: Array<FileAttributes['id']>,
+    user: User,
+  ): Promise<void> {
+    const files: Array<File> = [];
+    const folders: Array<Folder> = [];
+
+    for (const fileId of filesId) {
+      const file = await this.fileUseCases.getByFileIdAndUser(fileId, user.id);
+      if (file === null) {
+        throw new NotFoundException(`file with id ${fileId} not found`);
+      }
+
+      files.push(file);
+    }
+
+    for (const folderId of foldersId) {
+      const folder = await this.folderUseCases.getFolder(folderId);
+      folders.push(folder);
+    }
+
+    const filesDeletion = this.deleteFiles(files, user);
+    const foldersDeletion = this.deleteFolders(folders, user);
 
     await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
