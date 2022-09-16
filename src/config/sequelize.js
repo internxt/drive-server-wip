@@ -15,12 +15,6 @@ module.exports = {
       idle: 20000,
       acquire: 20000,
     },
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
   },
   test: {
     dialect: 'postgres',
@@ -37,12 +31,6 @@ module.exports = {
       min: 0,
       idle: 20000,
       acquire: 20000,
-    },
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
     },
   },
   production: {

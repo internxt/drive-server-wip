@@ -99,7 +99,7 @@ describe('Trash Use Cases', () => {
         .spyOn(fileUseCases, 'getByFolderAndUser')
         .mockImplementationOnce(() => Promise.resolve([]));
       jest
-        .spyOn(folderUseCases, 'getChildrenFoldersToUser')
+        .spyOn(folderUseCases, 'getFoldersToUser')
         .mockResolvedValueOnce([{} as Folder]);
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
@@ -117,9 +117,7 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(fileUseCases, 'getByFolderAndUser')
         .mockImplementationOnce(() => Promise.resolve([]));
-      jest
-        .spyOn(folderUseCases, 'getChildrenFoldersToUser')
-        .mockResolvedValueOnce([]);
+      jest.spyOn(folderUseCases, 'getFoldersToUser').mockResolvedValueOnce([]);
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
         .mockImplementationOnce(() => Promise.resolve());
@@ -143,7 +141,7 @@ describe('Trash Use Cases', () => {
         .spyOn(fileUseCases, 'deleteFilePermanently')
         .mockImplementation(() => Promise.resolve());
       jest
-        .spyOn(folderUseCases, 'getChildrenFoldersToUser')
+        .spyOn(folderUseCases, 'getFoldersToUser')
         .mockResolvedValueOnce(foldersToDelete);
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
@@ -158,7 +156,7 @@ describe('Trash Use Cases', () => {
       expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
         filesToDelete.length,
       );
-      expect(folderUseCases.getChildrenFoldersToUser).toHaveBeenCalledTimes(1);
+      expect(folderUseCases.getFoldersToUser).toHaveBeenCalledTimes(1);
       expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
         foldersToDelete.length,
       );
@@ -178,7 +176,7 @@ describe('Trash Use Cases', () => {
         .mockImplementationOnce(() => Promise.reject(errorToBeThrown))
         .mockImplementation(() => Promise.resolve());
       jest
-        .spyOn(folderUseCases, 'getChildrenFoldersToUser')
+        .spyOn(folderUseCases, 'getFoldersToUser')
         .mockResolvedValueOnce(foldersToDelete);
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
@@ -194,7 +192,7 @@ describe('Trash Use Cases', () => {
       expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
         filesToDelete.length,
       );
-      expect(folderUseCases.getChildrenFoldersToUser).toHaveBeenCalledTimes(1);
+      expect(folderUseCases.getFoldersToUser).toHaveBeenCalledTimes(1);
       expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
         foldersToDelete.length,
       );

@@ -14,6 +14,7 @@ import { NotificationModule } from './externals/notifications/notifications.modu
 import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
 import { BridgeModule } from './externals/bridge/bridge.module';
+import { DeviceModule } from './modules/device/device.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { BridgeModule } from './externals/bridge/bridge.module';
     UserModule,
     SendModule,
     BridgeModule,
+    DeviceModule,
   ],
   controllers: [],
   providers: [],

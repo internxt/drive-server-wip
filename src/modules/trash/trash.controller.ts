@@ -7,6 +7,7 @@ import {
   HttpCode,
   Post,
   Delete,
+  Param,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -50,7 +51,7 @@ export class TrashController {
     const folderId = user.rootFolderId;
     const [currentFolder, childrenFolders] = await Promise.all([
       this.folderUseCases.getFolder(folderId),
-      this.folderUseCases.getChildrenFoldersToUser(folderId, user.id, true),
+      this.folderUseCases.getFoldersToUser(user.id, true),
     ]);
     const childrenFoldersIds = childrenFolders.map(({ id }) => id);
     const files = await this.fileUseCases.getByUserExceptParents(
@@ -140,5 +141,29 @@ export class TrashController {
           throw err;
         }
       });
+  }
+
+  @Delete('/file/:fileId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes a single file from user's trash",
+  })
+  async deleteFile(
+    @Param('fileId') fileId: string,
+    @UserDecorator() user: User,
+  ) {
+    await this.trashUseCases.deleteItems([fileId], [], user);
+  }
+
+  @Delete('/folder/:folderId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: "Deletes a single file form user's trash",
+  })
+  async deleteFolder(
+    @Param('folderId') folderId: number,
+    @UserDecorator() user: User,
+  ) {
+    await this.trashUseCases.deleteItems([], [folderId], user);
   }
 }

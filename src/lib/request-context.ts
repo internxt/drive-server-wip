@@ -1,9 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { Request } from 'express';
 import geoip from 'geoip-lite';
-import DeviceDetector from 'node-device-detector';
-
-const deviceDetector = new DeviceDetector();
+import { getDeviceContextByUserAgent } from './device-context';
+import { getLocation } from './location';
 
 export interface Location {
   country: string;
@@ -23,7 +22,7 @@ export class RequestContext {
   async getContext() {
     const ipaddress =
       this.req.header('x-forwarded-for') || this.req.socket.remoteAddress || '';
-    const location = await this.getLocation(ipaddress).catch((err) =>
+    const location = await getLocation(ipaddress).catch((err) =>
       this.logger.error(err),
     );
 
@@ -34,7 +33,7 @@ export class RequestContext {
       version: this.req.headers['internxt-version'],
     };
     const userAgent = this.req.headers['user-agent'];
-    const deviceContext = this.getDeviceContext(userAgent);
+    const deviceContext = getDeviceContextByUserAgent(userAgent);
 
     const context = {
       app,
@@ -47,56 +46,6 @@ export class RequestContext {
     };
 
     return context;
-  }
-
-  getDeviceContext(userAgent: string) {
-    let deviceContext = {};
-    try {
-      if (userAgent) {
-        const deviceDetected = deviceDetector.detect(userAgent);
-        const os = {
-          version: deviceDetected.os.version,
-          name: deviceDetected.os.name,
-          short_name: deviceDetected.os.short_name,
-          family: deviceDetected.os.family,
-        };
-        const device = {
-          type: deviceDetected.device.type,
-          manufacturer: deviceDetected.device.brand,
-          model: deviceDetected.device.model,
-          brand: deviceDetected.device.brand,
-          brand_id: deviceDetected.device.id,
-        };
-        const client = deviceDetected.client;
-
-        deviceContext = {
-          os,
-          device,
-          client,
-        };
-      }
-    } catch (err) {
-      this.logger.error(err);
-    }
-
-    return deviceContext;
-  }
-  async getLocation(ipaddress: string): Promise<Location> {
-    let location: Location = null;
-    try {
-      location = await geoip.lookup(ipaddress);
-      if (!location) {
-        throw Error('No location available');
-      }
-    } catch (err) {
-      throw new Error(err.message || 'No message');
-    }
-    return {
-      country: location.country,
-      region: location.region,
-      city: location.city,
-      timezone: location.timezone,
-    };
   }
 
   getUTM(referrer: any) {
