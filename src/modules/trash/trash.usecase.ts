@@ -68,7 +68,10 @@ export class TrashUseCases {
     const folders: Array<Folder> = [];
 
     for (const fileId of filesId) {
-      const file = await this.fileUseCases.getByFileIdAndUser(fileId, user.id);
+      const file = await this.fileUseCases.getByFileIdAndUser(
+        Number(fileId),
+        user.id,
+      );
       if (file === null) {
         throw new NotFoundException(`file with id ${fileId} not found`);
       }
