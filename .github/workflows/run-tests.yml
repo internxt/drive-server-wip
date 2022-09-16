@@ -1,8 +1,13 @@
 name: run-tests
 on:
+  push:
+    branches:
+      - 'master'
+      - 'develop'
   pull_request:
     branches:
       - 'master'
+      - 'develop'
 jobs:
   run-tests:
     environment: test
