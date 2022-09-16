@@ -24,7 +24,8 @@
     "migrate:prod": "NODE_ENV=production sequelize db:migrate",
     "migrate:prod:undo": "NODE_ENV=production sequelize db:migrate:undo",
     "migrate:test": "NODE_ENV=test sequelize db:migrate",
-    "migrate:test:undo": "NODE_ENV=test sequelize db:migrate:undo"
+    "migrate:test:undo": "NODE_ENV=test sequelize db:migrate:undo",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@hapi/joi": "^17.1.1",
@@ -87,8 +88,10 @@
     "eslint": "^8.0.1",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
+    "husky": "^8.0.0",
     "jest": "28.0.3",
     "prettier": "^2.3.2",
+    "pretty-quick": "^3.1.3",
     "sequelize-cli": "^6.4.1",
     "source-map-support": "^0.5.20",
     "supertest": "^6.1.3",
