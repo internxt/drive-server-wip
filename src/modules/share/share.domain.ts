@@ -18,6 +18,7 @@ export interface ShareAttributes {
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
+  password?: string;
 }
 
 export class Share implements ShareAttributes {
@@ -35,6 +36,8 @@ export class Share implements ShareAttributes {
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
+  password: string | null;
+
   constructor({
     id,
     token,
@@ -50,6 +53,7 @@ export class Share implements ShareAttributes {
     active,
     createdAt,
     updatedAt,
+    password = null,
   }) {
     this.id = id;
     this.token = token;
@@ -65,6 +69,7 @@ export class Share implements ShareAttributes {
     this.active = active;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.password = password;
   }
 
   static build(share: ShareAttributes): Share {
@@ -109,6 +114,10 @@ export class Share implements ShareAttributes {
     return this.mnemonic;
   }
 
+  public isProtected(): boolean {
+    return this.password !== null;
+  }
+
   toJSON() {
     return {
       id: this.id,
@@ -125,6 +134,7 @@ export class Share implements ShareAttributes {
       active: this.active,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      password: this.password,
     };
   }
 }
