@@ -2,20 +2,20 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('shares', 'password', {
+    await queryInterface.addColumn('shares', 'hashed_password', {
       type: Sequelize.BLOB('medium'),
       allowNull: true,
     });
 
-    await queryInterface.addColumn('send_links', 'password', {
+    await queryInterface.addColumn('send_links', 'hashed_password', {
       type: Sequelize.BLOB('medium'),
       allowNull: true,
     });
   },
 
   async down(queryInterface) {
-    await queryInterface.removeColumn('shares', 'password');
+    await queryInterface.removeColumn('shares', 'hashed_password');
 
-    await queryInterface.removeColumn('send_links', 'password');
+    await queryInterface.removeColumn('send_links', 'hashed_password');
   },
 };
