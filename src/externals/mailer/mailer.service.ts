@@ -15,7 +15,7 @@ export class MailerService {
       to: email,
       from: {
         email: this.configService.get('mailer.from'),
-        name: this.configService.get('mailer.name')
+        name: this.configService.get('mailer.name'),
       },
       subject: '',
       text: 'send link',
