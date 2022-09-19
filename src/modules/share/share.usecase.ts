@@ -140,6 +140,7 @@ export class ShareUseCases {
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      hashedPassword: null,
     });
     await this.shareRepository.create(shareCreated);
     // apply userReferral to share-file
@@ -178,6 +179,7 @@ export class ShareUseCases {
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      hashedPassword: null,
     });
     await this.shareRepository.create(shareCreated);
 
