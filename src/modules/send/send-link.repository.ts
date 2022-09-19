@@ -67,6 +67,10 @@ export class SendLinkModel extends Model {
   @Column
   updatedAt: Date;
 
+  @AllowNull
+  @Column(DataType.TEXT)
+  hashedPassword: string;
+
   @HasMany(() => SendLinkItemModel)
   items: SendLinkItemModel[];
 }
