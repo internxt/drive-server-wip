@@ -21,7 +21,7 @@ export interface ShareAttributes {
   createdAt: Date;
   updatedAt: Date;
   fileToken: string;
-  password?: string;
+  hashedPassword?: string;
 }
 
 export class Share implements ShareAttributes {
@@ -42,7 +42,7 @@ export class Share implements ShareAttributes {
   fileToken: string;
   createdAt: Date;
   updatedAt: Date;
-  password: string | null;
+  hashedPassword: string | null;
 
   constructor({
     id,
@@ -59,7 +59,7 @@ export class Share implements ShareAttributes {
     active,
     createdAt,
     updatedAt,
-    password = null,
+    hashedPassword = null,
   }) {
     this.id = id;
     this.token = token;
@@ -75,7 +75,7 @@ export class Share implements ShareAttributes {
     this.active = active;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
-    this.password = password;
+    this.hashedPassword = hashedPassword;
   }
 
   static build(share: ShareAttributes): Share {
@@ -109,7 +109,7 @@ export class Share implements ShareAttributes {
   }
 
   public isProtected(): boolean {
-    return this.password !== null;
+    return this.hashedPassword !== null;
   }
 
   toJSON() {
@@ -131,7 +131,7 @@ export class Share implements ShareAttributes {
       fileToken: this.fileToken,
       item: this.item,
       encryptionKey: this.encryptionKey,
-      password: this.password,
+      hashedPassword: this.hashedPassword,
     };
   }
 }
