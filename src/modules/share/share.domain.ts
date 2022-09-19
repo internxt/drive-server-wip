@@ -134,7 +134,6 @@ export class Share implements ShareAttributes {
       active: this.active,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
-      hashedPassword: this.hashedPassword,
     };
   }
 }
