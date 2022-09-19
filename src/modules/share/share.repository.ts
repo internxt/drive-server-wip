@@ -87,6 +87,10 @@ export class ShareModel extends Model {
   active: boolean;
 
   @AllowNull
+  @Column(DataType.TEXT)
+  hashedPassword: string;
+
+  @AllowNull
   @Column
   code: string;
 }
