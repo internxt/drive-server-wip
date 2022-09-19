@@ -237,6 +237,7 @@ export class SequelizeShareRepository implements ShareRepository {
       code: model.code,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      hashedPassword: model.hashedPassword,
       fileId: model.fileId,
       fileSize: model.isFolder ? null : (item as File)?.size,
       folderId: model.folderId,
@@ -263,6 +264,7 @@ export class SequelizeShareRepository implements ShareRepository {
     code,
     createdAt,
     updatedAt,
+    hashedPassword,
     userId,
   }) {
     return {
@@ -283,6 +285,7 @@ export class SequelizeShareRepository implements ShareRepository {
       code,
       createdAt,
       updatedAt,
+      hashedPassword,
     };
   }
 }

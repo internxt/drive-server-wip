@@ -197,6 +197,7 @@ export class ShareUseCases {
       code: encryptedCode,
       createdAt: new Date(),
       updatedAt: new Date(),
+      hashedPassword: null,
       fileId,
       fileSize: file.size,
     });
@@ -243,6 +244,7 @@ export class ShareUseCases {
       code,
       createdAt: new Date(),
       updatedAt: new Date(),
+      hashedPassword: null,
       folderId,
       fileSize: null,
     });

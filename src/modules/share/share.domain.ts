@@ -21,7 +21,7 @@ export interface ShareAttributes {
   createdAt: Date;
   updatedAt: Date;
   fileToken: string;
-  hashedPassword?: string;
+  hashedPassword: string | null;
 }
 
 export class Share implements ShareAttributes {
@@ -59,7 +59,7 @@ export class Share implements ShareAttributes {
     active,
     createdAt,
     updatedAt,
-    hashedPassword = null,
+    hashedPassword,
   }) {
     this.id = id;
     this.token = token;
