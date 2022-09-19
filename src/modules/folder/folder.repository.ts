@@ -93,6 +93,8 @@ export class SequelizeFolderRepository implements FolderRepository {
   constructor(
     @InjectModel(FolderModel)
     private folderModel: typeof FolderModel,
+    @InjectModel(UserModel)
+    private userModel: typeof UserModel,
   ) {}
 
   async findAll(where = {}): Promise<Array<Folder> | []> {

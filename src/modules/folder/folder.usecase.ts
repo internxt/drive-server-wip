@@ -65,10 +65,10 @@ export class FolderUseCases {
     });
   }
 
-  async getFolderSize(folderId) {
+  async getFolderSize(folderId: FolderAttributes['id']) {
     const folder = await this.folderRepository.findById(folderId);
     if (!folder) {
-      throw new NotFoundException(`folder with id ${folderId} not exists`);
+      throw new NotFoundException(`Folder ${folderId} does not exist`);
     }
 
     const foldersToCheck = [folder.id];
@@ -80,7 +80,7 @@ export class FolderUseCases {
       const [childrenFolder, filesSize] = await Promise.all([
         this.folderRepository.findAllByParentIdAndUserId(
           currentFolderId,
-          folder.user.id,
+          folder.userId,
           false,
         ),
         this.fileUseCases.getTotalSizeOfFilesFromFolder(currentFolderId),
