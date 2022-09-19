@@ -3,12 +3,12 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn('shares', 'hashed_password', {
-      type: Sequelize.BLOB('medium'),
+      type: Sequelize.TEXT,
       allowNull: true,
     });
 
     await queryInterface.addColumn('send_links', 'hashed_password', {
-      type: Sequelize.BLOB('medium'),
+      type: Sequelize.TEXT,
       allowNull: true,
     });
   },
