@@ -71,7 +71,6 @@ export class SendLinkItem implements SendLinkItemAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       version: this.version,
-      hashedPassword: this.hashedPassword,
     };
   }
 }
