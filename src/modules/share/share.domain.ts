@@ -21,6 +21,7 @@ export interface ShareAttributes {
   createdAt: Date;
   updatedAt: Date;
   fileToken: string;
+  password?: string;
 }
 
 export class Share implements ShareAttributes {
@@ -41,28 +42,40 @@ export class Share implements ShareAttributes {
   fileToken: string;
   createdAt: Date;
   updatedAt: Date;
-  /**
-   * Only if the item is a file
-   */
-  encryptionKey?: string;
+  password: string | null;
 
-  constructor(attributes: ShareAttributes) {
-    this.id = attributes.id;
-    this.token = attributes.token;
-    this.mnemonic = attributes.mnemonic;
-    this.bucket = attributes.bucket;
-    this.isFolder = attributes.isFolder;
-    this.views = attributes.views;
-    this.timesValid = attributes.timesValid;
-    this.active = attributes.active;
-    this.code = attributes.code;
-    this.createdAt = attributes.createdAt;
-    this.updatedAt = attributes.updatedAt;
-    this.fileId = attributes.fileId;
-    this.fileSize = attributes.fileSize;
-    this.folderId = attributes.folderId;
-    this.fileToken = attributes.fileToken;
-    this.userId = attributes.userId;
+  constructor({
+    id,
+    token,
+    mnemonic,
+    user,
+    item,
+    encryptionKey,
+    bucket,
+    itemToken,
+    isFolder,
+    views,
+    timesValid,
+    active,
+    createdAt,
+    updatedAt,
+    password = null,
+  }) {
+    this.id = id;
+    this.token = token;
+    this.mnemonic = mnemonic;
+    this.setUser(user);
+    this.item = item;
+    this.encryptionKey = encryptionKey;
+    this.bucket = bucket;
+    this.itemToken = itemToken;
+    this.isFolder = isFolder;
+    this.views = views;
+    this.timesValid = timesValid;
+    this.active = active;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
+    this.password = password;
   }
 
   static build(share: ShareAttributes): Share {
@@ -95,6 +108,10 @@ export class Share implements ShareAttributes {
     return aes.decrypt(this.mnemonic.toString(), code);
   }
 
+  public isProtected(): boolean {
+    return this.password !== null;
+  }
+
   toJSON() {
     return {
       id: this.id,
@@ -114,6 +131,7 @@ export class Share implements ShareAttributes {
       fileToken: this.fileToken,
       item: this.item,
       encryptionKey: this.encryptionKey,
+      password: this.password,
     };
   }
 }

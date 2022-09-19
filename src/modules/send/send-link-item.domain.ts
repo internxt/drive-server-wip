@@ -9,6 +9,7 @@ export interface SendLinkItemAttributes {
   createdAt: Date;
   updatedAt: Date;
   version: number;
+  password?: string;
 }
 
 export class SendLinkItem implements SendLinkItemAttributes {
@@ -22,6 +23,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
   createdAt: Date;
   updatedAt: Date;
   version: number;
+  password: string | null;
 
   constructor({
     id,
@@ -34,6 +36,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
     createdAt,
     updatedAt,
     version,
+    password = null,
   }: SendLinkItemAttributes) {
     this.id = id;
     this.name = name;
@@ -45,10 +48,15 @@ export class SendLinkItem implements SendLinkItemAttributes {
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.version = version;
+    this.password = password;
   }
 
   static build(sendLinkItem: SendLinkItemAttributes): SendLinkItem {
     return new SendLinkItem(sendLinkItem);
+  }
+
+  public isProtected(): boolean {
+    return this.password !== null;
   }
 
   toJSON() {
@@ -63,6 +71,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       version: this.version,
+      password: this.password,
     };
   }
 }
