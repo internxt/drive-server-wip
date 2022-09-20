@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { CryptoService } from '../../../src/externals/crypto/crypto';
+import { CryptoModule } from '../../../src/externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
@@ -18,6 +19,8 @@ import { SendUseCases } from './send.usecase';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases, notificationService, sendRepository;
+  let cryptoService: CryptoService;
+
   const userMock = User.build({
     id: 2,
     userId: 'userId',
@@ -49,6 +52,7 @@ describe('Send Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [CryptoModule],
       providers: [
         SendUseCases,
         NotificationService,
@@ -70,16 +74,13 @@ describe('Send Use Cases', () => {
           provide: getModelToken(UserModel),
           useValue: jest.fn(),
         },
-        {
-          provide: CryptoService,
-          useValue: new CryptoService(),
-        },
       ],
     }).compile();
 
     service = module.get<SendUseCases>(SendUseCases);
     notificationService = module.get<NotificationService>(NotificationService);
     sendRepository = module.get<SendRepository>(SequelizeSendRepository);
+    cryptoService = module.get<CryptoService>(CryptoService);
   });
 
   it('should be defined', () => {
@@ -212,7 +213,7 @@ describe('Send Use Cases', () => {
     });
   });
 
-  it('should create a sendLink protected by password', async () => {
+  it('creates a sendLink protected by password', async () => {
     jest.spyOn(notificationService, 'add').mockResolvedValue(true);
     jest
       .spyOn(sendRepository, 'createSendLinkWithItems')
@@ -232,6 +233,29 @@ describe('Send Use Cases', () => {
     );
 
     expect(sendLink.isProtected()).toBe(true);
+    expect(sendLink.hashedPassword).not.toBe('password');
+  });
+
+  it('creates a sendLink not protected by password', async () => {
+    jest.spyOn(notificationService, 'add').mockResolvedValue(true);
+    jest
+      .spyOn(sendRepository, 'createSendLinkWithItems')
+      .mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+
+    const sendLink = await service.createSendLinks(
+      userMock,
+      [],
+      'code',
+      ['receiver@gmail.com'],
+      'sender@gmail.com',
+      'title',
+      'subject',
+      'plainCode',
+    );
+
+    expect(sendLink.isProtected()).toBe(false);
+    expect(sendLink.hashedPassword).toBe(null);
   });
 
   describe('Unlock Link', () => {
@@ -253,6 +277,29 @@ describe('Send Use Cases', () => {
       });
 
       service.unlockLink(unprotectedSendLink, '');
+    });
+
+    it('unlock protected send link with correct password', () => {
+      const hashedPassword = 'fB4vInezxF';
+      const encryptedPassword = cryptoService.encryptText(hashedPassword);
+
+      const protectedSendLink = SendLink.build({
+        id: '46716608-c5e4-5404-a2b9-2a38d737d87d',
+        views: 0,
+        user: userMock,
+        items: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: 'sender@gmail.com',
+        receivers: ['receiver@gmail.com'],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+        expirationAt: new Date(),
+        hashedPassword: hashedPassword,
+      });
+
+      service.unlockLink(protectedSendLink, encryptedPassword);
     });
 
     it('unlock protected send link without password throws unauthorized exception', () => {

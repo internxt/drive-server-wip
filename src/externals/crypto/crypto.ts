@@ -29,7 +29,13 @@ export class CryptoService {
   }
 
   public encryptText(text: string, salt?: string): string {
-    return this.aesService.encrypt(text, salt || process.env.magicSalt);
+    const randomIv = false;
+
+    return this.aesService.encrypt(
+      text,
+      salt || this.configService.get('secrets.magicSalt'),
+      randomIv,
+    );
   }
 
   encryptName(name, salt) {
@@ -71,7 +77,10 @@ export class CryptoService {
   /* DECRYPT */
 
   public decryptText(text: string, salt?: string): string {
-    return this.decryptName(text, salt || 'sss');
+    return this.decryptName(
+      text,
+      salt || this.configService.get('secrets.magicSalt'),
+    );
   }
 
   decryptName(cipherText, salt) {

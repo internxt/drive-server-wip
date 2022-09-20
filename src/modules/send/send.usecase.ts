@@ -54,7 +54,7 @@ export class SendUseCases {
     expirationAt.setDate(expirationAt.getDate() + 15);
 
     const hashedPassword = password
-      ? this.cryptoService.encryptText(password)
+      ? this.cryptoService.decryptText(password)
       : null;
 
     const sendLink = SendLink.build({
