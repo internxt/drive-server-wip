@@ -5,6 +5,7 @@ import {
   Body,
   Get,
   Param,
+  Headers,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
@@ -35,8 +36,16 @@ export class SendController {
     @Body() content: CreateSendLinkDto,
   ) {
     user = await this.getUserWhenPublic(user);
-    const { items, code, receivers, sender, title, subject, plainCode } =
-      content;
+    const {
+      items,
+      code,
+      receivers,
+      sender,
+      title,
+      subject,
+      plainCode,
+      password,
+    } = content;
 
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
@@ -47,6 +56,7 @@ export class SendController {
       title,
       subject,
       plainCode,
+      password,
     );
     return {
       id: sendLink.id,
@@ -69,8 +79,15 @@ export class SendController {
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
   @Public()
-  async getSendLink(@Param('linkId') linkId: string) {
+  async getSendLink(
+    @Param('linkId') linkId: string,
+    @Headers('x-send-password') password: string | null,
+  ) {
     const sendLink = await this.sendUseCases.getById(linkId);
+
+    if (sendLink.isProtected()) {
+      this.sendUseCases.unlockLink(sendLink, password);
+    }
 
     return {
       id: sendLink.id,

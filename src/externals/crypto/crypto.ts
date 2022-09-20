@@ -28,6 +28,10 @@ export class CryptoService {
     );
   }
 
+  public encryptText(text: string, salt?: string): string {
+    return this.aesService.encrypt(text, salt || process.env.magicSalt);
+  }
+
   encryptName(name, salt) {
     if (salt) {
       return this.aesService.encrypt(name, salt, salt === undefined);
@@ -65,6 +69,10 @@ export class CryptoService {
   }
 
   /* DECRYPT */
+
+  public decryptText(text: string, salt?: string): string {
+    return this.decryptName(text, salt || 'sss');
+  }
 
   decryptName(cipherText, salt) {
     if (salt) {
