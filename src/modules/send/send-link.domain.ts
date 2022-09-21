@@ -112,6 +112,7 @@ export class SendLink implements SendLinkAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       expirationAt: this.expirationAt,
+      protected: this.isProtected(),
     };
   }
 }
