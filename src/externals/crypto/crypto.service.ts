@@ -1,9 +1,10 @@
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 
+@Injectable()
 export class CryptoService {
   private configService: ConfigService;
   private aesService: AesService;
