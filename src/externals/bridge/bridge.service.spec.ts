@@ -1,7 +1,7 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../../modules/user/user.domain';
-import { CryptoService } from '../crypto/crypto';
+import { CryptoService } from '../crypto/crypto.service';
 import { HttpClientModule } from '../http/http.module';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';

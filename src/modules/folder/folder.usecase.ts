@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { CryptoService } from '../../externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FileUseCases } from '../file/file.usecase';
 import { UserAttributes } from '../user/user.domain';
 import { Folder, FolderAttributes } from './folder.domain';
