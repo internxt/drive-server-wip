@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
-import { ConfigService } from '@nestjs/config';
 
 export class CryptoService {
   private static instance: CryptoService;
