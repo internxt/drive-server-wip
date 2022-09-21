@@ -1,4 +1,3 @@
-import { CryptoService } from '../../externals/crypto/crypto';
 import { User } from '../user/user.domain';
 export interface FolderAttributes {
   id: number;
