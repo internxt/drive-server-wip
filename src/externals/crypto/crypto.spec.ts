@@ -7,6 +7,11 @@ describe('Crypto', () => {
       const secondInstance = CryptoService.getInstance();
       expect(firstInstance === secondInstance).toBe(true);
     });
+
+    it('encrypt text without random IV', () => {
+      const service = CryptoService.getInstance();
+      service.encryptName('text to encrypt', 'salt');
+    });
   });
 
   describe('hashSha256', () => {
