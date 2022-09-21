@@ -61,6 +61,7 @@ export class SendUseCases {
       title,
       subject,
       expirationAt,
+      hashedPassword: null,
     });
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({

@@ -14,6 +14,7 @@ export interface SendLinkAttributes {
   createdAt: Date;
   updatedAt: Date;
   expirationAt: Date;
+  hashedPassword: string | null;
 }
 
 export class SendLink implements SendLinkAttributes {
@@ -29,6 +30,8 @@ export class SendLink implements SendLinkAttributes {
   createdAt: Date;
   updatedAt: Date;
   expirationAt: Date;
+  hashedPassword: string | null;
+
   constructor({
     id,
     views,
@@ -42,6 +45,7 @@ export class SendLink implements SendLinkAttributes {
     createdAt,
     updatedAt,
     expirationAt,
+    hashedPassword,
   }) {
     this.id = id;
     this.setUser(user);
@@ -55,6 +59,7 @@ export class SendLink implements SendLinkAttributes {
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.expirationAt = expirationAt;
+    this.hashedPassword = hashedPassword;
   }
 
   static build(send: SendLinkAttributes): SendLink {
@@ -88,6 +93,11 @@ export class SendLink implements SendLinkAttributes {
   addView() {
     this.views++;
   }
+
+  public isProtected(): boolean {
+    return this.hashedPassword !== null;
+  }
+
   toJSON() {
     return {
       id: this.id,
@@ -102,6 +112,7 @@ export class SendLink implements SendLinkAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       expirationAt: this.expirationAt,
+      protected: this.isProtected(),
     };
   }
 }

@@ -82,6 +82,10 @@ export class ShareModel extends Model {
   @Default(true)
   @Column
   active: boolean;
+
+  @AllowNull
+  @Column(DataType.TEXT)
+  hashedPassword: string;
 }
 
 export interface ShareRepository {
@@ -232,6 +236,7 @@ export class SequelizeShareRepository implements ShareRepository {
       user: model.user ? User.build(model.user) : null,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      hashedPassword: model.hashedPassword,
     });
   }
 
@@ -250,6 +255,7 @@ export class SequelizeShareRepository implements ShareRepository {
     active,
     createdAt,
     updatedAt,
+    hashedPassword,
   }) {
     return {
       id,
@@ -267,6 +273,7 @@ export class SequelizeShareRepository implements ShareRepository {
       active,
       createdAt,
       updatedAt,
+      hashedPassword,
     };
   }
 }
