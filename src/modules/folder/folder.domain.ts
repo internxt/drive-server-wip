@@ -64,7 +64,7 @@ export class Folder implements FolderAttributes {
     return new Folder(file);
   }
   private decryptName(nameEncrypted) {
-    const cryptoService = CryptoService.getInstance();
+    const cryptoService = {} as CryptoService;
     return cryptoService.decryptName(nameEncrypted, this.parentId);
   }
 

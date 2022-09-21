@@ -2,18 +2,30 @@ import { Logger } from '@nestjs/common';
 import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 
 export class CryptoService {
   private static instance: CryptoService;
+
+  private configService: ConfigService;
   private aesService: AesService;
   private cryptoSecret: string;
-  constructor() {
-    this.aesService = new AesService();
+
+  private constructor(configService: ConfigService) {
+    this.configService = configService;
+    this.aesService = new AesService(
+      this.configService.get('secrets.magicIv'),
+      this.configService.get('secrets.magicSalt'),
+      this.configService.get('secrets.cryptoSecret2'),
+    );
     this.cryptoSecret = process.env.CRYPTO_SECRET;
   }
 
-  static getInstance(): CryptoService {
-    return CryptoService.instance || (this.instance = new CryptoService());
+  static getInstance(configService: ConfigService): CryptoService {
+    return (
+      CryptoService.instance ||
+      (this.instance = new CryptoService(configService))
+    );
   }
 
   encryptName(name, salt) {
