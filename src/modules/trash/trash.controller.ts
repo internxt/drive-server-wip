@@ -61,7 +61,9 @@ export class TrashController {
     );
     return {
       ...currentFolder.toJSON(),
-      children: childrenFolders,
+      children: childrenFolders.map((folder) =>
+        this.folderUseCases.decryptFolderName(folder),
+      ),
       files,
     };
   }
