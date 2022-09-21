@@ -1,4 +1,3 @@
-import { CryptoService } from '../../externals/crypto/crypto';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 
