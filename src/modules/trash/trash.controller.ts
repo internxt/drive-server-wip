@@ -24,12 +24,14 @@ import { UserUseCases } from '../user/user.usecase';
 import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
-
 import { TrashUseCases } from './trash.usecase';
 import {
   DeleteItemsDto,
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
+import { Folder } from '../folder/folder.domain';
+import { File } from '../file/file.domain';
+
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
@@ -61,10 +63,10 @@ export class TrashController {
     );
     return {
       ...currentFolder.toJSON(),
-      children: childrenFolders.map((folder) =>
+      children: childrenFolders.map((folder: Folder) =>
         this.folderUseCases.decryptFolderName(folder),
       ),
-      files,
+      files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
     };
   }
 

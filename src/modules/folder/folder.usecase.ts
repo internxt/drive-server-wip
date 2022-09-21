@@ -136,6 +136,10 @@ export class FolderUseCases {
       folder.parentId,
     );
 
+    if (decryptedName === '') {
+      throw new Error('Unable to decrypt folder name');
+    }
+
     return Folder.build({ ...folder, name: decryptedName }).toJSON();
   }
 }
