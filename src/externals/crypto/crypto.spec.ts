@@ -5,7 +5,6 @@ import { CryptoService } from './crypto.service';
 
 describe('Crypto', () => {
   let cryptoService: CryptoService;
-  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,7 +19,7 @@ describe('Crypto', () => {
         {
           provide: CryptoService,
           useFactory: async (configService: ConfigService) => {
-            return CryptoService.getInstance(configService);
+            return new CryptoService(configService);
           },
           inject: [ConfigService],
         },
@@ -28,16 +27,9 @@ describe('Crypto', () => {
     }).compile();
 
     cryptoService = module.get<CryptoService>(CryptoService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('check crypto as singleton', () => {
-    it('create 2 instances and are the same', () => {
-      const firstInstance = CryptoService.getInstance(configService);
-      const secondInstance = CryptoService.getInstance(configService);
-      expect(firstInstance === secondInstance).toBe(true);
-    });
-
     it('encrypt text without random IV does not throw an exception', () => {
       cryptoService.encryptName('text to encrypt', 'salt');
     });
