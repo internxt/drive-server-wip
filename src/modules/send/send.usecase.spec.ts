@@ -106,6 +106,7 @@ describe('Send Use Cases', () => {
         title: 'title',
         subject: 'subject',
         expirationAt,
+        hashedPassword: null,
       });
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(sendLinkMock);
 
@@ -130,6 +131,7 @@ describe('Send Use Cases', () => {
         title: 'title',
         subject: 'subject',
         expirationAt,
+        hashedPassword: null,
       });
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(sendLinkMock);
       jest.spyOn(sendRepository, 'update').mockResolvedValue(undefined);
