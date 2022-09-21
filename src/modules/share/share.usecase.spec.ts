@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { File } from '../file/file.domain';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
@@ -149,7 +150,7 @@ describe('Share Use Cases', () => {
   });
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [
         ShareUseCases,
         FolderUseCases,
