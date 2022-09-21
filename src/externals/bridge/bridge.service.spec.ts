@@ -6,6 +6,7 @@ import { HttpClientModule } from '../http/http.module';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
 import { AxiosResponse } from 'axios';
+import { CryptoModule } from '../crypto/crypto.module';
 
 describe('Bridge Service', () => {
   let service: BridgeService;
@@ -44,14 +45,8 @@ describe('Bridge Service', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule, HttpClientModule],
-      providers: [
-        BridgeService,
-        {
-          provide: CryptoService,
-          useValue: new CryptoService(),
-        },
-      ],
+      imports: [ConfigModule, HttpClientModule, CryptoModule],
+      providers: [BridgeService],
     }).compile();
 
     service = module.get<BridgeService>(BridgeService);
