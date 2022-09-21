@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
 import { FileModel } from '../file/file.repository';
@@ -18,6 +19,7 @@ import { ShareUseCases } from './share.usecase';
     forwardRef(() => FolderModule),
     UserModule,
     NotificationModule,
+    CryptoModule,
   ],
   controllers: [ShareController],
   providers: [SequelizeShareRepository, ShareUseCases],

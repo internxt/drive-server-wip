@@ -13,6 +13,7 @@ import {
   Req,
   Delete,
   BadRequestException,
+  Headers,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
@@ -89,9 +90,14 @@ export class ShareController {
     @UserDecorator() user: User,
     @Param('token') token: string,
     @Req() req: Request,
+    @Headers('x-send-password') password: string | null,
   ) {
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, user);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      user,
+      password,
+    );
     const isTheOwner = user && share.isOwner(user.id);
     if (!isTheOwner) {
       const shareLinkViewEvent = new ShareLinkViewEvent(
@@ -226,10 +232,15 @@ export class ShareController {
   async getDownFiles(
     @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
+    @Headers('x-send-password') password: string | null,
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, user);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      user,
+      password,
+    );
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
       user.id,
@@ -269,7 +280,7 @@ export class ShareController {
   ) {
     const { token, folderId, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token, user);
+    await this.shareUseCases.getShareByToken(token, user); // ?
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
       page,
