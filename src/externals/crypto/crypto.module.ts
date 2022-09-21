@@ -15,7 +15,7 @@ import { CryptoService } from './crypto.service';
     {
       provide: CryptoService,
       useFactory: (configService: ConfigService) => {
-        return CryptoService.getInstance(configService);
+        return new CryptoService(configService);
       },
       inject: [ConfigService],
     },

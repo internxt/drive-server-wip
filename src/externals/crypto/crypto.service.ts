@@ -5,13 +5,11 @@ import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 
 export class CryptoService {
-  private static instance: CryptoService;
-
   private configService: ConfigService;
   private aesService: AesService;
   private cryptoSecret: string;
 
-  private constructor(configService: ConfigService) {
+  constructor(configService: ConfigService) {
     this.configService = configService;
     this.aesService = new AesService(
       this.configService.get('secrets.magicIv'),
@@ -19,13 +17,6 @@ export class CryptoService {
       this.configService.get('secrets.cryptoSecret2'),
     );
     this.cryptoSecret = process.env.CRYPTO_SECRET;
-  }
-
-  static getInstance(configService: ConfigService): CryptoService {
-    return (
-      CryptoService.instance ||
-      (this.instance = new CryptoService(configService))
-    );
   }
 
   encryptName(name, salt) {
