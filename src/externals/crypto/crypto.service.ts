@@ -20,6 +20,16 @@ export class CryptoService {
     this.cryptoSecret = process.env.CRYPTO_SECRET;
   }
 
+  public encryptText(text: string, salt?: string): string {
+    const randomIv = false;
+
+    return this.aesService.encrypt(
+      text,
+      salt || this.configService.get('secrets.magicSalt'),
+      randomIv,
+    );
+  }
+
   encryptName(name, salt) {
     if (salt) {
       return this.aesService.encrypt(name, salt, salt === undefined);
@@ -57,6 +67,13 @@ export class CryptoService {
   }
 
   /* DECRYPT */
+
+  public decryptText(text: string, salt?: string): string {
+    return this.decryptName(
+      text,
+      salt || this.configService.get('secrets.magicSalt'),
+    );
+  }
 
   decryptName(cipherText, salt) {
     if (salt) {
