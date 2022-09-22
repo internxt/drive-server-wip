@@ -1,23 +1,26 @@
 import { aes } from '@internxt/lib';
-import { File } from '../file/file.domain';
-import { Folder } from '../folder/folder.domain';
-import { User } from '../user/user.domain';
+
+import { File, FileAttributes } from '../file/file.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { UserAttributes } from '../user/user.domain';
 
 export interface ShareAttributes {
   id: number;
   token: string;
   mnemonic: string;
-  user: any;
-  item: any;
-  encryptionKey: string;
-  bucket: string;
-  itemToken: string;
+  bucket: FileAttributes['bucket'];
   isFolder: boolean;
   views: number;
   timesValid: number;
+  userId: UserAttributes['id'];
+  fileId: FileAttributes['id'];
+  fileSize: FileAttributes['size'];
+  folderId: FolderAttributes['id'];
   active: boolean;
+  code: string;
   createdAt: Date;
   updatedAt: Date;
+  fileToken: string;
   hashedPassword: string | null;
 }
 
@@ -25,62 +28,48 @@ export class Share implements ShareAttributes {
   id: number;
   token: string;
   mnemonic: string;
-  user: User;
-  item: File | Folder;
-  encryptionKey: string;
   bucket: string;
-  itemToken: string;
   isFolder: boolean;
   views: number;
   timesValid: number;
+  userId: UserAttributes['id'];
+  fileId: FileAttributes['id'];
+  fileSize: FileAttributes['size'];
+  folderId: FolderAttributes['id'];
   active: boolean;
+  code: string;
+  item: File | Folder;
+  fileToken: string;
   createdAt: Date;
   updatedAt: Date;
   hashedPassword: string | null;
+  /**
+   * Only if the item is a file
+   */
+  encryptionKey?: string;
 
-  constructor({
-    id,
-    token,
-    mnemonic,
-    user,
-    item,
-    encryptionKey,
-    bucket,
-    itemToken,
-    isFolder,
-    views,
-    timesValid,
-    active,
-    createdAt,
-    updatedAt,
-    hashedPassword,
-  }) {
-    this.id = id;
-    this.token = token;
-    this.mnemonic = mnemonic;
-    this.setUser(user);
-    this.item = item;
-    this.encryptionKey = encryptionKey;
-    this.bucket = bucket;
-    this.itemToken = itemToken;
-    this.isFolder = isFolder;
-    this.views = views;
-    this.timesValid = timesValid;
-    this.active = active;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-    this.hashedPassword = hashedPassword;
+  constructor(attributes: ShareAttributes) {
+    this.id = attributes.id;
+    this.token = attributes.token;
+    this.mnemonic = attributes.mnemonic;
+    this.bucket = attributes.bucket;
+    this.isFolder = attributes.isFolder;
+    this.views = attributes.views;
+    this.timesValid = attributes.timesValid;
+    this.active = attributes.active;
+    this.code = attributes.code;
+    this.createdAt = attributes.createdAt;
+    this.updatedAt = attributes.updatedAt;
+    this.fileId = attributes.fileId;
+    this.fileSize = attributes.fileSize;
+    this.folderId = attributes.folderId;
+    this.fileToken = attributes.fileToken;
+    this.userId = attributes.userId;
+    this.hashedPassword = attributes.hashedPassword;
   }
 
   static build(share: ShareAttributes): Share {
     return new Share(share);
-  }
-
-  setUser(user) {
-    if (user && !(user instanceof User)) {
-      throw Error('user invalid');
-    }
-    this.user = user;
   }
 
   incrementView() {
@@ -89,7 +78,7 @@ export class Share implements ShareAttributes {
 
   canHaveView() {
     return (
-      this.active && (this.timesValid === null || this.timesValid > this.views)
+      this.active && (this.timesValid == -1 || this.timesValid > this.views)
     );
   }
 
@@ -105,13 +94,8 @@ export class Share implements ShareAttributes {
     this.active = false;
   }
 
-  isOwner(userId) {
-    return this.user.id === userId;
-  }
-
   decryptMnemonic(code) {
-    this.mnemonic = aes.decrypt(this.mnemonic.toString(), code);
-    return this.mnemonic;
+    return aes.decrypt(this.mnemonic.toString(), code);
   }
 
   public isProtected(): boolean {
@@ -123,17 +107,20 @@ export class Share implements ShareAttributes {
       id: this.id,
       token: this.token,
       mnemonic: this.mnemonic,
-      user: this.user ? this.user.toJSON() : null,
-      item: this.item ? this.item.toJSON() : null,
-      encryptionKey: this.encryptionKey,
       bucket: this.bucket,
-      itemToken: this.itemToken,
       isFolder: this.isFolder,
       views: this.views,
       timesValid: this.timesValid,
       active: this.active,
+      code: this.code,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      fileId: this.fileId,
+      fileSize: this.fileSize,
+      folderId: this.folderId,
+      fileToken: this.fileToken,
+      item: this.item,
+      encryptionKey: this.encryptionKey,
       protected: this.isProtected(),
     };
   }

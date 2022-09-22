@@ -1,20 +1,20 @@
 import {
-  Controller,
-  HttpCode,
-  Get,
-  Put,
-  Param,
-  Query,
-  Post,
+  BadRequestException,
   Body,
-  Res,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
+  Post,
+  Put,
+  Query,
   Req,
-  Delete,
-  BadRequestException,
+  Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
@@ -29,6 +29,7 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { ShareLinkViewEvent } from '../../externals/notifications/events/share-link-view.event';
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
 import { User } from '../user/user.domain';
+import { FileAttributes } from '../file/file.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -86,14 +87,32 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get share' })
   @Public()
   async getShareByToken(
+    @Param('token') token: string,
+    @Query('code') code: string,
+  ) {
+    const share = await this.shareUseCases.getShareByToken(token, code);
+    return share.toJSON();
+  }
+
+  @Put(':token/view')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Increment share view by token',
+  })
+  @ApiOkResponse({ description: 'Increment share view by token' })
+  @Public()
+  async incrementViewById(
     @UserDecorator() user: User,
     @Param('token') token: string,
     @Req() req: Request,
   ) {
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, user);
-    const isTheOwner = user && share.isOwner(user.id);
-    if (!isTheOwner) {
+    const share = await this.shareUseCases.getShareByToken(token);
+    const incremented = await this.shareUseCases.incrementShareView(
+      share,
+      user,
+    );
+    if (incremented) {
       const shareLinkViewEvent = new ShareLinkViewEvent(
         'share.view',
         user,
@@ -103,7 +122,10 @@ export class ShareController {
       );
       this.notificationService.add(shareLinkViewEvent);
     }
-    return share.toJSON();
+    return {
+      incremented,
+      token,
+    };
   }
 
   @Put('/:shareId')
@@ -133,7 +155,6 @@ export class ShareController {
     summary: 'Delete share by id',
   })
   @ApiOkResponse({ description: 'Delete share by id' })
-  @Public()
   async deleteShareByToken(
     @UserDecorator() user: User,
     @Param('shareId') shareId: string,
@@ -156,16 +177,13 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get Token of share' })
   async generateSharedTokenToFile(
     @UserDecorator() user: User,
-    @Param('fileId') fileId: string,
+    @Param('fileId') fileId: FileAttributes['id'],
     @Body() body: CreateShareDto,
     @Res() res: Response,
     @Req() req: Request,
   ) {
-    const { item, created } = await this.shareUseCases.createShareFile(
-      fileId,
-      user,
-      body,
-    );
+    const { item, created, encryptedCode } =
+      await this.shareUseCases.createShareFile(fileId, user, body);
 
     const shareLinkViewEvent = new ShareLinkCreatedEvent(
       'share.created',
@@ -179,6 +197,7 @@ export class ShareController {
     res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
       created,
       token: item.token,
+      encryptedCode,
     });
   }
 
@@ -195,11 +214,12 @@ export class ShareController {
     @Res() res: Response,
     @Req() req: Request,
   ) {
-    const { item, created } = await this.shareUseCases.createShareFolder(
-      parseInt(folderId),
-      user,
-      body,
-    );
+    const { item, created, encryptedCode } =
+      await this.shareUseCases.createShareFolder(
+        parseInt(folderId),
+        user,
+        body,
+      );
 
     const shareLinkViewEvent = new ShareLinkCreatedEvent(
       'share.created',
@@ -213,6 +233,7 @@ export class ShareController {
     res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
       created,
       token: item.token,
+      encryptedCode,
     });
   }
 
@@ -229,15 +250,15 @@ export class ShareController {
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, user);
+    const share = await this.shareUseCases.getShareByToken(token);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
-      user.id,
+      share.userId,
       share.mnemonic,
     );
     const files = await this.fileUseCases.getByFolderAndUser(
       folderId,
-      user.id,
+      share.userId,
       false,
       parseInt(page),
       parseInt(perPage),
@@ -269,11 +290,11 @@ export class ShareController {
   ) {
     const { token, folderId, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token, user);
+    await this.shareUseCases.getShareByToken(token);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
-      page,
-      perPage,
+      parseInt(page),
+      parseInt(perPage),
     );
     return { folders, last: parseInt(perPage) > folders.length };
   }
