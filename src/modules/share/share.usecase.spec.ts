@@ -1,14 +1,19 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { File } from '../file/file.domain';
-import { FileModel, SequelizeFileRepository } from '../file/file.repository';
+import {
+  FileModel,
+  FileRepository,
+  SequelizeFileRepository,
+} from '../file/file.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder } from '../folder/folder.domain';
 import {
   FolderModel,
+  FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -25,9 +30,10 @@ import { ShareUseCases } from './share.usecase';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
-  let fileService: FileUseCases;
-  let folderService: FolderUseCases;
   let shareRepository: ShareRepository;
+  let fileRepository: FileRepository;
+  let folderRepository: FolderRepository;
+
   const token = 'token';
   const userOwnerMock = User.build({
     id: 1,
@@ -117,11 +123,7 @@ describe('Share Use Cases', () => {
     id: 1,
     token: 'token',
     mnemonic: 'test',
-    user: userOwnerMock,
-    item: mockFolder,
-    encryptionKey: 'test',
     bucket: 'test',
-    itemToken: 'token',
     isFolder: true,
     views: 0,
     timesValid: 10,
@@ -129,16 +131,18 @@ describe('Share Use Cases', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     hashedPassword: null,
+    userId: 2083971069,
+    fileId: null,
+    fileSize: null,
+    folderId: 3209615469,
+    code: 'daz2uC8A0AMKoZjIvyfELDaTJz8p2f',
+    fileToken: '17phH5NgBtAbx4ARxp1PpNGTqgSz1G',
   });
   const shareFile = Share.build({
     id: 1,
     token: 'token',
     mnemonic: 'test',
-    user: userOwnerMock,
-    item: mockFile,
-    encryptionKey: 'test',
     bucket: 'test',
-    itemToken: 'token',
     isFolder: false,
     views: 0,
     timesValid: 10,
@@ -146,6 +150,12 @@ describe('Share Use Cases', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     hashedPassword: null,
+    userId: 2083971069,
+    fileId: 944407977,
+    fileSize: BigInt(2840781934),
+    folderId: null,
+    code: 'qJhD70HqNsaeIZs39MJCvy4HfNbC5v',
+    fileToken: '4FX6oaWFx2SCgIO5ZeGOlXY69J0rNJ',
   });
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -180,9 +190,9 @@ describe('Share Use Cases', () => {
     }).compile();
 
     service = module.get<ShareUseCases>(ShareUseCases);
-    fileService = module.get<FileUseCases>(FileUseCases);
-    folderService = module.get<FolderUseCases>(FolderUseCases);
     shareRepository = module.get<ShareRepository>(SequelizeShareRepository);
+    fileRepository = module.get<FileRepository>(SequelizeFileRepository);
+    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
   });
 
   it('should be defined', () => {
@@ -210,7 +220,7 @@ describe('Share Use Cases', () => {
           {
             id: 1,
             token: 'token',
-            item: mockFolder,
+            // item: mockFolder,
             isFolder: true,
             views: 0,
             timesValid: 10,
@@ -223,10 +233,14 @@ describe('Share Use Cases', () => {
 
   describe('get share by token', () => {
     it('as owner share should return share', async () => {
+      const code = 'code';
       shareFolder.views = 0;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
-      const result = await service.getShareByToken(token, userOwnerMock);
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
+
+      const result = await service.getShareByToken(token, code);
+
       expect(result).toMatchObject({
         id: 1,
         token: 'token',
@@ -236,32 +250,38 @@ describe('Share Use Cases', () => {
         active: true,
       });
     });
-    it('as user not owner share should return share and increment view', async () => {
+    it('as user not owner share should return share and NOT increment view', async () => {
       shareFolder.views = 0;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
       jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
-      const result = await service.getShareByToken(token, userMock);
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
+
+      const result = await service.getShareByToken(token);
+
       expect(result).toMatchObject({
         id: 1,
         token: 'token',
-        views: 1,
+        views: 0,
         isFolder: true,
         timesValid: 10,
         active: true,
       });
     });
 
-    it('as user anonymus share should return share and increment view', async () => {
+    it('as user anonymus share should return share and NOT increment view', async () => {
       shareFolder.views = 0;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
       jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
+
       const result = await service.getShareByToken(token, null);
+
       expect(result).toMatchObject({
         id: 1,
         token: 'token',
-        views: 1,
+        views: 0,
         isFolder: true,
         timesValid: 10,
         active: true,
@@ -272,22 +292,27 @@ describe('Share Use Cases', () => {
       shareFolder.active = false;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
       await expect(service.getShareByToken(token, null)).rejects.toThrow(
-        'cannot view this share',
+        new NotFoundException('Share expired'),
       );
     });
-    it('as user share should return share with same views and timesValid', async () => {
+    it('returns the share with the same views', async () => {
       shareFolder.views = 9;
       shareFolder.active = true;
       jest.spyOn(shareRepository, 'findByToken').mockResolvedValue(shareFolder);
       jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValue(shareFolder.item as Folder);
+
       const result = await service.getShareByToken(token, null);
+
       expect(result).toMatchObject({
         id: 1,
         token: 'token',
-        views: 10,
+        views: 9,
         isFolder: true,
         timesValid: 10,
-        active: false,
+        active: true,
       });
     });
   });
@@ -318,7 +343,12 @@ describe('Share Use Cases', () => {
     it('should return share updated', async () => {
       jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
       jest.spyOn(shareRepository, 'update').mockResolvedValue(undefined);
-      const result = await service.updateShareById(1, userOwnerMock, {
+
+      const userOwnerOfShare = {
+        id: shareFolder.userId,
+      } as User;
+
+      const result = await service.updateShareById(1, userOwnerOfShare, {
         timesValid: 20,
         active: true,
       });
@@ -346,8 +376,14 @@ describe('Share Use Cases', () => {
   describe('delete share by id', () => {
     it('should return share deleted', async () => {
       jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
-      jest.spyOn(shareRepository, 'delete').mockResolvedValue(undefined);
-      const result = await service.deleteShareById(1, userOwnerMock);
+      jest.spyOn(shareRepository, 'deleteById').mockResolvedValue(undefined);
+
+      const userOwnerOfShare = {
+        id: shareFolder.userId,
+      } as unknown as User;
+
+      const result = await service.deleteShareById(1, userOwnerOfShare);
+
       expect(result).toBe(true);
     });
 
@@ -361,21 +397,23 @@ describe('Share Use Cases', () => {
 
   describe('create share file', () => {
     it('should return share pre exist', async () => {
-      jest.spyOn(fileService, 'getByFileIdAndUser').mockResolvedValue(mockFile);
+      const fileId = 1831192863;
+      jest.spyOn(fileRepository, 'findOne').mockResolvedValue(mockFile);
       jest
         .spyOn(shareRepository, 'findByFileIdAndUser')
         .mockResolvedValue(shareFile);
       jest.spyOn(shareRepository, 'create').mockResolvedValue(undefined);
-      const result = await service.createShareFile('fileId', userOwnerMock, {
+      const result = await service.createShareFile(fileId, userOwnerMock, {
         timesValid: 20,
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        mnemonic: '',
+        encryptedMnemonic: 'encryptedMnemonic',
+        encryptedCode: 'encryptedCode',
       });
-      expect(fileService.getByFileIdAndUser).toHaveBeenNthCalledWith(
+      expect(fileRepository.findOne).toHaveBeenNthCalledWith(
         1,
-        'fileId',
+        fileId,
         userOwnerMock.id,
       );
       expect(shareRepository.create).toHaveBeenCalledTimes(0);
@@ -392,22 +430,25 @@ describe('Share Use Cases', () => {
       });
     });
 
-    it('should return new share', async () => {
-      jest.spyOn(fileService, 'getByFileIdAndUser').mockResolvedValue(mockFile);
+    it('should return new file share', async () => {
+      const fileId = 4087455352;
+      jest.spyOn(fileRepository, 'findOne').mockResolvedValue(mockFile);
       jest
         .spyOn(shareRepository, 'findByFileIdAndUser')
         .mockResolvedValue(null);
       jest.spyOn(shareRepository, 'create').mockResolvedValue(undefined);
-      const result = await service.createShareFile('fileId', userOwnerMock, {
+
+      const result = await service.createShareFile(fileId, userOwnerMock, {
         timesValid: 20,
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        mnemonic: '',
+        encryptedMnemonic: 'encryptedMnemonic',
+        encryptedCode: 'encryptedCode',
       });
-      expect(fileService.getByFileIdAndUser).toHaveBeenNthCalledWith(
+      expect(fileRepository.findOne).toHaveBeenNthCalledWith(
         1,
-        'fileId',
+        fileId,
         userOwnerMock.id,
       );
       expect(shareRepository.create).toHaveBeenCalledTimes(1);
@@ -428,7 +469,7 @@ describe('Share Use Cases', () => {
     it('should return share pre exist', async () => {
       shareFolder.timesValid = 10;
       shareFolder.active = true;
-      jest.spyOn(folderService, 'getFolder').mockResolvedValue(mockFolder);
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
       jest
         .spyOn(shareRepository, 'findByFolderIdAndUser')
         .mockResolvedValue(shareFolder);
@@ -438,9 +479,10 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        mnemonic: '',
+        encryptedMnemonic: 'encryptedMnemonic',
+        encryptedCode: 'encryptedCode',
       });
-      expect(folderService.getFolder).toHaveBeenNthCalledWith(1, 1);
+      expect(folderRepository.findById).toHaveBeenNthCalledWith(1, 1);
       expect(shareRepository.create).toHaveBeenCalledTimes(0);
       expect(result).toMatchObject({
         item: {
@@ -455,10 +497,10 @@ describe('Share Use Cases', () => {
       });
     });
 
-    it('should return new share', async () => {
+    it('should return new folder share', async () => {
       shareFolder.timesValid = 10;
       shareFolder.active = true;
-      jest.spyOn(folderService, 'getFolder').mockResolvedValue(mockFolder);
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
       jest
         .spyOn(shareRepository, 'findByFolderIdAndUser')
         .mockResolvedValue(null);
@@ -468,9 +510,10 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        mnemonic: '',
+        encryptedMnemonic: 'encryptedMnemonic',
+        encryptedCode: 'encryptedCode',
       });
-      expect(folderService.getFolder).toHaveBeenNthCalledWith(1, 1);
+      expect(folderRepository.findById).toHaveBeenNthCalledWith(1, 1);
       expect(shareRepository.create).toHaveBeenCalledTimes(1);
       expect(result).toMatchObject({
         item: {
@@ -487,22 +530,22 @@ describe('Share Use Cases', () => {
 
   describe('delete share by fileId', () => {
     it('should delete the share if its from the user', async () => {
-      jest.spyOn(shareRepository, 'delete').mockResolvedValueOnce();
-      jest
-        .spyOn(shareRepository, 'findByFileIdAndUser')
-        .mockResolvedValueOnce({ user: { id: userMock.id } } as Share);
+      jest.spyOn(shareRepository, 'deleteById').mockResolvedValueOnce();
+      jest.spyOn(shareRepository, 'findByFileIdAndUser').mockResolvedValueOnce({
+        userId: userMock.id,
+      } as unknown as Share);
 
       await service.deleteFileShare(885045478, userMock);
 
       expect(shareRepository.findByFileIdAndUser).toBeCalled();
-      expect(shareRepository.delete).toBeCalled();
+      expect(shareRepository.deleteById).toBeCalled();
     });
 
     it('should not fail if there is no share its not from the user', async () => {
-      jest.spyOn(shareRepository, 'delete');
-      jest
-        .spyOn(shareRepository, 'findByFileIdAndUser')
-        .mockResolvedValueOnce({ user: { id: userMock.id + 1 } } as Share);
+      jest.spyOn(shareRepository, 'deleteById');
+      jest.spyOn(shareRepository, 'findByFileIdAndUser').mockResolvedValueOnce({
+        userId: userMock.id + 1,
+      } as unknown as Share);
 
       await service.deleteFileShare(885045478, userMock).catch((error) => {
         expect(error).toBeInstanceOf(ForbiddenException);
@@ -510,11 +553,11 @@ describe('Share Use Cases', () => {
       });
 
       expect(shareRepository.findByFileIdAndUser).toBeCalled();
-      expect(shareRepository.delete).toBeCalledTimes(0);
+      expect(shareRepository.deleteById).toBeCalledTimes(0);
     });
 
     it('should not fail if there is no share for the file', async () => {
-      jest.spyOn(shareRepository, 'delete');
+      jest.spyOn(shareRepository, 'deleteById');
       jest
         .spyOn(shareRepository, 'findByFileIdAndUser')
         .mockResolvedValueOnce(null);
@@ -522,7 +565,7 @@ describe('Share Use Cases', () => {
       await service.deleteFileShare(885045478, userMock);
 
       expect(shareRepository.findByFileIdAndUser).toBeCalled();
-      expect(shareRepository.delete).toBeCalledTimes(0);
+      expect(shareRepository.deleteById).toBeCalledTimes(0);
     });
   });
 });
