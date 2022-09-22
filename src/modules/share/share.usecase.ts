@@ -200,6 +200,7 @@ export class ShareUseCases {
       hashedPassword: null,
       fileId,
       fileSize: file.size,
+      hashedPassword: null,
     });
     await this.shareRepository.create(newShare);
     // apply userReferral to share-file
@@ -247,6 +248,7 @@ export class ShareUseCases {
       hashedPassword: null,
       folderId,
       fileSize: null,
+      hashedPassword: null,
     });
     await this.shareRepository.create(newShare);
 

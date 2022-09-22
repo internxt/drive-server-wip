@@ -128,6 +128,7 @@ describe('Share Use Cases', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    hashedPassword: null,
   });
   const shareFile = Share.build({
     id: 1,
@@ -144,6 +145,7 @@ describe('Share Use Cases', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    hashedPassword: null,
   });
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
