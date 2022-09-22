@@ -18,6 +18,7 @@ import {
   ShareModel,
 } from '../share/share.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { CryptoModule } from '../..//externals/crypto/crypto.module';
 import { NotFoundException } from '@nestjs/common';
 
 describe('Trash Use Cases', () => {
@@ -55,7 +56,7 @@ describe('Trash Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [
         TrashUseCases,
         FileUseCases,

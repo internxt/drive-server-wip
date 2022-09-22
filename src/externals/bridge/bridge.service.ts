@@ -1,10 +1,9 @@
 import { Logger } from '@nestjs/common';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { rejectedSyncPromise } from '@sentry/utils';
 import { FileAttributes } from 'src/modules/file/file.domain';
 import { User } from 'src/modules/user/user.domain';
-import { CryptoService } from '../crypto/crypto';
+import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
 
 @Injectable()

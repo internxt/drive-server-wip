@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FileUseCases } from '../file/file.usecase';
 import { UserAttributes } from '../user/user.domain';
 import { Folder, FolderAttributes } from './folder.domain';
@@ -16,6 +17,7 @@ export class FolderUseCases {
     private folderRepository: SequelizeFolderRepository,
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   async getFolder(folderId: FolderAttributes['id']) {
@@ -126,5 +128,18 @@ export class FolderUseCases {
     if (remainingFolders > 0) {
       await this.deleteOrphansFolders(userId);
     }
+  }
+
+  decryptFolderName(folder: Folder): any {
+    const decryptedName = this.cryptoService.decryptName(
+      folder.name,
+      folder.parentId,
+    );
+
+    if (decryptedName === '') {
+      throw new Error('Unable to decrypt folder name');
+    }
+
+    return Folder.build({ ...folder, name: decryptedName }).toJSON();
   }
 }

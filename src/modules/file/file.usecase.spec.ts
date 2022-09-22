@@ -7,7 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
-import { File } from './file.domain';
+import { File, FileAttributes } from './file.domain';
 import { FileModel } from './file.repository';
 import { User } from '../user/user.domain';
 import { ShareUseCases } from '../share/share.usecase';
@@ -23,6 +23,8 @@ import {
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
@@ -31,10 +33,11 @@ describe('FileUseCases', () => {
   let fileRepository: FileRepository;
   let shareUseCases: ShareUseCases;
   let bridgeService: BridgeService;
+  let cryptoService: CryptoService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [
         FileUseCases,
         SequelizeFileRepository,
@@ -66,6 +69,7 @@ describe('FileUseCases', () => {
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
     shareUseCases = module.get<ShareUseCases>(ShareUseCases);
     bridgeService = module.get<BridgeService>(BridgeService);
+    cryptoService = module.get<CryptoService>(CryptoService);
   });
 
   afterEach(() => {
@@ -359,6 +363,64 @@ describe('FileUseCases', () => {
       });
 
       expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('decrypt file name', () => {
+    const fileAttributes: FileAttributes = {
+      id: 0,
+      fileId: '4fda5d98-e5b4-56da-a4f2-000084ac0678',
+      name: 'Verna Pope',
+      type: 'type',
+      size: BigInt(60),
+      bucket: 'bucket',
+      folderId,
+      folder: null,
+      encryptVersion: 'aes-2',
+      deleted: false,
+      deletedAt: new Date('2022-09-21T11:11:30.742Z'),
+      userId: 3431709237,
+      user: null,
+      modificationTime: new Date('2022-09-21T11:11:30.742Z'),
+      createdAt: new Date('2022-09-21T11:11:30.742Z'),
+      updatedAt: new Date('2022-09-21T11:11:30.742Z'),
+    };
+
+    it('returns a file with the name decrypted', () => {
+      const decyptedName = 'Myanmar';
+      const folderId = 523;
+
+      const encryptedName = cryptoService.encryptName(decyptedName, folderId);
+
+      const file = File.build({
+        ...fileAttributes,
+        name: encryptedName,
+        folderId,
+      });
+
+      const result = service.decrypFileName(file);
+
+      expect(result).toStrictEqual({
+        ...fileAttributes,
+        name: decyptedName,
+        folderId,
+      });
+    });
+
+    it('fails when name is not encrypted', () => {
+      const decyptedName = 'not encrypted name';
+
+      const file = File.build({
+        ...fileAttributes,
+        name: decyptedName,
+      });
+
+      try {
+        service.decrypFileName(file);
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(Error);
+        expect(err.message).toBe('Unable to decrypt file name');
+      }
     });
   });
 });

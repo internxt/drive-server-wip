@@ -1,4 +1,3 @@
-import { CryptoService } from '../../externals/crypto/crypto';
 import { User } from '../user/user.domain';
 export interface FolderAttributes {
   id: number;
@@ -30,7 +29,7 @@ export class Folder implements FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   size: number;
-  constructor({
+  private constructor({
     id,
     parentId,
     parent,
@@ -47,7 +46,7 @@ export class Folder implements FolderAttributes {
     this.type = 'folder';
     this.id = id;
     this.parentId = parentId;
-    this.name = this.decryptName(name);
+    this.name = name;
     this.setParent(parent);
     this.bucket = bucket;
     this.userId = userId;
@@ -62,10 +61,6 @@ export class Folder implements FolderAttributes {
 
   static build(file: FolderAttributes): Folder {
     return new Folder(file);
-  }
-  private decryptName(nameEncrypted) {
-    const cryptoService = CryptoService.getInstance();
-    return cryptoService.decryptName(nameEncrypted, this.parentId);
   }
 
   isRootFolder(): boolean {

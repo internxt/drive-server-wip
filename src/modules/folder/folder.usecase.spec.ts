@@ -9,7 +9,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
-import { Folder } from './folder.domain';
+import { Folder, FolderAttributes } from './folder.domain';
 import { FolderModel } from './folder.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
@@ -20,15 +20,19 @@ import {
 import { ShareUseCases } from '../share/share.usecase';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 
 const folderId = 4;
 const userId = 1;
 describe('FolderUseCases', () => {
   let service: FolderUseCases;
   let folderRepository: FolderRepository;
+  let cryptoService: CryptoService;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [
         FolderUseCases,
         FileUseCases,
@@ -58,6 +62,7 @@ describe('FolderUseCases', () => {
 
     service = module.get<FolderUseCases>(FolderUseCases);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    cryptoService = module.get<CryptoService>(CryptoService);
   });
 
   it('should be defined', () => {
@@ -302,6 +307,60 @@ describe('FolderUseCases', () => {
       await service.deleteOrphansFolders(userId);
 
       expect(service.deleteOrphansFolders).toBeCalledTimes(1);
+    });
+  });
+
+  describe('decrypt folder name', () => {
+    const folderAtributes: FolderAttributes = {
+      id: 1,
+      parentId: null,
+      parent: null,
+      name: 'name',
+      bucket: 'bucket',
+      userId: 1,
+      encryptVersion: '2',
+      deleted: true,
+      deletedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('returns folder json data with the name decrypted', () => {
+      const name = 'Macedonia';
+      const parentId = 3385750628;
+
+      const encriptedName = cryptoService.encryptName(name, parentId);
+
+      const folder = Folder.build({
+        ...folderAtributes,
+        name: encriptedName,
+        parentId,
+      });
+
+      const result = service.decryptFolderName(folder);
+
+      const expectedResult = {
+        ...folderAtributes,
+        name,
+        size: 0,
+      };
+      delete expectedResult.parentId;
+
+      expect(result).toStrictEqual(expectedResult);
+    });
+
+    it('fails when the folder name is not encrypted', () => {
+      const name = 'not encrypted name';
+      const parentId = 2192829271;
+
+      const folder = Folder.build({ ...folderAtributes, name, parentId });
+
+      try {
+        service.decryptFolderName(folder);
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(Error);
+        expect(err.message).toBe('Unable to decrypt folder name');
+      }
     });
   });
 });
