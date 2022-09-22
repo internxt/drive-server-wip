@@ -7,7 +7,7 @@ export class CreateShareDto {
     example: '4',
     description: 'Times to view valid, set null if unlimited',
   })
-  timesValid: number;
+  timesValid: number | null;
 
   @ApiProperty({
     example: 'token',
@@ -19,7 +19,7 @@ export class CreateShareDto {
     example: 'mnemonic mnemonic',
     description: 'Mnemonic',
   })
-  mnemonic = '';
+  encryptedMnemonic: string;
 
   @IsNotEmpty()
   @ApiProperty({
@@ -42,4 +42,10 @@ export class CreateShareDto {
     description: 'Encryped password to protect the shared resoruce',
   })
   encryptedPassword: string | null;
+  
+  @ApiProperty({
+    example: 'code',
+    description: 'Code Encrypted',
+  })
+  encryptedCode: string;
 }

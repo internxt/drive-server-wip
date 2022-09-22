@@ -7,7 +7,7 @@ export const User = createParamDecorator(async (_, ctx: ExecutionContext) => {
   if (!req.user && req.headers.authorization) {
     const auth = req.headers.authorization.split('Bearer ')[1];
     const authDecoded: any = jwt.decode(auth);
-    return authDecoded.payload;
+    return authDecoded?.payload;
   }
 
   return req.user;

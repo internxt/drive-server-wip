@@ -27,12 +27,13 @@ export class FileUseCases {
     private cryptoService: CryptoService,
   ) {}
 
-  async getByFileIdAndUser(
-    fileId: FileAttributes['fileId'],
+  getByFileIdAndUser(
+    fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
   ): Promise<File> {
-    return await this.fileRepository.findOne(fileId, userId);
+    return this.fileRepository.findOne(fileId, userId);
   }
+
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],

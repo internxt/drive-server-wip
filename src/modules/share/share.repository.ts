@@ -3,16 +3,17 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import {
-  Column,
-  Model,
-  Table,
-  PrimaryKey,
-  ForeignKey,
+  AllowNull,
+  AutoIncrement,
   BelongsTo,
+  Column,
   DataType,
   Default,
+  ForeignKey,
+  Model,
+  PrimaryKey,
+  Table,
   Unique,
-  AllowNull,
 } from 'sequelize-typescript';
 import { FileModel } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
@@ -20,6 +21,7 @@ import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -27,6 +29,7 @@ import { Pagination } from '../../lib/pagination';
 })
 export class ShareModel extends Model {
   @PrimaryKey
+  @AutoIncrement
   @Column
   id: number;
 
@@ -84,6 +87,10 @@ export class ShareModel extends Model {
   active: boolean;
 
   @AllowNull
+  @Column
+  code: string;
+
+  @AllowNull
   @Column(DataType.TEXT)
   hashedPassword: string;
 }
@@ -97,7 +104,7 @@ export interface ShareRepository {
     perPage: number,
   ): Promise<{ count: number; items: Array<Share> | [] }>;
   update(share: Share): Promise<void>;
-  delete(share: Share): Promise<void>;
+  deleteById(shareId: Share['id']): Promise<void>;
   create(share: Share): Promise<void>;
   findByFileIdAndUser(
     fileId: FileAttributes['id'],
@@ -154,13 +161,13 @@ export class SequelizeShareRepository implements ShareRepository {
   async findByToken(token: string): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { token },
-      include: [this.fileModel, this.folderModel, this.userModel],
     });
     if (!share) {
-      throw new NotFoundException('share not found');
+      return null;
     }
     return this.toDomain(share);
   }
+
   async create(share: Share): Promise<void> {
     const shareModel = this.toModel(share);
     delete shareModel.id;
@@ -176,12 +183,8 @@ export class SequelizeShareRepository implements ShareRepository {
     await shareModel.save();
   }
 
-  async delete(share: Share): Promise<void> {
-    const shareModel = await this.shareModel.findByPk(share.id);
-    if (!shareModel) {
-      throw new NotFoundException(`Share with ID ${share.id} not found`);
-    }
-    await shareModel.destroy();
+  async deleteById(shareId: Share['id']): Promise<void> {
+    await this.shareModel.destroy({ where: { id: shareId } });
   }
 
   async findAllByUserPaginated(
@@ -199,7 +202,6 @@ export class SequelizeShareRepository implements ShareRepository {
     const shares = await this.shareModel.findAndCountAll({
       where: {
         user_id: user.id,
-        mnemonic: '',
       },
       include: [this.fileModel, this.userModel, this.folderModel],
       offset,
@@ -214,63 +216,73 @@ export class SequelizeShareRepository implements ShareRepository {
     };
   }
 
-  private toDomain(model): Share {
+  private toDomain(model: ShareModel): Share {
     let item: File | Folder = null;
     if (model.isFolder) {
       item = model.folder ? Folder.build(model.folder) : null;
     } else {
       item = model.file ? File.build(model.file) : null;
     }
-    return Share.build({
+    const share = Share.build({
       id: model.id,
       token: model.token,
-      mnemonic: model.mnemonic,
-      item,
-      encryptionKey: model.encryptionKey,
+      mnemonic: model.mnemonic.toString(),
       bucket: model.bucket,
-      itemToken: model.fileToken,
+      fileToken: model.fileToken,
       isFolder: model.isFolder,
       views: model.views,
       timesValid: model.timesValid,
       active: model.active,
-      user: model.user ? User.build(model.user) : null,
+      userId: model.userId ? model.userId : null,
+      code: model.code,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      fileId: model.fileId,
+      fileSize: model.isFolder ? null : (item as File)?.size,
+      folderId: model.folderId,
       hashedPassword: model.hashedPassword,
     });
+
+    share.item = item;
+
+    return share;
   }
 
   private toModel({
     id,
     token,
     mnemonic,
-    user,
-    item,
-    encryptionKey,
+    fileId,
+    fileSize,
+    folderId,
     bucket,
-    itemToken,
+    fileToken,
     isFolder,
     views,
     timesValid,
     active,
+    code,
     createdAt,
     updatedAt,
+    userId,
     hashedPassword,
   }) {
     return {
       id,
       token,
       mnemonic,
-      userId: user.id,
-      fileId: !isFolder ? item?.id : null,
-      folderId: isFolder ? item?.id : null,
-      encryptionKey,
+      userId,
+      fileId,
+      fileSize,
+      folderId,
+      encryptionKey: '',
       bucket,
-      fileToken: itemToken,
+      fileToken,
       isFolder,
       views,
       timesValid,
       active,
+      code,
       createdAt,
       updatedAt,
       hashedPassword,
