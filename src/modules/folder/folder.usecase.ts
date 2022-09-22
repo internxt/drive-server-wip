@@ -1,12 +1,14 @@
 import {
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { FileUseCases } from '../file/file.usecase';
-import { UserAttributes } from '../user/user.domain';
+import { User, UserAttributes } from '../user/user.domain';
 import { Folder, FolderAttributes } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
 
@@ -102,7 +104,14 @@ export class FolderUseCases {
     );
   }
 
-  async deleteFolderPermanently(folder: Folder): Promise<void> {
+  async deleteFolderPermanently(folder: Folder, user: User): Promise<void> {
+    if (folder.userId !== user.id) {
+      Logger.error(
+        `User with id: ${user.id} tried to delete a folder that does not own.`,
+      );
+      throw new ForbiddenException(`You are not owner of this share`);
+    }
+
     if (folder.isRootFolder()) {
       throw new UnprocessableEntityException(
         `folder with id ${folder.id} is a root folder`,
