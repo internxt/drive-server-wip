@@ -3,6 +3,7 @@ import { aes } from '@internxt/lib';
 import { File, FileAttributes } from '../file/file.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { UserAttributes } from '../user/user.domain';
+import { ShareDto } from './dto/share.dto';
 
 export interface ShareAttributes {
   id: number;
@@ -102,7 +103,7 @@ export class Share implements ShareAttributes {
     return this.hashedPassword !== null;
   }
 
-  toJSON() {
+  toJSON(): ShareDto {
     return {
       id: this.id,
       token: this.token,

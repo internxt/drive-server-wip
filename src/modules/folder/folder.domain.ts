@@ -1,5 +1,6 @@
 import { CryptoService } from '../../externals/crypto/crypto';
 import { User } from '../user/user.domain';
+import { FolderDto } from './dto/folder.dto';
 export interface FolderAttributes {
   id: number;
   parentId: number;
@@ -95,7 +96,7 @@ export class Folder implements FolderAttributes {
     this.user = user;
   }
 
-  toJSON() {
+  toJSON(): FolderDto {
     return {
       id: this.id,
       parent: this.parent,
