@@ -398,10 +398,12 @@ describe('FileUseCases', () => {
         folderId,
       });
 
+      const { user: _, ...exepectedFiles } = fileAttributes;
+
       const result = service.decrypFileName(file);
 
       expect(result).toStrictEqual({
-        ...fileAttributes,
+        ...exepectedFiles,
         name: decyptedName,
         folderId,
       });

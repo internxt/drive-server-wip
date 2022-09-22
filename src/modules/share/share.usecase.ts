@@ -21,7 +21,6 @@ import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 
-
 @Injectable()
 export class ShareUseCases {
   constructor(
@@ -61,7 +60,7 @@ export class ShareUseCases {
     password?: string,
   ): Promise<Share> {
     const share = await this.shareRepository.findByToken(token);
-    
+
     if (share.isProtected()) {
       this.unlockShare(share, password);
     }
@@ -173,14 +172,11 @@ export class ShareUseCases {
     user: User,
     {
       timesValid,
-      encryptionKey,
       itemToken,
       bucket,
-      encryptedPassword,
       encryptedCode,
       encryptedMnemonic,
-      itemToken,
-      bucket,
+      encryptedPassword,
     }: CreateShareDto,
   ) {
     const file = await this.filesRepository.findOne(fileId, user.id);
@@ -201,7 +197,6 @@ export class ShareUseCases {
       : null;
 
     const newShare = Share.build({
-
       id: 1,
       token,
       mnemonic: encryptedMnemonic,
@@ -230,7 +225,6 @@ export class ShareUseCases {
     user: User,
     {
       timesValid,
-      encryptionKey,
       itemToken,
       bucket,
       encryptedPassword,

@@ -582,11 +582,7 @@ describe('Share Use Cases', () => {
       id: 1,
       token: 'token',
       mnemonic: 'test',
-      user: userOwnerMock,
-      item: mockFile,
-      encryptionKey: 'test',
       bucket: 'test',
-      itemToken: 'token',
       isFolder: false,
       views: 0,
       timesValid: 10,
@@ -594,6 +590,12 @@ describe('Share Use Cases', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       hashedPassword: null,
+      userId: 2855169322,
+      fileId: 1069089837,
+      fileSize: BigInt(2319741820),
+      folderId: 0,
+      code: 'code',
+      fileToken: 'fileToken',
     };
     const falsyPasswords = ['', null, undefined];
 

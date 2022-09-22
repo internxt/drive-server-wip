@@ -12,8 +12,6 @@ import {
   Put,
   Query,
   Req,
-  Delete,
-  BadRequestException,
   Headers,
   Res,
 } from '@nestjs/common';
@@ -113,9 +111,10 @@ export class ShareController {
   ) {
     user = await this.getUserWhenPublic(user);
 
-    const share = await this.shareUseCases.getShareByToken(
-      token,
-      password,
+    const share = await this.shareUseCases.getShareByToken(token, password);
+    const incremented = await this.shareUseCases.incrementShareView(
+      share,
+      user,
     );
     if (incremented) {
       const shareLinkViewEvent = new ShareLinkViewEvent(
@@ -256,10 +255,7 @@ export class ShareController {
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(
-      token,
-      password,
-    );
+    const share = await this.shareUseCases.getShareByToken(token, password);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
       share.userId,
