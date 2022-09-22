@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -21,17 +21,19 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { User } from '../user/user.domain';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
-import { Share } from './share.domain';
+import { Share, ShareAttributes } from './share.domain';
 import {
   SequelizeShareRepository,
   ShareModel,
   ShareRepository,
 } from './share.repository';
 import { ShareUseCases } from './share.usecase';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
   let shareRepository: ShareRepository;
+  let cryptoService: CryptoService;
   let fileRepository: FileRepository;
   let folderRepository: FolderRepository;
 
@@ -192,6 +194,7 @@ describe('Share Use Cases', () => {
 
     service = module.get<ShareUseCases>(ShareUseCases);
     shareRepository = module.get<ShareRepository>(SequelizeShareRepository);
+    cryptoService = module.get<CryptoService>(CryptoService);
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
   });
@@ -409,6 +412,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
+        encryptedPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -444,6 +448,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
+        encryptedPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -480,6 +485,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
+        encryptedPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -511,6 +517,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
+        encryptedPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -567,6 +574,78 @@ describe('Share Use Cases', () => {
 
       expect(shareRepository.findByFileIdAndUser).toBeCalled();
       expect(shareRepository.deleteById).toBeCalledTimes(0);
+    });
+  });
+
+  describe('unlock share', () => {
+    const shareAttributes: ShareAttributes = {
+      id: 1,
+      token: 'token',
+      mnemonic: 'test',
+      bucket: 'test',
+      isFolder: false,
+      views: 0,
+      timesValid: 10,
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashedPassword: null,
+      userId: 2855169322,
+      fileId: 1069089837,
+      fileSize: BigInt(2319741820),
+      folderId: 0,
+      code: 'code',
+      fileToken: 'fileToken',
+    };
+    const falsyPasswords = ['', null, undefined];
+
+    it('unlocks the share with the correct password', () => {
+      const hashedPassword = 'GM6rCHmvIuzetZWnDf50gPLPQmBXZl';
+      const encryptedPassword = cryptoService.encryptText(hashedPassword);
+
+      const share = Share.build({
+        ...shareAttributes,
+        hashedPassword,
+      });
+
+      service.unlockShare(share, encryptedPassword);
+    });
+
+    it.each(falsyPasswords)('unlocks if its not protected', (password) => {
+      const share = Share.build(shareAttributes);
+
+      service.unlockShare(share, password);
+    });
+
+    it.each(falsyPasswords)(
+      'throws an exception when its protected and no password is provided',
+      (password) => {
+        const share = Share.build({
+          ...shareAttributes,
+          hashedPassword: 'password',
+        });
+
+        try {
+          service.unlockShare(share, password);
+        } catch (err: any) {
+          expect(err).toBeInstanceOf(UnauthorizedException);
+          expect(err.message).toBe('Share protected by password');
+        }
+      },
+    );
+
+    it('throws an error if the password is does not match', () => {
+      const share = Share.build({
+        ...shareAttributes,
+        hashedPassword: 'FCxuprT4KhLMN4GkawEE',
+      });
+
+      try {
+        service.unlockShare(share, 'random password');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(UnauthorizedException);
+        expect(err.message).toBe('Invalid password for share');
+      }
     });
   });
 });

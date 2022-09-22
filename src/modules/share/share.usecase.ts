@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import crypto from 'crypto';
 import { Environment } from '@internxt/inxt-js';
@@ -15,6 +16,7 @@ import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UpdateShareDto } from './dto/update-share.dto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
@@ -28,6 +30,7 @@ export class ShareUseCases {
     private usersRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
+    private cryptoService: CryptoService,
   ) {}
 
   async getShareById(id: number) {
@@ -54,8 +57,13 @@ export class ShareUseCases {
     token: string,
     //user: User,
     code?: string,
+    password?: string,
   ): Promise<Share> {
     const share = await this.shareRepository.findByToken(token);
+
+    if (share.isProtected()) {
+      this.unlockShare(share, password);
+    }
 
     if (!share) {
       throw new NotFoundException('Share not found');
@@ -164,10 +172,11 @@ export class ShareUseCases {
     user: User,
     {
       timesValid,
-      encryptedCode,
-      encryptedMnemonic,
       itemToken,
       bucket,
+      encryptedCode,
+      encryptedMnemonic,
+      encryptedPassword,
     }: CreateShareDto,
   ) {
     const file = await this.filesRepository.findOne(fileId, user.id);
@@ -182,6 +191,11 @@ export class ShareUseCases {
       return { item: share, created: false, encryptedCode: share.code };
     }
     const token = crypto.randomBytes(10).toString('hex');
+
+    const hashedPassword = encryptedPassword
+      ? this.cryptoService.decryptText(encryptedPassword)
+      : null;
+
     const newShare = Share.build({
       id: 1,
       token,
@@ -199,7 +213,7 @@ export class ShareUseCases {
       updatedAt: new Date(),
       fileId,
       fileSize: file.size,
-      hashedPassword: null,
+      hashedPassword,
     });
     await this.shareRepository.create(newShare);
     // apply userReferral to share-file
@@ -213,6 +227,7 @@ export class ShareUseCases {
       timesValid,
       itemToken,
       bucket,
+      encryptedPassword,
       encryptedMnemonic: mnemonic,
       encryptedCode: code,
     }: CreateShareDto,
@@ -228,6 +243,11 @@ export class ShareUseCases {
     if (share) {
       return { item: share, created: false, encryptedCode: share.code };
     }
+
+    const hashedPassword = encryptedPassword
+      ? this.cryptoService.decryptText(encryptedPassword)
+      : null;
+
     const token = crypto.randomBytes(10).toString('hex');
     const newShare = Share.build({
       id: 1,
@@ -246,7 +266,7 @@ export class ShareUseCases {
       updatedAt: new Date(),
       folderId,
       fileSize: null,
-      hashedPassword: null,
+      hashedPassword,
     });
     await this.shareRepository.create(newShare);
 
@@ -268,5 +288,19 @@ export class ShareUseCases {
     }
 
     return this.shareRepository.deleteById(share.id);
+  }
+
+  unlockShare(share: Share, password: string): void {
+    if (!share.isProtected()) return;
+
+    if (!password) {
+      throw new UnauthorizedException('Share protected by password');
+    }
+
+    const hashedPassword = this.cryptoService.decryptText(password);
+
+    if (hashedPassword !== share.hashedPassword) {
+      throw new UnauthorizedException('Invalid password for share');
+    }
   }
 }

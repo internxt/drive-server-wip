@@ -12,6 +12,7 @@ import {
   Put,
   Query,
   Req,
+  Headers,
   Res,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -106,9 +107,11 @@ export class ShareController {
     @UserDecorator() user: User,
     @Param('token') token: string,
     @Req() req: Request,
+    @Headers('x-send-password') password: string | null,
   ) {
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token);
+
+    const share = await this.shareUseCases.getShareByToken(token, password);
     const incremented = await this.shareUseCases.incrementShareView(
       share,
       user,
@@ -248,10 +251,11 @@ export class ShareController {
   async getDownFiles(
     @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
+    @Headers('x-send-password') password: string | null,
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token);
+    const share = await this.shareUseCases.getShareByToken(token, password);
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
       share.userId,
