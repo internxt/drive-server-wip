@@ -6,7 +6,7 @@ export class CreateShareDto {
     example: '4',
     description: 'Times to view valid, set null if unlimited',
   })
-  timesValid: number;
+  timesValid: number | null;
 
   @ApiProperty({
     example: 'token',
@@ -18,7 +18,7 @@ export class CreateShareDto {
     example: 'mnemonic mnemonic',
     description: 'Mnemonic',
   })
-  mnemonic = '';
+  encryptedMnemonic: string;
 
   @IsNotEmpty()
   @ApiProperty({
@@ -32,4 +32,10 @@ export class CreateShareDto {
     description: 'Token of Bucket',
   })
   bucket: string;
+
+  @ApiProperty({
+    example: 'code',
+    description: 'Code Encrypted',
+  })
+  encryptedCode: string;
 }
