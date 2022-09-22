@@ -1,4 +1,3 @@
-import { CryptoService } from '../../externals/crypto/crypto';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 
@@ -37,7 +36,7 @@ export class File implements FileAttributes {
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
-  constructor({
+  private constructor({
     id,
     fileId,
     name,
@@ -59,7 +58,7 @@ export class File implements FileAttributes {
     this.fileId = fileId;
     this.folderId = folderId;
     this.setFolder(folder);
-    this.name = this.decryptName(name);
+    this.name = name;
     this.type = type;
     this.size = size;
     this.bucket = bucket;
@@ -75,10 +74,6 @@ export class File implements FileAttributes {
 
   static build(file: FileAttributes): File {
     return new File(file);
-  }
-  private decryptName(name: FileAttributes['name']) {
-    const cryptoService = CryptoService.getInstance();
-    return cryptoService.decryptName(name, this.folderId);
   }
 
   setFolder(folder) {
