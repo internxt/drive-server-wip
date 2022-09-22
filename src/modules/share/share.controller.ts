@@ -30,6 +30,7 @@ import { ShareLinkViewEvent } from '../../externals/notifications/events/share-l
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
 import { User } from '../user/user.domain';
 import { FileAttributes } from '../file/file.domain';
+import { ShareDto } from './dto/share.dto';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -89,7 +90,7 @@ export class ShareController {
   async getShareByToken(
     @Param('token') token: string,
     @Query('code') code: string,
-  ) {
+  ): Promise<ShareDto> {
     const share = await this.shareUseCases.getShareByToken(token, code);
     return share.toJSON();
   }
