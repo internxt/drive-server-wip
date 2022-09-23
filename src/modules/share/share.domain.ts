@@ -117,7 +117,7 @@ export class Share implements ShareAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       fileId: this.fileId,
-      fileSize: Number(this.fileSize.toString()),
+      fileSize: this.fileSize,
       folderId: this.folderId,
       fileToken: this.fileToken,
       item: this.item.toJSON(),
