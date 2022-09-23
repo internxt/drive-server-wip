@@ -359,13 +359,13 @@ describe('Share Endpoints', () => {
       await app.close();
     });
 
-    it('return the share when the correct passwrod is porvided', async () => {
+    it('return the share folder when the correct passwrod is porvided', async () => {
       const encryptedPassword = cryptoService.encryptText(password);
       const originalViews = databaseShare.views;
 
       const response = await request(app.getHttpServer())
         .get(`/storage/share/${databaseShare.token}`)
-        .set('x-send-password', encryptedPassword);
+        .set('x-share-password', encryptedPassword);
 
       expect(response.status).toBe(HttpStatus.OK);
       expect(response.body.views).toBe(originalViews);
@@ -378,7 +378,7 @@ describe('Share Endpoints', () => {
 
       const response = await request(app.getHttpServer())
         .get(`/storage/share/${token}`)
-        .set('x-send-password', encryptedPassword);
+        .set('x-share-password', encryptedPassword);
 
       expect(response.status).toBe(HttpStatus.UNAUTHORIZED);
     });
