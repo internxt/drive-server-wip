@@ -16,10 +16,13 @@ import { Share } from './../src/modules/share/share.domain';
 import { NotificationService } from './../src/externals/notifications/notification.service';
 import { CryptoService } from '../src/externals/crypto/crypto.service';
 import { File } from '../src/modules/file/file.domain';
+import { SequelizeFileRepository } from '../src/modules/file/file.repository';
 
 // Running e2e tests require a database named "Xcloud_test" in the mariadb database first.
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+
+  let cryptoService: CryptoService;
 
   beforeAll(async () => {
     if (process.env.NODE_ENV !== 'test') {
@@ -32,6 +35,8 @@ describe('AppController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe());
     app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
+
+    cryptoService = moduleFixture.get<CryptoService>(CryptoService);
   });
 
   afterAll(async () => {
@@ -180,6 +185,32 @@ describe('AppController (e2e)', () => {
             statusCode: HttpStatus.BAD_REQUEST,
           });
         });
+        it('creates a link protected by password', async () => {
+          const items = Array(50).fill({
+            name: 'test',
+            type: 'file',
+            networkId: 'test',
+            encryptionKey: 'test',
+            size: 100000,
+          });
+          const password = 'mVu6yjLUsN93RgcHfDUv';
+          const encryptedPassword = cryptoService.encryptText(password);
+          const response = await request(app.getHttpServer())
+            .post('/links')
+            .send({
+              items,
+              sender: 'clopez@internxt.com',
+              receivers: ['clopez@internxt.com'],
+              plainCode: 'code',
+              code: 'code',
+              title: 'File Test',
+              subject: 'Esto es una prueba de archivo',
+              encryptedPassword: encryptedPassword,
+            });
+
+          expect(response.status).toBe(HttpStatus.CREATED);
+          expect(response.body.protected).toBe(true);
+        });
       });
 
       describe('Get Send Link', () => {
@@ -233,6 +264,9 @@ describe('Share Endpoints', () => {
       },
       update: (_: Share) => Promise.resolve(),
     } as unknown as SequelizeShareRepository;
+    const fakeFileRepository = {
+      findOne: (a: number, b: number) => Promise.resolve(databaseSharedFile),
+    } as unknown as SequelizeFileRepository;
 
     beforeAll(async () => {
       if (process.env.NODE_ENV !== 'test') {
@@ -247,6 +281,8 @@ describe('Share Endpoints', () => {
         .useValue(fakeUserRepository)
         .overrideProvider(NotificationService)
         .useValue(fakeNotificationService)
+        .overrideProvider(SequelizeFileRepository)
+        .useValue(fakeFileRepository)
         .compile();
       app = moduleFixture.createNestApplication();
       app.useGlobalPipes(new ValidationPipe());
@@ -258,42 +294,16 @@ describe('Share Endpoints', () => {
       await app.close();
     });
 
-    it('return the shared', async () => {
-      const expectedShare = {
-        id: databaseShare.id,
-        token: databaseShare.token,
-        mnemonic: databaseShare.mnemonic,
-        bucket: databaseShare.bucket,
-        isFolder: databaseShare.isFolder,
-        views: databaseShare.views,
-        timesValid: databaseShare.timesValid,
-        active: databaseShare.active,
-        // code: databaseShare.code,
-        createdAt: databaseShare.createdAt.toISOString(),
-        updatedAt: databaseShare.updatedAt.toISOString(),
-        // fileId: databaseShare.fileId,
-        // fileSize: databaseShare.fileSize,
-        // folderId: databaseShare.folderId,
-        // fileToken: databaseShare.fileToken,
-        item: {
-          ...databaseSharedFile,
-          createdAt: databaseSharedFile.createdAt.toISOString(),
-          modificationTime: databaseSharedFile.modificationTime.toISOString(),
-          updatedAt: databaseSharedFile.updatedAt.toISOString(),
-        },
-        encryptionKey: databaseShare.encryptionKey,
-        protected: false,
-      };
+    it('return the share', async () => {
+      const originalViews = databaseShare.views;
 
       const response = await request(app.getHttpServer()).get(
         `/storage/share/${databaseShare.token}`,
       );
 
       expect(response.status).toBe(HttpStatus.OK);
-      expect(response.body).toBe({
-        ...expectedShare,
-        views: expectedShare.views + 1,
-      });
+      expect(response.body.views).toBe(originalViews);
+      expect(response.body.protected).toBe(false);
     });
 
     it('returns resource not found if the share not exist', async () => {
@@ -318,6 +328,9 @@ describe('Share Endpoints', () => {
       findByToken: (_: string) => databaseShare,
       update: (_: Share) => Promise.resolve(),
     } as unknown as SequelizeShareRepository;
+    const fakeFileRepository = {
+      findOne: (a: number, b: number) => Promise.resolve(databaseSharedFile),
+    } as unknown as SequelizeFileRepository;
 
     beforeAll(async () => {
       if (process.env.NODE_ENV !== 'test') {
@@ -332,6 +345,8 @@ describe('Share Endpoints', () => {
         .useValue(fakeUserRepository)
         .overrideProvider(NotificationService)
         .useValue(fakeNotificationService)
+        .overrideProvider(SequelizeFileRepository)
+        .useValue(fakeFileRepository)
         .compile();
       app = moduleFixture.createNestApplication();
       app.useGlobalPipes(new ValidationPipe());
@@ -344,43 +359,17 @@ describe('Share Endpoints', () => {
       await app.close();
     });
 
-    it('return the shared when the correct passwrod is porvided', async () => {
+    it('return the share when the correct passwrod is porvided', async () => {
       const encryptedPassword = cryptoService.encryptText(password);
-      const expectedShare = {
-        id: databaseShare.id,
-        token: databaseShare.token,
-        mnemonic: databaseShare.mnemonic,
-        bucket: databaseShare.bucket,
-        isFolder: databaseShare.isFolder,
-        views: databaseShare.views,
-        timesValid: databaseShare.timesValid,
-        active: databaseShare.active,
-        // code: databaseShare.code,
-        createdAt: databaseShare.createdAt.toISOString(),
-        updatedAt: databaseShare.updatedAt.toISOString(),
-        // fileId: databaseShare.fileId,
-        // fileSize: databaseShare.fileSize,
-        // folderId: databaseShare.folderId,
-        // fileToken: databaseShare.fileToken,
-        item: {
-          ...databaseSharedFile,
-          createdAt: databaseSharedFile.createdAt.toISOString(),
-          modificationTime: databaseSharedFile.modificationTime.toISOString(),
-          updatedAt: databaseSharedFile.updatedAt.toISOString(),
-        },
-        encryptionKey: databaseShare.encryptionKey,
-        protected: true,
-      };
+      const originalViews = databaseShare.views;
 
       const response = await request(app.getHttpServer())
         .get(`/storage/share/${databaseShare.token}`)
         .set('x-send-password', encryptedPassword);
 
       expect(response.status).toBe(HttpStatus.OK);
-      expect(response.body).toBe({
-        ...expectedShare,
-        views: expectedShare.views + 1,
-      });
+      expect(response.body.views).toBe(originalViews);
+      expect(response.body.protected).toBe(true);
     });
 
     it('return unauthorized response when password is not correct', async () => {

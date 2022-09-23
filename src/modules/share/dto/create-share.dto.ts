@@ -42,7 +42,7 @@ export class CreateShareDto {
     description: 'Encryped password to protect the shared resoruce',
   })
   encryptedPassword: string | null;
-  
+
   @ApiProperty({
     example: 'code',
     description: 'Code Encrypted',

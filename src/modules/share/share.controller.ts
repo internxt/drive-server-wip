@@ -91,8 +91,13 @@ export class ShareController {
   async getShareByToken(
     @Param('token') token: string,
     @Query('code') code: string,
+    @Headers('x-send-password') password: string | null,
   ): Promise<ShareDto> {
-    const share = await this.shareUseCases.getShareByToken(token, code);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      code,
+      password,
+    );
     return share.toJSON();
   }
 

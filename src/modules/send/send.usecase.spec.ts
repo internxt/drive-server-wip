@@ -1,13 +1,14 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { FileModel } from '../file/file.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { User } from '../user/user.domain';
-import { UserModule } from '../user/user.module';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.repository';
 import { SendLink } from './send-link.domain';
 import {
   SendLinkItemModel,
@@ -18,7 +19,7 @@ import {
 import { SendUseCases } from './send.usecase';
 
 describe('Send Use Cases', () => {
-  let service, notificationService, sendRepository;
+  let service: SendUseCases, notificationService, sendRepository;
   const userMock = User.build({
     id: 2,
     userId: 'userId',
@@ -50,6 +51,7 @@ describe('Send Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [CryptoModule],
       providers: [
         SendUseCases,
         NotificationService,
@@ -175,6 +177,8 @@ describe('Send Use Cases', () => {
       'sender@gmail.com',
       'title',
       'subject',
+      'plainCode',
+      null,
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
@@ -202,6 +206,8 @@ describe('Send Use Cases', () => {
       'sender@gmail.com',
       'title',
       'subject',
+      'plainCode',
+      null,
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
@@ -212,6 +218,98 @@ describe('Send Use Cases', () => {
       sender: 'sender@gmail.com',
       receivers: ['receiver@gmail.com'],
       items: [],
+    });
+  });
+
+  it('should create a sendLink protected by password', async () => {
+    jest.spyOn(notificationService, 'add').mockResolvedValue(true);
+    jest
+      .spyOn(sendRepository, 'createSendLinkWithItems')
+      .mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+
+    const sendLink = await service.createSendLinks(
+      userMock,
+      [],
+      'code',
+      ['receiver@gmail.com'],
+      'sender@gmail.com',
+      'title',
+      'subject',
+      'plainCode',
+      'password',
+    );
+
+    expect(sendLink.isProtected()).toBe(true);
+  });
+
+  describe('Unlock Link', () => {
+    it('unlock unprotected send link', () => {
+      const unprotectedSendLink = SendLink.build({
+        id: '46716608-c5e4-5404-a2b9-2a38d737d87d',
+        views: 0,
+        user: userMock,
+        items: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: 'sender@gmail.com',
+        receivers: ['receiver@gmail.com'],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+        expirationAt: new Date(),
+        hashedPassword: null,
+      });
+
+      service.unlockLink(unprotectedSendLink, '');
+    });
+
+    it('unlock protected send link without password throws unauthorized exception', () => {
+      const unprotectedSendLink = SendLink.build({
+        id: '46716608-c5e4-5404-a2b9-2a38d737d87d',
+        views: 0,
+        user: userMock,
+        items: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: 'sender@gmail.com',
+        receivers: ['receiver@gmail.com'],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+        expirationAt: new Date(),
+        hashedPassword: 'password',
+      });
+
+      try {
+        service.unlockLink(unprotectedSendLink, null);
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(UnauthorizedException);
+      }
+    });
+
+    it('unlock protected send link with invalid password throws unauthorized exception', () => {
+      const unprotectedSendLink = SendLink.build({
+        id: '46716608-c5e4-5404-a2b9-2a38d737d87d',
+        views: 0,
+        user: userMock,
+        items: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sender: 'sender@gmail.com',
+        receivers: ['receiver@gmail.com'],
+        code: 'code',
+        title: 'title',
+        subject: 'subject',
+        expirationAt: new Date(),
+        hashedPassword: 'password',
+      });
+
+      try {
+        service.unlockLink(unprotectedSendLink, 'password');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(UnauthorizedException);
+      }
     });
   });
 });

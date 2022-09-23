@@ -1,4 +1,8 @@
-import { ForbiddenException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
