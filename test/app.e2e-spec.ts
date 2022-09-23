@@ -15,8 +15,10 @@ import { SequelizeUserRepository } from './../src/modules/user/user.repository';
 import { Share } from './../src/modules/share/share.domain';
 import { NotificationService } from './../src/externals/notifications/notification.service';
 import { CryptoService } from '../src/externals/crypto/crypto.service';
-import { File } from '../src/modules/file/file.domain';
-import { SequelizeFileRepository } from '../src/modules/file/file.repository';
+// import { File } from '../src/modules/file/file.domain';
+// import { SequelizeFileRepository } from '../src/modules/file/file.repository';
+import { SequelizeFolderRepository } from '../src/modules/folder/folder.repository';
+import { Folder } from '../src/modules/folder/folder.domain';
 
 // Running e2e tests require a database named "Xcloud_test" in the mariadb database first.
 describe('AppController (e2e)', () => {
@@ -256,7 +258,7 @@ describe('Share Endpoints', () => {
 
   describe('unprotected shares', () => {
     const databaseShare = ShareMother.createWithPassword(null);
-    const databaseSharedFile = databaseShare.item as File;
+    const databaseSharedFolder = databaseShare.item as Folder;
     const unprotectedShareRepository = {
       findByToken: (token: string) => {
         if (token === databaseShare.token) return databaseShare;
@@ -264,9 +266,9 @@ describe('Share Endpoints', () => {
       },
       update: (_: Share) => Promise.resolve(),
     } as unknown as SequelizeShareRepository;
-    const fakeFileRepository = {
-      findOne: (a: number, b: number) => Promise.resolve(databaseSharedFile),
-    } as unknown as SequelizeFileRepository;
+    const fakeFolderRepository = {
+      findById: () => Promise.resolve(databaseSharedFolder),
+    } as unknown as SequelizeFolderRepository;
 
     beforeAll(async () => {
       if (process.env.NODE_ENV !== 'test') {
@@ -281,8 +283,8 @@ describe('Share Endpoints', () => {
         .useValue(fakeUserRepository)
         .overrideProvider(NotificationService)
         .useValue(fakeNotificationService)
-        .overrideProvider(SequelizeFileRepository)
-        .useValue(fakeFileRepository)
+        .overrideProvider(SequelizeFolderRepository)
+        .useValue(fakeFolderRepository)
         .compile();
       app = moduleFixture.createNestApplication();
       app.useGlobalPipes(new ValidationPipe());
@@ -322,15 +324,15 @@ describe('Share Endpoints', () => {
 
     const password = 'KPit1mKILC';
     const databaseShare = ShareMother.createWithPassword(password);
-    const databaseSharedFile = databaseShare.item as File;
+    const databaseSharedFolder = databaseShare.item as Folder;
 
     const protectedShareRepository = {
       findByToken: (_: string) => databaseShare,
       update: (_: Share) => Promise.resolve(),
     } as unknown as SequelizeShareRepository;
-    const fakeFileRepository = {
-      findOne: (a: number, b: number) => Promise.resolve(databaseSharedFile),
-    } as unknown as SequelizeFileRepository;
+    const fakeFolderRepository = {
+      findById: () => Promise.resolve(databaseSharedFolder),
+    } as unknown as SequelizeFolderRepository;
 
     beforeAll(async () => {
       if (process.env.NODE_ENV !== 'test') {
@@ -345,8 +347,8 @@ describe('Share Endpoints', () => {
         .useValue(fakeUserRepository)
         .overrideProvider(NotificationService)
         .useValue(fakeNotificationService)
-        .overrideProvider(SequelizeFileRepository)
-        .useValue(fakeFileRepository)
+        .overrideProvider(SequelizeFolderRepository)
+        .useValue(fakeFolderRepository)
         .compile();
       app = moduleFixture.createNestApplication();
       app.useGlobalPipes(new ValidationPipe());
