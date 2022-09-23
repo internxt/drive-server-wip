@@ -30,8 +30,9 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { ShareLinkViewEvent } from '../../externals/notifications/events/share-link-view.event';
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
 import { User } from '../user/user.domain';
-import { FileAttributes } from '../file/file.domain';
+import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
+import { Folder } from '../folder/folder.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -78,7 +79,31 @@ export class ShareController {
         | 'createdAt:ASC'
         | 'createdAt:DESC',
     );
-    return shares;
+
+    const decryptedItemNames = shares.items.map((item) => {
+      const sharedItem = item.item;
+
+      if (sharedItem instanceof File) {
+        return {
+          ...item,
+          item: this.fileUseCases.decrypFileName(sharedItem),
+        };
+      }
+
+      if (sharedItem instanceof Folder) {
+        return {
+          ...item,
+          item: this.folderUseCases.decryptFolderName(sharedItem),
+        };
+      }
+
+      return sharedItem;
+    });
+
+    return {
+      ...shares,
+      items: decryptedItemNames,
+    };
   }
 
   @Get('/:token')
