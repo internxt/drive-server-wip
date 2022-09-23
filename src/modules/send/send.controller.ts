@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   HttpStatus,
+  Headers,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -35,8 +36,16 @@ export class SendController {
     @Body() content: CreateSendLinkDto,
   ) {
     user = await this.getUserWhenPublic(user);
-    const { items, code, receivers, sender, title, subject, plainCode } =
-      content;
+    const {
+      items,
+      code,
+      receivers,
+      sender,
+      title,
+      subject,
+      plainCode,
+      encryptedPassword,
+    } = content;
 
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
@@ -47,6 +56,7 @@ export class SendController {
       title,
       subject,
       plainCode,
+      encryptedPassword,
     );
     return {
       id: sendLink.id,
@@ -59,6 +69,7 @@ export class SendController {
       createdAt: sendLink.createdAt,
       updatedAt: sendLink.updatedAt,
       expirationAt: sendLink.expirationAt,
+      protected: sendLink.isProtected(),
     };
   }
 
@@ -69,8 +80,15 @@ export class SendController {
   })
   @ApiOkResponse({ description: 'Get all shares in a list' })
   @Public()
-  async getSendLink(@Param('linkId') linkId: string) {
+  async getSendLink(
+    @Param('linkId') linkId: string,
+    @Headers('x-send-password') password: string | null,
+  ) {
     const sendLink = await this.sendUseCases.getById(linkId);
+
+    if (sendLink.isProtected()) {
+      this.sendUseCases.unlockLink(sendLink, password);
+    }
 
     return {
       id: sendLink.id,
@@ -84,6 +102,7 @@ export class SendController {
       updatedAt: sendLink.updatedAt,
       expirationAt: sendLink.expirationAt,
       size: sendLink.size,
+      protected: sendLink.isProtected(),
     };
   }
 

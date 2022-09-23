@@ -181,7 +181,7 @@ describe('FolderUseCases', () => {
         {
           id: 4,
           parentId: 1,
-          name: null,
+          name: nameEncrypted,
           bucket: 'bucket',
           userId: 1,
           encryptVersion: '2',

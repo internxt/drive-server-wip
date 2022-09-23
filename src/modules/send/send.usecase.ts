@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { SequelizeSendRepository } from './send-link.repository';
@@ -10,12 +11,14 @@ import { SendLinkItem } from './send-link-item.domain';
 import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 
 @Injectable()
 export class SendUseCases {
   constructor(
     private sendRepository: SequelizeSendRepository,
     private notificationService: NotificationService,
+    private cryptoService: CryptoService,
   ) {}
 
   async getById(id: SendLinkAttributes['id']) {
@@ -45,9 +48,15 @@ export class SendUseCases {
     title: string,
     subject: string,
     plainCode: string,
+    encryptedPassword?: string,
   ) {
     const expirationAt = new Date();
     expirationAt.setDate(expirationAt.getDate() + 15);
+
+    const hashedPassword = encryptedPassword
+      ? this.cryptoService.decryptText(encryptedPassword)
+      : null;
+
     const sendLink = SendLink.build({
       id: uuidv4(),
       views: 0,
@@ -61,7 +70,7 @@ export class SendUseCases {
       title,
       subject,
       expirationAt,
-      hashedPassword: null,
+      hashedPassword,
     });
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({
@@ -91,5 +100,19 @@ export class SendUseCases {
     this.notificationService.add(sendLinkCreatedEvent);
 
     return sendLink;
+  }
+
+  public unlockLink(sendLink: SendLink, password: string): void {
+    if (!sendLink.isProtected()) return;
+
+    if (!password) {
+      throw new UnauthorizedException('Send link protected by password');
+    }
+
+    const hashedPassword = this.cryptoService.decryptText(password);
+
+    if (sendLink.hashedPassword !== hashedPassword) {
+      throw new UnauthorizedException('Invalid password');
+    }
   }
 }

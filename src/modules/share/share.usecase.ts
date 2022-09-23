@@ -61,12 +61,12 @@ export class ShareUseCases {
   ): Promise<Share> {
     const share = await this.shareRepository.findByToken(token);
 
-    if (share.isProtected()) {
-      this.unlockShare(share, password);
-    }
-
     if (!share) {
       throw new NotFoundException('Share not found');
+    }
+
+    if (share.isProtected()) {
+      this.unlockShare(share, password);
     }
 
     if (!share.isActive()) {

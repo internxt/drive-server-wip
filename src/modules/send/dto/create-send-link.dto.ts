@@ -104,4 +104,11 @@ export class CreateSendLinkDto {
   @ValidateNested({ each: true })
   @ArrayMaxSize(100)
   items: SendLinkItemDto[];
+
+  @ApiProperty({
+    example: 'Super secret password',
+    description: 'Password to unlock the link',
+  })
+  @IsOptional()
+  encryptedPassword?: string;
 }

@@ -120,7 +120,7 @@ export class Share implements ShareAttributes {
       fileSize: this.fileSize,
       folderId: this.folderId,
       fileToken: this.fileToken,
-      item: this.item,
+      item: this.item.toJSON(),
       encryptionKey: this.encryptionKey,
       protected: this.isProtected(),
     };
