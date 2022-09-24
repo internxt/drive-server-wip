@@ -100,6 +100,12 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
+  async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {
+    const folder = await this.folderModel.findOne({ where });
+
+    return folder ? this.toDomain(folder) : null;
+  }
+
   async findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
     userId: FolderAttributes['userId'],
