@@ -156,6 +156,14 @@ export class SequelizeUserRepository implements UserRepository {
     return user ? this.toDomain(user) : null;
   }
 
+  async updateById(
+    id: UserAttributes['id'],
+    update: Partial<UserAttributes>,
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.modelUser.update(update, { where: { id }, transaction });
+  }
+
   toDomain(model: UserModel): User {
     return User.build({
       ...model.toJSON(),
