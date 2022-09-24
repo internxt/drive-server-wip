@@ -17,6 +17,7 @@ import {
 } from 'sequelize-typescript';
 
 import { FolderModel } from '../folder/folder.repository';
+import { FindOrCreateOptions, Transaction } from 'sequelize/types';
 @Table({
   underscored: true,
   timestamps: true,
@@ -142,6 +143,9 @@ export class SequelizeUserRepository implements UserRepository {
     return user ? this.toDomain(user) : null;
   }
 
+  createTransaction(): Promise<Transaction> {
+    return this.modelUser.sequelize.transaction();
+  }
 
   findOrCreate(opts: FindOrCreateOptions): Promise<[User | null, boolean]> {
     return this.modelUser.findOrCreate(opts) as any;
