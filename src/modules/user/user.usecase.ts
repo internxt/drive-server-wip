@@ -10,12 +10,12 @@ export class UserUseCases {
     private configService: ConfigService,
   ) {}
 
-  async getUserByUsername(email: string) {
-    return await this.userRepository.findByUsername(email);
+  getUserByUsername(email: string) {
+    return this.userRepository.findByUsername(email);
   }
 
-  async getWorkspaceMembersByBrigeUser(bridgeUser: string) {
-    return await this.userRepository.findAllBy({ bridgeUser });
+  getWorkspaceMembersByBrigeUser(bridgeUser: string) {
+    return this.userRepository.findAllBy({ bridgeUser });
   }
 
   async getNetworkByUserId(id: number, mnemonic: string) {
