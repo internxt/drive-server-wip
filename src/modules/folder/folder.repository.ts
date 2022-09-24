@@ -169,6 +169,20 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
+  async create(
+    name: FolderAttributes['name'],
+    bucket: FolderAttributes['bucket'],
+    parentId: FolderAttributes['id'],
+  ): Promise<Folder> {
+    const folder = await this.folderModel.create({
+      name,
+      bucket,
+      parentId,
+    });
+
+    return this.toDomain(folder);
+  }
+
   async deleteById(folderId: number): Promise<void> {
     await this.folderModel.destroy({
       where: {
