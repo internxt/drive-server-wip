@@ -150,6 +150,15 @@ export class SequelizeUserRepository implements UserRepository {
   findOrCreate(opts: FindOrCreateOptions): Promise<[User | null, boolean]> {
     return this.modelUser.findOrCreate(opts) as any;
   }
+
+  async findByReferralCode(
+    referralCode: UserAttributes['referralCode'],
+  ): Promise<User | null> {
+    const user = await this.modelUser.findOne({ where: { referralCode } });
+
+    return user ? this.toDomain(user) : null;
+  }
+
   async findAllBy(where: any): Promise<Array<User> | []> {
     const users = await this.modelUser.findAll({ where });
     return users.map((user) => this.toDomain(user));
