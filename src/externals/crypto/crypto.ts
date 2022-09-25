@@ -17,7 +17,7 @@ export class CryptoService {
     return CryptoService.instance || (this.instance = new CryptoService());
   }
 
-  encryptName(name, salt) {
+  encryptName(name: string, salt?: number) {
     if (salt) {
       return this.aesService.encrypt(name, salt, salt === undefined);
     }
@@ -51,6 +51,14 @@ export class CryptoService {
 
       return null;
     }
+  }
+
+  decryptText(encryptedText: string, salt?: number) {
+    return this.decryptName(encryptedText, salt);
+  }
+
+  encryptText(textToEncrypt: string, salt?: number) {
+    return this.encryptName(textToEncrypt, salt);
   }
 
   /* DECRYPT */
