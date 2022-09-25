@@ -5,6 +5,16 @@ import { Logger } from '@nestjs/common';
 export enum AnalyticsTrackName {
   ShareLinkViewed = 'Share Link Viewed',
   ShareLinkCopied = 'Share Link Copied',
+  DeactivationRequest = 'Deactivation Requested',
+  SignUp = 'User Signup',
+  InvitationSent = 'Invitation Sent',
+  DeactivationConfirmed = 'Deactivation Confirmed',
+  ReferralRedeemed = 'Referral Redeemed',
+  InvitationAccepted = 'Invitation Accepted',
+  UploadCompleted = 'Upload Completed',
+  FileDeleted = 'File Deleted',
+  SharedLinkItemDownloaded = 'Shared Link Downloaded',
+  DownloadCompleted = 'Download Completed',
 }
 
 export default class Analytics {
