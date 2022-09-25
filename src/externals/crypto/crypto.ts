@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 export class CryptoService {
   private static instance: CryptoService;
@@ -114,6 +115,16 @@ export class CryptoService {
       return crypto.createHash('sha256').update(text).digest('hex');
     } catch (error) {
       Logger.error('[CRYPTO sha256] ', error);
+
+      return null;
+    }
+  }
+
+  hashBcrypt(text: string): string | null {
+    try {
+      return bcrypt.hashSync(text.toString(), 8);
+    } catch (err) {
+      console.error('FATAL BCRYPT ERROR', (err as Error).message);
 
       return null;
     }
