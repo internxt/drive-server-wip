@@ -156,3 +156,20 @@ export class User implements UserAttributes {
     };
   }
 }
+
+export interface ReferralAttributes {
+  id: number;
+  key: string;
+  type: 'storage';
+  credit: number;
+  steps: number;
+  enabled: boolean;
+}
+
+export interface UserReferralAttributes {
+  id: number;
+  userId: UserAttributes['id'];
+  referralId: ReferralAttributes['id'];
+  referred: UserAttributes['email'];
+  applied: boolean;
+}
