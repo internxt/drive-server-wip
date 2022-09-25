@@ -1,9 +1,9 @@
 import { Logger } from '@nestjs/common';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { rejectedSyncPromise } from '@sentry/utils';
+
 import { FileAttributes } from 'src/modules/file/file.domain';
-import { User } from 'src/modules/user/user.domain';
+import { User, UserAttributes } from 'src/modules/user/user.domain';
 import { CryptoService } from '../crypto/crypto';
 import { HttpClient } from '../http/http.service';
 
@@ -52,6 +52,22 @@ export class BridgeService {
   get networkUrl(): string {
     return this.configService.get('apis.storage.url');
   }
+
+  async createUser(networkUserId: UserAttributes['bridgeUser']): Promise<{
+    userId: UserAttributes['bridgeUser'];
+    uuid: UserAttributes['uuid'];
+  }> {
+    const networkPassword = await this.cryptoService.hashBcrypt(networkUserId);
+
+    const networkUser = await this.httpClient.post(
+      `${this.networkUrl}/users`,
+      { email: networkUserId, password: networkPassword },
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+
+    return { userId: networkPassword, uuid: networkUser.data.uuid };
+  }
+
   public async deleteFile(
     user: User,
     bucket: FileAttributes['bucket'],
