@@ -26,6 +26,32 @@ export class BridgeService {
     };
   }
 
+  async createBucket(
+    networkUser: UserAttributes['bridgeUser'],
+    networkPass: UserAttributes['userId'],
+  ): Promise<any> {
+    const hashedPassword = this.cryptoService.hashSha256(networkPass);
+    const credential = Buffer.from(`${networkUser}:${hashedPassword}`).toString(
+      'base64',
+    );
+
+    const params = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${credential}`,
+      },
+    };
+
+    // log.info('[INXT createBucket]: User: %s, Bucket: %s', networkUser, name);
+
+    const url = this.configService.get('apis.storage.url');
+
+    return this.httpClient.post(`${url}/buckets`, {}, params);
+  }
+
+  get networkUrl(): string {
+    return this.configService.get('apis.storage.url');
+  }
   public async deleteFile(
     user: User,
     bucket: FileAttributes['bucket'],
