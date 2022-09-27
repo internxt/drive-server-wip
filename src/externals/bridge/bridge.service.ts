@@ -90,4 +90,23 @@ export class BridgeService {
       params,
     );
   }
+
+  async addStorage(
+    email: UserAttributes['bridgeUser'],
+    bytes: number,
+  ): Promise<void> {
+    const { GATEWAY_USER, GATEWAY_PASS } = process.env;
+    const url = this.configService.get('apis.storage.url');
+
+    const params = {
+      headers: { 'Content-Type': 'application/json' },
+      auth: { username: GATEWAY_USER, password: GATEWAY_PASS },
+    };
+
+    await this.httpClient.put(
+      `${url}/gateway/storage`,
+      { email, bytes },
+      params,
+    );
+  }
 }
