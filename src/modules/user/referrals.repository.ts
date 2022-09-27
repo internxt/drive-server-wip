@@ -48,12 +48,29 @@ export class ReferralModel extends Model implements ReferralAttributes {
   enabled: ReferralAttributes['enabled'];
 }
 
-export interface ReferralsRepository {}
+export interface ReferralsRepository {
+  findOne: (
+    where: Partial<ReferralAttributes>,
+  ) => Promise<ReferralAttributes | null>;
+  findAll: (
+    where?: Partial<ReferralAttributes>,
+  ) => Promise<ReferralAttributes[]>;
+}
 
 @Injectable()
 export class SequelizeUserRepository implements ReferralsRepository {
   constructor(
     @InjectModel(ReferralModel)
-    private modelUser: typeof ReferralModel,
+    private model: typeof ReferralModel,
   ) {}
+
+  findOne(
+    where: Partial<ReferralAttributes>,
+  ): Promise<ReferralAttributes | null> {
+    return this.model.findOne(where);
+  }
+
+  findAll(where?: Partial<ReferralAttributes>): Promise<ReferralAttributes[]> {
+    return this.model.findAll(where ? { where } : {});
+  }
 }
