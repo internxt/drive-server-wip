@@ -46,12 +46,49 @@ export class UserReferralModel extends Model implements UserReferralAttributes {
 }
 
 export interface UserReferralsRepository {
+  findOneWhere(
+    where: Partial<UserReferralAttributes>,
+  ): Promise<UserReferralAttributes | null>;
+  bulkCreate(data: Omit<UserReferralAttributes, 'id'>[]): Promise<void>;
+  updateReferralById(
+    id: UserReferralAttributes['id'],
+    update: Partial<UserReferralAttributes>,
+  ): Promise<void>;
 }
 
 @Injectable()
-export class SequelizeUserRepository implements UserReferralsRepository {
+export class SequelizeUserReferralsRepository
+  implements UserReferralsRepository
+{
   constructor(
     @InjectModel(UserReferralModel)
-    private modelUser: typeof UserReferralModel,
+    private model: typeof UserReferralModel,
   ) {}
+
+  findOneWhere(
+    where: Partial<UserReferralAttributes>,
+  ): Promise<UserReferralAttributes | null> {
+    return this.model.findOne({ where });
+  }
+
+  async bulkCreate(data: Omit<UserReferralAttributes, 'id'>[]): Promise<void> {
+    const userReferralsWithStartDate = data.map((ur) => ({
+      ...ur,
+      startDate: new Date(),
+    }));
+
+    await this.model.bulkCreate(userReferralsWithStartDate, {
+      individualHooks: true,
+      // fields: ['user_id', 'referral_id', 'start_date, applied'],
+    });
+  }
+
+  async updateReferralById(
+    id: UserReferralAttributes['id'],
+    update: Partial<UserReferralAttributes>,
+  ) {
+    await this.model.update(update, {
+      where: { id },
+    });
+  }
 }
