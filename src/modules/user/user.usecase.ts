@@ -56,4 +56,48 @@ export class UserUseCases {
       bridgeUrl: this.configService.get('apis.storage.url'),
     });
   }
+
+  async applyReferral(
+    userId: UserAttributes['id'],
+    referralKey: ReferralAttributes['key'],
+    referred?: UserReferralAttributes['referred'],
+  ): Promise<void> {
+    const referral = await this.referralsRepository.findOne({
+      key: referralKey,
+    });
+
+    if (!referral) {
+      throw new Error('Referral not found');
+    }
+
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const userReferral = await this.userReferralsRepository.findOneWhere({
+      userId,
+      referralId: referral.id,
+      applied: false,
+    });
+
+    if (!userReferral) {
+      return;
+    }
+    await this.userReferralsRepository.updateReferralById(userReferral.id, {
+      applied: true,
+      referred,
+    });
+
+    await this.redeemUserReferral(
+      user.bridgeUser,
+      user.userId,
+      referral.type,
+      referral.credit,
+    );
+
+    this.notificationService.add(
+      new ReferralRedeemedEvent(user.uuid, referral.key),
+    );
+  }
 }
