@@ -21,10 +21,10 @@ import { UserModel } from './user.repository';
   tableName: 'users_referrals',
 })
 export class UserReferralModel extends Model implements UserReferralAttributes {
+  @AllowNull(false)
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  @AllowNull(false)
   id: UserReferralAttributes['id'];
 
   @Column(DataType.INTEGER)
@@ -35,13 +35,13 @@ export class UserReferralModel extends Model implements UserReferralAttributes {
   @ForeignKey(() => ReferralModel)
   referralId: UserReferralAttributes['referralId'];
 
-  @Column(DataType.STRING)
   @AllowNull(true)
+  @Column(DataType.STRING)
   referred: UserReferralAttributes['referred'];
 
-  @Column(DataType.BOOLEAN)
-  @AllowNull(false)
   @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
   applied: UserReferralAttributes['applied'];
 }
 
