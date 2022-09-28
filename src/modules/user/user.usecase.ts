@@ -4,13 +4,22 @@ import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
 
 import { SequelizeUserRepository } from './user.repository';
-import { UserAttributes } from './user.domain';
+import {
+  ReferralAttributes,
+  UserAttributes,
+  UserReferralAttributes,
+} from './user.domain';
 import { CryptoService } from '../../externals/crypto/crypto';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from 'src/externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from 'src/externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from 'src/externals/notifications/notification.service';
 import { Sign } from 'src/middlewares/passport';
+import { SequelizeSharedWorkspaceRepository } from 'src/shared-workspace/shared-workspace.repository';
+import { SequelizeReferralRepository } from './referrals.repository';
+import { SequelizeUserReferralsRepository } from './user-referrals.repository';
+import { ReferralRedeemedEvent } from 'src/externals/notifications/events/referral-redeemed.event';
+
 
 class InvalidReferralCodeError extends Error {
   constructor() {
