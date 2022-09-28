@@ -71,7 +71,7 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   errorLoginCount: number;
 
-  @Default(0)
+  @Default(false)
   @AllowNull
   @Column
   isEmailActivitySended: number;
