@@ -57,15 +57,16 @@ export class BridgeService {
     userId: UserAttributes['bridgeUser'];
     uuid: UserAttributes['uuid'];
   }> {
-    const networkPassword = await this.cryptoService.hashBcrypt(networkUserId);
+    const bcryptId = await this.cryptoService.hashBcrypt(networkUserId);
+    const networkPassword = this.cryptoService.hashSha256(bcryptId);
 
-    const networkUser = await this.httpClient.post(
+    const response = await this.httpClient.post(
       `${this.networkUrl}/users`,
       { email: networkUserId, password: networkPassword },
       { headers: { 'Content-Type': 'application/json' } },
     );
 
-    return { userId: networkPassword, uuid: networkUser.data.uuid };
+    return { userId: bcryptId, uuid: response.data.uuid };
   }
 
   public async deleteFile(
