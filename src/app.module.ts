@@ -15,7 +15,6 @@ import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
 import { BridgeModule } from './externals/bridge/bridge.module';
 import { DeviceModule } from './modules/device/device.module';
-import { ReferralModule } from './modules/referral/referral.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 
 @Module({
@@ -88,7 +87,6 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     SendModule,
     BridgeModule,
     DeviceModule,
-    ReferralModule,
     SharedWorkspaceModule,
   ],
   controllers: [],
