@@ -58,6 +58,51 @@ export class FolderUseCases {
     return folders;
   }
 
+  async createRootFolder(
+    creator: User,
+    name: FolderAttributes['name'],
+    bucketId: string,
+  ): Promise<Folder> {
+
+    const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
+    let user = creator;
+
+    if (isAGuestOnSharedWorkspace) {
+      /* 
+        The owner of all the folders in a shared workspace is the HOST, not the GUEST
+        The owner email is on the bridgeUser field, as all the users on a shared workspace
+        use the email of the owner as the network user. 
+      */
+      user = await this.userRepository.findByUsername(creator.bridgeUser);
+    }
+
+    if (name === '' || invalidName.test(name)) {
+      throw new Error('Invalid folder name');
+    }
+
+    const encryptedFolderName = this.cryptoService.encryptName(name, null);
+
+
+    const nameAlreadyInUse = await this.folderRepository.findOne({
+      parentId: null,
+      name: encryptedFolderName,
+    });
+
+    if (nameAlreadyInUse) {
+      throw Error('Folder with the same name already exists');
+    }
+
+    const folder = await this.folderRepository.create(
+      user.id,
+      encryptedFolderName,
+      bucketId,
+      null,
+      '03-aes',
+    );
+
+    return folder;
+  }
+
   async createFolder(
     creator: User,
     name: FolderAttributes['name'],
@@ -68,13 +113,13 @@ export class FolderUseCases {
     }
 
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
-    let user: User = creator;
+    let user = creator;
 
     if (isAGuestOnSharedWorkspace) {
       /* 
         The owner of all the folders in a shared workspace is the HOST, not the GUEST
         The owner email is on the bridgeUser field, as all the users on a shared workspace
-        share the same network user. 
+        use the email of the owner as the network user. 
       */
       user = await this.userRepository.findByUsername(creator.bridgeUser);
     }
@@ -88,7 +133,7 @@ export class FolderUseCases {
       throw new Error('Parent folder does not exist or is not yours');
     }
 
-    if (invalidName.test(name)) {
+    if (name === '' || invalidName.test(name)) {
       throw new Error('Invalid folder name');
     }
 
@@ -107,9 +152,11 @@ export class FolderUseCases {
     }
 
     const folder = await this.folderRepository.create(
+      user.id,
       encryptedFolderName,
       null,
       parentFolderId,
+      '03-aes',
     );
 
     return folder;
