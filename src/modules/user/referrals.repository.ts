@@ -22,29 +22,28 @@ export class ReferralModel extends Model implements ReferralAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  @AllowNull(false)
   id: ReferralAttributes['id'];
 
-  @Column(DataType.STRING)
-  @Unique
   @AllowNull(false)
+  @Unique
+  @Column(DataType.STRING)
   key: ReferralAttributes['key'];
 
-  @Column(DataType.ENUM('storage'))
   @AllowNull(false)
+  @Column(DataType.ENUM('storage'))
   type: ReferralAttributes['type'];
 
-  @Column(DataType.INTEGER)
   @AllowNull(false)
+  @Column(DataType.INTEGER)
   credit: ReferralAttributes['credit'];
 
-  @Column(DataType.INTEGER)
   @AllowNull(false)
+  @Column(DataType.INTEGER)
   steps: ReferralAttributes['steps'];
 
-  @Column(DataType.BOOLEAN)
-  @AllowNull(false)
   @Default(true)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
   enabled: ReferralAttributes['enabled'];
 }
 
@@ -58,7 +57,7 @@ export interface ReferralsRepository {
 }
 
 @Injectable()
-export class SequelizeUserRepository implements ReferralsRepository {
+export class SequelizeReferralRepository implements ReferralsRepository {
   constructor(
     @InjectModel(ReferralModel)
     private model: typeof ReferralModel,
