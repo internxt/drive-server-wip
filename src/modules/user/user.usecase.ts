@@ -130,4 +130,140 @@ export class UserUseCases {
     );
   }
 
+  async createUser(
+    newUser: Pick<
+      UserAttributes,
+      'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
+    > & { salt: string; referrer?: UserAttributes['referrer'] },
+  ) {
+    const { email, password, salt } = newUser;
+
+    const hasReferrer = !!newUser.referrer;
+    const referrer = hasReferrer
+      ? await this.userRepository.findByReferralCode(newUser.referrer)
+      : null;
+
+    if (hasReferrer && !referrer) {
+      throw new InvalidReferralCodeError();
+    }
+
+    const userPass = this.cryptoService.decryptText(password);
+    const userSalt = this.cryptoService.decryptText(salt);
+
+    const transaction = await this.userRepository.createTransaction();
+
+    try {
+      const [userResult, isNewRecord] = await this.userRepository.findOrCreate({
+        where: { username: email },
+        defaults: {
+          email: email,
+          name: newUser.name,
+          lastname: newUser.lastname,
+          password: userPass,
+          mnemonic: newUser.mnemonic,
+          hKey: userSalt,
+          referrer: newUser.referrer,
+          referralCode: v4(),
+          uuid: null,
+          credit: 0,
+          welcomePack: true,
+          // ?
+          // registerCompleted: newUser.registerCompleted,
+          username: newUser.email,
+          bridgeUser: newUser.email,
+        },
+        transaction,
+      });
+
+      if (!isNewRecord) {
+        throw new UserAlreadyRegisteredError(newUser.email);
+      }
+
+      const { userId, uuid: userUuid } = await this.networkService.createUser(
+        email,
+      );
+
+      await this.userRepository.updateById(
+        userResult.id,
+        { userId, uuid: userUuid },
+        transaction,
+      );
+
+      if (hasReferrer) {
+        const event = new InvitationAcceptedEvent(
+          'invitation.accepted',
+          userUuid,
+          referrer.uuid,
+          referrer.email,
+          {},
+        );
+
+        this.notificationService.add(event);
+        await this.sharedWorkspaceRepository.updateByHostAndGuest(
+          referrer.id,
+          email,
+        );
+
+        await this.applyReferral(referrer.id, 'invite-friends');
+      }
+      const token = Sign(newUser.email, this.configService.get('secrets.jwt'));
+      await this.createUserReferrals(userResult.id);
+      const bucket = await this.networkService.createBucket(email, userId);
+      const rootFolderName = await this.cryptoService.encryptName(
+        `${bucket.name}`,
+      );
+      const rootFolder = await this.folderUseCases.createRootFolder(
+        userResult,
+        rootFolderName,
+        bucket.id,
+      );
+      await transaction.commit();
+      await this.userRepository.updateById(userResult.id, {
+        rootFolderId: rootFolder.id,
+      });
+      await Promise.all([
+        this.folderUseCases.createFolder(userResult, 'Family', rootFolder.id),
+        this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
+      ]);
+      return {
+        token,
+        user: {
+          ...userResult.toJSON(),
+          hKey: userResult.hKey.toString(),
+          password: userResult.password.toString(),
+          mnemonic: userResult.mnemonic.toString(),
+          rootFolderId: rootFolder.id,
+          bucket: bucket.id,
+          uuid: userUuid,
+          userId,
+        },
+        uuid: userUuid,
+      };
+    } catch (err) {
+      await transaction.rollback();
+
+      throw err;
+    }
+  }
+
+  async createUserReferrals(userId: UserAttributes['id']): Promise<void> {
+    const referrals = await this.referralsRepository.findAll({ enabled: true });
+    const userReferralsToCreate: Omit<UserReferralAttributes, 'id'>[] = [];
+
+    referrals.forEach((referral) => {
+      Array(referral.steps)
+        .fill(null)
+        .forEach(() => {
+          const applied = referral.key === 'create-account';
+          userReferralsToCreate.push({
+            userId,
+            referralId: referral.id,
+            applied,
+            referred: '',
+          });
+        });
+    });
+
+    await this.userReferralsRepository.bulkCreate(userReferralsToCreate);
+  }
 }
