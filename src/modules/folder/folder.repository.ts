@@ -52,7 +52,7 @@ export class FolderModel extends Model implements FolderAttributes {
   user: UserModel;
 
   @Column
-  encryptVersion: string;
+  encryptVersion: '03-aes';
 
   @Default(false)
   @Column
