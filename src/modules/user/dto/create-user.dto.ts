@@ -51,5 +51,26 @@ export class CreateUserDto {
     example: '',
     description: '',
   })
+  privateKey: string;
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+  })
+  publicKey: string;
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+  })
+  revocationKey: string;
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+  })
   referrer: UserAttributes['referrer'];
 }
