@@ -4,14 +4,21 @@ import { SequelizeFolderRepository } from './folder.repository';
 import { FolderUseCases } from './folder.usecase';
 import { FolderModel } from './folder.repository';
 import { FileModule } from '../file/file.module';
+import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { CryptoService } from 'src/externals/crypto/crypto';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FolderModel]),
+    SequelizeModule.forFeature([FolderModel, UserModel]),
     forwardRef(() => FileModule),
   ],
   controllers: [],
-  providers: [SequelizeFolderRepository, FolderUseCases],
-  exports: [FolderUseCases],
+  providers: [
+    SequelizeFolderRepository,
+    SequelizeUserRepository,
+    CryptoService,
+    FolderUseCases,
+  ],
+  exports: [FolderUseCases, SequelizeFolderRepository],
 })
 export class FolderModule {}
