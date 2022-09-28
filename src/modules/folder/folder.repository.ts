@@ -16,7 +16,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
-import { User } from '../user/user.domain';
+import { User, UserAttributes } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
 
 @Table({
@@ -176,14 +176,18 @@ export class SequelizeFolderRepository implements FolderRepository {
   }
 
   async create(
+    userId: UserAttributes['id'],
     name: FolderAttributes['name'],
     bucket: FolderAttributes['bucket'],
     parentId: FolderAttributes['id'],
+    encryptVersion: FolderAttributes['encryptVersion'],
   ): Promise<Folder> {
     const folder = await this.folderModel.create({
+      userId,
       name,
       bucket,
       parentId,
+      encryptVersion,
     });
 
     return this.toDomain(folder);
