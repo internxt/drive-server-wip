@@ -32,6 +32,9 @@ class UserAlreadyRegisteredError extends Error {
 export class UserUseCases {
   constructor(
     private userRepository: SequelizeUserRepository,
+    private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
+    private referralsRepository: SequelizeReferralRepository,
+    private userReferralsRepository: SequelizeUserReferralsRepository,
     private folderUseCases: FolderUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
@@ -100,4 +103,31 @@ export class UserUseCases {
       new ReferralRedeemedEvent(user.uuid, referral.key),
     );
   }
+
+  async redeemUserReferral(
+    userEmail: UserAttributes['bridgeUser'],
+    userId: UserAttributes['userId'],
+    type: ReferralAttributes['type'],
+    credit: ReferralAttributes['credit'],
+  ): Promise<void> {
+    const { GATEWAY_USER, GATEWAY_PASS } = process.env;
+
+    if (type === 'storage') {
+      if (GATEWAY_USER && GATEWAY_PASS) {
+        // await App.services.Inxt.addStorage(userEmail, credit);
+        await this.networkService.addStorage(userEmail, credit);
+      } else {
+        console.warn(
+          '(usersReferralsService.redeemUserReferral) GATEWAY_USER\
+           || GATEWAY_PASS not found. Skipping storage increasing',
+        );
+      }
+    }
+
+    console.info(
+      `(usersReferralsService.redeemUserReferral)\
+       The user '${userEmail}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
+    );
+  }
+
 }
