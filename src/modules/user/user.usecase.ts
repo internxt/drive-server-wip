@@ -215,8 +215,8 @@ export class UserUseCases {
 
         await this.applyReferral(referrer.id, 'invite-friends');
       }
+
       const token = Sign(newUser.email, this.configService.get('secrets.jwt'));
-      await this.createUserReferrals(userResult.id);
       const bucket = await this.networkService.createBucket(email, userId);
       const rootFolderName = await this.cryptoService.encryptName(
         `${bucket.name}`,
@@ -226,7 +226,9 @@ export class UserUseCases {
         rootFolderName,
         bucket.id,
       );
+
       await transaction.commit();
+      await this.createUserReferrals(userResult.id);
       await this.userRepository.updateById(userResult.id, {
         rootFolderId: rootFolder.id,
       });
@@ -234,6 +236,7 @@ export class UserUseCases {
         this.folderUseCases.createFolder(userResult, 'Family', rootFolder.id),
         this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
       ]);
+
       return {
         token,
         user: {
@@ -257,7 +260,10 @@ export class UserUseCases {
 
   async createUserReferrals(userId: UserAttributes['id']): Promise<void> {
     const referrals = await this.referralsRepository.findAll({ enabled: true });
-    const userReferralsToCreate: Omit<UserReferralAttributes, 'id'>[] = [];
+    const userReferralsToCreate: Omit<
+      UserReferralAttributes,
+      'id' | 'startDate'
+    >[] = [];
 
     referrals.forEach((referral) => {
       Array(referral.steps)

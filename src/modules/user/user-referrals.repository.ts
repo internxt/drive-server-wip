@@ -43,6 +43,11 @@ export class UserReferralModel extends Model implements UserReferralAttributes {
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
   applied: UserReferralAttributes['applied'];
+
+  @Default(Date.now())
+  @AllowNull(false)
+  @Column(DataType.DATE)
+  startDate: UserReferralAttributes['startDate'];
 }
 
 export interface UserReferralsRepository {
@@ -71,7 +76,9 @@ export class SequelizeUserReferralsRepository
     return this.model.findOne({ where });
   }
 
-  async bulkCreate(data: Omit<UserReferralAttributes, 'id'>[]): Promise<void> {
+  async bulkCreate(
+    data: Omit<UserReferralAttributes, 'id' | 'startDate'>[],
+  ): Promise<void> {
     const userReferralsWithStartDate = data.map((ur) => ({
       ...ur,
       startDate: new Date(),
