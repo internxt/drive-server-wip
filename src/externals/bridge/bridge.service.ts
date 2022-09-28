@@ -29,7 +29,18 @@ export class BridgeService {
   async createBucket(
     networkUser: UserAttributes['bridgeUser'],
     networkPass: UserAttributes['userId'],
-  ): Promise<any> {
+  ): Promise<{
+    user: UserAttributes['bridgeUser'];
+    encryptionKey: string;
+    publicPermissions: string[];
+    created: string;
+    maxFrameSize: number;
+    name: string;
+    pubkeys: string[];
+    transfer: number;
+    storage: number;
+    id: string;
+  }> {
     const hashedPassword = this.cryptoService.hashSha256(networkPass);
     const credential = Buffer.from(`${networkUser}:${hashedPassword}`).toString(
       'base64',
@@ -45,8 +56,9 @@ export class BridgeService {
     // log.info('[INXT createBucket]: User: %s, Bucket: %s', networkUser, name);
 
     const url = this.configService.get('apis.storage.url');
+    const res = await this.httpClient.post(`${url}/buckets`, {}, params);
 
-    return this.httpClient.post(`${url}/buckets`, {}, params);
+    return res.data;
   }
 
   get networkUrl(): string {
