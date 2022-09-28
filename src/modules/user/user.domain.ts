@@ -172,4 +172,5 @@ export interface UserReferralAttributes {
   referralId: ReferralAttributes['id'];
   referred: UserAttributes['email'];
   applied: boolean;
+  startDate: Date;
 }
