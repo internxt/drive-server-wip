@@ -19,6 +19,7 @@ import { SequelizeSharedWorkspaceRepository } from 'src/shared-workspace/shared-
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from 'src/externals/notifications/events/referral-redeemed.event';
+import { PaymentsService } from 'src/externals/payments/payments.service';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -54,6 +55,7 @@ export class UserUseCases {
     private cryptoService: CryptoService,
     private networkService: BridgeService,
     private notificationService: NotificationService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   getUserByUsername(email: string) {

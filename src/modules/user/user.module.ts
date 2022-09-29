@@ -23,6 +23,7 @@ import { FolderModule } from '../folder/folder.module';
 import { FileModule } from '../file/file.module';
 import { HttpClientModule } from 'src/externals/http/http.module';
 import { UserController } from './user.controller';
+import { PaymentsService } from 'src/externals/payments/payments.service';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { UserController } from './user.controller';
     CryptoService,
     BridgeService,
     NotificationService,
+    PaymentsService,
   ],
   exports: [UserUseCases],
 })
