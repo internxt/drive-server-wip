@@ -5,7 +5,7 @@ import {
   Post,
   Res,
   Logger,
-  Req,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import {
@@ -37,8 +37,7 @@ export class UserController {
   @Public()
   async createUser(
     @Body() createUserDto: CreateUserDto,
-    @Req() request: Request,
-    @Res() response: Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     try {
       const response = await this.userUseCases.createUser(createUserDto);
@@ -53,23 +52,25 @@ export class UserController {
         uuid: response.uuid,
       };
     } catch (err) {
+      let errorMessage = err.message;
+
       if (err instanceof InvalidReferralCodeError) {
-        return response.status(400).send({ error: err.message });
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        res.status(HttpStatus.CONFLICT);
+      } else {
+        new Logger().error(
+          `[AUTH/REGISTER] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
       }
 
-      if (err instanceof UserAlreadyRegisteredError) {
-        return response.status(409).send({ error: err.message });
-      }
-
-      new Logger().error(
-        `[AUTH/REGISTER] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify(request.body)}, STACK: ${
-          (err as Error).stack
-        }`,
-      );
-
-      return response.status(500).send({ error: 'Internal Server Error' });
+      return { error: errorMessage };
     }
   }
 }
