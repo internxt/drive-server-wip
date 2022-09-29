@@ -73,4 +73,11 @@ export class CreateUserDto {
     description: '',
   })
   referrer: UserAttributes['referrer'];
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+  })
+  registerCompleted: UserAttributes['registerCompleted'];
 }
