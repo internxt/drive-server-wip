@@ -20,8 +20,13 @@ import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from 'src/externals/notifications/events/referral-redeemed.event';
 
+class ReferralsNotAvailableError extends Error {
+  constructor() {
+    super('Referrals program not available for this user');
+  }
+}
 
-class InvalidReferralCodeError extends Error {
+export class InvalidReferralCodeError extends Error {
   constructor() {
     super('The referral code used is not correct');
 
@@ -29,7 +34,7 @@ class InvalidReferralCodeError extends Error {
   }
 }
 
-class UserAlreadyRegisteredError extends Error {
+export class UserAlreadyRegisteredError extends Error {
   constructor(email: string) {
     super(`User ${email || ''} is already registered`);
 
