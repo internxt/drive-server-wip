@@ -159,7 +159,11 @@ export class UserUseCases {
     newUser: Pick<
       UserAttributes,
       'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
-    > & { salt: string; referrer?: UserAttributes['referrer'] },
+    > & {
+      salt: string;
+      referrer?: UserAttributes['referrer'];
+      registerCompleted?: UserAttributes['registerCompleted'];
+    },
   ) {
     const { email, password, salt } = newUser;
 
@@ -192,8 +196,7 @@ export class UserUseCases {
           uuid: null,
           credit: 0,
           welcomePack: true,
-          // ?
-          // registerCompleted: newUser.registerCompleted,
+          registerCompleted: newUser.registerCompleted,
           username: newUser.email,
           bridgeUser: newUser.email,
         },
