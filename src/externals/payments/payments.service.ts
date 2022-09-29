@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 
-import { UserAttributes } from 'src/modules/user/user.domain';
+import { UserAttributes } from '../../modules/user/user.domain';
 
 @Injectable()
 export class PaymentsService {

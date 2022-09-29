@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { CryptoService } from 'src/externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto';
 import { FileUseCases } from '../file/file.usecase';
 import { User, UserAttributes } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';

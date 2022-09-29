@@ -1,7 +1,7 @@
 import {
   ReferralAttributes,
   UserAttributes,
-} from 'src/modules/user/user.domain';
+} from '../../../modules/user/user.domain';
 import { Event } from './event';
 
 export class ReferralRedeemedEvent extends Event {

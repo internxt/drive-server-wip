@@ -11,8 +11,8 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { UserAttributes } from 'src/modules/user/user.domain';
-import { UserModel } from 'src/modules/user/user.repository';
+import { UserAttributes } from '../modules/user/user.domain';
+import { UserModel } from '../modules/user/user.repository';
 
 interface FriendInvitationAttributes {
   id: number;

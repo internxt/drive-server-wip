@@ -2,8 +2,8 @@ import { Logger } from '@nestjs/common';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { FileAttributes } from 'src/modules/file/file.domain';
-import { User, UserAttributes } from 'src/modules/user/user.domain';
+import { FileAttributes } from '../../modules/file/file.domain';
+import { User, UserAttributes } from '../../modules/user/user.domain';
 import { CryptoService } from '../crypto/crypto';
 import { HttpClient } from '../http/http.service';
 

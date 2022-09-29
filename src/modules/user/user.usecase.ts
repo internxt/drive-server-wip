@@ -12,15 +12,15 @@ import {
 } from './user.domain';
 import { CryptoService } from '../../externals/crypto/crypto';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { BridgeService } from 'src/externals/bridge/bridge.service';
-import { InvitationAcceptedEvent } from 'src/externals/notifications/events/invitation-accepted.event';
-import { NotificationService } from 'src/externals/notifications/notification.service';
-import { Sign } from 'src/middlewares/passport';
-import { SequelizeSharedWorkspaceRepository } from 'src/shared-workspace/shared-workspace.repository';
+import { BridgeService } from '../../externals/bridge/bridge.service';
+import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
+import { NotificationService } from '../../externals/notifications/notification.service';
+import { Sign } from '../../middlewares/passport';
+import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
-import { ReferralRedeemedEvent } from 'src/externals/notifications/events/referral-redeemed.event';
-import { PaymentsService } from 'src/externals/payments/payments.service';
+import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
+import { PaymentsService } from '../../externals/payments/payments.service';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
