@@ -4,7 +4,7 @@ import { FolderModel, SequelizeFolderRepository } from './folder.repository';
 import { FolderUseCases } from './folder.usecase';
 import { FileModule } from '../file/file.module';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
-import { CryptoService } from 'src/externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto';
 
 @Module({
   imports: [
