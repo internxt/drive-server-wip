@@ -6,6 +6,7 @@ import { v4 } from 'uuid';
 import { SequelizeUserRepository } from './user.repository';
 import {
   ReferralAttributes,
+  ReferralKey,
   UserAttributes,
   UserReferralAttributes,
 } from './user.domain';
@@ -231,7 +232,7 @@ export class UserUseCases {
           email,
         );
 
-        await this.applyReferral(referrer.id, 'invite-friends');
+        await this.applyReferral(referrer.id, ReferralKey.InviteFriends);
       }
 
       const token = Sign(newUser.email, this.configService.get('secrets.jwt'));
@@ -292,7 +293,7 @@ export class UserUseCases {
       Array(referral.steps)
         .fill(null)
         .forEach(() => {
-          const applied = referral.key === 'create-account';
+          const applied = referral.key === ReferralKey.CreateAccount;
           userReferralsToCreate.push({
             userId,
             referralId: referral.id,
