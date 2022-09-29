@@ -4,6 +4,9 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { TransformInterceptor } from '../src/lib/transform.interceptor';
 import { HttpStatus } from '@nestjs/common';
+import { BridgeService } from '../src/externals/bridge/bridge.service';
+import { CreateUserDtoMother } from './CreateUserDtoMother';
+import { PaymentsService } from '../src/externals/payments/payments.service';
 
 // Running e2e tests require a database named "Xcloud_test" in the mariadb database first.
 describe('AppController (e2e)', () => {
@@ -194,6 +197,149 @@ describe('AppController (e2e)', () => {
           });
         });
       });
+    });
+  });
+
+  describe('Auth', () => {
+    describe('signup', () => {
+      let signupApp: INestApplication;
+      const bridgeUser = '536fb7a-5ef4-52d2-802a-95569a410dc';
+      const uuid = Date.now().toString();
+
+      beforeAll(async () => {
+        if (process.env.NODE_ENV !== 'test') {
+          throw new Error('Cannot do E2E tests without NODE_ENV=test ');
+        }
+
+        const bridgeService = {
+          createUser: () =>
+            Promise.resolve({
+              userId: bridgeUser,
+              uuid,
+            }),
+          createBucket: () => ({
+            id: 3186365865,
+          }),
+          getLimit: () => Promise.resolve(2539622667),
+        } as unknown as BridgeService;
+
+        const paymentsService = {
+          hasSubscriptions: () => Promise.resolve(false),
+        };
+
+        const moduleFixture: TestingModule = await Test.createTestingModule({
+          imports: [AppModule],
+        })
+          .overrideProvider(BridgeService)
+          .useValue(bridgeService)
+          .overrideProvider(PaymentsService)
+          .useValue(paymentsService)
+          .compile();
+
+        signupApp = moduleFixture.createNestApplication();
+        signupApp.useGlobalPipes(new ValidationPipe());
+        signupApp.useGlobalInterceptors(new TransformInterceptor());
+
+        await signupApp.init();
+      });
+
+      afterAll(async () => {
+        signupApp.close();
+      });
+
+      it('should be able to register a user', async () => {
+        const email = `test${Date.now()}@internxt.com`;
+
+        const response = await request(signupApp.getHttpServer())
+          .post('/users')
+          .send(CreateUserDtoMother.create(email));
+
+        expect(response.status).toBe(HttpStatus.CREATED);
+      });
+
+      /*       it('should be able to register a referred user', async () => {
+        const referralInserted = await insertReferral('invite-friends');
+
+        server.services.Inxt.RegisterBridgeUser = sinon
+          .stub(server.services.Inxt, 'RegisterBridgeUser')
+          .onFirstCall()
+          .returns({
+            response: {
+              status: HttpStatus.OK,
+            },
+            data: {
+              uuid: '94b6b993-0a39-5ed0-8838-28fdae43c38a',
+            },
+          })
+          .onSecondCall()
+          .returns({
+            response: {
+              status: HttpStatus.OK,
+            },
+            data: {
+              uuid: 'e0d49789-d80c-5ae8-8775-0f7041688b46',
+            },
+          });
+        server.services.Mail.sendInviteFriendMail = sinon
+          .stub(server.services.Mail, 'sendInviteFriendMail')
+          .resolves();
+        server.services.Inxt.addStorage = sinon
+          .stub(server.services.Inxt, 'addStorage')
+          .resolves();
+        server.services.Plan.hasBeenIndividualSubscribedAnyTime = sinon
+          .stub(server.services.Plan, 'hasBeenIndividualSubscribedAnyTime')
+          .resolves(false);
+
+        const inviter = await registerTestUser('inviter@internxt.com');
+
+        const { status } = await request(app)
+          .post('/api/register')
+          .send({
+            ...registrationBodyFor(TEST_USER_EMAIL),
+            referrer: inviter.referralCode,
+          });
+
+        expect(status).toBe(HttpStatus.OK);
+
+        server.services.Mail.sendInviteFriendMail.restore();
+        server.services.Inxt.addStorage.restore();
+        server.services.Plan.hasBeenIndividualSubscribedAnyTime.restore();
+
+        if (referralInserted !== undefined) {
+          await deleteReferral(referralInserted);
+        }
+      }); */
+
+      /*       it('should rollback succecfully if fails after the user is insterted on the database', async () => {
+        const RegisterBridgeUserMock = sinon.stub(
+          server.services.Inxt,
+          'RegisterBridgeUser',
+        );
+        RegisterBridgeUserMock.returns({
+          response: {
+            status: 500,
+            data: {
+              error: 'fake error',
+            },
+          },
+        });
+
+        server.services.Inxt.RegisterBridgeUser = RegisterBridgeUserMock;
+
+        const response = await request(app)
+          .post('/api/register')
+          .send(registrationBodyFor(TEST_USER_EMAIL));
+
+        const [, result] = await server.database.query(
+          'SELECT * FROM users WHERE email = (:userEmail)',
+          {
+            replacements: { userEmail: TEST_USER_EMAIL },
+          },
+        );
+
+        expect(response.status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+        expect(result.rowCount).toBe(0);
+      }); */
     });
   });
 });
