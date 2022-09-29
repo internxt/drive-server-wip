@@ -63,7 +63,6 @@ export class FolderUseCases {
     name: FolderAttributes['name'],
     bucketId: string,
   ): Promise<Folder> {
-
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
     let user = creator;
 
@@ -81,7 +80,6 @@ export class FolderUseCases {
     }
 
     const encryptedFolderName = this.cryptoService.encryptName(name, null);
-
 
     const nameAlreadyInUse = await this.folderRepository.findOne({
       parentId: null,
