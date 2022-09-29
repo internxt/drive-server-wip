@@ -104,10 +104,7 @@ export class BridgeService {
     );
   }
 
-  async addStorage(
-    email: UserAttributes['bridgeUser'],
-    bytes: number,
-  ): Promise<void> {
+  async addStorage(uuid: UserAttributes['uuid'], bytes: number): Promise<void> {
     const { GATEWAY_USER, GATEWAY_PASS } = process.env;
     const url = this.configService.get('apis.storage.url');
 
@@ -117,8 +114,8 @@ export class BridgeService {
     };
 
     await this.httpClient.put(
-      `${url}/gateway/storage`,
-      { email, bytes },
+      `${url}/gateway/increment-storage-by-uuid`,
+      { uuid, bytes },
       params,
     );
   }

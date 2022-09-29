@@ -118,7 +118,7 @@ export class UserUseCases {
     });
 
     await this.redeemUserReferral(
-      user.bridgeUser,
+      user.uuid,
       user.userId,
       referral.type,
       referral.credit,
@@ -130,7 +130,7 @@ export class UserUseCases {
   }
 
   async redeemUserReferral(
-    userEmail: UserAttributes['bridgeUser'],
+    uuid: UserAttributes['uuid'],
     userId: UserAttributes['userId'],
     type: ReferralAttributes['type'],
     credit: ReferralAttributes['credit'],
@@ -139,8 +139,7 @@ export class UserUseCases {
 
     if (type === 'storage') {
       if (GATEWAY_USER && GATEWAY_PASS) {
-        // await App.services.Inxt.addStorage(userEmail, credit);
-        await this.networkService.addStorage(userEmail, credit);
+        await this.networkService.addStorage(uuid, credit);
       } else {
         console.warn(
           '(usersReferralsService.redeemUserReferral) GATEWAY_USER\
@@ -151,7 +150,7 @@ export class UserUseCases {
 
     console.info(
       `(usersReferralsService.redeemUserReferral)\
-       The user '${userEmail}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
+       The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
 
