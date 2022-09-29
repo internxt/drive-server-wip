@@ -264,6 +264,7 @@ export class UserUseCases {
           bucket: bucket.id,
           uuid: userUuid,
           userId,
+          hasReferralsProgram: true,
         },
         uuid: userUuid,
       };
