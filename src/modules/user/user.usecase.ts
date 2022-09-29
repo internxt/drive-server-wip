@@ -103,6 +103,15 @@ export class UserUseCases {
     if (!userReferral) {
       return;
     }
+    const userHasReferralsProgram = await this.hasReferralsProgram(
+      user.email,
+      user.bridgeUser,
+      user.userId,
+    );
+    if (!userHasReferralsProgram) {
+      throw new ReferralsNotAvailableError();
+    }
+
     await this.userReferralsRepository.updateReferralById(userReferral.id, {
       applied: true,
       referred,
@@ -287,5 +296,35 @@ export class UserUseCases {
     });
 
     await this.userReferralsRepository.bulkCreate(userReferralsToCreate);
+  }
+
+  async hasUserBeenSubscribedAnyTime(
+    email: UserAttributes['email'],
+    networkUser: UserAttributes['bridgeUser'],
+    networkPass: UserAttributes['userId'],
+  ): Promise<boolean> {
+    const MAX_FREE_PLAN_BYTES = 10737418240;
+    const hasSubscriptions = await this.paymentsService.hasSubscriptions(email);
+    const maxSpaceBytes = await this.networkService.getLimit(
+      networkUser,
+      networkPass,
+    );
+    const isLifetime = maxSpaceBytes > MAX_FREE_PLAN_BYTES;
+
+    return hasSubscriptions || isLifetime;
+  }
+
+  async hasReferralsProgram(
+    userEmail: UserAttributes['email'],
+    networkUser: UserAttributes['bridgeUser'],
+    networkPass: UserAttributes['userId'],
+  ): Promise<boolean> {
+    const hasBeenSubscribed = await this.hasUserBeenSubscribedAnyTime(
+      userEmail,
+      networkUser,
+      networkPass,
+    );
+
+    return !hasBeenSubscribed;
   }
 }
