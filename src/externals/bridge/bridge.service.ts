@@ -122,4 +122,25 @@ export class BridgeService {
       params,
     );
   }
+
+  async getLimit(
+    networkUser: UserAttributes['bridgeUser'],
+    networkPass: UserAttributes['userId'],
+  ): Promise<number> {
+    const hashedNetworkPassword = this.cryptoService.hashSha256(networkPass);
+    const basicAuth = Buffer.from(
+      `${networkUser}:${hashedNetworkPassword}`,
+    ).toString('base64');
+
+    const url = this.configService.get('apis.storage.url');
+
+    return this.httpClient
+      .get(`${url}/limit`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${basicAuth}`,
+        },
+      })
+      .then<number>((response) => response.data.maxSpaceBytes);
+  }
 }
