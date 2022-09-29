@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -276,7 +276,9 @@ export class UserUseCases {
         uuid: userUuid,
       };
     } catch (err) {
-      await transaction.rollback();
+      await transaction.rollback().catch((err) => {
+        new Logger().error(`[USER/CREATE]: ${err.message}. ${err?.stack}`);
+      });
 
       throw err;
     }
