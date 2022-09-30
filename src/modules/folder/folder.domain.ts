@@ -8,7 +8,7 @@ export interface FolderAttributes {
   bucket: string;
   userId: number;
   user?: any;
-  encryptVersion: string;
+  encryptVersion: '03-aes';
   deleted: boolean;
   deletedAt: Date;
   createdAt: Date;
@@ -24,7 +24,7 @@ export class Folder implements FolderAttributes {
   bucket: string;
   userId: number;
   user?: User;
-  encryptVersion: string;
+  encryptVersion: FolderAttributes['encryptVersion'];
   deleted: boolean;
   deletedAt: Date;
   createdAt: Date;

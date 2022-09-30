@@ -1,7 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
-// import { CryptoService } from '../../externals/crypto/crypto.service';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
