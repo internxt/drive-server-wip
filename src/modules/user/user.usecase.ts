@@ -258,7 +258,13 @@ export class UserUseCases {
         this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
       ]);
 
-      await this.newsletterService.subscribe(userResult.email);
+      this.newsletterService.subscribe(userResult.email).catch((err) => {
+        new Logger().error(
+          '[CREATE-USER]: Error subscribing user %s to newsletter %s',
+          userResult.uuid,
+          err.message,
+        );
+      });
 
       return {
         token,
