@@ -1,6 +1,5 @@
 import { Logger } from '@nestjs/common';
 import { Request } from 'express';
-import geoip from 'geoip-lite';
 import { getDeviceContextByUserAgent } from './device-context';
 import { getLocation } from './location';
 

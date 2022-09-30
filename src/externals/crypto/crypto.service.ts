@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 @Injectable()
 export class CryptoService {
@@ -20,17 +21,7 @@ export class CryptoService {
     this.cryptoSecret = process.env.CRYPTO_SECRET;
   }
 
-  public encryptText(text: string, salt?: string): string {
-    const randomIv = false;
-
-    return this.aesService.encrypt(
-      text,
-      salt || this.configService.get('secrets.magicSalt'),
-      randomIv,
-    );
-  }
-
-  encryptName(name, salt) {
+  encryptName(name: string, salt?: number) {
     if (salt) {
       return this.aesService.encrypt(name, salt, salt === undefined);
     }
@@ -66,14 +57,15 @@ export class CryptoService {
     }
   }
 
-  /* DECRYPT */
-
-  public decryptText(text: string, salt?: string): string {
-    return this.decryptName(
-      text,
-      salt || this.configService.get('secrets.magicSalt'),
-    );
+  decryptText(encryptedText: string, salt?: number) {
+    return this.decryptName(encryptedText, salt);
   }
+
+  encryptText(textToEncrypt: string, salt?: number) {
+    return this.encryptName(textToEncrypt, salt);
+  }
+
+  /* DECRYPT */
 
   decryptName(cipherText, salt) {
     if (salt) {
@@ -135,6 +127,16 @@ export class CryptoService {
       return crypto.createHash('sha256').update(text).digest('hex');
     } catch (error) {
       Logger.error('[CRYPTO sha256] ', error);
+
+      return null;
+    }
+  }
+
+  hashBcrypt(text: string): string | null {
+    try {
+      return bcrypt.hashSync(text.toString(), 8);
+    } catch (err) {
+      console.error('FATAL BCRYPT ERROR', (err as Error).message);
 
       return null;
     }

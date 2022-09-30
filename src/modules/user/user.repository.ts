@@ -17,6 +17,7 @@ import {
 } from 'sequelize-typescript';
 
 import { FolderModel } from '../folder/folder.repository';
+import { FindOrCreateOptions, Transaction } from 'sequelize/types';
 @Table({
   underscored: true,
   timestamps: true,
@@ -70,7 +71,7 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   errorLoginCount: number;
 
-  @Default(0)
+  @Default(false)
   @AllowNull
   @Column
   isEmailActivitySended: number;
@@ -142,6 +143,22 @@ export class SequelizeUserRepository implements UserRepository {
     return user ? this.toDomain(user) : null;
   }
 
+  createTransaction(): Promise<Transaction> {
+    return this.modelUser.sequelize.transaction();
+  }
+
+  findOrCreate(opts: FindOrCreateOptions): Promise<[User | null, boolean]> {
+    return this.modelUser.findOrCreate(opts) as any;
+  }
+
+  async findByReferralCode(
+    referralCode: UserAttributes['referralCode'],
+  ): Promise<User | null> {
+    const user = await this.modelUser.findOne({ where: { referralCode } });
+
+    return user ? this.toDomain(user) : null;
+  }
+
   async findAllBy(where: any): Promise<Array<User> | []> {
     const users = await this.modelUser.findAll({ where });
     return users.map((user) => this.toDomain(user));
@@ -154,6 +171,14 @@ export class SequelizeUserRepository implements UserRepository {
       },
     });
     return user ? this.toDomain(user) : null;
+  }
+
+  async updateById(
+    id: UserAttributes['id'],
+    update: Partial<UserAttributes>,
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.modelUser.update(update, { where: { id }, transaction });
   }
 
   toDomain(model: UserModel): User {

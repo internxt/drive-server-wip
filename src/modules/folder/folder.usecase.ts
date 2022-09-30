@@ -7,14 +7,18 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FileUseCases } from '../file/file.usecase';
-import { UserAttributes } from '../user/user.domain';
+import { User, UserAttributes } from '../user/user.domain';
+import { SequelizeUserRepository } from '../user/user.repository';
 import { Folder, FolderAttributes } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
+
+const invalidName = /[\\/]|^\s*$/;
 
 @Injectable()
 export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
+    private userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
@@ -52,6 +56,108 @@ export class FolderUseCases {
     });
 
     return folders;
+  }
+
+  async createRootFolder(
+    creator: User,
+    name: FolderAttributes['name'],
+    bucketId: string,
+  ): Promise<Folder> {
+    const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
+    let user = creator;
+
+    if (isAGuestOnSharedWorkspace) {
+      /* 
+        The owner of all the folders in a shared workspace is the HOST, not the GUEST
+        The owner email is on the bridgeUser field, as all the users on a shared workspace
+        use the email of the owner as the network user. 
+      */
+      user = await this.userRepository.findByUsername(creator.bridgeUser);
+    }
+
+    if (name === '' || invalidName.test(name)) {
+      throw new Error('Invalid folder name');
+    }
+
+    const encryptedFolderName = this.cryptoService.encryptName(name, null);
+
+    const nameAlreadyInUse = await this.folderRepository.findOne({
+      parentId: null,
+      name: encryptedFolderName,
+    });
+
+    if (nameAlreadyInUse) {
+      throw Error('Folder with the same name already exists');
+    }
+
+    const folder = await this.folderRepository.create(
+      user.id,
+      encryptedFolderName,
+      bucketId,
+      null,
+      '03-aes',
+    );
+
+    return folder;
+  }
+
+  async createFolder(
+    creator: User,
+    name: FolderAttributes['name'],
+    parentFolderId: FolderAttributes['id'],
+  ): Promise<Folder> {
+    if (parentFolderId >= 2147483648) {
+      throw new Error('Invalid parent folder');
+    }
+
+    const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
+    let user = creator;
+
+    if (isAGuestOnSharedWorkspace) {
+      /* 
+        The owner of all the folders in a shared workspace is the HOST, not the GUEST
+        The owner email is on the bridgeUser field, as all the users on a shared workspace
+        use the email of the owner as the network user. 
+      */
+      user = await this.userRepository.findByUsername(creator.bridgeUser);
+    }
+
+    const parentFolderExists = await this.folderRepository.findOne({
+      id: parentFolderId,
+      userId: user.id,
+    });
+
+    if (!parentFolderExists) {
+      throw new Error('Parent folder does not exist or is not yours');
+    }
+
+    if (name === '' || invalidName.test(name)) {
+      throw new Error('Invalid folder name');
+    }
+
+    const encryptedFolderName = this.cryptoService.encryptName(
+      name,
+      parentFolderId,
+    );
+
+    const nameAlreadyInUse = await this.folderRepository.findOne({
+      parentId: parentFolderId,
+      name: encryptedFolderName,
+    });
+
+    if (nameAlreadyInUse) {
+      throw Error('Folder with the same name already exists');
+    }
+
+    const folder = await this.folderRepository.create(
+      user.id,
+      encryptedFolderName,
+      null,
+      parentFolderId,
+      '03-aes',
+    );
+
+    return folder;
   }
 
   async moveFolderToTrash(folderId: FolderAttributes['id']): Promise<Folder> {

@@ -16,7 +16,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
-import { User } from '../user/user.domain';
+import { User, UserAttributes } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
 
 @Table({
@@ -52,7 +52,7 @@ export class FolderModel extends Model implements FolderAttributes {
   user: UserModel;
 
   @Column
-  encryptVersion: string;
+  encryptVersion: '03-aes';
 
   @Default(false)
   @Column
@@ -100,6 +100,12 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findAll(where = {}): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({ where });
     return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {
+    const folder = await this.folderModel.findOne({ where });
+
+    return folder ? this.toDomain(folder) : null;
   }
 
   async findAllByParentIdAndUserId(
@@ -169,6 +175,24 @@ export class SequelizeFolderRepository implements FolderRepository {
         },
       },
     });
+  }
+
+  async create(
+    userId: UserAttributes['id'],
+    name: FolderAttributes['name'],
+    bucket: FolderAttributes['bucket'],
+    parentId: FolderAttributes['id'],
+    encryptVersion: FolderAttributes['encryptVersion'],
+  ): Promise<Folder> {
+    const folder = await this.folderModel.create({
+      userId,
+      name,
+      bucket,
+      parentId,
+      encryptVersion,
+    });
+
+    return this.toDomain(folder);
   }
 
   async deleteById(folderId: number): Promise<void> {
