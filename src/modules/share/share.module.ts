@@ -20,7 +20,7 @@ import { ShareUseCases } from './share.usecase';
     SequelizeModule.forFeature([ShareModel, FileModel, FolderModel, UserModel]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
-    UserModule,
+    forwardRef(() => UserModule),
     NotificationModule,
     CryptoModule,
   ],

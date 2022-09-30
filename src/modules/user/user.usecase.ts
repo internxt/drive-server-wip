@@ -10,7 +10,7 @@ import {
   UserAttributes,
   UserReferralAttributes,
 } from './user.domain';
-import { CryptoService } from '../../externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';

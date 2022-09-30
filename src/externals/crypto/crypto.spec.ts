@@ -31,7 +31,7 @@ describe('Crypto', () => {
 
   describe('check crypto as singleton', () => {
     it('encrypt text without random IV does not throw an exception', () => {
-      cryptoService.encryptName('text to encrypt', 'salt');
+      cryptoService.encryptName('text to encrypt', 1453363321);
     });
   });
 

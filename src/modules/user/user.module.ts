@@ -12,7 +12,7 @@ import {
   UserReferralModel,
 } from './user-referrals.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { CryptoService } from '../../externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import {
