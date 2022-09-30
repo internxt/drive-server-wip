@@ -21,6 +21,7 @@ import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
+import { NewsletterService } from 'src/externals/newsletter';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -57,6 +58,7 @@ export class UserUseCases {
     private networkService: BridgeService,
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
+    private readonly newsletterService: NewsletterService,
   ) {}
 
   getUserByUsername(email: string) {
@@ -255,6 +257,8 @@ export class UserUseCases {
         this.folderUseCases.createFolder(userResult, 'Family', rootFolder.id),
         this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
       ]);
+
+      await this.newsletterService.subscribe(userResult.email);
 
       return {
         token,
