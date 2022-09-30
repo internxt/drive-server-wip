@@ -63,6 +63,10 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_RECEIVER || '',
     },
   },
+  newsletter: {
+    apiKey: process.env.MAILERLITE_API_KEY,
+    groupId: process.env.MAILERLITE_GROUP_ID,
+  },
   sentry: {
     dsn: process.env.SENTRY_DSN,
   },
