@@ -41,7 +41,6 @@ import {
   SequelizeUserReferralsRepository,
   UserReferralModel,
 } from '../user/user-referrals.repository';
-import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -149,7 +148,7 @@ describe('Share Use Cases', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-    userId: 0,
+    userId: userOwnerMock.id,
     fileId: 2096680966,
     fileSize: BigInt(1158803678),
     folderId: null,
@@ -184,7 +183,7 @@ describe('Share Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule, NotificationModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [
         ShareUseCases,
         FolderUseCases,
@@ -198,6 +197,7 @@ describe('Share Use Cases', () => {
         SequelizeReferralRepository,
         SequelizeUserReferralsRepository,
         PaymentsService,
+        EventEmitter2,
         NotificationService,
         ConfigService,
         {
@@ -228,7 +228,6 @@ describe('Share Use Cases', () => {
           provide: getModelToken(FriendInvitationModel),
           useValue: jest.fn(),
         },
-        EventEmitter2,
       ],
     }).compile();
 
@@ -236,6 +235,9 @@ describe('Share Use Cases', () => {
     shareRepository = module.get<SequelizeShareRepository>(
       SequelizeShareRepository,
     );
+    fileRepository = module.get<FileRepository>(SequelizeFileRepository);
+    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    cryptoService = module.get<CryptoService>(CryptoService);
   });
 
   it('should be defined', () => {
@@ -420,7 +422,10 @@ describe('Share Use Cases', () => {
     it('should return share deleted', async () => {
       jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
       jest.spyOn(shareRepository, 'deleteById').mockResolvedValue(undefined);
-      const result = await service.deleteShareById(1, userOwnerMock);
+      const result = await service.deleteShareById(
+        shareFolder.id,
+        userOwnerMock,
+      );
       expect(result).toBe(true);
     });
 
