@@ -6,6 +6,7 @@ import {
   Res,
   Logger,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -13,9 +14,12 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
+import { Response, Request } from 'express';
+import { SignUpEvent } from 'src/externals/notifications/events/sign-up.event';
+import { NotificationService } from 'src/externals/notifications/notification.service';
+import { UserAttributes } from './user.domain';
 import {
   InvalidReferralCodeError,
   UserAlreadyRegisteredError,
@@ -25,7 +29,10 @@ import {
 @ApiTags('User')
 @Controller('users')
 export class UserController {
-  constructor(private userUseCases: UserUseCases) {}
+  constructor(
+    private userUseCases: UserUseCases,
+    private readonly notificationsService: NotificationService,
+  ) {}
 
   @Post('/')
   @HttpCode(201)
@@ -37,10 +44,15 @@ export class UserController {
   @Public()
   async createUser(
     @Body() createUserDto: CreateUserDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
       const response = await this.userUseCases.createUser(createUserDto);
+
+      this.notificationsService.add(
+        new SignUpEvent(response.user as unknown as UserAttributes, req),
+      );
 
       return {
         ...response,
