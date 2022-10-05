@@ -4,7 +4,7 @@ export class FolderDto {
   name: string;
   bucket: string;
   userId: number;
-  encryptVersion: string;
+  encryptVersion: '03-aes';
   size: number;
   deleted: boolean;
   deletedAt: Date;

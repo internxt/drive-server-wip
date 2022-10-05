@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
@@ -25,7 +25,7 @@ import { SendUseCases } from './send.usecase';
       FileModel,
       FolderModel,
     ]),
-    UserModule,
+    forwardRef(() => UserModule),
     FileModule,
     FolderModule,
     NotificationModule,

@@ -26,20 +26,31 @@ import { User } from '../user/user.domain';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
 import { Share, ShareAttributes } from './share.domain';
-import {
-  SequelizeShareRepository,
-  ShareModel,
-  ShareRepository,
-} from './share.repository';
+import { SequelizeShareRepository, ShareModel } from './share.repository';
 import { ShareUseCases } from './share.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import {
+  FriendInvitationModel,
+  SequelizeSharedWorkspaceRepository,
+} from '../../shared-workspace/shared-workspace.repository';
+import {
+  ReferralModel,
+  SequelizeReferralRepository,
+} from '../user/referrals.repository';
+import {
+  SequelizeUserReferralsRepository,
+  UserReferralModel,
+} from '../user/user-referrals.repository';
+import { PaymentsService } from '../../externals/payments/payments.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationService } from '../../externals/notifications/notification.service';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
-  let shareRepository: ShareRepository;
   let cryptoService: CryptoService;
   let fileRepository: FileRepository;
   let folderRepository: FolderRepository;
+  let shareRepository: SequelizeShareRepository;
 
   const token = 'token';
   const userOwnerMock = User.build({
@@ -104,7 +115,7 @@ describe('Share Use Cases', () => {
     name: 'name',
     bucket: 'bucket',
     userId: 1,
-    encryptVersion: '2',
+    encryptVersion: '03-aes',
     deleted: true,
     deletedAt: new Date(),
     createdAt: new Date(),
@@ -118,7 +129,7 @@ describe('Share Use Cases', () => {
     size: null,
     bucket: 'bucket',
     folderId: 1,
-    encryptVersion: '',
+    encryptVersion: '03-aes',
     deleted: false,
     deletedAt: undefined,
     userId: 1,
@@ -137,14 +148,17 @@ describe('Share Use Cases', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    userId: userOwnerMock.id,
+    fileId: 2096680966,
+    fileSize: BigInt(1158803678),
+    folderId: null,
+    code: 'gTM8fN6nLGOZcGlXbEZG',
+    fileToken: 'uQMfvAIMzmgvs4fmCCk6HUVoQWpInJ',
     hashedPassword: null,
-    userId: 2083971069,
-    fileId: null,
-    fileSize: null,
-    folderId: 3209615469,
-    code: 'daz2uC8A0AMKoZjIvyfELDaTJz8p2f',
-    fileToken: '17phH5NgBtAbx4ARxp1PpNGTqgSz1G',
   });
+
+  shareFolder.item = mockFolder;
+
   const shareFile = Share.build({
     id: 1,
     token: 'token',
@@ -156,14 +170,17 @@ describe('Share Use Cases', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    userId: 0,
+    fileId: null,
+    fileSize: null,
+    folderId: 3817750339,
+    code: '9TmWSAAn1X5l7pXB2JTC',
+    fileToken: '',
     hashedPassword: null,
-    userId: 2083971069,
-    fileId: 944407977,
-    fileSize: BigInt(2840781934),
-    folderId: null,
-    code: 'qJhD70HqNsaeIZs39MJCvy4HfNbC5v',
-    fileToken: '4FX6oaWFx2SCgIO5ZeGOlXY69J0rNJ',
   });
+
+  shareFile.item = mockFile;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [BridgeModule, CryptoModule],
@@ -176,6 +193,12 @@ describe('Share Use Cases', () => {
         SequelizeFileRepository,
         SequelizeFolderRepository,
         SequelizeUserRepository,
+        SequelizeSharedWorkspaceRepository,
+        SequelizeReferralRepository,
+        SequelizeUserReferralsRepository,
+        PaymentsService,
+        EventEmitter2,
+        NotificationService,
         ConfigService,
         {
           provide: getModelToken(ShareModel),
@@ -193,14 +216,28 @@ describe('Share Use Cases', () => {
           provide: getModelToken(UserModel),
           useValue: jest.fn(),
         },
+        {
+          provide: getModelToken(ReferralModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(UserReferralModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(FriendInvitationModel),
+          useValue: jest.fn(),
+        },
       ],
     }).compile();
 
     service = module.get<ShareUseCases>(ShareUseCases);
-    shareRepository = module.get<ShareRepository>(SequelizeShareRepository);
-    cryptoService = module.get<CryptoService>(CryptoService);
+    shareRepository = module.get<SequelizeShareRepository>(
+      SequelizeShareRepository,
+    );
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    cryptoService = module.get<CryptoService>(CryptoService);
   });
 
   it('should be defined', () => {
@@ -385,13 +422,10 @@ describe('Share Use Cases', () => {
     it('should return share deleted', async () => {
       jest.spyOn(shareRepository, 'findById').mockResolvedValue(shareFolder);
       jest.spyOn(shareRepository, 'deleteById').mockResolvedValue(undefined);
-
-      const userOwnerOfShare = {
-        id: shareFolder.userId,
-      } as unknown as User;
-
-      const result = await service.deleteShareById(1, userOwnerOfShare);
-
+      const result = await service.deleteShareById(
+        shareFolder.id,
+        userOwnerMock,
+      );
       expect(result).toBe(true);
     });
 
