@@ -20,6 +20,7 @@ import {
 import { ShareUseCases } from '../share/share.usecase';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { User } from '../user/user.domain';
 
 const folderId = 4;
 const userId = 1;
@@ -191,6 +192,34 @@ describe('FolderUseCases', () => {
 
   describe('delete folder use case', () => {
     it('should be able to delete a trashed folder', async () => {
+      const userOwnerMock = User.build({
+        id: 1,
+        userId: 'userId',
+        name: 'User Owner',
+        lastname: 'Lastname',
+        email: 'fake@internxt.com',
+        username: 'fake',
+        bridgeUser: null,
+        rootFolderId: 1,
+        errorLoginCount: 0,
+        isEmailActivitySended: 1,
+        referralCode: null,
+        referrer: null,
+        syncDate: new Date(),
+        uuid: 'uuid',
+        lastResend: new Date(),
+        credit: null,
+        welcomePack: true,
+        registerCompleted: true,
+        backupsBucket: 'bucket',
+        sharedWorkspace: true,
+        avatar: 'avatar',
+        password: '',
+        mnemonic: '',
+        hKey: undefined,
+        secret_2FA: '',
+        tempKey: '',
+      });
       const folderId = 2713105696;
       const folder = Folder.build({
         id: folderId,
@@ -203,7 +232,7 @@ describe('FolderUseCases', () => {
         deletedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        user: null,
+        user: userOwnerMock,
         parent: null,
       });
 
@@ -211,12 +240,40 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'deleteById')
         .mockImplementationOnce(() => Promise.resolve());
 
-      await service.deleteFolderPermanently(folder);
+      await service.deleteFolderPermanently(folder, userOwnerMock);
 
       expect(folderRepository.deleteById).toHaveBeenCalledWith(folderId);
     });
 
     it('should fail when the folder trying to delete has not been trashed', async () => {
+      const userOwnerMock = User.build({
+        id: 1,
+        userId: 'userId',
+        name: 'User Owner',
+        lastname: 'Lastname',
+        email: 'fake@internxt.com',
+        username: 'fake',
+        bridgeUser: null,
+        rootFolderId: 1,
+        errorLoginCount: 0,
+        isEmailActivitySended: 1,
+        referralCode: null,
+        referrer: null,
+        syncDate: new Date(),
+        uuid: 'uuid',
+        lastResend: new Date(),
+        credit: null,
+        welcomePack: true,
+        registerCompleted: true,
+        backupsBucket: 'bucket',
+        sharedWorkspace: true,
+        avatar: 'avatar',
+        password: '',
+        mnemonic: '',
+        hKey: undefined,
+        secret_2FA: '',
+        tempKey: '',
+      });
       const folderId = 2713105696;
       const folder = Folder.build({
         id: folderId,
@@ -229,7 +286,7 @@ describe('FolderUseCases', () => {
         deletedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        user: null,
+        user: userOwnerMock,
         parent: null,
       });
 
@@ -237,7 +294,9 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'deleteById')
         .mockImplementationOnce(() => Promise.resolve());
 
-      expect(service.deleteFolderPermanently(folder)).rejects.toThrow(
+      expect(
+        service.deleteFolderPermanently(folder, userOwnerMock),
+      ).rejects.toThrow(
         new UnprocessableEntityException(
           `folder with id ${folderId} cannot be permanently deleted`,
         ),
@@ -246,6 +305,34 @@ describe('FolderUseCases', () => {
     });
 
     it('should fail when the folder trying to delete is a root folder', async () => {
+      const userOwnerMock = User.build({
+        id: 1,
+        userId: 'userId',
+        name: 'User Owner',
+        lastname: 'Lastname',
+        email: 'fake@internxt.com',
+        username: 'fake',
+        bridgeUser: null,
+        rootFolderId: 1,
+        errorLoginCount: 0,
+        isEmailActivitySended: 1,
+        referralCode: null,
+        referrer: null,
+        syncDate: new Date(),
+        uuid: 'uuid',
+        lastResend: new Date(),
+        credit: null,
+        welcomePack: true,
+        registerCompleted: true,
+        backupsBucket: 'bucket',
+        sharedWorkspace: true,
+        avatar: 'avatar',
+        password: '',
+        mnemonic: '',
+        hKey: undefined,
+        secret_2FA: '',
+        tempKey: '',
+      });
       const folderId = 2713105696;
       const folder = Folder.build({
         id: folderId,
@@ -258,7 +345,7 @@ describe('FolderUseCases', () => {
         deletedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        user: null,
+        user: userOwnerMock,
         parent: null,
       });
 
@@ -266,7 +353,9 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'deleteById')
         .mockImplementationOnce(() => Promise.resolve());
 
-      expect(service.deleteFolderPermanently(folder)).rejects.toThrow(
+      expect(
+        service.deleteFolderPermanently(folder, userOwnerMock),
+      ).rejects.toThrow(
         new UnprocessableEntityException(
           `folder with id ${folderId} is a root folder`,
         ),
