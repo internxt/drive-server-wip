@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -29,10 +30,10 @@ import { UpdateShareDto } from './dto/update-share.dto';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { ShareLinkViewEvent } from '../../externals/notifications/events/share-link-view.event';
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
-import { User } from '../user/user.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
+import { ReferralKey, User } from '../user/user.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -207,6 +208,16 @@ export class ShareController {
   ) {
     const { item, created, encryptedCode } =
       await this.shareUseCases.createShareFile(fileId, user, body);
+
+    if (created) {
+      this.userUseCases
+        .applyReferral(user.id, ReferralKey.ShareFile)
+        .catch((err: Error) => {
+          new Logger().error(
+            `[REFERRAL/SHARE]: ERROR applying referral to user ${user.uuid}: ${err.message}`,
+          );
+        });
+    }
 
     const shareLinkViewEvent = new ShareLinkCreatedEvent(
       'share.created',

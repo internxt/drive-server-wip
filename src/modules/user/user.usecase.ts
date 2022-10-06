@@ -219,24 +219,6 @@ export class UserUseCases {
         transaction,
       );
 
-      if (hasReferrer) {
-        const event = new InvitationAcceptedEvent(
-          'invitation.accepted',
-          userUuid,
-          referrer.uuid,
-          referrer.email,
-          {},
-        );
-
-        this.notificationService.add(event);
-        await this.sharedWorkspaceRepository.updateByHostAndGuest(
-          referrer.id,
-          email,
-        );
-
-        await this.applyReferral(referrer.id, ReferralKey.InviteFriends);
-      }
-
       const token = Sign(newUser.email, this.configService.get('secrets.jwt'));
       const bucket = await this.networkService.createBucket(email, userId);
       const rootFolderName = await this.cryptoService.encryptName(
@@ -258,11 +240,32 @@ export class UserUseCases {
         this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
       ]);
 
+      if (hasReferrer) {
+        const event = new InvitationAcceptedEvent(
+          'invitation.accepted',
+          userUuid,
+          referrer.uuid,
+          referrer.email,
+          {},
+        );
+
+        this.notificationService.add(event);
+        await this.sharedWorkspaceRepository.updateByHostAndGuest(
+          referrer.id,
+          email,
+        );
+
+
+        await this.applyReferral(
+          referrer.id,
+          ReferralKey.InviteFriends,
+          userUuid,
+        );
+      }
+
       this.newsletterService.subscribe(userResult.email).catch((err) => {
         new Logger().error(
-          '[CREATE-USER]: Error subscribing user %s to newsletter %s',
-          userResult.uuid,
-          err.message,
+          `[USERS/CREATE]: Error subscribing user ${userResult.uuid} to newsletter ${err.message}`,
         );
       });
 

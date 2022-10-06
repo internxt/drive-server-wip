@@ -216,7 +216,7 @@ export class ShareUseCases {
       hashedPassword,
     });
     await this.shareRepository.create(newShare);
-    // apply userReferral to share-file
+
     return { item: newShare, created: true };
   }
 
