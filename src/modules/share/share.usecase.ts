@@ -201,7 +201,7 @@ export class ShareUseCases {
       fileSize: file.size,
     });
     await this.shareRepository.create(newShare);
-    // apply userReferral to share-file
+
     return { item: newShare, created: true };
   }
 

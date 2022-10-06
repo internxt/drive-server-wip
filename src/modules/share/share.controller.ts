@@ -186,7 +186,6 @@ export class ShareController {
     const { item, created, encryptedCode } =
       await this.shareUseCases.createShareFile(fileId, user, body);
 
-
     if (created) {
       this.userUseCases
         .applyReferral(user.id, ReferralKey.ShareFile)
