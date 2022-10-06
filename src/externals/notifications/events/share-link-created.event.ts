@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { Share } from 'src/modules/share/share.domain';
-import { User } from 'src/modules/user/user.domain';
+import { Share } from '../../../modules/share/share.domain';
+import { User } from '../../../modules/user/user.domain';
 import { Event } from './event';
 
 export class ShareLinkCreatedEvent extends Event {
