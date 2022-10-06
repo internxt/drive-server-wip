@@ -66,7 +66,7 @@ export class SequelizeReferralRepository implements ReferralsRepository {
   findOne(
     where: Partial<ReferralAttributes>,
   ): Promise<ReferralAttributes | null> {
-    return this.model.findOne(where);
+    return this.model.findOne({ where });
   }
 
   findAll(where?: Partial<ReferralAttributes>): Promise<ReferralAttributes[]> {
