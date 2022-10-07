@@ -63,10 +63,10 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.dropTable('thumbnails');
     await queryInterface.removeConstraint(
       'thumbnails',
       'thumbnails_file_id_fkey',
     );
+    await queryInterface.dropTable('thumbnails');
   },
 };
