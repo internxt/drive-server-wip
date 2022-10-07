@@ -12,7 +12,6 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
     SequelizeModule.forFeature([FolderModel, UserModel]),
     forwardRef(() => FileModule),
     CryptoModule,
-    forwardRef(() => UserModel),
   ],
   controllers: [],
   providers: [
