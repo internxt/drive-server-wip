@@ -12,12 +12,18 @@ module.exports = {
         file_id: {
           type: Sequelize.INTEGER,
           allowNull: false,
-          unique: 'unique_thumbnail',
+        },
+        max_width: {
+          type: Sequelize.INTEGER,
+          allowNull: false,
+        },
+        max_height: {
+          type: Sequelize.INTEGER,
+          allowNull: false,
         },
         type: {
           type: Sequelize.STRING,
           allowNull: false,
-          unique: 'unique_thumbnail',
         },
         size: {
           type: Sequelize.BIGINT.UNSIGNED,
@@ -43,7 +49,7 @@ module.exports = {
       {
         uniqueKeys: {
           unique_thumbnail: {
-            fields: ['file_id', 'type'],
+            fields: ['file_id', 'max_width', 'max_height', 'type'],
           },
         },
       },
