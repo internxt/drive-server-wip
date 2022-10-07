@@ -114,14 +114,14 @@ export class FileUseCases {
   async deleteFilePermanently(file: File, user: User): Promise<void> {
     if (file.userId !== user.id) {
       Logger.error(
-        `User with id: ${user.id} tryed to delete a file that does not own.`,
+        `User with id: ${user.id} tried to delete a file that does not own.`,
       );
       throw new ForbiddenException(`You are not owner of this share`);
     }
 
     if (!file.deleted) {
       Logger.error(
-        `User with id: ${user.id} tryed to delete a non trashed file`,
+        `User with id: ${user.id} tried to delete a non trashed file`,
       );
       throw new UnprocessableEntityException(
         `file with id ${file.id} cannot be permanently deleted`,

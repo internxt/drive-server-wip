@@ -30,7 +30,7 @@ export class TrashUseCases {
 
     for (const folder of folders) {
       await this.folderUseCases
-        .deleteFolderPermanently(folder)
+        .deleteFolderPermanently(folder, user)
         .catch((err) => Logger.error(err.message));
     }
 
