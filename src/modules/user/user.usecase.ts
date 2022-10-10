@@ -255,7 +255,6 @@ export class UserUseCases {
           email,
         );
 
-
         await this.applyReferral(
           referrer.id,
           ReferralKey.InviteFriends,
