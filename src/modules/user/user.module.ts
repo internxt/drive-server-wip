@@ -24,7 +24,7 @@ import { FileModule } from '../file/file.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { NewsletterService } from 'src/externals/newsletter';
+import { NewsletterService } from '../../externals/newsletter';
 
 @Module({
   imports: [
