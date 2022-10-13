@@ -110,5 +110,5 @@ export class CreateSendLinkDto {
     description: 'Password to unlock the link',
   })
   @IsOptional()
-  encryptedPassword?: string;
+  plainPassword?: string;
 }
