@@ -201,7 +201,10 @@ export class ShareUseCases {
     const token = crypto.randomBytes(10).toString('hex');
 
     const hashedPassword = plainPassword
-      ? this.cryptoService.decryptText(plainPassword)
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const newShare = Share.build({
