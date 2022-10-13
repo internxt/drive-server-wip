@@ -160,6 +160,7 @@ export class ShareUseCases {
           createdAt: share.createdAt,
           updatedAt: share.updatedAt,
           fileSize: share.fileSize,
+          hashed_password: share.hashedPassword,
         };
       }),
     };
@@ -183,7 +184,7 @@ export class ShareUseCases {
       bucket,
       encryptedCode,
       encryptedMnemonic,
-      encryptedPassword,
+      plainPassword,
     }: CreateShareDto,
   ) {
     const file = await this.filesRepository.findOne(fileId, user.id);
@@ -199,8 +200,8 @@ export class ShareUseCases {
     }
     const token = crypto.randomBytes(10).toString('hex');
 
-    const hashedPassword = encryptedPassword
-      ? this.cryptoService.decryptText(encryptedPassword)
+    const hashedPassword = plainPassword
+      ? this.cryptoService.decryptText(plainPassword)
       : null;
 
     const newShare = Share.build({
@@ -234,7 +235,7 @@ export class ShareUseCases {
       timesValid,
       itemToken,
       bucket,
-      encryptedPassword,
+      plainPassword,
       encryptedMnemonic: mnemonic,
       encryptedCode: code,
     }: CreateShareDto,
