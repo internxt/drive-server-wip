@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional } from 'class-validator';
 
 export class UpdateShareDto {
   @ApiProperty({
@@ -12,4 +13,11 @@ export class UpdateShareDto {
     description: 'Share active or not',
   })
   active: boolean;
+
+  @ApiProperty({
+    example: 'a_sample_password_update_here',
+    description: 'The new password for the share',
+  })
+  @IsOptional()
+  plainPassword?: boolean;
 }
