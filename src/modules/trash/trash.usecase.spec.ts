@@ -19,6 +19,7 @@ import {
 } from '../share/share.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { NotFoundException } from '@nestjs/common';
+import { CryptoService } from '../../externals/crypto/crypto';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -71,6 +72,7 @@ describe('Trash Use Cases', () => {
           useValue: jest.fn(),
         },
         ShareUseCases,
+        CryptoService,
         SequelizeShareRepository,
         {
           provide: getModelToken(ShareModel),
