@@ -251,8 +251,11 @@ export class ShareUseCases {
       return { item: share, created: false, encryptedCode: share.code };
     }
 
-    const hashedPassword = encryptedPassword
-      ? this.cryptoService.decryptText(encryptedPassword)
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const token = crypto.randomBytes(10).toString('hex');
@@ -304,7 +307,10 @@ export class ShareUseCases {
       throw new UnauthorizedException('Share protected by password');
     }
 
-    const hashedPassword = this.cryptoService.decryptText(password);
+    const hashedPassword = this.cryptoService.deterministicEncryption(
+      password,
+      getEnv().secrets.magicSalt,
+    );
 
     if (hashedPassword !== share.hashedPassword) {
       throw new UnauthorizedException('Invalid password for share');
