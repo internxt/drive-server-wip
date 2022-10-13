@@ -1,7 +1,5 @@
 import {
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,7 +11,6 @@ import { User } from '../user/user.domain';
 import { CreateShareDto } from './dto/create-share.dto';
 import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
 import { UpdateShareDto } from './dto/update-share.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
@@ -26,8 +23,6 @@ export class ShareUseCases {
     private filesRepository: SequelizeFileRepository,
     private foldersRepository: SequelizeFolderRepository,
     private usersRepository: SequelizeUserRepository,
-    @Inject(forwardRef(() => FolderUseCases))
-    private folderUseCases: FolderUseCases,
   ) {}
 
   async getShareById(id: number) {
