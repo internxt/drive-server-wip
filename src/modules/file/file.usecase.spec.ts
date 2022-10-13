@@ -23,6 +23,7 @@ import {
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
+import { CryptoService } from '../../externals/crypto/crypto';
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
@@ -49,6 +50,7 @@ describe('FileUseCases', () => {
           useValue: jest.fn(),
         },
         FolderUseCases,
+        CryptoService,
         SequelizeFolderRepository,
         {
           provide: getModelToken(FolderModel),
