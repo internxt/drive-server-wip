@@ -131,7 +131,11 @@ export class ShareController {
   ) {
     user = await this.getUserWhenPublic(user);
 
-    const share = await this.shareUseCases.getShareByToken(token, password);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      null,
+      password,
+    );
     const incremented = await this.shareUseCases.incrementShareView(
       share,
       user,
@@ -285,7 +289,11 @@ export class ShareController {
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token, password);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      null,
+      password,
+    );
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
       share.userId,
@@ -324,10 +332,11 @@ export class ShareController {
   async getDownFolders(
     @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
+    @Headers('x-share-password') password: string | null,
   ) {
     const { token, folderId, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token);
+    await this.shareUseCases.getShareByToken(token, null, password);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
       parseInt(page),
