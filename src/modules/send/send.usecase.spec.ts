@@ -3,6 +3,8 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { NotificationService } from '../../externals/notifications/notification.service';
+import { FileModel } from '../file/file.repository';
+import { FolderModel } from '../folder/folder.repository';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { SendLink } from './send-link.domain';
@@ -66,6 +68,14 @@ describe('Send Use Cases', () => {
         },
         {
           provide: getModelToken(UserModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(FileModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(FolderModel),
           useValue: jest.fn(),
         },
       ],
