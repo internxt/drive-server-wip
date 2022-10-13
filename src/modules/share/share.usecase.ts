@@ -304,7 +304,7 @@ export class ShareUseCases {
     if (!share.isProtected()) return;
 
     if (!password) {
-      throw new UnauthorizedException('Share protected by password');
+      throw new ForbiddenException('Share protected by password');
     }
 
     const hashedPassword = this.cryptoService.deterministicEncryption(
@@ -313,7 +313,7 @@ export class ShareUseCases {
     );
 
     if (hashedPassword !== share.hashedPassword) {
-      throw new UnauthorizedException('Invalid password for share');
+      throw new ForbiddenException('Invalid password for share');
     }
   }
 }
