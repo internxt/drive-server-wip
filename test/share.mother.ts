@@ -7,7 +7,7 @@ const mockFolder = Folder.build({
   name: 'ONzgORtJ77qI28jDnr+GjwJn6xELsAEqsn3FKlKNYbHR7Z129AD/WOMkAChEKx6rm7hOER2drdmXmC296dvSXtE5y5os0XCS554YYc+dcCOvvzjCQr6p+/BdhHlgRYg8cssug7p9DonVw19e',
   bucket: 'bucket',
   userId: 1,
-  encryptVersion: '2',
+  encryptVersion: '03-aes',
   deleted: true,
   deletedAt: new Date(),
   createdAt: new Date(),
