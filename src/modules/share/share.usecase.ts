@@ -46,8 +46,15 @@ export class ShareUseCases {
     if (share.userId !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
-    share.timesValid = content.timesValid;
-    share.active = content.active;
+
+    if (content.plainPassword === null) {
+      share.hashedPassword = null;
+    } else {
+      share.hashedPassword = this.cryptoService.deterministicEncryption(
+        content.plainPassword,
+        getEnv().secrets.magicSalt,
+      );
+    }
 
     await this.shareRepository.update(share);
     return share.toJSON();
