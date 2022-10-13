@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -12,6 +13,7 @@ import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import getEnv from '../../config/configuration';
 
 @Injectable()
 export class SendUseCases {
@@ -48,13 +50,16 @@ export class SendUseCases {
     title: string,
     subject: string,
     plainCode: string,
-    encryptedPassword?: string,
+    plainPassword?: string,
   ) {
     const expirationAt = new Date();
     expirationAt.setDate(expirationAt.getDate() + 15);
 
-    const hashedPassword = encryptedPassword
-      ? this.cryptoService.decryptText(encryptedPassword)
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const sendLink = SendLink.build({
@@ -106,13 +111,16 @@ export class SendUseCases {
     if (!sendLink.isProtected()) return;
 
     if (!password) {
-      throw new UnauthorizedException('Send link protected by password');
+      throw new ForbiddenException('Send link protected by password');
     }
 
-    const hashedPassword = this.cryptoService.decryptText(password);
+    const hashedPassword = this.cryptoService.deterministicEncryption(
+      password,
+      getEnv().secrets.magicSalt,
+    );
 
     if (sendLink.hashedPassword !== hashedPassword) {
-      throw new UnauthorizedException('Invalid password');
+      throw new ForbiddenException('Invalid password');
     }
   }
 }
