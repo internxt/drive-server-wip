@@ -21,6 +21,7 @@ import { ShareUseCases } from '../share/share.usecase';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { User } from '../user/user.domain';
+import { CryptoService } from '../../externals/crypto/crypto';
 
 const folderId = 4;
 const userId = 1;
@@ -33,6 +34,7 @@ describe('FolderUseCases', () => {
       providers: [
         FolderUseCases,
         FileUseCases,
+        CryptoService,
         SequelizeFileRepository,
         SequelizeFolderRepository,
         {
@@ -73,7 +75,7 @@ describe('FolderUseCases', () => {
         name: 'name',
         bucket: 'bucket',
         userId: 1,
-        encryptVersion: '2',
+        encryptVersion: '03-aes',
         deleted: true,
         deletedAt: new Date(),
         createdAt: new Date(),
@@ -104,7 +106,7 @@ describe('FolderUseCases', () => {
         name: 'name',
         bucket: 'bucket',
         userId: 1,
-        encryptVersion: '2',
+        encryptVersion: '03-aes',
         deleted: true,
         deletedAt: new Date(),
         createdAt: new Date(),
@@ -118,7 +120,7 @@ describe('FolderUseCases', () => {
         id: 1,
         bucket: 'bucket',
         userId: 1,
-        encryptVersion: '2',
+        encryptVersion: '03-aes',
         deleted: true,
         parent: null,
       });
@@ -158,7 +160,7 @@ describe('FolderUseCases', () => {
           name: nameEncrypted,
           bucket: 'bucket',
           userId: 1,
-          encryptVersion: '2',
+          encryptVersion: '03-aes',
           deleted: true,
           deletedAt: new Date(),
           createdAt: new Date(),
@@ -180,7 +182,7 @@ describe('FolderUseCases', () => {
           name: null,
           bucket: 'bucket',
           userId: 1,
-          encryptVersion: '2',
+          encryptVersion: '03-aes',
           deleted: true,
         },
       ]);
@@ -227,7 +229,7 @@ describe('FolderUseCases', () => {
         name: 'name',
         bucket: 'bucket',
         userId: 1,
-        encryptVersion: '2',
+        encryptVersion: '03-aes',
         deleted: true,
         deletedAt: new Date(),
         createdAt: new Date(),
@@ -281,7 +283,7 @@ describe('FolderUseCases', () => {
         name: 'name',
         bucket: 'bucket',
         userId: 1,
-        encryptVersion: '2',
+        encryptVersion: '03-aes',
         deleted: false,
         deletedAt: new Date(),
         createdAt: new Date(),
@@ -340,7 +342,7 @@ describe('FolderUseCases', () => {
         name: 'name',
         bucket: 'bucket',
         userId: 1,
-        encryptVersion: '2',
+        encryptVersion: '03-aes',
         deleted: false,
         deletedAt: new Date(),
         createdAt: new Date(),
