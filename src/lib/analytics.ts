@@ -1,4 +1,5 @@
 import AnalyticsSegment from 'analytics-node';
+import AnalyticsRudder from '@rudderstack/rudder-sdk-node';
 
 import { Logger } from '@nestjs/common';
 
@@ -23,7 +24,14 @@ export default class Analytics {
   static instance: Analytics;
   constructor() {
     this.logger = new Logger();
-    this.analytics = new AnalyticsSegment(process.env.APP_SEGMENT_KEY);
+    try {
+      this.analytics = new AnalyticsRudder(
+        process.env.ANALYTICS_RUDDER_KEY,
+        process.env.ANALYTICS_RUDDER_PLAN_URL,
+      );
+    } catch (err) {
+      this.logger.error(`Error initializing analytics: ${err.message}`);
+    }
   }
 
   static getInstance() {
