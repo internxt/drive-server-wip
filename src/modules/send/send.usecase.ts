@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { SequelizeSendRepository } from './send-link.repository';

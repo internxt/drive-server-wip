@@ -4,7 +4,6 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import crypto from 'crypto';
 import { Environment } from '@internxt/inxt-js';
