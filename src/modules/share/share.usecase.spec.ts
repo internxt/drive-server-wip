@@ -202,8 +202,9 @@ describe('Share Use Cases', () => {
       const perPage = 50;
       jest.spyOn(shareRepository, 'findAllByUserPaginated').mockResolvedValue({
         count: 1,
-        items: sharesMock,
+        shares: sharesMock,
       });
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
 
       const result = await service.listByUserPaginated(userMock, page, perPage);
 
@@ -217,7 +218,7 @@ describe('Share Use Cases', () => {
           {
             id: 1,
             token: 'token',
-            item: mockFolder, // TODO: should be undefined?
+            item: mockFolder,
             isFolder: true,
             views: 0,
             timesValid: 10,

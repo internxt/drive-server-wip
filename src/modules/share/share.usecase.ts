@@ -15,6 +15,8 @@ import { UpdateShareDto } from './dto/update-share.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { Folder } from '../folder/folder.domain';
+import { File } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -107,17 +109,40 @@ export class ShareUseCases {
     return true;
   }
 
+  private async retrieveShareItem(share: Share): Promise<File | Folder> {
+    if (share.isFolder) {
+      return this.foldersRepository.findById(share.folderId);
+    }
+    return this.filesRepository.findOne(share.fileId, share.userId);
+  }
+
   async listByUserPaginated(
     user: any,
     page = 0,
     perPage = 50,
     orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
   ) {
-    const { count, items } = await this.shareRepository.findAllByUserPaginated(
+    const { count, shares } = await this.shareRepository.findAllByUserPaginated(
       user,
       page,
       perPage,
       orderBy,
+    );
+
+    const items = await Promise.all(
+      shares.map(async (share) => ({
+        id: share.id,
+        token: share.token,
+        item: await this.retrieveShareItem(share),
+        views: share.views,
+        timesValid: share.timesValid,
+        active: share.active,
+        isFolder: share.isFolder,
+        code: share.code,
+        createdAt: share.createdAt,
+        updatedAt: share.updatedAt,
+        fileSize: share.fileSize,
+      })),
     );
 
     return {
@@ -127,21 +152,7 @@ export class ShareUseCases {
         countAll: count,
         orderBy,
       },
-      items: items.map((share) => {
-        return {
-          id: share.id,
-          token: share.token,
-          item: share.item,
-          views: share.views,
-          timesValid: share.timesValid,
-          active: share.active,
-          isFolder: share.isFolder,
-          code: share.code,
-          createdAt: share.createdAt,
-          updatedAt: share.updatedAt,
-          fileSize: share.fileSize,
-        };
-      }),
+      items,
     };
   }
 
