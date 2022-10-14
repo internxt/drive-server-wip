@@ -450,7 +450,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        encryptedPassword: null,
+        plainPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -486,7 +486,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        encryptedPassword: null,
+        plainPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -523,7 +523,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        encryptedPassword: null,
+        plainPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -555,7 +555,7 @@ describe('Share Use Cases', () => {
         encryptionKey: 'key',
         itemToken: 'token',
         bucket: 'bucket',
-        encryptedPassword: null,
+        plainPassword: null,
         encryptedMnemonic: 'encryptedMnemonic',
         encryptedCode: 'encryptedCode',
       });
@@ -639,14 +639,14 @@ describe('Share Use Cases', () => {
 
     it('unlocks the share with the correct password', () => {
       const hashedPassword = 'GM6rCHmvIuzetZWnDf50gPLPQmBXZl';
-      const encryptedPassword = cryptoService.encryptText(hashedPassword);
+      const plainPassword = cryptoService.encryptText(hashedPassword);
 
       const share = Share.build({
         ...shareAttributes,
         hashedPassword,
       });
 
-      service.unlockShare(share, encryptedPassword);
+      service.unlockShare(share, plainPassword);
     });
 
     it.each(falsyPasswords)('unlocks if its not protected', (password) => {

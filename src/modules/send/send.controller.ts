@@ -44,7 +44,7 @@ export class SendController {
       title,
       subject,
       plainCode,
-      encryptedPassword,
+      plainPassword,
     } = content;
 
     const sendLink = await this.sendUseCases.createSendLinks(
@@ -56,7 +56,7 @@ export class SendController {
       title,
       subject,
       plainCode,
-      encryptedPassword,
+      plainPassword,
     );
     return {
       id: sendLink.id,

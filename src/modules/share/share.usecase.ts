@@ -4,7 +4,6 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import crypto from 'crypto';
 import { Environment } from '@internxt/inxt-js';
@@ -46,8 +45,15 @@ export class ShareUseCases {
     if (share.userId !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
-    share.timesValid = content.timesValid;
-    share.active = content.active;
+
+    if (content.plainPassword === null) {
+      share.hashedPassword = null;
+    } else {
+      share.hashedPassword = this.cryptoService.deterministicEncryption(
+        content.plainPassword,
+        getEnv().secrets.magicSalt,
+      );
+    }
 
     await this.shareRepository.update(share);
     return share.toJSON();
@@ -153,6 +159,7 @@ export class ShareUseCases {
           createdAt: share.createdAt,
           updatedAt: share.updatedAt,
           fileSize: share.fileSize,
+          hashed_password: share.hashedPassword,
         };
       }),
     };
@@ -176,7 +183,7 @@ export class ShareUseCases {
       bucket,
       encryptedCode,
       encryptedMnemonic,
-      encryptedPassword,
+      plainPassword,
     }: CreateShareDto,
   ) {
     const file = await this.filesRepository.findOne(fileId, user.id);
@@ -192,8 +199,11 @@ export class ShareUseCases {
     }
     const token = crypto.randomBytes(10).toString('hex');
 
-    const hashedPassword = encryptedPassword
-      ? this.cryptoService.decryptText(encryptedPassword)
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const newShare = Share.build({
@@ -227,7 +237,7 @@ export class ShareUseCases {
       timesValid,
       itemToken,
       bucket,
-      encryptedPassword,
+      plainPassword,
       encryptedMnemonic: mnemonic,
       encryptedCode: code,
     }: CreateShareDto,
@@ -244,8 +254,11 @@ export class ShareUseCases {
       return { item: share, created: false, encryptedCode: share.code };
     }
 
-    const hashedPassword = encryptedPassword
-      ? this.cryptoService.decryptText(encryptedPassword)
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const token = crypto.randomBytes(10).toString('hex');
@@ -294,13 +307,16 @@ export class ShareUseCases {
     if (!share.isProtected()) return;
 
     if (!password) {
-      throw new UnauthorizedException('Share protected by password');
+      throw new ForbiddenException('Share protected by password');
     }
 
-    const hashedPassword = this.cryptoService.decryptText(password);
+    const hashedPassword = this.cryptoService.deterministicEncryption(
+      password,
+      getEnv().secrets.magicSalt,
+    );
 
     if (hashedPassword !== share.hashedPassword) {
-      throw new UnauthorizedException('Invalid password for share');
+      throw new ForbiddenException('Invalid password for share');
     }
   }
 }
