@@ -15,6 +15,7 @@ import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UpdateShareDto } from './dto/update-share.dto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
@@ -28,6 +29,7 @@ export class ShareUseCases {
     private usersRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
+    private cryptoService: CryptoService,
   ) {}
 
   async getShareById(id: number) {
@@ -43,8 +45,15 @@ export class ShareUseCases {
     if (share.userId !== user.id) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
-    share.timesValid = content.timesValid;
-    share.active = content.active;
+
+    if (content.plainPassword === null) {
+      share.hashedPassword = null;
+    } else {
+      share.hashedPassword = this.cryptoService.deterministicEncryption(
+        content.plainPassword,
+        getEnv().secrets.magicSalt,
+      );
+    }
 
     await this.shareRepository.update(share);
     return share.toJSON();
@@ -54,11 +63,16 @@ export class ShareUseCases {
     token: string,
     //user: User,
     code?: string,
+    password?: string,
   ): Promise<Share> {
     const share = await this.shareRepository.findByToken(token);
 
     if (!share) {
       throw new NotFoundException('Share not found');
+    }
+
+    if (share.isProtected()) {
+      this.unlockShare(share, password);
     }
 
     if (!share.isActive()) {
@@ -145,6 +159,7 @@ export class ShareUseCases {
           createdAt: share.createdAt,
           updatedAt: share.updatedAt,
           fileSize: share.fileSize,
+          hashed_password: share.hashedPassword,
         };
       }),
     };
@@ -164,10 +179,11 @@ export class ShareUseCases {
     user: User,
     {
       timesValid,
-      encryptedCode,
-      encryptedMnemonic,
       itemToken,
       bucket,
+      encryptedCode,
+      encryptedMnemonic,
+      plainPassword,
     }: CreateShareDto,
   ) {
     const file = await this.filesRepository.findOne(fileId, user.id);
@@ -182,6 +198,14 @@ export class ShareUseCases {
       return { item: share, created: false, encryptedCode: share.code };
     }
     const token = crypto.randomBytes(10).toString('hex');
+
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
+      : null;
+
     const newShare = Share.build({
       id: 1,
       token,
@@ -199,6 +223,7 @@ export class ShareUseCases {
       updatedAt: new Date(),
       fileId,
       fileSize: file.size,
+      hashedPassword,
     });
     await this.shareRepository.create(newShare);
 
@@ -212,6 +237,7 @@ export class ShareUseCases {
       timesValid,
       itemToken,
       bucket,
+      plainPassword,
       encryptedMnemonic: mnemonic,
       encryptedCode: code,
     }: CreateShareDto,
@@ -227,6 +253,14 @@ export class ShareUseCases {
     if (share) {
       return { item: share, created: false, encryptedCode: share.code };
     }
+
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
+      : null;
+
     const token = crypto.randomBytes(10).toString('hex');
     const newShare = Share.build({
       id: 1,
@@ -245,6 +279,7 @@ export class ShareUseCases {
       updatedAt: new Date(),
       folderId,
       fileSize: null,
+      hashedPassword,
     });
     await this.shareRepository.create(newShare);
 
@@ -266,5 +301,22 @@ export class ShareUseCases {
     }
 
     return this.shareRepository.deleteById(share.id);
+  }
+
+  unlockShare(share: Share, password: string): void {
+    if (!share.isProtected()) return;
+
+    if (!password) {
+      throw new ForbiddenException('Share protected by password');
+    }
+
+    const hashedPassword = this.cryptoService.deterministicEncryption(
+      password,
+      getEnv().secrets.magicSalt,
+    );
+
+    if (hashedPassword !== share.hashedPassword) {
+      throw new ForbiddenException('Invalid password for share');
+    }
   }
 }

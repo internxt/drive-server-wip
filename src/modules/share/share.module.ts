@@ -1,6 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { CryptoService } from '../../externals/crypto/crypto';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
@@ -20,8 +20,9 @@ import { ShareUseCases } from './share.usecase';
     SequelizeModule.forFeature([ShareModel, FileModel, FolderModel, UserModel]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
-    UserModule,
+    forwardRef(() => UserModule),
     NotificationModule,
+    CryptoModule,
   ],
   controllers: [ShareController],
   providers: [
@@ -30,10 +31,6 @@ import { ShareUseCases } from './share.usecase';
     SequelizeFolderRepository,
     SequelizeUserRepository,
     ShareUseCases,
-    {
-      provide: CryptoService,
-      useValue: CryptoService.getInstance(),
-    },
   ],
   exports: [ShareUseCases],
 })

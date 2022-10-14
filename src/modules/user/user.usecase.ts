@@ -10,7 +10,7 @@ import {
   UserAttributes,
   UserReferralAttributes,
 } from './user.domain';
-import { CryptoService } from '../../externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
@@ -21,7 +21,7 @@ import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { NewsletterService } from 'src/externals/newsletter';
+import { NewsletterService } from '../../externals/newsletter';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {

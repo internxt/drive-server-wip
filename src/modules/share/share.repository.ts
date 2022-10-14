@@ -89,6 +89,10 @@ export class ShareModel extends Model {
   @AllowNull
   @Column
   code: string;
+
+  @AllowNull
+  @Column(DataType.TEXT)
+  hashedPassword: string;
 }
 
 export interface ShareRepository {
@@ -236,6 +240,7 @@ export class SequelizeShareRepository implements ShareRepository {
       fileId: model.fileId,
       fileSize: model.isFolder ? null : (item as File)?.size,
       folderId: model.folderId,
+      hashedPassword: model.hashedPassword,
     });
 
     share.item = item;
@@ -260,6 +265,7 @@ export class SequelizeShareRepository implements ShareRepository {
     createdAt,
     updatedAt,
     userId,
+    hashedPassword,
   }) {
     return {
       id,
@@ -279,6 +285,7 @@ export class SequelizeShareRepository implements ShareRepository {
       code,
       createdAt,
       updatedAt,
+      hashedPassword,
     };
   }
 }

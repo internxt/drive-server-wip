@@ -3,6 +3,7 @@ import { aes } from '@internxt/lib';
 import { File, FileAttributes } from '../file/file.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { UserAttributes } from '../user/user.domain';
+import { ShareDto } from './dto/share.dto';
 
 export interface ShareAttributes {
   id: number;
@@ -21,6 +22,7 @@ export interface ShareAttributes {
   createdAt: Date;
   updatedAt: Date;
   fileToken: string;
+  hashedPassword: string | null;
 }
 
 export class Share implements ShareAttributes {
@@ -41,6 +43,7 @@ export class Share implements ShareAttributes {
   fileToken: string;
   createdAt: Date;
   updatedAt: Date;
+  hashedPassword: string | null;
   /**
    * Only if the item is a file
    */
@@ -63,6 +66,7 @@ export class Share implements ShareAttributes {
     this.folderId = attributes.folderId;
     this.fileToken = attributes.fileToken;
     this.userId = attributes.userId;
+    this.hashedPassword = attributes.hashedPassword;
   }
 
   static build(share: ShareAttributes): Share {
@@ -95,7 +99,11 @@ export class Share implements ShareAttributes {
     return aes.decrypt(this.mnemonic.toString(), code);
   }
 
-  toJSON() {
+  public isProtected(): boolean {
+    return this.hashedPassword !== null;
+  }
+
+  toJSON(): ShareDto {
     return {
       id: this.id,
       token: this.token,
@@ -112,8 +120,9 @@ export class Share implements ShareAttributes {
       fileSize: this.fileSize,
       folderId: this.folderId,
       fileToken: this.fileToken,
-      item: this.item,
+      item: this.item.toJSON(),
       encryptionKey: this.encryptionKey,
+      protected: this.isProtected(),
     };
   }
 }

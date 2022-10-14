@@ -31,6 +31,7 @@ async function bootstrap() {
         'internxt-version',
         'internxt-client',
         'internxt-mnemonic',
+        'x-share-password',
       ],
       exposedHeaders: ['sessionId'],
       origin: '*',

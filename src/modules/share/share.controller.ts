@@ -13,6 +13,7 @@ import {
   Put,
   Query,
   Req,
+  Headers,
   Res,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -29,8 +30,10 @@ import { UpdateShareDto } from './dto/update-share.dto';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { ShareLinkViewEvent } from '../../externals/notifications/events/share-link-view.event';
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
+import { File, FileAttributes } from '../file/file.domain';
+import { ShareDto } from './dto/share.dto';
+import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
-import { FileAttributes } from '../file/file.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -77,7 +80,17 @@ export class ShareController {
         | 'createdAt:ASC'
         | 'createdAt:DESC',
     );
-    return shares;
+
+    const decryptedItemNames = shares.items.map((item) => {
+      item.item = this.decryptItem(item.item);
+
+      return item;
+    });
+
+    return {
+      ...shares,
+      items: decryptedItemNames,
+    };
   }
 
   @Get('/:token')
@@ -90,9 +103,17 @@ export class ShareController {
   async getShareByToken(
     @Param('token') token: string,
     @Query('code') code: string,
-  ) {
-    const share = await this.shareUseCases.getShareByToken(token, code);
-    return share.toJSON();
+    @Headers('x-share-password') password: string | null,
+  ): Promise<ShareDto> {
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      code,
+      password,
+    );
+    const shareJSON = share.toJSON();
+    shareJSON.item = this.decryptItem(share.item);
+
+    return shareJSON;
   }
 
   @Put(':token/view')
@@ -106,9 +127,15 @@ export class ShareController {
     @UserDecorator() user: User,
     @Param('token') token: string,
     @Req() req: Request,
+    @Headers('x-share-password') password: string | null,
   ) {
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token);
+
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      null,
+      password,
+    );
     const incremented = await this.shareUseCases.incrementShareView(
       share,
       user,
@@ -258,10 +285,15 @@ export class ShareController {
   async getDownFiles(
     @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
+    @Headers('x-share-password') password: string | null,
   ) {
     const { token, folderId, code, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(token);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      null,
+      password,
+    );
     share.decryptMnemonic(code);
     const network = await this.userUseCases.getNetworkByUserId(
       share.userId,
@@ -275,7 +307,7 @@ export class ShareController {
       parseInt(perPage),
     );
 
-    for (const file of files) {
+    for (let file of files) {
       file.encryptionKey =
         await this.fileUseCases.getEncryptionKeyFileFromShare(
           file.fileId,
@@ -283,6 +315,8 @@ export class ShareController {
           share,
           code,
         );
+
+      file = this.decryptItem(file);
     }
 
     return { files, last: parseInt(perPage) > files.length };
@@ -298,16 +332,21 @@ export class ShareController {
   async getDownFolders(
     @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
+    @Headers('x-share-password') password: string | null,
   ) {
     const { token, folderId, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token);
+    await this.shareUseCases.getShareByToken(token, null, password);
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
       parseInt(page),
       parseInt(perPage),
     );
-    return { folders, last: parseInt(perPage) > folders.length };
+    const dectyptedFolders = folders.map((folder) => this.decryptItem(folder));
+    return {
+      folders: dectyptedFolders,
+      last: parseInt(perPage) > folders.length,
+    };
   }
 
   @Get(':shareId/folder/:folderId/size')
@@ -337,5 +376,17 @@ export class ShareController {
       user = await this.userUseCases.getUserByUsername(user.username);
     }
     return user;
+  }
+
+  private decryptItem(item: File | Folder): File | Folder {
+    if (item instanceof File) {
+      return this.fileUseCases.decrypFileName(item);
+    }
+
+    if (item instanceof Folder) {
+      return this.folderUseCases.decryptFolderName(item);
+    }
+
+    return item;
   }
 }

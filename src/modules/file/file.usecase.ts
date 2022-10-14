@@ -8,6 +8,7 @@ import {
   Logger,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
@@ -23,6 +24,7 @@ export class FileUseCases {
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
     private bridgeService: BridgeService,
+    private cryptoService: CryptoService,
   ) {}
 
   getByFileIdAndUser(
@@ -129,5 +131,18 @@ export class FileUseCases {
     await this.shareUseCases.deleteFileShare(file.id, user);
     await this.bridgeService.deleteFile(user, file.bucket, file.fileId);
     await this.fileRepository.deleteByFileId(file.fileId);
+  }
+
+  decrypFileName(file: File): any {
+    const decryptedName = this.cryptoService.decryptName(
+      file.name,
+      file.folderId,
+    );
+
+    if (decryptedName === '') {
+      throw new Error('Unable to decrypt file name');
+    }
+
+    return File.build({ ...file, name: decryptedName }).toJSON();
   }
 }

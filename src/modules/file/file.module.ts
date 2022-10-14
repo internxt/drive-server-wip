@@ -6,12 +6,14 @@ import { FileModel } from './file.repository';
 import { ShareModel } from '../share/share.repository';
 import { ShareModule } from '../share/share.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([FileModel, ShareModel]),
     forwardRef(() => ShareModule),
     BridgeModule,
+    CryptoModule,
   ],
   controllers: [],
   providers: [SequelizeFileRepository, FileUseCases],

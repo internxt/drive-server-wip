@@ -12,7 +12,7 @@ import {
   UserReferralModel,
 } from './user-referrals.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { CryptoService } from '../../externals/crypto/crypto';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import {
@@ -24,7 +24,7 @@ import { FileModule } from '../file/file.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { NewsletterService } from 'src/externals/newsletter';
+import { NewsletterService } from '../../externals/newsletter';
 
 @Module({
   imports: [

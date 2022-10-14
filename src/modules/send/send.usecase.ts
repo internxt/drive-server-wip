@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,12 +11,15 @@ import { SendLinkItem } from './send-link-item.domain';
 import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
+import { CryptoService } from '../../externals/crypto/crypto.service';
+import getEnv from '../../config/configuration';
 
 @Injectable()
 export class SendUseCases {
   constructor(
     private sendRepository: SequelizeSendRepository,
     private notificationService: NotificationService,
+    private cryptoService: CryptoService,
   ) {}
 
   async getById(id: SendLinkAttributes['id']) {
@@ -45,9 +49,18 @@ export class SendUseCases {
     title: string,
     subject: string,
     plainCode: string,
+    plainPassword?: string,
   ) {
     const expirationAt = new Date();
     expirationAt.setDate(expirationAt.getDate() + 15);
+
+    const hashedPassword = plainPassword
+      ? this.cryptoService.deterministicEncryption(
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
+      : null;
+
     const sendLink = SendLink.build({
       id: uuidv4(),
       views: 0,
@@ -61,6 +74,7 @@ export class SendUseCases {
       title,
       subject,
       expirationAt,
+      hashedPassword,
     });
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({
@@ -90,5 +104,22 @@ export class SendUseCases {
     this.notificationService.add(sendLinkCreatedEvent);
 
     return sendLink;
+  }
+
+  public unlockLink(sendLink: SendLink, password: string): void {
+    if (!sendLink.isProtected()) return;
+
+    if (!password) {
+      throw new ForbiddenException('Send link protected by password');
+    }
+
+    const hashedPassword = this.cryptoService.deterministicEncryption(
+      password,
+      getEnv().secrets.magicSalt,
+    );
+
+    if (sendLink.hashedPassword !== hashedPassword) {
+      throw new ForbiddenException('Invalid password');
+    }
   }
 }

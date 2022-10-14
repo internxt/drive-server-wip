@@ -15,6 +15,7 @@ import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
 import { BridgeModule } from './externals/bridge/bridge.module';
 import { DeviceModule } from './modules/device/device.module';
+import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 
 @Module({
@@ -87,6 +88,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     SendModule,
     BridgeModule,
     DeviceModule,
+    CryptoModule,
     SharedWorkspaceModule,
   ],
   controllers: [],

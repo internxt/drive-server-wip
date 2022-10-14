@@ -21,13 +21,26 @@
 import crypto from 'crypto';
 
 export class AesService {
-  private magicIv;
-  private magicSalt;
-  private cryptoKey;
-  constructor() {
-    this.magicIv = process.env.MAGIC_IV;
-    this.magicSalt = process.env.MAGIC_SALT;
-    this.cryptoKey = process.env.CRYPTO_SECRET2;
+  constructor(
+    private readonly magicIv: string,
+    private readonly magicSalt: string,
+    private readonly cryptoKey: string,
+  ) {
+    this.validate();
+  }
+
+  private validate(): void {
+    if (!this.magicIv) {
+      throw new Error('AES SERVICE: Missing magic IV');
+    }
+
+    if (!this.magicSalt) {
+      throw new Error('AES SERVICE: Missing magic salt');
+    }
+
+    if (!this.cryptoKey) {
+      throw new Error('AES SERVICE: Missing crytpo key');
+    }
   }
 
   encrypt(text, originalSalt, randomIv = false) {

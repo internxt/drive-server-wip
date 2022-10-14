@@ -1,11 +1,12 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../../modules/user/user.domain';
-import { CryptoService } from '../crypto/crypto';
+import { CryptoService } from '../crypto/crypto.service';
 import { HttpClientModule } from '../http/http.module';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
 import { AxiosResponse } from 'axios';
+import { CryptoModule } from '../crypto/crypto.module';
 
 describe('Bridge Service', () => {
   let service: BridgeService;
@@ -44,14 +45,8 @@ describe('Bridge Service', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule, HttpClientModule],
-      providers: [
-        BridgeService,
-        {
-          provide: CryptoService,
-          useValue: new CryptoService(),
-        },
-      ],
+      imports: [ConfigModule, HttpClientModule, CryptoModule],
+      providers: [BridgeService],
     }).compile();
 
     service = module.get<BridgeService>(BridgeService);

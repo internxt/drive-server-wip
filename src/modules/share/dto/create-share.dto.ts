@@ -1,4 +1,4 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateShareDto {
@@ -32,6 +32,14 @@ export class CreateShareDto {
     description: 'Token of Bucket',
   })
   bucket: string;
+
+  @IsNotEmpty()
+  @IsOptional()
+  @ApiProperty({
+    example: 'a_sample_password_here',
+    description: 'Password to protect the shared resoruce',
+  })
+  plainPassword?: string | null;
 
   @ApiProperty({
     example: 'code',

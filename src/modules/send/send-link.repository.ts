@@ -67,6 +67,10 @@ export class SendLinkModel extends Model {
   @Column
   updatedAt: Date;
 
+  @AllowNull
+  @Column(DataType.TEXT)
+  hashedPassword: string;
+
   @HasMany(() => SendLinkItemModel)
   items: SendLinkItemModel[];
 }
@@ -162,7 +166,7 @@ export class SequelizeSendRepository implements SendRepository {
     await sendLinkModel.save();
   }
 
-  private toDomain(model): SendLink {
+  private toDomain(model: SendLinkModel): SendLink {
     if (
       model.title &&
       model.subject &&
@@ -185,6 +189,7 @@ export class SequelizeSendRepository implements SendRepository {
       title: model.title,
       subject: model.subject,
       expirationAt: model.expirationAt,
+      hashedPassword: model.hashedPassword,
     });
     const items = model.items.map((item) => this.toDomainItem(item));
     sendLink.setItems(items);
@@ -204,6 +209,7 @@ export class SequelizeSendRepository implements SendRepository {
     expirationAt,
     createdAt,
     updatedAt,
+    hashedPassword,
   }) {
     if (title && subject && createdAt > ENCRYPTION_DATE_RELEASE) {
       title = btoa(convertStringToBinary(title));
@@ -222,6 +228,7 @@ export class SequelizeSendRepository implements SendRepository {
       expirationAt,
       createdAt,
       updatedAt,
+      hashedPassword,
     };
   }
   private toDomainItem(model: SendLinkItemModel): SendLinkItem {

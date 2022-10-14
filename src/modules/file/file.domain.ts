@@ -1,6 +1,6 @@
-import { CryptoService } from '../../externals/crypto/crypto';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
+import { FileDto } from './dto/file.dto';
 
 export interface FileAttributes {
   id: number;
@@ -37,7 +37,7 @@ export class File implements FileAttributes {
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
-  constructor({
+  private constructor({
     id,
     fileId,
     name,
@@ -59,7 +59,7 @@ export class File implements FileAttributes {
     this.fileId = fileId;
     this.folderId = folderId;
     this.setFolder(folder);
-    this.name = this.decryptName(name);
+    this.name = name;
     this.type = type;
     this.size = size;
     this.bucket = bucket;
@@ -75,10 +75,6 @@ export class File implements FileAttributes {
 
   static build(file: FileAttributes): File {
     return new File(file);
-  }
-  private decryptName(name: FileAttributes['name']) {
-    const cryptoService = CryptoService.getInstance();
-    return cryptoService.decryptName(name, this.folderId);
   }
 
   setFolder(folder) {
@@ -103,7 +99,7 @@ export class File implements FileAttributes {
     this.deletedAt = null;
   }
 
-  toJSON() {
+  toJSON(): FileDto {
     return {
       id: this.id,
       fileId: this.fileId,
@@ -117,7 +113,6 @@ export class File implements FileAttributes {
       deleted: this.deleted,
       deletedAt: this.deletedAt,
       userId: this.userId,
-      user: this.user,
       modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
