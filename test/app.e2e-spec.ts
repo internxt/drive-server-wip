@@ -196,7 +196,7 @@ describe('AppController (e2e)', () => {
             size: 100000,
           });
           const password = 'mVu6yjLUsN93RgcHfDUv';
-          const encryptedPassword = cryptoService.encryptText(password);
+          const plainPassword = cryptoService.encryptText(password);
           const response = await request(app.getHttpServer())
             .post('/links')
             .send({
@@ -207,7 +207,7 @@ describe('AppController (e2e)', () => {
               code: 'code',
               title: 'File Test',
               subject: 'Esto es una prueba de archivo',
-              encryptedPassword: encryptedPassword,
+              plainPassword: plainPassword,
             });
 
           expect(response.status).toBe(HttpStatus.CREATED);
@@ -321,23 +321,20 @@ describe('Share Endpoints', () => {
 
   describe('protected shares', () => {
     let cryptoService: CryptoService;
-
-    const password = 'KPit1mKILC';
-    const databaseShare = ShareMother.createWithPassword(password);
-    const databaseSharedFolder = databaseShare.item as Folder;
-
-    const protectedShareRepository = {
-      findByToken: (_: string) => databaseShare,
-      update: (_: Share) => Promise.resolve(),
-    } as unknown as SequelizeShareRepository;
-    const fakeFolderRepository = {
-      findById: () => Promise.resolve(databaseSharedFolder),
-    } as unknown as SequelizeFolderRepository;
+    let password, databaseShare, databaseSharedFolder;
 
     beforeAll(async () => {
       if (process.env.NODE_ENV !== 'test') {
         throw new Error('Cannot do E2E tests without NODE_ENV=test ');
       }
+
+      const protectedShareRepository = {
+        findByToken: (_: string) => databaseShare,
+        update: (_: Share) => Promise.resolve(),
+      } as unknown as SequelizeShareRepository;
+      const fakeFolderRepository = {
+        findById: () => Promise.resolve(databaseSharedFolder),
+      } as unknown as SequelizeFolderRepository;
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
       })
@@ -350,11 +347,19 @@ describe('Share Endpoints', () => {
         .overrideProvider(SequelizeFolderRepository)
         .useValue(fakeFolderRepository)
         .compile();
+      cryptoService = moduleFixture.get<CryptoService>(CryptoService);
       app = moduleFixture.createNestApplication();
       app.useGlobalPipes(new ValidationPipe());
       app.useGlobalInterceptors(new TransformInterceptor());
-      cryptoService = moduleFixture.get<CryptoService>(CryptoService);
       await app.init();
+
+      password = 'KPit1mKILC';
+      const hashedPassword = cryptoService.deterministicEncryption(
+        password,
+        process.env.MAGIC_SALT,
+      );
+      databaseShare = ShareMother.createWithPassword(hashedPassword);
+      databaseSharedFolder = databaseShare.item as Folder;
     });
 
     afterAll(async () => {
@@ -362,12 +367,11 @@ describe('Share Endpoints', () => {
     });
 
     it('return the share folder when the correct passwrod is porvided', async () => {
-      const encryptedPassword = cryptoService.encryptText(password);
       const originalViews = databaseShare.views;
 
       const response = await request(app.getHttpServer())
         .get(`/storage/share/${databaseShare.token}`)
-        .set('x-share-password', encryptedPassword);
+        .set('x-share-password', password);
 
       expect(response.status).toBe(HttpStatus.OK);
       expect(response.body.views).toBe(originalViews);
@@ -376,13 +380,13 @@ describe('Share Endpoints', () => {
 
     it('return unauthorized response when password is not correct', async () => {
       const token = 'mGc9eCtk8lnphJMV6SpTJmF9SYDV7x';
-      const encryptedPassword = '1234';
+      const plainPassword = '1234';
 
       const response = await request(app.getHttpServer())
         .get(`/storage/share/${token}`)
-        .set('x-share-password', encryptedPassword);
+        .set('x-share-password', plainPassword);
 
-      expect(response.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(response.status).toBe(HttpStatus.FORBIDDEN);
     });
 
     it('returns unauthorized response when no password provided', async () => {
@@ -390,7 +394,7 @@ describe('Share Endpoints', () => {
       const response = await request(app.getHttpServer()).get(
         `/storage/share/${token}`,
       );
-      expect(response.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(response.status).toBe(HttpStatus.FORBIDDEN);
     });
   });
 });
