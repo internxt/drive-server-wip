@@ -2,6 +2,7 @@ name: build & deploy
 on: ["pull_request"]
 jobs:
   build:
+    if: ${{ !contains(github.event.pull_request.title, 'feature-deployment') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check Out Repo
