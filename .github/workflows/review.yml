@@ -1,0 +1,7 @@
+name: review
+  transient_environment: true
+  production_environment: false
+
+  auto_deploy_on: pr
+
+  environment: feature${{ pr }}
