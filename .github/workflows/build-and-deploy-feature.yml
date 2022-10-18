@@ -40,7 +40,7 @@ jobs:
         with: # defaults to latest kubectl binary version
           config: ${{ secrets.KUBE_CONFIG_DATA_DEVELOPMENT }}
           version: v1.22.2
-          command: create deployment --image=drive-server-wip-${{ github.event.number }}
+          command: create deployment drive-server-wip-${{ github.event.number }} --image=drive-server-wip-${{ github.event.number }}
       - name: Update drive-server-wip image
         uses: steebchen/kubectl@v2.0.0
         with: # defaults to latest kubectl binary version
