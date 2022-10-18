@@ -1,5 +1,20 @@
-name: build & deploy
-on: ["pull_request"]
+name: Deploy feature
+on:
+  workflow_dispatch:
+    inputs:
+      drive-server-environment:
+        type: environment
+        description: Select the environment
+      boolean:
+        type: boolean
+        description: True or False
+      choice:
+        type: choice
+        description: Make a choice
+        options:
+        - foo
+        - bar
+        - baz
 jobs:
   build:
     if: ${{ !contains(github.event.pull_request.title, 'feature-deployment') }}
