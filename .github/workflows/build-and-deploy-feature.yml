@@ -27,7 +27,7 @@ jobs:
           context: ./
           file: ./development.Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-${{ github.event.number }}:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:pr-${{ github.event.number }}-${{ github.sha }}
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -40,13 +40,13 @@ jobs:
         with: # defaults to latest kubectl binary version
           config: ${{ secrets.KUBE_CONFIG_DATA_DEVELOPMENT }}
           version: v1.22.2
-          command: create deployment drive-server-wip-${{ github.event.number }} --image=drive-server-wip-${{ github.event.number }}
-      - name: Update drive-server-wip image
-        uses: steebchen/kubectl@v2.0.0
-        with: # defaults to latest kubectl binary version
-          config: ${{ secrets.KUBE_CONFIG_DATA_DEVELOPMENT }}
-          version: v1.22.2
-          command: set image --record deployment/drive-server-wip-${{ github.event.number }} drive-server-wip-${{ github.event.number }}=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-${{ github.event.number }}:${{ github.sha }}
+          command: create deployment drive-server-wip-${{ github.event.number }} --image=drive-server-wip:pr-${{ github.event.number }}-${{ github.sha }}
+      # - name: Update drive-server-wip image
+      #   uses: steebchen/kubectl@v2.0.0
+      #   with: # defaults to latest kubectl binary version
+      #     config: ${{ secrets.KUBE_CONFIG_DATA_DEVELOPMENT }}
+      #     version: v1.22.2
+      #     command: set image --record deployment/drive-server-wip-${{ github.event.number }} drive-server-wip-${{ github.event.number }}=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-${{ github.event.number }}:${{ github.sha }}
       - name: Verify drive-server deployment
         uses: steebchen/kubectl@v2.0.0
         with:
