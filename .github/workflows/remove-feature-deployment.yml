@@ -1,0 +1,7 @@
+name: remove feature deployment
+on:
+  pull_request:
+    types: [closed]
+jobs:
+  remove_deployment:
+  
