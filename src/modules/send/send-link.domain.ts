@@ -87,7 +87,10 @@ export class SendLink implements SendLinkAttributes {
   }
 
   get size() {
-    return this.items.reduce((acc, item) => acc + item.size, 0);
+    return this.items.reduce(
+      (acc, item) => acc + (item.type === 'file' ? item.size : 0),
+      0,
+    );
   }
 
   addView() {
