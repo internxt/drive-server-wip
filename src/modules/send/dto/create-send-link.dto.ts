@@ -18,6 +18,12 @@ export enum ItemType {
 
 export class SendLinkItemDto {
   @ApiProperty({
+    example: 'b4aef6a2-daca-47f1-8bee-34ab5a47c9f',
+    description: 'id of item (uuidv4 format)',
+  })
+  id: string;
+
+  @ApiProperty({
     example: 'Item 1',
     description: 'Name of file',
   })
