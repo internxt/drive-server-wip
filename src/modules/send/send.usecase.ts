@@ -88,6 +88,7 @@ export class SendUseCases {
         createdAt: new Date(),
         updatedAt: new Date(),
         version: 2,
+        parent_folder: item.parent_folder,
       });
       sendLink.addItem(sendLinkItem);
     }
