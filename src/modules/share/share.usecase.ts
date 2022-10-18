@@ -227,7 +227,7 @@ export class ShareUseCases {
     });
     await this.shareRepository.create(newShare);
 
-    return { item: newShare, created: true };
+    return { item: newShare, encryptedCode, created: true };
   }
 
   async createShareFolder(
@@ -283,7 +283,7 @@ export class ShareUseCases {
     });
     await this.shareRepository.create(newShare);
 
-    return { item: newShare, created: true };
+    return { item: newShare, encryptedCode: code, created: true };
   }
 
   async deleteFileShare(fileId: number, user: User): Promise<void> {
