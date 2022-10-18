@@ -9,6 +9,7 @@ export interface SendLinkItemAttributes {
   createdAt: Date;
   updatedAt: Date;
   version: number;
+  parent_folder: string;
 }
 
 export class SendLinkItem implements SendLinkItemAttributes {
@@ -22,6 +23,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
   createdAt: Date;
   updatedAt: Date;
   version: number;
+  parent_folder: string;
 
   constructor({
     id,
@@ -34,6 +36,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
     createdAt,
     updatedAt,
     version,
+    parent_folder,
   }: SendLinkItemAttributes) {
     this.id = id;
     this.name = name;
@@ -45,6 +48,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.version = version;
+    this.parent_folder = parent_folder;
   }
 
   static build(sendLinkItem: SendLinkItemAttributes): SendLinkItem {
@@ -63,6 +67,7 @@ export class SendLinkItem implements SendLinkItemAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       version: this.version,
+      parent_folder: this.parent_folder,
     };
   }
 }

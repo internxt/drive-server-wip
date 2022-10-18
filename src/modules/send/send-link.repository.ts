@@ -116,6 +116,9 @@ export class SendLinkItemModel extends Model {
 
   @Column(DataType.INTEGER)
   version: number;
+
+  @Column
+  parent_folder: string;
 }
 
 export interface SendRepository {
@@ -246,6 +249,7 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       version: model.version,
+      parent_folder: model.parent_folder,
     });
   }
 
@@ -264,6 +268,7 @@ export class SequelizeSendRepository implements SendRepository {
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
       version: domain.version,
+      parent_folder: domain.parent_folder,
     };
   }
 }
