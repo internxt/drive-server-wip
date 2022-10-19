@@ -11,8 +11,9 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      PR=$(gh pr view ${{ github.event.inputs.pr-number }}  --json headRefName,state,headRepository,number,title)
-      echo 'PR_BRANCH=$(jq -r '.headRefName' <<< "$PR")' >> $GITHUB_ENV
+      -run: | 
+        PR=$(gh pr view ${{ github.event.inputs.pr-number }}  --json headRefName,state,headRepository,number,title)
+        echo 'PR_BRANCH=$(jq -r '.headRefName' <<< "$PR")' >> $GITHUB_ENV
   build:
     needs: retrive-pr
     runs-on: ubuntu-latest
