@@ -3,8 +3,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      pr-number:
-        type: number
+      pr:
+        type: string
 jobs:
   retrive-pr:
     runs-on: ubuntu-latest
@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: | 
-          PR=$(gh pr view ${{ github.event.inputs.pr-number }}  --json headRefName,state,headRepository,number,title)
+          PR=$(gh pr view ${{ github.event.inputs.pr }}  --json headRefName,state,headRepository,number,title)
           echo 'PR_BRANCH=$(jq -r '.headRefName' <<< "$PR")' >> $GITHUB_ENV
   build:
     needs: retrive-pr
