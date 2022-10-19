@@ -14,9 +14,11 @@ jobs:
       - run: | 
           PR=$(gh pr view ${{ github.event.inputs.pr }}  --json headRefName,state,headRepository,number,title)
           PR_BRANCH=$(jq -r '.headRefName' <<< "$PR")
+          echo "PR_BRANCH=$PR_BRANCH"
           echo "PR_BRANCH=$PR_BRANCH" >> $GITHUB_ENV
           echo "${{ env.PR_BRANCH }}"
           PR_NUMBER=$(jq -r '.number' <<< "$PR")
+          echo "PR_NUMBER=$PR_NUMBER"
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
           echo "${{ env.PR_NUMBER }}"
   build:
