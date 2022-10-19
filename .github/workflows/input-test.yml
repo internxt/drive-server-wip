@@ -8,6 +8,8 @@ on:
         description: Insert drive server branch to connect to
 jobs:
   retrive-pr:
+    permissions:
+      security-events: write
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
