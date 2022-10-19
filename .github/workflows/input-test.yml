@@ -3,21 +3,11 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      drive-server-environment:
-        type: environment
-        description: Select the environment
-      boolean:
-        type: boolean
-        description: True or False
-      choice:
-        type: choice
-        description: Make a choice
-        options:
-        - foo
-        - bar
-        - baz
+      drive-server-branch:
+        type: string
+        description: Insert drive server branch to connect to
 jobs:
-  build:
+  retrive-pr:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,6 +15,12 @@ jobs:
 
       - name: greet
         run: | 
-          echo "environment is ${{ github.event.inputs.environment }} / ${{ inputs.environment }}"
-          echo "boolean is ${{ github.event.inputs.boolean }}" / ${{ inputs.boolean }} 
-          echo "choice is ${{ github.event.inputs.choice }}" / ${{ inputs.choice }}
+          PR_JSON=$(gh pr view https://github.com/internxt/drive-server/pull/324  --json headRefName,state,headRepository,number)
+          REPOSITORY=$(jq -r '.headRepository.name' <<< "$PR_JSON")
+          if [ $REPOSITORY != 'drive-server' ];
+          then
+            echo "Invalid PR. Plase insert a drive-server pr"
+            exit 1
+          fi
+          REF=$(jq -r '.headRefName' <<< "$PR_JSON")
+          gh workflow run run-tests.yml --repo internxt/drive-server --ref "$REF"
