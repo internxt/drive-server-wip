@@ -1,5 +1,6 @@
 name: Deploy feature
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       drive-server-environment:
