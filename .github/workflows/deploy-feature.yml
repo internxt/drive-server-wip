@@ -18,6 +18,11 @@ jobs:
         id: view-pr
         run: | 
           PR=$(gh pr view ${{ github.event.inputs.pr }}  --json headRefName,state,headRepository,number,title)
+          if [ $(jq -r '.headRepository.name' <<< "$PR") != ${{ github.event.repository.name }} ];
+          then
+            echo "Invalid PR"
+            exit 1
+          fi
           echo "PR_BRANCH=$(jq -r '.headRefName' <<< "$PR")" >> $GITHUB_OUTPUT
           echo "PR_NUMBER=$(jq -r '.number' <<< "$PR")" >> $GITHUB_OUTPUT
       - name: Print the output variable in another step
