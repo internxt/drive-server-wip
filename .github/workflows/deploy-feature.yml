@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      PR_BRANCH: ${{ steps.view-pr.outputs.PR_BRANCH }}
+      PR_NUMBER: ${{ steps.view-pr.outputs.PR_NUMBER }}
     steps:
       - uses: actions/checkout@v2
       - name: View pr
@@ -55,7 +58,7 @@ jobs:
         #   push: true
         #   tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-dev:${{ github.sha }}-pr${{ needs.retrive-pr.outputs.PR_NUMBER }}
   deploy:
-    needs: build
+    needs: [build,retrive-pr]
     runs-on: ubuntu-latest
     environment:
       name: develop
