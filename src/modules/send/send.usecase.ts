@@ -13,6 +13,7 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import getEnv from '../../config/configuration';
+import { SendLinkItemDto } from './dto/create-send-link.dto';
 
 @Injectable()
 export class SendUseCases {
@@ -42,7 +43,7 @@ export class SendUseCases {
 
   async createSendLinks(
     user: User | null,
-    items: any,
+    items: SendLinkItemDto[],
     code: string,
     receivers: string[],
     sender: string,
@@ -78,7 +79,7 @@ export class SendUseCases {
     });
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({
-        id: uuidv4(),
+        id: item.id,
         name: item.name,
         type: item.type,
         linkId: sendLink.id,
@@ -88,6 +89,7 @@ export class SendUseCases {
         createdAt: new Date(),
         updatedAt: new Date(),
         version: 2,
+        parent_folder: item.parent_folder,
       });
       sendLink.addItem(sendLinkItem);
     }
