@@ -26,6 +26,7 @@ export class SendLinkListener {
       size,
       id,
       plainCode,
+      totalFiles,
     } = event.payload.sendLink;
 
     if (!sender || !receivers) return;
@@ -45,7 +46,7 @@ export class SendLinkListener {
           sender,
           receivers,
           items: itemsToMail,
-          count: items.length,
+          count: totalFiles,
           title,
           message: subject,
           expirationDate: expirationAt,
@@ -61,7 +62,7 @@ export class SendLinkListener {
           {
             sender,
             items: itemsToMail,
-            count: items.length,
+            count: totalFiles,
             title,
             message: subject,
             expirationDate: expirationAt,
