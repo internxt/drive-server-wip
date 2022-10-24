@@ -77,6 +77,8 @@ export class SendUseCases {
       expirationAt,
       hashedPassword,
     });
+    let totalSize = 0;
+    let totalFiles = 0;
     for (const item of items) {
       const sendLinkItem = SendLinkItem.build({
         id: item.id,
@@ -92,6 +94,16 @@ export class SendUseCases {
         parent_folder: item.parent_folder,
       });
       sendLink.addItem(sendLinkItem);
+      if (
+        !item.parent_folder ||
+        String(item.parent_folder).trim().length === 0
+      ) {
+        totalSize += item.size;
+      }
+
+      if (item.type === 'file') {
+        totalFiles++;
+      }
     }
 
     await this.sendRepository.createSendLinkWithItems(sendLink);
@@ -100,6 +112,8 @@ export class SendUseCases {
       sendLink: {
         ...(await this.sendRepository.findById(sendLink.id)),
         plainCode,
+        size: totalSize,
+        totalFiles: totalFiles,
       },
     });
 
