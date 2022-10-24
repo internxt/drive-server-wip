@@ -1,4 +1,4 @@
-name: Deploy feature
+name: Remove deployed feature
 on:
   workflow_dispatch:
     inputs:
@@ -6,7 +6,6 @@ on:
         type: string
 jobs:
   remove:
-    needs: [build,retrive-pr]
     runs-on: ubuntu-latest
     environment:
       name: develop
