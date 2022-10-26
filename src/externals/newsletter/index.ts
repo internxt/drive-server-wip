@@ -14,16 +14,17 @@ export class NewsletterService {
 
   async subscribe(email: UserAttributes['email']): Promise<void> {
     const groupId: string = this.configService.get('newsletter.groupId');
-
+    const apiKey: string = this.configService.get('newsletter.apiKey');
     await this.httpClient.post(
-      `https://api.mailerlite.com/api/v2/groups/${groupId}/subscribers`,
-      { email, resubscribe: true, autoresponders: true },
+      `https://connect.mailerlite.com/api/subscribers`,
+      { email, groups: [groupId] },
       {
         headers: {
           Accept: 'application/json',
-          'X-MailerLite-ApiDocs': 'true',
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'X-MailerLite-ApiKey': this.configService.get('newsletter.apiKey'),
+          // The following (X-Version) locks up the version of the API (https://developers.mailerlite.com/docs/#versioning)
+          'X-Version': '2022-01-01',
         },
       },
     );
