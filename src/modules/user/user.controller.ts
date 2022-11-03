@@ -7,6 +7,7 @@ import {
   Logger,
   HttpStatus,
   Req,
+  Get,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -17,14 +18,15 @@ import {
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Response, Request } from 'express';
-import { SignUpEvent } from '../../externals/notifications/events/sign-up.event';
-import { NotificationService } from '../../externals/notifications/notification.service';
-import { UserAttributes } from './user.domain';
+import { SignUpEvent } from 'src/externals/notifications/events/sign-up.event';
+import { NotificationService } from 'src/externals/notifications/notification.service';
+import { User, UserAttributes } from './user.domain';
 import {
   InvalidReferralCodeError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
+import { User as UserDecorator } from '../auth/decorators/user.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -84,5 +86,15 @@ export class UserController {
 
       return { error: errorMessage };
     }
+  }
+
+  @Get('/refresh')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Refresh session token',
+  })
+  @ApiOkResponse({ description: 'Returns a new token' })
+  refreshToken(@UserDecorator() user: User) {
+    return this.userUseCases.getAuthTokens(user);
   }
 }
