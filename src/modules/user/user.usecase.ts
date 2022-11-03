@@ -7,6 +7,7 @@ import { SequelizeUserRepository } from './user.repository';
 import {
   ReferralAttributes,
   ReferralKey,
+  User,
   UserAttributes,
   UserReferralAttributes,
 } from './user.domain';
@@ -348,5 +349,29 @@ export class UserUseCases {
     );
 
     return !hasBeenSubscribed;
+  }
+
+  getAuthTokens(user: User): { token: string; newToken: string } {
+    const token = Sign(user.email, this.configService.get('secrets.jwt'), true);
+    const newToken = Sign(
+      {
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          name: user.name,
+          lastname: user.lastname,
+          username: user.username,
+          sharedWorkspace: true,
+          networkCredentials: {
+            user: user.bridgeUser,
+            pass: user.userId,
+          },
+        },
+      },
+      this.configService.get('secrets.jwt'),
+      true,
+    );
+
+    return { token, newToken };
   }
 }
