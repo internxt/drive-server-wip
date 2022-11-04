@@ -94,6 +94,7 @@ export interface FileRepository {
   findOne(
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
+    deleted: FileAttributes['deleted'],
   ): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
@@ -169,10 +170,12 @@ export class SequelizeFileRepository implements FileRepository {
   async findOne(
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
+    deleted: FileAttributes['deleted'],
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         id: fileId,
+        deleted,
         userId,
       },
     });

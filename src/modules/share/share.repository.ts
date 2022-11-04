@@ -131,7 +131,23 @@ export class SequelizeShareRepository implements ShareRepository {
 
   async findById(id: ShareAttributes['id']) {
     const share = await this.shareModel.findByPk(id, {
-      include: [this.fileModel, this.userModel, this.folderModel],
+      include: [
+        this.userModel,
+        {
+          model: this.fileModel,
+          where: {
+            deleted: false,
+          },
+          required: false,
+        },
+        {
+          model: this.folderModel,
+          where: {
+            deleted: false,
+          },
+          required: false,
+        },
+      ],
     });
     return share ? this.toDomain(share) : null;
   }
@@ -142,7 +158,15 @@ export class SequelizeShareRepository implements ShareRepository {
   ): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { fileId, userId },
-      include: [this.fileModel, this.userModel],
+      include: [
+        this.userModel,
+        {
+          model: this.fileModel,
+          where: {
+            deleted: false,
+          },
+        },
+      ],
     });
     return share ? this.toDomain(share) : null;
   }
@@ -153,7 +177,15 @@ export class SequelizeShareRepository implements ShareRepository {
   ): Promise<Share | null> {
     const share = await this.shareModel.findOne({
       where: { folderId, userId },
-      include: [this.folderModel, this.userModel],
+      include: [
+        this.userModel,
+        {
+          model: this.folderModel,
+          where: {
+            deleted: false,
+          },
+        },
+      ],
     });
     return share ? this.toDomain(share) : null;
   }
@@ -203,7 +235,23 @@ export class SequelizeShareRepository implements ShareRepository {
       where: {
         user_id: user.id,
       },
-      include: [this.fileModel, this.userModel, this.folderModel],
+      include: [
+        this.userModel,
+        {
+          model: this.fileModel,
+          where: {
+            deleted: false,
+          },
+          required: false,
+        },
+        {
+          model: this.folderModel,
+          where: {
+            deleted: false,
+          },
+          required: false,
+        },
+      ],
       offset,
       limit,
       order,
