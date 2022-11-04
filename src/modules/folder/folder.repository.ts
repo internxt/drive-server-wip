@@ -141,6 +141,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     const folder = await this.folderModel.findOne({
       where: {
         id: folderId,
+        deleted: false,
       },
     });
     return folder ? this.toDomain(folder) : null;

@@ -85,6 +85,7 @@ export class ShareUseCases {
       share.item = await this.filesRepository.findOne(
         share.fileId,
         share.userId,
+        false,
       );
 
       if (code) {
@@ -186,7 +187,7 @@ export class ShareUseCases {
       plainPassword,
     }: CreateShareDto,
   ) {
-    const file = await this.filesRepository.findOne(fileId, user.id);
+    const file = await this.filesRepository.findOne(fileId, user.id, false);
     if (!file) {
       throw new NotFoundException(`File ${fileId} not found`);
     }
