@@ -32,7 +32,7 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     deleted: FolderAttributes['deleted'] = false,
   ): Promise<File> {
-    return this.fileRepository.findOne(fileId, userId, deleted);
+    return this.fileRepository.findOne({ fileId, userId, deleted });
   }
 
   async getByFolderAndUser(

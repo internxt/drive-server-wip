@@ -82,11 +82,11 @@ export class ShareUseCases {
     if (share.isFolder) {
       share.item = await this.foldersRepository.findById(share.folderId);
     } else {
-      share.item = await this.filesRepository.findOne(
-        share.fileId,
-        share.userId,
-        false,
-      );
+      share.item = await this.filesRepository.findOne({
+        fileId: share.fileId,
+        userId: share.userId,
+        deleted: false,
+      });
 
       if (code) {
         const shareOwner = await this.usersRepository.findById(share.userId);
@@ -187,7 +187,11 @@ export class ShareUseCases {
       plainPassword,
     }: CreateShareDto,
   ) {
-    const file = await this.filesRepository.findOne(fileId, user.id, false);
+    const file = await this.filesRepository.findOne({
+      fileId,
+      userId: user.id,
+      deleted: false,
+    });
     if (!file) {
       throw new NotFoundException(`File ${fileId} not found`);
     }
