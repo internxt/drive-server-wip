@@ -82,6 +82,12 @@ export class FileModel extends Model implements FileAttributes {
   updatedAt: Date;
 }
 
+interface FileParams {
+  fileId: FileAttributes['id'];
+  userId: FileAttributes['userId'];
+  deleted: FileAttributes['deleted'];
+}
+
 export interface FileRepository {
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
@@ -91,11 +97,7 @@ export interface FileRepository {
     page: number,
     perPage: number,
   ): Promise<Array<File> | []>;
-  findOne(
-    fileId: FileAttributes['id'],
-    userId: FileAttributes['userId'],
-    deleted: FileAttributes['deleted'],
-  ): Promise<File | null>;
+  findOne(fileParams: FileParams): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -167,11 +169,7 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async findOne(
-    fileId: FileAttributes['id'],
-    userId: FileAttributes['userId'],
-    deleted: FileAttributes['deleted'],
-  ): Promise<File | null> {
+  async findOne({ fileId, deleted, userId }: FileParams): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         id: fileId,
