@@ -76,7 +76,10 @@ export interface FolderRepository {
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []>;
-  findById(folderId: FolderAttributes['id']): Promise<Folder | null>;
+  findById(
+    folderId: FolderAttributes['id'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder | null>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -88,6 +91,7 @@ export interface FolderRepository {
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
 }
+
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
   constructor(
@@ -137,11 +141,15 @@ export class SequelizeFolderRepository implements FolderRepository {
     const folders = await this.folderModel.findAll(query);
     return folders.map((folder) => this.toDomain(folder));
   }
-  async findById(folderId: FolderAttributes['id']): Promise<Folder | null> {
+
+  async findById(
+    folderId: FolderAttributes['id'],
+    deleted: FolderAttributes['deleted'] = false,
+  ): Promise<Folder | null> {
     const folder = await this.folderModel.findOne({
       where: {
         id: folderId,
-        deleted: false,
+        deleted,
       },
     });
     return folder ? this.toDomain(folder) : null;

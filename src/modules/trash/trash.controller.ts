@@ -124,7 +124,7 @@ export class TrashController {
   @Delete('/')
   @HttpCode(202)
   @ApiOperation({
-    summary: "Deletes all items from user's trash",
+    summary: "Deletes items from user's trash",
   })
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,

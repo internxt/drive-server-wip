@@ -26,8 +26,11 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  async getFolder(folderId: FolderAttributes['id']) {
-    const folder = await this.folderRepository.findById(folderId);
+  async getFolder(
+    folderId: FolderAttributes['id'],
+    deleted: FolderAttributes['deleted'] = false,
+  ) {
+    const folder = await this.folderRepository.findById(folderId, deleted);
     if (!folder) {
       throw new NotFoundException(`Folder with ID ${folderId} not found`);
     }
