@@ -302,9 +302,11 @@ export class ShareController {
     const files = await this.fileUseCases.getByFolderAndUser(
       folderId,
       share.userId,
-      false,
-      parseInt(page),
-      parseInt(perPage),
+      {
+        deleted: false,
+        page: parseInt(page),
+        perPage: parseInt(perPage),
+      },
     );
 
     for (let file of files) {

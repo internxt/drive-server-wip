@@ -39,19 +39,17 @@ export class TrashUseCases {
 
   public async clearTrash(user: User) {
     const { id: userId } = user;
-    const deleted = true;
 
-    const foldersToDelete = await this.folderUseCases.getFoldersToUser(
-      userId,
-      deleted,
-    );
+    const foldersToDelete = await this.folderUseCases.getFoldersToUser(userId, {
+      deleted: true,
+    });
 
     const foldersIdToDelete = foldersToDelete.map(
       (folder: Folder) => folder.id,
     );
 
     const filesDeletion = this.fileUseCases
-      .getByUserExceptParents(userId, foldersIdToDelete, deleted)
+      .getByUserExceptParents(userId, foldersIdToDelete, { deleted: true })
       .then((files: Array<File>) => this.deleteFiles(files, user));
 
     const foldersDeletion = this.deleteFolders(foldersToDelete, user);
@@ -66,13 +64,12 @@ export class TrashUseCases {
   ): Promise<void> {
     const files: Array<File> = [];
     const folders: Array<Folder> = [];
-    const deleted = true; //search files in trash
 
     for (const fileId of filesId) {
       const file = await this.fileUseCases.getByFileIdAndUser(
         Number(fileId),
         user.id,
-        deleted,
+        { deleted: true },
       );
       if (file === null) {
         throw new NotFoundException(`file with id ${fileId} not found`);
@@ -82,7 +79,9 @@ export class TrashUseCases {
     }
 
     for (const folderId of foldersId) {
-      const folder = await this.folderUseCases.getFolder(folderId, deleted);
+      const folder = await this.folderUseCases.getFolder(folderId, {
+        deleted: true,
+      });
       folders.push(folder);
     }
 

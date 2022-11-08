@@ -15,6 +15,10 @@ export interface FolderAttributes {
   updatedAt: Date;
 }
 
+export interface FolderOptions {
+  deleted: FolderAttributes['deleted'];
+}
+
 export class Folder implements FolderAttributes {
   id: number;
   parentId: number;

@@ -53,13 +53,13 @@ export class TrashController {
     const folderId = user.rootFolderId;
     const [currentFolder, childrenFolders] = await Promise.all([
       this.folderUseCases.getFolder(folderId),
-      this.folderUseCases.getFoldersToUser(user.id, true),
+      this.folderUseCases.getFoldersToUser(user.id, { deleted: true }),
     ]);
     const childrenFoldersIds = childrenFolders.map(({ id }) => id);
     const files = await this.fileUseCases.getByUserExceptParents(
       user.id,
       childrenFoldersIds,
-      true,
+      { deleted: true },
     );
     return {
       ...currentFolder.toJSON(),
