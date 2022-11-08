@@ -20,6 +20,13 @@ export interface FileAttributes {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface FileOptions {
+  deleted: FileAttributes['deleted'];
+  page?: number;
+  perPage?: number;
+}
+
 export class File implements FileAttributes {
   id: number;
   fileId: string;
