@@ -14,7 +14,7 @@ import { FolderAttributes } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User, UserAttributes } from '../user/user.domain';
-import { File, FileAttributes } from './file.domain';
+import { File, FileAttributes, FileOptions } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 
 @Injectable()
@@ -30,24 +30,20 @@ export class FileUseCases {
   getByFileIdAndUser(
     fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
-    deleted: FolderAttributes['deleted'] = false,
+    options: FileOptions = { deleted: false },
   ): Promise<File> {
-    return this.fileRepository.findOne({ fileId, userId, deleted });
+    return this.fileRepository.findOne(fileId, userId, options);
   }
 
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
-    deleted: FolderAttributes['deleted'] = false,
-    page?: number,
-    perPage?: number,
+    options: FileOptions,
   ) {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
       folderId,
       userId,
-      deleted,
-      page,
-      perPage,
+      options,
     );
 
     return files.map((file) => file.toJSON());
@@ -56,16 +52,12 @@ export class FileUseCases {
   async getByUserExceptParents(
     userId: FolderAttributes['userId'],
     exceptFolderIds: FolderAttributes['id'][],
-    deleted: FolderAttributes['deleted'] = false,
-    page?: number,
-    perPage?: number,
+    options: FileOptions = { deleted: false },
   ) {
     const files = await this.fileRepository.findAllByUserIdExceptFolderIds(
       userId,
       exceptFolderIds,
-      deleted,
-      page,
-      perPage,
+      options,
     );
 
     return files.map((file) => file.toJSON());

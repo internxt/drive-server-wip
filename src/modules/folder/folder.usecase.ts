@@ -11,7 +11,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FileUseCases } from '../file/file.usecase';
 import { User, UserAttributes } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Folder, FolderAttributes } from './folder.domain';
+import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';
 
 const invalidName = /[\\/]|^\s*$/;
@@ -26,8 +26,11 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  async getFolder(folderId: FolderAttributes['id']) {
-    const folder = await this.folderRepository.findById(folderId);
+  async getFolder(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ) {
+    const folder = await this.folderRepository.findById(folderId, deleted);
     if (!folder) {
       throw new NotFoundException(`Folder with ID ${folderId} not found`);
     }
@@ -37,7 +40,7 @@ export class FolderUseCases {
   async getChildrenFoldersToUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
-    deleted: FolderAttributes['deleted'] = false,
+    { deleted }: FolderOptions = { deleted: false },
   ) {
     const folders = await this.folderRepository.findAllByParentIdAndUserId(
       folderId,
@@ -50,7 +53,7 @@ export class FolderUseCases {
 
   async getFoldersToUser(
     userId: FolderAttributes['userId'],
-    deleted: FolderAttributes['deleted'] = false,
+    { deleted }: FolderOptions = { deleted: false },
   ) {
     const folders = await this.folderRepository.findAll({
       userId,
