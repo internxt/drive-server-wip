@@ -56,6 +56,10 @@ export class UserController {
         new SignUpEvent(response.user as unknown as UserAttributes, req),
       );
 
+      await this.userUseCases.sendWelcomeVerifyEmailEmail(createUserDto.email, {
+        userUuid: response.uuid,
+      });
+
       return {
         ...response,
         user: {

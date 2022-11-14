@@ -23,6 +23,7 @@ import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -295,6 +296,27 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  async sendWelcomeVerifyEmailEmail(email, { userUuid }) {
+    const mailer = new MailerService(this.configService);
+    const secret = this.configService.get('secrets.jwt');
+    const verificationToken = this.cryptoService.encrypt(
+      userUuid,
+      Buffer.from(secret),
+    );
+
+    const verificationTokenEncoded = encodeURIComponent(verificationToken);
+
+    const url = `${process.env.HOST_DRIVE_WEB}/verify-email/${verificationTokenEncoded}`;
+    const verifyAccountTemplateId = this.configService.get(
+      'mailer.templates.welcomeVerifyEmail',
+    );
+
+    return mailer.send(email, verifyAccountTemplateId, {
+      verification_url: url,
+      email_support: 'mailto:hello@internxt.com',
+    });
   }
 
   async createUserReferrals(userId: UserAttributes['id']): Promise<void> {

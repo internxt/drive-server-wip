@@ -21,6 +21,10 @@ export class CryptoService {
     this.cryptoSecret = process.env.CRYPTO_SECRET;
   }
 
+  encrypt(text: string, buffer?: Buffer) {
+    return this.aesService.encrypt(text, buffer);
+  }
+
   encryptName(name: string, salt?: number) {
     if (salt) {
       return this.aesService.encrypt(name, salt, salt === undefined);
