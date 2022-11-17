@@ -100,8 +100,18 @@ export class FileUseCases {
     return encryptionKey.toString('hex');
   }
 
-  getTotalSizeOfFilesFromFolder(folderId: number) {
-    return this.fileRepository.getTotalSizeByFolderId(folderId);
+  getTotalSizeOfFilesFromFolder(
+    folderId: number,
+    options: FileOptions = { deleted: false },
+  ) {
+    return this.fileRepository.getTotalSizeByFolderId(folderId, options);
+  }
+
+  getTotalCountOfFilesFromFolder(
+    folderId: number,
+    options: FileOptions = { deleted: false },
+  ) {
+    return this.fileRepository.getTotalCountByFolderId(folderId, options);
   }
 
   async deleteFilePermanently(file: File, user: User): Promise<void> {
