@@ -51,10 +51,13 @@ export class TrashController {
   @ApiOkResponse({ description: 'Get all folders and files in trash' })
   async getTrash(@UserDecorator() user: User) {
     const folderId = user.rootFolderId;
-    const [currentFolder, childrenFolders] = await Promise.all([
-      this.folderUseCases.getFolder(folderId),
+    const [childrenFolders, { totalSize, totalFiles }] = await Promise.all([
       this.folderUseCases.getFoldersToUser(user.id, { deleted: true }),
+      this.folderUseCases.getFolderSizeAndFilesCount(folderId, {
+        deleted: true,
+      }),
     ]);
+
     const childrenFoldersIds = childrenFolders.map(({ id }) => id);
     const files = await this.fileUseCases.getByUserExceptParents(
       user.id,
@@ -62,11 +65,12 @@ export class TrashController {
       { deleted: true },
     );
     return {
-      ...currentFolder.toJSON(),
       children: childrenFolders.map((folder: Folder) =>
         this.folderUseCases.decryptFolderName(folder),
       ),
       files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
+      totalFiles,
+      totalSize,
     };
   }
 
