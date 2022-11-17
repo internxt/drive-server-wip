@@ -74,6 +74,10 @@ export interface FolderRepository {
   findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
     userId: FolderAttributes['userId'],
+  ): Promise<Array<Folder> | []>;
+  findAllByDeletedParentIdAndUserId(
+    parentId: FolderAttributes['parentId'],
+    userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []>;
   findById(
@@ -112,13 +116,23 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folder ? this.toDomain(folder) : null;
   }
 
-  async findAllByParentIdAndUserId(
+  async findAllByDeletedParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({
       where: { parentId, userId, deleted },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findAllByParentIdAndUserId(
+    parentId: FolderAttributes['parentId'],
+    userId: FolderAttributes['userId'],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      where: { parentId, userId },
     });
     return folders.map((folder) => this.toDomain(folder));
   }

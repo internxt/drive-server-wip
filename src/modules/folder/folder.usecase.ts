@@ -42,12 +42,12 @@ export class FolderUseCases {
     userId: FolderAttributes['userId'],
     { deleted }: FolderOptions = { deleted: false },
   ) {
-    const folders = await this.folderRepository.findAllByParentIdAndUserId(
-      folderId,
-      userId,
-      deleted,
-    );
-
+    const folders =
+      await this.folderRepository.findAllByDeletedParentIdAndUserId(
+        folderId,
+        userId,
+        deleted,
+      );
     return folders;
   }
 
@@ -171,6 +171,7 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
+
   async moveFoldersToTrash(folderIds: FolderAttributes['id'][]): Promise<void> {
     this.folderRepository.updateManyByFolderId(folderIds, {
       deleted: true,
@@ -194,7 +195,6 @@ export class FolderUseCases {
         this.folderRepository.findAllByParentIdAndUserId(
           currentFolderId,
           folder.userId,
-          false,
         ),
         this.fileUseCases.getTotalSizeOfFilesFromFolder(currentFolderId),
       ]);
@@ -204,6 +204,57 @@ export class FolderUseCases {
     }
 
     return totalSize;
+  }
+
+  async getFolderSizeAndFilesCount(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ) {
+    const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException(`Folder ${folderId} does not exist`);
+    }
+
+    let [totalSize, totalFiles] = await Promise.all([
+      this.fileUseCases.getTotalSizeOfFilesFromFolder(folder.id, {
+        deleted,
+      }),
+      this.fileUseCases.getTotalCountOfFilesFromFolder(folder.id, {
+        deleted,
+      }),
+    ]);
+
+    const foldersToCheck: number[] = (
+      await this.folderRepository.findAllByDeletedParentIdAndUserId(
+        folder.id,
+        folder.userId,
+        deleted,
+      )
+    ).map((folder) => folder.id);
+
+    while (foldersToCheck.length > 0) {
+      const currentFolderId = foldersToCheck.shift();
+
+      const [childrenFolders, filesSize, countFiles] = await Promise.all([
+        this.folderRepository.findAllByParentIdAndUserId(
+          currentFolderId,
+          folder.userId,
+        ),
+        this.fileUseCases.getTotalSizeOfFilesFromFolder(currentFolderId, {
+          deleted: false,
+        }),
+        this.fileUseCases.getTotalCountOfFilesFromFolder(currentFolderId, {
+          deleted: false,
+        }),
+      ]);
+      totalSize += filesSize;
+      totalFiles += countFiles;
+
+      childrenFolders.forEach((fld: Folder) => foldersToCheck.push(fld.id));
+    }
+
+    console.error({ totalSize, totalFiles });
+    return { totalSize, totalFiles };
   }
 
   async getFoldersByParent(folderId: number, page, perPage) {
