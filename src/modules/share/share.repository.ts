@@ -105,7 +105,7 @@ export interface ShareRepository {
   ): Promise<{ count: number; items: Array<Share> | [] }>;
   update(share: Share): Promise<void>;
   deleteById(shareId: Share['id']): Promise<void>;
-  create(share: Share): Promise<void>;
+  create(share: Share): Promise<Share>;
   findByFileIdAndUser(
     fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
@@ -200,10 +200,11 @@ export class SequelizeShareRepository implements ShareRepository {
     return this.toDomain(share);
   }
 
-  async create(share: Share): Promise<void> {
+  async create(share: Share): Promise<Share> {
     const shareModel = this.toModel(share);
     delete shareModel.id;
-    await this.shareModel.create(shareModel);
+    const { id } = await this.shareModel.create(shareModel);
+    return this.findById(id);
   }
 
   async update(share: Share): Promise<void> {
