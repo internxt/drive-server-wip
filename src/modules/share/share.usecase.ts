@@ -19,6 +19,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { File } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -189,15 +190,30 @@ export class ShareUseCases {
       plainPassword,
     }: CreateShareDto,
   ) {
-    const file = await this.filesRepository.findOne(fileId, user.id, {
-      deleted: false,
-    });
+    const userId = user.id;
+    let file: File;
+
+    if (user.isGuestOnSharedWorkspace()) {
+      const { id: hostId } = await this.usersRepository.findByBridgeUser(
+        user.bridgeUser,
+      );
+      file = await this.filesRepository.findOneFromMultipleUsers(
+        fileId,
+        [user.id, hostId],
+        { deleted: false },
+      );
+    } else {
+      file = await this.filesRepository.findOne(fileId, userId, {
+        deleted: false,
+      });
+    }
+
     if (!file) {
       throw new NotFoundException(`File ${fileId} not found`);
     }
     const share = await this.shareRepository.findByFileIdAndUser(
       file.id,
-      user.id,
+      file.userId,
     );
     if (share) {
       return { item: share, created: false, encryptedCode: share.code };
@@ -215,7 +231,7 @@ export class ShareUseCases {
       id: 1,
       token,
       mnemonic: encryptedMnemonic,
-      userId: user.id,
+      userId: file.userId,
       bucket,
       fileToken: itemToken,
       folderId: null,
