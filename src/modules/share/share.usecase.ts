@@ -33,8 +33,22 @@ export class ShareUseCases {
     private cryptoService: CryptoService,
   ) {}
 
-  async getShareById(id: number) {
-    return await this.shareRepository.findById(id);
+  getShareById(id: number): Promise<Share> {
+    return this.shareRepository.findById(id);
+  }
+
+  async shareIsOwned(user: User, share: Share): Promise<boolean> {
+    const userIsNotGuest = !user.isGuestOnSharedWorkspace();
+    const isOwnedByThisUser = user.id === share.userId;
+
+    if (userIsNotGuest) {
+      return isOwnedByThisUser;
+    } else {
+      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
+      const isOwnedByHost = host.id === share.userId;
+
+      return isOwnedByHost;
+    }
   }
 
   async updateShareById(
@@ -171,19 +185,10 @@ export class ShareUseCases {
 
   async deleteShareById(id: number, user: User) {
     const share = await this.shareRepository.findById(id);
-    const isNotOwnedByThisUser = share.userId !== user.id;
+    const shareIsOwned = await this.shareIsOwned(user, share);
 
-    if (isNotOwnedByThisUser) {
-      if (!user.isGuestOnSharedWorkspace()) {
-        throw new ForbiddenException(`You are not owner of this share`);
-      }
-
-      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
-      const isNotOwnedByTheHost = share.userId !== host.id;
-
-      if (isNotOwnedByTheHost) {
-        throw new ForbiddenException(`You are not owner of this share`);
-      }
+    if (!shareIsOwned) {
+      throw new ForbiddenException(`You are not owner of this share`);
     }
     await this.shareRepository.deleteById(share.id);
     return true;
@@ -201,27 +206,30 @@ export class ShareUseCases {
       plainPassword,
     }: CreateShareDto,
   ) {
-    const userId = user.id;
-    let file: File;
-
-    if (user.isGuestOnSharedWorkspace()) {
-      const { id: hostId } = await this.usersRepository.findByBridgeUser(
-        user.bridgeUser,
-      );
-      file = await this.filesRepository.findOneFromMultipleUsers(
-        fileId,
-        [user.id, hostId],
-        { deleted: false },
-      );
-    } else {
-      file = await this.filesRepository.findOne(fileId, userId, {
-        deleted: false,
-      });
-    }
+    const file = await this.filesRepository.findByIdNotDeleted(fileId);
 
     if (!file) {
       throw new NotFoundException(`File ${fileId} not found`);
     }
+
+    const fileNotOwnedByThisUser = file.userId !== user.id;
+
+    if (fileNotOwnedByThisUser) {
+      if (user.isGuestOnSharedWorkspace()) {
+        const host = await this.usersRepository.findByBridgeUser(
+          user.bridgeUser,
+        );
+
+        const fileNotOwnedByHost = file.userId !== host.id;
+
+        if (fileNotOwnedByHost) {
+          throw new ForbiddenException(`You are not owner of this file`);
+        }
+      } else {
+        throw new ForbiddenException(`You are not owner of this file`);
+      }
+    }
+
     const share = await this.shareRepository.findByFileIdAndUser(
       file.id,
       file.userId,
