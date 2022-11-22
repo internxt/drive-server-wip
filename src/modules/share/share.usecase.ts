@@ -160,7 +160,7 @@ export class ShareUseCases {
       sharesUsersOwners.push(host);
     }
 
-    const { count, items } = await this.shareRepository.findAllByUsersPaginated(
+    const shares = await this.shareRepository.findAllByUsersPaginated(
       sharesUsersOwners,
       page,
       perPage,
@@ -171,10 +171,9 @@ export class ShareUseCases {
       pagination: {
         page,
         perPage,
-        countAll: count,
         orderBy,
       },
-      items: items.map((share) => {
+      items: shares.map((share) => {
         return {
           id: share.id,
           token: share.token,
