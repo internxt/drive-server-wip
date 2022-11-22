@@ -130,6 +130,10 @@ export class User implements UserAttributes {
     return this._rootFolder;
   }
 
+  isGuestOnSharedWorkspace(): boolean {
+    return !(this.email === this.bridgeUser);
+  }
+
   toJSON() {
     return {
       id: this.id,
