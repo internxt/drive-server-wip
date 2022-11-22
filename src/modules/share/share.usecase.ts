@@ -19,6 +19,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { File } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -32,8 +33,22 @@ export class ShareUseCases {
     private cryptoService: CryptoService,
   ) {}
 
-  async getShareById(id: number) {
-    return await this.shareRepository.findById(id);
+  getShareById(id: number): Promise<Share> {
+    return this.shareRepository.findById(id);
+  }
+
+  async shareIsOwned(user: User, share: Share): Promise<boolean> {
+    const userIsNotGuest = !user.isGuestOnSharedWorkspace();
+    const isOwnedByThisUser = user.id === share.userId;
+
+    if (userIsNotGuest) {
+      return isOwnedByThisUser;
+    } else {
+      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
+      const isOwnedByHost = host.id === share.userId;
+
+      return isOwnedByHost;
+    }
   }
 
   async updateShareById(
@@ -42,7 +57,9 @@ export class ShareUseCases {
     content: Partial<UpdateShareDto>,
   ) {
     const share = await this.shareRepository.findById(id);
-    if (share.userId !== user.id) {
+    const shareIsOwned = await this.shareIsOwned(user, share);
+
+    if (!shareIsOwned) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
 
@@ -170,7 +187,9 @@ export class ShareUseCases {
 
   async deleteShareById(id: number, user: User) {
     const share = await this.shareRepository.findById(id);
-    if (share.userId !== user.id) {
+    const shareIsOwned = await this.shareIsOwned(user, share);
+
+    if (!shareIsOwned) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
     await this.shareRepository.deleteById(share.id);
@@ -189,15 +208,33 @@ export class ShareUseCases {
       plainPassword,
     }: CreateShareDto,
   ) {
-    const file = await this.filesRepository.findOne(fileId, user.id, {
-      deleted: false,
-    });
+    const file = await this.filesRepository.findByIdNotDeleted(fileId);
+
     if (!file) {
       throw new NotFoundException(`File ${fileId} not found`);
     }
+
+    const fileNotOwnedByThisUser = file.userId !== user.id;
+
+    if (fileNotOwnedByThisUser) {
+      if (user.isGuestOnSharedWorkspace()) {
+        const host = await this.usersRepository.findByBridgeUser(
+          user.bridgeUser,
+        );
+
+        const fileNotOwnedByHost = file.userId !== host.id;
+
+        if (fileNotOwnedByHost) {
+          throw new ForbiddenException(`You are not owner of this file`);
+        }
+      } else {
+        throw new ForbiddenException(`You are not owner of this file`);
+      }
+    }
+
     const share = await this.shareRepository.findByFileIdAndUser(
       file.id,
-      user.id,
+      file.userId,
     );
     if (share) {
       return {
@@ -220,7 +257,7 @@ export class ShareUseCases {
       id: 1,
       token,
       mnemonic: encryptedMnemonic,
-      userId: user.id,
+      userId: file.userId,
       bucket,
       fileToken: itemToken,
       folderId: null,
