@@ -188,3 +188,5 @@ export interface UserReferralAttributes {
   applied: boolean;
   startDate: Date;
 }
+
+export const MAX_PASSWORD_LENGTH = 20;

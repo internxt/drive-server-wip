@@ -5,6 +5,7 @@ import { v4 } from 'uuid';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
+  MAX_PASSWORD_LENGTH,
   ReferralAttributes,
   ReferralKey,
   User,
@@ -44,6 +45,14 @@ export class UserAlreadyRegisteredError extends Error {
     super(`User ${email || ''} is already registered`);
 
     Object.setPrototypeOf(this, UserAlreadyRegisteredError.prototype);
+  }
+}
+
+export class PasswordExceededLimitLengthError extends Error {
+  constructor() {
+    super('Password is too long');
+
+    Object.setPrototypeOf(this, PasswordExceededLimitLengthError.prototype);
   }
 }
 
@@ -182,6 +191,10 @@ export class UserUseCases {
 
     const userPass = this.cryptoService.decryptText(password);
     const userSalt = this.cryptoService.decryptText(salt);
+
+    if (userPass.length > MAX_PASSWORD_LENGTH) {
+      throw new PasswordExceededLimitLengthError();
+    }
 
     const transaction = await this.userRepository.createTransaction();
 

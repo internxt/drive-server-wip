@@ -23,6 +23,7 @@ import { NotificationService } from 'src/externals/notifications/notification.se
 import { User, UserAttributes } from './user.domain';
 import {
   InvalidReferralCodeError,
+  PasswordExceededLimitLengthError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
@@ -72,7 +73,10 @@ export class UserController {
     } catch (err) {
       let errorMessage = err.message;
 
-      if (err instanceof InvalidReferralCodeError) {
+      if (
+        err instanceof InvalidReferralCodeError ||
+        err instanceof PasswordExceededLimitLengthError
+      ) {
         res.status(HttpStatus.BAD_REQUEST);
       } else if (err instanceof UserAlreadyRegisteredError) {
         res.status(HttpStatus.CONFLICT);
