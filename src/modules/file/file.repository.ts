@@ -98,11 +98,6 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
-  findOneFromMultipleUsers(
-    fileId: FileAttributes['id'],
-    usersIds: FileAttributes['userId'][],
-    options: FileOptions,
-  ): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -187,23 +182,6 @@ export class SequelizeFileRepository implements FileRepository {
       where: {
         id: fileId,
         userId,
-        deleted,
-      },
-    });
-    return file ? this.toDomain(file) : null;
-  }
-
-  async findOneFromMultipleUsers(
-    fileId: number,
-    usersIds: number[],
-    { deleted }: FileOptions,
-  ): Promise<File | null> {
-    const file = await this.fileModel.findOne({
-      where: {
-        id: fileId,
-        userId: {
-          [Op.or]: usersIds,
-        },
         deleted,
       },
     });
