@@ -103,7 +103,7 @@ export interface ShareRepository {
     user: any,
     page: number,
     perPage: number,
-  ): Promise<{ count: number; items: Array<Share> | [] }>;
+  ): Promise<Share[]>;
   update(share: Share): Promise<void>;
   deleteById(shareId: Share['id']): Promise<void>;
   create(share: Share): Promise<Share>;
@@ -226,14 +226,14 @@ export class SequelizeShareRepository implements ShareRepository {
     page: number,
     perPage: number,
     orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
-  ): Promise<{ count: number; items: Array<Share> }> {
+  ): Promise<Share[]> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
-    const shares = await this.shareModel.findAndCountAll({
+    const shares = await this.shareModel.findAll({
       where: {
         user_id: {
           [Op.or]: users.map((u) => u.id),
@@ -260,12 +260,7 @@ export class SequelizeShareRepository implements ShareRepository {
       limit,
       order,
     });
-    return {
-      count: shares.count,
-      items: shares.rows.map((share) => {
-        return this.toDomain(share);
-      }),
-    };
+    return shares.map(this.toDomain.bind(this));
   }
 
   private toDomain(model: ShareModel): Share {
