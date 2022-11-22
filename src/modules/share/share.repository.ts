@@ -21,6 +21,7 @@ import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
+import { Op } from 'sequelize';
 
 @Table({
   underscored: true,
@@ -98,7 +99,7 @@ export class ShareModel extends Model {
 export interface ShareRepository {
   findById(id: number): Promise<Share | null>;
   findByToken(token: string): Promise<Share | null>;
-  findAllByUserPaginated(
+  findAllByUsersPaginated(
     user: any,
     page: number,
     perPage: number,
@@ -220,8 +221,8 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.destroy({ where: { id: shareId } });
   }
 
-  async findAllByUserPaginated(
-    user: User,
+  async findAllByUsersPaginated(
+    users: User[],
     page: number,
     perPage: number,
     orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
@@ -234,7 +235,9 @@ export class SequelizeShareRepository implements ShareRepository {
 
     const shares = await this.shareModel.findAndCountAll({
       where: {
-        user_id: user.id,
+        user_id: {
+          [Op.or]: users.map((u) => u.id),
+        },
       },
       include: [
         this.userModel,
