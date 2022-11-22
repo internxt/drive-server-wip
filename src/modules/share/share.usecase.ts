@@ -298,9 +298,28 @@ export class ShareUseCases {
     if (!folder) {
       throw new NotFoundException(`Folder ${folderId} not found`);
     }
+
+    const folderIsOwnedByThisUser = folder.userId === user.id;
+
+    if (!folderIsOwnedByThisUser) {
+      if (user.isGuestOnSharedWorkspace()) {
+        const host = await this.usersRepository.findByBridgeUser(
+          user.bridgeUser,
+        );
+
+        const folderIsOwnedByHost = folder.userId === host.id;
+
+        if (!folderIsOwnedByHost) {
+          throw new ForbiddenException('You are not the owner of this folder');
+        }
+      } else {
+        throw new ForbiddenException('You are not the owner of this folder');
+      }
+    }
+
     const share = await this.shareRepository.findByFolderIdAndUser(
       folder.id,
-      user.id,
+      folder.userId,
     );
     if (share) {
       return {
@@ -323,7 +342,7 @@ export class ShareUseCases {
       id: 1,
       token,
       mnemonic,
-      userId: user.id,
+      userId: folder.userId,
       bucket,
       fileToken: itemToken,
       fileId: null,
