@@ -21,6 +21,7 @@ import { UserModel } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
+import { Op } from 'sequelize';
 
 @Table({
   underscored: true,
@@ -98,11 +99,11 @@ export class ShareModel extends Model {
 export interface ShareRepository {
   findById(id: number): Promise<Share | null>;
   findByToken(token: string): Promise<Share | null>;
-  findAllByUserPaginated(
+  findAllByUsersPaginated(
     user: any,
     page: number,
     perPage: number,
-  ): Promise<{ count: number; items: Array<Share> | [] }>;
+  ): Promise<Share[]>;
   update(share: Share): Promise<void>;
   deleteById(shareId: Share['id']): Promise<void>;
   create(share: Share): Promise<Share>;
@@ -220,21 +221,23 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.destroy({ where: { id: shareId } });
   }
 
-  async findAllByUserPaginated(
-    user: User,
+  async findAllByUsersPaginated(
+    users: User[],
     page: number,
     perPage: number,
     orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
-  ): Promise<{ count: number; items: Array<Share> }> {
+  ): Promise<Share[]> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
-    const shares = await this.shareModel.findAndCountAll({
+    const shares = await this.shareModel.findAll({
       where: {
-        user_id: user.id,
+        user_id: {
+          [Op.or]: users.map((u) => u.id),
+        },
       },
       include: [
         this.userModel,
@@ -257,12 +260,7 @@ export class SequelizeShareRepository implements ShareRepository {
       limit,
       order,
     });
-    return {
-      count: shares.count,
-      items: shares.rows.map((share) => {
-        return this.toDomain(share);
-      }),
-    };
+    return shares.map(this.toDomain.bind(this));
   }
 
   private toDomain(model: ShareModel): Share {
