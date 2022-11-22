@@ -147,13 +147,21 @@ export class ShareUseCases {
   }
 
   async listByUserPaginated(
-    user: any,
+    user: User,
     page = 0,
     perPage = 50,
     orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
   ) {
-    const { count, items } = await this.shareRepository.findAllByUserPaginated(
-      user,
+    const sharesUsersOwners = [user];
+
+    if (user.isGuestOnSharedWorkspace()) {
+      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
+
+      sharesUsersOwners.push(host);
+    }
+
+    const { count, items } = await this.shareRepository.findAllByUsersPaginated(
+      sharesUsersOwners,
       page,
       perPage,
       orderBy,
