@@ -216,7 +216,12 @@ export class ShareUseCases {
       file.userId,
     );
     if (share) {
-      return { item: share, created: false, encryptedCode: share.code };
+      return {
+        id: share.id,
+        item: share,
+        created: false,
+        encryptedCode: share.code,
+      };
     }
     const token = crypto.randomBytes(10).toString('hex');
 
@@ -246,9 +251,14 @@ export class ShareUseCases {
       fileSize: file.size,
       hashedPassword,
     });
-    await this.shareRepository.create(newShare);
+    const createdShare = await this.shareRepository.create(newShare);
 
-    return { item: newShare, encryptedCode, created: true };
+    return {
+      id: createdShare.id,
+      item: newShare,
+      encryptedCode,
+      created: true,
+    };
   }
 
   async createShareFolder(
@@ -272,7 +282,12 @@ export class ShareUseCases {
       user.id,
     );
     if (share) {
-      return { item: share, created: false, encryptedCode: share.code };
+      return {
+        id: share.id,
+        item: share,
+        created: false,
+        encryptedCode: share.code,
+      };
     }
 
     const hashedPassword = plainPassword
@@ -302,9 +317,14 @@ export class ShareUseCases {
       fileSize: null,
       hashedPassword,
     });
-    await this.shareRepository.create(newShare);
+    const createdShare = await this.shareRepository.create(newShare);
 
-    return { item: newShare, encryptedCode: code, created: true };
+    return {
+      id: createdShare.id,
+      item: newShare,
+      encryptedCode: code,
+      created: true,
+    };
   }
 
   async deleteFileShare(fileId: number, user: User): Promise<void> {
