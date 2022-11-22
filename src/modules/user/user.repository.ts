@@ -127,6 +127,7 @@ export class UserModel extends Model implements UserAttributes {
 export interface UserRepository {
   findById(id: number): Promise<User | null>;
   findAllBy(where: any): Promise<Array<User> | []>;
+  findByBridgeUser(bridgeUser: User['bridgeUser']): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
   toDomain(model: UserModel): User;
   toModel(domain: User): Partial<UserAttributes>;
@@ -145,6 +146,12 @@ export class SequelizeUserRepository implements UserRepository {
 
   createTransaction(): Promise<Transaction> {
     return this.modelUser.sequelize.transaction();
+  }
+
+  async findByBridgeUser(bridgeUser: string): Promise<User | null> {
+    const user = await this.modelUser.findOne({ where: { bridgeUser } });
+
+    return user ? this.toDomain(user) : null;
   }
 
   findOrCreate(opts: FindOrCreateOptions): Promise<[User | null, boolean]> {
