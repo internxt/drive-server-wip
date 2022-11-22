@@ -83,6 +83,10 @@ export class FileModel extends Model implements FileAttributes {
 }
 
 export interface FileRepository {
+  findByIdNotDeleted(
+    id: FileAttributes['id'],
+    where: Partial<FileAttributes>,
+  ): Promise<File | null>;
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
@@ -119,6 +123,14 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findByIdNotDeleted(id: number): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: { id, deleted: false },
+    });
+
+    return file ? this.toDomain(file) : null;
   }
 
   async findAllByFolderIdAndUserId(
