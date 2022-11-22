@@ -57,7 +57,9 @@ export class ShareUseCases {
     content: Partial<UpdateShareDto>,
   ) {
     const share = await this.shareRepository.findById(id);
-    if (share.userId !== user.id) {
+    const shareIsOwned = await this.shareIsOwned(user, share);
+
+    if (!shareIsOwned) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
 
