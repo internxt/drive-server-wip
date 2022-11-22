@@ -171,8 +171,19 @@ export class ShareUseCases {
 
   async deleteShareById(id: number, user: User) {
     const share = await this.shareRepository.findById(id);
-    if (share.userId !== user.id) {
-      throw new ForbiddenException(`You are not owner of this share`);
+    const isNotOwnedByThisUser = share.userId !== user.id;
+
+    if (isNotOwnedByThisUser) {
+      if (!user.isGuestOnSharedWorkspace()) {
+        throw new ForbiddenException(`You are not owner of this share`);
+      }
+
+      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
+      const isNotOwnedByTheHost = share.userId !== host.id;
+
+      if (isNotOwnedByTheHost) {
+        throw new ForbiddenException(`You are not owner of this share`);
+      }
     }
     await this.shareRepository.deleteById(share.id);
     return true;
