@@ -19,6 +19,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { File } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -32,8 +33,22 @@ export class ShareUseCases {
     private cryptoService: CryptoService,
   ) {}
 
-  async getShareById(id: number) {
-    return await this.shareRepository.findById(id);
+  getShareById(id: number): Promise<Share> {
+    return this.shareRepository.findById(id);
+  }
+
+  async shareIsOwned(user: User, share: Share): Promise<boolean> {
+    const userIsNotGuest = !user.isGuestOnSharedWorkspace();
+    const isOwnedByThisUser = user.id === share.userId;
+
+    if (userIsNotGuest) {
+      return isOwnedByThisUser;
+    } else {
+      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
+      const isOwnedByHost = host.id === share.userId;
+
+      return isOwnedByHost;
+    }
   }
 
   async updateShareById(
@@ -42,7 +57,9 @@ export class ShareUseCases {
     content: Partial<UpdateShareDto>,
   ) {
     const share = await this.shareRepository.findById(id);
-    if (share.userId !== user.id) {
+    const shareIsOwned = await this.shareIsOwned(user, share);
+
+    if (!shareIsOwned) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
 
@@ -130,13 +147,21 @@ export class ShareUseCases {
   }
 
   async listByUserPaginated(
-    user: any,
+    user: User,
     page = 0,
     perPage = 50,
     orderBy?: 'views:ASC' | 'views:DESC' | 'createdAt:ASC' | 'createdAt:DESC',
   ) {
-    const { count, items } = await this.shareRepository.findAllByUserPaginated(
-      user,
+    const sharesUsersOwners = [user];
+
+    if (user.isGuestOnSharedWorkspace()) {
+      const host = await this.usersRepository.findByBridgeUser(user.bridgeUser);
+
+      sharesUsersOwners.push(host);
+    }
+
+    const shares = await this.shareRepository.findAllByUsersPaginated(
+      sharesUsersOwners,
       page,
       perPage,
       orderBy,
@@ -146,10 +171,9 @@ export class ShareUseCases {
       pagination: {
         page,
         perPage,
-        countAll: count,
         orderBy,
       },
-      items: items.map((share) => {
+      items: shares.map((share) => {
         return {
           id: share.id,
           token: share.token,
@@ -170,7 +194,9 @@ export class ShareUseCases {
 
   async deleteShareById(id: number, user: User) {
     const share = await this.shareRepository.findById(id);
-    if (share.userId !== user.id) {
+    const shareIsOwned = await this.shareIsOwned(user, share);
+
+    if (!shareIsOwned) {
       throw new ForbiddenException(`You are not owner of this share`);
     }
     await this.shareRepository.deleteById(share.id);
@@ -189,18 +215,41 @@ export class ShareUseCases {
       plainPassword,
     }: CreateShareDto,
   ) {
-    const file = await this.filesRepository.findOne(fileId, user.id, {
-      deleted: false,
-    });
+    const file = await this.filesRepository.findByIdNotDeleted(fileId);
+
     if (!file) {
       throw new NotFoundException(`File ${fileId} not found`);
     }
+
+    const fileNotOwnedByThisUser = file.userId !== user.id;
+
+    if (fileNotOwnedByThisUser) {
+      if (user.isGuestOnSharedWorkspace()) {
+        const host = await this.usersRepository.findByBridgeUser(
+          user.bridgeUser,
+        );
+
+        const fileNotOwnedByHost = file.userId !== host.id;
+
+        if (fileNotOwnedByHost) {
+          throw new ForbiddenException(`You are not owner of this file`);
+        }
+      } else {
+        throw new ForbiddenException(`You are not owner of this file`);
+      }
+    }
+
     const share = await this.shareRepository.findByFileIdAndUser(
       file.id,
-      user.id,
+      file.userId,
     );
     if (share) {
-      return { item: share, created: false, encryptedCode: share.code };
+      return {
+        id: share.id,
+        item: share,
+        created: false,
+        encryptedCode: share.code,
+      };
     }
     const token = crypto.randomBytes(10).toString('hex');
 
@@ -215,7 +264,7 @@ export class ShareUseCases {
       id: 1,
       token,
       mnemonic: encryptedMnemonic,
-      userId: user.id,
+      userId: file.userId,
       bucket,
       fileToken: itemToken,
       folderId: null,
@@ -230,9 +279,14 @@ export class ShareUseCases {
       fileSize: file.size,
       hashedPassword,
     });
-    await this.shareRepository.create(newShare);
+    const createdShare = await this.shareRepository.create(newShare);
 
-    return { item: newShare, encryptedCode, created: true };
+    return {
+      id: createdShare.id,
+      item: newShare,
+      encryptedCode,
+      created: true,
+    };
   }
 
   async createShareFolder(
@@ -251,12 +305,36 @@ export class ShareUseCases {
     if (!folder) {
       throw new NotFoundException(`Folder ${folderId} not found`);
     }
+
+    const folderIsOwnedByThisUser = folder.userId === user.id;
+
+    if (!folderIsOwnedByThisUser) {
+      if (user.isGuestOnSharedWorkspace()) {
+        const host = await this.usersRepository.findByBridgeUser(
+          user.bridgeUser,
+        );
+
+        const folderIsOwnedByHost = folder.userId === host.id;
+
+        if (!folderIsOwnedByHost) {
+          throw new ForbiddenException('You are not the owner of this folder');
+        }
+      } else {
+        throw new ForbiddenException('You are not the owner of this folder');
+      }
+    }
+
     const share = await this.shareRepository.findByFolderIdAndUser(
       folder.id,
-      user.id,
+      folder.userId,
     );
     if (share) {
-      return { item: share, created: false, encryptedCode: share.code };
+      return {
+        id: share.id,
+        item: share,
+        created: false,
+        encryptedCode: share.code,
+      };
     }
 
     const hashedPassword = plainPassword
@@ -271,7 +349,7 @@ export class ShareUseCases {
       id: 1,
       token,
       mnemonic,
-      userId: user.id,
+      userId: folder.userId,
       bucket,
       fileToken: itemToken,
       fileId: null,
@@ -286,9 +364,14 @@ export class ShareUseCases {
       fileSize: null,
       hashedPassword,
     });
-    await this.shareRepository.create(newShare);
+    const createdShare = await this.shareRepository.create(newShare);
 
-    return { item: newShare, encryptedCode: code, created: true };
+    return {
+      id: createdShare.id,
+      item: newShare,
+      encryptedCode: code,
+      created: true,
+    };
   }
 
   async deleteFileShare(fileId: number, user: User): Promise<void> {

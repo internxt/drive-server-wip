@@ -210,7 +210,7 @@ export class ShareController {
     @Res() res: Response,
     @Req() req: Request,
   ) {
-    const { item, created, encryptedCode } =
+    const { id, item, created, encryptedCode } =
       await this.shareUseCases.createShareFile(fileId, user, body);
 
     if (created) {
@@ -233,6 +233,7 @@ export class ShareController {
     this.notificationService.add(shareLinkViewEvent);
 
     res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      id,
       created,
       token: item.token,
       encryptedCode,
@@ -252,7 +253,7 @@ export class ShareController {
     @Res() res: Response,
     @Req() req: Request,
   ) {
-    const { item, created, encryptedCode } =
+    const { id, item, created, encryptedCode } =
       await this.shareUseCases.createShareFolder(
         parseInt(folderId),
         user,
@@ -269,6 +270,7 @@ export class ShareController {
     this.notificationService.add(shareLinkViewEvent);
 
     res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+      id,
       created,
       token: item.token,
       encryptedCode,
