@@ -11,16 +11,6 @@ export class KeyServerUseCases {
   ) {}
 
   async addKeysToUser(userId: UserAttributes['id'], keys: Keys): Promise<Keys> {
-    if (!keys.publicKey) {
-      throw new Error('Cannot add key to user. Missing Public Key');
-    }
-    if (!keys.privateKey) {
-      throw new Error('Cannot add key to user. Missing Private Key');
-    }
-    if (!keys.revocationKey) {
-      throw new Error('Cannot add key to user. Missing Revocation Key');
-    }
-
     const [{ publicKey, privateKey, revocationKey }] =
       await this.repository.findUserKeysOrCreate(userId, {
         userId,
