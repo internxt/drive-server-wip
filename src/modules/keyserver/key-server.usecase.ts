@@ -11,6 +11,10 @@ export class KeyServerUseCases {
   ) {}
 
   async addKeysToUser(userId: UserAttributes['id'], keys: Keys): Promise<Keys> {
+    if (!keys.privateKey || !keys.publicKey || !keys.revocationKey) {
+      return;
+    }
+
     const [{ publicKey, privateKey, revocationKey }] =
       await this.repository.findUserKeysOrCreate(userId, {
         userId,
