@@ -16,7 +16,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { Sign } from '../../middlewares/passport';
+import { Sign, SignEmail } from '../../middlewares/passport';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
@@ -221,7 +221,10 @@ export class UserUseCases {
         transaction,
       );
 
-      const token = Sign(newUser.email, this.configService.get('secrets.jwt'));
+      const token = SignEmail(
+        newUser.email,
+        this.configService.get('secrets.jwt'),
+      );
       const bucket = await this.networkService.createBucket(email, userId);
       const rootFolderName = await this.cryptoService.encryptName(
         `${bucket.name}`,
@@ -374,7 +377,12 @@ export class UserUseCases {
   }
 
   getAuthTokens(user: User): { token: string; newToken: string } {
-    const token = Sign(user.email, this.configService.get('secrets.jwt'), true);
+    const expires = true;
+    const token = SignEmail(
+      user.email,
+      this.configService.get('secrets.jwt'),
+      expires,
+    );
     const newToken = Sign(
       {
         payload: {
@@ -391,7 +399,7 @@ export class UserUseCases {
         },
       },
       this.configService.get('secrets.jwt'),
-      true,
+      expires,
     );
 
     return { token, newToken };
