@@ -399,6 +399,7 @@ export class UserUseCases {
         },
       },
       this.configService.get('secrets.jwt'),
+      expires,
     );
 
     return { token, newToken };
