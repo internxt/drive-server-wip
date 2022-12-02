@@ -273,6 +273,19 @@ export class UserUseCases {
         );
       });
 
+      let hasReferralsProgram = false;
+      try {
+        hasReferralsProgram = await this.hasReferralsProgram(
+          userResult.email,
+          userResult.bridgeUser,
+          userId,
+        );
+      } catch (err) {
+        new Logger().error(
+          `[USER/CREATE/REFERRALS]: ${err.message}. ${err?.stack}`,
+        );
+      }
+
       return {
         token,
         user: {
@@ -284,11 +297,7 @@ export class UserUseCases {
           bucket: bucket.id,
           uuid: userUuid,
           userId,
-          hasReferralsProgram: await this.hasReferralsProgram(
-            userResult.email,
-            userResult.bridgeUser,
-            userId,
-          ),
+          hasReferralsProgram,
         },
         uuid: userUuid,
       };
