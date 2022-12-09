@@ -260,31 +260,4 @@ export class FolderUseCases {
 
     return Folder.build({ ...folder, name: decryptedName }).toJSON();
   }
-
-  async isChildrenOf(folderId: number, parentId: number): Promise<boolean> {
-    const folder = await this.folderRepository.findById(folderId);
-    const parentFolder = await this.folderRepository.findById(parentId);
-    if (!folder || !parentFolder) {
-      throw new NotFoundException(`Folder does not exist`);
-    }
-
-    const foldersToCheck = [parentId];
-
-    while (foldersToCheck.length > 0) {
-      const currentFolderId = foldersToCheck.shift();
-
-      if (Number(folderId) === Number(currentFolderId)) {
-        return true;
-      }
-
-      const childrenFolder =
-        await this.folderRepository.findAllByParentIdAndUserId(
-          currentFolderId,
-          parentFolder.userId,
-          false,
-        );
-      childrenFolder.forEach((fld: Folder) => foldersToCheck.push(fld.id));
-    }
-    return false;
-  }
 }
