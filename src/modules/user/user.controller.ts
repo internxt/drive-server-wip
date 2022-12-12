@@ -27,6 +27,7 @@ import {
   UserUseCases,
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 
 @ApiTags('User')
 @Controller('users')
@@ -34,6 +35,7 @@ export class UserController {
   constructor(
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
+    private readonly keyServerUseCases: KeyServerUseCases,
   ) {}
 
   @Post('/')
@@ -51,6 +53,10 @@ export class UserController {
   ) {
     try {
       const response = await this.userUseCases.createUser(createUserDto);
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        response.user.id,
+        createUserDto,
+      );
 
       this.notificationsService.add(
         new SignUpEvent(response.user as unknown as UserAttributes, req),
@@ -78,6 +84,7 @@ export class UserController {
         user: {
           ...response.user,
           root_folder_id: response.user.rootFolderId,
+          ...keys,
         },
         token: response.token,
         uuid: response.uuid,
