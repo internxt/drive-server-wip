@@ -296,16 +296,13 @@ export class ShareController {
       password,
     );
 
-    if (parentId && String(parentId).trim() !== '') {
-      const folder = await this.folderUseCases.getFolder(folderId);
-      const parentFolder = await this.folderUseCases.getFolder(parentId);
+    const folder = await this.folderUseCases.getFolder(folderId);
 
-      if (
-        Number(folder.parentId) !== Number(parentFolder.id) &&
-        Number(folder.id) !== Number(share.folderId)
-      ) {
-        throw new NotFoundException(`share folderId error`);
-      }
+    if (
+      Number(parentId) !== Number(folder.parentId) &&
+      Number(parentId) !== Number(share.folderId)
+    ) {
+      throw new NotFoundException(`share folderId error`);
     }
 
     const network = await this.userUseCases.getNetworkByUserId(
@@ -361,16 +358,12 @@ export class ShareController {
       password,
     );
 
-    if (parentId && String(parentId).trim() !== '') {
-      const folder = await this.folderUseCases.getFolder(folderId);
-      const parentFolder = await this.folderUseCases.getFolder(parentId);
-
-      if (
-        Number(folder.parentId) !== Number(parentFolder.id) &&
-        Number(folder.id) !== Number(share.folderId)
-      ) {
-        throw new NotFoundException(`share folderId error`);
-      }
+    const folder = await this.folderUseCases.getFolder(folderId);
+    if (
+      Number(parentId) !== Number(folder.parentId) &&
+      Number(parentId) !== Number(share.folderId)
+    ) {
+      throw new NotFoundException(`share folderId error`);
     }
 
     const folders = await this.folderUseCases.getFoldersByParent(
