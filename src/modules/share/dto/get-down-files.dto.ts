@@ -35,7 +35,7 @@ export class GetDownFilesDto {
   })
   perPage: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @ApiProperty({
     example: '125',
     description: 'Parent Folder Id',
