@@ -298,10 +298,10 @@ export class ShareController {
 
     const folder = await this.folderUseCases.getFolder(folderId);
 
-    if (
-      Number(parentId) !== Number(folder.parentId) &&
-      Number(parentId) !== Number(share.folderId)
-    ) {
+    const isParentIdCorrect = Number(parentId) === Number(folder.parentId);
+    const isParentIdRootFolder = Number(parentId) === Number(share.folderId);
+
+    if (!isParentIdCorrect && !isParentIdRootFolder) {
       throw new NotFoundException(`share folderId error`);
     }
 
@@ -359,10 +359,11 @@ export class ShareController {
     );
 
     const folder = await this.folderUseCases.getFolder(folderId);
-    if (
-      Number(parentId) !== Number(folder.parentId) &&
-      Number(parentId) !== Number(share.folderId)
-    ) {
+
+    const isParentIdCorrect = Number(parentId) === Number(folder.parentId);
+    const isParentIdRootFolder = Number(parentId) === Number(share.folderId);
+
+    if (!isParentIdCorrect && !isParentIdRootFolder) {
       throw new NotFoundException(`share folderId error`);
     }
 
