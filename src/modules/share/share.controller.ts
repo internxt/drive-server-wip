@@ -285,18 +285,26 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get all files' })
   @Public()
   async getDownFiles(
-    @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
     @Headers('x-share-password') password: string | null,
   ) {
-    const { token, folderId, code, page, perPage } = query;
-    user = await this.getUserWhenPublic(user);
+    const { token, folderId, code, page, perPage, parentId } = query;
+
     const share = await this.shareUseCases.getShareByToken(
       token,
       null,
       password,
     );
-    share.decryptMnemonic(code);
+
+    const folder = await this.folderUseCases.getFolder(folderId);
+
+    const isParentIdCorrect = Number(parentId) === Number(folder.parentId);
+    const isParentIdRootFolder = Number(parentId) === Number(share.folderId);
+
+    if (!isParentIdCorrect && !isParentIdRootFolder) {
+      throw new NotFoundException(`share folderId error`);
+    }
+
     const network = await this.userUseCases.getNetworkByUserId(
       share.userId,
       share.mnemonic,
@@ -311,8 +319,8 @@ export class ShareController {
       },
     );
 
-    for (let file of files) {
-      file.encryptionKey =
+    for (const file of files) {
+      const encryptionKey =
         await this.fileUseCases.getEncryptionKeyFileFromShare(
           file.fileId,
           network,
@@ -320,7 +328,11 @@ export class ShareController {
           code,
         );
 
-      file = this.decryptItem(file);
+      const name = this.shareUseCases.decryptFilenameString(
+        file.name,
+        file.folderId,
+      );
+      Object.assign(file, { encryptionKey, name });
     }
 
     return { files, last: parseInt(perPage) > files.length };
@@ -338,17 +350,31 @@ export class ShareController {
     @Query() query: GetDownFilesDto,
     @Headers('x-share-password') password: string | null,
   ) {
-    const { token, folderId, page, perPage } = query;
+    const { token, folderId, page, perPage, parentId } = query;
     user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token, null, password);
+    const share = await this.shareUseCases.getShareByToken(
+      token,
+      null,
+      password,
+    );
+
+    const folder = await this.folderUseCases.getFolder(folderId);
+
+    const isParentIdCorrect = Number(parentId) === Number(folder.parentId);
+    const isParentIdRootFolder = Number(parentId) === Number(share.folderId);
+
+    if (!isParentIdCorrect && !isParentIdRootFolder) {
+      throw new NotFoundException(`share folderId error`);
+    }
+
     const folders = await this.folderUseCases.getFoldersByParent(
       folderId,
       parseInt(page),
       parseInt(perPage),
     );
-    const dectyptedFolders = folders.map((folder) => this.decryptItem(folder));
+    const decryptedFolders = folders.map((folder) => this.decryptItem(folder));
     return {
-      folders: dectyptedFolders,
+      folders: decryptedFolders,
       last: parseInt(perPage) > folders.length,
     };
   }
@@ -367,6 +393,10 @@ export class ShareController {
     const share = await this.shareUseCases.getShareById(shareId);
     if (!share) {
       throw new NotFoundException(`share with id ${shareId} not found`);
+    }
+
+    if (folderId !== share.folderId) {
+      throw new NotFoundException(`share folderId not found`);
     }
 
     const size = await this.folderUseCases.getFolderSize(folderId);

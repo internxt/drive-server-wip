@@ -407,4 +407,10 @@ export class ShareUseCases {
       throw new ForbiddenException('Invalid password for share');
     }
   }
+
+  decryptFilenameString(name: string, folderId: number): string | null {
+    //On Folders, folderId is parentId. On Files, folderId is folderId
+    const decryptedName = this.cryptoService.decryptName(name, folderId);
+    return String(decryptedName).trim() === '' ? null : decryptedName;
+  }
 }
