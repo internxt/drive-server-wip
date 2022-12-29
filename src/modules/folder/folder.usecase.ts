@@ -260,4 +260,10 @@ export class FolderUseCases {
 
     return Folder.build({ ...folder, name: decryptedName }).toJSON();
   }
+
+  async updateFolderUpdatedAt(folderId: FolderAttributes['id']): Promise<void> {
+    await this.folderRepository.updateByFolderId(folderId, {
+      updatedAt: new Date(),
+    });
+  }
 }

@@ -58,26 +58,26 @@ export class UserController {
         createUserDto,
       );
 
-      this.notificationsService.add(
-        new SignUpEvent(response.user as unknown as UserAttributes, req),
-      );
+      // this.notificationsService.add(
+      //   new SignUpEvent(response.user as unknown as UserAttributes, req),
+      // );
 
-      try {
-        await this.userUseCases.sendWelcomeVerifyEmailEmail(
-          createUserDto.email,
-          {
-            userUuid: response.uuid,
-          },
-        );
-      } catch (err) {
-        new Logger().error(
-          `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-      }
+      // try {
+      //   await this.userUseCases.sendWelcomeVerifyEmailEmail(
+      //     createUserDto.email,
+      //     {
+      //       userUuid: response.uuid,
+      //     },
+      //   );
+      // } catch (err) {
+      //   new Logger().error(
+      //     `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
+      //       (err as Error).message
+      //     }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+      //       (err as Error).stack
+      //     }`,
+      //   );
+      // }
 
       return {
         ...response,
@@ -100,9 +100,7 @@ export class UserController {
         new Logger().error(
           `[AUTH/REGISTER] ERROR: ${
             (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
-          }`,
+          }, STACK: ${JSON.stringify(err)}`,
         );
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
         errorMessage = 'Internal Server Error';
