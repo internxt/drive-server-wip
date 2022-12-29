@@ -102,7 +102,7 @@ describe('FolderUseCases', () => {
   });
 
   describe('get folder use case', () => {
-    it('calls getFolder and return folder', async () => {
+    it('calls getFolder and return a non deleted folder', async () => {
       const mockFolder = Folder.build({
         id: 1,
         parentId: null,
@@ -127,7 +127,11 @@ describe('FolderUseCases', () => {
         deleted: true,
         parent: null,
       });
-      expect(folderRepository.findById).toHaveBeenNthCalledWith(1, folderId);
+      expect(folderRepository.findById).toHaveBeenNthCalledWith(
+        1,
+        folderId,
+        false,
+      );
     });
 
     it('throws an error if the folder is not found', async () => {
@@ -142,11 +146,9 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findAllByParentIdAndUserId')
         .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userId,
-        false,
-      );
+      const result = await service.getChildrenFoldersToUser(folderId, userId, {
+        deleted: false,
+      });
       expect(result).toEqual(mockFolders);
       expect(
         folderRepository.findAllByParentIdAndUserId,
@@ -173,11 +175,9 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findAllByParentIdAndUserId')
         .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userId,
-        false,
-      );
+      const result = await service.getChildrenFoldersToUser(folderId, userId, {
+        deleted: false,
+      });
       expect(result).toMatchObject([
         {
           id: 4,
