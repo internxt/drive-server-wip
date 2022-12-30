@@ -453,17 +453,8 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('updateFolderUpdateAt', () => {
-    it('updates the folder', async () => {
-      jest
-        .spyOn(folderRepository, 'updateByFolderId')
-        .mockResolvedValue(undefined);
-
-      await service.updateFolderUpdatedAt(folderId);
-      expect(folderRepository.updateByFolderId).toBeCalled();
-    });
-
-    it('updates the folder with the current date', async () => {
+  describe('updateParentFolderUpdatedAt', () => {
+    it('updates the attribute updatedAt from the folder', async () => {
       const mockedDate = new Date(2000, 9, 1, 7);
       jest.spyOn<any, any>(global, 'Date').mockImplementation(() => {
         return mockedDate;
