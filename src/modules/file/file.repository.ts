@@ -109,6 +109,7 @@ export interface FileRepository {
     update: Partial<File>,
   ): Promise<void>;
   deleteByFileId(fileId: FileAttributes['fileId']): Promise<void>;
+  findOneByAttribute(attributes: Partial<File>): Promise<File>;
 }
 
 @Injectable()
@@ -117,6 +118,12 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
   ) {}
+
+  async findOneByAttribute(attributes: Partial<File>): Promise<File> {
+    const file = await this.fileModel.findOne({ where: attributes });
+
+    return this.toDomain(file);
+  }
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();

@@ -138,4 +138,8 @@ export class FileUseCases {
 
     return File.build({ ...file, name: decryptedName }).toJSON();
   }
+
+  async getFileByFildeId(fileId: FileAttributes['fileId']): Promise<File> {
+    return await this.fileRepository.findOneByAttribute({ fileId });
+  }
 }
