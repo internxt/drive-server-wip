@@ -90,4 +90,26 @@ export class TrashUseCases {
 
     await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
+
+  public async updateTrashedItemsParentFolder(
+    filesId: Array<FileAttributes['fileId']>,
+    foldersId: Array<FileAttributes['id']>,
+  ) {
+    const files = await Promise.all(
+      filesId.map((fileId) => this.fileUseCases.getFileByFildeId(fileId)),
+    );
+
+    const folders = await Promise.all(
+      foldersId.map((id) => this.folderUseCases.getFolder(id)),
+    );
+
+    const folderToUpDate = [
+      ...files.map((file) => file.folderId),
+      ...folders.map((folder) => folder.parentId),
+    ];
+
+    await Promise.allSettled(
+      folderToUpDate.map((id) => this.folderUseCases.updateFolderUpdatedAt(id)),
+    );
+  }
 }
