@@ -262,8 +262,6 @@ export class FolderUseCases {
   }
 
   async updateFolderUpdatedAt(folderId: FolderAttributes['id']): Promise<void> {
-    await this.folderRepository.updateByFolderId(folderId, {
-      updatedAt: new Date(),
-    });
+    return this.folderRepository.updateFolder(folderId);
   }
 }

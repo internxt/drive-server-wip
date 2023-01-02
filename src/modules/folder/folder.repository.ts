@@ -90,6 +90,7 @@ export interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
+  updateFolder(folderId: FolderAttributes['id']): Promise<void>;
 }
 
 @Injectable()
@@ -223,6 +224,13 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
 
     return (clear[0] as any).total_left;
+  }
+
+  async updateFolder(folderId: FolderAttributes['id']): Promise<void> {
+    const folder = await this.folderModel.findOne({ where: { id: folderId } });
+    folder.setDataValue('updatedAt', Date.now());
+
+    await folder.save();
   }
 
   private toDomain(model: FolderModel): Folder {
