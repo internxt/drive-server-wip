@@ -98,6 +98,8 @@ export class TrashController {
       this.folderUseCases.moveFoldersToTrash(folderIds),
     ]);
 
+    await this.trashUseCases.updateTrashedItemsParentFolder(fileIds, folderIds);
+
     const workspaceMembers =
       await this.userUseCases.getWorkspaceMembersByBrigeUser(user.bridgeUser);
 
