@@ -221,17 +221,9 @@ export class UserUseCases {
         transaction,
       );
 
-      const token = SignEmail(
-        newUser.email,
-        this.configService.get('secrets.jwt'),
-      );
-      const bucket = await this.networkService.createBucket(email, userId);
-      const rootFolderName = await this.cryptoService.encryptName(
-        `${bucket.name}`,
-      );
-      const rootFolder = await this.folderUseCases.createRootFolder(
+      rootFolder = await this.folderUseCases.createRootFolder(
         userResult,
-        rootFolderName,
+        this.cryptoService.encryptName(`${v4()}`),
         bucket.id,
       );
 

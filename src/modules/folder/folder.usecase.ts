@@ -86,15 +86,6 @@ export class FolderUseCases {
 
     const encryptedFolderName = this.cryptoService.encryptName(name, null);
 
-    const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentId: null,
-      name: encryptedFolderName,
-    });
-
-    if (nameAlreadyInUse) {
-      throw Error('Folder with the same name already exists');
-    }
-
     const folder = await this.folderRepository.create(
       user.id,
       encryptedFolderName,
