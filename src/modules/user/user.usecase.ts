@@ -24,6 +24,7 @@ import { ReferralRedeemedEvent } from '../../externals/notifications/events/refe
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { Folder } from '../folder/folder.domain';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -185,35 +186,42 @@ export class UserUseCases {
 
     const transaction = await this.userRepository.createTransaction();
 
+    let bucket: any;
+    let userUuid: string, userId: string;
+    let rootFolder: Folder;
+
+    const [userResult, isNewRecord] = await this.userRepository.findOrCreate({
+      where: { username: email },
+      defaults: {
+        email: email,
+        name: newUser.name,
+        lastname: newUser.lastname,
+        password: userPass,
+        mnemonic: newUser.mnemonic,
+        hKey: userSalt,
+        referrer: newUser.referrer,
+        referralCode: v4(),
+        uuid: null,
+        credit: 0,
+        welcomePack: true,
+        registerCompleted: newUser.registerCompleted,
+        username: newUser.email,
+        bridgeUser: newUser.email,
+      },
+      transaction,
+    });
+
+    const userAlreadyExists = !isNewRecord;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
     try {
-      const [userResult, isNewRecord] = await this.userRepository.findOrCreate({
-        where: { username: email },
-        defaults: {
-          email: email,
-          name: newUser.name,
-          lastname: newUser.lastname,
-          password: userPass,
-          mnemonic: newUser.mnemonic,
-          hKey: userSalt,
-          referrer: newUser.referrer,
-          referralCode: v4(),
-          uuid: null,
-          credit: 0,
-          welcomePack: true,
-          registerCompleted: newUser.registerCompleted,
-          username: newUser.email,
-          bridgeUser: newUser.email,
-        },
-        transaction,
-      });
+      const response = await this.networkService.createUser(email);
+      userId = response.userId;
+      userUuid = response.uuid;
 
-      if (!isNewRecord) {
-        throw new UserAlreadyRegisteredError(newUser.email);
-      }
-
-      const { userId, uuid: userUuid } = await this.networkService.createUser(
-        email,
-      );
 
       await this.userRepository.updateById(
         userResult.id,
@@ -221,6 +229,7 @@ export class UserUseCases {
         transaction,
       );
 
+      bucket = await this.networkService.createBucket(email, userId);
       rootFolder = await this.folderUseCases.createRootFolder(
         userResult,
         this.cryptoService.encryptName(`${v4()}`),
