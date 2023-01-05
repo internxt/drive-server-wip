@@ -300,7 +300,7 @@ export class UserUseCases {
       }
 
       return {
-        token,
+        token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
         user: {
           ...userResult.toJSON(),
           hKey: userResult.hKey.toString(),
