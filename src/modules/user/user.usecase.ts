@@ -374,11 +374,11 @@ export class UserUseCases {
     networkPass: UserAttributes['userId'],
   ): Promise<boolean> {
     const MAX_FREE_PLAN_BYTES = 10737418240;
-    const hasSubscriptions = await this.paymentsService.hasSubscriptions(email);
-    const maxSpaceBytes = await this.networkService.getLimit(
-      networkUser,
-      networkPass,
-    );
+    const [hasSubscriptions, maxSpaceBytes] = await Promise.all([
+      this.paymentsService.hasSubscriptions(email),
+      this.networkService.getLimit(networkUser, networkPass),
+    ]);
+
     const isLifetime = maxSpaceBytes > MAX_FREE_PLAN_BYTES;
 
     return hasSubscriptions || isLifetime;
