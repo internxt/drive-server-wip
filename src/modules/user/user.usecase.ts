@@ -237,6 +237,18 @@ export class UserUseCases {
       );
 
       await transaction.commit();
+    } catch (err) {
+      new Logger().error(
+        `[USER/CREATE/TRANSACTION]: ${err.message}. ${err?.stack}`,
+      );
+      await transaction.rollback().catch((err) => {
+        new Logger().error(
+          `[USER/CREATE/TRANSACTION/ROLLBACK]: ${err.message}. ${err?.stack}`,
+        );
+      });
+    }
+
+    try {
       await this.createUserReferrals(userResult.id);
       await this.userRepository.updateById(userResult.id, {
         rootFolderId: rootFolder.id,
