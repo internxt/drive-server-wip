@@ -222,7 +222,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       },
     );
 
-    return (clear[0] as any).total_left;
+    return (clear[0][0] as any).total_left;
   }
 
   private toDomain(model: FolderModel): Folder {
