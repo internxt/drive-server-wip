@@ -8,6 +8,8 @@ import {
   HttpStatus,
   Req,
   Get,
+  Param,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -110,6 +112,28 @@ export class UserController {
 
       return { error: errorMessage };
     }
+  }
+
+  @Get('/:uuid')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Get user credentials' })
+  @ApiOkResponse({
+    description: 'Returns the user metadata and the authentication tokens',
+  })
+  async getUserCredentials(
+    @UserDecorator() user: User,
+    @Param('uuid') uuid: string,
+  ) {
+    if (!(uuid === user.uuid)) {
+      throw new ForbiddenException();
+    }
+    const { token, newToken } = this.userUseCases.getAuthTokens(user);
+
+    return {
+      user: await this.userUseCases.getUser(user.uuid),
+      oldToken: token,
+      newToken: newToken,
+    };
   }
 
   @Get('/refresh')
