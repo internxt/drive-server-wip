@@ -126,6 +126,7 @@ export class UserModel extends Model implements UserAttributes {
 
 export interface UserRepository {
   findById(id: number): Promise<User | null>;
+  findByUuid(uuid: User['uuid']): Promise<User | null>;
   findAllBy(where: any): Promise<Array<User> | []>;
   findByBridgeUser(bridgeUser: User['bridgeUser']): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
@@ -141,6 +142,11 @@ export class SequelizeUserRepository implements UserRepository {
   ) {}
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
+    return user ? this.toDomain(user) : null;
+  }
+
+  async findByUuid(uuid: User['uuid']): Promise<User | null> {
+    const user = await this.modelUser.findOne({ where: { uuid } });
     return user ? this.toDomain(user) : null;
   }
 
