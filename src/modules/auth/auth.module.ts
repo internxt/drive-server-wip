@@ -12,16 +12,19 @@ import { BasicStrategy } from './basic.strategy';
   imports: [
     ConfigModule,
     UserModule,
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    PassportModule.register({ defaultStrategy: JwtStrategy.id }),
     JwtModule.registerAsync({
       imports: [ConfigModule, UserModule],
       inject: [ConfigService, UserUseCases],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: async (configService: ConfigService) => {
+        return {
         secret: configService.get('secrets.jwt'),
+        publicKey: Buffer.from(configService.get('secrets.gateway') as string, 'base64').toString('utf8'),
         signOptions: {
           expiresIn: 3600, // 1 hour
         },
-      }),
+        }
+    },
     }),
   ],
   providers: [JwtStrategy, RS256JwtStrategy, BasicStrategy],
