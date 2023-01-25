@@ -109,6 +109,8 @@ export interface FileRepository {
     update: Partial<File>,
   ): Promise<void>;
   deleteByFileId(fileId: FileAttributes['fileId']): Promise<void>;
+  getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
+  getFilesCountWhere(where: Partial<File>): Promise<number>;
 }
 
 @Injectable()
@@ -240,6 +242,28 @@ export class SequelizeFileRepository implements FileRepository {
         fileId,
       },
     });
+  }
+
+  async getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number> {
+    const { count } = await this.fileModel.findAndCountAll({
+      where: {
+        folderId: {
+          [Op.not]: null,
+          [Op.notIn]: this.fileModel.findAll({
+            where: { userId },
+          }) 
+        },
+        userId
+      }
+    });
+
+    return count;
+  }
+
+  async getFilesCountWhere(where: Partial<File>): Promise<number> {
+    const { count } = await this.fileModel.findAndCountAll({ where });
+
+    return count;
   }
 
   private toDomain(model: FileModel): File {
