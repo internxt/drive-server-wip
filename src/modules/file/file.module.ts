@@ -7,6 +7,7 @@ import { ShareModel } from '../share/share.repository';
 import { ShareModule } from '../share/share.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { FileController } from './file.controller';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
     BridgeModule,
     CryptoModule,
   ],
-  controllers: [],
+  controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],
   exports: [FileUseCases],
 })
