@@ -18,13 +18,16 @@ import { BasicStrategy } from './basic.strategy';
       inject: [ConfigService, UserUseCases],
       useFactory: async (configService: ConfigService) => {
         return {
-        secret: configService.get('secrets.jwt'),
-        publicKey: Buffer.from(configService.get('secrets.gateway') as string, 'base64').toString('utf8'),
-        signOptions: {
-          expiresIn: 3600, // 1 hour
-        },
-        }
-    },
+          secret: configService.get('secrets.jwt'),
+          publicKey: Buffer.from(
+            configService.get('secrets.gateway') as string,
+            'base64',
+          ).toString('utf8'),
+          signOptions: {
+            expiresIn: 3600, // 1 hour
+          },
+        };
+      },
     }),
   ],
   providers: [JwtStrategy, RS256JwtStrategy, BasicStrategy],

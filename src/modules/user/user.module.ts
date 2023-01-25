@@ -25,7 +25,6 @@ import { HttpClientModule } from '../../externals/http/http.module';
 import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
-import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { KeyServerModule } from '../keyserver/key-server.module';
 
 @Module({
