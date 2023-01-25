@@ -10,6 +10,7 @@ import {
   Get,
   Param,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -121,12 +122,18 @@ export class UserController {
     description: 'Returns the user metadata and the authentication tokens',
   })
   async getUserCredentials(
-    @UserDecorator() user: User,
+    @Req() req,
     @Param('uuid') uuid: string,
   ) {
-    if (!(uuid === user.uuid)) {
+    if (!(uuid === req.user.uuid)) {
       throw new ForbiddenException();
     }
+    const user = await this.userUseCases.getUser(uuid);
+
+    if (!user) {
+      throw new NotFoundException();
+    }
+
     const { token, newToken } = this.userUseCases.getAuthTokens(user);
 
     return {
