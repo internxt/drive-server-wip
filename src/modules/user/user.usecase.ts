@@ -310,6 +310,16 @@ export class UserUseCases {
     }
   }
 
+  async getUser(uuid: User['uuid']): Promise<User> {
+    const user = await this.userRepository.findByUuid(uuid);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
+  }
+
   async sendWelcomeVerifyEmailEmail(email, { userUuid }) {
     const mailer = new MailerService(this.configService);
     const secret = this.configService.get('secrets.jwt');

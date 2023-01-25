@@ -12,7 +12,6 @@ import { SequelizeShareRepository } from './../src/modules/share/share.repositor
 import { ShareMother } from './share.mother';
 import { UserMother } from './user.mother';
 import { SequelizeUserRepository } from './../src/modules/user/user.repository';
-import { Share } from './../src/modules/share/share.domain';
 import { NotificationService } from './../src/externals/notifications/notification.service';
 import { CryptoService } from '../src/externals/crypto/crypto.service';
 // import { File } from '../src/modules/file/file.domain';
@@ -247,13 +246,13 @@ describe('Share Endpoints', () => {
   let app: INestApplication;
 
   const fakeNotificationService = {
-    add: (_: any) => {
+    add: () => {
       //no op
     },
   } as unknown as NotificationService;
 
   const fakeUserRepository = {
-    findByUsername: (_: string) => UserMother.create(),
+    findByUsername: () => UserMother.create(),
   } as unknown as SequelizeUserRepository;
 
   describe('unprotected shares', () => {
@@ -264,7 +263,7 @@ describe('Share Endpoints', () => {
         if (token === databaseShare.token) return databaseShare;
         throw new NotFoundException('share not found');
       },
-      update: (_: Share) => Promise.resolve(),
+      update: () => Promise.resolve(),
     } as unknown as SequelizeShareRepository;
     const fakeFolderRepository = {
       findById: () => Promise.resolve(databaseSharedFolder),
@@ -329,8 +328,8 @@ describe('Share Endpoints', () => {
       }
 
       const protectedShareRepository = {
-        findByToken: (_: string) => databaseShare,
-        update: (_: Share) => Promise.resolve(),
+        findByToken: () => databaseShare,
+        update: () => Promise.resolve(),
       } as unknown as SequelizeShareRepository;
       const fakeFolderRepository = {
         findById: () => Promise.resolve(databaseSharedFolder),
