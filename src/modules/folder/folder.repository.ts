@@ -225,6 +225,39 @@ export class SequelizeFolderRepository implements FolderRepository {
     return (clear[0][0] as any).total_left;
   }
 
+  /**
+   * Gets the number of folders given a condition
+   * @param where Condition(s) to match
+   * @returns The number of folders that match the condition
+   */
+  async getFoldersCountWhere(where: Partial<Folder>): Promise<number> {
+    const { count } = await this.folderModel.findAndCountAll({ where });
+    return count;
+  }
+
+  /**
+   * Returns the number of folders whose parent id does not exist
+   * @param userId User whose folders could be orphan
+   * @returns Number of orphan folders
+   */
+  async getFoldersWhoseParentIdDoesNotExist(
+    userId: FolderAttributes['userId'],
+  ): Promise<number> {
+    const { count } = await this.folderModel.findAndCountAll({
+      where: {
+        parentId: {
+          [Op.not]: null,
+          [Op.notIn]: this.folderModel.findAll({
+            where: { userId },
+          }) 
+        },
+        userId
+      }
+    });
+
+    return count;
+  }
+
   private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),
