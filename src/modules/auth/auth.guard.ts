@@ -5,7 +5,10 @@ import { JwtStrategy } from './jwt.strategy';
 import { RS256JwtStrategy } from './rs256jwt.strategy';
 
 @Injectable()
-export class AuthGuard extends PassportAuthGuard([JwtStrategy.id, RS256JwtStrategy.id]) {
+export class AuthGuard extends PassportAuthGuard([
+  JwtStrategy.id,
+  RS256JwtStrategy.id,
+]) {
   constructor(private readonly reflector: Reflector) {
     super();
   }

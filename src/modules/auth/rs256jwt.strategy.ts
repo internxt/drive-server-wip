@@ -11,7 +11,10 @@ export class RS256JwtStrategy extends PassportStrategy(Strategy, strategyId) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: Buffer.from(configService.get('secrets.gateway') as string, 'base64').toString('utf8'),
+      secretOrKey: Buffer.from(
+        configService.get('secrets.gateway') as string,
+        'base64',
+      ).toString('utf8'),
       algorithms: ['RS256'],
     });
   }
