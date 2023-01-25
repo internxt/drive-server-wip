@@ -1,19 +1,17 @@
-import { BasicStrategy as Strategy } from 'passport-http';
 import { PassportStrategy } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
-import { ExtractJwt } from 'passport-jwt';
-import { Inject } from '@nestjs/common';
-import { UserUseCases } from '../user/user.usecase';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Injectable } from '@nestjs/common';
 
-export class RS256JwtStrategy extends PassportStrategy(Strategy, 'rs256jwt') {
-  constructor(
-    @Inject(UserUseCases)
-    private userUseCases: UserUseCases,
-    configService: ConfigService,
-  ) {
+const strategyId = 'jwt.rs256';
+@Injectable()
+export class RS256JwtStrategy extends PassportStrategy(Strategy, strategyId) {
+  static id = strategyId;
+  constructor(private readonly configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: configService.get('secrets.gateway.publicKey'),
+      ignoreExpiration: false,
+      secretOrKey: Buffer.from(configService.get('secrets.gateway') as string, 'base64').toString('utf8'),
       algorithms: ['RS256'],
     });
   }

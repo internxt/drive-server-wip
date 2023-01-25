@@ -1,7 +1,7 @@
 import { Controller, Get, HttpCode, Param, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GatewayUseCases } from './gateway.usecase';
-import { RS256JwtAuthGuard } from '../auth/guards/rs256-auth.guard';
+import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -14,7 +14,7 @@ export class GatewayController {
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
   })
-  @UseGuards(RS256JwtAuthGuard)
+  @UseGuards(AuthGuard)
   getUserCredentials(@Param('uuid') uuid: string) {
     return this.gatewayUseCases.getUserCredentials(uuid);
   }

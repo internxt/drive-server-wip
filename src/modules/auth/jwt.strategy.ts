@@ -10,7 +10,10 @@ export interface JwtPayload {
   bridgeUser: string;
 }
 
-export class JwtStrategy extends PassportStrategy(Strategy) {
+const strategyId = 'jwt.standard';
+export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
+  static id = strategyId;
+
   constructor(
     @Inject(UserUseCases)
     private userUseCases: UserUseCases,
