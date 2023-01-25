@@ -115,7 +115,7 @@ export class UserController {
     }
   }
 
-  @Get('/:uuid')
+  @Get('/c/:uuid')
   @HttpCode(200)
   @ApiOperation({ summary: 'Get user credentials' })
   @ApiOkResponse({
