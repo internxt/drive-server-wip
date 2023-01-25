@@ -68,7 +68,7 @@ async function bootstrap() {
     },
   };
 
-  SwaggerModule.setup('api', app, document, customOptions);
+  SwaggerModule.setup('drive', app, document, customOptions);
   await app.listen(APP_PORT);
   logger.log(`Application listening on port: ${APP_PORT}`);
 }
