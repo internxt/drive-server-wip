@@ -2,13 +2,9 @@ import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
-import { RS256JwtStrategy } from './rs256jwt.strategy';
 
 @Injectable()
-export class AuthGuard extends PassportAuthGuard([
-  JwtStrategy.id,
-  RS256JwtStrategy.id,
-]) {
+export class AuthGuard extends PassportAuthGuard([JwtStrategy.id]) {
   constructor(private readonly reflector: Reflector) {
     super();
   }
