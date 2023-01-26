@@ -24,6 +24,8 @@ import { ReferralRedeemedEvent } from '../../externals/notifications/events/refe
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { Folder } from '../folder/folder.domain';
+import { SignUpErrorEvent } from 'src/externals/notifications/events/sign-up-error.event';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -45,6 +47,12 @@ export class UserAlreadyRegisteredError extends Error {
 
     Object.setPrototypeOf(this, UserAlreadyRegisteredError.prototype);
   }
+}
+
+type NewUser = Pick<UserAttributes, 'email' | 'name' | 'lastname' | 'mnemonic' | 'password'> & {
+  salt: string;
+  referrer?: UserAttributes['referrer'];
+  registerCompleted?: UserAttributes['registerCompleted'];
 }
 
 @Injectable()
@@ -159,61 +167,125 @@ export class UserUseCases {
     );
   }
 
-  async createUser(
-    newUser: Pick<
-      UserAttributes,
-      'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
-    > & {
-      salt: string;
-      referrer?: UserAttributes['referrer'];
-      registerCompleted?: UserAttributes['registerCompleted'];
-    },
-  ) {
-    const { email, password, salt } = newUser;
+  /**
+   * Creates root and default initial folders and relates them to the user
+   * @param user Owner of the folders
+   * @param bucketId Network bucket
+   * @returns Created folders
+   */
+  private async createInitialFolders(
+    user: User,
+    bucketId: string,
+  ): Promise<[Folder, Folder, Folder]> {
+    const rootFolderName = this.cryptoService.encryptName(`${v4()}`);
 
-    const hasReferrer = !!newUser.referrer;
-    const referrer = hasReferrer
-      ? await this.userRepository.findByReferralCode(newUser.referrer)
-      : null;
+    const rootFolder = await this.folderUseCases.createRootFolder(
+      user,
+      rootFolderName,
+      bucketId,
+    );
 
-    if (hasReferrer && !referrer) {
+    const [_, [familyFolder, personalFolder]] = await Promise.all([
+      // Relate the root folder to the user
+      this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
+      this.folderUseCases.createFolders(user, [
+        { name: 'Family', parentFolderId: rootFolder.id },
+        { name: 'Personal', parentFolderId: rootFolder.id },
+      ]),
+    ]);
+
+    return [rootFolder, familyFolder, personalFolder];
+  }
+
+  /**
+   * Applies a referral if the user referrer exists
+   * @param referredUuid Uuid of the user that has been referred
+   * @param referredEmail Email of the user that has been referred
+   * @param referralCode Referral code of the user that has referred
+   */
+  async applyReferralIfHasReferrer(
+    referredUuid: UserAttributes['uuid'],
+    referredEmail: UserAttributes['email'],
+    referralCode: UserAttributes['referralCode']
+  ): Promise<void> {
+    const referrer = await this.userRepository.findByReferralCode(referralCode);
+
+    if (!referrer) {
       throw new InvalidReferralCodeError();
     }
+
+    this.notificationService.add(
+      new InvitationAcceptedEvent(
+        'invitation.accepted',
+        referredUuid,
+        referrer.uuid,
+        referrer.email,
+        {},
+        )
+      );
+
+    // TODO: Move this to EventBus
+    await this.invitationAccepted(referrer.id, { email: referredEmail, uuid: referredUuid });
+  }
+
+  async createUser(newUser: NewUser) {
+    const { email, password, salt } = newUser;
 
     const userPass = this.cryptoService.decryptText(password);
     const userSalt = this.cryptoService.decryptText(salt);
 
     const transaction = await this.userRepository.createTransaction();
 
-    try {
-      const [userResult, isNewRecord] = await this.userRepository.findOrCreate({
-        where: { username: email },
-        defaults: {
-          email: email,
-          name: newUser.name,
-          lastname: newUser.lastname,
-          password: userPass,
-          mnemonic: newUser.mnemonic,
-          hKey: userSalt,
-          referrer: newUser.referrer,
-          referralCode: v4(),
-          uuid: null,
-          credit: 0,
-          welcomePack: true,
-          registerCompleted: newUser.registerCompleted,
-          username: newUser.email,
-          bridgeUser: newUser.email,
-        },
-        transaction,
-      });
+    let bucket: any;
+    let userUuid: string, userId: string;
+    let rootFolder: Folder;
 
-      if (!isNewRecord) {
-        throw new UserAlreadyRegisteredError(newUser.email);
-      }
-
-      const { userId, uuid: userUuid } = await this.networkService.createUser(
-        email,
+    const notifySignUpError = (err: Error) =>
+      this.notificationService.add(
+        new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
+
+    const [userResult, isNewUser] = await this.userRepository.findOrCreate({
+      where: { username: email },
+      defaults: {
+        email: email,
+        name: newUser.name,
+        lastname: newUser.lastname,
+        password: userPass,
+        mnemonic: newUser.mnemonic,
+        hKey: userSalt,
+        referrer: newUser.referrer,
+        referralCode: v4(),
+        uuid: null,
+        credit: 0,
+        welcomePack: true,
+        registerCompleted: newUser.registerCompleted,
+        username: newUser.email,
+        bridgeUser: newUser.email,
+      },
+      transaction,
+    });
+
+    if (!isNewUser) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
+    let hasBeenSubscribedPromise;
+
+    try {
+      const response = await this.networkService.createUser(email);
+      userId = response.userId;
+      userUuid = response.uuid;
+
+      hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
+        userResult.email,
+        userResult.bridgeUser,
+        userId,
+      ).catch((err) => {
+        Logger.error('[SIGNUP/SUBSCRIPTION/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
+        notifySignUpError(err);
+        return false;
+      });
 
       await this.userRepository.updateById(
         userResult.id,
@@ -221,73 +293,39 @@ export class UserUseCases {
         transaction,
       );
 
-      const token = SignEmail(
-        newUser.email,
-        this.configService.get('secrets.jwt'),
-      );
-      const bucket = await this.networkService.createBucket(email, userId);
-      const rootFolderName = await this.cryptoService.encryptName(
-        `${bucket.name}`,
-      );
-      const rootFolder = await this.folderUseCases.createRootFolder(
-        userResult,
-        rootFolderName,
-        bucket.id,
-      );
+      bucket = await this.networkService.createBucket(email, userId);
 
       await transaction.commit();
-      await this.createUserReferrals(userResult.id);
-      await this.userRepository.updateById(userResult.id, {
-        rootFolderId: rootFolder.id,
-      });
-      await Promise.all([
-        this.folderUseCases.createFolder(userResult, 'Family', rootFolder.id),
-        this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
-      ]);
+    } catch (err) {
+      Logger.error('[SIGNUP/NETWORK/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
+      notifySignUpError(err);
+      await transaction.rollback().catch(notifySignUpError);
+      throw err;
+    }
 
+    try {
+      const [root] = await this.createInitialFolders(userResult, bucket.id);
+      rootFolder = root;
+
+      const hasReferrer = !!newUser.referrer
       if (hasReferrer) {
-        const event = new InvitationAcceptedEvent(
-          'invitation.accepted',
-          userUuid,
-          referrer.uuid,
-          referrer.email,
-          {},
-        );
-
-        this.notificationService.add(event);
-        await this.sharedWorkspaceRepository.updateByHostAndGuest(
-          referrer.id,
-          email,
-        );
-
-        await this.applyReferral(
-          referrer.id,
-          ReferralKey.InviteFriends,
-          userUuid,
-        );
+        this.applyReferralIfHasReferrer(userUuid, email, newUser.referrer)
+          .catch(notifySignUpError);
       }
 
-      this.newsletterService.subscribe(userResult.email).catch((err) => {
-        new Logger().error(
-          `[USERS/CREATE]: Error subscribing user ${userResult.uuid} to newsletter ${err.message}`,
-        );
-      });
-
-      let hasReferralsProgram = false;
+      let hasBeenSubscribed = false;
       try {
-        hasReferralsProgram = await this.hasReferralsProgram(
-          userResult.email,
-          userResult.bridgeUser,
-          userId,
-        );
+        hasBeenSubscribed = await hasBeenSubscribedPromise;
+
+        if (!hasBeenSubscribed) {
+          await this.createUserReferrals(userResult.id);
+        }
       } catch (err) {
-        new Logger().error(
-          `[USER/CREATE/REFERRALS]: ${err.message}. ${err?.stack}`,
-        );
+        notifySignUpError(err);
       }
 
       return {
-        token,
+        token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
         user: {
           ...userResult.toJSON(),
           hKey: userResult.hKey.toString(),
@@ -297,17 +335,32 @@ export class UserUseCases {
           bucket: bucket.id,
           uuid: userUuid,
           userId,
-          hasReferralsProgram,
+          hasReferralsProgram: !hasBeenSubscribed,
         },
         uuid: userUuid,
       };
     } catch (err) {
-      await transaction.rollback().catch((err) => {
-        new Logger().error(`[USER/CREATE]: ${err.message}. ${err?.stack}`);
-      });
+      Logger.error('[SIGNUP/ROOT_FOLDER/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
+      notifySignUpError(err);
 
       throw err;
     }
+  }
+
+  async invitationAccepted(
+    referrerId: User['id'],
+    referred: { email: string; uuid: string },
+  ): Promise<void> {
+    await this.sharedWorkspaceRepository.updateByHostAndGuest(
+      referrerId,
+      referred.email,
+    );
+
+    await this.applyReferral(
+      referrerId,
+      ReferralKey.InviteFriends,
+      referred.uuid,
+    );
   }
 
   async getUser(uuid: User['uuid']): Promise<User> {
@@ -371,11 +424,11 @@ export class UserUseCases {
     networkPass: UserAttributes['userId'],
   ): Promise<boolean> {
     const MAX_FREE_PLAN_BYTES = 10737418240;
-    const hasSubscriptions = await this.paymentsService.hasSubscriptions(email);
-    const maxSpaceBytes = await this.networkService.getLimit(
-      networkUser,
-      networkPass,
-    );
+    const [hasSubscriptions, maxSpaceBytes] = await Promise.all([
+      this.paymentsService.hasSubscriptions(email),
+      this.networkService.getLimit(networkUser, networkPass),
+    ]);
+
     const isLifetime = maxSpaceBytes > MAX_FREE_PLAN_BYTES;
 
     return hasSubscriptions || isLifetime;

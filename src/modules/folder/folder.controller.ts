@@ -1,4 +1,11 @@
-import { BadRequestException, Controller, Delete, Get, NotImplementedException, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Delete,
+  Get,
+  NotImplementedException,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -18,11 +25,11 @@ export class FolderController {
 
     if (status) {
       if (status === 'orphan') {
-          count = await this.folderUseCases.getOrphanFoldersCount(user.id);
+        count = await this.folderUseCases.getOrphanFoldersCount(user.id);
       } else if (status === 'trashed') {
-          count = await this.folderUseCases.getTrashFoldersCount(user.id);
+        count = await this.folderUseCases.getTrashFoldersCount(user.id);
       } else {
-          throw new BadRequestException();
+        throw new BadRequestException();
       }
     } else {
       count = await this.folderUseCases.getDriveFoldersCount(user.id);
@@ -39,12 +46,14 @@ export class FolderController {
     if (!status) {
       throw new BadRequestException();
     }
-    if (status === 'trashed') {  
+    if (status === 'trashed') {
       throw new NotImplementedException();
     }
 
     if (status === 'orphan') {
-      const deletedCount = await this.folderUseCases.deleteOrphansFolders(user.id);
+      const deletedCount = await this.folderUseCases.deleteOrphansFolders(
+        user.id,
+      );
 
       return { deletedCount };
     } else {

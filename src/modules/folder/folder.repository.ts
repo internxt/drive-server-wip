@@ -204,6 +204,20 @@ export class SequelizeFolderRepository implements FolderRepository {
     return this.toDomain(folder);
   }
 
+  async bulkCreate(
+    folders: {
+      userId: UserAttributes['id'];
+      name: FolderAttributes['name'];
+      bucket: FolderAttributes['bucket'];
+      parentId: FolderAttributes['id'];
+      encryptVersion: FolderAttributes['encryptVersion'];
+    }[],
+  ): Promise<Folder[]> {
+    const rawFolders = await this.folderModel.bulkCreate(folders);
+
+    return rawFolders.map((f) => this.toDomain(f));
+  }
+
   async deleteById(folderId: number): Promise<void> {
     await this.folderModel.destroy({
       where: {
@@ -249,10 +263,10 @@ export class SequelizeFolderRepository implements FolderRepository {
           [Op.not]: null,
           [Op.notIn]: this.folderModel.findAll({
             where: { userId },
-          }) 
+          }),
         },
-        userId
-      }
+        userId,
+      },
     });
 
     return count;
