@@ -49,6 +49,12 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
+type NewUser = Pick<UserAttributes, 'email' | 'name' | 'lastname' | 'mnemonic' | 'password'> & {
+  salt: string;
+  referrer?: UserAttributes['referrer'];
+  registerCompleted?: UserAttributes['registerCompleted'];
+}
+
 @Injectable()
 export class UserUseCases {
   constructor(
@@ -191,27 +197,39 @@ export class UserUseCases {
     return [rootFolder, familyFolder, personalFolder];
   }
 
-  async createUser(
-    newUser: Pick<
-      UserAttributes,
-      'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
-    > & {
-      salt: string;
-      referrer?: UserAttributes['referrer'];
-      registerCompleted?: UserAttributes['registerCompleted'];
-    },
-  ) {
-    const { email, password, salt } = newUser;
+  /**
+   * Applies a referral if the user referrer exists
+   * @param referredUuid Uuid of the user that has been referred
+   * @param referredEmail Email of the user that has been referred
+   * @param referralCode Referral code of the user that has referred
+   */
+  async applyReferralIfHasReferrer(
+    referredUuid: UserAttributes['uuid'],
+    referredEmail: UserAttributes['email'],
+    referralCode: UserAttributes['referralCode']
+  ): Promise<void> {
+    const referrer = await this.userRepository.findByReferralCode(referralCode);
 
-    const hasReferrer = !!newUser.referrer;
-    // Delay this
-    const referrer = hasReferrer
-      ? await this.userRepository.findByReferralCode(newUser.referrer)
-      : null;
-
-    if (hasReferrer && !referrer) {
+    if (!referrer) {
       throw new InvalidReferralCodeError();
     }
+
+    this.notificationService.add(
+      new InvitationAcceptedEvent(
+        'invitation.accepted',
+        referredUuid,
+        referrer.uuid,
+        referrer.email,
+        {},
+        )
+      );
+
+    // TODO: Move this to EventBus
+    await this.invitationAccepted(referrer.id, { email: referredEmail, uuid: referredUuid });
+  }
+
+  async createUser(newUser: NewUser) {
+    const { email, password, salt } = newUser;
 
     const userPass = this.cryptoService.decryptText(password);
     const userSalt = this.cryptoService.decryptText(salt);
@@ -227,7 +245,7 @@ export class UserUseCases {
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    const [userResult, isNewRecord] = await this.userRepository.findOrCreate({
+    const [userResult, isNewUser] = await this.userRepository.findOrCreate({
       where: { username: email },
       defaults: {
         email: email,
@@ -248,13 +266,11 @@ export class UserUseCases {
       transaction,
     });
 
-    const userAlreadyExists = !isNewRecord;
-
-    if (userAlreadyExists) {
+    if (!isNewUser) {
       throw new UserAlreadyRegisteredError(newUser.email);
     }
 
-    let hasBeenSubscribedPromise: Promise<boolean>;
+    let hasBeenSubscribedPromise;
 
     try {
       const response = await this.networkService.createUser(email);
@@ -266,6 +282,7 @@ export class UserUseCases {
         userResult.bridgeUser,
         userId,
       ).catch((err) => {
+        Logger.error('[SIGNUP/SUBSCRIPTION/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
         notifySignUpError(err);
         return false;
       });
@@ -280,27 +297,20 @@ export class UserUseCases {
 
       await transaction.commit();
     } catch (err) {
+      Logger.error('[SIGNUP/NETWORK/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
       notifySignUpError(err);
       await transaction.rollback().catch(notifySignUpError);
+      throw err;
     }
 
     try {
       const [root] = await this.createInitialFolders(userResult, bucket.id);
       rootFolder = root;
 
+      const hasReferrer = !!newUser.referrer
       if (hasReferrer) {
-        const event = new InvitationAcceptedEvent(
-          'invitation.accepted',
-          userUuid,
-          referrer.uuid,
-          referrer.email,
-          {},
-        );
-
-        this.notificationService.add(event);
-
-        // TODO: Move this to EventBus
-        await this.invitationAccepted(referrer.id, { email, uuid: userUuid });
+        this.applyReferralIfHasReferrer(userUuid, email, newUser.referrer)
+          .catch(notifySignUpError);
       }
 
       let hasBeenSubscribed = false;
@@ -330,6 +340,7 @@ export class UserUseCases {
         uuid: userUuid,
       };
     } catch (err) {
+      Logger.error('[SIGNUP/ROOT_FOLDER/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
       notifySignUpError(err);
 
       throw err;
