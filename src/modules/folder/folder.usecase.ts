@@ -270,13 +270,33 @@ export class FolderUseCases {
     await this.folderRepository.deleteById(folder.id);
   }
 
-  async deleteOrphansFolders(userId: UserAttributes['id']): Promise<void> {
-    const remainingFolders = await this.folderRepository.clearOrphansFolders(
+  getDriveFoldersCount(userId: UserAttributes['id']): Promise<number> {
+    return this.folderRepository.getFoldersCountWhere({
+      userId,
+      deleted: false,
+    });
+  }
+
+  getTrashFoldersCount(userId: UserAttributes['id']): Promise<number> {
+    return this.folderRepository.getFoldersCountWhere({
+      userId,
+      deleted: true,
+    });
+  }
+
+  getOrphanFoldersCount(userId: UserAttributes['id']): Promise<number> {
+    return this.folderRepository.getFoldersWhoseParentIdDoesNotExist(userId);
+  }
+
+  async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {
+    let remainingFolders = await this.folderRepository.clearOrphansFolders(
       userId,
     );
 
     if (remainingFolders > 0) {
-      await this.deleteOrphansFolders(userId);
+      remainingFolders += await this.deleteOrphansFolders(userId);
+    } else {
+      return remainingFolders;
     }
   }
 

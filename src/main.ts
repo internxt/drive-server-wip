@@ -54,8 +54,8 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new AuthGuard(reflector));
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Drive Desktop')
-    .setDescription('Drive Desktop API')
+    .setTitle('Drive API')
+    .setDescription('Drive API')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

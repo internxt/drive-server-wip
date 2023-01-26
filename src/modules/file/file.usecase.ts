@@ -138,4 +138,21 @@ export class FileUseCases {
 
     return File.build({ ...file, name: decryptedName }).toJSON();
   }
+
+  /**
+   * Gets the number of orphan files of a given user
+   * @param userId User whose files are orphan
+   * @returns The number of orphan files
+   */
+  getOrphanFilesCount(userId: UserAttributes['id']) {
+    return this.fileRepository.getFilesWhoseFolderIdDoesNotExist(userId);
+  }
+
+  getTrashFilesCount(userId: UserAttributes['id']) {
+    return this.fileRepository.getFilesCountWhere({ userId, deleted: true });
+  }
+
+  getDriveFilesCount(userId: UserAttributes['id']) {
+    return this.fileRepository.getFilesCountWhere({ userId, deleted: false });
+  }
 }

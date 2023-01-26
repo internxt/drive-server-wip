@@ -10,7 +10,10 @@ export interface JwtPayload {
   bridgeUser: string;
 }
 
-export class JwtStrategy extends PassportStrategy(Strategy) {
+const strategyId = 'jwt.standard';
+export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
+  static id = strategyId;
+
   constructor(
     @Inject(UserUseCases)
     private userUseCases: UserUseCases,
@@ -23,8 +26,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload): Promise<User> {
-    const { username } = payload.payload;
-    const user = await this.userUseCases.getUserByUsername(username);
+    const { uuid } = payload.payload;
+    const user = await this.userUseCases.getUser(uuid);
     if (!user) {
       throw new UnauthorizedException();
     }
