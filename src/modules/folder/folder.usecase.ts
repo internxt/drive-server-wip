@@ -97,6 +97,47 @@ export class FolderUseCases {
     return folder;
   }
 
+  async createFolders(
+    creator: User,
+    folders: {
+      name: FolderAttributes['name'];
+      parentFolderId: FolderAttributes['id'];
+    }[],
+  ): Promise<Folder[]> {
+    for (const { parentFolderId } of folders) {
+      if (parentFolderId >= 2147483648) {
+        throw new Error('Invalid parent folder');
+      }
+    }
+
+    const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
+    let user = creator;
+
+    if (isAGuestOnSharedWorkspace) {
+      /* 
+        The owner of all the folders in a shared workspace is the HOST, not the GUEST
+        The owner email is on the bridgeUser field, as all the users on a shared workspace
+        use the email of the owner as the network user. 
+      */
+      user = await this.userRepository.findByUsername(creator.bridgeUser);
+    }
+
+    return this.folderRepository.bulkCreate(
+      folders.map((folder) => {
+        return {
+          userId: user.id,
+          name: this.cryptoService.encryptName(
+            folder.name,
+            folder.parentFolderId,
+          ),
+          encryptVersion: '03-aes',
+          bucket: null,
+          parentId: folder.parentFolderId,
+        };
+      }),
+    );
+  }
+
   async createFolder(
     creator: User,
     name: FolderAttributes['name'],

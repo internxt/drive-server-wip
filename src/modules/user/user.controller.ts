@@ -18,9 +18,9 @@ import {
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Response, Request } from 'express';
-import { SignUpEvent } from 'src/externals/notifications/events/sign-up.event';
+import { SignUpSuccessEvent } from 'src/externals/notifications/events/sign-up-success.event';
 import { NotificationService } from 'src/externals/notifications/notification.service';
-import { User, UserAttributes } from './user.domain';
+import { User } from './user.domain';
 import {
   InvalidReferralCodeError,
   UserAlreadyRegisteredError,
@@ -59,9 +59,10 @@ export class UserController {
       );
 
       this.notificationsService.add(
-        new SignUpEvent(response.user as unknown as UserAttributes, req),
+        new SignUpSuccessEvent(response.user as unknown as User, req),
       );
 
+      // TODO: Move to EventBus
       this.userUseCases
         .sendWelcomeVerifyEmailEmail(createUserDto.email, {
           userUuid: response.uuid,

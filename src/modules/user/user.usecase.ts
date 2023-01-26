@@ -25,6 +25,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
+import { SignUpErrorEvent } from 'src/externals/notifications/events/sign-up-error.event';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -160,6 +161,36 @@ export class UserUseCases {
     );
   }
 
+  /**
+   * Creates root and default initial folders and relates them to the user
+   * @param user Owner of the folders
+   * @param bucketId Network bucket
+   * @returns Created folders
+   */
+  private async createInitialFolders(
+    user: User,
+    bucketId: string,
+  ): Promise<[Folder, Folder, Folder]> {
+    const rootFolderName = this.cryptoService.encryptName(`${v4()}`);
+
+    const rootFolder = await this.folderUseCases.createRootFolder(
+      user,
+      rootFolderName,
+      bucketId,
+    );
+
+    const [_, [familyFolder, personalFolder]] = await Promise.all([
+      // Relate the root folder to the user
+      this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
+      this.folderUseCases.createFolders(user, [
+        { name: 'Family', parentFolderId: rootFolder.id },
+        { name: 'Personal', parentFolderId: rootFolder.id },
+      ]),
+    ]);
+
+    return [rootFolder, familyFolder, personalFolder];
+  }
+
   async createUser(
     newUser: Pick<
       UserAttributes,
@@ -173,6 +204,7 @@ export class UserUseCases {
     const { email, password, salt } = newUser;
 
     const hasReferrer = !!newUser.referrer;
+    // Delay this
     const referrer = hasReferrer
       ? await this.userRepository.findByReferralCode(newUser.referrer)
       : null;
@@ -189,6 +221,11 @@ export class UserUseCases {
     let bucket: any;
     let userUuid: string, userId: string;
     let rootFolder: Folder;
+
+    const notifySignUpError = (err: Error) =>
+      this.notificationService.add(
+        new SignUpErrorEvent({ email, uuid: userUuid }, err),
+      );
 
     const [userResult, isNewRecord] = await this.userRepository.findOrCreate({
       where: { username: email },
@@ -217,11 +254,21 @@ export class UserUseCases {
       throw new UserAlreadyRegisteredError(newUser.email);
     }
 
+    let hasBeenSubscribedPromise: Promise<boolean>;
+
     try {
       const response = await this.networkService.createUser(email);
       userId = response.userId;
       userUuid = response.uuid;
 
+      hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
+        userResult.email,
+        userResult.bridgeUser,
+        userId,
+      ).catch((err) => {
+        notifySignUpError(err);
+        return false;
+      });
 
       await this.userRepository.updateById(
         userResult.id,
@@ -230,33 +277,16 @@ export class UserUseCases {
       );
 
       bucket = await this.networkService.createBucket(email, userId);
-      rootFolder = await this.folderUseCases.createRootFolder(
-        userResult,
-        this.cryptoService.encryptName(`${v4()}`),
-        bucket.id,
-      );
 
       await transaction.commit();
     } catch (err) {
-      new Logger().error(
-        `[USER/CREATE/TRANSACTION]: ${err.message}. ${err?.stack}`,
-      );
-      await transaction.rollback().catch((err) => {
-        new Logger().error(
-          `[USER/CREATE/TRANSACTION/ROLLBACK]: ${err.message}. ${err?.stack}`,
-        );
-      });
+      notifySignUpError(err);
+      await transaction.rollback().catch(notifySignUpError);
     }
 
     try {
-      await this.createUserReferrals(userResult.id);
-      await this.userRepository.updateById(userResult.id, {
-        rootFolderId: rootFolder.id,
-      });
-      await Promise.all([
-        this.folderUseCases.createFolder(userResult, 'Family', rootFolder.id),
-        this.folderUseCases.createFolder(userResult, 'Personal', rootFolder.id),
-      ]);
+      const [root] = await this.createInitialFolders(userResult, bucket.id);
+      rootFolder = root;
 
       if (hasReferrer) {
         const event = new InvitationAcceptedEvent(
@@ -268,35 +298,20 @@ export class UserUseCases {
         );
 
         this.notificationService.add(event);
-        await this.sharedWorkspaceRepository.updateByHostAndGuest(
-          referrer.id,
-          email,
-        );
 
-        await this.applyReferral(
-          referrer.id,
-          ReferralKey.InviteFriends,
-          userUuid,
-        );
+        // TODO: Move this to EventBus
+        await this.invitationAccepted(referrer.id, { email, uuid: userUuid });
       }
 
-      this.newsletterService.subscribe(userResult.email).catch((err) => {
-        new Logger().error(
-          `[USERS/CREATE]: Error subscribing user ${userResult.uuid} to newsletter ${err.message}`,
-        );
-      });
-
-      let hasReferralsProgram = false;
+      let hasBeenSubscribed = false;
       try {
-        hasReferralsProgram = await this.hasReferralsProgram(
-          userResult.email,
-          userResult.bridgeUser,
-          userId,
-        );
+        hasBeenSubscribed = await hasBeenSubscribedPromise;
+
+        if (!hasBeenSubscribed) {
+          await this.createUserReferrals(userResult.id);
+        }
       } catch (err) {
-        new Logger().error(
-          `[USER/CREATE/REFERRALS]: ${err.message}. ${err?.stack}`,
-        );
+        notifySignUpError(err);
       }
 
       return {
@@ -310,17 +325,31 @@ export class UserUseCases {
           bucket: bucket.id,
           uuid: userUuid,
           userId,
-          hasReferralsProgram,
+          hasReferralsProgram: !hasBeenSubscribed,
         },
         uuid: userUuid,
       };
     } catch (err) {
-      await transaction.rollback().catch((err) => {
-        new Logger().error(`[USER/CREATE]: ${err.message}. ${err?.stack}`);
-      });
+      notifySignUpError(err);
 
       throw err;
     }
+  }
+
+  async invitationAccepted(
+    referrerId: User['id'],
+    referred: { email: string; uuid: string },
+  ): Promise<void> {
+    await this.sharedWorkspaceRepository.updateByHostAndGuest(
+      referrerId,
+      referred.email,
+    );
+
+    await this.applyReferral(
+      referrerId,
+      ReferralKey.InviteFriends,
+      referred.uuid,
+    );
   }
 
   async sendWelcomeVerifyEmailEmail(email, { userUuid }) {
