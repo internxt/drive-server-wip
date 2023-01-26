@@ -244,17 +244,19 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number> {
+  async getFilesWhoseFolderIdDoesNotExist(
+    userId: File['userId'],
+  ): Promise<number> {
     const { count } = await this.fileModel.findAndCountAll({
       where: {
         folderId: {
           [Op.not]: null,
           [Op.notIn]: this.fileModel.findAll({
             where: { userId },
-          }) 
+          }),
         },
-        userId
-      }
+        userId,
+      },
     });
 
     return count;
