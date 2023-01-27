@@ -7,6 +7,7 @@ import {
   Param,
   HttpStatus,
   Headers,
+  BadRequestException
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
