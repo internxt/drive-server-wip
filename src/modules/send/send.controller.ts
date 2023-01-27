@@ -46,6 +46,10 @@ export class SendController {
       plainCode,
       plainPassword,
     } = content;
+      
+    if (receivers.length > 5) {
+      throw new BadRequestException();
+    }
 
     const sendLink = await this.sendUseCases.createSendLinks(
       user,
