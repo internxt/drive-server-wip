@@ -71,14 +71,14 @@ export class CreateSendLinkDto {
   })
   @IsArray()
   @IsOptional()
-  receivers: Array<string>;
+  receivers?: Array<string>;
 
   @ApiProperty({
     example: 'sender@mail.com',
     description: 'Email of sender',
   })
   @IsOptional()
-  sender: string;
+  sender?: string;
 
   @ApiProperty({
     example: 'code',
@@ -100,14 +100,14 @@ export class CreateSendLinkDto {
     description: 'Title to send link',
   })
   @IsOptional()
-  title: string;
+  title?: string;
 
   @ApiProperty({
     example: 'Subject',
     description: 'Subject to send link',
   })
   @IsOptional()
-  subject: string;
+  subject?: string;
 
   @ApiProperty({
     description: 'List of items of files and folders',
