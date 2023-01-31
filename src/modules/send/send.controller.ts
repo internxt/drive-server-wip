@@ -48,7 +48,7 @@ export class SendController {
       plainPassword,
     } = content;
       
-    if (receivers.length > 0) {
+    if (receivers && receivers.length > 0) {
       throw new BadRequestException();
     }
 
