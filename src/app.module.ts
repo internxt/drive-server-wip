@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { format } from 'sql-formatter';
 import { SentryModule } from '@ntegral/nestjs-sentry';
 import { FileModule } from './modules/file/file.module';
@@ -78,6 +79,10 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
+    ThrottlerModule.forRoot({
+      ttl: 60,
+      limit: 10,
+    }),
     NotificationModule,
     FileModule,
     FolderModule,
