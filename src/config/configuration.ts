@@ -38,6 +38,7 @@ export default () => ({
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
+    gateway: process.env.GATEWAY_SECRET,
   },
   apis: {
     notifications: {
