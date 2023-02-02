@@ -1,10 +1,22 @@
 import { Logger } from '@nestjs/common';
+import { sign } from 'jsonwebtoken';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
 import { User, UserAttributes } from '../../modules/user/user.domain';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
+
+export function signToken(duration: string, secret: string) {
+  return sign(
+    {}, 
+    Buffer.from(secret, 'base64').toString('utf8'), 
+    {
+      algorithm: 'RS256',
+      expiresIn: duration
+    }
+  );
+}
 
 @Injectable()
 export class BridgeService {
@@ -71,10 +83,17 @@ export class BridgeService {
     const bcryptId = await this.cryptoService.hashBcrypt(networkUserId);
     const networkPassword = this.cryptoService.hashSha256(bcryptId);
 
+    const jwt = signToken('5m', this.configService.get('secrets.gateway'));
+
     const response = await this.httpClient.post(
-      `${this.networkUrl}/users`,
+      `${this.networkUrl}/v2/gateway/users`,
       { email: networkUserId, password: networkPassword },
-      { headers: { 'Content-Type': 'application/json' } },
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        }, 
+      },
     );
 
     return { userId: bcryptId, uuid: response.data.uuid };
