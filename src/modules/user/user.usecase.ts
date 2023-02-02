@@ -282,7 +282,7 @@ export class UserUseCases {
         userResult.bridgeUser,
         userId,
       ).catch((err) => {
-        Logger.error('[SIGNUP/SUBSCRIPTION/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
+        Logger.error(`[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${err.stack || 'NO STACK'}`);
         notifySignUpError(err);
         return false;
       });
@@ -297,7 +297,7 @@ export class UserUseCases {
 
       await transaction.commit();
     } catch (err) {
-      Logger.error('[SIGNUP/NETWORK/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
+      Logger.error(`[SIGNUP/NETWORK/ERROR]: ${err.message}, ${err.stack || 'NO STACK'}`);
       notifySignUpError(err);
       await transaction.rollback().catch(notifySignUpError);
       throw err;
@@ -340,7 +340,7 @@ export class UserUseCases {
         uuid: userUuid,
       };
     } catch (err) {
-      Logger.error('[SIGNUP/ROOT_FOLDER/ERROR]: %s. %s', err.message, err.stack || 'NO STACK');
+      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${err.stack || 'NO STACK'}`);
       notifySignUpError(err);
 
       throw err;
