@@ -50,7 +50,7 @@ export default class Database {
     instance
       .authenticate()
       .then(() => {
-        logger.info('Connected to database');
+        logger.log('Connected to database');
       })
       .catch((err) => {
         logger.error('Database connection error: %s', err);
