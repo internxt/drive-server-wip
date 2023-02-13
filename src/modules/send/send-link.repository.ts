@@ -4,122 +4,15 @@ import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.model';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
-
-import {
-  Column,
-  Model,
-  Table,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  DataType,
-  AllowNull,
-  HasMany,
-  Sequelize,
-} from 'sequelize-typescript';
+import { Sequelize } from 'sequelize-typescript';
 import {
   getStringFromBinary,
   convertStringToBinary,
 } from '../../lib/binary-converter';
+import { SendLinkModel } from './send-link.model';
+import { SendLinkItemModel } from './send-link-item.model';
 
 const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'send_links',
-})
-export class SendLinkModel extends Model {
-  @PrimaryKey
-  @Column
-  id: string;
-
-  @Column
-  views: number;
-
-  @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
-
-  @BelongsTo(() => UserModel)
-  user: UserModel;
-
-  @Column
-  sender: string;
-
-  @Column
-  receivers: string;
-
-  @Column
-  code: string;
-
-  @Column
-  title: string;
-
-  @Column
-  subject: string;
-
-  @Column
-  expirationAt: Date;
-
-  @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-
-  @AllowNull
-  @Column(DataType.TEXT)
-  hashedPassword: string;
-
-  @HasMany(() => SendLinkItemModel)
-  items: SendLinkItemModel[];
-}
-
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'send_links_items',
-})
-export class SendLinkItemModel extends Model {
-  @PrimaryKey
-  @Column
-  id: string;
-
-  @Column
-  name: string;
-
-  @Column
-  type: string;
-
-  @ForeignKey(() => SendLinkModel)
-  @Column
-  linkId: string;
-
-  @BelongsTo(() => SendLinkModel)
-  link: any;
-
-  @AllowNull
-  @Column
-  networkId: string;
-
-  @Column(DataType.STRING(64))
-  encryptionKey: string;
-
-  @Column(DataType.INTEGER.UNSIGNED)
-  size: number;
-
-  @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-
-  @Column(DataType.INTEGER)
-  version: number;
-
-  @Column
-  parent_folder: string;
-}
 
 export interface SendRepository {
   findById(id: SendLinkAttributes['id']): Promise<SendLink | null>;
