@@ -18,7 +18,7 @@ import {
 import { FileModel } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';

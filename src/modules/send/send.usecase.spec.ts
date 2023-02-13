@@ -6,7 +6,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { FileModel } from '../file/file.repository';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { SendLink } from './send-link.domain';

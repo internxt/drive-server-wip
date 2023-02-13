@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions } from './file.domain';
 import sequelize, { FindOptions, Op } from 'sequelize';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 
 import {
   AllowNull,

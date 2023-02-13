@@ -4,11 +4,9 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
+import { FolderModel } from '../folder/folder.model';
 import { FolderModule } from '../folder/folder.module';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { UserModule } from '../user/user.module';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { ShareController } from './share.controller';
