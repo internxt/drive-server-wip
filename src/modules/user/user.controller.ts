@@ -11,6 +11,7 @@ import {
   Param,
   ForbiddenException,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -31,6 +32,7 @@ import {
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('User')
 @Controller('users')
@@ -41,6 +43,7 @@ export class UserController {
     private readonly keyServerUseCases: KeyServerUseCases,
   ) {}
 
+  @UseGuards(ThrottlerGuard)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
