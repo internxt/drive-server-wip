@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { Folder, FolderAttributes } from './folder.domain';
-import { FolderModel } from './folder.repository';
+import { FolderModel } from './folder.model';
 import { FileUseCases } from '../file/file.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 import {
@@ -18,7 +18,8 @@ import {
   ShareModel,
 } from '../share/share.repository';
 import { ShareUseCases } from '../share/share.usecase';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';

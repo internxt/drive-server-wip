@@ -16,11 +16,10 @@ import {
   SequelizeShareRepository,
   ShareModel,
 } from '../share/share.repository';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';

@@ -2,13 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TrashUseCases } from './trash.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 import { File, FileAttributes } from '../file/file.domain';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { getModelToken } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';

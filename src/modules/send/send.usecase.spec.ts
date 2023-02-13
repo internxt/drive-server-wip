@@ -9,10 +9,10 @@ import { FileModel } from '../file/file.repository';
 import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.model';
+import { SendLinkItemModel } from './send-link-item.model';
 import { SendLink } from './send-link.domain';
+import { SendLinkModel } from './send-link.model';
 import {
-  SendLinkItemModel,
-  SendLinkModel,
   SendRepository,
   SequelizeSendRepository,
 } from './send-link.repository';
