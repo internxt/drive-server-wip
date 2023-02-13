@@ -8,7 +8,7 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { FileModel } from '../file/file.repository';
 import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { SendLink } from './send-link.domain';
 import {
   SendLinkItemModel,

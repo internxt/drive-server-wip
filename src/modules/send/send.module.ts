@@ -7,12 +7,7 @@ import { FileModel } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
 import { FolderModel } from '../folder/folder.model';
 import { UserModule } from '../user/user.module';
-import { UserModel } from '../user/user.repository';
-import {
-  SendLinkItemModel,
-  SendLinkModel,
-  SequelizeSendRepository,
-} from './send-link.repository';
+import { UserModel } from '../user/user.model';
 import { SendController } from './send.controller';
 import { SendUseCases } from './send.usecase';
 

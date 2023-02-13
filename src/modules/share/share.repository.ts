@@ -17,7 +17,7 @@ import {
 } from 'sequelize-typescript';
 import { FileModel } from '../file/file.repository';
 import { User, UserAttributes } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { FolderModel } from '../folder/folder.model';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';

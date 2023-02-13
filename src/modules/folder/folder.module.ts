@@ -5,7 +5,8 @@ import { FolderModel } from '../folder/folder.model';
 import { FolderUseCases } from './folder.usecase';
 import { FileModule } from '../file/file.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderController } from './folder.controller';
 
