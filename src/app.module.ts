@@ -81,7 +81,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
     ThrottlerModule.forRoot({
       ttl: 60,
-      limit: 10,
+      limit: 5,
     }),
     NotificationModule,
     FileModule,
