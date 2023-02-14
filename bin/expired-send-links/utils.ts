@@ -52,6 +52,31 @@ export function getExpiredSendLinks(
   });
 }
 
+export function moveItemsToDeletedFiles(
+  deletedFilesRepository: Repository<DeletedFileModel>,
+  expiredSendLinkItems: SendLinkItemAttributes[],
+  userId: number,
+  folderId: number,
+  bucketId: string,
+): Promise<DeletedFileModel[]> {
+  const deletedFiles: {
+    file_id: string;
+    user_id: number;
+    folder_id: number;
+    bucket: string;
+  }[] = expiredSendLinkItems.map((item) => {
+    return {
+      file_id: item.networkId,
+      user_id: userId,
+      folder_id: folderId,
+      bucket: bucketId,
+    };
+  });
+
+
+  return deletedFilesRepository.bulkCreate(deletedFiles);
+}
+
 export function moveToDeletedFiles(
   DeletedFilesRepository: Repository<DeletedFileModel>,
   expiredSendLink: SendLinkItemAttributes,

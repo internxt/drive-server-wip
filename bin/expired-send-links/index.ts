@@ -10,7 +10,7 @@ import { ModelType } from 'sequelize-typescript';
 import {
   createTimer,
   getExpiredSendLinks,
-  moveToDeletedFiles,
+  moveItemsToDeletedFiles,
   clearExpiredSendLink,
   clearExpiredSendLinkItems,
 } from './utils';
@@ -141,13 +141,13 @@ async function start(limit = 20) {
       limit,
     );
 
-    console.time('df-network-req');
+    console.time('move-to-deleted-files');
 
     for (const expiredLink of expiredLinks) {
-      for (const expiredLinkItem of expiredLink.items) {
-        await moveToDeletedFiles(
+      for (let i = 0; i < expiredLink.items.length; i += 20) {
+        await moveItemsToDeletedFiles(
           DeletedFilesRepository,
-          expiredLinkItem,
+          expiredLink.items.slice(i, i + 20),
           Number(opts.sendUserid),
           Number(opts.sendFolderid),
           String(opts.sendBucketid),
@@ -157,7 +157,7 @@ async function start(limit = 20) {
       await clearExpiredSendLink(SendLinkRepository, expiredLink);
     }
 
-    console.timeEnd('df-network-req');
+    console.timeEnd('move-to-deleted-files');
 
     totalMovedExpiredLinks += expiredLinks.length;
   } while (expiredLinks.length === limit);
