@@ -15,63 +15,50 @@ import {
   clearExpiredSendLinkItems,
 } from './utils';
 
-const commands: { flags: string; description: string; required: boolean }[] = [
+const commands: { flags: string; description: string }[] = [
   {
     flags: '--db-hostname <database_hostname>',
-    description: 'The hostname of the database where deleted files are stored',
-    required: true,
+    description: 'The database hostname',
   },
   {
     flags: '--db-name <database_name>',
-    description: 'The name of the database where deleted files are stored',
-    required: true,
+    description: 'The database name',
   },
   {
     flags: '--db-username <database_username>',
     description:
-      'The username authorized to read and delete from the deleted files table',
-    required: true,
+      'The username authorized to create from deleted_files table and read/delete from send_links and send_link_items',
   },
   {
     flags: '--db-password <database_password>',
     description: 'The database username password',
-    required: true,
   },
   {
     flags: '--db-port <database_port>',
     description: 'The database port',
-    required: true,
   },
   {
-    flags: '--send-userid <send_userid>',
-    description: 'The user id from Send',
-    required: true,
+    flags: '--user-id <user_id>',
+    description: 'The user owner of the files',
   },
   {
-    flags: '--send-folderid <send_folderid>',
-    description: 'The folder id from Send user where files are stored',
-    required: true,
+    flags: '--folder-id <folder_id>',
+    description: 'The folder id where files are stored',
   },
   {
-    flags: '--send-bucketid <send_bucketid>',
-    description: 'The bucket id from Send user',
-    required: true,
+    flags: '--bucket-id <bucket_id>',
+    description: 'The bucket id where the files are stored in the network',
   },
   {
-    flags: '-l, --limit <limit>',
+    flags: '-l, --limit [limit]',
     description: 'The files limit to handle each time',
-    required: false,
   },
 ];
 
 const command = new Command('expired-send-links').version('0.0.1');
 
 commands.forEach((c) => {
-  if (c.required) {
-    command.requiredOption(c.flags, c.description);
-  } else {
-    command.option(c.flags, c.description);
-  }
+  command.option(c.flags, c.description);
 });
 
 command.parse(process.argv);
