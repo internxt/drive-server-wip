@@ -3,6 +3,7 @@ export class FolderDto {
   parent?: FolderDto;
   name: string;
   bucket: string;
+  uuid: string;
   userId: number;
   encryptVersion: '03-aes';
   size: number;

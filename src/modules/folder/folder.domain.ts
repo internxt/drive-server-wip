@@ -7,6 +7,7 @@ export interface FolderAttributes {
   name: string;
   bucket: string;
   userId: number;
+  uuid: string;
   user?: any;
   encryptVersion: '03-aes';
   deleted: boolean;
@@ -28,6 +29,7 @@ export class Folder implements FolderAttributes {
   bucket: string;
   userId: number;
   user?: User;
+  uuid: string;
   encryptVersion: FolderAttributes['encryptVersion'];
   deleted: boolean;
   deletedAt: Date;
@@ -36,6 +38,7 @@ export class Folder implements FolderAttributes {
   size: number;
   private constructor({
     id,
+    uuid,
     parentId,
     parent,
     name,
@@ -61,6 +64,7 @@ export class Folder implements FolderAttributes {
     this.deletedAt = deletedAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.uuid = uuid;
     this.size = 0;
   }
 
@@ -99,6 +103,7 @@ export class Folder implements FolderAttributes {
     return {
       id: this.id,
       parent: this.parent,
+      uuid: this.uuid,
       name: this.name,
       bucket: this.bucket,
       userId: this.userId,
