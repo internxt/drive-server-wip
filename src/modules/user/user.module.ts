@@ -2,7 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
-import { UserModel } from './user.repository';
+import { UserModel } from './user.model';
 import {
   FriendInvitationModel,
   SequelizeSharedWorkspaceRepository,

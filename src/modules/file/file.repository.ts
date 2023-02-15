@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions } from './file.domain';
 import sequelize, { FindOptions, Op } from 'sequelize';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 
 import {
   AllowNull,
@@ -16,7 +16,7 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';

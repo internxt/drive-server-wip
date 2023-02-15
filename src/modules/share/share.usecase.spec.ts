@@ -17,13 +17,14 @@ import {
 import { FileUseCases } from '../file/file.usecase';
 import { Folder } from '../folder/folder.domain';
 import {
-  FolderModel,
   FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { User } from '../user/user.domain';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { UserUseCases } from '../user/user.usecase';
 import { Share, ShareAttributes } from './share.domain';
 import { SequelizeShareRepository, ShareModel } from './share.repository';

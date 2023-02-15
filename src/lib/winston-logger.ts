@@ -1,6 +1,7 @@
 import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
 import os from 'os';
+import { LoggerService } from '@nestjs/common';
 
 const { splat, combine, printf, timestamp } = winston.format;
 const serverHostname = os.hostname();
@@ -46,12 +47,12 @@ export class WinstonLogger {
     transports: [new winston.transports.Console()],
   };
 
-  static getLogger() {
+  static getLogger(): LoggerService {
     const configs = {
       production: WinstonModule.createLogger(this.prodOptions),
       staging: WinstonModule.createLogger(this.prodOptions),
-      development: null,
+      development: WinstonModule.createLogger(this.devOptions),
     };
-    return configs[process.env.NODE_EV] || null;
+    return configs[process.env.NODE_EV] || configs.development;
   }
 }

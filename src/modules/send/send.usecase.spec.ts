@@ -6,13 +6,13 @@ import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { FileModel } from '../file/file.repository';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
+import { SendLinkItemModel } from './send-link-item.model';
 import { SendLink } from './send-link.domain';
+import { SendLinkModel } from './send-link.model';
 import {
-  SendLinkItemModel,
-  SendLinkModel,
   SendRepository,
   SequelizeSendRepository,
 } from './send-link.repository';
