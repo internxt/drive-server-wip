@@ -18,6 +18,7 @@ import {
 import { UserModel } from '../user/user.repository';
 import { User, UserAttributes } from '../user/user.domain';
 import { Pagination } from '../../lib/pagination';
+import { v4 } from 'uuid';
 
 @Table({
   underscored: true,
@@ -67,6 +68,10 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   updatedAt: Date;
+
+  @Index
+  @Column
+  uuid: string;
 }
 
 export interface FolderRepository {
@@ -199,6 +204,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       bucket,
       parentId,
       encryptVersion,
+      uuid: v4()
     });
 
     return this.toDomain(folder);
