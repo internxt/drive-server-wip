@@ -148,9 +148,9 @@ async function start(limit = 20) {
         await moveItemsToDeletedFiles(
           DeletedFilesRepository,
           expiredLink.items.slice(i, i + 20),
-          Number(opts.sendUserid),
-          Number(opts.sendFolderid),
-          String(opts.sendBucketid),
+          Number(opts.userId),
+          Number(opts.folderId),
+          String(opts.bucketId),
         );
       }
       await clearExpiredSendLinkItems(SendLinkItemRepository, expiredLink);
