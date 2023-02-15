@@ -94,6 +94,11 @@ export class ShareModel extends Model {
   @AllowNull
   @Column(DataType.TEXT)
   hashedPassword: string;
+
+  @AllowNull
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
 }
 
 export interface ShareRepository {
@@ -287,6 +292,7 @@ export class SequelizeShareRepository implements ShareRepository {
       fileId: model.fileId,
       fileSize: model.isFolder ? null : (item as File)?.size,
       folderId: model.folderId,
+      folderUuid: model.folderUuid,
       hashedPassword: model.hashedPassword,
     });
 

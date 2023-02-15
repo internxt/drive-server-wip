@@ -17,6 +17,7 @@ export interface ShareAttributes {
   fileId: FileAttributes['id'];
   fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
+  folderUuid: FolderAttributes['uuid'];
   active: boolean;
   code: string;
   createdAt: Date;
@@ -37,6 +38,7 @@ export class Share implements ShareAttributes {
   fileId: FileAttributes['id'];
   fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
+  folderUuid: FolderAttributes['uuid'];
   active: boolean;
   code: string;
   item: File | Folder;
@@ -67,6 +69,7 @@ export class Share implements ShareAttributes {
     this.fileToken = attributes.fileToken;
     this.userId = attributes.userId;
     this.hashedPassword = attributes.hashedPassword;
+    this.folderUuid = attributes.folderUuid;
   }
 
   static build(share: ShareAttributes): Share {
@@ -119,6 +122,7 @@ export class Share implements ShareAttributes {
       fileId: this.fileId,
       fileSize: this.fileSize,
       folderId: this.folderId,
+      folderUuid: this.folderUuid,
       fileToken: this.fileToken,
       item: this.item.toJSON(),
       encryptionKey: this.encryptionKey,
