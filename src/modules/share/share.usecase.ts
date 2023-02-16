@@ -77,7 +77,6 @@ export class ShareUseCases {
 
   async getShareByToken(
     token: string,
-    //user: User,
     code?: string,
     password?: string,
   ): Promise<Share> {
@@ -123,13 +122,6 @@ export class ShareUseCases {
         share.encryptionKey = encryptionKey.toString('hex');
       }
     }
-
-    /*const isTheOwner = user && share.userId === user.id;
-
-    if (!isTheOwner) {
-      share.incrementView();
-      await this.shareRepository.update(share);
-    }*/
 
     return share;
   }
