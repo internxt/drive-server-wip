@@ -1,8 +1,7 @@
 import { aes } from '@internxt/lib';
 
 import { File, FileAttributes } from '../file/file.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { UserAttributes } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
 import { ShareDto } from './dto/share.dto';
 
 export interface ShareAttributes {
