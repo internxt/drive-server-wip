@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { UserAttributes } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
 import { Keys } from './key-server.domain';
 import { KeyServerRepository } from './key-server.repository';
 

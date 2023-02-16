@@ -9,7 +9,8 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FileUseCases } from '../file/file.usecase';
-import { User, UserAttributes } from '../user/user.domain';
+import { User } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
 import { SequelizeFolderRepository } from './folder.repository';

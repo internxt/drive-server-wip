@@ -9,7 +9,7 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { UserAttributes } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
 import { UserModel } from '../user/user.repository';
 import { KeyServer, KeyServerAttributes } from './key-server.domain';
 

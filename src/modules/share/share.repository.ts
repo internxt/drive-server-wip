@@ -16,10 +16,8 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { FileModel } from '../file/file.repository';
-import { User, UserAttributes } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
-import { FolderModel } from '../folder/folder.repository';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { User } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
 

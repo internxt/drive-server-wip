@@ -8,9 +8,9 @@ import {
   ReferralAttributes,
   ReferralKey,
   User,
-  UserAttributes,
   UserReferralAttributes,
 } from './user.domain';
+import { UserAttributes } from './user.attributes';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
