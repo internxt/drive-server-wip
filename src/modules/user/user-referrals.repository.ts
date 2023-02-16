@@ -13,7 +13,7 @@ import {
 } from 'sequelize-typescript';
 import { ReferralModel } from './referrals.repository';
 import { UserReferralAttributes } from './user.domain';
-import { UserModel } from './user.repository';
+import { UserModel } from './user.model';
 
 @Table({
   underscored: true,
