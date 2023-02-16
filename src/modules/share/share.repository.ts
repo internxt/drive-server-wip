@@ -52,6 +52,10 @@ export class ShareModel extends Model {
   @Column
   fileId: number;
 
+  @ForeignKey(() => FileModel)
+  @Column
+  fileUuid: string;
+
   @BelongsTo(() => FileModel, 'fileId')
   file: FileModel;
 
@@ -290,6 +294,7 @@ export class SequelizeShareRepository implements ShareRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       fileId: model.fileId,
+      fileUuid: model.fileUuid,
       fileSize: model.isFolder ? null : (item as File)?.size,
       folderId: model.folderId,
       folderUuid: model.folderUuid,
@@ -306,6 +311,7 @@ export class SequelizeShareRepository implements ShareRepository {
     token,
     mnemonic,
     fileId,
+    fileUuid,
     fileSize,
     folderId,
     bucket,
@@ -326,6 +332,7 @@ export class SequelizeShareRepository implements ShareRepository {
       mnemonic,
       userId,
       fileId,
+      fileUuid,
       fileSize,
       folderId,
       encryptionKey: '',

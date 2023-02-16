@@ -15,6 +15,7 @@ export interface ShareAttributes {
   timesValid: number;
   userId: UserAttributes['id'];
   fileId: FileAttributes['id'];
+  fileUuid: FileAttributes['uuid'];
   fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
   folderUuid: FolderAttributes['uuid'];
@@ -36,6 +37,7 @@ export class Share implements ShareAttributes {
   timesValid: number;
   userId: UserAttributes['id'];
   fileId: FileAttributes['id'];
+  fileUuid: FileAttributes['uuid'];
   fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
   folderUuid: FolderAttributes['uuid'];
