@@ -5,8 +5,8 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 import { FileModule } from '../file/file.module';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
+import { FolderModel } from '../folder/folder.model';
 import {
-  FolderModel,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
 import { UserModule } from '../user/user.module';
