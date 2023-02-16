@@ -16,10 +16,12 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { FileModel } from '../file/file.repository';
-import { User, UserAttributes } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
-import { FolderModel } from '../folder/folder.repository';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { User } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
+import { UserModel } from '../user/user.model';
+import { FolderModel } from '../folder/folder.model';
+import { Folder } from '../folder/folder.domain';
+import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
 
@@ -51,6 +53,10 @@ export class ShareModel extends Model {
   @ForeignKey(() => FileModel)
   @Column
   fileId: number;
+
+  @ForeignKey(() => FileModel)
+  @Column
+  fileUuid: string;
 
   @BelongsTo(() => FileModel, 'fileId')
   file: FileModel;
@@ -94,6 +100,11 @@ export class ShareModel extends Model {
   @AllowNull
   @Column(DataType.TEXT)
   hashedPassword: string;
+
+  @AllowNull
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
 }
 
 export interface ShareRepository {
@@ -285,8 +296,10 @@ export class SequelizeShareRepository implements ShareRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       fileId: model.fileId,
+      fileUuid: model.fileUuid,
       fileSize: model.isFolder ? null : (item as File)?.size,
       folderId: model.folderId,
+      folderUuid: model.folderUuid,
       hashedPassword: model.hashedPassword,
     });
 
@@ -300,6 +313,7 @@ export class SequelizeShareRepository implements ShareRepository {
     token,
     mnemonic,
     fileId,
+    fileUuid,
     fileSize,
     folderId,
     bucket,
@@ -320,6 +334,7 @@ export class SequelizeShareRepository implements ShareRepository {
       mnemonic,
       userId,
       fileId,
+      fileUuid,
       fileSize,
       folderId,
       encryptionKey: '',

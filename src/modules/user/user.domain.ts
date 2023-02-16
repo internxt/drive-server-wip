@@ -1,35 +1,4 @@
-import { Folder } from '../folder/folder.domain';
-
-export interface UserAttributes {
-  id: number;
-  userId: string;
-  name: string;
-  lastname: string;
-  email: string;
-  username: string;
-  bridgeUser: string;
-  password: string;
-  mnemonic: string;
-  rootFolderId: number;
-  rootFolder?: any;
-  hKey: Buffer;
-  secret_2FA: string;
-  errorLoginCount: number;
-  isEmailActivitySended: number;
-  referralCode: string;
-  referrer: string;
-  syncDate: Date;
-  uuid: string;
-  lastResend: Date;
-  credit: number;
-  welcomePack: boolean;
-  registerCompleted: boolean;
-  backupsBucket: string;
-  sharedWorkspace: boolean;
-  tempKey: string;
-  avatar: string;
-}
-
+import { UserAttributes } from './user.attributes';
 export class User implements UserAttributes {
   id: number;
   userId: string;
@@ -41,7 +10,6 @@ export class User implements UserAttributes {
   password: string;
   mnemonic: string;
   rootFolderId: number;
-  _rootFolder: Folder;
   hKey: Buffer;
   secret_2FA: string;
   errorLoginCount: number;
@@ -97,7 +65,6 @@ export class User implements UserAttributes {
     this.password = password;
     this.mnemonic = mnemonic;
     this.rootFolderId = rootFolderId;
-    this.rootFolder = rootFolder;
     this.hKey = hKey;
     this.secret_2FA = secret_2FA;
     this.errorLoginCount = errorLoginCount;
@@ -118,16 +85,6 @@ export class User implements UserAttributes {
 
   static build(user: UserAttributes): User {
     return new User(user);
-  }
-
-  set rootFolder(rootFolder) {
-    if (rootFolder && !(rootFolder instanceof Folder)) {
-      throw Error('rootFolder folder invalid');
-    }
-    this._rootFolder = rootFolder;
-  }
-  get rootFolder() {
-    return this._rootFolder;
   }
 
   isGuestOnSharedWorkspace(): boolean {

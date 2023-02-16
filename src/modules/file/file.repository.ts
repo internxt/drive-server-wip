@@ -2,8 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions } from './file.domain';
 import sequelize, { FindOptions, Op } from 'sequelize';
-import { FolderModel } from '../folder/folder.repository';
-
 import {
   AllowNull,
   BelongsTo,
@@ -15,11 +13,14 @@ import {
   Model,
   PrimaryKey,
   Table,
+  Unique,
 } from 'sequelize-typescript';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
+import { FolderModel } from '../folder/folder.model';
+import { FolderAttributes } from '../folder/folder.attributes';
 
 @Table({
   underscored: true,
@@ -30,6 +31,10 @@ export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
   @Column
   id: number;
+
+  @Unique
+  @Column(DataType.UUIDV4)
+  uuid: string;
 
   @Column(DataType.STRING(24))
   fileId: string;
@@ -53,6 +58,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @BelongsTo(() => FolderModel)
   folder: FolderModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
 
   @Column
   encryptVersion: string;
@@ -130,6 +139,14 @@ export class SequelizeFileRepository implements FileRepository {
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({
       where: { id, deleted: false },
+    });
+
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: { uuid, deleted: false },
     });
 
     return file ? this.toDomain(file) : null;

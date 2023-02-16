@@ -1,8 +1,9 @@
 import { aes } from '@internxt/lib';
 
 import { File, FileAttributes } from '../file/file.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { UserAttributes } from '../user/user.domain';
+import { Folder } from '../folder/folder.domain';
+import { FolderAttributes } from '../folder/folder.attributes';
+import { UserAttributes } from '../user/user.attributes';
 import { ShareDto } from './dto/share.dto';
 
 export interface ShareAttributes {
@@ -15,8 +16,10 @@ export interface ShareAttributes {
   timesValid: number;
   userId: UserAttributes['id'];
   fileId: FileAttributes['id'];
+  fileUuid: FileAttributes['uuid'];
   fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
+  folderUuid: FolderAttributes['uuid'];
   active: boolean;
   code: string;
   createdAt: Date;
@@ -35,8 +38,10 @@ export class Share implements ShareAttributes {
   timesValid: number;
   userId: UserAttributes['id'];
   fileId: FileAttributes['id'];
+  fileUuid: FileAttributes['uuid'];
   fileSize: FileAttributes['size'];
   folderId: FolderAttributes['id'];
+  folderUuid: FolderAttributes['uuid'];
   active: boolean;
   code: string;
   item: File | Folder;
@@ -62,11 +67,13 @@ export class Share implements ShareAttributes {
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
     this.fileId = attributes.fileId;
+    this.fileUuid = attributes.fileUuid;
     this.fileSize = attributes.fileSize;
     this.folderId = attributes.folderId;
     this.fileToken = attributes.fileToken;
     this.userId = attributes.userId;
     this.hashedPassword = attributes.hashedPassword;
+    this.folderUuid = attributes.folderUuid;
   }
 
   static build(share: ShareAttributes): Share {
@@ -119,6 +126,7 @@ export class Share implements ShareAttributes {
       fileId: this.fileId,
       fileSize: this.fileSize,
       folderId: this.folderId,
+      folderUuid: this.folderUuid,
       fileToken: this.fileToken,
       item: this.item.toJSON(),
       encryptionKey: this.encryptionKey,

@@ -1,0 +1,30 @@
+export interface UserAttributes {
+  id: number;
+  userId: string;
+  name: string;
+  lastname: string;
+  email: string;
+  username: string;
+  bridgeUser: string;
+  password: string;
+  mnemonic: string;
+  rootFolderId: number;
+  rootFolder?: any;
+  hKey: Buffer;
+  secret_2FA: string;
+  errorLoginCount: number;
+  isEmailActivitySended: number;
+  referralCode: string;
+  referrer: string;
+  syncDate: Date;
+  uuid: string;
+  lastResend: Date;
+  credit: number;
+  welcomePack: boolean;
+  registerCompleted: boolean;
+  backupsBucket: string;
+  sharedWorkspace: boolean;
+  tempKey: string;
+  avatar: string;
+}
+  

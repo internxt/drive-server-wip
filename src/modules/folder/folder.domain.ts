@@ -1,19 +1,6 @@
 import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
-export interface FolderAttributes {
-  id: number;
-  parentId: number;
-  parent?: any;
-  name: string;
-  bucket: string;
-  userId: number;
-  user?: any;
-  encryptVersion: '03-aes';
-  deleted: boolean;
-  deletedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { FolderAttributes } from './folder.attributes';
 
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
@@ -28,6 +15,7 @@ export class Folder implements FolderAttributes {
   bucket: string;
   userId: number;
   user?: User;
+  uuid: string;
   encryptVersion: FolderAttributes['encryptVersion'];
   deleted: boolean;
   deletedAt: Date;
@@ -36,6 +24,7 @@ export class Folder implements FolderAttributes {
   size: number;
   private constructor({
     id,
+    uuid,
     parentId,
     parent,
     name,
@@ -61,6 +50,7 @@ export class Folder implements FolderAttributes {
     this.deletedAt = deletedAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.uuid = uuid;
     this.size = 0;
   }
 
@@ -99,6 +89,7 @@ export class Folder implements FolderAttributes {
     return {
       id: this.id,
       parent: this.parent,
+      uuid: this.uuid,
       name: this.name,
       bucket: this.bucket,
       userId: this.userId,
