@@ -31,12 +31,20 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   id: number;
 
+  @Index
+  @Column
+  uuid: string;
+
   @ForeignKey(() => FolderModel)
   @Column
   parentId: number;
 
   @BelongsTo(() => FolderModel)
   parent: FolderModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column
+  parentUuid: FolderModel['uuid'];
 
   @Index
   @Column
@@ -68,10 +76,6 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   updatedAt: Date;
-
-  @Index
-  @Column
-  uuid: string;
 }
 
 export interface FolderRepository {
@@ -83,6 +87,10 @@ export interface FolderRepository {
   ): Promise<Array<Folder> | []>;
   findById(
     folderId: FolderAttributes['id'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder | null>;
+  findByUuid(
+    folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
   updateByFolderId(
@@ -109,6 +117,14 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findAll(where = {}): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({ where });
     return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findByUuid(
+    uuid: FolderAttributes['uuid'], 
+    deleted: FolderAttributes['deleted'] = false,
+  ): Promise<Folder> {
+    const folder = await this.folderModel.findOne({ where: { uuid, deleted } });
+    return folder ? this.toDomain(folder): null;
   }
 
   async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {

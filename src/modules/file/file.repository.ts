@@ -15,6 +15,7 @@ import {
   Model,
   PrimaryKey,
   Table,
+  Unique,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
@@ -30,6 +31,10 @@ export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
   @Column
   id: number;
+
+  @Unique
+  @Column(DataType.UUIDV4)
+  uuid: string;
 
   @Column(DataType.STRING(24))
   fileId: string;
@@ -53,6 +58,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @BelongsTo(() => FolderModel)
   folder: FolderModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
 
   @Column
   encryptVersion: string;
@@ -130,6 +139,14 @@ export class SequelizeFileRepository implements FileRepository {
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({
       where: { id, deleted: false },
+    });
+
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: { uuid, deleted: false },
     });
 
     return file ? this.toDomain(file) : null;
