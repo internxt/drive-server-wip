@@ -67,6 +67,7 @@ export class Share implements ShareAttributes {
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
     this.fileId = attributes.fileId;
+    this.fileUuid = attributes.fileUuid;
     this.fileSize = attributes.fileSize;
     this.folderId = attributes.folderId;
     this.fileToken = attributes.fileToken;
