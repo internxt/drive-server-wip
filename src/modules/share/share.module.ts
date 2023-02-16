@@ -10,7 +10,8 @@ import {
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
 import { UserModule } from '../user/user.module';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { ShareController } from './share.controller';
 import { SequelizeShareRepository, ShareModel } from './share.repository';
 import { ShareUseCases } from './share.usecase';

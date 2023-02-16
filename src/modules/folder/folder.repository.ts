@@ -31,52 +31,10 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   id: number;
 
-  @Index
-  @Column
-  uuid: string;
-
-  @ForeignKey(() => FolderModel)
-  @Column
-  parentId: number;
-
-  @BelongsTo(() => FolderModel)
-  parent: FolderModel;
-
-  @ForeignKey(() => FolderModel)
-  @Column
-  parentUuid: FolderModel['uuid'];
-
-  @Index
-  @Column
-  name: string;
-
-  @Column(DataType.STRING(24))
-  bucket: string;
-
-  @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
-
-  @BelongsTo(() => UserModel)
-  user: UserModel;
-
-  @Column
-  encryptVersion: '03-aes';
-
-  @Default(false)
-  @Column
-  deleted: boolean;
-
-  @AllowNull
-  @Column
-  deletedAt: Date;
-
-  @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-}
+import { UserModel } from '../user/user.model';
+import { User } from '../user/user.domain';
+import { UserAttributes} from '../user/user.attributes';
+import { Pagination } from '../../lib/pagination';
 
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;
