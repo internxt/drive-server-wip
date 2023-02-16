@@ -1,20 +1,6 @@
 import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
-export interface FolderAttributes {
-  id: number;
-  parentId: number;
-  parent?: any;
-  name: string;
-  bucket: string;
-  userId: number;
-  uuid: string;
-  user?: any;
-  encryptVersion: '03-aes';
-  deleted: boolean;
-  deletedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { FolderAttributes } from './folder.attributes';
 
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];

@@ -12,7 +12,8 @@ import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
+import { Folder, FolderOptions } from './folder.domain';
+import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 
 const invalidName = /[\\/]|^\s*$/;

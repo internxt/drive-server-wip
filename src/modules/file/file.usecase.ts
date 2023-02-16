@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { FolderAttributes } from '../folder/folder.domain';
+import { FolderAttributes } from '../folder/folder.attributes';
 import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';

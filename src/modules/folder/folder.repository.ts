@@ -1,40 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Folder, FolderAttributes } from './folder.domain';
 import { FindOptions, Op } from 'sequelize';
-import {
-  AllowNull,
-  AutoIncrement,
-  BelongsTo,
-  Column,
-  DataType,
-  Default,
-  ForeignKey,
-  Index,
-  Model,
-  PrimaryKey,
-  Table,
-} from 'sequelize-typescript';
-import { UserModel } from '../user/user.repository';
-import { User, UserAttributes } from '../user/user.domain';
-import { Pagination } from '../../lib/pagination';
 import { v4 } from 'uuid';
 
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'folders',
-})
-export class FolderModel extends Model implements FolderAttributes {
-  @PrimaryKey
-  @AutoIncrement
-  @Column
-  id: number;
+import { Folder } from './folder.domain';
+import { FolderAttributes } from './folder.attributes';
 
 import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { UserAttributes} from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
+import { FolderModel } from './folder.model';
 
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;

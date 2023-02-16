@@ -5,7 +5,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 import { FileModule } from '../file/file.module';
 import { FileModel } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { UserModule } from '../user/user.module';
 import { UserModel } from '../user/user.model';
 import {
