@@ -1,4 +1,4 @@
-import { UserAttributes } from '../../../modules/user/user.domain';
+import { UserAttributes } from '../../../modules/user/user.attributes';
 import { Event } from './event';
 
 export class InvitationAcceptedEvent extends Event {

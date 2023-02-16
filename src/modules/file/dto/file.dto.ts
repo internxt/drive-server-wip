@@ -9,6 +9,7 @@ export class FileDto {
   bucket: string;
   folderId: number;
   folder: FolderDto;
+  folderUuid: FolderDto['uuid'];
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;

@@ -4,6 +4,7 @@ import { FileDto } from './dto/file.dto';
 
 export interface FileAttributes {
   id: number;
+  uuid: string;
   fileId: string;
   name: string;
   type: string;
@@ -11,6 +12,7 @@ export interface FileAttributes {
   bucket: string;
   folderId: number;
   folder?: any;
+  folderUuid: string;
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
@@ -29,6 +31,7 @@ export interface FileOptions {
 
 export class File implements FileAttributes {
   id: number;
+  uuid: string;
   fileId: string;
   name: string;
   type: string;
@@ -36,6 +39,7 @@ export class File implements FileAttributes {
   bucket: string;
   folderId: number;
   folder: Folder;
+  folderUuid: string;
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
@@ -53,6 +57,7 @@ export class File implements FileAttributes {
     bucket,
     folderId,
     folder,
+    folderUuid,
     encryptVersion,
     deleted,
     deletedAt,
@@ -61,6 +66,7 @@ export class File implements FileAttributes {
     modificationTime,
     createdAt,
     updatedAt,
+    uuid
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -78,6 +84,8 @@ export class File implements FileAttributes {
     this.modificationTime = modificationTime;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.folderUuid = folderUuid;
+    this.uuid = uuid;
   }
 
   static build(file: FileAttributes): File {
@@ -116,6 +124,7 @@ export class File implements FileAttributes {
       bucket: this.bucket,
       folderId: this.folderId,
       folder: this.folder,
+      folderUuid: this.folderUuid,
       encryptVersion: this.encryptVersion,
       deleted: this.deleted,
       deletedAt: this.deletedAt,

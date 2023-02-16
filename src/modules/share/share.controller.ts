@@ -15,6 +15,7 @@ import {
   Req,
   Headers,
   Res,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
@@ -34,6 +35,7 @@ import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
+import { Share } from './share.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -199,10 +201,8 @@ export class ShareController {
   }
 
   @Post('file/:fileId')
-  @ApiOperation({
-    summary: 'Generate Shared Token by file Id',
-  })
-  @ApiOkResponse({ description: 'Get Token of share' })
+  @ApiOperation({ summary: 'Create share for file' })
+  @ApiOkResponse({ description: 'The share of the file' })
   async generateSharedTokenToFile(
     @UserDecorator() user: User,
     @Param('fileId') fileId: FileAttributes['id'],
@@ -242,11 +242,9 @@ export class ShareController {
 
   @Post('folder/:folderId')
   @HttpCode(200)
-  @ApiOperation({
-    summary: 'Generate Shared Token by folder Id',
-  })
-  @ApiOkResponse({ description: 'Get token of share' })
-  async generateSharedTokenForFolder(
+  @ApiOperation({ summary: 'Create share for folder' })
+  @ApiOkResponse({ description: 'The share of the folder' })
+  async generateFolderShare(
     @UserDecorator() user: User,
     @Param('folderId') folderId: string,
     @Body() body: CreateShareDto,

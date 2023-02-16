@@ -77,7 +77,6 @@ export class ShareUseCases {
 
   async getShareByToken(
     token: string,
-    //user: User,
     code?: string,
     password?: string,
   ): Promise<Share> {
@@ -123,13 +122,6 @@ export class ShareUseCases {
         share.encryptionKey = encryptionKey.toString('hex');
       }
     }
-
-    /*const isTheOwner = user && share.userId === user.id;
-
-    if (!isTheOwner) {
-      share.incrementView();
-      await this.shareRepository.update(share);
-    }*/
 
     return share;
   }
@@ -267,6 +259,8 @@ export class ShareUseCases {
       bucket,
       fileToken: itemToken,
       folderId: null,
+      fileUuid: file.uuid,
+      folderUuid: null,
       isFolder: false,
       views: 0,
       timesValid,
@@ -352,7 +346,9 @@ export class ShareUseCases {
       bucket,
       fileToken: itemToken,
       fileId: null,
+      fileUuid: null,
       isFolder: true,
+      folderUuid: folder.uuid,
       views: 0,
       timesValid,
       active: true,

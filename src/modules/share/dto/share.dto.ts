@@ -16,6 +16,7 @@ export class ShareDto {
   fileId: number;
   fileSize: bigint;
   folderId: number;
+  folderUuid: string;
   fileToken: string;
   item: FileDto | FolderDto;
   encryptionKey?: string;
