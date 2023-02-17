@@ -6,6 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
+import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
 // import { WinstonLogger } from './lib/winston-logger';
 import {
@@ -45,6 +46,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   app.use(helmet());
+  app.use(apiMetrics());
 
   app.use(RequestLoggerMiddleware);
   app.setGlobalPrefix('api');
