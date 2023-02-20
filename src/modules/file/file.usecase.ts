@@ -17,6 +17,8 @@ import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { File, FileAttributes, FileOptions } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
+import { Op } from 'sequelize';
+import { Pagination } from 'src/lib/pagination';
 
 @Injectable()
 export class FileUseCases {
@@ -62,6 +64,30 @@ export class FileUseCases {
     );
 
     return files.map((file) => file.toJSON());
+  }
+
+  async getByUserAndPlainName(
+    userId: FileAttributes['userId'],
+    plain_name: string,
+    { deleted, page, perPage }: FileOptions = {
+      deleted: false,
+      page: 0,
+      perPage: 5,
+    },
+  ) {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    const files = await this.fileRepository.findAll({
+      where: {
+        userId,
+        plain_name: {
+          [Op.like]: '%' + plain_name + '%',
+        },
+        deleted,
+      },
+      offset,
+      limit,
+    });
+    return files;
   }
 
   async moveFilesToTrash(

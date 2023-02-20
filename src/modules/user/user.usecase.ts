@@ -26,6 +26,7 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from 'src/externals/notifications/events/sign-up-error.event';
+import { FileUseCases } from '../file/file.usecase';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -49,11 +50,14 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
-type NewUser = Pick<UserAttributes, 'email' | 'name' | 'lastname' | 'mnemonic' | 'password'> & {
+type NewUser = Pick<
+  UserAttributes,
+  'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
+> & {
   salt: string;
   referrer?: UserAttributes['referrer'];
   registerCompleted?: UserAttributes['registerCompleted'];
-}
+};
 
 @Injectable()
 export class UserUseCases {
@@ -63,6 +67,7 @@ export class UserUseCases {
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
     private folderUseCases: FolderUseCases,
+    private fileUseCases: FileUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
     private networkService: BridgeService,
@@ -73,6 +78,21 @@ export class UserUseCases {
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
+  }
+
+  async searchItemsByPlainName(user_id: number, plain_name: string) {
+    const files = await this.fileUseCases.getByUserAndPlainName(
+      user_id,
+      plain_name,
+      { deleted: false, page: 0, perPage: 5 },
+    );
+    // TODO: Return folders together
+    /*const folders = await this.folderUseCases.getByUserAndPlainName(
+      user_id,
+      plain_name,
+      { deleted: false },
+    );*/
+    return files;
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
@@ -206,7 +226,7 @@ export class UserUseCases {
   async applyReferralIfHasReferrer(
     referredUuid: UserAttributes['uuid'],
     referredEmail: UserAttributes['email'],
-    referralCode: UserAttributes['referralCode']
+    referralCode: UserAttributes['referralCode'],
   ): Promise<void> {
     const referrer = await this.userRepository.findByReferralCode(referralCode);
 
@@ -221,11 +241,14 @@ export class UserUseCases {
         referrer.uuid,
         referrer.email,
         {},
-        )
-      );
+      ),
+    );
 
     // TODO: Move this to EventBus
-    await this.invitationAccepted(referrer.id, { email: referredEmail, uuid: referredUuid });
+    await this.invitationAccepted(referrer.id, {
+      email: referredEmail,
+      uuid: referredUuid,
+    });
   }
 
   async createUser(newUser: NewUser) {
@@ -282,7 +305,11 @@ export class UserUseCases {
         userResult.bridgeUser,
         userId,
       ).catch((err) => {
-        Logger.error(`[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${err.stack || 'NO STACK'}`);
+        Logger.error(
+          `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
+            err.stack || 'NO STACK'
+          }`,
+        );
         notifySignUpError(err);
         return false;
       });
@@ -297,7 +324,9 @@ export class UserUseCases {
 
       await transaction.commit();
     } catch (err) {
-      Logger.error(`[SIGNUP/NETWORK/ERROR]: ${err.message}, ${err.stack || 'NO STACK'}`);
+      Logger.error(
+        `[SIGNUP/NETWORK/ERROR]: ${err.message}, ${err.stack || 'NO STACK'}`,
+      );
       notifySignUpError(err);
       await transaction.rollback().catch(notifySignUpError);
       throw err;
@@ -307,10 +336,13 @@ export class UserUseCases {
       const [root] = await this.createInitialFolders(userResult, bucket.id);
       rootFolder = root;
 
-      const hasReferrer = !!newUser.referrer
+      const hasReferrer = !!newUser.referrer;
       if (hasReferrer) {
-        this.applyReferralIfHasReferrer(userUuid, email, newUser.referrer)
-          .catch(notifySignUpError);
+        this.applyReferralIfHasReferrer(
+          userUuid,
+          email,
+          newUser.referrer,
+        ).catch(notifySignUpError);
       }
 
       let hasBeenSubscribed = false;
@@ -340,7 +372,11 @@ export class UserUseCases {
         uuid: userUuid,
       };
     } catch (err) {
-      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${err.stack || 'NO STACK'}`);
+      Logger.error(
+        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${
+          err.stack || 'NO STACK'
+        }`,
+      );
       notifySignUpError(err);
 
       throw err;

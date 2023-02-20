@@ -150,4 +150,20 @@ export class UserController {
   refreshToken(@UserDecorator() user: User) {
     return this.userUseCases.getAuthTokens(user);
   }
+
+  @Get('/search')
+  async getFolderCount(
+    @UserDecorator() user: User,
+    @Body() body: { plain_name: string },
+  ) {
+    if (!user || !body || !body.plain_name) {
+      throw new NotFoundException();
+    }
+    const result = await this.userUseCases.searchItemsByPlainName(
+      Number(user.id),
+      body.plain_name,
+    );
+
+    return { result };
+  }
 }
