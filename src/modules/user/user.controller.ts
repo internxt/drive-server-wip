@@ -151,7 +151,11 @@ export class UserController {
     return this.userUseCases.getAuthTokens(user);
   }
 
-  @Get('/search')
+  @Post('/search')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Search items by name',
+  })
   async getFolderCount(
     @UserDecorator() user: User,
     @Body() body: { plain_name: string },
