@@ -133,8 +133,8 @@ export class SequelizeFileRepository implements FileRepository {
     private fileModel: typeof FileModel,
   ) {}
 
-  async findAll(): Promise<Array<File> | []> {
-    const files = await this.fileModel.findAll();
+  async findAll(query = {}): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll(query);
     return files.map((file) => {
       return this.toDomain(file);
     });
