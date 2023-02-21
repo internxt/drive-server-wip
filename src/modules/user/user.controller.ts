@@ -156,7 +156,7 @@ export class UserController {
   @ApiOperation({
     summary: 'Search items by name',
   })
-  async getFolderCount(
+  async searchItemsByName(
     @UserDecorator() user: User,
     @Body() body: { plain_name: string },
   ) {
