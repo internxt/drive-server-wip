@@ -7,7 +7,6 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Op } from 'sequelize';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
@@ -16,7 +15,6 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { Folder, FolderOptions } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
-import { Pagination } from 'src/lib/pagination';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -60,36 +58,10 @@ export class FolderUseCases {
     { deleted }: FolderOptions = { deleted: false },
   ) {
     const folders = await this.folderRepository.findAll({
-      where: {
-        userId,
-        deleted,
-      },
+      userId,
+      deleted,
     });
 
-    return folders;
-  }
-
-  async getByUserAndPlainName(
-    userId: FolderAttributes['userId'],
-    plain_name: string,
-    { deleted, page, perPage }: FolderOptions = {
-      deleted: false,
-      page: 0,
-      perPage: 5,
-    },
-  ) {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const folders = await this.folderRepository.findAll({
-      where: {
-        userId,
-        plain_name: {
-          [Op.like]: '%' + plain_name + '%',
-        },
-        deleted,
-      },
-      offset,
-      limit,
-    });
     return folders;
   }
 
