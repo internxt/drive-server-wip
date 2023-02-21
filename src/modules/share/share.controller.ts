@@ -377,32 +377,6 @@ export class ShareController {
     };
   }
 
-  @Get(':shareId/folder/:folderId/size')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get size of folder by folderId',
-  })
-  @ApiOkResponse({ description: 'Get size of folder' })
-  @Public()
-  async getShareFolderSize(
-    @Param('shareId') shareId: number,
-    @Param('folderId') folderId: number,
-  ) {
-    const share = await this.shareUseCases.getShareById(shareId);
-    if (!share) {
-      throw new NotFoundException(`share with id ${shareId} not found`);
-    }
-
-    if (folderId !== share.folderId) {
-      throw new NotFoundException(`share folderId not found`);
-    }
-
-    const size = await this.folderUseCases.getFolderSize(folderId);
-    return {
-      size,
-    };
-  }
-
   async getUserWhenPublic(user) {
     if (user) {
       user = await this.userUseCases.getUserByUsername(user.username);
