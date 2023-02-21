@@ -4,6 +4,7 @@ export class FileDto {
   id: number;
   fileId: string;
   name: string;
+  plain_name: string;
   type: string;
   size: bigint;
   bucket: string;

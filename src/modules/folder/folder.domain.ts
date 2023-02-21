@@ -4,6 +4,8 @@ import { FolderAttributes } from './folder.attributes';
 
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
+  page?: number;
+  perPage?: number;
 }
 
 export class Folder implements FolderAttributes {
@@ -12,6 +14,7 @@ export class Folder implements FolderAttributes {
   parent: Folder;
   type: string;
   name: string;
+  plain_name: string;
   bucket: string;
   userId: number;
   user?: User;
@@ -28,6 +31,7 @@ export class Folder implements FolderAttributes {
     parentId,
     parent,
     name,
+    plain_name,
     bucket,
     userId,
     user,
@@ -41,6 +45,7 @@ export class Folder implements FolderAttributes {
     this.id = id;
     this.parentId = parentId;
     this.name = name;
+    this.plain_name = plain_name;
     this.setParent(parent);
     this.bucket = bucket;
     this.userId = userId;
@@ -91,6 +96,7 @@ export class Folder implements FolderAttributes {
       parent: this.parent,
       uuid: this.uuid,
       name: this.name,
+      plain_name: this.plain_name,
       bucket: this.bucket,
       userId: this.userId,
       encryptVersion: this.encryptVersion,
