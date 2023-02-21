@@ -7,7 +7,6 @@ export interface FileAttributes {
   uuid: string;
   fileId: string;
   name: string;
-  plain_name: string;
   type: string;
   size: bigint;
   bucket: string;
@@ -35,7 +34,6 @@ export class File implements FileAttributes {
   uuid: string;
   fileId: string;
   name: string;
-  plain_name: string;
   type: string;
   size: bigint;
   bucket: string;
@@ -54,7 +52,6 @@ export class File implements FileAttributes {
     id,
     fileId,
     name,
-    plain_name,
     type,
     size,
     bucket,
@@ -69,14 +66,13 @@ export class File implements FileAttributes {
     modificationTime,
     createdAt,
     updatedAt,
-    uuid,
+    uuid
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
     this.folderId = folderId;
     this.setFolder(folder);
     this.name = name;
-    this.plain_name = plain_name;
     this.type = type;
     this.size = size;
     this.bucket = bucket;
@@ -123,7 +119,6 @@ export class File implements FileAttributes {
       id: this.id,
       fileId: this.fileId,
       name: this.name,
-      plain_name: this.plain_name,
       type: this.type,
       size: this.size,
       bucket: this.bucket,

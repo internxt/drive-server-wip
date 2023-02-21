@@ -8,7 +8,7 @@ import { FolderAttributes } from './folder.attributes';
 
 import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
+import { UserAttributes} from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 
@@ -48,17 +48,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     private userModel: typeof UserModel,
   ) {}
 
-  async findAll(query = {}): Promise<Array<Folder> | []> {
-    const folders = await this.folderModel.findAll(query);
+  async findAll(where = {}): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({ where });
     return folders.map((folder) => this.toDomain(folder));
   }
 
   async findByUuid(
-    uuid: FolderAttributes['uuid'],
+    uuid: FolderAttributes['uuid'], 
     deleted: FolderAttributes['deleted'] = false,
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({ where: { uuid, deleted } });
-    return folder ? this.toDomain(folder) : null;
+    return folder ? this.toDomain(folder): null;
   }
 
   async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {
@@ -154,7 +154,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       bucket,
       parentId,
       encryptVersion,
-      uuid: v4(),
+      uuid: v4()
     });
 
     return this.toDomain(folder);

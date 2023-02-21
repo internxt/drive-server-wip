@@ -2,7 +2,6 @@ export class FolderDto {
   id: number;
   parent?: FolderDto;
   name: string;
-  plain_name: string;
   bucket: string;
   uuid: string;
   userId: number;
