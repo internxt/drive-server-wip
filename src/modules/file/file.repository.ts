@@ -43,6 +43,10 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   name: string;
 
+  @Index
+  @Column
+  plain_name: string;
+
   @Column
   type: string;
 
@@ -129,8 +133,8 @@ export class SequelizeFileRepository implements FileRepository {
     private fileModel: typeof FileModel,
   ) {}
 
-  async findAll(): Promise<Array<File> | []> {
-    const files = await this.fileModel.findAll();
+  async findAll(query = {}): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll(query);
     return files.map((file) => {
       return this.toDomain(file);
     });
