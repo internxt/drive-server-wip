@@ -66,7 +66,7 @@ export class File implements FileAttributes {
     modificationTime,
     createdAt,
     updatedAt,
-    uuid
+    uuid,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
