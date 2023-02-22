@@ -1,16 +1,9 @@
-import {
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { FolderAttributes } from '../folder/folder.attributes';
-import { UserAttributes } from '../user/user.attributes';
 
 @Injectable()
 export class TrashUseCases {
@@ -18,56 +11,6 @@ export class TrashUseCases {
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
   ) {}
-
-  async getFoldersOfTrashedFolder(
-    userId: UserAttributes['id'],
-    folderId: FolderAttributes['id'],
-    offset: number,
-    limit: number,
-  ): Promise<Folder[]> {
-    const folder = await this.folderUseCases.getFolder(folderId, {
-      deleted: true,
-    });
-
-    if (!folder) {
-      throw new NotFoundException();
-    }
-
-    if (!(folder.userId === userId)) {
-      throw new ForbiddenException();
-    }
-
-    return this.folderUseCases.getFoldersByParent(folderId, userId, {
-      deleted: true,
-      limit,
-      offset,
-    });
-  }
-
-  async getFilesOfTrashedFolder(
-    userId: UserAttributes['id'],
-    folderId: FolderAttributes['id'],
-    offset: number,
-    limit: number,
-  ): Promise<File[]> {
-    const folder = await this.folderUseCases.getFolder(folderId, {
-      deleted: true,
-    });
-
-    if (!folder) {
-      throw new NotFoundException();
-    }
-
-    if (!(folder.userId === userId)) {
-      throw new ForbiddenException();
-    }
-
-    return this.fileUseCases.getFiles(folderId, userId, {
-      deleted: true,
-      limit,
-      offset,
-    });
-  }
 
   private async deleteFiles(files: Array<File>, user: User): Promise<void> {
     for (const file of files) {
