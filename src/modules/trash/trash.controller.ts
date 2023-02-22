@@ -92,6 +92,10 @@ export class TrashController {
       throw new BadRequestException('Type should be "files" or "folders"');
     }
 
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestException('Limit should be between 1 and 50');
+    }
+
     let result: File[] | Folder[];
 
     if (type === 'files') {
