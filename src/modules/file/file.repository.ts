@@ -136,7 +136,7 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async findAllByFolderIdDeletedCursor(
+  async findAllByFolderIdCursor(
     where: Partial<FileAttributes>,
     limit: number,
     offset: number,
@@ -145,6 +145,7 @@ export class SequelizeFileRepository implements FileRepository {
       limit,
       offset,
       where,
+      order: [['id', 'ASC']],
     });
 
     return files.map(this.toDomain.bind(this));
