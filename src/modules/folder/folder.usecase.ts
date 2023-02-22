@@ -252,6 +252,32 @@ export class FolderUseCases {
     return totalSize;
   }
 
+  async getFolders(
+    parentId: FolderAttributes['parentId'],
+    userId: UserAttributes['id'],
+    options = { deleted: false, limit: 20, offset: 0 },
+  ): Promise<Folder[]> {
+    const parentFolder = await this.getFolderByUserId(parentId, userId);
+
+    if (!parentFolder) {
+      throw new NotFoundException();
+    }
+
+    if (!(parentFolder.userId === userId)) {
+      throw new ForbiddenException();
+    }
+
+    return this.folderRepository.findAllByParentIdCursor(
+      {
+        parentId,
+        userId,
+        deleted: options.deleted,
+      },
+      options.limit,
+      options.offset,
+    );
+  }
+
   async getFoldersByParent(folderId: number, page, perPage) {
     return this.folderRepository.findAllByParentId(
       folderId,
