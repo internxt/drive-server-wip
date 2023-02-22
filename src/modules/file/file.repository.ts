@@ -100,7 +100,6 @@ export interface FileRepository {
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
   ): Promise<File | null>;
-  findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
@@ -132,13 +131,6 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
   ) {}
-
-  async findAll(query = {}): Promise<Array<File> | []> {
-    const files = await this.fileModel.findAll(query);
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
-  }
 
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({
@@ -194,6 +186,30 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findAllByUserIdAndPlainName(
+    userId: FileAttributes['userId'],
+    plainName: string,
+    { deleted, page, perPage }: FileOptions = {
+      deleted: false,
+      page: 0,
+      perPage: 5,
+    },
+  ) {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    const files = await this.fileModel.findAll({
+      where: {
+        userId,
+        plainName: {
+          [Op.like]: '%' + plainName + '%',
+        },
+        deleted,
+      },
+      offset,
+      limit,
+    });
+    return files;
   }
 
   async findOne(

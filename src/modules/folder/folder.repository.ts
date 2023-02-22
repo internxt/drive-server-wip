@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder } from './folder.domain';
+import { Folder, FolderOptions } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 
 import { UserModel } from '../user/user.model';
@@ -13,7 +13,10 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 
 export interface FolderRepository {
-  findAll(): Promise<Array<Folder> | []>;
+  findAllByUserId(
+    userId: FolderAttributes['userId'],
+    options: FolderOptions,
+  ): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
     userId: FolderAttributes['userId'],
@@ -27,6 +30,11 @@ export interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findAllByUserIdAndPlainName(
+    userId: FolderAttributes['userId'],
+    plainName: string,
+    options: FolderOptions,
+  );
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -48,8 +56,16 @@ export class SequelizeFolderRepository implements FolderRepository {
     private userModel: typeof UserModel,
   ) {}
 
-  async findAll(query = {}): Promise<Array<Folder> | []> {
-    const folders = await this.folderModel.findAll(query);
+  async findAllByUserId(
+    userId: FolderAttributes['userId'],
+    { deleted }: FolderOptions = { deleted: false },
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      where: {
+        userId,
+        deleted,
+      },
+    });
     return folders.map((folder) => this.toDomain(folder));
   }
 
@@ -108,6 +124,30 @@ export class SequelizeFolderRepository implements FolderRepository {
       },
     });
     return folder ? this.toDomain(folder) : null;
+  }
+
+  async findAllByUserIdAndPlainName(
+    userId: FolderAttributes['userId'],
+    plainName: string,
+    { deleted, page, perPage }: FolderOptions = {
+      deleted: false,
+      page: 0,
+      perPage: 5,
+    },
+  ) {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    const folders = await this.folderModel.findAll({
+      where: {
+        userId,
+        plainName: {
+          [Op.like]: '%' + plainName + '%',
+        },
+        deleted,
+      },
+      offset,
+      limit,
+    });
+    return folders;
   }
 
   async updateByFolderId(

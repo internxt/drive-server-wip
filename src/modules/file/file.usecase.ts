@@ -16,9 +16,7 @@ import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { File, FileAttributes, FileOptions } from './file.domain';
-import { SequelizeFileRepository } from './file.repository';
-import { Op } from 'sequelize';
-import { Pagination } from 'src/lib/pagination';
+import { FileModel, SequelizeFileRepository } from './file.repository';
 
 @Injectable()
 export class FileUseCases {
@@ -66,28 +64,16 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
-  async getByUserAndPlainName(
+  getByUserAndPlainName(
     userId: FileAttributes['userId'],
-    plain_name: string,
-    { deleted, page, perPage }: FileOptions = {
-      deleted: false,
-      page: 0,
-      perPage: 5,
-    },
-  ) {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const files = await this.fileRepository.findAll({
-      where: {
-        userId,
-        plain_name: {
-          [Op.like]: '%' + plain_name + '%',
-        },
-        deleted,
-      },
-      offset,
-      limit,
-    });
-    return files;
+    plainName: string,
+    options: FileOptions,
+  ): Promise<FileModel[]> {
+    return this.fileRepository.findAllByUserIdAndPlainName(
+      userId,
+      plainName,
+      options,
+    );
   }
 
   async moveFilesToTrash(
