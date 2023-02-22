@@ -12,6 +12,8 @@ import {
   ForbiddenException,
   NotFoundException,
   UseGuards,
+  BadRequestException,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -151,23 +153,23 @@ export class UserController {
     return this.userUseCases.getAuthTokens(user);
   }
 
-  @Post('/search')
+  @Get('/search')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Search items by name',
   })
   async searchItemsByName(
     @UserDecorator() user: User,
-    @Body() body: { plain_name: string },
+    @Query() query: { plainName: string },
   ) {
-    if (!user || !body || !body.plain_name) {
-      throw new NotFoundException();
+    const { plainName } = query;
+    if (!user || !plainName) {
+      throw new BadRequestException();
     }
     const result = await this.userUseCases.searchItemsByPlainName(
       Number(user.id),
-      body.plain_name,
+      plainName,
     );
-
     return { result };
   }
 }
