@@ -28,6 +28,18 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
   ) {}
 
+  async getFolderByUserId(
+    folderId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+  ) {
+    const folder = await this.folderRepository.findOne({
+      userId,
+      id: folderId,
+    });
+
+    return folder;
+  }
+
   async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
