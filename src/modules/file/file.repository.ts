@@ -136,6 +136,20 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async findAllByFolderIdDeletedCursor(
+    where: Partial<FileAttributes>,
+    limit: number,
+    offset: number,
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({
       where: { id, deleted: false },
