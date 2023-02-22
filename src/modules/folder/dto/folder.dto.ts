@@ -6,6 +6,7 @@ export class FolderDto {
   uuid: string;
   userId: number;
   encryptVersion: '03-aes';
+  plainName: string;
   size: number;
   deleted: boolean;
   deletedAt: Date;

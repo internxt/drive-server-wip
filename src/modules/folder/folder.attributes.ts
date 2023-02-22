@@ -7,6 +7,7 @@ export interface FolderAttributes {
   userId: number;
   uuid: string;
   user?: any;
+  plainName: string;
   encryptVersion: '03-aes';
   deleted: boolean;
   deletedAt: Date;
