@@ -82,14 +82,11 @@ export class TrashController {
     @Query('folderId') folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('type') type: 'files' | 'folders',
+    @Query('type') type: string,
+    @Query('root') root: boolean,
   ) {
-    if (!limit || !offset || !type || !folderId) {
+    if (!limit || !offset || !type || !root || !folderId) {
       throw new BadRequestException();
-    }
-
-    if (type !== 'files' && type !== 'folders') {
-      throw new BadRequestException('Type should be "files" or "folders"');
     }
 
     if (limit < 1 || limit > 50) {
@@ -98,20 +95,20 @@ export class TrashController {
 
     let result: File[] | Folder[];
 
+    const deleted = root;
+
     if (type === 'files') {
-      result = await this.trashUseCases.getFilesOfTrashedFolder(
-        user.id,
-        folderId,
+      result = await this.fileUseCases.getFiles(folderId, user.id, {
+        deleted,
         limit,
         offset,
-      );
+      });
     } else {
-      result = await this.trashUseCases.getFilesOfTrashedFolder(
-        user.id,
-        folderId,
+      result = await this.folderUseCases.getFolders(folderId, user.id, {
+        deleted,
         limit,
         offset,
-      );
+      });
     }
 
     return { result };
