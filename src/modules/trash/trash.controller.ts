@@ -82,10 +82,20 @@ export class TrashController {
     @Query('folderId') folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('type') type: string,
+    @Query('type') type: 'files' | 'folders',
     @Query('root') root: boolean,
   ) {
-    if (!limit || !offset || !type || !root || !folderId) {
+    if (
+      !limit ||
+      offset === undefined ||
+      !type ||
+      root === undefined ||
+      !folderId
+    ) {
+      throw new BadRequestException();
+    }
+
+    if (type !== 'files' && type !== 'folders') {
       throw new BadRequestException();
     }
 
