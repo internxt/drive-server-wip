@@ -36,6 +36,22 @@ export class FileUseCases {
     return this.fileRepository.findOne(fileId, userId, options);
   }
 
+  async getFiles(
+    folderId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+    options = { deleted: false, limit: 20, offset: 0 },
+  ) {
+    return this.fileRepository.findAllByFolderIdDeletedCursor(
+      {
+        folderId,
+        userId,
+        deleted: options.deleted,
+      },
+      options.limit,
+      options.offset,
+    );
+  }
+
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
