@@ -89,6 +89,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column
   updatedAt: Date;
+
+  @Index
+  @Column
+  plainName: string;
 }
 
 export interface FileRepository {
