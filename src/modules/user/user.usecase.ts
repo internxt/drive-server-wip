@@ -86,11 +86,6 @@ export class UserUseCases {
       plainName,
       { deleted: false, page: 0, perPage: 5 },
     );
-    /*const folders = await this.folderUseCases.getByUserAndPlainName(
-      user_id,
-      plainName,
-      { deleted: false },
-    );*/
     return files;
   }
 
