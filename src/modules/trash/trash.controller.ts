@@ -8,6 +8,7 @@ import {
   Post,
   Delete,
   Param,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -68,6 +69,48 @@ export class TrashController {
       ),
       files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
     };
+  }
+
+  @Get('/paginated')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Gets trash content',
+  })
+  @ApiOkResponse({ description: 'Files on trash for a given folder' })
+  async getTrashedFilesPaginated(
+    @UserDecorator() user: User,
+    @Query('folderId') folderId: number,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Query('type') type: 'files' | 'folders',
+  ) {
+    if (!limit || !offset || !type || !folderId) {
+      throw new BadRequestException();
+    }
+
+    if (type !== 'files' && type !== 'folders') {
+      throw new BadRequestException('Type should be "files" or "folders"');
+    }
+
+    let result: File[] | Folder[];
+
+    if (type === 'files') {
+      result = await this.trashUseCases.getFilesOfTrashedFolder(
+        user.id,
+        folderId,
+        limit,
+        offset,
+      );
+    } else {
+      result = await this.trashUseCases.getFilesOfTrashedFolder(
+        user.id,
+        folderId,
+        limit,
+        offset,
+      );
+    }
+
+    return { result };
   }
 
   @Post('add')
