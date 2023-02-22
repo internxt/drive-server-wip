@@ -6,6 +6,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -17,6 +18,7 @@ import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { File, FileAttributes, FileOptions } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 @Injectable()
 export class FileUseCases {
@@ -24,6 +26,7 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    private folderUsecases: FolderUseCases,
     private bridgeService: BridgeService,
     private cryptoService: CryptoService,
   ) {}
@@ -40,8 +43,21 @@ export class FileUseCases {
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
-  ) {
-    return this.fileRepository.findAllByFolderIdDeletedCursor(
+  ): Promise<File[]> {
+    const parentFolder = await this.folderUsecases.getFolderByUserId(
+      folderId,
+      userId,
+    );
+
+    if (!parentFolder) {
+      throw new NotFoundException();
+    }
+
+    if (!(parentFolder.userId === userId)) {
+      throw new ForbiddenException();
+    }
+
+    return this.fileRepository.findAllByFolderIdCursor(
       {
         folderId,
         userId,
