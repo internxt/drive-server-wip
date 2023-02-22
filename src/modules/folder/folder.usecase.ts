@@ -252,8 +252,8 @@ export class FolderUseCases {
     return totalSize;
   }
 
-  async getFolders(
-    parentId: FolderAttributes['parentId'],
+  async getFoldersByParentId(
+    parentId: FolderAttributes['id'],
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
   ): Promise<Folder[]> {
@@ -267,11 +267,23 @@ export class FolderUseCases {
       throw new ForbiddenException();
     }
 
+    return this.getFolders(
+      userId,
+      { parentId, deleted: options.deleted },
+      options,
+    );
+  }
+
+  getFolders(
+    userId: UserAttributes['id'],
+    where: Partial<FolderAttributes>,
+    options = { limit: 20, offset: 0 },
+  ): Promise<Folder[]> {
     return this.folderRepository.findAllByParentIdCursor(
       {
-        parentId,
+        ...where,
+        // enforce userId always
         userId,
-        deleted: options.deleted,
       },
       options.limit,
       options.offset,

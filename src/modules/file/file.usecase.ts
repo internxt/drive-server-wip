@@ -39,11 +39,11 @@ export class FileUseCases {
     return this.fileRepository.findOne(fileId, userId, options);
   }
 
-  async getFiles(
+  async getFilesByFolderId(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
-  ): Promise<File[]> {
+  ) {
     const parentFolder = await this.folderUsecases.getFolderByUserId(
       folderId,
       userId,
@@ -57,11 +57,23 @@ export class FileUseCases {
       throw new ForbiddenException();
     }
 
+    return this.getFiles(
+      userId,
+      { folderId, deleted: options.deleted },
+      options,
+    );
+  }
+
+  getFiles(
+    userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
+    options = { limit: 20, offset: 0 },
+  ): Promise<File[]> {
     return this.fileRepository.findAllByFolderIdCursor(
       {
-        folderId,
+        ...where,
+        // enforce userId always
         userId,
-        deleted: options.deleted,
       },
       options.limit,
       options.offset,

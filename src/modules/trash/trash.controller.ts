@@ -90,7 +90,7 @@ export class TrashController {
       offset === undefined ||
       !type ||
       root === undefined ||
-      !folderId
+      (!root && !folderId)
     ) {
       throw new BadRequestException();
     }
@@ -107,18 +107,39 @@ export class TrashController {
 
     const deleted = root;
 
-    if (type === 'files') {
-      result = await this.fileUseCases.getFiles(folderId, user.id, {
-        deleted,
-        limit,
-        offset,
-      });
+    if (root) {
+      if (type === 'files') {
+        // Root level could have different folders
+        result = await this.fileUseCases.getFiles(
+          user.id,
+          { deleted: true },
+          { limit, offset },
+        );
+      } else {
+        result = await this.folderUseCases.getFolders(
+          user.id,
+          { deleted: true },
+          { limit, offset },
+        );
+      }
     } else {
-      result = await this.folderUseCases.getFolders(folderId, user.id, {
-        deleted,
-        limit,
-        offset,
-      });
+      if (type === 'files') {
+        result = await this.fileUseCases.getFilesByFolderId(folderId, user.id, {
+          deleted,
+          limit,
+          offset,
+        });
+      } else {
+        result = await this.folderUseCases.getFoldersByParentId(
+          folderId,
+          user.id,
+          {
+            deleted,
+            limit,
+            offset,
+          },
+        );
+      }
     }
 
     return { result };
