@@ -80,16 +80,15 @@ export class UserUseCases {
     return this.userRepository.findByUsername(email);
   }
 
-  async searchItemsByPlainName(user_id: number, plain_name: string) {
+  async searchItemsByPlainName(user_id: number, plainName: string) {
     const files = await this.fileUseCases.getByUserAndPlainName(
       user_id,
-      plain_name,
+      plainName,
       { deleted: false, page: 0, perPage: 5 },
     );
-    // TODO: Return folders together
     /*const folders = await this.folderUseCases.getByUserAndPlainName(
       user_id,
-      plain_name,
+      plainName,
       { deleted: false },
     );*/
     return files;

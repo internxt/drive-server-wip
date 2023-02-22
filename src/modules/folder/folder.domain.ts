@@ -14,7 +14,7 @@ export class Folder implements FolderAttributes {
   parent: Folder;
   type: string;
   name: string;
-  plain_name: string;
+  plainName: string;
   bucket: string;
   userId: number;
   user?: User;
@@ -31,7 +31,7 @@ export class Folder implements FolderAttributes {
     parentId,
     parent,
     name,
-    plain_name,
+    plainName,
     bucket,
     userId,
     user,
@@ -45,7 +45,7 @@ export class Folder implements FolderAttributes {
     this.id = id;
     this.parentId = parentId;
     this.name = name;
-    this.plain_name = plain_name;
+    this.plainName = plainName;
     this.setParent(parent);
     this.bucket = bucket;
     this.userId = userId;
@@ -96,7 +96,7 @@ export class Folder implements FolderAttributes {
       parent: this.parent,
       uuid: this.uuid,
       name: this.name,
-      plain_name: this.plain_name,
+      plainName: this.plainName,
       bucket: this.bucket,
       userId: this.userId,
       encryptVersion: this.encryptVersion,

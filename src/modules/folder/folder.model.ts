@@ -46,7 +46,7 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Index
   @Column
-  plain_name: string;
+  plainName: string;
 
   @Column(DataType.STRING(24))
   bucket: string;

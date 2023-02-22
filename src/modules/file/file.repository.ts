@@ -45,7 +45,7 @@ export class FileModel extends Model implements FileAttributes {
 
   @Index
   @Column
-  plain_name: string;
+  plainName: string;
 
   @Column
   type: string;

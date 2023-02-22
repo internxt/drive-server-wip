@@ -3,7 +3,7 @@ export interface FolderAttributes {
   parentId: number;
   parent?: any;
   name: string;
-  plain_name: string;
+  plainName: string;
   bucket: string;
   userId: number;
   uuid: string;
