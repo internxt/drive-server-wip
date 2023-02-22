@@ -53,6 +53,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
+  async findAllByParentIdCursor(
+    where: Partial<FolderAttributes>,
+    limit: number,
+    offset: number,
+  ): Promise<Folder[]> {
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where,
+      order: [['id', 'ASC']],
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
   async findByUuid(
     uuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'] = false,
