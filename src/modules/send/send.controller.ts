@@ -8,7 +8,7 @@ import {
   HttpStatus,
   Headers,
   BadRequestException,
-  UseGuards
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -50,7 +50,7 @@ export class SendController {
       plainCode,
       plainPassword,
     } = content;
-      
+
     if (receivers && receivers.length > 5) {
       throw new BadRequestException();
     }

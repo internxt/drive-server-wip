@@ -57,6 +57,10 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   encryptVersion: '03-aes';
 
+  @Index
+  @Column
+  plainName: string;
+
   @Default(false)
   @Column
   deleted: boolean;

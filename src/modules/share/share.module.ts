@@ -6,9 +6,7 @@ import { FileModule } from '../file/file.module';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
 import { FolderModel } from '../folder/folder.model';
-import {
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { UserModule } from '../user/user.module';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserModel } from '../user/user.model';

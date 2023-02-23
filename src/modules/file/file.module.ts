@@ -8,11 +8,13 @@ import { ShareModule } from '../share/share.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { FileController } from './file.controller';
+import { FolderModule } from '../folder/folder.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([FileModel, ShareModel]),
     forwardRef(() => ShareModule),
+    forwardRef(() => FolderModule),
     BridgeModule,
     CryptoModule,
   ],

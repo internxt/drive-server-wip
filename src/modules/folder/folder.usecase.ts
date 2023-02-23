@@ -28,6 +28,18 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
   ) {}
 
+  async getFolderByUserId(
+    folderId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+  ) {
+    const folder = await this.folderRepository.findOne({
+      userId,
+      id: folderId,
+    });
+
+    return folder;
+  }
+
   async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
@@ -240,6 +252,46 @@ export class FolderUseCases {
     return totalSize;
   }
 
+  async getFoldersByParentId(
+    parentId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+    options = { deleted: false, limit: 20, offset: 0 },
+  ): Promise<Folder[]> {
+    const parentFolder = await this.getFolderByUserId(parentId, userId);
+
+    if (!parentFolder) {
+      throw new NotFoundException();
+    }
+
+    if (!(parentFolder.userId === userId)) {
+      throw new ForbiddenException();
+    }
+
+    return this.getFolders(
+      userId,
+      { parentId, deleted: options.deleted },
+      options,
+    );
+  }
+
+  async getFolders(
+    userId: UserAttributes['id'],
+    where: Partial<FolderAttributes>,
+    options = { limit: 20, offset: 0 },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName = await this.folderRepository.findAllByParentIdCursor(
+      {
+        ...where,
+        // enforce userId always
+        userId,
+      },
+      options.limit,
+      options.offset,
+    );
+
+    return foldersWithMaybePlainName.map((folder) => folder.plainName ? folder : this.decryptFolderName(folder));
+  }
+
   async getFoldersByParent(folderId: number, page, perPage) {
     return this.folderRepository.findAllByParentId(
       folderId,
@@ -312,6 +364,6 @@ export class FolderUseCases {
       throw new Error('Unable to decrypt folder name');
     }
 
-    return Folder.build({ ...folder, name: decryptedName }).toJSON();
+    return Folder.build({ ...folder, name: decryptedName, plainName: decryptedName }).toJSON();
   }
 }

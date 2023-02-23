@@ -27,4 +27,3 @@ export interface UserAttributes {
   tempKey: string;
   avatar: string;
 }
-  

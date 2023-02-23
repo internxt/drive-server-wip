@@ -19,6 +19,7 @@ export interface FileAttributes {
   userId: number;
   user?: any;
   modificationTime: Date;
+  plainName: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +49,8 @@ export class File implements FileAttributes {
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
+  plainName: string;
+
   private constructor({
     id,
     fileId,
@@ -66,7 +69,8 @@ export class File implements FileAttributes {
     modificationTime,
     createdAt,
     updatedAt,
-    uuid
+    uuid,
+    plainName,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -86,6 +90,7 @@ export class File implements FileAttributes {
     this.updatedAt = updatedAt;
     this.folderUuid = folderUuid;
     this.uuid = uuid;
+    this.plainName = plainName;
   }
 
   static build(file: FileAttributes): File {
@@ -132,6 +137,7 @@ export class File implements FileAttributes {
       modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      plainName: this.plainName,
     };
   }
 }
