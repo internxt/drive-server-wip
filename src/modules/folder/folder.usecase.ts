@@ -274,12 +274,12 @@ export class FolderUseCases {
     );
   }
 
-  getFolders(
+  async getFolders(
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,
     options = { limit: 20, offset: 0 },
   ): Promise<Folder[]> {
-    return this.folderRepository.findAllByParentIdCursor(
+    const foldersWithMaybePlainName = await this.folderRepository.findAllByParentIdCursor(
       {
         ...where,
         // enforce userId always
@@ -288,6 +288,8 @@ export class FolderUseCases {
       options.limit,
       options.offset,
     );
+
+    return foldersWithMaybePlainName.map((folder) => folder.plainName ? folder : this.decryptFolderName(folder));
   }
 
   async getFoldersByParent(folderId: number, page, perPage) {
@@ -362,6 +364,6 @@ export class FolderUseCases {
       throw new Error('Unable to decrypt folder name');
     }
 
-    return Folder.build({ ...folder, name: decryptedName }).toJSON();
+    return Folder.build({ ...folder, name: decryptedName, plainName: decryptedName }).toJSON();
   }
 }
