@@ -4,17 +4,22 @@ import {
   Delete,
   Get,
   NotImplementedException,
+  Param,
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
+import { FileUseCases } from '../file/file.usecase';
 
 @ApiTags('Folder')
 @Controller('folders')
 export class FolderController {
-  constructor(private readonly folderUseCases: FolderUseCases) {}
+  constructor(
+    private readonly folderUseCases: FolderUseCases,
+    private readonly fileUseCases: FileUseCases,
+  ) {}
 
   @Get('/count')
   async getFolderCount(
@@ -59,5 +64,77 @@ export class FolderController {
     } else {
       throw new BadRequestException();
     }
+  }
+
+  @Get(':id/files')
+  async getFolderFiles(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Param('id') folderId: number,
+  ) {
+    if (folderId === 0 || Number.isNaN(folderId)) {
+      throw new BadRequestException('Folder id should be a number higher than 0');
+    }
+
+    if (Number.isNaN(limit) || Number.isNaN(offset)) {
+      throw new BadRequestException('Limit and offset should be numbers');
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestException('Limit should be between 1 and 50');
+    }
+
+    if (offset < 0) {
+      throw new BadRequestException('Offset should be higher than 0');
+    }
+
+    const files = await this.fileUseCases.getFilesByFolderId(
+      folderId,
+      user.id,
+      {
+        limit,
+        offset,
+        deleted: false,
+      }
+    );
+
+    return { result: files };
+  }
+
+  @Get(':id/folders')
+  async getFolderFolders(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Param('id') folderId: number,
+  ) {
+    if (folderId === 0 || Number.isNaN(folderId)) {
+      throw new BadRequestException('Folder id should be a number higher than 0');
+    }
+
+    if (Number.isNaN(limit) || Number.isNaN(offset)) {
+      throw new BadRequestException('Limit and offset should be numbers');
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestException('Limit should be between 1 and 50');
+    }
+
+    if (offset < 0) {
+      throw new BadRequestException('Offset should be higher than 0');
+    }
+  
+    const folders = await this.folderUseCases.getFoldersByParentId(
+      folderId,
+      user.id,
+      {
+        limit,
+        offset,
+        deleted: false,
+      }
+    );
+
+    return { result: folders };
   }
 }
