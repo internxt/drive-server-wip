@@ -64,12 +64,12 @@ export class FileUseCases {
     );
   }
 
-  getFiles(
+  async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     options = { limit: 20, offset: 0 },
   ): Promise<File[]> {
-    return this.fileRepository.findAllByFolderIdCursor(
+    const filesWithMaybePlainName = await this.fileRepository.findAllByFolderIdCursor(
       {
         ...where,
         // enforce userId always
@@ -78,6 +78,8 @@ export class FileUseCases {
       options.limit,
       options.offset,
     );
+
+    return filesWithMaybePlainName.map((file) => file.plainName ? file : this.decrypFileName(file));
   }
 
   async getByFolderAndUser(
@@ -178,10 +180,10 @@ export class FileUseCases {
     );
 
     if (decryptedName === '') {
-      throw new Error('Unable to decrypt file name');
+      return File.build(file).toJSON();
     }
 
-    return File.build({ ...file, name: decryptedName }).toJSON();
+    return File.build({ ...file, name: decryptedName, plainName: decryptedName }).toJSON();
   }
 
   /**
