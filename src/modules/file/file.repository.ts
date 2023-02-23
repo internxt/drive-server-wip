@@ -89,6 +89,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column
   updatedAt: Date;
+
+  @Index
+  @Column
+  plainName: string;
 }
 
 export interface FileRepository {
@@ -134,6 +138,21 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findAllByFolderIdCursor(
+    where: Partial<FileAttributes>,
+    limit: number,
+    offset: number,
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      order: [['id', 'ASC']],
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findByIdNotDeleted(id: number): Promise<File> {

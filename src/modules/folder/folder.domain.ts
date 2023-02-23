@@ -16,6 +16,7 @@ export class Folder implements FolderAttributes {
   userId: number;
   user?: User;
   uuid: string;
+  plainName: string;
   encryptVersion: FolderAttributes['encryptVersion'];
   deleted: boolean;
   deletedAt: Date;
@@ -31,6 +32,7 @@ export class Folder implements FolderAttributes {
     bucket,
     userId,
     user,
+    plainName,
     encryptVersion,
     deleted,
     deletedAt,
@@ -51,6 +53,7 @@ export class Folder implements FolderAttributes {
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.uuid = uuid;
+    this.plainName = plainName;
     this.size = 0;
   }
 
@@ -94,6 +97,7 @@ export class Folder implements FolderAttributes {
       bucket: this.bucket,
       userId: this.userId,
       encryptVersion: this.encryptVersion,
+      plainName: this.plainName,
       size: this.size,
       deleted: this.deleted,
       deletedAt: this.deletedAt,
