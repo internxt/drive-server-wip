@@ -14,11 +14,11 @@ export class Folder implements FolderAttributes {
   parent: Folder;
   type: string;
   name: string;
-  plainName: string;
   bucket: string;
   userId: number;
   user?: User;
   uuid: string;
+  plainName: string;
   encryptVersion: FolderAttributes['encryptVersion'];
   deleted: boolean;
   deletedAt: Date;
@@ -31,10 +31,10 @@ export class Folder implements FolderAttributes {
     parentId,
     parent,
     name,
-    plainName,
     bucket,
     userId,
     user,
+    plainName,
     encryptVersion,
     deleted,
     deletedAt,
@@ -45,7 +45,6 @@ export class Folder implements FolderAttributes {
     this.id = id;
     this.parentId = parentId;
     this.name = name;
-    this.plainName = plainName;
     this.setParent(parent);
     this.bucket = bucket;
     this.userId = userId;
@@ -56,6 +55,7 @@ export class Folder implements FolderAttributes {
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.uuid = uuid;
+    this.plainName = plainName;
     this.size = 0;
   }
 
@@ -96,10 +96,10 @@ export class Folder implements FolderAttributes {
       parent: this.parent,
       uuid: this.uuid,
       name: this.name,
-      plainName: this.plainName,
       bucket: this.bucket,
       userId: this.userId,
       encryptVersion: this.encryptVersion,
+      plainName: this.plainName,
       size: this.size,
       deleted: this.deleted,
       deletedAt: this.deletedAt,

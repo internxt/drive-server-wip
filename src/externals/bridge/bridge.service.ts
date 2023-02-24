@@ -9,14 +9,10 @@ import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
 
 export function signToken(duration: string, secret: string) {
-  return sign(
-    {}, 
-    Buffer.from(secret, 'base64').toString('utf8'), 
-    {
-      algorithm: 'RS256',
-      expiresIn: duration
-    }
-  );
+  return sign({}, Buffer.from(secret, 'base64').toString('utf8'), {
+    algorithm: 'RS256',
+    expiresIn: duration,
+  });
 }
 
 @Injectable()
@@ -89,11 +85,11 @@ export class BridgeService {
     const response = await this.httpClient.post(
       `${this.networkUrl}/v2/gateway/users`,
       { email: networkUserId, password: networkPassword },
-      { 
-        headers: { 
+      {
+        headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwt}`,
-        }, 
+        },
       },
     );
 

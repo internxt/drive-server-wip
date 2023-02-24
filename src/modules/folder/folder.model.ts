@@ -44,10 +44,6 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   name: string;
 
-  @Index
-  @Column
-  plainName: string;
-
   @Column(DataType.STRING(24))
   bucket: string;
 
@@ -60,6 +56,10 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   encryptVersion: '03-aes';
+
+  @Index
+  @Column
+  plainName: string;
 
   @Default(false)
   @Column

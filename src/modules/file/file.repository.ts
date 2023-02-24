@@ -43,10 +43,6 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   name: string;
 
-  @Index
-  @Column
-  plainName: string;
-
   @Column
   type: string;
 
@@ -93,6 +89,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column
   updatedAt: Date;
+
+  @Index
+  @Column
+  plainName: string;
 }
 
 export interface FileRepository {
@@ -131,6 +131,21 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
   ) {}
+
+  async findAllByFolderIdCursor(
+    where: Partial<FileAttributes>,
+    limit: number,
+    offset: number,
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      order: [['id', 'ASC']],
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
 
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({

@@ -6,6 +6,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -17,6 +18,7 @@ import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { File, FileAttributes, FileOptions } from './file.domain';
 import { FileModel, SequelizeFileRepository } from './file.repository';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 @Injectable()
 export class FileUseCases {
@@ -24,6 +26,7 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    private folderUsecases: FolderUseCases,
     private bridgeService: BridgeService,
     private cryptoService: CryptoService,
   ) {}
@@ -34,6 +37,52 @@ export class FileUseCases {
     options: FileOptions = { deleted: false },
   ): Promise<File> {
     return this.fileRepository.findOne(fileId, userId, options);
+  }
+
+  async getFilesByFolderId(
+    folderId: FolderAttributes['id'],
+    userId: UserAttributes['id'],
+    options = { deleted: false, limit: 20, offset: 0 },
+  ) {
+    const parentFolder = await this.folderUsecases.getFolderByUserId(
+      folderId,
+      userId,
+    );
+
+    if (!parentFolder) {
+      throw new NotFoundException();
+    }
+
+    if (!(parentFolder.userId === userId)) {
+      throw new ForbiddenException();
+    }
+
+    return this.getFiles(
+      userId,
+      { folderId, deleted: options.deleted },
+      options,
+    );
+  }
+
+  async getFiles(
+    userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
+    options = { limit: 20, offset: 0 },
+  ): Promise<File[]> {
+    const filesWithMaybePlainName =
+      await this.fileRepository.findAllByFolderIdCursor(
+        {
+          ...where,
+          // enforce userId always
+          userId,
+        },
+        options.limit,
+        options.offset,
+      );
+
+    return filesWithMaybePlainName.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
   }
 
   async getByFolderAndUser(
@@ -146,10 +195,14 @@ export class FileUseCases {
     );
 
     if (decryptedName === '') {
-      throw new Error('Unable to decrypt file name');
+      return File.build(file).toJSON();
     }
 
-    return File.build({ ...file, name: decryptedName }).toJSON();
+    return File.build({
+      ...file,
+      name: decryptedName,
+      plainName: decryptedName,
+    }).toJSON();
   }
 
   /**

@@ -3,11 +3,11 @@ export interface FolderAttributes {
   parentId: number;
   parent?: any;
   name: string;
-  plainName: string;
   bucket: string;
   userId: number;
   uuid: string;
   user?: any;
+  plainName: string;
   encryptVersion: '03-aes';
   deleted: boolean;
   deletedAt: Date;

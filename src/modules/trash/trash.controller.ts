@@ -8,6 +8,7 @@ import {
   Post,
   Delete,
   Param,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -68,6 +69,80 @@ export class TrashController {
       ),
       files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
     };
+  }
+
+  @Get('/paginated')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Gets trash content',
+  })
+  @ApiOkResponse({ description: 'Files on trash for a given folder' })
+  async getTrashedFilesPaginated(
+    @UserDecorator() user: User,
+    @Query('folderId') folderId: number,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Query('type') type: 'files' | 'folders',
+    @Query('root') root: boolean,
+  ) {
+    if (
+      !limit ||
+      offset === undefined ||
+      !type ||
+      root === undefined ||
+      (!root && !folderId)
+    ) {
+      throw new BadRequestException();
+    }
+
+    if (type !== 'files' && type !== 'folders') {
+      throw new BadRequestException();
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestException('Limit should be between 1 and 50');
+    }
+
+    let result: File[] | Folder[];
+
+    const deleted = root;
+
+    if (root) {
+      if (type === 'files') {
+        // Root level could have different folders
+        result = await this.fileUseCases.getFiles(
+          user.id,
+          { deleted: true },
+          { limit, offset },
+        );
+      } else {
+        result = await this.folderUseCases.getFolders(
+          user.id,
+          { deleted: true },
+          { limit, offset },
+        );
+      }
+    } else {
+      if (type === 'files') {
+        result = await this.fileUseCases.getFilesByFolderId(folderId, user.id, {
+          deleted,
+          limit,
+          offset,
+        });
+      } else {
+        result = await this.folderUseCases.getFoldersByParentId(
+          folderId,
+          user.id,
+          {
+            deleted,
+            limit,
+            offset,
+          },
+        );
+      }
+    }
+
+    return { result };
   }
 
   @Post('add')

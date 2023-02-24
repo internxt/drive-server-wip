@@ -4,7 +4,6 @@ export class FileDto {
   id: number;
   fileId: string;
   name: string;
-  plainName: string;
   type: string;
   size: bigint;
   bucket: string;
@@ -15,6 +14,7 @@ export class FileDto {
   deleted: boolean;
   deletedAt: Date;
   userId: number;
+  plainName: string;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;

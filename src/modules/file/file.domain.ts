@@ -7,7 +7,6 @@ export interface FileAttributes {
   uuid: string;
   fileId: string;
   name: string;
-  plainName: string;
   type: string;
   size: bigint;
   bucket: string;
@@ -20,6 +19,7 @@ export interface FileAttributes {
   userId: number;
   user?: any;
   modificationTime: Date;
+  plainName: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,7 +35,6 @@ export class File implements FileAttributes {
   uuid: string;
   fileId: string;
   name: string;
-  plainName: string;
   type: string;
   size: bigint;
   bucket: string;
@@ -50,11 +49,12 @@ export class File implements FileAttributes {
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
+  plainName: string;
+
   private constructor({
     id,
     fileId,
     name,
-    plainName,
     type,
     size,
     bucket,
@@ -70,13 +70,13 @@ export class File implements FileAttributes {
     createdAt,
     updatedAt,
     uuid,
+    plainName,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
     this.folderId = folderId;
     this.setFolder(folder);
     this.name = name;
-    this.plainName = plainName;
     this.type = type;
     this.size = size;
     this.bucket = bucket;
@@ -90,6 +90,7 @@ export class File implements FileAttributes {
     this.updatedAt = updatedAt;
     this.folderUuid = folderUuid;
     this.uuid = uuid;
+    this.plainName = plainName;
   }
 
   static build(file: FileAttributes): File {
@@ -123,7 +124,6 @@ export class File implements FileAttributes {
       id: this.id,
       fileId: this.fileId,
       name: this.name,
-      plainName: this.plainName,
       type: this.type,
       size: this.size,
       bucket: this.bucket,
@@ -137,6 +137,7 @@ export class File implements FileAttributes {
       modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      plainName: this.plainName,
     };
   }
 }

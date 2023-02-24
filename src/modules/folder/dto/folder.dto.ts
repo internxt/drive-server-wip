@@ -2,11 +2,11 @@ export class FolderDto {
   id: number;
   parent?: FolderDto;
   name: string;
-  plainName: string;
   bucket: string;
   uuid: string;
   userId: number;
   encryptVersion: '03-aes';
+  plainName: string;
   size: number;
   deleted: boolean;
   deletedAt: Date;
