@@ -9,6 +9,7 @@ import {
   Delete,
   Param,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -34,6 +35,7 @@ import { Folder } from '../folder/folder.domain';
 import { File } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -147,6 +149,7 @@ export class TrashController {
     return { result };
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('add')
   @HttpCode(200)
   @ApiOperation({
