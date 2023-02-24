@@ -32,6 +32,8 @@ import {
 } from './dto/controllers/delete-item.dto';
 import { Folder } from '../folder/folder.domain';
 import { File } from '../file/file.domain';
+import logger from '../../../src/externals/logger';
+import { v4 } from 'uuid';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -157,6 +159,15 @@ export class TrashController {
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
+    if (moveItemsDto.items.length === 0) {
+      logger('error', {
+        user: user.uuid,
+        id: v4(),
+        message: 'Trying to add 0 items to the trash',
+      });
+      return;
+    }
+
     const fileIds: string[] = [];
     const folderIds: number[] = [];
     for (const item of moveItemsDto.items) {
