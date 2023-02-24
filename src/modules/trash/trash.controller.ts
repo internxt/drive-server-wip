@@ -32,7 +32,7 @@ import {
 } from './dto/controllers/delete-item.dto';
 import { Folder } from '../folder/folder.domain';
 import { File } from '../file/file.domain';
-import logger from '../../../src/externals/logger';
+import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 
 @ApiTags('Trash')
