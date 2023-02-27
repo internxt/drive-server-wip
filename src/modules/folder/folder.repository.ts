@@ -27,6 +27,12 @@ export interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findInTree(
+    folderTreeRootId: FolderAttributes['parentId'],
+    folderId: FolderAttributes['id'],
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder | null>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -241,6 +247,36 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return count;
+  }
+
+  async findInTree(
+    folderTreeRootId: number,
+    folderId: number,
+    userId: number,
+    deleted: boolean,
+  ): Promise<Folder | null> {
+    const res = await this.folderModel.sequelize.query(`
+      WITH RECURSIVE rec AS (
+        SELECT parent_id, id, plain_name
+        FROM folders
+        WHERE
+            id = ${folderTreeRootId}
+          AND
+            deleted = ${deleted}
+          AND
+            user_id = ${userId}            
+        UNION
+        SELECT fo.parent_id, fo.id, fo.plain_name
+        FROM folders fo
+        INNER JOIN rec r ON r.id = fo.parent_id
+        WHERE
+            fo.user_id = ${userId} 
+          AND 
+            fo.deleted = ${deleted}
+      ) SELECT * FROM rec WHERE id = ${folderId}
+    `);
+
+    return null;
   }
 
   private toDomain(model: FolderModel): Folder {
