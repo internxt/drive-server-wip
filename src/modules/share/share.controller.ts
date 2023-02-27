@@ -294,13 +294,19 @@ export class ShareController {
       password,
     );
 
-    const folder = await this.folderUseCases.getFolder(folderId);
+    const isSharedRootFolderRequested = share.folderId === folderId;
 
-    const isParentIdCorrect = Number(parentId) === Number(folder.parentId);
-    const isParentIdRootFolder = Number(parentId) === Number(share.folderId);
+    if (!isSharedRootFolderRequested) {
+      const isFilesFolderBehindSharedFolder =
+        await this.folderUseCases.isFolderInsideFolder(
+          share.folderId,
+          folderId,
+          share.userId,
+        );
 
-    if (!isParentIdCorrect && !isParentIdRootFolder) {
-      throw new NotFoundException(`share folderId error`);
+      if (!isFilesFolderBehindSharedFolder) {
+        throw new ForbiddenException();
+      }
     }
 
     const network = await this.userUseCases.getNetworkByUserId(
@@ -356,13 +362,19 @@ export class ShareController {
       password,
     );
 
-    const folder = await this.folderUseCases.getFolder(folderId);
+    const isSharedRootFolderRequested = share.folderId === folderId;
 
-    const isParentIdCorrect = Number(parentId) === Number(folder.parentId);
-    const isParentIdRootFolder = Number(parentId) === Number(share.folderId);
+    if (!isSharedRootFolderRequested) {
+      const isFoldersParentBehindSharedFolder =
+        await this.folderUseCases.isFolderInsideFolder(
+          share.folderId,
+          folderId,
+          share.userId,
+        );
 
-    if (!isParentIdCorrect && !isParentIdRootFolder) {
-      throw new NotFoundException(`share folderId error`);
+      if (!isFoldersParentBehindSharedFolder) {
+        throw new ForbiddenException();
+      }
     }
 
     const folders = await this.folderUseCases.getFoldersByParent(
