@@ -286,7 +286,7 @@ export class ShareController {
     @Query() query: GetDownFilesDto,
     @Headers('x-share-password') password: string | null,
   ) {
-    const { token, folderId, code, page, perPage, parentId } = query;
+    const { token, folderId, code, page, perPage } = query;
 
     const share = await this.shareUseCases.getShareByToken(
       token,
@@ -354,7 +354,7 @@ export class ShareController {
     @Query() query: GetDownFilesDto,
     @Headers('x-share-password') password: string | null,
   ) {
-    const { token, folderId, page, perPage, parentId } = query;
+    const { token, folderId, page, perPage } = query;
     user = await this.getUserWhenPublic(user);
     const share = await this.shareUseCases.getShareByToken(
       token,
