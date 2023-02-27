@@ -123,5 +123,5 @@ export class UserModel extends Model implements UserAttributes {
   @AllowNull
   @Default(new Date())
   @Column
-  lastPasswordChangeAt: Date;
+  lastPasswordChangedAt: Date;
 }
