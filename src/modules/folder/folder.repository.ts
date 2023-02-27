@@ -32,7 +32,7 @@ export interface FolderRepository {
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
-  ): Promise<Folder | null>;
+  ): Promise<Pick<Folder, 'parentId' | 'id' | 'plainName'> | null>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -254,8 +254,8 @@ export class SequelizeFolderRepository implements FolderRepository {
     folderId: number,
     userId: number,
     deleted: boolean,
-  ): Promise<Folder | null> {
-    const res = await this.folderModel.sequelize.query(`
+  ): Promise<Pick<Folder, 'parentId' | 'id' | 'plainName'> | null> {
+    const [[folder]] = await this.folderModel.sequelize.query(`
       WITH RECURSIVE rec AS (
         SELECT parent_id, id, plain_name
         FROM folders
@@ -273,10 +273,10 @@ export class SequelizeFolderRepository implements FolderRepository {
             fo.user_id = ${userId} 
           AND 
             fo.deleted = ${deleted}
-      ) SELECT * FROM rec WHERE id = ${folderId}
+      ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = ${folderId}
     `);
 
-    return null;
+    return folder as Pick<Folder, 'parentId' | 'id' | 'plainName'>;
   }
 
   private toDomain(model: FolderModel): Folder {
