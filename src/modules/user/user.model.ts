@@ -119,4 +119,9 @@ export class UserModel extends Model implements UserAttributes {
   @AllowNull
   @Column
   avatar: string;
+
+  @AllowNull
+  @Default(new Date())
+  @Column
+  lastPasswordChangeAt: Date;
 }
