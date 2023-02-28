@@ -401,4 +401,8 @@ export class FolderUseCases {
       plainName: decryptedName,
     }).toJSON();
   }
+
+  async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderRepository.deleteByUser(user, folders);
+  }
 }
