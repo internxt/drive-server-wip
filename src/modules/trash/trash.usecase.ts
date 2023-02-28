@@ -57,37 +57,31 @@ export class TrashUseCases {
     await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
 
-  public async deleteItems(
-    filesId: Array<FileAttributes['fileId']>,
-    foldersId: Array<FileAttributes['id']>,
+  /**
+   * Deletes items from the trash (permanently)
+   * @param user User whose items are going to be deleted
+   * @param filesIds Ids of the files to be deleted
+   * @param foldersIds Ids of the folders to be deleted
+   */
+  async deleteItems(
     user: User,
+    files: File[],
+    folders: Folder[],
   ): Promise<void> {
-    const files: Array<File> = [];
-    const folders: Array<Folder> = [];
+    const itemsDeletionChunkSize = 10;
 
-    for (const fileId of filesId) {
-      const file = await this.fileUseCases.getByFileIdAndUser(
-        Number(fileId),
-        user.id,
-        { deleted: true },
+    for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
+      await this.fileUseCases.deleteByUser(
+        user,
+        files.slice(i, i + itemsDeletionChunkSize),
       );
-      if (file === null) {
-        throw new NotFoundException(`file with id ${fileId} not found`);
-      }
-
-      files.push(file);
     }
 
-    for (const folderId of foldersId) {
-      const folder = await this.folderUseCases.getFolder(folderId, {
-        deleted: true,
-      });
-      folders.push(folder);
+    for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
+      await this.folderUseCases.deleteByUser(
+        user,
+        folders.slice(i, i + itemsDeletionChunkSize),
+      );
     }
-
-    const filesDeletion = this.deleteFiles(files, user);
-    const foldersDeletion = this.deleteFolders(folders, user);
-
-    await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
 }
