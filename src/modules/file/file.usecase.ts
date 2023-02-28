@@ -69,17 +69,20 @@ export class FileUseCases {
     where: Partial<FileAttributes>,
     options = { limit: 20, offset: 0 },
   ): Promise<File[]> {
-    const filesWithMaybePlainName = await this.fileRepository.findAllByFolderIdCursor(
-      {
-        ...where,
-        // enforce userId always
-        userId,
-      },
-      options.limit,
-      options.offset,
-    );
+    const filesWithMaybePlainName =
+      await this.fileRepository.findAllByFolderIdCursor(
+        {
+          ...where,
+          // enforce userId always
+          userId,
+        },
+        options.limit,
+        options.offset,
+      );
 
-    return filesWithMaybePlainName.map((file) => file.plainName ? file : this.decrypFileName(file));
+    return filesWithMaybePlainName.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
   }
 
   async getByFolderAndUser(
@@ -151,6 +154,23 @@ export class FileUseCases {
     return this.fileRepository.getTotalSizeByFolderId(folderId);
   }
 
+  /**
+   * Deletes files of a given user
+   * @param user User whose files are going to be deleted
+   * @param files Files to be deleted
+   */
+  async deleteByUser(user: User, files: File[]): Promise<void> {
+    // Delete files from the network.
+    for (const file of files) {
+      if (file.userId === user.id) {
+        await this.bridgeService.deleteFile(user, file.bucket, file.fileId);
+      }
+    }
+
+    // Delete files from drive.
+    await this.fileRepository.deleteFilesByUser(user, files);
+  }
+
   async deleteFilePermanently(file: File, user: User): Promise<void> {
     if (file.userId !== user.id) {
       Logger.error(
@@ -183,7 +203,11 @@ export class FileUseCases {
       return File.build(file).toJSON();
     }
 
-    return File.build({ ...file, name: decryptedName, plainName: decryptedName }).toJSON();
+    return File.build({
+      ...file,
+      name: decryptedName,
+      plainName: decryptedName,
+    }).toJSON();
   }
 
   /**
