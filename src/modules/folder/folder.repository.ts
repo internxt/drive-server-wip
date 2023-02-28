@@ -279,6 +279,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folder as Pick<Folder, 'parentId' | 'id' | 'plainName'>;
   }
 
+  async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderModel.destroy({
+      where: {
+        userId: user.id,
+        id: {
+          [Op.in]: folders.map(({ id }) => id),
+        },
+      },
+    });
+  }
+
   private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),
