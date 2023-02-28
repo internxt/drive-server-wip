@@ -304,6 +304,17 @@ export class SequelizeFileRepository implements FileRepository {
     return count;
   }
 
+  async deleteFilesByUser(user: User, files: File[]): Promise<void> {
+    await this.fileModel.destroy({
+      where: {
+        userId: user.id,
+        id: {
+          [Op.in]: files.map(({ id }) => id),
+        },
+      },
+    });
+  }
+
   private toDomain(model: FileModel): File {
     const file = File.build({
       ...model.toJSON(),
