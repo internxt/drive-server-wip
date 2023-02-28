@@ -10,6 +10,7 @@ import {
   Param,
   Query,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -219,6 +220,12 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
+    if (deleteItemsDto.items.length > 50) {
+      throw new BadRequestException(
+        'Items to remove from the trash are limited to 50',
+      );
+    }
+
     const filesId = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FILE)
       .map((item) => item.id);
@@ -227,13 +234,11 @@ export class TrashController {
       .filter((item) => item.type === DeleteItemType.FOLDER)
       .map((item) => parseInt(item.id));
 
-    await this.trashUseCases
-      .deleteItems(filesId, foldersId, user)
-      .catch((err) => {
-        if (err instanceof HttpException) {
-          throw err;
-        }
-      });
+    await this.trashUseCases.deleteItems(
+      user,
+      filesId.map((id) => ({ id } as unknown as File)),
+      foldersId.map((id) => ({ id } as unknown as Folder)),
+    );
   }
 
   @Delete('/file/:fileId')
@@ -245,7 +250,13 @@ export class TrashController {
     @Param('fileId') fileId: string,
     @UserDecorator() user: User,
   ) {
-    await this.trashUseCases.deleteItems([fileId], [], user);
+    const files = await this.fileUseCases.getFiles(user.id, { fileId });
+
+    if (files.length === 0) {
+      throw new NotFoundException();
+    }
+
+    await this.trashUseCases.deleteItems(user, [files[0]], []);
   }
 
   @Delete('/folder/:folderId')
@@ -257,6 +268,14 @@ export class TrashController {
     @Param('folderId') folderId: number,
     @UserDecorator() user: User,
   ) {
-    await this.trashUseCases.deleteItems([], [folderId], user);
+    const folders = await this.folderUseCases.getFolders(user.id, {
+      id: folderId,
+    });
+
+    if (folders.length === 0) {
+      throw new NotFoundException();
+    }
+
+    await this.trashUseCases.deleteItems(user, [], [folders[0]]);
   }
 }
