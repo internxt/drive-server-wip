@@ -171,6 +171,17 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
+  async findByIds(
+    userId: FileAttributes['userId'],
+    ids: FileAttributes['id'][],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: { id: { [Op.in]: ids }, userId },
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
@@ -302,6 +313,17 @@ export class SequelizeFileRepository implements FileRepository {
     const { count } = await this.fileModel.findAndCountAll({ where });
 
     return count;
+  }
+
+  async deleteFilesByUser(user: User, files: File[]): Promise<void> {
+    await this.fileModel.destroy({
+      where: {
+        userId: user.id,
+        id: {
+          [Op.in]: files.map(({ id }) => id),
+        },
+      },
+    });
   }
 
   private toDomain(model: FileModel): File {

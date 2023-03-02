@@ -28,6 +28,10 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
   ) {}
 
+  getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
+    return this.folderRepository.findByIds(user, folderIds);
+  }
+
   async getFolderByUserId(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
@@ -400,5 +404,9 @@ export class FolderUseCases {
       name: decryptedName,
       plainName: decryptedName,
     }).toJSON();
+  }
+
+  async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderRepository.deleteByUser(user, folders);
   }
 }

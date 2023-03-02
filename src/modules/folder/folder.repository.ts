@@ -59,6 +59,13 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
+  async findByIds(user: User, ids: FolderAttributes['id'][]) {
+    const folders = await this.folderModel.findAll({
+      where: { id: { [Op.in]: ids }, userId: user.id },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
   async findAllByParentIdCursor(
     where: Partial<FolderAttributes>,
     limit: number,
@@ -277,6 +284,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     `);
 
     return folder as Pick<Folder, 'parentId' | 'id' | 'plainName'>;
+  }
+
+  async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderModel.destroy({
+      where: {
+        userId: user.id,
+        id: {
+          [Op.in]: folders.map(({ id }) => id),
+        },
+      },
+    });
   }
 
   private toDomain(model: FolderModel): Folder {
