@@ -12,49 +12,52 @@ export class TrashUseCases {
     private folderUseCases: FolderUseCases,
   ) {}
 
-  private async deleteFiles(files: Array<File>, user: User): Promise<void> {
-    for (const file of files) {
-      await this.fileUseCases
-        .deleteFilePermanently(file, user)
-        .catch((err) => Logger.error(err.message));
-    }
+  /**
+   * Tries to find if the trash of a given user is being emptied
+   * @param trashOwner User whose trash is going to be emptied
+   * @returns True if the trash is being emptied, false otherwise
+   */
+  async checkIfTrashIsBeingEmptied(trashOwner: User): Promise<boolean> {
+    const count = await this.fileUseCases.getTrashFilesCount(trashOwner.id);
+
+    if (count === 0) return true;
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const newCount = await this.fileUseCases.getTrashFilesCount(trashOwner.id);
+
+    const trashIsStillTheSame = count === newCount;
+
+    return !trashIsStillTheSame;
   }
 
-  private async deleteFolders(
-    folders: Array<Folder>,
-    user: User,
-  ): Promise<void> {
-    if (folders.length === 0) {
-      return;
+  /**
+   * Empties the trash of a given user
+   * @param trashOwner User whose trash is going to be emptied
+   */
+  async emptyTrash(trashOwner: User): Promise<void> {
+    const count = await this.fileUseCases.getTrashFilesCount(trashOwner.id);
+    const emptyTrashChunkSize = 100;
+
+    for (let i = 0; i < count; i += emptyTrashChunkSize) {
+      const folders = await this.folderUseCases.getFolders(
+        trashOwner.id,
+        { deleted: true },
+        { limit: emptyTrashChunkSize, offset: i },
+      );
+
+      await this.folderUseCases.deleteByUser(trashOwner, folders);
     }
 
-    for (const folder of folders) {
-      await this.folderUseCases
-        .deleteFolderPermanently(folder, user)
-        .catch((err) => Logger.error(err.message));
+    for (let i = 0; i < count; i += emptyTrashChunkSize) {
+      const files = await this.fileUseCases.getFiles(
+        trashOwner.id,
+        { deleted: true },
+        { limit: emptyTrashChunkSize, offset: i },
+      );
+
+      await this.fileUseCases.deleteByUser(trashOwner, files);
     }
-
-    await this.folderUseCases.deleteOrphansFolders(user.id);
-  }
-
-  public async clearTrash(user: User) {
-    const { id: userId } = user;
-
-    const foldersToDelete = await this.folderUseCases.getFoldersToUser(userId, {
-      deleted: true,
-    });
-
-    const foldersIdToDelete = foldersToDelete.map(
-      (folder: Folder) => folder.id,
-    );
-
-    const filesDeletion = this.fileUseCases
-      .getByUserExceptParents(userId, foldersIdToDelete, { deleted: true })
-      .then((files: Array<File>) => this.deleteFiles(files, user));
-
-    const foldersDeletion = this.deleteFolders(foldersToDelete, user);
-
-    await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
 
   /**
