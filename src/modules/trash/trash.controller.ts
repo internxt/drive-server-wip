@@ -241,19 +241,24 @@ export class TrashController {
     //   );
     // }
 
-    const filesId = deleteItemsDto.items
+    const filesIds = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FILE)
-      .map((item) => item.id);
+      .map((item) => parseInt(item.id));
 
-    const foldersId = deleteItemsDto.items
+    const foldersIds = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FOLDER)
       .map((item) => parseInt(item.id));
 
-    await this.trashUseCases.deleteItems(
-      user,
-      filesId.map((id) => ({ id } as unknown as File)),
-      foldersId.map((id) => ({ id } as unknown as Folder)),
-    );
+    const files =
+      filesIds.length > 0
+        ? await this.fileUseCases.getFilesByIds(user, filesIds)
+        : [];
+    const folders =
+      foldersIds.length > 0
+        ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
+        : [];
+
+    await this.trashUseCases.deleteItems(user, files, folders);
   }
 
   @Delete('/file/:fileId')
