@@ -234,11 +234,12 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    if (deleteItemsDto.items.length > 50) {
-      throw new BadRequestException(
-        'Items to remove from the trash are limited to 50',
-      );
-    }
+    // TODO: Uncomment this once all the platforms block deleting more than 50 items
+    // if (deleteItemsDto.items.length > 50) {
+    //   throw new BadRequestException(
+    //     'Items to remove from the trash are limited to 50',
+    //   );
+    // }
 
     const filesId = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FILE)
