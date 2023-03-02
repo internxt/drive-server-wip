@@ -232,6 +232,16 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.destroy({ where: { id: shareId } });
   }
 
+  async deleteByUserAndFiles(user: User, files: File[]): Promise<void> {
+    await this.shareModel.destroy({
+      where: {
+        userId: user.id,
+        fileId: {
+          [Op.in]: files.map(({ id }) => id),
+        },
+      },
+    });
+  }
   async findAllByUsersPaginated(
     users: User[],
     page: number,
