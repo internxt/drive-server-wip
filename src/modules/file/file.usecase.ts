@@ -27,7 +27,7 @@ export class FileUseCases {
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
     private folderUsecases: FolderUseCases,
-    private bridgeService: BridgeService,
+    private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
 
@@ -155,42 +155,19 @@ export class FileUseCases {
   }
 
   /**
-   * Deletes files of a given user
+   * Deletes files of a given user. The file will be deleted in this order:
+   * - From the network
+   * - From the database
    * @param user User whose files are going to be deleted
    * @param files Files to be deleted
    */
   async deleteByUser(user: User, files: File[]): Promise<void> {
-    // Delete files from the network.
     for (const file of files) {
-      if (file.userId === user.id) {
-        await this.bridgeService.deleteFile(user, file.bucket, file.fileId);
+      if (file.isOwnedBy(user)) {
+        await this.network.deleteFile(user, file.bucket, file.fileId);
       }
     }
-
-    // Delete files from drive.
     await this.fileRepository.deleteFilesByUser(user, files);
-  }
-
-  async deleteFilePermanently(file: File, user: User): Promise<void> {
-    if (file.userId !== user.id) {
-      Logger.error(
-        `User with id: ${user.id} tried to delete a file that does not own.`,
-      );
-      throw new ForbiddenException(`You are not owner of this share`);
-    }
-
-    if (!file.deleted) {
-      Logger.error(
-        `User with id: ${user.id} tried to delete a non trashed file`,
-      );
-      throw new UnprocessableEntityException(
-        `file with id ${file.id} cannot be permanently deleted`,
-      );
-    }
-
-    await this.shareUseCases.deleteFileShare(file.id, user);
-    await this.bridgeService.deleteFile(user, file.bucket, file.fileId);
-    await this.fileRepository.deleteByFileId(file.fileId);
   }
 
   decrypFileName(file: File): any {
