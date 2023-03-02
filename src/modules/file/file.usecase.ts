@@ -64,6 +64,10 @@ export class FileUseCases {
     );
   }
 
+  getFilesByIds(user: User, fileIds: File['id'][]): Promise<File[]> {
+    return this.fileRepository.findByIds(user.id, fileIds);
+  }
+
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
