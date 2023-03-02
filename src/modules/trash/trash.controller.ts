@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  HttpException,
   Get,
   HttpCode,
   Post,
@@ -207,6 +206,9 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
+  async clearTrash(@UserDecorator() user: User) {
+    await this.trashUseCases.emptyTrash(user);
+  }
   clearTrash(@UserDecorator() user: User) {
     this.trashUseCases.clearTrash(user);
   }
