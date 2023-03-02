@@ -409,18 +409,4 @@ export class ShareUseCases {
     const decryptedName = this.cryptoService.decryptName(name, folderId);
     return String(decryptedName).trim() === '' ? null : decryptedName;
   }
-
-  // NEW USECASE REFACTOR
-
-  /**
-   * Removes shares of the given ids owned by the user.
-   * @param userId User id whose shares are going to be deleted
-   * @param fileIds File ids of the shares to delete
-   */
-  async deleteSharesByFiles(user: User, files: File[]): Promise<void> {
-    await this.shareRepository.bulkDeleteByUserAndFileIds(
-      user.id,
-      files.map(({ id }) => id),
-    );
-  }
 }
