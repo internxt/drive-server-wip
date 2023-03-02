@@ -209,8 +209,20 @@ export class TrashController {
   async clearTrash(@UserDecorator() user: User) {
     await this.trashUseCases.emptyTrash(user);
   }
-  clearTrash(@UserDecorator() user: User) {
-    this.trashUseCases.clearTrash(user);
+
+  @Delete('/all/request')
+  requestEmptyTrash(user: User) {
+    this.trashUseCases.emptyTrash(user);
+  }
+
+  @Get('/all/check')
+  @HttpCode(200)
+  async checkIfTrashIsBeingEmptied(user: User) {
+    const isBeingEmptied = await this.trashUseCases.checkIfTrashIsBeingEmptied(
+      user,
+    );
+
+    return { result: isBeingEmptied };
   }
 
   @Delete('/')
