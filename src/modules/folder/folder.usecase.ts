@@ -28,6 +28,10 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
   ) {}
 
+  getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
+    return this.folderRepository.findByIds(user, folderIds);
+  }
+
   async getFolderByUserId(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
