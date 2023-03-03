@@ -149,7 +149,7 @@ export class TrashController {
     return { result };
   }
 
-  @UseGuards(ThrottlerGuard)
+  // @UseGuards(ThrottlerGuard)
   @Post('add')
   @HttpCode(200)
   @ApiOperation({
