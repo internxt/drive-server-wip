@@ -342,9 +342,7 @@ export class ShareController {
 
       return { files, last: parseInt(perPage) > files.length };
     } catch (err) {
-      Logger.error(
-        `Error getting shared files: ${err.message}. Stack: ${err.stack}`,
-      );
+      Logger.error(`Error getting shared files: ${err}. Stack: ${err.stack}`);
       throw err;
     }
   }
