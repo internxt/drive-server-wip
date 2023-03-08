@@ -15,7 +15,16 @@ jobs:
       contents: read
       packages: read
     environment:
-      name: test
+      name: development
+    env:
+      RDS_HOSTNAME: localhost
+      RDS_DBNAME: xCloud_test
+      RDS_USERNAME: postgres
+      RDS_PASSWORD: example
+      RDS_PORT: 5432
+      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+      SENDGRID_MODE_SANDBOX: true
+      APP_SEGMENT_KEY: ${{ secrets.APP_SEGMENT_KEY }}  
     strategy:
       matrix:
         node-version: [16.x]
@@ -34,12 +43,3 @@ jobs:
     
       - name: Run tests
         run: yarn migrate:test && yarn run db:seed:test:all && yarn run test:e2e
-        env:
-          RDS_HOSTNAME: localhost
-          RDS_DBNAME: xCloud_test
-          RDS_USERNAME: postgres
-          RDS_PASSWORD: example
-          RDS_PORT: 5432
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          SENDGRID_MODE_SANDBOX: true
-          APP_SEGMENT_KEY: ${{ secrets.APP_SEGMENT_KEY }}  
