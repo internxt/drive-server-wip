@@ -13,6 +13,38 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 
+export class BadRequestWrongFolderIdException extends BadRequestException {
+  constructor() {
+    super('Folder id should be a number and higher than 0');
+
+    Object.setPrototypeOf(this, BadRequestWrongFolderIdException.prototype);
+  }
+}
+
+export class BadRequestWrongOffsetOrLimitException extends BadRequestException {
+  constructor() {
+    super('Offset and limit should be numbers higher than 0');
+
+    Object.setPrototypeOf(this, BadRequestWrongOffsetOrLimitException.prototype);
+  }
+}
+
+export class BadRequestOutOfRangeLimitException extends BadRequestException {
+  constructor() {
+    super('Limit should be between 1 and 50');
+
+    Object.setPrototypeOf(this, BadRequestOutOfRangeLimitException.prototype);
+  }
+}
+
+export class BadRequestInvalidOffsetException extends BadRequestException {
+  constructor() {
+    super('Offset should be higher than 0');
+
+    Object.setPrototypeOf(this, BadRequestInvalidOffsetException.prototype);
+  }
+}
+
 @ApiTags('Folder')
 @Controller('folders')
 export class FolderController {
@@ -73,20 +105,22 @@ export class FolderController {
     @Query('offset') offset: number,
     @Param('id') folderId: number,
   ) {
-    if (folderId === 0 || Number.isNaN(folderId)) {
-      throw new BadRequestException('Folder id should be a number higher than 0');
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString())); 
+
+    if (folderId < 1 || !isNumber(folderId)) {
+      throw new BadRequestWrongFolderIdException();
     }
 
-    if (Number.isNaN(limit) || Number.isNaN(offset)) {
-      throw new BadRequestException('Limit and offset should be numbers');
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestWrongOffsetOrLimitException();
     }
 
     if (limit < 1 || limit > 50) {
-      throw new BadRequestException('Limit should be between 1 and 50');
+      throw new BadRequestOutOfRangeLimitException();
     }
 
     if (offset < 0) {
-      throw new BadRequestException('Offset should be higher than 0');
+      throw new BadRequestInvalidOffsetException();
     }
 
     const files = await this.fileUseCases.getFilesByFolderId(
@@ -109,20 +143,22 @@ export class FolderController {
     @Query('offset') offset: number,
     @Param('id') folderId: number,
   ) {
-    if (folderId === 0 || Number.isNaN(folderId)) {
-      throw new BadRequestException('Folder id should be a number higher than 0');
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString())); 
+
+    if (folderId < 1 || !isNumber(folderId)) {
+      throw new BadRequestWrongFolderIdException();
     }
 
-    if (Number.isNaN(limit) || Number.isNaN(offset)) {
-      throw new BadRequestException('Limit and offset should be numbers');
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestWrongOffsetOrLimitException();
     }
 
     if (limit < 1 || limit > 50) {
-      throw new BadRequestException('Limit should be between 1 and 50');
+      throw new BadRequestOutOfRangeLimitException();
     }
 
     if (offset < 0) {
-      throw new BadRequestException('Offset should be higher than 0');
+      throw new BadRequestInvalidOffsetException();
     }
   
     const folders = await this.folderUseCases.getFoldersByParentId(
