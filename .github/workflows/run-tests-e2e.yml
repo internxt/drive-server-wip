@@ -31,8 +31,9 @@ jobs:
       - name: Setup environment
         with: 
           compose-file: "../../infrastructure/docker-compose.yml"
-
+    
       - name: Run tests
+        run: yarn migrate:test && yarn run db:seed:test:all && yarn run test:e2e
         env:
           RDS_HOSTNAME: localhost
           RDS_DBNAME: xCloud_test
@@ -41,5 +42,4 @@ jobs:
           RDS_PORT: 5432
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           SENDGRID_MODE_SANDBOX: true
-          APP_SEGMENT_KEY: ${{ secrets.APP_SEGMENT_KEY }}
-        run: yarn migrate:test && yarn run db:seed:test:all && yarn run test:e2e
+          APP_SEGMENT_KEY: ${{ secrets.APP_SEGMENT_KEY }}  
