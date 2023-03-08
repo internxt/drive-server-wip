@@ -41,7 +41,7 @@ jobs:
       - name: Setup environment
         uses: isbang/compose-action@v1.4.1
         with: 
-          compose-file: "../../infrastructure/docker-compose.yml"
+          compose-file: "./infrastructure/docker-compose.yml"
     
       - name: Install dependencies
         run: yarn
