@@ -1,0 +1,45 @@
+name: run-tests-e2e
+on:
+  push:
+    branches:
+      - 'master'
+      - 'develop'
+  pull_request:
+    branches:
+      - 'master'
+      - 'develop'
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: test
+    strategy:
+      matrix:
+        node-version: [16.x]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: 'https://npm.pkg.github.com'
+
+      - uses: isbang/compose-action@v1.4.1
+      - name: Setup environment
+        with: 
+          compose-file: "../../infrastructure/docker-compose.yml"
+
+      - name: Run tests
+        env:
+          RDS_HOSTNAME: localhost
+          RDS_DBNAME: xCloud_test
+          RDS_USERNAME: postgres
+          RDS_PASSWORD: example
+          RDS_PORT: 5432
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SENDGRID_MODE_SANDBOX: true
+          APP_SEGMENT_KEY: ${{ secrets.APP_SEGMENT_KEY }}
+        run: yarn migrate:test && yarn run db:seed:test:all && yarn run test:e2e
