@@ -18,7 +18,7 @@ jobs:
       name: development
     env:
       RDS_HOSTNAME: localhost
-      RDS_DBNAME: xCloud_test
+      RDS_DBNAME: xCloud
       RDS_USERNAME: postgres
       RDS_PASSWORD: example
       RDS_PORT: 5432
