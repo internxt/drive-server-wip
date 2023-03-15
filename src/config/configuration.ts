@@ -4,6 +4,20 @@ export default () => ({
   isProduction: process.env.NODE_ENV === 'production',
   port: parseInt(process.env.PORT) || 3000,
   database: {
+    pool: {
+      maxConnections: parseInt(
+        process.env.DATABASE_CONFIG_MAX_POOL_CONNECTIONS,
+      ),
+      minConnections: parseInt(
+        process.env.DATABASE_CONFIG_MIN_POOL_CONNECTIONS,
+      ),
+      maxIdleConnectionTime: parseInt(
+        process.env.DATABASE_CONFIG_MAX_IDLE_CONNECTION_TIME_MS,
+      ),
+      maxAcquireConnectionTime: parseInt(
+        process.env.DATABASE_CONFIG_MAX_ACQUIRE_CONNECTION_TIME_MS,
+      ),
+    },
     host: process.env.RDS_HOSTNAME,
     host2: process.env.RDS_HOSTNAME2,
     host3: process.env.RDS_HOSTNAME3,
