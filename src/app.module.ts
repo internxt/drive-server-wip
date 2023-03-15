@@ -115,4 +115,10 @@ import { UncaughtExceptionMiddleware } from './middlewares/uncaught-exception.mi
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(UncaughtExceptionMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}
