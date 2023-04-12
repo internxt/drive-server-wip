@@ -10,6 +10,9 @@ import {
   Query,
   UseGuards,
   NotFoundException,
+  Res,
+  Logger,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -35,6 +38,7 @@ import { Folder } from '../folder/folder.domain';
 import { File } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
+import { Response } from 'express';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
@@ -161,6 +165,7 @@ export class TrashController {
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (moveItemsDto.items.length === 0) {
       logger('error', {
@@ -171,34 +176,51 @@ export class TrashController {
       return;
     }
 
-    const fileIds: string[] = [];
-    const folderIds: number[] = [];
-    for (const item of moveItemsDto.items) {
-      if (item.type === 'file') {
-        fileIds.push(item.id);
-      } else if (item.type === 'folder') {
-        folderIds.push(parseInt(item.id));
-      } else {
-        throw new BadRequestException(`type ${item.type} invalid`);
+    try {
+      const fileIds: string[] = [];
+      const folderIds: number[] = [];
+      for (const item of moveItemsDto.items) {
+        if (item.type === 'file') {
+          fileIds.push(item.id);
+        } else if (item.type === 'folder') {
+          folderIds.push(parseInt(item.id));
+        } else {
+          throw new BadRequestException(`type ${item.type} invalid`);
+        }
       }
-    }
-    await Promise.all([
-      this.fileUseCases.moveFilesToTrash(fileIds, user.id),
-      this.folderUseCases.moveFoldersToTrash(folderIds),
-    ]);
+      await Promise.all([
+        this.fileUseCases.moveFilesToTrash(fileIds, user.id),
+        this.folderUseCases.moveFoldersToTrash(folderIds),
+      ]);
 
-    const workspaceMembers =
-      await this.userUseCases.getWorkspaceMembersByBrigeUser(user.bridgeUser);
+      this.userUseCases
+        .getWorkspaceMembersByBrigeUser(user.bridgeUser)
+        .then((members) => {
+          members.forEach(({ email }: { email: string }) => {
+            const itemsToTrashEvent = new ItemsToTrashEvent(
+              moveItemsDto.items,
+              email,
+              clientId,
+            );
+            this.notificationService.add(itemsToTrashEvent);
+          });
+        })
+        .catch((err) => {
+          // no op
+        });
+    } catch (err) {
+      let errorMessage = err.message;
 
-    workspaceMembers.forEach(({ email }: { email: string }) => {
-      const itemsToTrashEvent = new ItemsToTrashEvent(
-        moveItemsDto.items,
-        email,
-        clientId,
+      new Logger().error(
+        `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
+          moveItemsDto,
+        )}, STACK: ${(err as Error).stack}`,
       );
-      this.notificationService.add(itemsToTrashEvent);
-    });
-    return;
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      errorMessage = 'Internal Server Error';
+
+      return { error: errorMessage };
+    }
   }
 
   @Delete('/all')
