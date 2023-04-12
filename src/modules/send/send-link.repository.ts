@@ -147,17 +147,8 @@ export class SequelizeSendRepository implements SendRepository {
 
   async createSendLinkWithItems(sendLink: SendLink): Promise<void> {
     const sendLinkModel = this.toModel(sendLink);
-    const transaction = await this.sequelize.transaction();
-    try {
-      await this.sendLinkModel.create(sendLinkModel, { transaction });
-      await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
-        transaction,
-      });
-      await transaction.commit();
-    } catch (err) {
-      await transaction.rollback();
-      throw err;
-    }
+    await this.sendLinkModel.create(sendLinkModel);
+    await this.sendLinkItemModel.bulkCreate(sendLinkModel.items);
   }
 
   async update(sendLink: SendLink): Promise<void> {

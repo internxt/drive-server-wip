@@ -9,6 +9,7 @@ import {
   Headers,
   BadRequestException,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -39,46 +40,51 @@ export class SendController {
     @UserDecorator() user: User | null,
     @Body() content: CreateSendLinkDto,
   ) {
-    user = await this.getUserWhenPublic(user);
-    const {
-      items,
-      code,
-      receivers,
-      sender,
-      title,
-      subject,
-      plainCode,
-      plainPassword,
-    } = content;
+    try {
+      user = await this.getUserWhenPublic(user);
+      const {
+        items,
+        code,
+        receivers,
+        sender,
+        title,
+        subject,
+        plainCode,
+        plainPassword,
+      } = content;
 
-    if (receivers && receivers.length > 5) {
-      throw new BadRequestException();
+      if (receivers && receivers.length > 5) {
+        throw new BadRequestException();
+      }
+
+      const sendLink = await this.sendUseCases.createSendLinks(
+        user,
+        items,
+        code,
+        receivers,
+        sender,
+        title,
+        subject,
+        plainCode,
+        plainPassword,
+      );
+      return {
+        id: sendLink.id,
+        title: sendLink.title,
+        subject: sendLink.subject,
+        code: sendLink.code,
+        views: sendLink.views,
+        userId: user ? user.id : null,
+        items: sendLink.items,
+        createdAt: sendLink.createdAt,
+        updatedAt: sendLink.updatedAt,
+        expirationAt: sendLink.expirationAt,
+        protected: sendLink.isProtected(),
+      };
+    } catch (err) {
+      Logger.error('Error while creating send link:' + err.message);
+      throw err;
     }
-
-    const sendLink = await this.sendUseCases.createSendLinks(
-      user,
-      items,
-      code,
-      receivers,
-      sender,
-      title,
-      subject,
-      plainCode,
-      plainPassword,
-    );
-    return {
-      id: sendLink.id,
-      title: sendLink.title,
-      subject: sendLink.subject,
-      code: sendLink.code,
-      views: sendLink.views,
-      userId: user ? user.id : null,
-      items: sendLink.items,
-      createdAt: sendLink.createdAt,
-      updatedAt: sendLink.updatedAt,
-      expirationAt: sendLink.expirationAt,
-      protected: sendLink.isProtected(),
-    };
   }
 
   @Get('/:linkId')

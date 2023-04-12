@@ -2,13 +2,14 @@ import {
   BadRequestException,
   Body,
   Controller,
-  HttpException,
   Get,
   HttpCode,
   Post,
   Delete,
   Param,
   Query,
+  UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -32,6 +33,9 @@ import {
 } from './dto/controllers/delete-item.dto';
 import { Folder } from '../folder/folder.domain';
 import { File } from '../file/file.domain';
+import logger from '../../externals/logger';
+import { v4 } from 'uuid';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -145,6 +149,7 @@ export class TrashController {
     return { result };
   }
 
+  // @UseGuards(ThrottlerGuard)
   @Post('add')
   @HttpCode(200)
   @ApiOperation({
@@ -157,6 +162,15 @@ export class TrashController {
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
+    if (moveItemsDto.items.length === 0) {
+      logger('error', {
+        user: user.uuid,
+        id: v4(),
+        message: 'Trying to add 0 items to the trash',
+      });
+      return;
+    }
+
     const fileIds: string[] = [];
     const folderIds: number[] = [];
     for (const item of moveItemsDto.items) {
@@ -192,8 +206,23 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
-  clearTrash(@UserDecorator() user: User) {
-    this.trashUseCases.clearTrash(user);
+  async clearTrash(@UserDecorator() user: User) {
+    await this.trashUseCases.emptyTrash(user);
+  }
+
+  @Delete('/all/request')
+  requestEmptyTrash(user: User) {
+    this.trashUseCases.emptyTrash(user);
+  }
+
+  @Get('/all/check')
+  @HttpCode(200)
+  async checkIfTrashIsBeingEmptied(user: User) {
+    const isBeingEmptied = await this.trashUseCases.checkIfTrashIsBeingEmptied(
+      user,
+    );
+
+    return { result: isBeingEmptied };
   }
 
   @Delete('/')
@@ -205,21 +234,31 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    const filesId = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FILE)
-      .map((item) => item.id);
+    // TODO: Uncomment this once all the platforms block deleting more than 50 items
+    // if (deleteItemsDto.items.length > 50) {
+    //   throw new BadRequestException(
+    //     'Items to remove from the trash are limited to 50',
+    //   );
+    // }
 
-    const foldersId = deleteItemsDto.items
+    const filesIds = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FILE)
+      .map((item) => parseInt(item.id));
+
+    const foldersIds = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FOLDER)
       .map((item) => parseInt(item.id));
 
-    await this.trashUseCases
-      .deleteItems(filesId, foldersId, user)
-      .catch((err) => {
-        if (err instanceof HttpException) {
-          throw err;
-        }
-      });
+    const files =
+      filesIds.length > 0
+        ? await this.fileUseCases.getFilesByIds(user, filesIds)
+        : [];
+    const folders =
+      foldersIds.length > 0
+        ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
+        : [];
+
+    await this.trashUseCases.deleteItems(user, files, folders);
   }
 
   @Delete('/file/:fileId')
@@ -231,7 +270,13 @@ export class TrashController {
     @Param('fileId') fileId: string,
     @UserDecorator() user: User,
   ) {
-    await this.trashUseCases.deleteItems([fileId], [], user);
+    const files = await this.fileUseCases.getFiles(user.id, { fileId });
+
+    if (files.length === 0) {
+      throw new NotFoundException();
+    }
+
+    await this.trashUseCases.deleteItems(user, [files[0]], []);
   }
 
   @Delete('/folder/:folderId')
@@ -243,6 +288,14 @@ export class TrashController {
     @Param('folderId') folderId: number,
     @UserDecorator() user: User,
   ) {
-    await this.trashUseCases.deleteItems([], [folderId], user);
+    const folders = await this.folderUseCases.getFolders(user.id, {
+      id: folderId,
+    });
+
+    if (folders.length === 0) {
+      throw new NotFoundException();
+    }
+
+    await this.trashUseCases.deleteItems(user, [], [folders[0]]);
   }
 }
