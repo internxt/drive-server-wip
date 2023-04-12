@@ -97,6 +97,18 @@ export class File implements FileAttributes {
     return new File(file);
   }
 
+  isOwnedBy(user: User): boolean {
+    return this.userId === user.id;
+  }
+
+  isChildrenOf(folder: Folder): boolean {
+    return this.folderId === folder.id;
+  }
+
+  get networkId(): string {
+    return this.fileId;
+  }
+
   setFolder(folder) {
     if (folder && !(folder instanceof Folder)) {
       throw Error('folder invalid');
