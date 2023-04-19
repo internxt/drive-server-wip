@@ -210,10 +210,11 @@ export class TrashController {
         });
     } catch (err) {
       let errorMessage = err.message;
+      let { email, uuid } = user;
 
       new Logger().error(
         `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
-          moveItemsDto,
+          { ...moveItemsDto, user: { email, uuid }},
         )}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
