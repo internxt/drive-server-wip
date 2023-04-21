@@ -25,7 +25,10 @@ export class BadRequestWrongOffsetOrLimitException extends BadRequestException {
   constructor() {
     super('Offset and limit should be numbers higher than 0');
 
-    Object.setPrototypeOf(this, BadRequestWrongOffsetOrLimitException.prototype);
+    Object.setPrototypeOf(
+      this,
+      BadRequestWrongOffsetOrLimitException.prototype,
+    );
   }
 }
 
@@ -105,7 +108,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Param('id') folderId: number,
   ) {
-    const isNumber = (n) => !Number.isNaN(parseInt(n.toString())); 
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
@@ -130,7 +133,7 @@ export class FolderController {
         limit,
         offset,
         deleted: false,
-      }
+      },
     );
 
     return { result: files };
@@ -143,7 +146,8 @@ export class FolderController {
     @Query('offset') offset: number,
     @Param('id') folderId: number,
   ) {
-    const isNumber = (n) => !Number.isNaN(parseInt(n.toString())); 
+    console.log('getFolderFolders EXECUTED');
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
@@ -160,7 +164,7 @@ export class FolderController {
     if (offset < 0) {
       throw new BadRequestInvalidOffsetException();
     }
-  
+
     const folders = await this.folderUseCases.getFoldersByParentId(
       folderId,
       user.id,
@@ -168,7 +172,7 @@ export class FolderController {
         limit,
         offset,
         deleted: false,
-      }
+      },
     );
 
     return { result: folders };

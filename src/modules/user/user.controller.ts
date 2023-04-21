@@ -22,8 +22,8 @@ import {
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Response, Request } from 'express';
-import { SignUpSuccessEvent } from '../../../src/externals/notifications/events/sign-up-success.event';
-import { NotificationService } from '../../../src/externals/notifications/notification.service';
+import { SignUpSuccessEvent } from 'src/externals/notifications/events/sign-up-success.event';
+import { NotificationService } from 'src/externals/notifications/notification.service';
 import { User } from './user.domain';
 import {
   InvalidReferralCodeError,
