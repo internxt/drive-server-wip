@@ -146,7 +146,6 @@ export class FolderController {
     @Query('offset') offset: number,
     @Param('id') folderId: number,
   ) {
-    console.log('getFolderFolders EXECUTED');
     const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
     if (folderId < 1 || !isNumber(folderId)) {
