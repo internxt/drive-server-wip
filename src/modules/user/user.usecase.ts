@@ -25,7 +25,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
-import { SignUpErrorEvent } from '../../../src/externals/notifications/events/sign-up-error.event';
+import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
