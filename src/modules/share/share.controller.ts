@@ -251,6 +251,8 @@ export class ShareController {
     @Res() res: Response,
     @Req() req: Request,
   ) {
+    new Logger().log(`[SHARE/CREATE/FOLDER]: user ${user.uuid} payload -> ${JSON.stringify(body)}`);
+
     try {
       const share =
         await this.shareUseCases.createShareFolder(
