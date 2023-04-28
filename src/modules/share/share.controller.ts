@@ -261,6 +261,13 @@ export class ShareController {
           body,
         );
 
+      res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
+        id: share.id,
+        created: share.created,
+        token: share.item.token,
+        encryptedCode: share.encryptedCode,
+      });
+
       const shareLinkViewEvent = new ShareLinkCreatedEvent(
         'share.created',
         user,
@@ -269,13 +276,6 @@ export class ShareController {
         {},
       );
       this.notificationService.add(shareLinkViewEvent);
-
-      res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
-        id: share.id,
-        created: share.created,
-        token: share.item.token,
-        encryptedCode: share.encryptedCode,
-      });
     } catch (err) {
       new Logger().error(
         `[SHARE/CREATE/FOLDER] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
