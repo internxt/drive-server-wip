@@ -215,8 +215,8 @@ export class SequelizeShareRepository implements ShareRepository {
   async create(share: Share): Promise<Share> {
     const shareModel = this.toModel(share);
     delete shareModel.id;
-    const { id } = await this.shareModel.create(shareModel);
-    return this.findById(id);
+    const model = await this.shareModel.create(shareModel);
+    return this.toDomain(model);
   }
 
   async update(share: Share): Promise<void> {
