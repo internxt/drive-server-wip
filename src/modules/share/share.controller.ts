@@ -46,7 +46,7 @@ export class ShareController {
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
-  ) {}
+  ) { }
 
   @Get('/list')
   @HttpCode(200)
@@ -77,10 +77,10 @@ export class ShareController {
       parseInt(page) || 0,
       parseInt(perPage) || 50,
       orderBy as
-        | 'views:ASC'
-        | 'views:DESC'
-        | 'createdAt:ASC'
-        | 'createdAt:DESC',
+      | 'views:ASC'
+      | 'views:DESC'
+      | 'createdAt:ASC'
+      | 'createdAt:DESC',
     );
 
     const decryptedItemNames = shares.items.map((item) => {
@@ -251,28 +251,39 @@ export class ShareController {
     @Res() res: Response,
     @Req() req: Request,
   ) {
-    const { id, item, created, encryptedCode } =
-      await this.shareUseCases.createShareFolder(
-        parseInt(folderId),
+    try {
+      const { id, item, created, encryptedCode } =
+        await this.shareUseCases.createShareFolder(
+          parseInt(folderId),
+          user,
+          body,
+        );
+
+      const shareLinkViewEvent = new ShareLinkCreatedEvent(
+        'share.created',
         user,
-        body,
+        item,
+        req,
+        {},
       );
+      this.notificationService.add(shareLinkViewEvent);
 
-    const shareLinkViewEvent = new ShareLinkCreatedEvent(
-      'share.created',
-      user,
-      item,
-      req,
-      {},
-    );
-    this.notificationService.add(shareLinkViewEvent);
+      res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
+        id,
+        created,
+        token: item.token,
+        encryptedCode,
+      });
+    } catch (err) {
+      let { email, uuid } = user;
 
-    res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
-      id,
-      created,
-      token: item.token,
-      encryptedCode,
-    });
+      new Logger().error(
+        `[SHARE/CREATE/FOLDER] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
+          { ...body, user: { email, uuid } },
+        )}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
+    }
   }
 
   @Get('down/files')
