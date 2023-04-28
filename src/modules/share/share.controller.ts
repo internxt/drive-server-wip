@@ -275,11 +275,9 @@ export class ShareController {
         encryptedCode: share.encryptedCode,
       });
     } catch (err) {
-      let { email, uuid } = user;
-
       new Logger().error(
         `[SHARE/CREATE/FOLDER] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
-          { ...body, user: { email, uuid } },
+          { ...body, user },
         )}, STACK: ${(err as Error).stack}`,
       );
       throw err;
