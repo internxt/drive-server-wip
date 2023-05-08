@@ -289,6 +289,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
     await this.folderModel.update({
       removed: true,
+      removedAt: new Date(),
     }, {
       where: {
         userId: user.id,

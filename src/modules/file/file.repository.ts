@@ -325,6 +325,7 @@ export class SequelizeFileRepository implements FileRepository {
   async deleteFilesByUser(user: User, files: File[]): Promise<void> {
     await this.fileModel.update({
       removed: true,
+      removedAt: new Date(),
     }, {
       where: {
         userId: user.id,
