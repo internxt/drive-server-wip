@@ -50,7 +50,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-  ) {}
+  ) { }
 
   @Get('/')
   @HttpCode(200)
@@ -120,13 +120,13 @@ export class TrashController {
         // Root level could have different folders
         result = await this.fileUseCases.getFiles(
           user.id,
-          { deleted: true },
+          { deleted: true, removed: false },
           { limit, offset },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
-          { deleted: true },
+          { deleted: true, removed: false },
           { limit, offset },
         );
       }
@@ -214,7 +214,7 @@ export class TrashController {
 
       new Logger().error(
         `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
-          { ...moveItemsDto, user: { email, uuid }},
+          { ...moveItemsDto, user: { email, uuid } },
         )}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
