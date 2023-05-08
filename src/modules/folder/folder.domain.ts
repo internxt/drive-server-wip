@@ -4,6 +4,7 @@ import { FolderAttributes } from './folder.attributes';
 
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
+  removed?: FolderAttributes['removed'];
 }
 
 export class Folder implements FolderAttributes {
@@ -19,6 +20,8 @@ export class Folder implements FolderAttributes {
   plainName: string;
   encryptVersion: FolderAttributes['encryptVersion'];
   deleted: boolean;
+  removed: boolean;
+  removedAt: Date;
   deletedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -100,6 +103,8 @@ export class Folder implements FolderAttributes {
       plainName: this.plainName,
       size: this.size,
       deleted: this.deleted,
+      removed: this.removed,
+      removedAt: this.removedAt,
       deletedAt: this.deletedAt,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
