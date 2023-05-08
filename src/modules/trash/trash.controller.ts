@@ -52,33 +52,6 @@ export class TrashController {
     private trashUseCases: TrashUseCases,
   ) { }
 
-  @Get('/')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get trash content',
-  })
-  @ApiOkResponse({ description: 'Get all folders and files in trash' })
-  async getTrash(@UserDecorator() user: User) {
-    const folderId = user.rootFolderId;
-    const [currentFolder, childrenFolders] = await Promise.all([
-      this.folderUseCases.getFolder(folderId),
-      this.folderUseCases.getFoldersToUser(user.id, { deleted: true }),
-    ]);
-    const childrenFoldersIds = childrenFolders.map(({ id }) => id);
-    const files = await this.fileUseCases.getByUserExceptParents(
-      user.id,
-      childrenFoldersIds,
-      { deleted: true },
-    );
-    return {
-      ...currentFolder.toJSON(),
-      children: childrenFolders.map((folder: Folder) =>
-        this.folderUseCases.decryptFolderName(folder),
-      ),
-      files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
-    };
-  }
-
   @Get('/paginated')
   @HttpCode(200)
   @ApiOperation({
