@@ -16,6 +16,8 @@ export interface FileAttributes {
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
+  removed: boolean;
+  removedAt: Date;
   userId: number;
   user?: any;
   modificationTime: Date;
@@ -43,12 +45,14 @@ export class File implements FileAttributes {
   folderUuid: string;
   encryptVersion: string;
   deleted: boolean;
+  removed: boolean;
   deletedAt: Date;
   userId: number;
   user: User;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
+  removedAt: Date;
   plainName: string;
 
   private constructor({

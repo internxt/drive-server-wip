@@ -12,10 +12,12 @@ export class FileDto {
   folderUuid: FolderDto['uuid'];
   encryptVersion: string;
   deleted: boolean;
+  removed: boolean;
   deletedAt: Date;
   userId: number;
   plainName: string;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
+  removedAt: Date;
 }
