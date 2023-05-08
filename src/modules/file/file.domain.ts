@@ -154,6 +154,8 @@ export class File implements FileAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       plainName: this.plainName,
+      removed: this.removed,
+      removedAt: this.removedAt,
     };
   }
 }
