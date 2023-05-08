@@ -26,7 +26,7 @@ export class FolderUseCases {
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
-  ) {}
+  ) { }
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
     return this.folderRepository.findByIds(user, folderIds);

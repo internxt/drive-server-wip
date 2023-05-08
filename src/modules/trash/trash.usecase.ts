@@ -10,7 +10,7 @@ export class TrashUseCases {
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
-  ) {}
+  ) { }
 
   /**
    * Tries to find if the trash of a given user is being emptied
@@ -42,7 +42,7 @@ export class TrashUseCases {
     for (let i = 0; i < count; i += emptyTrashChunkSize) {
       const folders = await this.folderUseCases.getFolders(
         trashOwner.id,
-        { deleted: true },
+        { deleted: true, removed: false },
         { limit: emptyTrashChunkSize, offset: i },
       );
 
@@ -52,7 +52,7 @@ export class TrashUseCases {
     for (let i = 0; i < count; i += emptyTrashChunkSize) {
       const files = await this.fileUseCases.getFiles(
         trashOwner.id,
-        { deleted: true },
+        { deleted: true, removed: false },
         { limit: emptyTrashChunkSize, offset: i },
       );
 
