@@ -250,7 +250,7 @@ export class FolderUseCases {
     });
   }
   async moveFoldersToTrash(folderIds: FolderAttributes['id'][]): Promise<void> {
-    this.folderRepository.updateManyByFolderId(folderIds, {
+    return this.folderRepository.updateManyByFolderId(folderIds, {
       deleted: true,
       deletedAt: new Date(),
     });
