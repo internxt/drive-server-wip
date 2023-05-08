@@ -8,7 +8,9 @@ export class FolderDto {
   encryptVersion: '03-aes';
   plainName: string;
   size: number;
+  removed: boolean;
   deleted: boolean;
+  removedAt: Date;
   deletedAt: Date;
   createdAt: Date;
   updatedAt: Date;

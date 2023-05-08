@@ -29,7 +29,7 @@ export class FileUseCases {
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
-  ) {}
+  ) { }
 
   getByFileIdAndUser(
     fileId: FileAttributes['id'],
@@ -166,11 +166,6 @@ export class FileUseCases {
    * @param files Files to be deleted
    */
   async deleteByUser(user: User, files: File[]): Promise<void> {
-    for (const file of files) {
-      if (file.isOwnedBy(user)) {
-        await this.network.deleteFile(user, file.bucket, file.fileId);
-      }
-    }
     await this.fileRepository.deleteFilesByUser(user, files);
   }
 

@@ -68,6 +68,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @Default(false)
   @Column
+  removed: boolean;
+
+  @Default(false)
+  @Column
   deleted: boolean;
 
   @AllowNull
@@ -89,6 +93,9 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column
   updatedAt: Date;
+
+  @Column
+  removedAt: Date;
 
   @Index
   @Column
@@ -131,7 +138,7 @@ export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
-  ) {}
+  ) { }
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
@@ -316,7 +323,10 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async deleteFilesByUser(user: User, files: File[]): Promise<void> {
-    await this.fileModel.destroy({
+    await this.fileModel.update({
+      removed: true,
+      removedAt: new Date(),
+    }, {
       where: {
         userId: user.id,
         id: {

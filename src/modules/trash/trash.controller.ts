@@ -50,34 +50,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-  ) {}
-
-  @Get('/')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get trash content',
-  })
-  @ApiOkResponse({ description: 'Get all folders and files in trash' })
-  async getTrash(@UserDecorator() user: User) {
-    const folderId = user.rootFolderId;
-    const [currentFolder, childrenFolders] = await Promise.all([
-      this.folderUseCases.getFolder(folderId),
-      this.folderUseCases.getFoldersToUser(user.id, { deleted: true }),
-    ]);
-    const childrenFoldersIds = childrenFolders.map(({ id }) => id);
-    const files = await this.fileUseCases.getByUserExceptParents(
-      user.id,
-      childrenFoldersIds,
-      { deleted: true },
-    );
-    return {
-      ...currentFolder.toJSON(),
-      children: childrenFolders.map((folder: Folder) =>
-        this.folderUseCases.decryptFolderName(folder),
-      ),
-      files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
-    };
-  }
+  ) { }
 
   @Get('/paginated')
   @HttpCode(200)
@@ -120,13 +93,13 @@ export class TrashController {
         // Root level could have different folders
         result = await this.fileUseCases.getFiles(
           user.id,
-          { deleted: true },
+          { deleted: true, removed: false },
           { limit, offset },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
-          { deleted: true },
+          { deleted: true, removed: false },
           { limit, offset },
         );
       }
@@ -214,7 +187,7 @@ export class TrashController {
 
       new Logger().error(
         `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
-          { ...moveItemsDto, user: { email, uuid }},
+          { ...moveItemsDto, user: { email, uuid } },
         )}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
