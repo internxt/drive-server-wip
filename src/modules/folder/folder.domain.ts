@@ -4,6 +4,7 @@ import { FolderAttributes } from './folder.attributes';
 
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
+  removed?: FolderAttributes['removed'];
 }
 
 export class Folder implements FolderAttributes {

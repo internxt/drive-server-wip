@@ -28,6 +28,7 @@ export interface FileAttributes {
 
 export interface FileOptions {
   deleted: FileAttributes['deleted'];
+  removed?: FileAttributes['removed'];
   page?: number;
   perPage?: number;
 }
