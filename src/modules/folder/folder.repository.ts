@@ -300,6 +300,34 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
+  async findAllCursorWhereUpdatedAfter(
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FolderModel, string]> = [],
+  ): Promise<Array<Folder>> {
+    const folders = await this.folderModel.findAll({
+      where: {
+        ...where,
+        updatedAt: {
+          [Op.gt]: updatedAfter,
+        },
+        parentId: {
+          [Op.not]: null,
+        },
+      },
+      order: [
+        ['updatedAt', 'ASC'],
+        ...additionalOrders,
+      ],
+      limit,
+      offset,
+    });
+
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
   private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),
