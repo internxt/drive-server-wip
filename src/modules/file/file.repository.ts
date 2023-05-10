@@ -43,6 +43,10 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   name: string;
 
+  @Index
+  @Column
+  plainName: string;
+
   @Column
   type: string;
 
@@ -66,18 +70,6 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   encryptVersion: string;
 
-  @Default(false)
-  @Column
-  removed: boolean;
-
-  @Default(false)
-  @Column
-  deleted: boolean;
-
-  @AllowNull
-  @Column
-  deletedAt: Date;
-
   @ForeignKey(() => UserModel)
   @Column
   userId: number;
@@ -94,12 +86,21 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   updatedAt: Date;
 
+  @Default(false)
+  @Column
+  removed: boolean;
+
+  @AllowNull
   @Column
   removedAt: Date;
 
-  @Index
+  @Default(false)
   @Column
-  plainName: string;
+  deleted: boolean;
+
+  @AllowNull
+  @Column
+  deletedAt: Date;
 }
 
 export interface FileRepository {
@@ -147,16 +148,40 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async findAllByFolderIdCursor(
+  async findAllCursorWhereUpdatedAfter(
     where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
     limit: number,
     offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const files = await this.findAllCursor(
+      {
+        ...where,
+        updatedAt: { [Op.gt]: updatedAtAfter }
+      },
+      limit,
+      offset,
+      additionalOrders,
+    );
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursor(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       limit,
       offset,
       where,
-      order: [['id', 'ASC']],
+      order: [
+        ['id', 'ASC'],
+        ...additionalOrders,
+      ],
     });
 
     return files.map(this.toDomain.bind(this));
