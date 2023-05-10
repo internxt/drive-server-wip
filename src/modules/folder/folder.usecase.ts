@@ -306,6 +306,68 @@ export class FolderUseCases {
     );
   }
 
+  getAllFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(userId, {}, updatedAfter, options);
+  }
+
+  getNotTrashedFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(userId, {
+      deleted: false, removed: false,
+    }, updatedAfter, options);
+  }
+
+  getRemovedFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(
+      userId,
+      { removed: true },
+      updatedAfter,
+      options,
+    );
+  }
+
+  getTrashedFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(
+      userId,
+      { deleted: true, removed: false },
+      updatedAfter,
+      options,
+    );
+  }
+
+  getFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    where: Partial<FolderAttributes>,
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Array<Folder>> {
+    const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
+      ['updatedAt', 'ASC']
+    ];
+    return this.folderRepository.findAllCursorWhereUpdatedAfter(
+      { ...where, userId },
+      updatedAfter,
+      options.limit,
+      options.offset,
+      additionalOrders
+    );
+  }
+
   async getFolders(
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,
