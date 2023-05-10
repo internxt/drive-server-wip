@@ -54,6 +54,6 @@ export class FileController {
       DELETED: this.fileUseCases.getRemovedFilesUpdatedAfter,
     };
 
-    return fns[status].bind(this.fileUseCases)(user.id, new Date(updatedAt) || new Date(), { limit, offset });
+    return fns[status].bind(this.fileUseCases)(user.id, new Date(updatedAt || 0), { limit, offset });
   }
 }
