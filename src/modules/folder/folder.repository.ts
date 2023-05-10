@@ -317,10 +317,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           [Op.not]: null,
         },
       },
-      order: [
-        ['updatedAt', 'ASC'],
-        ...additionalOrders,
-      ],
+      order: additionalOrders,
       limit,
       offset,
     });
