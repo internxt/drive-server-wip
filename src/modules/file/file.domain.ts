@@ -76,6 +76,8 @@ export class File implements FileAttributes {
     updatedAt,
     uuid,
     plainName,
+    removed,
+    removedAt
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -96,6 +98,8 @@ export class File implements FileAttributes {
     this.folderUuid = folderUuid;
     this.uuid = uuid;
     this.plainName = plainName;
+    this.removed = removed;
+    this.removedAt = removedAt;
   }
 
   static build(file: FileAttributes): File {
