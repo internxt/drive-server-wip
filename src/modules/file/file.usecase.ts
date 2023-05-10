@@ -68,13 +68,76 @@ export class FileUseCases {
     return this.fileRepository.findByIds(user.id, fileIds);
   }
 
+  getAllFilesUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<File[]> {
+    return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
+  }
+
+  getNotTrashedFilesUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<File[]> {
+    return this.getFilesUpdatedAfter(userId, {
+      deleted: false, removed: false,
+    }, updatedAfter, options);
+  }
+
+  getRemovedFilesUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<File[]> {
+    return this.getFilesUpdatedAfter(
+      userId,
+      { removed: true },
+      updatedAfter,
+      options,
+    );
+  }
+
+  getTrashedFilesUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<File[]> {
+    return this.getFilesUpdatedAfter(
+      userId,
+      { deleted: true, removed: false },
+      updatedAfter,
+      options,
+    );
+  }
+
+  async getFilesUpdatedAfter(
+    userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<File[]> {
+    const additionalOrders: Array<[keyof FileAttributes, 'ASC' | 'DESC']> = [
+      ['updatedAt', 'ASC']
+    ];
+    const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
+      { ...where, userId },
+      updatedAfter,
+      options.limit,
+      options.offset,
+      additionalOrders
+    );
+    return files.map((file) => file.toJSON());
+  }
+
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     options = { limit: 20, offset: 0 },
   ): Promise<File[]> {
     const filesWithMaybePlainName =
-      await this.fileRepository.findAllByFolderIdCursor(
+      await this.fileRepository.findAllCursor(
         {
           ...where,
           // enforce userId always
