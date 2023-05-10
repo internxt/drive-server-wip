@@ -4,10 +4,12 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
 
+const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) {}
+  constructor(private readonly fileUseCases: FileUseCases) { }
 
   @Get('/count')
   async getFileCount(
@@ -29,5 +31,29 @@ export class FileController {
     }
 
     return { count };
+  }
+
+  @Get('/')
+  async getFiles(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Query('status') status: typeof filesStatuses[number],
+    @Query('updatedAt') updatedAt?: Date,
+  ) {
+    const knownStatus = filesStatuses.includes(status);
+
+    if (!knownStatus) {
+      throw new BadRequestException(`Unknown status "${status.toString()}"`);
+    }
+
+    const fns = {
+      ALL: this.fileUseCases.getAllFilesUpdatedAfter,
+      EXISTS: this.fileUseCases.getNotTrashedFilesUpdatedAfter,
+      TRASHED: this.fileUseCases.getTrashedFilesUpdatedAfter,
+      DELETED: this.fileUseCases.getRemovedFilesUpdatedAfter,
+    };
+
+    return fns[status].bind(this.fileUseCases)(user.id, new Date(updatedAt) || new Date(), { limit, offset });
   }
 }
