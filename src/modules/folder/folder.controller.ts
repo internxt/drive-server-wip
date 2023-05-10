@@ -13,6 +13,8 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 
+const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
 export class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
     super('Folder id should be a number and higher than 0');
@@ -54,7 +56,7 @@ export class FolderController {
   constructor(
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
-  ) {}
+  ) { }
 
   @Get('/count')
   async getFolderCount(
@@ -175,5 +177,43 @@ export class FolderController {
     );
 
     return { result: folders };
+  }
+
+  @Get('/')
+  async getFolders(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Query('status') status: typeof foldersStatuses[number],
+    @Query('updatedAt') updatedAt?: Date,
+  ) {
+    const knownStatus = foldersStatuses.includes(status);
+
+    if (!knownStatus) {
+      throw new BadRequestException(`Unknown status "${status.toString()}"`);
+    }
+
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestWrongOffsetOrLimitException();
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestOutOfRangeLimitException();
+    }
+
+    if (offset < 0) {
+      throw new BadRequestInvalidOffsetException();
+    }
+
+    const fns = {
+      ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
+      EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
+      TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
+      DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
+    };
+
+    return fns[status].bind(this.folderUseCases)(user.id, new Date(updatedAt || 0), { limit, offset });
   }
 }
