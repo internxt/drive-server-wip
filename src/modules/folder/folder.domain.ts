@@ -41,6 +41,8 @@ export class Folder implements FolderAttributes {
     deletedAt,
     createdAt,
     updatedAt,
+    removed,
+    removedAt,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -58,6 +60,8 @@ export class Folder implements FolderAttributes {
     this.uuid = uuid;
     this.plainName = plainName;
     this.size = 0;
+    this.removed = removed;
+    this.removedAt = removedAt;
   }
 
   static build(file: FolderAttributes): Folder {
