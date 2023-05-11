@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { File, FileAttributes, FileOptions } from './file.domain';
-import sequelize, { FindOptions, Op } from 'sequelize';
+import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
+import { FindOptions, Op } from 'sequelize';
 import {
   AllowNull,
   BelongsTo,
@@ -20,7 +20,6 @@ import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from '../folder/folder.model';
-import { FolderAttributes } from '../folder/folder.attributes';
 
 @Table({
   underscored: true,
@@ -101,6 +100,14 @@ export class FileModel extends Model implements FileAttributes {
   @AllowNull
   @Column
   deletedAt: Date;
+
+  @Column({
+    type: DataType.ENUM,
+    values: Object.values(FileStatus),
+    defaultValue: FileStatus.EXISTS,
+    allowNull: false,
+  })
+  status: FileStatus;
 }
 
 export interface FileRepository {
@@ -129,7 +136,6 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  deleteByFileId(fileId: FileAttributes['fileId']): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
 }
@@ -139,7 +145,7 @@ export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
-  ) { }
+  ) {}
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
@@ -158,7 +164,7 @@ export class SequelizeFileRepository implements FileRepository {
     const files = await this.findAllCursor(
       {
         ...where,
-        updatedAt: { [Op.gt]: updatedAtAfter }
+        updatedAt: { [Op.gt]: updatedAtAfter },
       },
       limit,
       offset,
@@ -178,10 +184,7 @@ export class SequelizeFileRepository implements FileRepository {
       limit,
       offset,
       where,
-      order: [
-        ['id', 'ASC'],
-        ...additionalOrders,
-      ],
+      order: [['id', 'ASC'], ...additionalOrders],
     });
 
     return files.map(this.toDomain.bind(this));
@@ -347,18 +350,46 @@ export class SequelizeFileRepository implements FileRepository {
     return count;
   }
 
-  async deleteFilesByUser(user: User, files: File[]): Promise<void> {
-    await this.fileModel.update({
-      removed: true,
-      removedAt: new Date(),
-    }, {
-      where: {
-        userId: user.id,
-        id: {
-          [Op.in]: files.map(({ id }) => id),
+  async updateFilesStatusToTrashed(
+    user: User,
+    fileIds: File['fileId'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        // Remove this after status is the main field
+        deleted: true,
+        deletedAt: new Date(),
+        //
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          fileId: {
+            [Op.in]: fileIds,
+          },
         },
       },
-    });
+    );
+  }
+
+  async deleteFilesByUser(user: User, files: File[]): Promise<void> {
+    await this.fileModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+        status: FileStatus.DELETED,
+      },
+      {
+        where: {
+          userId: user.id,
+          id: {
+            [Op.in]: files.map(({ id }) => id),
+          },
+        },
+      },
+    );
   }
 
   private toDomain(model: FileModel): File {
