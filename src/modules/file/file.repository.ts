@@ -307,25 +307,6 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async getTotalSizeByFolderId(folderId: FolderAttributes['id']) {
-    const result = (await this.fileModel.findAll({
-      attributes: [[sequelize.fn('sum', sequelize.col('size')), 'total']],
-      where: {
-        folderId,
-      },
-    })) as unknown as Promise<{ total: number }[]>;
-
-    return result[0].total;
-  }
-
-  async deleteByFileId(fileId: FileAttributes['fileId']): Promise<void> {
-    await this.fileModel.destroy({
-      where: {
-        fileId,
-      },
-    });
-  }
-
   async getFilesWhoseFolderIdDoesNotExist(
     userId: File['userId'],
   ): Promise<number> {
