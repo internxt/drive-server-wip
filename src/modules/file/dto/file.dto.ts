@@ -1,4 +1,5 @@
 import { FolderDto } from '../../folder/dto/folder.dto';
+import { FileStatus } from '../file.domain';
 
 export class FileDto {
   id: number;
@@ -20,4 +21,5 @@ export class FileDto {
   createdAt: Date;
   updatedAt: Date;
   removedAt: Date;
+  status: FileStatus;
 }
