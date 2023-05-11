@@ -1,7 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File, FileAttributes } from '../file/file.domain';
+import { File } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 
@@ -10,26 +10,7 @@ export class TrashUseCases {
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
-  ) { }
-
-  /**
-   * Tries to find if the trash of a given user is being emptied
-   * @param trashOwner User whose trash is going to be emptied
-   * @returns True if the trash is being emptied, false otherwise
-   */
-  async checkIfTrashIsBeingEmptied(trashOwner: User): Promise<boolean> {
-    const count = await this.fileUseCases.getTrashFilesCount(trashOwner.id);
-
-    if (count === 0) return true;
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const newCount = await this.fileUseCases.getTrashFilesCount(trashOwner.id);
-
-    const trashIsStillTheSame = count === newCount;
-
-    return !trashIsStillTheSame;
-  }
+  ) {}
 
   /**
    * Empties the trash of a given user

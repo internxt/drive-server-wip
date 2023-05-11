@@ -211,16 +211,6 @@ export class TrashController {
     this.trashUseCases.emptyTrash(user);
   }
 
-  @Get('/all/check')
-  @HttpCode(200)
-  async checkIfTrashIsBeingEmptied(user: User) {
-    const isBeingEmptied = await this.trashUseCases.checkIfTrashIsBeingEmptied(
-      user,
-    );
-
-    return { result: isBeingEmptied };
-  }
-
   @Delete('/')
   @HttpCode(202)
   @ApiOperation({
