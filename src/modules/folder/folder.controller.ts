@@ -185,7 +185,7 @@ export class FolderController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: typeof foldersStatuses[number],
-    @Query('updatedAt') updatedAt?: Date,
+    @Query('updatedAt') updatedAt?: string,
   ) {
     const knownStatus = foldersStatuses.includes(status);
 
@@ -214,6 +214,10 @@ export class FolderController {
       DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
     };
 
-    return fns[status].bind(this.folderUseCases)(user.id, new Date(updatedAt || 0), { limit, offset });
+    return fns[status].bind(this.folderUseCases)(
+      user.id,
+      new Date(updatedAt || 1),
+      { limit, offset },
+    );
   }
 }
