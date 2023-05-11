@@ -5,9 +5,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
-  Logger,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -16,7 +14,7 @@ import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { File, FileAttributes, FileOptions } from './file.domain';
+import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 
@@ -29,7 +27,7 @@ export class FileUseCases {
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
-  ) { }
+  ) {}
 
   getByFileIdAndUser(
     fileId: FileAttributes['id'],
@@ -71,7 +69,7 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -79,17 +77,23 @@ export class FileUseCases {
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(userId, {
-      deleted: false, removed: false,
-    }, updatedAfter, options);
+    return this.getFilesUpdatedAfter(
+      userId,
+      {
+        deleted: false,
+        removed: false,
+      },
+      updatedAfter,
+      options,
+    );
   }
 
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
@@ -102,7 +106,7 @@ export class FileUseCases {
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
@@ -116,17 +120,17 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<File[]> {
     const additionalOrders: Array<[keyof FileAttributes, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC']
+      ['updatedAt', 'ASC'],
     ];
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
       options.limit,
       options.offset,
-      additionalOrders
+      additionalOrders,
     );
     return files.map((file) => file.toJSON());
   }
@@ -136,16 +140,15 @@ export class FileUseCases {
     where: Partial<FileAttributes>,
     options = { limit: 20, offset: 0 },
   ): Promise<File[]> {
-    const filesWithMaybePlainName =
-      await this.fileRepository.findAllCursor(
-        {
-          ...where,
-          // enforce userId always
-          userId,
-        },
-        options.limit,
-        options.offset,
-      );
+    const filesWithMaybePlainName = await this.fileRepository.findAllCursor(
+      {
+        ...where,
+        // enforce userId always
+        userId,
+      },
+      options.limit,
+      options.offset,
+    );
 
     return filesWithMaybePlainName.map((file) =>
       file.plainName ? file : this.decrypFileName(file),
