@@ -256,34 +256,6 @@ export class FolderUseCases {
     });
   }
 
-  async getFolderSize(folderId: FolderAttributes['id']) {
-    const folder = await this.folderRepository.findById(folderId);
-    if (!folder) {
-      throw new NotFoundException(`Folder ${folderId} does not exist`);
-    }
-
-    const foldersToCheck = [folder.id];
-    let totalSize = 0;
-
-    while (foldersToCheck.length > 0) {
-      const currentFolderId = foldersToCheck.shift();
-
-      const [childrenFolder, filesSize] = await Promise.all([
-        this.folderRepository.findAllByParentIdAndUserId(
-          currentFolderId,
-          folder.userId,
-          false,
-        ),
-        this.fileUseCases.getTotalSizeOfFilesFromFolder(currentFolderId),
-      ]);
-      totalSize += filesSize;
-
-      childrenFolder.forEach((fld: Folder) => foldersToCheck.push(fld.id));
-    }
-
-    return totalSize;
-  }
-
   async getFoldersByParentId(
     parentId: FolderAttributes['id'],
     userId: UserAttributes['id'],

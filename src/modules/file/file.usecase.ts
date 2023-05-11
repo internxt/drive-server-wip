@@ -217,10 +217,6 @@ export class FileUseCases {
     return encryptionKey.toString('hex');
   }
 
-  getTotalSizeOfFilesFromFolder(folderId: number) {
-    return this.fileRepository.getTotalSizeByFolderId(folderId);
-  }
-
   /**
    * Deletes files of a given user. The file will be deleted in this order:
    * - From the network
