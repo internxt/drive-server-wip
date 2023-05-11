@@ -361,6 +361,7 @@ export class SequelizeFileRepository implements FileRepository {
         removed: true,
         removedAt: new Date(),
         status: FileStatus.DELETED,
+        updatedAt: new Date(),
       },
       {
         where: {
