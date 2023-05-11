@@ -3,6 +3,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
+import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
+import { isNumber } from '../../lib/validators';
+import API_LIMITS from '../../lib/http/limits';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -41,6 +44,32 @@ export class FileController {
     @Query('status') status: typeof filesStatuses[number],
     @Query('updatedAt') updatedAt?: string,
   ) {
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestException('Limit or offset are not numbers');
+    }
+
+    if (
+      limit < API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND ||
+      limit > API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'limit',
+        API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND,
+        API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
+      );
+    }
+
+    if (
+      offset < API_LIMITS.FILES.GET.OFFSET.LOWER_BOUND ||
+      offset > API_LIMITS.FILES.GET.OFFSET.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'offset',
+        API_LIMITS.FILES.GET.OFFSET.LOWER_BOUND,
+        API_LIMITS.FILES.GET.OFFSET.UPPER_BOUND,
+      );
+    }
+
     const knownStatus = filesStatuses.includes(status);
 
     if (!knownStatus) {
