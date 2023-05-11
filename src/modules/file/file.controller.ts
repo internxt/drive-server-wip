@@ -9,7 +9,7 @@ const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) { }
+  constructor(private readonly fileUseCases: FileUseCases) {}
 
   @Get('/count')
   async getFileCount(
@@ -39,7 +39,7 @@ export class FileController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: typeof filesStatuses[number],
-    @Query('updatedAt') updatedAt?: Date,
+    @Query('updatedAt') updatedAt?: string,
   ) {
     const knownStatus = filesStatuses.includes(status);
 
@@ -54,6 +54,10 @@ export class FileController {
       DELETED: this.fileUseCases.getRemovedFilesUpdatedAfter,
     };
 
-    return fns[status].bind(this.fileUseCases)(user.id, new Date(updatedAt || 1), { limit, offset });
+    return fns[status].bind(this.fileUseCases)(
+      user.id,
+      new Date(updatedAt || 1),
+      { limit, offset },
+    );
   }
 }
