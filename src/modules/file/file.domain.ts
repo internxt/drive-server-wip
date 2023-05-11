@@ -2,6 +2,12 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
 
+export enum FileStatus {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+}
+
 export interface FileAttributes {
   id: number;
   uuid: string;
@@ -24,6 +30,7 @@ export interface FileAttributes {
   plainName: string;
   createdAt: Date;
   updatedAt: Date;
+  status: FileStatus;
 }
 
 export interface FileOptions {
@@ -55,6 +62,7 @@ export class File implements FileAttributes {
   updatedAt: Date;
   removedAt: Date;
   plainName: string;
+  status: FileStatus;
 
   private constructor({
     id,
@@ -77,7 +85,8 @@ export class File implements FileAttributes {
     uuid,
     plainName,
     removed,
-    removedAt
+    removedAt,
+    status,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -100,6 +109,7 @@ export class File implements FileAttributes {
     this.plainName = plainName;
     this.removed = removed;
     this.removedAt = removedAt;
+    this.status = status;
   }
 
   static build(file: FileAttributes): File {
@@ -161,6 +171,7 @@ export class File implements FileAttributes {
       plainName: this.plainName,
       removed: this.removed,
       removedAt: this.removedAt,
+      status: this.status,
     };
   }
 }
