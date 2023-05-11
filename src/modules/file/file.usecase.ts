@@ -183,24 +183,11 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
-  async moveFilesToTrash(
+  moveFilesToTrash(
+    user: User,
     fileIds: FileAttributes['fileId'][],
-    userId: FileAttributes['userId'],
   ): Promise<void> {
-    await this.fileRepository.updateManyByFieldIdAndUserId(fileIds, userId, {
-      deleted: true,
-      deletedAt: new Date(),
-    });
-  }
-
-  moveFileToTrash(
-    fileId: FileAttributes['fileId'],
-    userId: FileAttributes['userId'],
-  ) {
-    return this.fileRepository.updateByFieldIdAndUserId(fileId, userId, {
-      deleted: true,
-      deletedAt: new Date(),
-    });
+    return this.fileRepository.updateFilesStatusToTrashed(user, fileIds);
   }
 
   async getEncryptionKeyFileFromShare(

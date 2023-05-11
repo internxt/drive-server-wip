@@ -8,7 +8,6 @@ import {
   Delete,
   Param,
   Query,
-  UseGuards,
   NotFoundException,
   Res,
   Logger,
@@ -162,7 +161,7 @@ export class TrashController {
         }
       }
       await Promise.all([
-        this.fileUseCases.moveFilesToTrash(fileIds, user.id),
+        this.fileUseCases.moveFilesToTrash(user, fileIds),
         this.folderUseCases.moveFoldersToTrash(folderIds),
       ]);
 
@@ -183,12 +182,13 @@ export class TrashController {
         });
     } catch (err) {
       let errorMessage = err.message;
-      let { email, uuid } = user;
+      const { email, uuid } = user;
 
       new Logger().error(
-        `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify(
-          { ...moveItemsDto, user: { email, uuid } },
-        )}, STACK: ${(err as Error).stack}`,
+        `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify({
+          ...moveItemsDto,
+          user: { email, uuid },
+        })}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
       errorMessage = 'Internal Server Error';
@@ -198,7 +198,7 @@ export class TrashController {
   }
 
   @Delete('/all')
-  @HttpCode(202)
+  @HttpCode(200)
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
