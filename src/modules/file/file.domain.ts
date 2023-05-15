@@ -153,6 +153,7 @@ export class File implements FileAttributes {
   toJSON(): FileDto {
     return {
       id: this.id,
+      uuid: this.uuid,
       fileId: this.fileId,
       name: this.name,
       type: this.type,
