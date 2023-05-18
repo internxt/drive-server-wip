@@ -1,4 +1,4 @@
-import { Inject, UnauthorizedException } from '@nestjs/common';
+import { Inject, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -26,11 +26,27 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
   }
 
   async validate(payload): Promise<User> {
-    const { uuid } = payload.payload;
-    const user = await this.userUseCases.getUser(uuid);
-    if (!user) {
+    try {
+      if (!payload.payload || !payload.payload.uuid) {
+        throw new UnauthorizedException('Old token version detected');
+      }
+      const { uuid } = payload.payload;
+      const user = await this.userUseCases.getUser(uuid);
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+      return user;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        throw err;
+      }
+
+      Logger.error(
+        `[AUTH/MIDDLEWARE] ERROR validating authorization ${
+          err.message
+        }, token payload ${payload}, STACK: ${(err as Error).stack},`,
+      );
       throw new UnauthorizedException();
     }
-    return user;
   }
 }
