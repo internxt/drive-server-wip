@@ -6,6 +6,7 @@ import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
+import { File } from './file.domain';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -76,17 +77,30 @@ export class FileController {
       throw new BadRequestException(`Unknown status "${status.toString()}"`);
     }
 
-    const fns = {
+    const fns: Record<string, (...args) => Promise<File[]>> = {
       ALL: this.fileUseCases.getAllFilesUpdatedAfter,
       EXISTS: this.fileUseCases.getNotTrashedFilesUpdatedAfter,
       TRASHED: this.fileUseCases.getTrashedFilesUpdatedAfter,
       DELETED: this.fileUseCases.getRemovedFilesUpdatedAfter,
     };
 
-    return fns[status].bind(this.fileUseCases)(
+    const files: File[] = await fns[status].bind(this.fileUseCases)(
       user.id,
       new Date(updatedAt || 1),
       { limit, offset },
     );
+
+    return files.map((f) => {
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      if (!f.plainName) {
+        f.plainName = this.fileUseCases.decrypFileName(f).plainName;
+      }
+
+      return f;
+    });
   }
 }
