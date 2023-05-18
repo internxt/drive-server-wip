@@ -12,6 +12,7 @@ import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
+import { Folder } from './folder.domain';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -56,7 +57,7 @@ export class FolderController {
   constructor(
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
-  ) { }
+  ) {}
 
   @Get('/count')
   async getFolderCount(
@@ -207,17 +208,43 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
-    const fns = {
+    const fns: Record<string, (...args) => Promise<Folder[]>> = {
       ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
       EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
       TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
       DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
     };
 
-    return fns[status].bind(this.folderUseCases)(
+    const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
       user.id,
       new Date(updatedAt || 1),
       { limit, offset },
     );
+
+    return folders.map((f) => {
+      if (!f.plainName) {
+        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+      }
+
+      let status: 'EXISTS' | 'TRASHED' | 'DELETED';
+
+      if (f.removed) {
+        status = 'DELETED';
+      } else if (f.deleted) {
+        status = 'TRASHED';
+      } else {
+        status = 'EXISTS';
+      }
+
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      return {
+        ...f,
+        status,
+      };
+    });
   }
 }
