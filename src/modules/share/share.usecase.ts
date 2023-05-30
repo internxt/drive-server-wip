@@ -19,6 +19,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { File } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -30,7 +31,7 @@ export class ShareUseCases {
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
     private cryptoService: CryptoService,
-  ) {}
+  ) { }
 
   getShareById(id: number): Promise<Share> {
     return this.shareRepository.findById(id);
@@ -246,9 +247,9 @@ export class ShareUseCases {
 
     const hashedPassword = plainPassword
       ? this.cryptoService.deterministicEncryption(
-          plainPassword,
-          getEnv().secrets.magicSalt,
-        )
+        plainPassword,
+        getEnv().secrets.magicSalt,
+      )
       : null;
 
     const newShare = Share.build({
@@ -293,7 +294,12 @@ export class ShareUseCases {
       encryptedMnemonic: mnemonic,
       encryptedCode: code,
     }: CreateShareDto,
-  ) {
+  ): Promise<{
+    id: number,
+    item: Share,
+    encryptedCode: string,
+    created: boolean,
+  }> {
     const folder = await this.foldersRepository.findById(folderId);
     if (!folder) {
       throw new NotFoundException(`Folder ${folderId} not found`);
@@ -332,9 +338,9 @@ export class ShareUseCases {
 
     const hashedPassword = plainPassword
       ? this.cryptoService.deterministicEncryption(
-          plainPassword,
-          getEnv().secrets.magicSalt,
-        )
+        plainPassword,
+        getEnv().secrets.magicSalt,
+      )
       : null;
 
     const token = crypto.randomBytes(10).toString('hex');

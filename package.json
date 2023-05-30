@@ -25,6 +25,8 @@
     "migrate:prod:undo": "NODE_ENV=production sequelize db:migrate:undo",
     "migrate:test": "NODE_ENV=test sequelize db:migrate",
     "migrate:test:undo": "NODE_ENV=test sequelize db:migrate:undo",
+    "db:seed:test:all": "NODE_ENV=test sequelize db:seed:all",
+    "db:seed:test:all:undo": "NODE_ENV=test sequelize db:seed:undo:all",
     "postinstall": "yarn run prepare-hooks",
     "prepare-hooks": "husky install"
   },
@@ -50,6 +52,7 @@
     "@sentry/node": "^7.7.0",
     "@sentry/tracing": "^7.7.0",
     "@types/passport-jwt": "^3.0.6",
+    "agentkeepalive": "^4.3.0",
     "analytics-node": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",

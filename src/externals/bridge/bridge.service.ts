@@ -97,7 +97,7 @@ export class BridgeService {
   }
 
   public async deleteFile(
-    user: User,
+    user: Pick<User, 'bridgeUser' | 'userId'>,
     bucket: FileAttributes['bucket'],
     bucketEntry: FileAttributes['fileId'],
   ): Promise<void> {
@@ -113,10 +113,17 @@ export class BridgeService {
       `[INXT removeFile]: User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
     );
 
-    await this.httpClient.delete(
-      `${url}/buckets/${bucket}/files/${bucketEntry}`,
-      params,
-    );
+    await this.httpClient
+      .delete(`${url}/buckets/${bucket}/files/${bucketEntry}`, params)
+      .catch((err) => {
+        if (!(err.response.status === 500)) {
+          Logger.log(
+            `[INXT removeFile]: Error User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
+          );
+          return;
+        }
+        throw err;
+      });
   }
 
   async addStorage(uuid: UserAttributes['uuid'], bytes: number): Promise<void> {

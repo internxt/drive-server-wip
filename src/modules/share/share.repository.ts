@@ -215,8 +215,8 @@ export class SequelizeShareRepository implements ShareRepository {
   async create(share: Share): Promise<Share> {
     const shareModel = this.toModel(share);
     delete shareModel.id;
-    const { id } = await this.shareModel.create(shareModel);
-    return this.findById(id);
+    const model = await this.shareModel.create(shareModel);
+    return this.toDomain(model);
   }
 
   async update(share: Share): Promise<void> {
@@ -232,6 +232,16 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.destroy({ where: { id: shareId } });
   }
 
+  async deleteByUserAndFiles(user: User, files: File[]): Promise<void> {
+    await this.shareModel.destroy({
+      where: {
+        userId: user.id,
+        fileId: {
+          [Op.in]: files.map(({ id }) => id),
+        },
+      },
+    });
+  }
   async findAllByUsersPaginated(
     users: User[],
     page: number,

@@ -52,10 +52,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     private folderModel: typeof FolderModel,
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
-  ) {}
+  ) { }
 
   async findAll(where = {}): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({ where });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findByIds(user: User, ids: FolderAttributes['id'][]) {
+    const folders = await this.folderModel.findAll({
+      where: { id: { [Op.in]: ids }, userId: user.id },
+    });
     return folders.map((folder) => this.toDomain(folder));
   }
 
@@ -277,6 +284,45 @@ export class SequelizeFolderRepository implements FolderRepository {
     `);
 
     return folder as Pick<Folder, 'parentId' | 'id' | 'plainName'>;
+  }
+
+  async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderModel.update({
+      removed: true,
+      removedAt: new Date(),
+    }, {
+      where: {
+        userId: user.id,
+        id: {
+          [Op.in]: folders.map(({ id }) => id),
+        },
+      },
+    });
+  }
+
+  async findAllCursorWhereUpdatedAfter(
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FolderModel, string]> = [],
+  ): Promise<Array<Folder>> {
+    const folders = await this.folderModel.findAll({
+      where: {
+        ...where,
+        updatedAt: {
+          [Op.gt]: updatedAfter,
+        },
+        parentId: {
+          [Op.not]: null,
+        },
+      },
+      order: additionalOrders,
+      limit,
+      offset,
+    });
+
+    return folders.map((folder) => this.toDomain(folder));
   }
 
   private toDomain(model: FolderModel): Folder {

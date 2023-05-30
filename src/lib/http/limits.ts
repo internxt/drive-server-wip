@@ -1,0 +1,19 @@
+const GET_LIMIT_LOWER_BOUND = 1;
+const GET_LIMIT_UPPER_BOUND = 500;
+const GET_OFFSET_LOWER_BOUND = 0;
+const GET_OFFSET_UPPER_BOUND = 1000000 - GET_LIMIT_UPPER_BOUND;
+
+export default {
+  FILES: {
+    GET: {
+      LIMIT: {
+        LOWER_BOUND: GET_LIMIT_LOWER_BOUND,
+        UPPER_BOUND: GET_LIMIT_UPPER_BOUND,
+      },
+      OFFSET: {
+        LOWER_BOUND: GET_OFFSET_LOWER_BOUND,
+        UPPER_BOUND: GET_OFFSET_UPPER_BOUND,
+      },
+    },
+  },
+};

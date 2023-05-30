@@ -26,7 +26,11 @@ export class FolderUseCases {
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
-  ) {}
+  ) { }
+
+  getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
+    return this.folderRepository.findByIds(user, folderIds);
+  }
 
   async getFolderByUserId(
     folderId: FolderAttributes['id'],
@@ -246,38 +250,10 @@ export class FolderUseCases {
     });
   }
   async moveFoldersToTrash(folderIds: FolderAttributes['id'][]): Promise<void> {
-    this.folderRepository.updateManyByFolderId(folderIds, {
+    return this.folderRepository.updateManyByFolderId(folderIds, {
       deleted: true,
       deletedAt: new Date(),
     });
-  }
-
-  async getFolderSize(folderId: FolderAttributes['id']) {
-    const folder = await this.folderRepository.findById(folderId);
-    if (!folder) {
-      throw new NotFoundException(`Folder ${folderId} does not exist`);
-    }
-
-    const foldersToCheck = [folder.id];
-    let totalSize = 0;
-
-    while (foldersToCheck.length > 0) {
-      const currentFolderId = foldersToCheck.shift();
-
-      const [childrenFolder, filesSize] = await Promise.all([
-        this.folderRepository.findAllByParentIdAndUserId(
-          currentFolderId,
-          folder.userId,
-          false,
-        ),
-        this.fileUseCases.getTotalSizeOfFilesFromFolder(currentFolderId),
-      ]);
-      totalSize += filesSize;
-
-      childrenFolder.forEach((fld: Folder) => foldersToCheck.push(fld.id));
-    }
-
-    return totalSize;
   }
 
   async getFoldersByParentId(
@@ -299,6 +275,68 @@ export class FolderUseCases {
       userId,
       { parentId, deleted: options.deleted },
       options,
+    );
+  }
+
+  getAllFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(userId, {}, updatedAfter, options);
+  }
+
+  getNotTrashedFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(userId, {
+      deleted: false, removed: false,
+    }, updatedAfter, options);
+  }
+
+  getRemovedFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(
+      userId,
+      { removed: true },
+      updatedAfter,
+      options,
+    );
+  }
+
+  getTrashedFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Folder[]> {
+    return this.getFoldersUpdatedAfter(
+      userId,
+      { deleted: true, removed: false },
+      updatedAfter,
+      options,
+    );
+  }
+
+  getFoldersUpdatedAfter(
+    userId: UserAttributes['id'],
+    where: Partial<FolderAttributes>,
+    updatedAfter: Date,
+    options: { limit: number, offset: number },
+  ): Promise<Array<Folder>> {
+    const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
+      ['updatedAt', 'ASC']
+    ];
+    return this.folderRepository.findAllCursorWhereUpdatedAfter(
+      { ...where, userId },
+      updatedAfter,
+      options.limit,
+      options.offset,
+      additionalOrders
     );
   }
 
@@ -400,5 +438,9 @@ export class FolderUseCases {
       name: decryptedName,
       plainName: decryptedName,
     }).toJSON();
+  }
+
+  async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderRepository.deleteByUser(user, folders);
   }
 }

@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { SignUpSuccessEvent } from '../events/sign-up-success.event';
-import { NewsletterService } from 'src/externals/newsletter';
+import { NewsletterService } from '../../newsletter';
 // import { InvitationAcceptedEvent } from '../events/invitation-accepted.event';
 // import { UserUseCases } from 'src/modules/user/user.usecase';
-import logger from 'src/externals/logger';
-import { Ids } from 'src/externals/logger/ids';
+import logger from '../../logger';
+import { Ids } from '../../logger/ids';
 import { SignUpErrorEvent } from '../events/sign-up-error.event';
 
 @Injectable()

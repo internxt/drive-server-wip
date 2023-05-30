@@ -65,6 +65,10 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   deleted: boolean;
 
+  @Default(false)
+  @Column
+  removed: boolean;
+
   @AllowNull
   @Column
   deletedAt: Date;
@@ -74,4 +78,7 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   updatedAt: Date;
+
+  @Column
+  removedAt: Date;
 }

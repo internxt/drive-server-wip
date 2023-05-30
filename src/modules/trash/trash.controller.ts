@@ -2,14 +2,16 @@ import {
   BadRequestException,
   Body,
   Controller,
-  HttpException,
   Get,
   HttpCode,
   Post,
   Delete,
   Param,
   Query,
-  UseGuards,
+  NotFoundException,
+  Res,
+  Logger,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -35,6 +37,7 @@ import { Folder } from '../folder/folder.domain';
 import { File } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
+import { Response } from 'express';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
@@ -46,34 +49,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-  ) {}
-
-  @Get('/')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get trash content',
-  })
-  @ApiOkResponse({ description: 'Get all folders and files in trash' })
-  async getTrash(@UserDecorator() user: User) {
-    const folderId = user.rootFolderId;
-    const [currentFolder, childrenFolders] = await Promise.all([
-      this.folderUseCases.getFolder(folderId),
-      this.folderUseCases.getFoldersToUser(user.id, { deleted: true }),
-    ]);
-    const childrenFoldersIds = childrenFolders.map(({ id }) => id);
-    const files = await this.fileUseCases.getByUserExceptParents(
-      user.id,
-      childrenFoldersIds,
-      { deleted: true },
-    );
-    return {
-      ...currentFolder.toJSON(),
-      children: childrenFolders.map((folder: Folder) =>
-        this.folderUseCases.decryptFolderName(folder),
-      ),
-      files: files.map((file: File) => this.fileUseCases.decrypFileName(file)),
-    };
-  }
+  ) { }
 
   @Get('/paginated')
   @HttpCode(200)
@@ -116,13 +92,13 @@ export class TrashController {
         // Root level could have different folders
         result = await this.fileUseCases.getFiles(
           user.id,
-          { deleted: true },
+          { deleted: true, removed: false },
           { limit, offset },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
-          { deleted: true },
+          { deleted: true, removed: false },
           { limit, offset },
         );
       }
@@ -149,7 +125,7 @@ export class TrashController {
     return { result };
   }
 
-  @UseGuards(ThrottlerGuard)
+  // @UseGuards(ThrottlerGuard)
   @Post('add')
   @HttpCode(200)
   @ApiOperation({
@@ -161,6 +137,7 @@ export class TrashController {
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (moveItemsDto.items.length === 0) {
       logger('error', {
@@ -171,43 +148,67 @@ export class TrashController {
       return;
     }
 
-    const fileIds: string[] = [];
-    const folderIds: number[] = [];
-    for (const item of moveItemsDto.items) {
-      if (item.type === 'file') {
-        fileIds.push(item.id);
-      } else if (item.type === 'folder') {
-        folderIds.push(parseInt(item.id));
-      } else {
-        throw new BadRequestException(`type ${item.type} invalid`);
+    try {
+      const fileIds: string[] = [];
+      const folderIds: number[] = [];
+      for (const item of moveItemsDto.items) {
+        if (item.type === 'file') {
+          fileIds.push(item.id);
+        } else if (item.type === 'folder') {
+          folderIds.push(parseInt(item.id));
+        } else {
+          throw new BadRequestException(`type ${item.type} invalid`);
+        }
       }
-    }
-    await Promise.all([
-      this.fileUseCases.moveFilesToTrash(fileIds, user.id),
-      this.folderUseCases.moveFoldersToTrash(folderIds),
-    ]);
+      await Promise.all([
+        this.fileUseCases.moveFilesToTrash(user, fileIds),
+        this.folderUseCases.moveFoldersToTrash(folderIds),
+      ]);
 
-    const workspaceMembers =
-      await this.userUseCases.getWorkspaceMembersByBrigeUser(user.bridgeUser);
+      this.userUseCases
+        .getWorkspaceMembersByBrigeUser(user.bridgeUser)
+        .then((members) => {
+          members.forEach(({ email }: { email: string }) => {
+            const itemsToTrashEvent = new ItemsToTrashEvent(
+              moveItemsDto.items,
+              email,
+              clientId,
+            );
+            this.notificationService.add(itemsToTrashEvent);
+          });
+        })
+        .catch((err) => {
+          // no op
+        });
+    } catch (err) {
+      let errorMessage = err.message;
+      const { email, uuid } = user;
 
-    workspaceMembers.forEach(({ email }: { email: string }) => {
-      const itemsToTrashEvent = new ItemsToTrashEvent(
-        moveItemsDto.items,
-        email,
-        clientId,
+      new Logger().error(
+        `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify({
+          ...moveItemsDto,
+          user: { email, uuid },
+        })}, STACK: ${(err as Error).stack}`,
       );
-      this.notificationService.add(itemsToTrashEvent);
-    });
-    return;
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      errorMessage = 'Internal Server Error';
+
+      return { error: errorMessage };
+    }
   }
 
   @Delete('/all')
-  @HttpCode(202)
+  @HttpCode(200)
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
-  clearTrash(@UserDecorator() user: User) {
-    this.trashUseCases.clearTrash(user);
+  async clearTrash(@UserDecorator() user: User) {
+    await this.trashUseCases.emptyTrash(user);
+  }
+
+  @Delete('/all/request')
+  requestEmptyTrash(user: User) {
+    this.trashUseCases.emptyTrash(user);
   }
 
   @Delete('/')
@@ -219,21 +220,31 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    const filesId = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FILE)
-      .map((item) => item.id);
+    // TODO: Uncomment this once all the platforms block deleting more than 50 items
+    // if (deleteItemsDto.items.length > 50) {
+    //   throw new BadRequestException(
+    //     'Items to remove from the trash are limited to 50',
+    //   );
+    // }
 
-    const foldersId = deleteItemsDto.items
+    const filesIds = deleteItemsDto.items
+      .filter((item) => item.type === DeleteItemType.FILE)
+      .map((item) => parseInt(item.id));
+
+    const foldersIds = deleteItemsDto.items
       .filter((item) => item.type === DeleteItemType.FOLDER)
       .map((item) => parseInt(item.id));
 
-    await this.trashUseCases
-      .deleteItems(filesId, foldersId, user)
-      .catch((err) => {
-        if (err instanceof HttpException) {
-          throw err;
-        }
-      });
+    const files =
+      filesIds.length > 0
+        ? await this.fileUseCases.getFilesByIds(user, filesIds)
+        : [];
+    const folders =
+      foldersIds.length > 0
+        ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
+        : [];
+
+    await this.trashUseCases.deleteItems(user, files, folders);
   }
 
   @Delete('/file/:fileId')
@@ -245,7 +256,13 @@ export class TrashController {
     @Param('fileId') fileId: string,
     @UserDecorator() user: User,
   ) {
-    await this.trashUseCases.deleteItems([fileId], [], user);
+    const files = await this.fileUseCases.getFiles(user.id, { fileId });
+
+    if (files.length === 0) {
+      throw new NotFoundException();
+    }
+
+    await this.trashUseCases.deleteItems(user, [files[0]], []);
   }
 
   @Delete('/folder/:folderId')
@@ -257,6 +274,14 @@ export class TrashController {
     @Param('folderId') folderId: number,
     @UserDecorator() user: User,
   ) {
-    await this.trashUseCases.deleteItems([], [folderId], user);
+    const folders = await this.folderUseCases.getFolders(user.id, {
+      id: folderId,
+    });
+
+    if (folders.length === 0) {
+      throw new NotFoundException();
+    }
+
+    await this.trashUseCases.deleteItems(user, [], [folders[0]]);
   }
 }

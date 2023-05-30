@@ -4,17 +4,60 @@ import {
   Delete,
   Get,
   NotImplementedException,
+  Param,
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
+import { FileUseCases } from '../file/file.usecase';
+import { Folder } from './folder.domain';
+
+const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
+export class BadRequestWrongFolderIdException extends BadRequestException {
+  constructor() {
+    super('Folder id should be a number and higher than 0');
+
+    Object.setPrototypeOf(this, BadRequestWrongFolderIdException.prototype);
+  }
+}
+
+export class BadRequestWrongOffsetOrLimitException extends BadRequestException {
+  constructor() {
+    super('Offset and limit should be numbers higher than 0');
+
+    Object.setPrototypeOf(
+      this,
+      BadRequestWrongOffsetOrLimitException.prototype,
+    );
+  }
+}
+
+export class BadRequestOutOfRangeLimitException extends BadRequestException {
+  constructor() {
+    super('Limit should be between 1 and 50');
+
+    Object.setPrototypeOf(this, BadRequestOutOfRangeLimitException.prototype);
+  }
+}
+
+export class BadRequestInvalidOffsetException extends BadRequestException {
+  constructor() {
+    super('Offset should be higher than 0');
+
+    Object.setPrototypeOf(this, BadRequestInvalidOffsetException.prototype);
+  }
+}
 
 @ApiTags('Folder')
 @Controller('folders')
 export class FolderController {
-  constructor(private readonly folderUseCases: FolderUseCases) {}
+  constructor(
+    private readonly folderUseCases: FolderUseCases,
+    private readonly fileUseCases: FileUseCases,
+  ) {}
 
   @Get('/count')
   async getFolderCount(
@@ -59,5 +102,149 @@ export class FolderController {
     } else {
       throw new BadRequestException();
     }
+  }
+
+  @Get(':id/files')
+  async getFolderFiles(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Param('id') folderId: number,
+  ) {
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
+    if (folderId < 1 || !isNumber(folderId)) {
+      throw new BadRequestWrongFolderIdException();
+    }
+
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestWrongOffsetOrLimitException();
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestOutOfRangeLimitException();
+    }
+
+    if (offset < 0) {
+      throw new BadRequestInvalidOffsetException();
+    }
+
+    const files = await this.fileUseCases.getFilesByFolderId(
+      folderId,
+      user.id,
+      {
+        limit,
+        offset,
+        deleted: false,
+      },
+    );
+
+    return { result: files };
+  }
+
+  @Get(':id/folders')
+  async getFolderFolders(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Param('id') folderId: number,
+  ) {
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
+    if (folderId < 1 || !isNumber(folderId)) {
+      throw new BadRequestWrongFolderIdException();
+    }
+
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestWrongOffsetOrLimitException();
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestOutOfRangeLimitException();
+    }
+
+    if (offset < 0) {
+      throw new BadRequestInvalidOffsetException();
+    }
+
+    const folders = await this.folderUseCases.getFoldersByParentId(
+      folderId,
+      user.id,
+      {
+        limit,
+        offset,
+        deleted: false,
+      },
+    );
+
+    return { result: folders };
+  }
+
+  @Get('/')
+  async getFolders(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Query('status') status: typeof foldersStatuses[number],
+    @Query('updatedAt') updatedAt?: string,
+  ) {
+    const knownStatus = foldersStatuses.includes(status);
+
+    if (!knownStatus) {
+      throw new BadRequestException(`Unknown status "${status.toString()}"`);
+    }
+
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestWrongOffsetOrLimitException();
+    }
+
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestOutOfRangeLimitException();
+    }
+
+    if (offset < 0) {
+      throw new BadRequestInvalidOffsetException();
+    }
+
+    const fns: Record<string, (...args) => Promise<Folder[]>> = {
+      ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
+      EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
+      TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
+      DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
+    };
+
+    const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
+      user.id,
+      new Date(updatedAt || 1),
+      { limit, offset },
+    );
+
+    return folders.map((f) => {
+      if (!f.plainName) {
+        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+      }
+
+      let status: 'EXISTS' | 'TRASHED' | 'DELETED';
+
+      if (f.removed) {
+        status = 'DELETED';
+      } else if (f.deleted) {
+        status = 'TRASHED';
+      } else {
+        status = 'EXISTS';
+      }
+
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      return {
+        ...f,
+        status,
+      };
+    });
   }
 }

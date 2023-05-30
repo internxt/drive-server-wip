@@ -3,6 +3,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
+import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
+import { isNumber } from '../../lib/validators';
+import API_LIMITS from '../../lib/http/limits';
+import { File } from './file.domain';
+
+const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
 @ApiTags('File')
 @Controller('files')
@@ -29,5 +35,72 @@ export class FileController {
     }
 
     return { count };
+  }
+
+  @Get('/')
+  async getFiles(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+    @Query('status') status: typeof filesStatuses[number],
+    @Query('updatedAt') updatedAt?: string,
+  ) {
+    if (!isNumber(limit) || !isNumber(offset)) {
+      throw new BadRequestException('Limit or offset are not numbers');
+    }
+
+    if (
+      limit < API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND ||
+      limit > API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'limit',
+        API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND,
+        API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
+      );
+    }
+
+    if (
+      offset < API_LIMITS.FILES.GET.OFFSET.LOWER_BOUND ||
+      offset > API_LIMITS.FILES.GET.OFFSET.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'offset',
+        API_LIMITS.FILES.GET.OFFSET.LOWER_BOUND,
+        API_LIMITS.FILES.GET.OFFSET.UPPER_BOUND,
+      );
+    }
+
+    const knownStatus = filesStatuses.includes(status);
+
+    if (!knownStatus) {
+      throw new BadRequestException(`Unknown status "${status.toString()}"`);
+    }
+
+    const fns: Record<string, (...args) => Promise<File[]>> = {
+      ALL: this.fileUseCases.getAllFilesUpdatedAfter,
+      EXISTS: this.fileUseCases.getNotTrashedFilesUpdatedAfter,
+      TRASHED: this.fileUseCases.getTrashedFilesUpdatedAfter,
+      DELETED: this.fileUseCases.getRemovedFilesUpdatedAfter,
+    };
+
+    const files: File[] = await fns[status].bind(this.fileUseCases)(
+      user.id,
+      new Date(updatedAt || 1),
+      { limit, offset },
+    );
+
+    return files.map((f) => {
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      if (!f.plainName) {
+        f.plainName = this.fileUseCases.decrypFileName(f).plainName;
+      }
+
+      return f;
+    });
   }
 }

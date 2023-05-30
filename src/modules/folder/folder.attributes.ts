@@ -10,7 +10,9 @@ export interface FolderAttributes {
   plainName: string;
   encryptVersion: '03-aes';
   deleted: boolean;
+  removed: boolean;
   deletedAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  removedAt: Date;
 }

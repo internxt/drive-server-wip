@@ -1,0 +1,58 @@
+name: run-tests-e2e
+on:
+  push:
+    branches:
+      - 'master'
+      - 'develop'
+  pull_request:
+    branches:
+      - 'master'
+      - 'develop'
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: development
+    env:
+      RDS_HOSTNAME: localhost
+      RDS_DBNAME: xCloud
+      RDS_USERNAME: postgres
+      RDS_PASSWORD: example
+      RDS_PORT: 5432
+      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+      SENDGRID_MODE_SANDBOX: true
+      APP_SEGMENT_KEY: ${{ secrets.APP_SEGMENT_KEY }}  
+    strategy:
+      matrix:
+        node-version: [16.x]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: 'https://npm.pkg.github.com'
+
+      # We should see why permissions field is not doing the job. This should be removed
+      - run: echo "registry=https://registry.yarnpkg.com/" > .npmrc
+      - run: echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
+      # You cannot read packages from other private repos with GITHUB_TOKEN
+      # You have to use a PAT instead https://github.com/actions/setup-node/issues/49
+      - run: echo //npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_ACCESS_TOKEN }} >> .npmrc
+      - run: echo "always-auth=true" >> .npmrc
+
+      - name: Setup environment
+        uses: isbang/compose-action@v1.4.1
+        with: 
+          compose-file: "./infrastructure/docker-compose.yml"
+    
+      - name: Install dependencies
+        run: yarn
+
+      - name: Run tests
+        run: yarn migrate:test && yarn run db:seed:test:all && yarn run test:e2e
