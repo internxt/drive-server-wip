@@ -1,7 +1,9 @@
 import { FolderDto } from '../../folder/dto/folder.dto';
+import { FileStatus } from '../file.domain';
 
 export class FileDto {
   id: number;
+  uuid: string;
   fileId: string;
   name: string;
   type: string;
@@ -12,10 +14,13 @@ export class FileDto {
   folderUuid: FolderDto['uuid'];
   encryptVersion: string;
   deleted: boolean;
+  removed: boolean;
   deletedAt: Date;
   userId: number;
   plainName: string;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
+  removedAt: Date;
+  status: FileStatus;
 }

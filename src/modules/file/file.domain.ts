@@ -2,6 +2,12 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
 
+export enum FileStatus {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+}
+
 export interface FileAttributes {
   id: number;
   uuid: string;
@@ -16,16 +22,20 @@ export interface FileAttributes {
   encryptVersion: string;
   deleted: boolean;
   deletedAt: Date;
+  removed: boolean;
+  removedAt: Date;
   userId: number;
   user?: any;
   modificationTime: Date;
   plainName: string;
   createdAt: Date;
   updatedAt: Date;
+  status: FileStatus;
 }
 
 export interface FileOptions {
   deleted: FileAttributes['deleted'];
+  removed?: FileAttributes['removed'];
   page?: number;
   perPage?: number;
 }
@@ -43,13 +53,16 @@ export class File implements FileAttributes {
   folderUuid: string;
   encryptVersion: string;
   deleted: boolean;
+  removed: boolean;
   deletedAt: Date;
   userId: number;
   user: User;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
+  removedAt: Date;
   plainName: string;
+  status: FileStatus;
 
   private constructor({
     id,
@@ -71,6 +84,9 @@ export class File implements FileAttributes {
     updatedAt,
     uuid,
     plainName,
+    removed,
+    removedAt,
+    status,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -91,10 +107,25 @@ export class File implements FileAttributes {
     this.folderUuid = folderUuid;
     this.uuid = uuid;
     this.plainName = plainName;
+    this.removed = removed;
+    this.removedAt = removedAt;
+    this.status = status;
   }
 
   static build(file: FileAttributes): File {
     return new File(file);
+  }
+
+  isOwnedBy(user: User): boolean {
+    return this.userId === user.id;
+  }
+
+  isChildrenOf(folder: Folder): boolean {
+    return this.folderId === folder.id;
+  }
+
+  get networkId(): string {
+    return this.fileId;
   }
 
   setFolder(folder) {
@@ -122,6 +153,7 @@ export class File implements FileAttributes {
   toJSON(): FileDto {
     return {
       id: this.id,
+      uuid: this.uuid,
       fileId: this.fileId,
       name: this.name,
       type: this.type,
@@ -138,6 +170,9 @@ export class File implements FileAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       plainName: this.plainName,
+      removed: this.removed,
+      removedAt: this.removedAt,
+      status: this.status,
     };
   }
 }
