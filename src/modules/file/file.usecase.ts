@@ -29,6 +29,16 @@ export class FileUseCases {
     private cryptoService: CryptoService,
   ) {}
 
+  async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id);
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return file;
+  }
+
   getByFileIdAndUser(
     fileId: FileAttributes['id'],
     userId: UserAttributes['id'],
