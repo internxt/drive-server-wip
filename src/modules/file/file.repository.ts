@@ -126,6 +126,11 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
+  findByUuid(
+    fileUuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    where: FindOptions<FileAttributes>,
+  ): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -152,6 +157,22 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findByUuid(
+    fileUuid: string,
+    userId: number,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        userId,
+        ...where,
+      },
+    });
+
+    return this.toDomain(file);
   }
 
   async findAllCursorWhereUpdatedAfter(
