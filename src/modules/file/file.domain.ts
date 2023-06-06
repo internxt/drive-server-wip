@@ -2,6 +2,8 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
 
+export type SortableFileAttributes = keyof Pick<FileAttributes, 'updatedAt' | 'size' | 'id' | 'plainName' | 'name'>;
+
 export enum FileStatus {
   EXISTS = 'EXISTS',
   TRASHED = 'TRASHED',
