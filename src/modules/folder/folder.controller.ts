@@ -12,7 +12,7 @@ import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder } from './folder.domain';
+import { Folder, SortableFolderAttributes } from './folder.domain';
 import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
@@ -154,6 +154,8 @@ export class FolderController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Param('id') folderId: number,
+    @Query('sort') sort?: SortableFolderAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
     const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
@@ -173,13 +175,16 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
-    const folders = await this.folderUseCases.getFoldersByParentId(
-      folderId,
+    const folders = await this.folderUseCases.getFolders(
       user.id,
+      {
+        parentId: folderId,
+        deleted: false,
+      },
       {
         limit,
         offset,
-        deleted: false,
+        sort: (sort && order) && [[sort, order]],
       },
     );
 

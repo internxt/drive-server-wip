@@ -12,11 +12,13 @@ import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Folder, FolderOptions } from './folder.domain';
+import { Folder, FolderOptions, SortableFolderAttributes } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 
 const invalidName = /[\\/]|^\s*$/;
+
+type SortParams = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FolderUseCases {
@@ -261,16 +263,6 @@ export class FolderUseCases {
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
   ): Promise<Folder[]> {
-    const parentFolder = await this.getFolderByUserId(parentId, userId);
-
-    if (!parentFolder) {
-      throw new NotFoundException();
-    }
-
-    if (!(parentFolder.userId === userId)) {
-      throw new ForbiddenException();
-    }
-
     return this.getFolders(
       userId,
       { parentId, deleted: options.deleted },
@@ -341,19 +333,16 @@ export class FolderUseCases {
   }
 
   async getFolders(
-    userId: UserAttributes['id'],
+    userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options = { limit: 20, offset: 0 },
+    options: { limit: number, offset: number, sort?: SortParams } = { limit: 20, offset: 0 },
   ): Promise<Folder[]> {
     const foldersWithMaybePlainName =
-      await this.folderRepository.findAllByParentIdCursor(
-        {
-          ...where,
-          // enforce userId always
-          userId,
-        },
+      await this.folderRepository.findAllCursor(
+        { ...where, userId },
         options.limit,
         options.offset,
+        options.sort,
       );
 
     return foldersWithMaybePlainName.map((folder) =>
