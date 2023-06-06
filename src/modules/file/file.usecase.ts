@@ -61,7 +61,7 @@ export class FileUseCases {
 
     return this.getFiles(
       userId,
-      { folderId, deleted: options.deleted },
+      { folderId, status: FileStatus.EXISTS },
       options,
     );
   }
@@ -86,8 +86,7 @@ export class FileUseCases {
     return this.getFilesUpdatedAfter(
       userId,
       {
-        deleted: false,
-        removed: false,
+        status: FileStatus.EXISTS,
       },
       updatedAfter,
       options,
@@ -101,7 +100,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
-      { removed: true },
+      { status: FileStatus.DELETED },
       updatedAfter,
       options,
     );
@@ -114,7 +113,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
-      { deleted: true, removed: false },
+      { status: FileStatus.TRASHED },
       updatedAfter,
       options,
     );
@@ -163,20 +162,6 @@ export class FileUseCases {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
       folderId,
       userId,
-      options,
-    );
-
-    return files.map((file) => file.toJSON());
-  }
-
-  async getByUserExceptParents(
-    userId: FolderAttributes['userId'],
-    exceptFolderIds: FolderAttributes['id'][],
-    options: FileOptions = { deleted: false },
-  ) {
-    const files = await this.fileRepository.findAllByUserIdExceptFolderIds(
-      userId,
-      exceptFolderIds,
       options,
     );
 
@@ -245,10 +230,10 @@ export class FileUseCases {
   }
 
   getTrashFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, deleted: true });
+    return this.fileRepository.getFilesCountWhere({ userId, status: FileStatus.TRASHED });
   }
 
   getDriveFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, deleted: false });
+    return this.fileRepository.getFilesCountWhere({ userId, status: FileStatus.EXISTS });
   }
 }

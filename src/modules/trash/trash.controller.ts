@@ -63,14 +63,12 @@ export class TrashController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('type') type: 'files' | 'folders',
-    @Query('root') root: boolean,
   ) {
     if (
       !limit ||
       offset === undefined ||
       !type ||
-      root === undefined ||
-      (!root && !folderId)
+      (!folderId)
     ) {
       throw new BadRequestException();
     }
@@ -85,41 +83,18 @@ export class TrashController {
 
     let result: File[] | Folder[];
 
-    const deleted = root;
-
-    if (root) {
-      if (type === 'files') {
-        // Root level could have different folders
-        result = await this.fileUseCases.getFiles(
-          user.id,
-          { deleted: true, removed: false },
-          { limit, offset },
-        );
-      } else {
-        result = await this.folderUseCases.getFolders(
-          user.id,
-          { deleted: true, removed: false },
-          { limit, offset },
-        );
-      }
+    if (type === 'files') {
+      result = await this.fileUseCases.getFiles(
+        user.id,
+        { status: FileStatus.TRASHED },
+        { limit, offset },
+      );
     } else {
-      if (type === 'files') {
-        result = await this.fileUseCases.getFilesByFolderId(folderId, user.id, {
-          deleted,
-          limit,
-          offset,
-        });
-      } else {
-        result = await this.folderUseCases.getFoldersByParentId(
-          folderId,
-          user.id,
-          {
-            deleted,
-            limit,
-            offset,
-          },
-        );
-      }
+      result = await this.folderUseCases.getFolders(
+        user.id,
+        { deleted: true, removed: false },
+        { limit, offset },
+      );
     }
 
     return { result };
