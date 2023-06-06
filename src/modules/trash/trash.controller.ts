@@ -34,7 +34,7 @@ import {
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
 import { Folder } from '../folder/folder.domain';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';

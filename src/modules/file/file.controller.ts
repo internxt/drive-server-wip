@@ -22,7 +22,7 @@ const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) {}
+  constructor(private readonly fileUseCases: FileUseCases) { }
 
   @Get('/count')
   async getFileCount(
@@ -81,6 +81,8 @@ export class FileController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: typeof filesStatuses[number],
+    @Query('sort') sort?: string,
+    @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
   ) {
     if (!isNumber(limit) || !isNumber(offset)) {
@@ -125,7 +127,7 @@ export class FileController {
     const files: File[] = await fns[status].bind(this.fileUseCases)(
       user.id,
       new Date(updatedAt || 1),
-      { limit, offset },
+      { limit, offset, sort: (sort && order) ? [[sort, order]] : [[]] },
     );
 
     return files.map((f) => {
