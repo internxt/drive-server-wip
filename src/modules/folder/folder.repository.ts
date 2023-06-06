@@ -45,8 +45,6 @@ export interface FolderRepository {
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
 }
 
-type X = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
-
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
   constructor(
