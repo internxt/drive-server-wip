@@ -23,7 +23,7 @@ export class SequelizeUserRepository implements UserRepository {
   constructor(
     @InjectModel(UserModel)
     private modelUser: typeof UserModel,
-  ) {}
+  ) { }
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
     return user ? this.toDomain(user) : null;
@@ -46,6 +46,12 @@ export class SequelizeUserRepository implements UserRepository {
 
   findOrCreate(opts: FindOrCreateOptions): Promise<[User | null, boolean]> {
     return this.modelUser.findOrCreate(opts) as any;
+  }
+
+  async create(user: any): Promise<User> {
+    const dbUser = await this.modelUser.create(user);
+
+    return this.toDomain(dbUser);
   }
 
   async findByReferralCode(
