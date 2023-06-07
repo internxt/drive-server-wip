@@ -72,7 +72,7 @@ export class UserUseCases {
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
-  ) {}
+  ) { }
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
@@ -237,87 +237,57 @@ export class UserUseCases {
   async createUser(newUser: NewUser) {
     const { email, password, salt } = newUser;
 
+    const maybeExistentUser = await this.userRepository.findByUsername(email);
+    const userAlreadyExists = !!maybeExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
     const userPass = this.cryptoService.decryptText(password);
     const userSalt = this.cryptoService.decryptText(salt);
 
-    const transaction = await this.userRepository.createTransaction();
-
-    let bucket: any;
-    let userUuid: string, userId: string;
-    let rootFolder: Folder;
+    const { userId: networkPass, uuid: userUuid } = await this.networkService.createUser(email);
 
     const notifySignUpError = (err: Error) =>
       this.notificationService.add(
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    const [userResult, isNewUser] = await this.userRepository.findOrCreate({
-      where: { username: email },
-      defaults: {
-        email: email,
-        name: newUser.name,
-        lastname: newUser.lastname,
-        password: userPass,
-        mnemonic: newUser.mnemonic,
-        hKey: userSalt,
-        referrer: newUser.referrer,
-        referralCode: v4(),
-        uuid: null,
-        credit: 0,
-        welcomePack: true,
-        registerCompleted: newUser.registerCompleted,
-        username: newUser.email,
-        bridgeUser: newUser.email,
-      },
-      transaction,
-    });
-
-    if (!isNewUser) {
-      throw new UserAlreadyRegisteredError(newUser.email);
-    }
-
-    let hasBeenSubscribedPromise;
-
-    try {
-      const response = await this.networkService.createUser(email);
-      userId = response.userId;
-      userUuid = response.uuid;
-
-      hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
-        userResult.email,
-        userResult.bridgeUser,
-        userId,
-      ).catch((err) => {
-        Logger.error(
-          `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
-            err.stack || 'NO STACK'
-          }`,
-        );
-        notifySignUpError(err);
-        return false;
-      });
-
-      await this.userRepository.updateById(
-        userResult.id,
-        { userId, uuid: userUuid },
-        transaction,
-      );
-
-      bucket = await this.networkService.createBucket(email, userId);
-
-      await transaction.commit();
-    } catch (err) {
+    let hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
+      email,
+      email,
+      networkPass,
+    ).catch((err) => {
       Logger.error(
-        `[SIGNUP/NETWORK/ERROR]: ${err.message}, ${err.stack || 'NO STACK'}`,
+        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${err.stack || 'NO STACK'
+        }`,
       );
       notifySignUpError(err);
-      await transaction.rollback().catch(notifySignUpError);
-      throw err;
-    }
+      return false;
+    });
+
+    const user = await this.userRepository.create({
+      email,
+      name: newUser.name,
+      lastname: newUser.lastname,
+      password: userPass,
+      hKey: userSalt,
+      referrer: newUser.referrer,
+      referralCode: v4(),
+      uuid: userUuid,
+      userId: networkPass,
+      credit: 0,
+      welcomePack: true,
+      registerCompleted: newUser.registerCompleted,
+      username: email,
+      bridgeUser: email,
+      mnemonic: newUser.mnemonic,
+    });
 
     try {
-      const [root] = await this.createInitialFolders(userResult, bucket.id);
-      rootFolder = root;
+      const bucket = await this.networkService.createBucket(email, networkPass);
+      const [rootFolder] = await this.createInitialFolders(user, bucket.id);
 
       const hasReferrer = !!newUser.referrer;
       if (hasReferrer) {
@@ -333,7 +303,7 @@ export class UserUseCases {
         hasBeenSubscribed = await hasBeenSubscribedPromise;
 
         if (!hasBeenSubscribed) {
-          await this.createUserReferrals(userResult.id);
+          await this.createUserReferrals(user.id);
         }
       } catch (err) {
         notifySignUpError(err);
@@ -342,22 +312,21 @@ export class UserUseCases {
       return {
         token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
         user: {
-          ...userResult.toJSON(),
-          hKey: userResult.hKey.toString(),
-          password: userResult.password.toString(),
-          mnemonic: userResult.mnemonic.toString(),
+          ...user.toJSON(),
+          hKey: user.hKey.toString(),
+          password: user.password.toString(),
+          mnemonic: user.mnemonic.toString(),
           rootFolderId: rootFolder.id,
           bucket: bucket.id,
           uuid: userUuid,
-          userId,
+          userId: networkPass,
           hasReferralsProgram: !hasBeenSubscribed,
         },
         uuid: userUuid,
       };
     } catch (err) {
       Logger.error(
-        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
+        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${err.stack || 'NO STACK'
         }`,
       );
       notifySignUpError(err);

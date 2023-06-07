@@ -41,7 +41,7 @@ export class UserController {
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
-  ) {}
+  ) { }
 
   @UseGuards(ThrottlerGuard)
   @Post('/')
@@ -75,10 +75,8 @@ export class UserController {
         })
         .catch((err) => {
           new Logger().error(
-            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
+            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${(err as Error).message
+            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${(err as Error).stack
             }`,
           );
         });
@@ -102,10 +100,8 @@ export class UserController {
         res.status(HttpStatus.CONFLICT);
       } else {
         new Logger().error(
-          `[AUTH/REGISTER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
+          `[AUTH/REGISTER] ERROR: ${(err as Error).message
+          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${(err as Error).stack
           }`,
         );
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
