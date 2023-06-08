@@ -23,7 +23,7 @@ export class SequelizeUserRepository implements UserRepository {
   constructor(
     @InjectModel(UserModel)
     private modelUser: typeof UserModel,
-  ) { }
+  ) {}
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
     return user ? this.toDomain(user) : null;
