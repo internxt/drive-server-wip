@@ -74,7 +74,7 @@ export class BridgeService {
     userId: UserAttributes['bridgeUser'];
     uuid: UserAttributes['uuid'];
   }> {
-    const bcryptId = await this.cryptoService.hashBcrypt(networkUserId);
+    const bcryptId = this.cryptoService.hashBcrypt(networkUserId);
     const networkPassword = this.cryptoService.hashSha256(bcryptId);
 
     const jwt = signToken('5m', this.configService.get('secrets.gateway'));
