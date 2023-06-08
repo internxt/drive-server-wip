@@ -1,14 +1,16 @@
 # Drive Server WIP
 
-[![ci](https://github.com/internxt/drive-server-wip/actions/workflows/code-coverage.yml/badge.svg)](https://github.com/internxt/drive-server-wip/actions/workflows/code-coverage.yml)
-[![codecov](https://codecov.io/gh/internxt/drive-server-wip/branch/master/graph/badge.svg?token=5D9UW1HSCK)](https://codecov.io/gh/internxt/drive-server-wip)
 [![node](https://img.shields.io/badge/node-16-brightgreen)](https://nodejs.org/download/release/latest-fermium/)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=coverage)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=bugs)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 
 Drive server WIP is the new API to Drive based on NestJS and following Clean Architecture and DDD(Domain Driven Design).
 
