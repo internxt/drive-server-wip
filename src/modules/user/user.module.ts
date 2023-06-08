@@ -31,7 +31,6 @@ import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     ConfigModule,
-    HttpClientModule,
     SequelizeModule.forFeature([
       UserModel,
       ReferralModel,
