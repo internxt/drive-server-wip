@@ -116,7 +116,7 @@ export class BridgeService {
     await this.httpClient
       .delete(`${url}/buckets/${bucket}/files/${bucketEntry}`, params)
       .catch((err) => {
-        if (!(err.response.status === 500)) {
+        if (err.response.status !== 500) {
           Logger.log(
             `[INXT removeFile]: Error User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
           );

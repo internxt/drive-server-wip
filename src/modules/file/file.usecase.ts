@@ -61,7 +61,7 @@ export class FileUseCases {
       throw new NotFoundException();
     }
 
-    if (!(parentFolder.userId === userId)) {
+    if (parentFolder.userId !== userId) {
       throw new ForbiddenException();
     }
 
