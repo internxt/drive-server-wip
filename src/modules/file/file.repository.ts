@@ -111,6 +111,7 @@ export class FileModel extends Model implements FileAttributes {
 }
 
 export interface FileRepository {
+  deleteByFileId(deleteByFileId: string): Promise<unknown>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -151,6 +152,21 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
   ) {}
+  async deleteByFileId(deleteByFileId: string): Promise<void> {
+    await this.fileModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+        status: FileStatus.DELETED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          id: deleteByFileId,
+        },
+      },
+    );
+  }
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
@@ -331,13 +347,17 @@ export class SequelizeFileRepository implements FileRepository {
   async getFilesWhoseFolderIdDoesNotExist(
     userId: File['userId'],
   ): Promise<number> {
+    const folders = await this.fileModel.findAll({
+      where: { userId },
+    });
+
+    const folderIds = folders.map((folder) => folder.folderId);
+
     const { count } = await this.fileModel.findAndCountAll({
       where: {
         folderId: {
           [Op.not]: null,
-          [Op.notIn]: this.fileModel.findAll({
-            where: { userId },
-          }),
+          [Op.notIn]: folderIds,
         },
         userId,
       },

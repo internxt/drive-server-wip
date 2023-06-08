@@ -52,7 +52,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     private folderModel: typeof FolderModel,
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
-  ) { }
+  ) {}
 
   async findAll(where = {}): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({ where });
@@ -287,17 +287,20 @@ export class SequelizeFolderRepository implements FolderRepository {
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
-    await this.folderModel.update({
-      removed: true,
-      removedAt: new Date(),
-    }, {
-      where: {
-        userId: user.id,
-        id: {
-          [Op.in]: folders.map(({ id }) => id),
+    await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          id: {
+            [Op.in]: folders.map(({ id }) => id),
+          },
         },
       },
-    });
+    );
   }
 
   async findAllCursorWhereUpdatedAfter(
@@ -337,3 +340,4 @@ export class SequelizeFolderRepository implements FolderRepository {
     return domain.toJSON();
   }
 }
+export { FolderModel };

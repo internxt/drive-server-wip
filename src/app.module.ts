@@ -63,7 +63,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
                 require: true,
                 rejectUnauthorized: false,
               },
-              application_name: 'drive-server-wip'
+              application_name: 'drive-server-wip',
             }
           : {},
         logging: !configService.get('database.debug')
