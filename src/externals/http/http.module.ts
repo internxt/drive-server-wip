@@ -11,7 +11,7 @@ HttpModule.register({
     maxFreeSockets: 10,
     timeout: 10000,
     freeSocketTimeout: 30000,
-  })
+  }),
 });
 
 @Module({

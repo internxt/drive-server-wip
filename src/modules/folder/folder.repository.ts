@@ -12,6 +12,8 @@ import { UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 
+type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
+
 export interface FolderRepository {
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
@@ -32,7 +34,7 @@ export interface FolderRepository {
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
-  ): Promise<Pick<Folder, 'parentId' | 'id' | 'plainName'> | null>;
+  ): Promise<FindInTreeResponse | null>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -52,7 +54,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     private folderModel: typeof FolderModel,
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
-  ) { }
+  ) {}
 
   async findAll(where = {}): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({ where });
@@ -261,7 +263,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     folderId: number,
     userId: number,
     deleted: boolean,
-  ): Promise<Pick<Folder, 'parentId' | 'id' | 'plainName'> | null> {
+  ): Promise<FindInTreeResponse | null> {
     const [[folder]] = await this.folderModel.sequelize.query(`
       WITH RECURSIVE rec AS (
         SELECT parent_id, id, plain_name
@@ -283,21 +285,24 @@ export class SequelizeFolderRepository implements FolderRepository {
       ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = ${folderId}
     `);
 
-    return folder as Pick<Folder, 'parentId' | 'id' | 'plainName'>;
+    return folder as FindInTreeResponse;
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
-    await this.folderModel.update({
-      removed: true,
-      removedAt: new Date(),
-    }, {
-      where: {
-        userId: user.id,
-        id: {
-          [Op.in]: folders.map(({ id }) => id),
+    await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          id: {
+            [Op.in]: folders.map(({ id }) => id),
+          },
         },
       },
-    });
+    );
   }
 
   async findAllCursorWhereUpdatedAfter(
