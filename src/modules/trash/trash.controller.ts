@@ -48,7 +48,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-  ) { }
+  ) {}
 
   @Get('/paginated')
   @HttpCode(200)

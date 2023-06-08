@@ -30,7 +30,7 @@ export class ShareUseCases {
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
     private cryptoService: CryptoService,
-  ) { }
+  ) {}
 
   getShareById(id: number): Promise<Share> {
     return this.shareRepository.findById(id);
@@ -246,9 +246,9 @@ export class ShareUseCases {
 
     const hashedPassword = plainPassword
       ? this.cryptoService.deterministicEncryption(
-        plainPassword,
-        getEnv().secrets.magicSalt,
-      )
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const newShare = Share.build({
@@ -294,10 +294,10 @@ export class ShareUseCases {
       encryptedCode: code,
     }: CreateShareDto,
   ): Promise<{
-    id: number,
-    item: Share,
-    encryptedCode: string,
-    created: boolean,
+    id: number;
+    item: Share;
+    encryptedCode: string;
+    created: boolean;
   }> {
     const folder = await this.foldersRepository.findById(folderId);
     if (!folder) {
@@ -337,9 +337,9 @@ export class ShareUseCases {
 
     const hashedPassword = plainPassword
       ? this.cryptoService.deterministicEncryption(
-        plainPassword,
-        getEnv().secrets.magicSalt,
-      )
+          plainPassword,
+          getEnv().secrets.magicSalt,
+        )
       : null;
 
     const token = crypto.randomBytes(10).toString('hex');

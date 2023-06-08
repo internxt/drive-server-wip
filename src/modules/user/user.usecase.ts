@@ -72,7 +72,7 @@ export class UserUseCases {
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
-  ) { }
+  ) {}
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
@@ -247,20 +247,22 @@ export class UserUseCases {
     const userPass = this.cryptoService.decryptText(password);
     const userSalt = this.cryptoService.decryptText(salt);
 
-    const { userId: networkPass, uuid: userUuid } = await this.networkService.createUser(email);
+    const { userId: networkPass, uuid: userUuid } =
+      await this.networkService.createUser(email);
 
     const notifySignUpError = (err: Error) =>
       this.notificationService.add(
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    let hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
+    const hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
       email,
       email,
       networkPass,
     ).catch((err) => {
       Logger.error(
-        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${err.stack || 'NO STACK'
+        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
+          err.stack || 'NO STACK'
         }`,
       );
       notifySignUpError(err);
@@ -326,7 +328,8 @@ export class UserUseCases {
       };
     } catch (err) {
       Logger.error(
-        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${err.stack || 'NO STACK'
+        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${
+          err.stack || 'NO STACK'
         }`,
       );
       notifySignUpError(err);
