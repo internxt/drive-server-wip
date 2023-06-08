@@ -88,7 +88,7 @@ export class User implements UserAttributes {
   }
 
   isGuestOnSharedWorkspace(): boolean {
-    return !(this.email === this.bridgeUser);
+    return this.email !== this.bridgeUser;
   }
 
   toJSON() {

@@ -14,7 +14,7 @@ import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
+import { File, FileAttributes, FileOptions } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 
@@ -61,7 +61,7 @@ export class FileUseCases {
       throw new NotFoundException();
     }
 
-    if (!(parentFolder.userId === userId)) {
+    if (parentFolder.userId !== userId) {
       throw new ForbiddenException();
     }
 

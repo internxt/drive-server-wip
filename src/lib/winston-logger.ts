@@ -16,7 +16,7 @@ export class WinstonLogger {
       printf((info) => {
         return JSON.stringify({
           hostname: serverHostname,
-          requestId: (info.meta && info.meta.requestId) ?? '0',
+          requestId: info.meta?.requestId ?? '0',
           timestamp: info.timestamp,
           level: info.level,
           message: info.message,
