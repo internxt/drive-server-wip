@@ -1,6 +1,5 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, Injectable } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
-import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
 import { User } from '../../modules/user/user.domain';
@@ -61,8 +60,6 @@ export class BridgeService {
       },
     };
 
-    // log.info('[INXT createBucket]: User: %s, Bucket: %s', networkUser, name);
-
     const url = this.configService.get('apis.storage.url');
     const res = await this.httpClient.post(`${url}/buckets`, {}, params);
 
@@ -77,7 +74,7 @@ export class BridgeService {
     userId: UserAttributes['bridgeUser'];
     uuid: UserAttributes['uuid'];
   }> {
-    const bcryptId = await this.cryptoService.hashBcrypt(networkUserId);
+    const bcryptId = this.cryptoService.hashBcrypt(networkUserId);
     const networkPassword = this.cryptoService.hashSha256(bcryptId);
 
     const jwt = signToken('5m', this.configService.get('secrets.gateway'));
@@ -116,7 +113,7 @@ export class BridgeService {
     await this.httpClient
       .delete(`${url}/buckets/${bucket}/files/${bucketEntry}`, params)
       .catch((err) => {
-        if (!(err.response.status === 500)) {
+        if (err.response.status !== 500) {
           Logger.log(
             `[INXT removeFile]: Error User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
           );

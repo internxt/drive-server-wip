@@ -123,7 +123,7 @@ export class UserController {
     description: 'Returns the user metadata and the authentication tokens',
   })
   async getUserCredentials(@Req() req, @Param('uuid') uuid: string) {
-    if (!(uuid === req.user.uuid)) {
+    if (uuid !== req.user.uuid) {
       throw new ForbiddenException();
     }
     const user = await this.userUseCases.getUser(uuid);

@@ -3,8 +3,6 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 import { SignUpSuccessEvent } from '../events/sign-up-success.event';
 import { NewsletterService } from '../../newsletter';
-// import { InvitationAcceptedEvent } from '../events/invitation-accepted.event';
-// import { UserUseCases } from 'src/modules/user/user.usecase';
 import logger from '../../logger';
 import { Ids } from '../../logger/ids';
 import { SignUpErrorEvent } from '../events/sign-up-error.event';
@@ -51,28 +49,4 @@ export class AuthListener {
       message: `${err.message}. ${err.stack}`,
     });
   }
-
-  // @OnEvent('invitation.accepted')
-  // async handleInvitationAccepted(event: InvitationAcceptedEvent) {
-  //   const { invitedUuid, whoInvitesEmail, whoInvitesUuid } = event;
-
-  //   logger('log', {
-  //     user: invitedUuid,
-  //     id: Ids.ReferralInvitationAcceptedSuccess,
-  //     entity: {
-  //       referrer: whoInvitesUuid,
-  //       referred: invitedUuid,
-  //     },
-  //   });
-
-  //   this.usersUsecase.invitationAccepted(
-  //     who
-  //   ).catch((err) => {
-  //     logger('error', {
-  //       user: invitedUuid,
-  //       message: `${err.message}. ${err.stack}`,
-  //       id: 'AUTH/SIGNUP/INVITATION',
-  //     });
-  //   });
-  // }
 }

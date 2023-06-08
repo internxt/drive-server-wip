@@ -7,7 +7,6 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
-  NotFoundException,
   Param,
   Post,
   Put,
@@ -35,7 +34,6 @@ import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
-import { Share } from './share.domain';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -377,7 +375,6 @@ export class ShareController {
   ) {
     try {
       const { token, folderId, page, perPage } = query;
-      user = await this.getUserWhenPublic(user);
       const share = await this.shareUseCases.getShareByToken(
         token,
         null,

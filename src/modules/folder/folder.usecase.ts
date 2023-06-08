@@ -267,7 +267,7 @@ export class FolderUseCases {
       throw new NotFoundException();
     }
 
-    if (!(parentFolder.userId === userId)) {
+    if (parentFolder.userId !== userId) {
       throw new ForbiddenException();
     }
 

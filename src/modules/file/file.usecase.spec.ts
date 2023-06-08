@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileUseCases } from './file.usecase';
-import { SequelizeFileRepository, FileRepository } from './file.repository';
+import {
+  SequelizeFileRepository,
+  FileRepository,
+  FileModel,
+} from './file.repository';
 import {
   ForbiddenException,
   NotFoundException,
@@ -8,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { File, FileAttributes, FileStatus } from './file.domain';
-import { FileModel } from './file.repository';
 import { User } from '../user/user.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
