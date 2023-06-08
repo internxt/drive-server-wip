@@ -49,28 +49,4 @@ export class AuthListener {
       message: `${err.message}. ${err.stack}`,
     });
   }
-
-  // @OnEvent('invitation.accepted')
-  // async handleInvitationAccepted(event: InvitationAcceptedEvent) {
-  //   const { invitedUuid, whoInvitesEmail, whoInvitesUuid } = event;
-
-  //   logger('log', {
-  //     user: invitedUuid,
-  //     id: Ids.ReferralInvitationAcceptedSuccess,
-  //     entity: {
-  //       referrer: whoInvitesUuid,
-  //       referred: invitedUuid,
-  //     },
-  //   });
-
-  //   this.usersUsecase.invitationAccepted(
-  //     who
-  //   ).catch((err) => {
-  //     logger('error', {
-  //       user: invitedUuid,
-  //       message: `${err.message}. ${err.stack}`,
-  //       id: 'AUTH/SIGNUP/INVITATION',
-  //     });
-  //   });
-  // }
 }

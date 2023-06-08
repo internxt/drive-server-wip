@@ -60,8 +60,6 @@ export class BridgeService {
       },
     };
 
-    // log.info('[INXT createBucket]: User: %s, Bucket: %s', networkUser, name);
-
     const url = this.configService.get('apis.storage.url');
     const res = await this.httpClient.post(`${url}/buckets`, {}, params);
 
