@@ -38,7 +38,6 @@ import { File } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
-import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
 @Controller('storage/trash')

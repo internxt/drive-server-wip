@@ -1,15 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpStatus, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
+import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 
 import { TransformInterceptor } from '../../lib/transform.interceptor';
-import { CryptoService } from '../../externals/crypto/crypto.service';
 import { AppModule } from '../../app.module';
-import { 
+import {
   BadRequestWrongFolderIdException,
   BadRequestWrongOffsetOrLimitException,
   BadRequestInvalidOffsetException,
-  BadRequestOutOfRangeLimitException, 
+  BadRequestOutOfRangeLimitException,
 } from './folder.controller';
 import { User } from '../user/user.domain';
 import { v4 } from 'uuid';

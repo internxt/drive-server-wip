@@ -1,6 +1,5 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, Injectable } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
-import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
 import { User } from '../../modules/user/user.domain';

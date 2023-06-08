@@ -2,13 +2,11 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
 import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
-// import { WinstonLogger } from './lib/winston-logger';
 import {
   DocumentBuilder,
   SwaggerCustomOptions,
