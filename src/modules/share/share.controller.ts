@@ -375,7 +375,6 @@ export class ShareController {
   ) {
     try {
       const { token, folderId, page, perPage } = query;
-      user = await this.getUserWhenPublic(user);
       const share = await this.shareUseCases.getShareByToken(
         token,
         null,

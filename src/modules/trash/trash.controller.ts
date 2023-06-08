@@ -180,7 +180,6 @@ export class TrashController {
           // no op
         });
     } catch (err) {
-      let errorMessage = err.message;
       const { email, uuid } = user;
 
       new Logger().error(
@@ -190,9 +189,8 @@ export class TrashController {
         })}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-      errorMessage = 'Internal Server Error';
 
-      return { error: errorMessage };
+      return { error: 'Internal Server Error' };
     }
   }
 
