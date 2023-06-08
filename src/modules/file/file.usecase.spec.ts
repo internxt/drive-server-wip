@@ -433,7 +433,7 @@ describe('FileUseCases', () => {
 
       expect.assertions(2);
       try {
-        service.deleteFilePermanently(file, userMock);
+        await service.deleteFilePermanently(file, userMock);
       } catch (err) {
         expect(err).toBe(errorReason);
       }

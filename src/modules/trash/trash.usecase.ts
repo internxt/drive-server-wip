@@ -7,7 +7,7 @@ import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class TrashUseCases {
-  clearTrash(userMock: User) {
+  async clearTrash(user: User) {
     throw new Error('Method not implemented.');
   }
   constructor(
