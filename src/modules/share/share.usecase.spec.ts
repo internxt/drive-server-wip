@@ -2,7 +2,6 @@ import {
   ForbiddenException,
   UnauthorizedException,
   NotFoundException,
-  HttpService,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';

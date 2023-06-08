@@ -5,7 +5,7 @@ const tableName = 'files';
 module.exports = {
   async up(queryInterface, Sequelize) {
     const batchSize = 1000;
-    let offset = 649000;
+    let offset = 0;
     let updatedRowCount = offset;
 
     // Set the status field to 'TRASHED' for rows where deleted=true and removed=false
@@ -28,7 +28,7 @@ module.exports = {
       offset += batchSize;
 
       console.log(new Date(), `Updated ${updatedRowCount} rows to 'TRASHED'`);
-    } while (updatedRowCount % batchSize === 0);
+    } while (updatedRowCount > 0 && updatedRowCount % batchSize === 0);
 
     console.log(`Updated ${updatedRowCount} rows to 'TRASHED'`);
 
@@ -55,7 +55,7 @@ module.exports = {
       offset += batchSize;
 
       console.log(`Updated ${offset + updatedRowCount} rows to 'DELETED'`);
-    } while (updatedRowCount % batchSize === 0);
+    } while (updatedRowCount > 0 && updatedRowCount % batchSize === 0);
 
     console.log(`Updated ${updatedRowCount} rows to 'DELETED'`);
   },

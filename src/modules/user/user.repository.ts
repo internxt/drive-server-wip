@@ -48,6 +48,12 @@ export class SequelizeUserRepository implements UserRepository {
     return this.modelUser.findOrCreate(opts) as any;
   }
 
+  async create(user: any): Promise<User> {
+    const dbUser = await this.modelUser.create(user);
+
+    return this.toDomain(dbUser);
+  }
+
   async findByReferralCode(
     referralCode: UserAttributes['referralCode'],
   ): Promise<User | null> {
