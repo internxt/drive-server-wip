@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -284,7 +284,7 @@ describe('Send Use Cases', () => {
       try {
         service.unlockLink(unprotectedSendLink, null);
       } catch (err: any) {
-        expect(err).toBeInstanceOf(UnauthorizedException);
+        expect(err).toBeInstanceOf(ForbiddenException);
       }
     });
 
@@ -308,7 +308,7 @@ describe('Send Use Cases', () => {
       try {
         service.unlockLink(unprotectedSendLink, 'password');
       } catch (err: any) {
-        expect(err).toBeInstanceOf(UnauthorizedException);
+        expect(err).toBeInstanceOf(ForbiddenException);
       }
     });
   });

@@ -26,7 +26,7 @@ export class FolderUseCases {
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
-  ) { }
+  ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
     return this.folderRepository.findByIds(user, folderIds);
@@ -281,7 +281,7 @@ export class FolderUseCases {
   getAllFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -289,17 +289,23 @@ export class FolderUseCases {
   getNotTrashedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
-    return this.getFoldersUpdatedAfter(userId, {
-      deleted: false, removed: false,
-    }, updatedAfter, options);
+    return this.getFoldersUpdatedAfter(
+      userId,
+      {
+        deleted: false,
+        removed: false,
+      },
+      updatedAfter,
+      options,
+    );
   }
 
   getRemovedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(
       userId,
@@ -312,7 +318,7 @@ export class FolderUseCases {
   getTrashedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(
       userId,
@@ -326,17 +332,17 @@ export class FolderUseCases {
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Array<Folder>> {
     const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC']
+      ['updatedAt', 'ASC'],
     ];
     return this.folderRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
       options.limit,
       options.offset,
-      additionalOrders
+      additionalOrders,
     );
   }
 

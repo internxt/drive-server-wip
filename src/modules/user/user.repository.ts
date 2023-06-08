@@ -89,3 +89,4 @@ export class SequelizeUserRepository implements UserRepository {
     return domain.toJSON();
   }
 }
+export { UserModel };

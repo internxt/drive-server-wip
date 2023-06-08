@@ -26,9 +26,12 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule,
+    HttpClientModule,
     SequelizeModule.forFeature([
       UserModel,
       ReferralModel,

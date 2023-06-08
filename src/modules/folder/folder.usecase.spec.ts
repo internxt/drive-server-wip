@@ -9,7 +9,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
-import { Folder, FolderAttributes } from './folder.domain';
+import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
 import { FolderModel } from './folder.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FileModel, SequelizeFileRepository } from '../file/file.repository';
@@ -83,6 +83,10 @@ describe('FolderUseCases', () => {
         deletedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
+        uuid: '',
+        plainName: '',
+        removed: false,
+        removedAt: null,
       });
       jest
         .spyOn(folderRepository, 'updateByFolderId')
@@ -116,9 +120,16 @@ describe('FolderUseCases', () => {
         updatedAt: new Date(),
         user: null,
         parent: null,
+        uuid: '',
+        plainName: '',
+        removed: false,
+        removedAt: null,
       });
       jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
-      const result = await service.getFolder(folderId);
+      const findDeletedFolders: FolderOptions['deleted'] = false;
+      const result = await service.getFolder(folderId, {
+        deleted: findDeletedFolders,
+      });
       expect(result).toMatchObject({
         id: 1,
         bucket: 'bucket',
@@ -127,7 +138,11 @@ describe('FolderUseCases', () => {
         deleted: true,
         parent: null,
       });
-      expect(folderRepository.findById).toHaveBeenNthCalledWith(1, folderId);
+      expect(folderRepository.findById).toHaveBeenNthCalledWith(
+        1,
+        folderId,
+        findDeletedFolders,
+      );
     });
 
     it('throws an error if the folder is not found', async () => {
@@ -142,11 +157,7 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findAllByParentIdAndUserId')
         .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userId,
-        false,
-      );
+      const result = await service.getChildrenFoldersToUser(folderId, userId);
       expect(result).toEqual(mockFolders);
       expect(
         folderRepository.findAllByParentIdAndUserId,
@@ -168,16 +179,16 @@ describe('FolderUseCases', () => {
           deletedAt: new Date(),
           createdAt: new Date(),
           updatedAt: new Date(),
+          uuid: '',
+          plainName: '',
+          removed: false,
+          removedAt: null,
         }),
       ];
       jest
         .spyOn(folderRepository, 'findAllByParentIdAndUserId')
         .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userId,
-        false,
-      );
+      const result = await service.getChildrenFoldersToUser(folderId, userId);
       expect(result).toMatchObject([
         {
           id: 4,
@@ -239,6 +250,10 @@ describe('FolderUseCases', () => {
         updatedAt: new Date(),
         user: userOwnerMock,
         parent: null,
+        uuid: '',
+        plainName: '',
+        removed: false,
+        removedAt: null,
       });
 
       jest
@@ -293,6 +308,10 @@ describe('FolderUseCases', () => {
         updatedAt: new Date(),
         user: userOwnerMock,
         parent: null,
+        uuid: '',
+        plainName: '',
+        removed: false,
+        removedAt: null,
       });
 
       jest
@@ -352,6 +371,10 @@ describe('FolderUseCases', () => {
         updatedAt: new Date(),
         user: userOwnerMock,
         parent: null,
+        uuid: '',
+        plainName: '',
+        removed: false,
+        removedAt: null,
       });
 
       jest
@@ -412,13 +435,19 @@ describe('FolderUseCases', () => {
       deletedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      uuid: '',
+      plainName: 'name',
+      removed: false,
+      removedAt: null,
     };
 
     it('returns folder json data with the name decrypted', () => {
-      const name = 'Macedonia';
       const parentId = 3385750628;
 
-      const encriptedName = cryptoService.encryptName(name, parentId);
+      const encriptedName = cryptoService.encryptName(
+        folderAtributes['name'],
+        parentId,
+      );
 
       const folder = Folder.build({
         ...folderAtributes,
@@ -430,7 +459,6 @@ describe('FolderUseCases', () => {
 
       const expectedResult = {
         ...folderAtributes,
-        name,
         size: 0,
       };
       delete expectedResult.parentId;

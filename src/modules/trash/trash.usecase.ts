@@ -7,6 +7,9 @@ import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class TrashUseCases {
+  clearTrash(userMock: User) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,

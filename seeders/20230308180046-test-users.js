@@ -50,7 +50,7 @@ module.exports = {
      *   name: 'John Doe',
      *   isBetaMember: false
      * }], {});
-    */
+     */
     await queryInterface.bulkInsert('users', [testUser, referredTestUser]);
   },
 
@@ -61,8 +61,12 @@ module.exports = {
      * Example:
      * await queryInterface.bulkDelete('People', null, {});
      */
-    await queryInterface.bulkDelete('users', {
-      email: { [Op.in]: [testUser.email, referredTestUser.email] }
-    }, {});
-  }
+    await queryInterface.bulkDelete(
+      'users',
+      {
+        email: { [Op.in]: [testUser.email, referredTestUser.email] },
+      },
+      {},
+    );
+  },
 };

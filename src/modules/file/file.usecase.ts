@@ -14,7 +14,7 @@ import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
+import { File, FileAttributes, FileOptions } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 
@@ -24,10 +24,15 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
+
+  async deleteFilePermanently(file: File, userMock: User): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
