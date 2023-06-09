@@ -24,6 +24,7 @@ import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
+import { OrderBy } from 'src/common/order.type';
 
 @Table({
   underscored: true,
@@ -236,6 +237,44 @@ export class SequelizeShareRepository implements ShareRepository {
 
   async deleteById(shareId: Share['id']): Promise<void> {
     await this.shareModel.destroy({ where: { id: shareId } });
+  }
+
+  async findAllSharedFoldersToAUserPaginated(
+    user: User,
+    page: number,
+    perPage: number,
+    orderBy?: OrderBy,
+  ): Promise<Folder[]> {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    const shares = await this.shareModel.findAll({
+      where: {
+        userId: user.id,
+        isFolder: true,
+      },
+      include: [
+        {
+          model: this.folderModel,
+          where: {
+            deleted: false,
+          },
+          required: false,
+        },
+      ],
+      offset,
+      limit,
+      order,
+    });
+
+    console.log(shares);
+
+    const folders = shares.map((share) => share.folder.toJSON());
+
+    return folders;
   }
 
   async deleteByUserAndFiles(user: User, files: File[]): Promise<void> {
