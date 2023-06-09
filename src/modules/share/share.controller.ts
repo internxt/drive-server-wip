@@ -16,7 +16,12 @@ import {
   Res,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { CreateShareDto } from './dto/create-share.dto';
@@ -34,6 +39,7 @@ import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
+import { OrderBy } from 'src/common/order.type';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -236,6 +242,54 @@ export class ShareController {
       token: item.token,
       encryptedCode,
     });
+  }
+
+  @Get('folder/list')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get all folders shared with a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all folders shared with a user' })
+  async getSharedFolders(
+    @UserDecorator() user: User,
+    @Query('page') page: number,
+    @Query('perPage') perPage: number,
+    @Query('orderBy') orderBy: OrderBy,
+  ) {
+    try {
+      const Folders = await this.shareUseCases.getSharedFoldersToAUser(
+        user,
+        page,
+        perPage,
+        orderBy,
+      );
+      return Folders;
+    } catch (err) {
+      new Logger().error(
+        `[SHARE/GET/FOLDER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({ user })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
+    }
   }
 
   @Post('folder/:folderId')

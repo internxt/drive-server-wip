@@ -19,6 +19,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { OrderBy } from 'src/common/order.type';
 
 @Injectable()
 export class ShareUseCases {
@@ -412,5 +413,22 @@ export class ShareUseCases {
     //On Folders, folderId is parentId. On Files, folderId is folderId
     const decryptedName = this.cryptoService.decryptName(name, folderId);
     return String(decryptedName).trim() === '' ? null : decryptedName;
+  }
+
+  async getSharedFoldersToAUser(
+    user: User,
+    page = 0,
+    perPage = 50,
+    orderBy?: OrderBy,
+  ) {
+    const shares =
+      await this.shareRepository.findAllSharedFoldersToAUserPaginated(
+        user,
+        page,
+        perPage,
+        orderBy,
+      );
+
+    return shares;
   }
 }
