@@ -1,4 +1,8 @@
-import { sign, SignOptions } from 'jsonwebtoken';
+import { sign, SignOptions, verify } from 'jsonwebtoken';
+
+export function verifyAndExtractJWT(jwt: string, secret: string): string {
+  return verify(jwt, secret).toString();
+}
 
 export function generateJWT(
   payload: Record<string, unknown>,
