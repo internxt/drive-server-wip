@@ -67,6 +67,22 @@ export class SequelizeSharedWorkspaceRepository
     private model: typeof FriendInvitationModel,
   ) {}
 
+  async updateGuestByGuest(
+    currentGuestEmail: FriendInvitationAttributes['guestEmail'],
+    newGuestEmail: FriendInvitationAttributes['guestEmail'],
+  ): Promise<void> {
+    await this.model.update(
+      {
+        guestEmail: newGuestEmail,
+      },
+      {
+        where: {
+          guestEmail: currentGuestEmail,
+        },
+      },
+    );
+  }
+
   async updateByHostAndGuest(
     host: FriendInvitationAttributes['host'],
     guest: FriendInvitationAttributes['guestEmail'],
