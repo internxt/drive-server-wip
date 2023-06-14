@@ -4,12 +4,7 @@ import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { ThumbnailModel } from './thumbnail.model';
 
 @Module({
-  imports: [
-    SequelizeModule.forFeature([ThumbnailModel]),
-    // forwardRef(() => FileModule),
-  ],
-  //   controllers: [ThumbnailController],
+  imports: [SequelizeModule.forFeature([ThumbnailModel])],
   providers: [SequelizeThumbnailRepository],
-  //   exports: [ThumbnailUseCases],
 })
 export class ThumbnailModule {}
