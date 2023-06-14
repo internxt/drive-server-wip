@@ -14,6 +14,7 @@ export interface UserRepository {
   findAllBy(where: any): Promise<Array<User> | []>;
   findByBridgeUser(bridgeUser: User['bridgeUser']): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
+  update(update: Partial<User>, where: Partial<User>): Promise<void>;
   toDomain(model: UserModel): User;
   toModel(domain: User): Partial<UserAttributes>;
 }
@@ -82,6 +83,17 @@ export class SequelizeUserRepository implements UserRepository {
     transaction?: Transaction,
   ): Promise<void> {
     await this.modelUser.update(update, { where: { id }, transaction });
+  }
+
+  async updateByUuid(
+    uuid: UserAttributes['uuid'],
+    update: Partial<User>,
+  ): Promise<void> {
+    await this.modelUser.update(update, { where: { uuid } });
+  }
+
+  async update(update: Partial<User>, where: Partial<User>): Promise<void> {
+    await this.modelUser.update(update, { where });
   }
 
   toDomain(model: UserModel): User {
