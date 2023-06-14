@@ -159,4 +159,19 @@ export class BridgeService {
       })
       .then<number>((response) => response.data.maxSpaceBytes);
   }
+
+  async updateUser(userUuid: User['uuid'], update: Pick<User, 'email'>) {
+    const jwt = signToken('5m', this.configService.get('secrets.gateway'));
+
+    await this.httpClient.put(
+      `${this.networkUrl}/v2/gateway/users/${userUuid}`,
+      update,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
+      },
+    );
+  }
 }
