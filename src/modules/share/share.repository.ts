@@ -15,7 +15,6 @@ import {
   Table,
   Unique,
 } from 'sequelize-typescript';
-import { FileModel } from '../file/file.repository';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { UserModel } from '../user/user.model';
@@ -24,6 +23,7 @@ import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
+import { FileModel } from '../file/file.model';
 
 @Table({
   underscored: true,
