@@ -1,4 +1,6 @@
 import { Folder } from '../folder/folder.domain';
+import { Share } from '../share/share.domain';
+import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
 
@@ -31,6 +33,8 @@ export interface FileAttributes {
   createdAt: Date;
   updatedAt: Date;
   status: FileStatus;
+  shares: Share[];
+  thumbnails: Thumbnail[];
 }
 
 export interface FileOptions {
@@ -63,6 +67,8 @@ export class File implements FileAttributes {
   removedAt: Date;
   plainName: string;
   status: FileStatus;
+  shares: Share[];
+  thumbnails: Thumbnail[];
 
   private constructor({
     id,
@@ -87,6 +93,8 @@ export class File implements FileAttributes {
     removed,
     removedAt,
     status,
+    shares,
+    thumbnails,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -110,6 +118,8 @@ export class File implements FileAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.status = status;
+    this.shares = shares;
+    this.thumbnails = thumbnails;
   }
 
   static build(file: FileAttributes): File {
@@ -173,6 +183,8 @@ export class File implements FileAttributes {
       removed: this.removed,
       removedAt: this.removedAt,
       status: this.status,
+      shares: this.shares,
+      thumbnails: this.thumbnails,
     };
   }
 }
