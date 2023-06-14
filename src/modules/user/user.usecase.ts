@@ -26,6 +26,7 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { UsernameChangedEvent } from 'src/externals/notifications/events/username-changed.event';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -466,5 +467,44 @@ export class UserUseCases {
     );
 
     return { token, newToken };
+  }
+
+  async updateBridgeUser(
+    user: User,
+    newBridgeUser: User['bridgeUser'],
+  ): Promise<void> {
+    const update: Pick<User, 'bridgeUser'> = {
+      bridgeUser: newBridgeUser,
+    };
+
+    const where: Partial<User> = {
+      bridgeUser: user.username,
+    };
+
+    await this.userRepository.update(update, where);
+  }
+
+  async updateUserEmail(user: User, newEmail: User['email']): Promise<void> {
+    await this.userRepository.update(
+      {
+        email: newEmail,
+        username: newEmail,
+      },
+      {
+        uuid: user.uuid,
+      },
+    );
+
+    const usernameChangedEvent = new UsernameChangedEvent(user, {
+      newUsername: newEmail,
+    });
+
+    this.notificationService.add(usernameChangedEvent);
+  }
+
+  async expireUserSession(user: User) {
+    // await this.userRepository.updateByUuid(user.uuid, {
+    //   lastPasswordChangedAt: new Date(),
+    // })
   }
 }
