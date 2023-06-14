@@ -6,7 +6,7 @@ import { FileAttributes } from '../file/file.domain';
 
 export interface ThumbnailRepository {
   findById(id: number): Promise<Thumbnail | null>;
-  findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null>;
+  findByFileId(fileId: FileAttributes['fileId']): Promise<Thumbnail | null>;
   findAll(): Promise<Thumbnail[]>;
   create(thumbnail: Thumbnail): Promise<Thumbnail>;
   update(thumbnail: Thumbnail): Promise<void>;
@@ -25,7 +25,9 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
     return thumbnail ? this.toDomain(thumbnail) : null;
   }
 
-  async findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null> {
+  async findByFileId(
+    fileId: FileAttributes['fileId'],
+  ): Promise<Thumbnail | null> {
     const thumbnail = await this.thumbnailModel.findOne({
       where: { file_id: fileId },
     });
