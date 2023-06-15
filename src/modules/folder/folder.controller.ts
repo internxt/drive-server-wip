@@ -189,6 +189,13 @@ export class FolderController {
     @Query('status') status: typeof foldersStatuses[number],
     @Query('updatedAt') updatedAt?: string,
   ) {
+    if (!status) {
+      throw new BadRequestException('Missing "status" query param');
+    }
+    if (!limit || !offset) {
+      throw new BadRequestException('Missing "offset" or "limit" param');
+    }
+
     const knownStatus = foldersStatuses.includes(status);
 
     if (!knownStatus) {
