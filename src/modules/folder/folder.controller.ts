@@ -208,43 +208,55 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
-    const fns: Record<string, (...args) => Promise<Folder[]>> = {
-      ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
-      EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
-      TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
-      DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
-    };
-
-    const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
-      user.id,
-      new Date(updatedAt || 1),
-      { limit, offset },
-    );
-
-    return folders.map((f) => {
-      if (!f.plainName) {
-        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
-      }
-
-      let status: 'EXISTS' | 'TRASHED' | 'DELETED';
-
-      if (f.removed) {
-        status = 'DELETED';
-      } else if (f.deleted) {
-        status = 'TRASHED';
-      } else {
-        status = 'EXISTS';
-      }
-
-      delete f.deleted;
-      delete f.deletedAt;
-      delete f.removed;
-      delete f.removedAt;
-
-      return {
-        ...f,
-        status,
+    try {
+      const fns: Record<string, (...args) => Promise<Folder[]>> = {
+        ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
+        EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
+        TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
+        DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
       };
-    });
+
+      const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
+        user.id,
+        new Date(updatedAt || 1),
+        { limit, offset },
+      );
+
+      return folders.map((f) => {
+        if (!f.plainName) {
+          f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+        }
+
+        let status: 'EXISTS' | 'TRASHED' | 'DELETED';
+
+        if (f.removed) {
+          status = 'DELETED';
+        } else if (f.deleted) {
+          status = 'TRASHED';
+        } else {
+          status = 'EXISTS';
+        }
+
+        delete f.deleted;
+        delete f.deletedAt;
+        delete f.removed;
+        delete f.removedAt;
+
+        return {
+          ...f,
+          status,
+        };
+      });
+    } catch (error) {
+      const err = error as Error;
+
+      Logger.error(
+        `[FOLDERS/GET]: ERROR for user ${user.uuid} ${err.message}. ${
+          err.stack || 'NO STACK'
+        }`,
+      );
+
+      throw err;
+    }
   }
 }
