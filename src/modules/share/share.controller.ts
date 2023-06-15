@@ -245,7 +245,7 @@ export class ShareController {
     });
   }
 
-  @Get('folder/list')
+  @Get('received/folders')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get all folders shared with a user',
