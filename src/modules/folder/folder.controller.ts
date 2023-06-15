@@ -192,7 +192,7 @@ export class FolderController {
     if (!status) {
       throw new BadRequestException('Missing "status" query param');
     }
-    if (!limit || !offset) {
+    if (!limit || (!offset && offset !== 0)) {
       throw new BadRequestException('Missing "offset" or "limit" param');
     }
 
