@@ -17,8 +17,8 @@ module.exports = {
 
     const shareOne = {
       id: 1,
-      folder_id: 1, // ID del folder compartido
-      user_id: users[0].id, // ID del usuario que comparte el folder
+      folder_id: 1,
+      user_id: users[0].id,
       bucket: 'bucketOne',
       file_token: v4(),
       created_at: new Date(),

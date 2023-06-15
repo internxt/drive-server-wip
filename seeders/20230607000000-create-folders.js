@@ -5,7 +5,6 @@ const { Op, Sequelize } = require('sequelize');
 
 module.exports = {
   async up(queryInterface) {
-    // Primero, busca los usuarios que necesitas.
     const users = await queryInterface.sequelize.query(
       `SELECT * FROM users WHERE email IN (:emails)`,
       {
@@ -14,7 +13,6 @@ module.exports = {
       },
     );
 
-    // Comprueba que se encontraron los usuarios.
     if (!users || users.length !== 2) {
       throw new Error('No se encontraron los usuarios requeridos para esta migración.');
     }
@@ -24,7 +22,7 @@ module.exports = {
       parent_id: null,
       name: 'FolderOne',
       bucket: 'bucketOne',
-      user_id: users[0].id,  // Asegúrate de que esto coincide con el usuario correcto.
+      user_id: users[0].id,
       uuid: v4(),
       plain_name: 'FolderOne',
       encrypt_version: '1.0',
@@ -39,7 +37,7 @@ module.exports = {
       parent_id: null,
       name: 'FolderTwo',
       bucket: 'bucketTwo',
-      user_id: users[1].id, // Asegúrate de que esto coincide con el usuario correcto.
+      user_id: users[1].id,
       uuid: v4(),
       plain_name: 'FolderTwo',
       encrypt_version: '1.0',
