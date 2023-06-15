@@ -264,8 +264,8 @@ export class SequelizeShareRepository implements ShareRepository {
 
     const findCriteria = {
       where: {
-        userId: user.id,
-        isFolder: true,
+        user_id: user.id,
+        is_folder: true,
       },
       include: [
         {
