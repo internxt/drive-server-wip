@@ -2,7 +2,6 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.removeConstraint('files', 'files_folder_id_fkey');
     // avoid locks using NOT VALID and then validating the constraint after
     await queryInterface.sequelize.query(`
       ALTER TABLE files

@@ -18,8 +18,8 @@ export function getStringFromBinary(binary) {
   }
   const charCodes = new Uint16Array(bytes.buffer);
   let result = '';
-  for (let i = 0; i < charCodes.length; i++) {
-    result += String.fromCharCode(charCodes[i]);
+  for (const charCode of charCodes) {
+    result += String.fromCharCode(charCode);
   }
   return result;
 }

@@ -14,7 +14,13 @@ import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { File, FileAttributes, FileOptions, FileStatus, SortableFileAttributes } from './file.domain';
+import {
+  File,
+  FileAttributes,
+  FileOptions,
+  FileStatus,
+  SortableFileAttributes,
+} from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 
@@ -29,7 +35,7 @@ export class FileUseCases {
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
-  ) { }
+  ) {}
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
@@ -44,7 +50,10 @@ export class FileUseCases {
   async getFilesByFolderId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
-    options: { limit: number; offset: number, sort?: SortParams } = { limit: 20, offset: 0 },
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ) {
     const parentFolder = await this.folderUsecases.getFolderByUserId(
       folderId,
@@ -55,7 +64,7 @@ export class FileUseCases {
       throw new NotFoundException();
     }
 
-    if (!(parentFolder.userId === userId)) {
+    if (parentFolder.userId !== userId) {
       throw new ForbiddenException();
     }
 
@@ -73,7 +82,7 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number, sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParams },
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -123,7 +132,7 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number, sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParams },
   ): Promise<File[]> {
     const additionalOrders: SortParams = options.sort ?? [['updatedAt', 'ASC']];
 
@@ -140,7 +149,10 @@ export class FileUseCases {
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
-    options: { limit: number; offset: number, sort?: SortParams } = { limit: 20, offset: 0 },
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ): Promise<File[]> {
     const filesWithMaybePlainName = await this.fileRepository.findAllCursor(
       { ...where, userId },
@@ -230,10 +242,16 @@ export class FileUseCases {
   }
 
   getTrashFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, status: FileStatus.TRASHED });
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      status: FileStatus.TRASHED,
+    });
   }
 
   getDriveFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, status: FileStatus.EXISTS });
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      status: FileStatus.EXISTS,
+    });
   }
 }

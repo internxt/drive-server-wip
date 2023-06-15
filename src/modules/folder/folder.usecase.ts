@@ -12,7 +12,11 @@ import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Folder, FolderOptions, SortableFolderAttributes } from './folder.domain';
+import {
+  Folder,
+  FolderOptions,
+  SortableFolderAttributes,
+} from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 
@@ -28,7 +32,7 @@ export class FolderUseCases {
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
-  ) { }
+  ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
     return this.folderRepository.findByIds(user, folderIds);
@@ -273,7 +277,7 @@ export class FolderUseCases {
   getAllFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -281,17 +285,23 @@ export class FolderUseCases {
   getNotTrashedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
-    return this.getFoldersUpdatedAfter(userId, {
-      deleted: false, removed: false,
-    }, updatedAfter, options);
+    return this.getFoldersUpdatedAfter(
+      userId,
+      {
+        deleted: false,
+        removed: false,
+      },
+      updatedAfter,
+      options,
+    );
   }
 
   getRemovedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(
       userId,
@@ -304,7 +314,7 @@ export class FolderUseCases {
   getTrashedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(
       userId,
@@ -318,32 +328,34 @@ export class FolderUseCases {
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Array<Folder>> {
     const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC']
+      ['updatedAt', 'ASC'],
     ];
     return this.folderRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
       options.limit,
       options.offset,
-      additionalOrders
+      additionalOrders,
     );
   }
 
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number, offset: number, sort?: SortParams } = { limit: 20, offset: 0 },
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ): Promise<Folder[]> {
-    const foldersWithMaybePlainName =
-      await this.folderRepository.findAllCursor(
-        { ...where, userId },
-        options.limit,
-        options.offset,
-        options.sort,
-      );
+    const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
+      { ...where, userId },
+      options.limit,
+      options.offset,
+      options.sort,
+    );
 
     return foldersWithMaybePlainName.map((folder) =>
       folder.plainName ? folder : this.decryptFolderName(folder),

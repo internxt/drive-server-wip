@@ -38,7 +38,6 @@ import { File, FileStatus } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
-import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -49,7 +48,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-  ) { }
+  ) {}
 
   @Get('/paginated')
   @HttpCode(200)
@@ -64,12 +63,7 @@ export class TrashController {
     @Query('offset') offset: number,
     @Query('type') type: 'files' | 'folders',
   ) {
-    if (
-      !limit ||
-      offset === undefined ||
-      !type ||
-      (!folderId)
-    ) {
+    if (!limit || offset === undefined || !type || !folderId) {
       throw new BadRequestException();
     }
 
@@ -156,7 +150,6 @@ export class TrashController {
           // no op
         });
     } catch (err) {
-      let errorMessage = err.message;
       const { email, uuid } = user;
 
       new Logger().error(
@@ -166,9 +159,8 @@ export class TrashController {
         })}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-      errorMessage = 'Internal Server Error';
 
-      return { error: errorMessage };
+      return { error: 'Internal Server Error' };
     }
   }
 
