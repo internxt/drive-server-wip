@@ -17,6 +17,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
@@ -268,6 +269,7 @@ export class ShareController {
     type: String,
   })
   @ApiOkResponse({ description: 'Get all folders shared with a user' })
+  @ApiBearerAuth()
   async getSharedFolders(
     @UserDecorator() user: User,
     @Query('page') page: number,
@@ -281,7 +283,7 @@ export class ShareController {
         perPage,
         orderBy,
       );
-      return Folders;
+      return { data: Folders };
     } catch (err) {
       new Logger().error(
         `[SHARE/GET/FOLDER] ERROR: ${

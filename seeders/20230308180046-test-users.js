@@ -51,7 +51,11 @@ module.exports = {
      *   isBetaMember: false
      * }], {});
      */
-    await queryInterface.bulkInsert('users', [testUser, referredTestUser]);
+    const users = await queryInterface.bulkInsert(
+      'users',
+      [testUser, referredTestUser],
+      { returning: true },
+    );
   },
 
   async down(queryInterface, Sequelize) {
