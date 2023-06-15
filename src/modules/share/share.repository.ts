@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
 import { File, FileAttributes } from '../file/file.domain';
@@ -247,11 +251,18 @@ export class SequelizeShareRepository implements ShareRepository {
   ): Promise<Folder[]> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
+    const validTypePaginationParameters =
+      (isNaN(page) && !isNaN(perPage)) || (!isNaN(page) && isNaN(perPage));
+
+    if (validTypePaginationParameters) {
+      throw new BadRequestException('take and skip must be provided together');
+    }
+
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
-    const shares = await this.shareModel.findAll({
+    const findCriteria = {
       where: {
         userId: user.id,
         isFolder: true,
@@ -265,12 +276,18 @@ export class SequelizeShareRepository implements ShareRepository {
           required: false,
         },
       ],
-      offset,
-      limit,
-      order,
-    });
+    };
 
-    console.log(shares);
+    if (!isNaN(limit) && !isNaN(offset)) {
+      findCriteria['limit'] = limit;
+      findCriteria['offset'] = offset;
+    }
+
+    if (order) {
+      findCriteria['order'] = order;
+    }
+
+    const shares = await this.shareModel.findAll(findCriteria);
 
     const folders = shares.map((share) => share.folder.toJSON());
 
