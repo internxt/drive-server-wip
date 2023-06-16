@@ -415,6 +415,23 @@ export class ShareUseCases {
     return String(decryptedName).trim() === '' ? null : decryptedName;
   }
 
+  async getSharedFoldersByAUser(
+    user: User,
+    page = 0,
+    perPage = 50,
+    orgerBy?: OrderBy,
+  ) {
+    const shares =
+      await this.shareRepository.findAllSharedFoldersByAUserPaginated(
+        user,
+        page,
+        perPage,
+        orgerBy,
+      );
+
+    return shares;
+  }
+
   async getSharedFoldersToAUser(
     user: User,
     page = 0,

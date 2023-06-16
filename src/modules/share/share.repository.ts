@@ -243,6 +243,57 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.destroy({ where: { id: shareId } });
   }
 
+  async findAllSharedFoldersByAUserPaginated(
+    user: User,
+    page: number,
+    perPage: number,
+    orderBy?: OrderBy,
+  ): Promise<Folder[]> {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+    const validTypePaginationParameters =
+      (isNaN(page) && !isNaN(perPage)) || (!isNaN(page) && isNaN(perPage));
+
+    if (validTypePaginationParameters) {
+      throw new BadRequestException('take and skip must be provided together');
+    }
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    const findCriteria = {
+      where: {
+        is_folder: true,
+      },
+      include: [
+        {
+          model: this.folderModel,
+          where: {
+            deleted: false,
+            user_id: user.id,
+          },
+          required: false,
+        },
+      ],
+    };
+
+    if (!isNaN(limit) && !isNaN(offset)) {
+      findCriteria['limit'] = limit;
+      findCriteria['offset'] = offset;
+    }
+
+    if (order) {
+      findCriteria['order'] = order;
+    }
+
+    const shares = await this.shareModel.findAll(findCriteria);
+
+    const folders = shares.map((share) => share.folder.toJSON());
+
+    return folders;
+  }
+
   async findAllSharedFoldersToAUserPaginated(
     user: User,
     page: number,

@@ -245,6 +245,55 @@ export class ShareController {
     });
   }
 
+  @Get('sent/folders')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get all folders shared by a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all folders shared by a user' })
+  @ApiBearerAuth()
+  async getSentFolders(
+    @UserDecorator() user: User,
+    @Query('page') page: number,
+    @Query('perPage') perPage: number,
+    @Query('orderBy') orderBy: OrderBy,
+  ) {
+    try {
+      const Folders = await this.shareUseCases.getSharedFoldersByAUser(
+        user,
+        page,
+        perPage,
+        orderBy,
+      );
+      return { data: Folders };
+    } catch (err) {
+      new Logger().error(
+        `[SHARE/GET/FOLDER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({ user })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
+    }
+  }
+
   @Get('received/folders')
   @HttpCode(200)
   @ApiOperation({
