@@ -14,9 +14,17 @@ import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { File, FileAttributes, FileOptions } from './file.domain';
+import {
+  File,
+  FileAttributes,
+  FileOptions,
+  FileStatus,
+  SortableFileAttributes,
+} from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
+
+type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FileUseCases {
@@ -39,18 +47,13 @@ export class FileUseCases {
     return file;
   }
 
-  getByFileIdAndUser(
-    fileId: FileAttributes['id'],
-    userId: UserAttributes['id'],
-    options: FileOptions = { deleted: false },
-  ): Promise<File> {
-    return this.fileRepository.findOne(fileId, userId, options);
-  }
-
   async getFilesByFolderId(
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-    options = { deleted: false, limit: 20, offset: 0 },
+    folderId: FileAttributes['folderId'],
+    userId: FileAttributes['userId'],
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ) {
     const parentFolder = await this.folderUsecases.getFolderByUserId(
       folderId,
@@ -67,7 +70,7 @@ export class FileUseCases {
 
     return this.getFiles(
       userId,
-      { folderId, deleted: options.deleted },
+      { folderId, status: FileStatus.EXISTS },
       options,
     );
   }
@@ -79,7 +82,7 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    options: { limit: number; offset: number; sort?: SortParams },
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -92,8 +95,7 @@ export class FileUseCases {
     return this.getFilesUpdatedAfter(
       userId,
       {
-        deleted: false,
-        removed: false,
+        status: FileStatus.EXISTS,
       },
       updatedAfter,
       options,
@@ -107,7 +109,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
-      { removed: true },
+      { status: FileStatus.DELETED },
       updatedAfter,
       options,
     );
@@ -120,7 +122,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
-      { deleted: true, removed: false },
+      { status: FileStatus.TRASHED },
       updatedAfter,
       options,
     );
@@ -130,11 +132,10 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    options: { limit: number; offset: number; sort?: SortParams },
   ): Promise<File[]> {
-    const additionalOrders: Array<[keyof FileAttributes, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC'],
-    ];
+    const additionalOrders: SortParams = options.sort ?? [['updatedAt', 'ASC']];
+
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
@@ -148,16 +149,16 @@ export class FileUseCases {
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
-    options = { limit: 20, offset: 0 },
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ): Promise<File[]> {
     const filesWithMaybePlainName = await this.fileRepository.findAllCursor(
-      {
-        ...where,
-        // enforce userId always
-        userId,
-      },
+      { ...where, userId },
       options.limit,
       options.offset,
+      options.sort,
     );
 
     return filesWithMaybePlainName.map((file) =>
@@ -173,20 +174,6 @@ export class FileUseCases {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
       folderId,
       userId,
-      options,
-    );
-
-    return files.map((file) => file.toJSON());
-  }
-
-  async getByUserExceptParents(
-    userId: FolderAttributes['userId'],
-    exceptFolderIds: FolderAttributes['id'][],
-    options: FileOptions = { deleted: false },
-  ) {
-    const files = await this.fileRepository.findAllByUserIdExceptFolderIds(
-      userId,
-      exceptFolderIds,
       options,
     );
 
@@ -255,10 +242,16 @@ export class FileUseCases {
   }
 
   getTrashFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, deleted: true });
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      status: FileStatus.TRASHED,
+    });
   }
 
   getDriveFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, deleted: false });
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      status: FileStatus.EXISTS,
+    });
   }
 }

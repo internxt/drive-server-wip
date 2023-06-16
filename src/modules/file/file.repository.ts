@@ -103,7 +103,7 @@ export class SequelizeFileRepository implements FileRepository {
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
-    additionalOrders: Array<[keyof FileModel, string]> = [],
+    order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       limit,
@@ -127,7 +127,7 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
       ],
-      order: [['id', 'ASC'], ...additionalOrders],
+      order,
     });
 
     return files.map(this.toDomain.bind(this));

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   NotImplementedException,
   Param,
   Query,
@@ -12,7 +13,8 @@ import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder } from './folder.domain';
+import { Folder, SortableFolderAttributes } from './folder.domain';
+import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -107,9 +109,11 @@ export class FolderController {
   @Get(':id/files')
   async getFolderFiles(
     @UserDecorator() user: User,
+    @Param('id') folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Param('id') folderId: number,
+    @Query('sort') sort?: SortableFileAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
     const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
@@ -129,13 +133,16 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
-    const files = await this.fileUseCases.getFilesByFolderId(
-      folderId,
+    const files = await this.fileUseCases.getFiles(
       user.id,
+      {
+        folderId,
+        status: FileStatus.EXISTS,
+      },
       {
         limit,
         offset,
-        deleted: false,
+        sort: sort && order && [[sort, order]],
       },
     );
 
@@ -148,6 +155,8 @@ export class FolderController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Param('id') folderId: number,
+    @Query('sort') sort?: SortableFolderAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
     const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
@@ -167,13 +176,16 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
-    const folders = await this.folderUseCases.getFoldersByParentId(
-      folderId,
+    const folders = await this.folderUseCases.getFolders(
       user.id,
+      {
+        parentId: folderId,
+        deleted: false,
+      },
       {
         limit,
         offset,
-        deleted: false,
+        sort: sort && order && [[sort, order]],
       },
     );
 
@@ -188,6 +200,13 @@ export class FolderController {
     @Query('status') status: typeof foldersStatuses[number],
     @Query('updatedAt') updatedAt?: string,
   ) {
+    if (!status) {
+      throw new BadRequestException('Missing "status" query param');
+    }
+    if (!limit || (!offset && offset !== 0)) {
+      throw new BadRequestException('Missing "offset" or "limit" param');
+    }
+
     const knownStatus = foldersStatuses.includes(status);
 
     if (!knownStatus) {
@@ -208,43 +227,55 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
-    const fns: Record<string, (...args) => Promise<Folder[]>> = {
-      ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
-      EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
-      TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
-      DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
-    };
-
-    const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
-      user.id,
-      new Date(updatedAt || 1),
-      { limit, offset },
-    );
-
-    return folders.map((f) => {
-      if (!f.plainName) {
-        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
-      }
-
-      let status: 'EXISTS' | 'TRASHED' | 'DELETED';
-
-      if (f.removed) {
-        status = 'DELETED';
-      } else if (f.deleted) {
-        status = 'TRASHED';
-      } else {
-        status = 'EXISTS';
-      }
-
-      delete f.deleted;
-      delete f.deletedAt;
-      delete f.removed;
-      delete f.removedAt;
-
-      return {
-        ...f,
-        status,
+    try {
+      const fns: Record<string, (...args) => Promise<Folder[]>> = {
+        ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
+        EXISTS: this.folderUseCases.getNotTrashedFoldersUpdatedAfter,
+        TRASHED: this.folderUseCases.getTrashedFoldersUpdatedAfter,
+        DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
       };
-    });
+
+      const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
+        user.id,
+        new Date(updatedAt || 1),
+        { limit, offset },
+      );
+
+      return folders.map((f) => {
+        if (!f.plainName) {
+          f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+        }
+
+        let status: 'EXISTS' | 'TRASHED' | 'DELETED';
+
+        if (f.removed) {
+          status = 'DELETED';
+        } else if (f.deleted) {
+          status = 'TRASHED';
+        } else {
+          status = 'EXISTS';
+        }
+
+        delete f.deleted;
+        delete f.deletedAt;
+        delete f.removed;
+        delete f.removedAt;
+
+        return {
+          ...f,
+          status,
+        };
+      });
+    } catch (error) {
+      const err = error as Error;
+
+      Logger.error(
+        `[FOLDERS/GET]: ERROR for user ${user.uuid} ${err.message}. ${
+          err.stack || 'NO STACK'
+        }`,
+      );
+
+      throw err;
+    }
   }
 }
