@@ -1,4 +1,3 @@
-import { FileAttributes } from '../file/file.domain';
 import { ThumbnailAttributes } from './thumbnail.attributes';
 
 export class Thumbnail implements ThumbnailAttributes {
@@ -8,11 +7,11 @@ export class Thumbnail implements ThumbnailAttributes {
   size: number;
   bucket_id: string;
   bucket_file: string;
-  encrypt_version: string;
-  created_at: Date;
-  updated_at: Date;
-  max_width: number;
-  max_height: number;
+  encryptVersion: string;
+  createdAt: Date;
+  updatedAt: Date;
+  maxWidth: number;
+  maxHeight: number;
 
   constructor(attributes: ThumbnailAttributes) {
     this.id = attributes.id;
@@ -21,9 +20,11 @@ export class Thumbnail implements ThumbnailAttributes {
     this.size = attributes.size;
     this.bucket_id = attributes.bucket_id;
     this.bucket_file = attributes.bucket_file;
-    this.encrypt_version = attributes.encrypt_version;
-    this.created_at = attributes.created_at;
-    this.updated_at = attributes.updated_at;
+    this.encryptVersion = attributes.encryptVersion;
+    this.createdAt = attributes.createdAt;
+    this.updatedAt = attributes.updatedAt;
+    this.maxWidth = attributes.maxWidth;
+    this.maxHeight = attributes.maxHeight;
   }
 
   static build(thumbnail: ThumbnailAttributes): Thumbnail {

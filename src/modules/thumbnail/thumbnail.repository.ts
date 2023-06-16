@@ -6,7 +6,7 @@ import { FileAttributes } from '../file/file.domain';
 
 export interface ThumbnailRepository {
   findById(id: number): Promise<Thumbnail | null>;
-  findByFileId(fileId: FileAttributes['fileId']): Promise<Thumbnail | null>;
+  findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null>;
   findAll(): Promise<Thumbnail[]>;
   create(thumbnail: Thumbnail): Promise<Thumbnail>;
   update(thumbnail: Thumbnail): Promise<void>;
@@ -25,9 +25,7 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
     return thumbnail ? this.toDomain(thumbnail) : null;
   }
 
-  async findByFileId(
-    fileId: FileAttributes['fileId'],
-  ): Promise<Thumbnail | null> {
+  async findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null> {
     const thumbnail = await this.thumbnailModel.findOne({
       where: { file_id: fileId },
     });
@@ -47,9 +45,7 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
 
   async update(thumbnail: Thumbnail): Promise<void> {
     const thumbnailModel = await this.thumbnailModel.findByPk(thumbnail.id);
-    if (!thumbnailModel) {
-      throw new Error(`Thumbnail with ID ${thumbnail.id} not found`);
-    }
+
     thumbnailModel.set(this.toModel(thumbnail));
     await thumbnailModel.save();
   }
@@ -66,11 +62,11 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
       size: model.size,
       bucket_id: model.bucket_id,
       bucket_file: model.bucket_file,
-      encrypt_version: model.encrypt_version,
-      created_at: model.created_at,
-      updated_at: model.updated_at,
-      max_width: model.max_width,
-      max_height: model.max_height,
+      encryptVersion: model.encryptVersion,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+      maxWidth: model.maxWidth,
+      maxHeight: model.maxHeight,
     };
   }
 
@@ -82,11 +78,11 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
       size: thumbnail.size,
       bucket_id: thumbnail.bucket_id,
       bucket_file: thumbnail.bucket_file,
-      encrypt_version: thumbnail.encrypt_version,
-      created_at: thumbnail.created_at,
-      updated_at: thumbnail.updated_at,
-      max_width: thumbnail.max_width,
-      max_height: thumbnail.max_height,
+      encryptVersion: thumbnail.encryptVersion,
+      createdAt: thumbnail.createdAt,
+      updatedAt: thumbnail.updatedAt,
+      maxWidth: thumbnail.maxWidth,
+      maxHeight: thumbnail.maxHeight,
     };
   }
 }

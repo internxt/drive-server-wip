@@ -25,7 +25,7 @@ export class ThumbnailModel extends Model implements ThumbnailAttributes {
   @Column(DataType.INTEGER)
   fileId: number;
 
-  @BelongsTo(() => FileModel, 'fileId')
+  @BelongsTo(() => FileModel, 'id')
   file: FileModel;
 
   @Column
@@ -41,17 +41,17 @@ export class ThumbnailModel extends Model implements ThumbnailAttributes {
   bucket_file: string;
 
   @Column
-  encrypt_version: string;
+  encryptVersion: string;
 
   @Column
-  created_at: Date;
+  createdAt: Date;
 
   @Column
-  updated_at: Date;
+  updatedAt: Date;
 
   @Column
-  max_width: number;
+  maxWidth: number;
 
   @Column
-  max_height: number;
+  maxHeight: number;
 }
