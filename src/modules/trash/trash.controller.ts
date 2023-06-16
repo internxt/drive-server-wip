@@ -58,12 +58,11 @@ export class TrashController {
   @ApiOkResponse({ description: 'Files on trash for a given folder' })
   async getTrashedFilesPaginated(
     @UserDecorator() user: User,
-    @Query('folderId') folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('type') type: 'files' | 'folders',
   ) {
-    if (!limit || offset === undefined || !type || !folderId) {
+    if (!limit || offset === undefined || !type) {
       throw new BadRequestException();
     }
 
