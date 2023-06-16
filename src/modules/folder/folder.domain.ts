@@ -2,6 +2,11 @@ import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
 import { FolderAttributes } from './folder.attributes';
 
+export type SortableFolderAttributes = keyof Pick<
+  FolderAttributes,
+  'id' | 'name' | 'plainName' | 'updatedAt'
+>;
+
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
   removed?: FolderAttributes['removed'];

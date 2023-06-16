@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder } from './folder.domain';
+import { Folder, SortableFolderAttributes } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 
 import { UserModel } from '../user/user.model';
@@ -55,6 +55,22 @@ export class SequelizeFolderRepository implements FolderRepository {
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
   ) {}
+
+  async findAllCursor(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where,
+      order,
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
 
   async findAll(where = {}): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({ where });
