@@ -1,4 +1,4 @@
-export interface PrivateShareFolderAttributes {
+export interface PrivateSharingFolderAttributes {
   id: string;
   folderId: string;
   ownerId: string;
@@ -6,14 +6,14 @@ export interface PrivateShareFolderAttributes {
   encruptedKey: string;
 }
 
-export class PrivateShareFolder implements PrivateShareFolderAttributes {
+export class PrivateShararingFolder implements PrivateSharingFolderAttributes {
   id: string;
   folderId: string;
   ownerId: string;
   sharedWith: string[];
   encruptedKey: string;
 
-  constructor(attributes: PrivateShareFolderAttributes) {
+  constructor(attributes: PrivateSharingFolderAttributes) {
     this.id = attributes.id;
     this.folderId = attributes.folderId;
     this.ownerId = attributes.ownerId;
@@ -22,8 +22,8 @@ export class PrivateShareFolder implements PrivateShareFolderAttributes {
   }
 
   static build(
-    privateShareFolder: PrivateShareFolderAttributes,
-  ): PrivateShareFolder {
-    return new PrivateShareFolder(privateShareFolder);
+    privateShareFolder: PrivateSharingFolderAttributes,
+  ): PrivateShararingFolder {
+    return new PrivateShararingFolder(privateShareFolder);
   }
 }

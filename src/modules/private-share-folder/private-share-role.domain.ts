@@ -1,4 +1,4 @@
-export interface PrivateShareFolderRolesAttributes {
+export interface PrivateSharingFolderRolesAttributes {
   id: string;
   folderId: string;
   userId: string;
@@ -7,8 +7,8 @@ export interface PrivateShareFolderRolesAttributes {
   updatedAt: Date;
 }
 
-export class PrivateShareFolderRole
-  implements PrivateShareFolderRolesAttributes
+export class PrivateSharingFolderRole
+  implements PrivateSharingFolderRolesAttributes
 {
   id: string;
   folderId: string;
@@ -17,7 +17,7 @@ export class PrivateShareFolderRole
   createdAt: Date;
   updatedAt: Date;
 
-  constructor(attributes: PrivateShareFolderRolesAttributes) {
+  constructor(attributes: PrivateSharingFolderRolesAttributes) {
     this.id = attributes.id;
     this.folderId = attributes.folderId;
     this.roleId = attributes.roleId;
@@ -26,12 +26,12 @@ export class PrivateShareFolderRole
   }
 
   static build(
-    privateShareFolderRole: PrivateShareFolderRolesAttributes,
-  ): PrivateShareFolderRole {
-    return new PrivateShareFolderRole(privateShareFolderRole);
+    privateSharingFolderRole: PrivateSharingFolderRolesAttributes,
+  ): PrivateSharingFolderRole {
+    return new PrivateSharingFolderRole(privateSharingFolderRole);
   }
 
-  toJSON(): PrivateShareFolderRolesAttributes {
+  toJSON(): PrivateSharingFolderRolesAttributes {
     return {
       id: this.id,
       folderId: this.folderId,
