@@ -1,4 +1,5 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   ForeignKey,
@@ -6,9 +7,10 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { PrivateSharingFolderRolesAttributes } from './private-share-role.domain';
+import { PrivateSharingFolderRolesAttributes } from './private-sharing-folder-roles.domain';
 import { UserModel } from '../user/user.model';
 import { FolderModel } from '../folder/folder.model';
+import { PrivateSharingRoleModel } from './private-sharing-role.model';
 
 @Table({
   underscored: true,
@@ -24,14 +26,28 @@ export class PrivateSharingFolderRolesModel
   id: string;
 
   @ForeignKey(() => UserModel)
-  @Column({ type: DataType.UUID })
-  userId: string;
+  @Column(DataType.INTEGER)
+  userId: number;
+
+  @BelongsTo(() => UserModel)
+  user: UserModel;
+
+  @ForeignKey(() => UserModel)
+  @Column(DataType.UUIDV4)
+  userUuid: string;
 
   @ForeignKey(() => FolderModel)
-  @Column({ type: DataType.UUID })
-  folderId: string;
+  @Column(DataType.INTEGER)
+  folderId: number;
 
-  @ForeignKey(() => RoleModel)
+  @BelongsTo(() => FolderModel)
+  folder: FolderModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
+
+  @ForeignKey(() => PrivateSharingRoleModel)
   @Column({ type: DataType.UUID })
   roleId: string;
 
