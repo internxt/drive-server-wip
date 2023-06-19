@@ -63,10 +63,7 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    const tableList = await queryInterface.showAllTables();
-
-    if (tableList.includes('private_sharing_folder')) {
-      await queryInterface.dropTable('private_sharing_folder');
-    }
+    const tableName = 'private_sharing_folder';
+    await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${tableName}`);
   },
 };
