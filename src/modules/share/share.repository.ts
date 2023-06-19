@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
 import { File, FileAttributes } from '../file/file.domain';
@@ -28,7 +24,6 @@ import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
-import { OrderBy } from 'src/common/order.type';
 
 @Table({
   underscored: true,
