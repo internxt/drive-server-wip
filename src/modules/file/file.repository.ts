@@ -152,7 +152,7 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
   ) {}
-  async deleteByFileId(deleteByFileId: string): Promise<void> {
+  async deleteByFileId(fileId: string): Promise<void> {
     await this.fileModel.update(
       {
         removed: true,
@@ -162,7 +162,7 @@ export class SequelizeFileRepository implements FileRepository {
       },
       {
         where: {
-          id: deleteByFileId,
+          id: fileId,
         },
       },
     );
