@@ -47,8 +47,6 @@ export class PrivateSharingController {
     @Query('perPage') perPage = 50,
     @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
-    console.log('page', page);
-    console.log('perPage', perPage);
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
     const order = orderBy

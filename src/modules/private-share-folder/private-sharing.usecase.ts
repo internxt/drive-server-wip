@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { Sequelize } from 'sequelize';
-import { SequelizePrivateSharingRepository } from './private-sharing.respository';
+import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 
 @Injectable()
 export class PrivateSharingUseCase {

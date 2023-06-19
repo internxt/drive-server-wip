@@ -45,8 +45,6 @@ export class SequelizePrivateSharingRepository
       offset,
     });
 
-    console.log('sharedFolders', sharedFolders);
-
     return sharedFolders.map((folder) => folder.get({ plain: true }));
   }
 }
