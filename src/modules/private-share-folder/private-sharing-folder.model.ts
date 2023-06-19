@@ -28,7 +28,7 @@ export class PrivateSharingFolderModel
   @Column({ type: DataType.INTEGER, field: 'folder_id' })
   folderId: number;
 
-  @BelongsTo(() => FolderModel)
+  @BelongsTo(() => FolderModel, 'folderId')
   folder: FolderModel;
 
   @ForeignKey(() => FolderModel)
@@ -39,7 +39,7 @@ export class PrivateSharingFolderModel
   @Column({ type: DataType.INTEGER, field: 'owner_id' })
   ownerId: number;
 
-  @BelongsTo(() => UserModel)
+  @BelongsTo(() => UserModel, 'ownerId')
   owner: UserModel;
 
   @ForeignKey(() => UserModel)
@@ -50,7 +50,7 @@ export class PrivateSharingFolderModel
   @Column({ type: DataType.INTEGER, field: 'shared_with_id' })
   sharedWithId: number;
 
-  @BelongsTo(() => UserModel)
+  @BelongsTo(() => UserModel, 'sharedWithId')
   sharedWith: UserModel;
 
   @ForeignKey(() => UserModel)
