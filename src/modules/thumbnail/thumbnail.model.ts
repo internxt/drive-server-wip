@@ -35,10 +35,10 @@ export class ThumbnailModel extends Model implements ThumbnailAttributes {
   size: number;
 
   @Column
-  bucket_id: string;
+  bucketId: string;
 
   @Column
-  bucket_file: string;
+  bucketFile: string;
 
   @Column
   encryptVersion: string;
