@@ -26,29 +26,29 @@ export class PrivateSharingFolderRolesModel
   id: string;
 
   @ForeignKey(() => UserModel)
-  @Column(DataType.INTEGER)
+  @Column({ type: DataType.INTEGER, field: 'user_id' })
   userId: number;
 
   @BelongsTo(() => UserModel)
   user: UserModel;
 
   @ForeignKey(() => UserModel)
-  @Column(DataType.UUIDV4)
+  @Column({ type: DataType.UUIDV4, field: 'user_uuid' })
   userUuid: string;
 
   @ForeignKey(() => FolderModel)
-  @Column(DataType.INTEGER)
+  @Column({ type: DataType.INTEGER, field: 'folder_id' })
   folderId: number;
 
   @BelongsTo(() => FolderModel)
   folder: FolderModel;
 
   @ForeignKey(() => FolderModel)
-  @Column(DataType.UUIDV4)
+  @Column({ type: DataType.UUIDV4, field: 'folder_uuid' })
   folderUuid: string;
 
   @ForeignKey(() => PrivateSharingRoleModel)
-  @Column({ type: DataType.UUID })
+  @Column({ type: DataType.UUID, field: 'role_id' })
   roleId: string;
 
   @Column
