@@ -20,10 +20,6 @@ module.exports = {
         RETURNING *;`,
       );
 
-      if (updatedRows.length === 0) {
-        break;
-      }
-
       updatedRowCount += updatedRows.length;
       offset += batchSize;
 
@@ -46,10 +42,6 @@ module.exports = {
           )
           RETURNING *;`,
       );
-
-      if (updatedRows.length === 0) {
-        break;
-      }
 
       updatedRowCount += updatedRows.length;
       offset += batchSize;

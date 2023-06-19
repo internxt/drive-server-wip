@@ -111,7 +111,7 @@ export class FileModel extends Model implements FileAttributes {
 }
 
 export interface FileRepository {
-  deleteByFileId(deleteByFileId: string): Promise<unknown>;
+  deleteByFileId(fileId: any): unknown;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -152,20 +152,9 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
   ) {}
-  async deleteByFileId(deleteByFileId: string): Promise<void> {
-    await this.fileModel.update(
-      {
-        removed: true,
-        removedAt: new Date(),
-        status: FileStatus.DELETED,
-        updatedAt: new Date(),
-      },
-      {
-        where: {
-          id: deleteByFileId,
-        },
-      },
-    );
+
+  async deleteByFileId(fileId: any): Promise<unknown> {
+    throw new Error('Method not implemented.');
   }
 
   async findAll(): Promise<Array<File> | []> {
@@ -215,13 +204,13 @@ export class SequelizeFileRepository implements FileRepository {
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
-    additionalOrders: Array<[keyof FileModel, string]> = [],
+    order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       limit,
       offset,
       where,
-      order: [['id', 'ASC'], ...additionalOrders],
+      order,
     });
 
     return files.map(this.toDomain.bind(this));
