@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Logger,
+  NotFoundException,
   NotImplementedException,
   Param,
   Query,
@@ -15,6 +17,8 @@ import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
 import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import logger from '../../externals/logger';
+import { validate } from 'uuid';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -276,6 +280,39 @@ export class FolderController {
       );
 
       throw err;
+    }
+  }
+
+  @Get('/:uuid/meta')
+  async getFolder(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: Folder['uuid'],
+  ) {
+    if (!validate(folderUuid)) {
+      throw new BadRequestException('Invalid UUID provided');
+    }
+
+    try {
+      const folder = await this.folderUseCases.getFolderByUuidAndUser(
+        folderUuid,
+        user,
+      );
+
+      return folder;
+    } catch (err) {
+      if (
+        err instanceof NotFoundException ||
+        err instanceof ForbiddenException
+      ) {
+        throw err;
+      }
+      logger('error', {
+        id: 'get-folder',
+        user: user.uuid,
+        message: `Error getting folder ${err.message}. STACK ${
+          err.stack || 'NO STACK'
+        }`,
+      });
     }
   }
 }
