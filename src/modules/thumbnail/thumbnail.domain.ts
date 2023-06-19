@@ -5,8 +5,10 @@ export class Thumbnail implements ThumbnailAttributes {
   fileId: number;
   type: string;
   size: number;
-  bucket_id: string;
-  bucket_file: string;
+  bucket_id?: string;
+  bucket_file?: string;
+  bucketId: string;
+  bucketFile: string;
   encryptVersion: string;
   createdAt: Date;
   updatedAt: Date;
@@ -18,8 +20,8 @@ export class Thumbnail implements ThumbnailAttributes {
     this.fileId = attributes.fileId;
     this.type = attributes.type;
     this.size = attributes.size;
-    this.bucket_id = attributes.bucket_id;
-    this.bucket_file = attributes.bucket_file;
+    this.bucketId = attributes.bucket_id;
+    this.bucketFile = attributes.bucket_file;
     this.encryptVersion = attributes.encryptVersion;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;

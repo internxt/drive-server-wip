@@ -44,10 +44,9 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
   }
 
   async update(thumbnail: Thumbnail): Promise<void> {
-    const thumbnailModel = await this.thumbnailModel.findByPk(thumbnail.id);
-
-    thumbnailModel.set(this.toModel(thumbnail));
-    await thumbnailModel.save();
+    await this.thumbnailModel.update(this.toModel(thumbnail), {
+      where: { id: thumbnail.id },
+    });
   }
 
   async deleteById(id: number): Promise<void> {
@@ -60,8 +59,8 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
       fileId: model.fileId,
       type: model.type,
       size: model.size,
-      bucket_id: model.bucket_id,
-      bucket_file: model.bucket_file,
+      bucketId: model.bucketId,
+      bucketFile: model.bucketFile,
       encryptVersion: model.encryptVersion,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
@@ -76,8 +75,8 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
       fileId: thumbnail.fileId,
       type: thumbnail.type,
       size: thumbnail.size,
-      bucket_id: thumbnail.bucket_id,
-      bucket_file: thumbnail.bucket_file,
+      bucketId: thumbnail.bucket_id,
+      bucketFile: thumbnail.bucket_file,
       encryptVersion: thumbnail.encryptVersion,
       createdAt: thumbnail.createdAt,
       updatedAt: thumbnail.updatedAt,

@@ -109,6 +109,22 @@ export class SequelizeFileRepository implements FileRepository {
       limit,
       offset,
       where,
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnails(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
       include: [
         {
           model: this.shareModel,
