@@ -14,11 +14,10 @@ module.exports = {
     );
 
     if (!users || users.length !== 2) {
-      throw new Error('No se encontraron los usuarios requeridos para esta migración.');
+      throw new Error('No users found');
     }
 
     const folderOne = {
-      id: 1,
       parent_id: null,
       name: 'FolderOne',
       bucket: 'bucketOne',
@@ -33,7 +32,6 @@ module.exports = {
     };
 
     const folderTwo = {
-      id: 2,
       parent_id: null,
       name: 'FolderTwo',
       bucket: 'bucketTwo',
