@@ -34,7 +34,7 @@ import {
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
 import { Folder } from '../folder/folder.domain';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
@@ -58,19 +58,11 @@ export class TrashController {
   @ApiOkResponse({ description: 'Files on trash for a given folder' })
   async getTrashedFilesPaginated(
     @UserDecorator() user: User,
-    @Query('folderId') folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('type') type: 'files' | 'folders',
-    @Query('root') root: boolean,
   ) {
-    if (
-      !limit ||
-      offset === undefined ||
-      !type ||
-      root === undefined ||
-      (!root && !folderId)
-    ) {
+    if (!limit || offset === undefined || !type) {
       throw new BadRequestException();
     }
 
@@ -84,41 +76,18 @@ export class TrashController {
 
     let result: File[] | Folder[];
 
-    const deleted = root;
-
-    if (root) {
-      if (type === 'files') {
-        // Root level could have different folders
-        result = await this.fileUseCases.getFiles(
-          user.id,
-          { deleted: true, removed: false },
-          { limit, offset },
-        );
-      } else {
-        result = await this.folderUseCases.getFolders(
-          user.id,
-          { deleted: true, removed: false },
-          { limit, offset },
-        );
-      }
+    if (type === 'files') {
+      result = await this.fileUseCases.getFiles(
+        user.id,
+        { status: FileStatus.TRASHED },
+        { limit, offset },
+      );
     } else {
-      if (type === 'files') {
-        result = await this.fileUseCases.getFilesByFolderId(folderId, user.id, {
-          deleted,
-          limit,
-          offset,
-        });
-      } else {
-        result = await this.folderUseCases.getFoldersByParentId(
-          folderId,
-          user.id,
-          {
-            deleted,
-            limit,
-            offset,
-          },
-        );
-      }
+      result = await this.folderUseCases.getFolders(
+        user.id,
+        { deleted: true, removed: false },
+        { limit, offset },
+      );
     }
 
     return { result };
