@@ -3,7 +3,9 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -20,6 +22,7 @@ import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
 import { GrantPrivilegesDto } from './dto/grant-privilages.dto';
+import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -46,6 +49,32 @@ export class PrivateSharingController {
 
       return {
         message: 'Privileges granted',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Put('update-role/:privateFolderRoleId')
+  @ApiOperation({
+    summary: 'Update role of a user on a folder',
+  })
+  @ApiOkResponse({ description: 'Update role of a user on a folder' })
+  @ApiBearerAuth()
+  async updateRole(
+    @Param('privateFolderRoleId') privateFolderRoleId: string,
+    @UserDecorator() user: User,
+    @Body() dto: UpdatePrivilegesDto,
+  ): Promise<Record<'message', string>> {
+    try {
+      await this.privateSharingUseCase.updateRole(
+        user,
+        privateFolderRoleId,
+        dto.roleId,
+      );
+
+      return {
+        message: 'Role updated',
       };
     } catch (error) {
       throw new BadRequestException(error.message);

@@ -6,6 +6,7 @@ import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
+import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 
 export interface PrivateSharingRepository {
   findSharedByMePrivateFolders(
@@ -50,6 +51,32 @@ export class SequelizePrivateSharingRepository
     });
 
     return privateFolder.get({ plain: true });
+  }
+
+  async updatePrivateFolderRole(
+    privateFolderRole: PrivateSharingFolderRole,
+    roleId: string,
+  ): Promise<void> {
+    await this.privateSharingFolderRole.update(
+      {
+        roleId,
+      },
+      {
+        where: {
+          id: privateFolderRole.id,
+        },
+      },
+    );
+  }
+
+  async findPrivateFolderRoleById(
+    privateFolderRoleId: string,
+  ): Promise<PrivateSharingFolderRole> {
+    const privateFolderRole = await this.privateSharingFolderRole.findByPk(
+      privateFolderRoleId,
+    );
+
+    return privateFolderRole.get({ plain: true });
   }
 
   async createPrivateFolderRole(user: User, folder: Folder, roleUuid: string) {
