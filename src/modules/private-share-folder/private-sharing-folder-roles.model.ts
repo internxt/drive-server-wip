@@ -29,7 +29,7 @@ export class PrivateSharingFolderRolesModel
   @Column({ type: DataType.INTEGER, field: 'user_id' })
   userId: number;
 
-  @BelongsTo(() => UserModel)
+  @BelongsTo(() => UserModel, 'userId')
   user: UserModel;
 
   @ForeignKey(() => UserModel)
@@ -40,7 +40,7 @@ export class PrivateSharingFolderRolesModel
   @Column({ type: DataType.INTEGER, field: 'folder_id' })
   folderId: number;
 
-  @BelongsTo(() => FolderModel)
+  @BelongsTo(() => FolderModel, 'folderId')
   folder: FolderModel;
 
   @ForeignKey(() => FolderModel)

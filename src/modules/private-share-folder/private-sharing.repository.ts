@@ -4,6 +4,8 @@ import { InjectModel } from '@nestjs/sequelize';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
+import { User } from '../user/user.domain';
+import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 
 export interface PrivateSharingRepository {
   findSharedByMePrivateFolders(
@@ -23,7 +25,42 @@ export class SequelizePrivateSharingRepository
     private privateSharingFolderModel: typeof PrivateSharingFolderModel,
     @InjectModel(FolderModel)
     private folderModel: typeof FolderModel,
+    @InjectModel(PrivateSharingFolderRolesModel)
+    private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
   ) {}
+
+  async findById(id: string): Promise<PrivateSharingFolder> {
+    const privateFolder = await this.privateSharingFolderModel.findByPk(id);
+
+    return privateFolder.get({ plain: true });
+  }
+
+  async createPrivateFolder(
+    owner: User,
+    sharedWith: User,
+    folder: Folder,
+  ): Promise<PrivateSharingFolder> {
+    const privateFolder = await this.privateSharingFolderModel.create({
+      ownerId: owner.id,
+      ownerUuid: owner.uuid,
+      sharedWithId: sharedWith.id,
+      sharedWithUuid: sharedWith.uuid,
+      folderId: folder.id,
+      folderUuid: folder.uuid,
+    });
+
+    return privateFolder.get({ plain: true });
+  }
+
+  async createPrivateFolderRole(user: User, folder: Folder, roleUuid: string) {
+    await this.privateSharingFolderRole.create({
+      userId: user.id,
+      userUuid: user.uuid,
+      folderId: folder.id,
+      folderUuid: folder.uuid,
+      roleId: roleUuid,
+    });
+  }
 
   async findSharedWithMePrivateFolders(
     userId: number,

@@ -1,4 +1,11 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -12,11 +19,38 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
+import { GrantPrivilegesDto } from './dto/grant-privilages.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
 export class PrivateSharingController {
   constructor(private readonly privateSharingUseCase: PrivateSharingUseCase) {}
+
+  @Post('grant-privileges')
+  @ApiOperation({
+    summary: 'Grant privileges to a user on a folder',
+  })
+  @ApiOkResponse({ description: 'Grant privileges to a user on a folder' })
+  @ApiBearerAuth()
+  async grantPrivileges(
+    @UserDecorator() user: User,
+    @Body() dto: GrantPrivilegesDto,
+  ): Promise<Record<'message', string>> {
+    try {
+      await this.privateSharingUseCase.grantPrivileges(
+        user,
+        dto.userUuid,
+        dto.privateFolderId,
+        dto.roleId,
+      );
+
+      return {
+        message: 'Privileges granted',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
 
   @Get('receive/folders')
   @ApiOperation({
