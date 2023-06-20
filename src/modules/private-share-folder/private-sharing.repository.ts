@@ -24,6 +24,31 @@ export class SequelizePrivateSharingRepository
     @InjectModel(FolderModel)
     private folderModel: typeof FolderModel,
   ) {}
+
+  async findSharedWithMePrivateFolders(
+    userId: number,
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<Folder[]> {
+    const sharedFolders = await this.privateSharingFolderModel.findAll({
+      where: {
+        sharedWithId: userId,
+      },
+      include: [
+        {
+          model: this.folderModel,
+          as: 'folder',
+        },
+      ],
+      order: orderBy,
+      limit,
+      offset,
+    });
+
+    return sharedFolders.map((folder) => folder.get({ plain: true }));
+  }
+
   async findSharedByMePrivateFolders(
     userId: number,
     offset: number,
