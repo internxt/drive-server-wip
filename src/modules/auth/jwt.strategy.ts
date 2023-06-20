@@ -35,6 +35,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
       if (!user) {
         throw new UnauthorizedException();
       }
+
+      if (user.isGuestOnSharedWorkspace()) {
+        return this.userUseCases.getUserByUsername(user.bridgeUser);
+      }
+
       return user;
     } catch (err) {
       if (err instanceof UnauthorizedException) {
