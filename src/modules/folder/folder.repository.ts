@@ -321,6 +321,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
+  async isOwner(user: User, folderId: number): Promise<boolean> {
+    const folder = await this.folderModel.findOne({
+      where: {
+        id: folderId,
+        userId: user.id,
+      },
+    });
+
+    return !!folder;
+  }
+
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
     updatedAfter: Date,
