@@ -38,6 +38,23 @@ export class FolderUseCases {
     return this.folderRepository.findByIds(user, folderIds);
   }
 
+  async getFolderByUuidAndUser(
+    folderUuid: FolderAttributes['uuid'],
+    user: User,
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuid(folderUuid, false);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    if (folder.userId !== user.id) {
+      throw new ForbiddenException();
+    }
+
+    return folder;
+  }
+
   async getFolderByUserId(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
