@@ -25,20 +25,12 @@ export class PrivateSharingFolderRolesModel
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
-  @ForeignKey(() => UserModel)
-  @Column({ type: DataType.INTEGER, field: 'user_id' })
-  userId: number;
-
   @BelongsTo(() => UserModel)
   user: UserModel;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUIDV4, field: 'user_uuid' })
   userUuid: string;
-
-  @ForeignKey(() => FolderModel)
-  @Column({ type: DataType.INTEGER, field: 'folder_id' })
-  folderId: number;
 
   @BelongsTo(() => FolderModel)
   folder: FolderModel;
