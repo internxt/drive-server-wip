@@ -8,19 +8,18 @@ export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
   ) {}
-  async getSentFolders(
+  async getPrivateSharedByOwner(
     user: User,
     offset: number,
     limit: number,
     order: [string, string][],
   ): Promise<Folder[]> {
-    const folders =
-      await this.privateSharingRespository.findSharedByMePrivateFolders(
-        user.uuid,
-        offset,
-        limit,
-        order,
-      );
+    const folders = await this.privateSharingRespository.findByOwner(
+      user.uuid,
+      offset,
+      limit,
+      order,
+    );
     return folders;
   }
 }

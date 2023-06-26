@@ -54,7 +54,7 @@ export class PrivateSharingController {
       : undefined;
 
     return {
-      folders: await this.privateSharingUseCase.getSentFolders(
+      folders: await this.privateSharingUseCase.getPrivateSharedByOwner(
         user,
         offset,
         limit,

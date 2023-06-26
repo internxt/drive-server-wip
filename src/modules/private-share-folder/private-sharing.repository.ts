@@ -6,7 +6,7 @@ import { FolderModel } from '../folder/folder.model';
 import { Op, col } from 'sequelize';
 
 export interface PrivateSharingRepository {
-  findSharedByMePrivateFolders(
+  findByOwner(
     userUuid: string,
     offset: number,
     limit: number,
@@ -24,7 +24,7 @@ export class SequelizePrivateSharingRepository
     @InjectModel(FolderModel)
     private folderModel: typeof FolderModel,
   ) {}
-  async findSharedByMePrivateFolders(
+  async findByOwner(
     userUuid: string,
     offset: number,
     limit: number,
