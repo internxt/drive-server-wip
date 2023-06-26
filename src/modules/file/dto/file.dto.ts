@@ -25,6 +25,6 @@ export class FileDto {
   updatedAt: Date;
   removedAt: Date;
   status: FileStatus;
-  shares: Share[];
-  thumbnails: Thumbnail[];
+  shares?: Share[];
+  thumbnails?: Thumbnail[];
 }

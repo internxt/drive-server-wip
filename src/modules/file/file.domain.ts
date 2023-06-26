@@ -38,8 +38,8 @@ export interface FileAttributes {
   createdAt: Date;
   updatedAt: Date;
   status: FileStatus;
-  shares: Share[];
-  thumbnails: Thumbnail[];
+  shares?: Share[];
+  thumbnails?: Thumbnail[];
 }
 
 export interface FileOptions {
@@ -72,8 +72,8 @@ export class File implements FileAttributes {
   removedAt: Date;
   plainName: string;
   status: FileStatus;
-  shares: Share[];
-  thumbnails: Thumbnail[];
+  shares?: Share[];
+  thumbnails?: Thumbnail[];
 
   private constructor({
     id,
