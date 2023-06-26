@@ -31,12 +31,15 @@ export class PrivateSharingFolderModel
   @Column({ type: DataType.UUIDV4, field: 'folder_id' })
   folderId: string;
 
-  @BelongsTo(() => UserModel)
+  @BelongsTo(() => UserModel, { foreignKey: 'owner_id' })
   owner: UserModel;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUIDV4, field: 'owner_id' })
   ownerId: string;
+
+  @BelongsTo(() => UserModel, { foreignKey: 'shared_with' })
+  sharedWithUser: UserModel;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUIDV4, field: 'shared_with' })
