@@ -25,30 +25,25 @@ export class PrivateSharingFolderRolesModel
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
-  @ForeignKey(() => UserModel)
-  @Column({ type: DataType.INTEGER, field: 'user_id' })
-  userId: number;
-
-  @BelongsTo(() => UserModel)
+  @BelongsTo(() => UserModel, { foreignKey: 'user_id' })
   user: UserModel;
 
   @ForeignKey(() => UserModel)
-  @Column({ type: DataType.UUIDV4, field: 'user_uuid' })
-  userUuid: string;
+  @Column({ type: DataType.UUIDV4, field: 'user_id' })
+  userId: string;
 
-  @ForeignKey(() => FolderModel)
-  @Column({ type: DataType.INTEGER, field: 'folder_id' })
-  folderId: number;
-
-  @BelongsTo(() => FolderModel)
+  @BelongsTo(() => FolderModel, { foreignKey: 'folder_id' })
   folder: FolderModel;
 
   @ForeignKey(() => FolderModel)
-  @Column({ type: DataType.UUIDV4, field: 'folder_uuid' })
-  folderUuid: string;
+  @Column({ type: DataType.UUIDV4, field: 'folder_id' })
+  folderId: string;
+
+  @BelongsTo(() => PrivateSharingRoleModel, { foreignKey: 'role_id' })
+  role: PrivateSharingRoleModel;
 
   @ForeignKey(() => PrivateSharingRoleModel)
-  @Column({ type: DataType.UUID, field: 'role_id' })
+  @Column({ type: DataType.UUIDV4, field: 'role_id' })
   roleId: string;
 
   @Column
