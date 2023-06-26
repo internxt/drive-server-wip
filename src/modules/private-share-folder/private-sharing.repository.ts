@@ -7,7 +7,7 @@ import { FolderModel } from '../folder/folder.model';
 
 export interface PrivateSharingRepository {
   findSharedByMePrivateFolders(
-    userId: number,
+    userUuid: string,
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -25,19 +25,21 @@ export class SequelizePrivateSharingRepository
     private folderModel: typeof FolderModel,
   ) {}
   async findSharedByMePrivateFolders(
-    userId: number,
+    userUuid: string,
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        ownerId: userId,
+        ownerUuid: userUuid,
       },
       include: [
         {
           model: this.folderModel,
           as: 'folder',
+          required: true,
+          foreignKey: 'folderUuid',
         },
       ],
       order: orderBy,

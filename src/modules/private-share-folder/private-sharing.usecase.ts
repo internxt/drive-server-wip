@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { Sequelize } from 'sequelize';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 
 @Injectable()
@@ -17,7 +16,7 @@ export class PrivateSharingUseCase {
   ): Promise<Folder[]> {
     const folders =
       await this.privateSharingRespository.findSharedByMePrivateFolders(
-        user.id,
+        user.uuid,
         offset,
         limit,
         order,

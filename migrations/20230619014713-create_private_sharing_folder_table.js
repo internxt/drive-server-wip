@@ -9,36 +9,12 @@ module.exports = {
         allowNull: false,
         primaryKey: true,
       },
-      folder_id: {
-        type: Sequelize.INTEGER,
-        references: {
-          model: 'folders',
-          key: 'id',
-        },
-        allowNull: false,
-      },
       folder_uuid: {
         type: Sequelize.UUID,
         allowNull: false,
       },
-      owner_id: {
-        type: Sequelize.INTEGER,
-        references: {
-          model: 'users',
-          key: 'id',
-        },
-        allowNull: false,
-      },
       owner_uuid: {
         type: Sequelize.UUID,
-        allowNull: false,
-      },
-      shared_with_id: {
-        type: Sequelize.INTEGER,
-        references: {
-          model: 'users',
-          key: 'id',
-        },
         allowNull: false,
       },
       shared_with_uuid: {
