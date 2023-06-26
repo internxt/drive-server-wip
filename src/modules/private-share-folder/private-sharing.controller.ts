@@ -41,7 +41,7 @@ export class PrivateSharingController {
   })
   @ApiOkResponse({ description: 'Get all folders shared by a user' })
   @ApiBearerAuth()
-  async getSentFolders(
+  async getSharedFolders(
     @UserDecorator() user: User,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
@@ -54,7 +54,7 @@ export class PrivateSharingController {
       : undefined;
 
     return {
-      folders: await this.privateSharingUseCase.getPrivateSharedByOwner(
+      folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
         user,
         offset,
         limit,

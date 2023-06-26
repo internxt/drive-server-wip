@@ -8,7 +8,7 @@ export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
   ) {}
-  async getPrivateSharedByOwner(
+  async getSharedFoldersByOwner(
     user: User,
     offset: number,
     limit: number,
