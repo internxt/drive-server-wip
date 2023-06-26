@@ -5,12 +5,12 @@ import { Thumbnail } from './thumbnail.domain';
 import { FileAttributes } from '../file/file.domain';
 
 export interface ThumbnailRepository {
-  findById(id: number): Promise<Thumbnail | null>;
+  findById(id: Thumbnail['id']): Promise<Thumbnail | null>;
   findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null>;
   findAll(): Promise<Thumbnail[]>;
   create(thumbnail: Thumbnail): Promise<Thumbnail>;
   update(thumbnail: Thumbnail): Promise<void>;
-  deleteById(id: number): Promise<void>;
+  deleteById(id: Thumbnail['id']): Promise<void>;
 }
 
 @Injectable()
