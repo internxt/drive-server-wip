@@ -42,6 +42,6 @@ export class PrivateSharingFolderModel
   @Column({ type: DataType.UUIDV4, field: 'shared_with' })
   sharedWith: string;
 
-  @Column
+  @Column({ type: DataType.STRING, field: 'encryption_key' })
   encryptionKey: string;
 }

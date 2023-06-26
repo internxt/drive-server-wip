@@ -17,7 +17,6 @@ const testUser = {
   h_key: 'john doe salt',
   referrer: null,
   referral_code: referralCode,
-  uuid: null,
   credit: 0,
   welcome_pack: true,
   register_completed: true,
@@ -36,7 +35,6 @@ const referredTestUser = {
   h_key: 'john doe salt',
   referrer: referralCode,
   referral_code: v4(),
-  uuid: null,
   credit: 0,
   welcome_pack: true,
   register_completed: true,
@@ -44,29 +42,24 @@ const referredTestUser = {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    /**
-     * Add seed commands here.
-     *
-     * Example:
-     * await queryInterface.bulkInsert('People', [{
-     *   name: 'John Doe',
-     *   isBetaMember: false
-     * }], {});
-     */
-    const users = await queryInterface.bulkInsert(
-      'users',
-      [testUser, referredTestUser],
-      { returning: true },
+    const existingUsers = await queryInterface.sequelize.query(
+      'SELECT email FROM users WHERE email IN (:emails)',
+      {
+        replacements: { emails: [testUser.email, referredTestUser.email] },
+        type: queryInterface.sequelize.QueryTypes.SELECT,
+      },
     );
+
+    const newUsers = [testUser, referredTestUser].filter(
+      (user) => !existingUsers.find((u) => u.email === user.email),
+    );
+
+    if (newUsers.length > 0) {
+      await queryInterface.bulkInsert('users', newUsers, { returning: true });
+    }
   },
 
   async down(queryInterface, Sequelize) {
-    /**
-     * Add commands to revert seed here.
-     *
-     * Example:
-     * await queryInterface.bulkDelete('People', null, {});
-     */
     await queryInterface.bulkDelete(
       'users',
       {
