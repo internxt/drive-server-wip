@@ -43,9 +43,9 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async getSharedFolders(
     @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-    @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
