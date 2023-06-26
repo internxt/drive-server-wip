@@ -1,8 +1,10 @@
 'use strict';
 
+const tableName = 'private_sharing_folder';
+
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('private_sharing_folder', {
+    await queryInterface.createTable(tableName, {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUID,
@@ -10,42 +12,30 @@ module.exports = {
         primaryKey: true,
       },
       folder_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
+        allowNull: false,
         references: {
           model: 'folders',
-          key: 'id',
+          key: 'uuid',
         },
-        allowNull: false,
-      },
-      folder_uuid: {
-        type: Sequelize.UUID,
-        allowNull: false,
       },
       owner_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(36),
+        allowNull: false,
         references: {
           model: 'users',
-          key: 'id',
+          key: 'uuid',
         },
-        allowNull: false,
       },
-      owner_uuid: {
-        type: Sequelize.UUID,
+      shared_with: {
+        type: Sequelize.STRING(36),
         allowNull: false,
-      },
-      shared_with_id: {
-        type: Sequelize.INTEGER,
         references: {
           model: 'users',
-          key: 'id',
+          key: 'uuid',
         },
-        allowNull: false,
       },
-      shared_with_uuid: {
-        type: Sequelize.UUID,
-        allowNull: false,
-      },
-      encrypted_key: {
+      encryption_key: {
         type: Sequelize.STRING,
         allowNull: false,
       },
@@ -62,8 +52,7 @@ module.exports = {
     });
   },
 
-  async down(queryInterface, Sequelize) {
-    const tableName = 'private_sharing_folder';
+  async down(queryInterface) {
     await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${tableName}`);
   },
 };

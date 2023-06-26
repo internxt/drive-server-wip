@@ -1,33 +1,24 @@
 export interface PrivateSharingFolderAttributes {
   id: string;
-  folderId: number;
-  folderUuid: string;
-  ownerId: number;
-  ownerUuid: string;
-  sharedWithId: number;
-  sharedWithUuid: string;
-  encryptedKey: string;
+  folderId: string;
+  ownerId: string;
+  sharedWith: string;
+  encryptionKey: string;
 }
 
 export class PrivateSharingFolder implements PrivateSharingFolderAttributes {
   id: string;
-  folderId: number;
-  folderUuid: string;
-  ownerId: number;
-  ownerUuid: string;
-  sharedWithId: number;
-  sharedWithUuid: string;
-  encryptedKey: string;
+  folderId: string;
+  ownerId: string;
+  sharedWith: string;
+  encryptionKey: string;
 
   constructor(attributes: PrivateSharingFolderAttributes) {
     this.id = attributes.id;
     this.folderId = attributes.folderId;
-    this.folderUuid = attributes.folderUuid;
     this.ownerId = attributes.ownerId;
-    this.ownerUuid = attributes.ownerUuid;
-    this.sharedWithId = attributes.sharedWithId;
-    this.sharedWithUuid = attributes.sharedWithUuid;
-    this.encryptedKey = attributes.encryptedKey;
+    this.sharedWith = attributes.sharedWith;
+    this.encryptionKey = attributes.encryptionKey;
   }
 
   static build(
