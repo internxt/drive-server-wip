@@ -47,7 +47,7 @@ describe('PrivateSharingUseCase', () => {
         email: 'johnTwo@doe.com',
         username: 'johnTwo@doe.com',
         bridgeUser: 'johnTwo@doe.com',
-        password: 'johndoepassword',
+        password: '',
         mnemonic: 'john doe mnemonic',
         referrer: v4(),
         referralCode: v4(),
