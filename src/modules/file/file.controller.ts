@@ -22,7 +22,7 @@ const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) { }
+  constructor(private readonly fileUseCases: FileUseCases) {}
 
   @Get('/count')
   async getFileCount(

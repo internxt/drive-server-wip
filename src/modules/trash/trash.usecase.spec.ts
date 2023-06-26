@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrashUseCases } from './trash.usecase';
-import { FileModel, SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFileRepository } from '../file/file.repository';
 import { File, FileAttributes } from '../file/file.domain';
 import {
   FolderModel,
@@ -20,6 +20,7 @@ import {
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../..//externals/crypto/crypto.module';
 import { NotFoundException } from '@nestjs/common';
+import { FileModel } from '../file/file.model';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
