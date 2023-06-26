@@ -28,8 +28,6 @@ module.exports = {
     const folderOne = folders.find((f) => f.name === 'FolderOne');
     const folderTwo = folders.find((f) => f.name === 'FolderTwo');
 
-    console.log('users', users[0].uuid, users[1].uuid);
-
     const sharingFolderOne = {
       id: v4(),
       folder_id: folderOne.uuid,
