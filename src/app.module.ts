@@ -19,6 +19,7 @@ import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
+import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 
 @Module({
   imports: [
@@ -98,6 +99,7 @@ import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
     CryptoModule,
     SharedWorkspaceModule,
     ThumbnailModule,
+    FuzzySearchModule,
   ],
   controllers: [],
   providers: [],
