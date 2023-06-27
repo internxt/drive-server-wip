@@ -17,6 +17,21 @@ module.exports = {
       throw new Error('No users found');
     }
 
+    const existingFolders = await queryInterface.sequelize.query(
+      `SELECT * FROM folders WHERE name IN (:names)`,
+      {
+        replacements: { names: ['FolderOne', 'FolderTwo'] },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    if (existingFolders.length > 0) {
+      console.log(
+        'Folders with the names "FolderOne" and/or "FolderTwo" already exist. Skipping creation.',
+      );
+      return;
+    }
+
     const folderOne = {
       parent_id: null,
       name: 'FolderOne',
@@ -52,7 +67,7 @@ module.exports = {
     await queryInterface.bulkDelete(
       'folders',
       {
-        id: { [Op.in]: [1, 2] },
+        uuid: { [Op.in]: [folderOne.uuid, folderTwo.uuid] },
       },
       {},
     );

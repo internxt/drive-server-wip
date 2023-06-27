@@ -76,7 +76,7 @@ export class PrivateSharingController {
   })
   @ApiOkResponse({ description: 'Get all folders shared with a user' })
   @ApiBearerAuth()
-  async getReceivedFolders(
+  async getSharedFoldersWithAUser(
     @UserDecorator() user: User,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
@@ -89,7 +89,7 @@ export class PrivateSharingController {
       : undefined;
 
     return {
-      folders: await this.privateSharingUseCase.getReceivedFolders(
+      folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
         user,
         offset,
         limit,
@@ -122,11 +122,11 @@ export class PrivateSharingController {
   })
   @ApiOkResponse({ description: 'Get all folders shared by a user' })
   @ApiBearerAuth()
-  async getSentFolders(
+  async getSharedFolders(
     @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-    @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
@@ -135,7 +135,7 @@ export class PrivateSharingController {
       : undefined;
 
     return {
-      folders: await this.privateSharingUseCase.getSentFolders(
+      folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
         user,
         offset,
         limit,

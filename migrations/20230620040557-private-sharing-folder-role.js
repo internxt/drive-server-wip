@@ -1,32 +1,29 @@
 'use strict';
 
+const tableName = 'private_sharing_folder_roles';
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('private_sharing_folder_roles', {
+    await queryInterface.createTable(tableName, {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
+        allowNull: false,
         primaryKey: true,
       },
       user_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING(36),
         references: {
           model: 'users',
-          key: 'id',
+          key: 'uuid',
         },
-      },
-      user_uuid: {
-        type: Sequelize.UUID,
       },
       folder_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
         references: {
           model: 'folders',
-          key: 'id',
+          key: 'uuid',
         },
-      },
-      folder_uuid: {
-        type: Sequelize.UUID,
       },
       role_id: {
         type: Sequelize.UUID,
@@ -46,6 +43,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('private_sharing_folder_roles');
+    await queryInterface.dropTable(tableName);
   },
 };

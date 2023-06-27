@@ -21,32 +21,29 @@ module.exports = {
       },
     );
 
-    if (!users || users.length !== 2 || !folders || folders.length !== 2) {
-      throw new Error('No user found.');
+    if (!users || users.length < 2 || !folders || folders.length < 2) {
+      throw new Error('Required users or folders not found.');
     }
+
+    const folderOne = folders.find((f) => f.name === 'FolderOne');
+    const folderTwo = folders.find((f) => f.name === 'FolderTwo');
 
     const sharingFolderOne = {
       id: v4(),
-      folder_id: folders[0].id,
-      folder_uuid: folders[0].uuid,
-      owner_id: users[0].id,
-      owner_uuid: v4(), //users[0].uuid,
-      shared_with_id: users[1].id,
-      shared_with_uuid: v4(), //users[1].uuid,
-      encrypted_key: 'clave cifrada',
+      folder_id: folderOne.uuid,
+      owner_id: users[0].uuid,
+      shared_with: users[1].uuid,
+      encryption_key: 'clave cifrada',
       created_at: new Date(),
       updated_at: new Date(),
     };
 
     const sharingFolderTwo = {
       id: v4(),
-      folder_id: folders[1].id,
-      folder_uuid: folders[1].uuid,
-      owner_id: users[1].id,
-      owner_uuid: v4(),
-      shared_with_id: users[0].id,
-      shared_with_uuid: v4(),
-      encrypted_key: 'clave cifrada',
+      folder_id: folderTwo.uuid,
+      owner_id: users[1].uuid,
+      shared_with: users[0].uuid,
+      encryption_key: 'clave cifrada',
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -61,7 +58,7 @@ module.exports = {
     await queryInterface.bulkDelete(
       'private_sharing_folder',
       {
-        id: { [Op.in]: [1, 2] },
+        id: { [Op.in]: [sharingFolderOne.id, sharingFolderTwo.id] },
       },
       {},
     );
