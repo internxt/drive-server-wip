@@ -11,6 +11,7 @@ describe('PrivateSharingUseCase', () => {
 
   const mockRepository = {
     findByOwner: jest.fn(),
+    findBySharedWith: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -104,6 +105,79 @@ describe('PrivateSharingUseCase', () => {
 
       expect(result).toEqual(folders);
       expect(privateSharingRespository.findByOwner).toHaveBeenCalledWith(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+    });
+
+    it('should return the folders shared with a specific user', async () => {
+      const user = User.build({
+        userId: 'JohnDoe userId',
+        name: 'John',
+        lastname: 'Doe',
+        uuid: v4(),
+        email: '',
+        username: '',
+        bridgeUser: '',
+        password: '',
+        mnemonic: '',
+        referrer: v4(),
+        referralCode: v4(),
+        credit: 0,
+        hKey: new Buffer(''),
+        rootFolderId: 1,
+        errorLoginCount: 0,
+        isEmailActivitySended: 1,
+        lastResend: new Date(),
+        syncDate: new Date(),
+        welcomePack: true,
+        registerCompleted: true,
+        id: 0,
+        secret_2FA: '',
+        backupsBucket: '',
+        sharedWorkspace: false,
+        tempKey: '',
+        avatar: '',
+      });
+
+      const folders: Folder[] = [
+        Folder.build({
+          id: 0,
+          parentId: null,
+          name: 'FolderTwo',
+          bucket: 'bucketTwo',
+          userId: user.id,
+          uuid: v4(),
+          plainName: 'FolderTwo',
+          encryptVersion: '03-aes',
+          deleted: false,
+          removed: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          removedAt: null,
+          deletedAt: null,
+        }),
+      ];
+
+      jest
+        .spyOn(privateSharingRespository, 'findBySharedWith')
+        .mockResolvedValue(folders);
+
+      const offset = 0;
+      const limit = 10;
+      const order: [string, string][] = [['createdAt', 'DESC']];
+
+      const result = await privateSharingUseCase.getSharedFoldersBySharedWith(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual(folders);
+      expect(privateSharingRespository.findBySharedWith).toHaveBeenCalledWith(
         user.uuid,
         offset,
         limit,
