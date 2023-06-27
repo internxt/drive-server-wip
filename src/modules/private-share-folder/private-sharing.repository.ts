@@ -61,10 +61,8 @@ export class SequelizePrivateSharingRepository
 
   async createPrivateFolderRole(user: User, folder: Folder, roleUuid: string) {
     await this.privateSharingFolderRole.create({
-      userId: user.id,
-      userUuid: user.uuid,
-      folderId: folder.id,
-      folderUuid: folder.uuid,
+      userId: user.uuid,
+      folderId: folder.uuid,
       roleId: roleUuid,
     });
   }
