@@ -12,6 +12,12 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
+  findBySharedWith(
+    userUuid: string,
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<Folder[]>;
 }
 
 @Injectable()
