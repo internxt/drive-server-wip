@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LookUpAttributes } from './look-up.domain';
+import { LookUp, LookUpAttributes } from './look-up.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { LookUpModel } from './look-up.model';
 import { fn } from 'sequelize';
@@ -10,6 +10,8 @@ export interface LookUpRepository {
     userUuid: UserAttributes['uuid'],
     partialName: string,
   ): Promise<Array<LookUpAttributes>>;
+
+  instert(entry: LookUp): Promise<void>;
 }
 
 @Injectable()
@@ -26,10 +28,18 @@ export class SequelizeLookUpRepository implements LookUpRepository {
     const items = await this.model.findAll({
       where: {
         userUuid,
-        name: fn('to_tsvector', partialName),
+        name: fn('to_tsquery', partialName),
       },
     });
 
     return items;
+  }
+
+  async instert(entry: LookUp): Promise<void> {
+    await this.model.create({
+      id: entry.id,
+      name: entry.name,
+      userUuid: entry.userUuid,
+    });
   }
 }
