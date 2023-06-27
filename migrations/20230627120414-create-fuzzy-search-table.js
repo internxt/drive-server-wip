@@ -17,7 +17,14 @@ module.exports = {
       user_uuid: {
         type: Sequelize.STRING(36),
         allowNull: false,
-        references: { model: 'users', key: 'uuid' },
+      },
+      created_at: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+      updated_at: {
+        allowNull: false,
+        type: Sequelize.DATE,
       },
     });
   },
