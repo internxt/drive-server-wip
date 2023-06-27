@@ -18,7 +18,7 @@ import { BridgeModule } from './externals/bridge/bridge.module';
 import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
-
+import { PrivateShareModule } from './modules/private-share-folder/private-share.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -95,6 +95,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     BridgeModule,
     DeviceModule,
     CryptoModule,
+    PrivateShareModule,
     SharedWorkspaceModule,
   ],
   controllers: [],
