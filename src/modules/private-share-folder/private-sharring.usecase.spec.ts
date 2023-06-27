@@ -14,6 +14,35 @@ describe('PrivateSharingUseCase', () => {
     findBySharedWith: jest.fn(),
   };
 
+  const user = User.build({
+    userId: 'JohnDoe userId',
+    name: 'John',
+    lastname: 'Doe',
+    uuid: v4(),
+    email: 'johnTwo@doe.com',
+    username: 'johnTwo@doe.com',
+    bridgeUser: 'johnTwo@doe.com',
+    password: '',
+    mnemonic: 'john doe mnemonic',
+    referrer: v4(),
+    referralCode: v4(),
+    credit: 0,
+    hKey: new Buffer('john doe hKey'),
+    rootFolderId: 1,
+    errorLoginCount: 0,
+    isEmailActivitySended: 1,
+    lastResend: new Date(),
+    syncDate: new Date(),
+    welcomePack: true,
+    registerCompleted: true,
+    id: 0,
+    secret_2FA: '',
+    backupsBucket: '',
+    sharedWorkspace: false,
+    tempKey: '',
+    avatar: '',
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,35 +69,6 @@ describe('PrivateSharingUseCase', () => {
 
   describe('getSharedFoldersByOwner', () => {
     it('should return the folders shared by a specific user', async () => {
-      const user = User.build({
-        userId: 'JohnDoe userId',
-        name: 'John',
-        lastname: 'Doe',
-        uuid: v4(),
-        email: 'johnTwo@doe.com',
-        username: 'johnTwo@doe.com',
-        bridgeUser: 'johnTwo@doe.com',
-        password: '',
-        mnemonic: 'john doe mnemonic',
-        referrer: v4(),
-        referralCode: v4(),
-        credit: 0,
-        hKey: new Buffer('john doe hKey'),
-        rootFolderId: 1,
-        errorLoginCount: 0,
-        isEmailActivitySended: 1,
-        lastResend: new Date(),
-        syncDate: new Date(),
-        welcomePack: true,
-        registerCompleted: true,
-        id: 0,
-        secret_2FA: '',
-        backupsBucket: '',
-        sharedWorkspace: false,
-        tempKey: '',
-        avatar: '',
-      });
-
       const folders: Folder[] = [
         Folder.build({
           id: 0,
@@ -113,35 +113,6 @@ describe('PrivateSharingUseCase', () => {
     });
 
     it('should return the folders shared with a specific user', async () => {
-      const user = User.build({
-        userId: 'JohnDoe userId',
-        name: 'John',
-        lastname: 'Doe',
-        uuid: v4(),
-        email: '',
-        username: '',
-        bridgeUser: '',
-        password: '',
-        mnemonic: '',
-        referrer: v4(),
-        referralCode: v4(),
-        credit: 0,
-        hKey: new Buffer(''),
-        rootFolderId: 1,
-        errorLoginCount: 0,
-        isEmailActivitySended: 1,
-        lastResend: new Date(),
-        syncDate: new Date(),
-        welcomePack: true,
-        registerCompleted: true,
-        id: 0,
-        secret_2FA: '',
-        backupsBucket: '',
-        sharedWorkspace: false,
-        tempKey: '',
-        avatar: '',
-      });
-
       const folders: Folder[] = [
         Folder.build({
           id: 0,
