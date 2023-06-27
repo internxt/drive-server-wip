@@ -18,6 +18,7 @@ import { BridgeModule } from './externals/bridge/bridge.module';
 import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
+import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     DeviceModule,
     CryptoModule,
     SharedWorkspaceModule,
+    ThumbnailModule,
   ],
   controllers: [],
   providers: [],
