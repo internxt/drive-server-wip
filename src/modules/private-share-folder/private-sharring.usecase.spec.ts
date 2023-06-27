@@ -43,6 +43,25 @@ describe('PrivateSharingUseCase', () => {
     avatar: '',
   });
 
+  const folders: Folder[] = [
+    Folder.build({
+      id: 0,
+      parentId: null,
+      name: 'FolderTwo',
+      bucket: 'bucketTwo',
+      userId: user.id,
+      uuid: v4(),
+      plainName: 'FolderTwo',
+      encryptVersion: '03-aes',
+      deleted: false,
+      removed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      deletedAt: null,
+    }),
+  ];
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -69,25 +88,6 @@ describe('PrivateSharingUseCase', () => {
 
   describe('getSharedFoldersByOwner', () => {
     it('should return the folders shared by a specific user', async () => {
-      const folders: Folder[] = [
-        Folder.build({
-          id: 0,
-          parentId: null,
-          name: 'FolderTwo',
-          bucket: 'bucketTwo',
-          userId: user.id,
-          uuid: v4(),
-          plainName: 'FolderTwo',
-          encryptVersion: '03-aes',
-          deleted: false,
-          removed: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          removedAt: null,
-          deletedAt: null,
-        }),
-      ];
-
       jest
         .spyOn(privateSharingRespository, 'findByOwner')
         .mockResolvedValue(folders);
@@ -113,25 +113,6 @@ describe('PrivateSharingUseCase', () => {
     });
 
     it('should return the folders shared with a specific user', async () => {
-      const folders: Folder[] = [
-        Folder.build({
-          id: 0,
-          parentId: null,
-          name: 'FolderTwo',
-          bucket: 'bucketTwo',
-          userId: user.id,
-          uuid: v4(),
-          plainName: 'FolderTwo',
-          encryptVersion: '03-aes',
-          deleted: false,
-          removed: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          removedAt: null,
-          deletedAt: null,
-        }),
-      ];
-
       jest
         .spyOn(privateSharingRespository, 'findBySharedWith')
         .mockResolvedValue(folders);
