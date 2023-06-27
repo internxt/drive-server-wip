@@ -1,15 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { InjectModel } from '@nestjs/sequelize';
-import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
+import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
+import { Op, col } from 'sequelize';
 
 export interface PrivateSharingRepository {
-  findSharedByMePrivateFolders(
-    userId: number,
+  findByOwner(
+    userUuid: string,
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<Folder[]>;
+  findBySharedWith(
+    userUuid: string,
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -61,21 +68,24 @@ export class SequelizePrivateSharingRepository
       roleId: roleUuid,
     });
   }
-
-  async findSharedWithMePrivateFolders(
-    userId: number,
+  async findByOwner(
+    userUuid: string,
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        sharedWithId: userId,
+        ownerId: userUuid,
       },
       include: [
         {
           model: this.folderModel,
-          as: 'folder',
+          required: true,
+          foreignKey: 'folderUuid',
+          on: {
+            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
+          },
         },
       ],
       order: orderBy,
@@ -86,20 +96,24 @@ export class SequelizePrivateSharingRepository
     return sharedFolders.map((folder) => folder.get({ plain: true }));
   }
 
-  async findSharedByMePrivateFolders(
-    userId: number,
+  async findBySharedWith(
+    userUuid: string,
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        ownerId: userId,
+        sharedWith: userUuid,
       },
       include: [
         {
           model: this.folderModel,
-          as: 'folder',
+          required: true,
+          foreignKey: 'folderUuid',
+          on: {
+            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
+          },
         },
       ],
       order: orderBy,
