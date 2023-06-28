@@ -1,4 +1,4 @@
-import { Column, PrimaryKey, Table, Model } from 'sequelize-typescript';
+import { Column, PrimaryKey, Table, Model, Index } from 'sequelize-typescript';
 import { LookUpAttributes } from './look-up.domain';
 
 @Table({
@@ -10,6 +10,13 @@ export class LookUpModel extends Model implements LookUpAttributes {
   @Column
   id: string;
 
+  @Column
+  fileId: string;
+
+  @Column
+  folderId: string;
+
+  @Index
   @Column
   userUuid: string;
 

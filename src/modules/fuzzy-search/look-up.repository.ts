@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { LookUp, LookUpAttributes } from './look-up.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { LookUpModel } from './look-up.model';
@@ -24,7 +24,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
   async search(
     userUuid: UserAttributes['uuid'],
     partialName: string,
-    offset: number,
+    offset = 0,
   ): Promise<Array<LookUpAttributes>> {
     const query = `
       SELECT
@@ -50,7 +50,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
 
   async instert(entry: LookUp): Promise<void> {
     await this.model.create({
-      id: entry.id,
+      id: entry.fileId,
       name: entry.name,
       userUuid: entry.userUuid,
     });
