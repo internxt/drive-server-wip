@@ -1,7 +1,11 @@
+import { FileModel } from '../file/file.model';
+import { FolderModel } from '../folder/folder.model';
+import { UserModel } from '../user/user.model';
+
 export interface LookUpAttributes {
   id: string;
-  userUuid: string;
-  name: string;
+  userUuid: UserModel['uuid'];
+  name: FileModel['plainName'] | FolderModel['plainName'];
 }
 
 export class LookUp implements LookUpAttributes {
