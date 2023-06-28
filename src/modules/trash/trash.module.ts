@@ -7,8 +7,8 @@ import { UserModule } from '../user/user.module';
 import { TrashController } from './trash.controller';
 import { TrashUseCases } from './trash.usecase';
 import { ShareModule } from '../share/share.module';
-import { FileModel } from '../file/file.repository';
 import { ShareModel } from '../share/share.repository';
+import { FileModel } from '../file/file.model';
 
 @Module({
   imports: [
