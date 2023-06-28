@@ -34,14 +34,16 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       FROM
         look_up as lu,
         to_tsvector(lu."name") document,
-        to_tsquery('${partialName}') query,
+        to_tsquery(':partialName') query,
         nullif (ts_rank(to_tsvector(lu."name"), query), 0) rank_name,
-        SIMILARITY('${partialName}', lu."name") similarity
-      WHERE query @@ document or similarity > 0 and lu."user_uuid" = '${userUuid}'
+        SIMILARITY(':partialName', lu."name") similarity
+      WHERE query @@ document or similarity > 0 and lu."user_uuid" = ':userUuid'
       ORDER BY rank_name, similarity desc  nulls  last
-      LIMIT 10 OFFSET ${offset} 
+      LIMIT 10 OFFSET :offset
   `;
-    const result = await this.model.sequelize.query(query);
+    const result = await this.model.sequelize.query(query, {
+      replacements: { partialName, offset, userUuid },
+    });
 
     return result[0] as Array<LookUpAttributes>;
   }
