@@ -14,9 +14,20 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
+      fileId: {
+        type: Sequelize.STRING(36),
+        allowNull: true,
+        references: { model: 'files', key: 'uuid' },
+      },
+      folderId: {
+        type: Sequelize.STRING(36),
+        allowNull: true,
+        references: { model: 'folders', key: 'uuid' },
+      },
       user_uuid: {
         type: Sequelize.STRING(36),
         allowNull: false,
+        references: { model: 'users', key: 'uuid' },
       },
       created_at: {
         allowNull: false,

@@ -21,13 +21,4 @@ export class FuzzySearchController {
   ) {
     return await this.usecases.fuzzySearch(user.uuid, search);
   }
-
-  @Put('/')
-  async add(@UserDecorator() user: User, @Body() content: RequestBody) {
-    await this.usecases.manualInsert({
-      id: content.fileId,
-      userUuid: user.uuid,
-      name: content.name,
-    });
-  }
 }
