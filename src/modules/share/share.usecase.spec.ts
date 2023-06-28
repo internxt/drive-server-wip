@@ -10,7 +10,6 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { File, FileStatus } from '../file/file.domain';
 import {
-  FileModel,
   FileRepository,
   SequelizeFileRepository,
 } from '../file/file.repository';
@@ -47,6 +46,7 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { NewsletterService } from '../../externals/newsletter';
 import { HttpClient } from '../../externals/http/http.service';
 import { HttpModule } from '@nestjs/axios';
+import { FileModel } from '../file/file.model';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;

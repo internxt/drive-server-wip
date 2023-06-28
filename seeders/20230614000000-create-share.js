@@ -1,4 +1,3 @@
-// migracion de shares
 'use strict';
 
 const { v4 } = require('uuid');
@@ -25,7 +24,17 @@ module.exports = {
       updated_at: new Date(),
     };
 
-    await queryInterface.bulkInsert('shares', [shareOne]);
+    const existingShare = await queryInterface.sequelize.query(
+      'SELECT * FROM shares WHERE id = :id',
+      {
+        replacements: { id: shareOne.id },
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    if (existingShare.length === 0) {
+      await queryInterface.bulkInsert('shares', [shareOne]);
+    }
   },
 
   async down(queryInterface, Sequelize) {

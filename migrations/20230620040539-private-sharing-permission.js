@@ -1,8 +1,10 @@
 'use strict';
 
+const tableName = 'permissions';
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('permissions', {
+    await queryInterface.createTable(tableName, {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
@@ -29,6 +31,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('permissions');
+    await queryInterface.dropTable(tableName);
   },
 };

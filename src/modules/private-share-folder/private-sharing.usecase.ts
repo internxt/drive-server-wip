@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { Sequelize } from 'sequelize';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
@@ -24,7 +23,7 @@ export class PrivateSharingUseCase {
       privateFolderId,
     );
     const folder = await this.folderRespository.findByUuid(
-      privateFolder.folderUuid,
+      privateFolder.folderId,
     );
 
     const isOwner = await this.folderRespository.isOwner(owner, folder.id);
@@ -47,7 +46,7 @@ export class PrivateSharingUseCase {
       );
 
     const folder = await this.folderRespository.findByUuid(
-      privateFolderRole.folderUuid,
+      privateFolderRole.folderId,
     );
 
     const isOwner = await this.folderRespository.isOwner(owner, folder.id);
@@ -66,35 +65,33 @@ export class PrivateSharingUseCase {
     };
   }
 
-  async getSentFolders(
+  async getSharedFoldersByOwner(
     user: User,
     offset: number,
     limit: number,
     order: [string, string][],
   ): Promise<Folder[]> {
-    const folders =
-      await this.privateSharingRespository.findSharedByMePrivateFolders(
-        user.id,
-        offset,
-        limit,
-        order,
-      );
+    const folders = await this.privateSharingRespository.findByOwner(
+      user.uuid,
+      offset,
+      limit,
+      order,
+    );
     return folders;
   }
 
-  async getReceivedFolders(
+  async getSharedFoldersBySharedWith(
     user: User,
     offset: number,
     limit: number,
     order: [string, string][],
   ): Promise<Folder[]> {
-    const folders =
-      await this.privateSharingRespository.findSharedWithMePrivateFolders(
-        user.id,
-        offset,
-        limit,
-        order,
-      );
+    const folders = await this.privateSharingRespository.findBySharedWith(
+      user.uuid,
+      offset,
+      limit,
+      order,
+    );
     return folders;
   }
 }

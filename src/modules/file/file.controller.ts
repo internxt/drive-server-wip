@@ -127,7 +127,7 @@ export class FileController {
     const files: File[] = await fns[status].bind(this.fileUseCases)(
       user.id,
       new Date(updatedAt || 1),
-      { limit, offset, sort: sort && order ? [[sort, order]] : [[]] },
+      { limit, offset, sort: sort && order && [[sort, order]] },
     );
 
     return files.map((f) => {
