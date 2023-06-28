@@ -3,7 +3,7 @@ import { LookUpAttributes } from './look-up.domain';
 
 @Table({
   underscored: true,
-  tableName: 'fuzzy_search',
+  tableName: 'look_up',
 })
 export class LookUpModel extends Model implements LookUpAttributes {
   @PrimaryKey

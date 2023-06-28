@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { FuzzySearchUseCases } from './fuzzy-search.usecase';
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import { Public } from '../auth/decorators/public.decorator';
+import { User } from '../user/user.domain';
+import { User as UserDecorator } from '../auth/decorators/user.decorator';
 
 class RequestBody {
   @ApiProperty() fileId: string;
   @ApiProperty() name: string;
-  @ApiProperty() userId: string;
 }
 
 @ApiTags('Fuzzy')
@@ -14,21 +14,19 @@ class RequestBody {
 export class FuzzySearchController {
   constructor(private readonly usecases: FuzzySearchUseCases) {}
 
-  @Get('/:userId/:search')
-  @Public()
+  @Get('/:search')
   async fuzzySearch(
-    @Param('userId') userId: string,
-    @Param('serach') search: string,
+    @UserDecorator() user: User,
+    @Param('search') search: string,
   ) {
-    return await this.usecases.fuzzySearch(userId, search);
+    return await this.usecases.fuzzySearch(user.uuid, search);
   }
 
   @Put('/')
-  @Public()
-  async add(@Body() content: RequestBody) {
+  async add(@UserDecorator() user: User, @Body() content: RequestBody) {
     await this.usecases.manualInsert({
       id: content.fileId,
-      userUuid: content.userId,
+      userUuid: user.uuid,
       name: content.name,
     });
   }

@@ -1,6 +1,6 @@
 'use strict';
 
-const fuzzySearchTableName = 'fuzzy_search';
+const fuzzySearchTableName = 'look_up';
 
 module.exports = {
   async up(queryInterface, Sequelize) {
@@ -11,7 +11,7 @@ module.exports = {
         allowNull: false,
       },
       name: {
-        type: Sequelize.TSVECTOR,
+        type: Sequelize.STRING,
         allowNull: false,
       },
       user_uuid: {
@@ -27,9 +27,13 @@ module.exports = {
         type: Sequelize.DATE,
       },
     });
+
+    await queryInterface.sequelize.query('create extension pg_trgm');
   },
 
   async down(queryInterface) {
     await queryInterface.dropTable(fuzzySearchTableName);
+
+    await queryInterface.sequelize.query('drop extension pg_trgm');
   },
 };

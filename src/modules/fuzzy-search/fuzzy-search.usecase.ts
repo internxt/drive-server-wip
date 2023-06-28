@@ -9,7 +9,7 @@ export class FuzzySearchUseCases {
   ) {}
 
   async fuzzySearch(user: string, text: string): Promise<Array<LookUp>> {
-    return this.repository.search(user, text);
+    return this.repository.search(user, text, 0);
   }
 
   async manualInsert(att: LookUpAttributes) {
