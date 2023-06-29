@@ -8,7 +8,6 @@ import { UserUseCases } from '../user/user.usecase';
 import { BasicStrategy } from './basic.strategy';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { AllowOldJwtStrategy } from './old-jwt.strategy';
 
 @Module({
   imports: [
@@ -28,8 +27,8 @@ import { AllowOldJwtStrategy } from './old-jwt.strategy';
       },
     }),
   ],
-  providers: [JwtStrategy, BasicStrategy, AuthService, AllowOldJwtStrategy],
+  providers: [JwtStrategy, BasicStrategy, AuthService],
   controllers: [AuthController],
-  exports: [JwtStrategy, BasicStrategy, PassportModule, AllowOldJwtStrategy],
+  exports: [JwtStrategy, BasicStrategy, PassportModule],
 })
 export class AuthModule {}

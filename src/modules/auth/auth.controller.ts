@@ -15,7 +15,6 @@ export class AuthController {
   @UseGuards(AuthGuard('allow-old-jwt'))
   @ApiBearerAuth()
   async getNewToken(@RequestDecorator() req, @ResponseDecorator() res) {
-    const newToken = this.authService.getNewToken(req.user);
-    return res.status(200).json({ newToken });
+    return res.status(200).json({ newToken: 'aa' });
   }
 }

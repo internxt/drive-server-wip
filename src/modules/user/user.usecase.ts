@@ -311,8 +311,11 @@ export class UserUseCases {
         notifySignUpError(err);
       }
 
+      const newTokenPayload = this.getNewTokenPayload(user);
+
       return {
         token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
+        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
@@ -336,6 +339,23 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  getNewTokenPayload(userData: any) {
+    return {
+      payload: {
+        uuid: userData.uuid,
+        email: userData.email,
+        name: userData.name,
+        lastname: userData.lastname,
+        username: userData.username,
+        sharedWorkspace: true,
+        networkCredentials: {
+          user: userData.bridgeUser,
+          pass: userData.userId,
+        },
+      },
+    };
   }
 
   async invitationAccepted(
