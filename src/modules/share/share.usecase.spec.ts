@@ -43,10 +43,11 @@ import {
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { FileModel } from '../file/file.model';
 import { NewsletterService } from '../../externals/newsletter';
 import { HttpClient } from '../../externals/http/http.service';
 import { HttpModule } from '@nestjs/axios';
+import { FileModel } from '../file/file.model';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -252,6 +253,10 @@ describe('Share Use Cases', () => {
         },
         {
           provide: getModelToken(FriendInvitationModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
         },
       ],
