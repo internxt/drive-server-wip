@@ -48,12 +48,9 @@ export class SequelizePrivateSharingRepository
     folder: Folder,
   ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.create({
-      ownerId: owner.id,
-      ownerUuid: owner.uuid,
-      sharedWithId: sharedWith.id,
-      sharedWithUuid: sharedWith.uuid,
-      folderId: folder.id,
-      folderUuid: folder.uuid,
+      ownerId: owner.uuid,
+      sharedWith: sharedWith.uuid,
+      folderId: folder.uuid,
     });
 
     return privateFolder.get({ plain: true });
