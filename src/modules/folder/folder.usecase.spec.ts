@@ -24,6 +24,8 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
 import { FolderModel } from './folder.model';
 import { FileModel } from '../file/file.model';
+import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 const folderId = 4;
 const userId = 1;
@@ -50,11 +52,16 @@ describe('FolderUseCases', () => {
         },
         ShareUseCases,
         SequelizeShareRepository,
+        SequelizeThumbnailRepository,
         {
           provide: getModelToken(ShareModel),
           useValue: jest.fn(),
         },
         SequelizeUserRepository,
+        {
+          provide: getModelToken(ThumbnailModel),
+          useValue: jest.fn(),
+        },
         {
           provide: getModelToken(UserModel),
           useValue: jest.fn(),

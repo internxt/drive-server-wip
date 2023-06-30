@@ -5,7 +5,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { FileModel } from '../file/file.repository';
 import { FolderModel } from '../folder/folder.repository';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
@@ -17,6 +16,8 @@ import {
   SequelizeSendRepository,
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';
+import { FileModel } from '../file/file.model';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases, notificationService, sendRepository;
@@ -79,6 +80,10 @@ describe('Send Use Cases', () => {
         },
         {
           provide: getModelToken(FolderModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
         },
       ],

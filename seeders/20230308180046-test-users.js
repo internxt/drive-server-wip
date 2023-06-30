@@ -42,6 +42,15 @@ const referredTestUser = {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    /**
+     * Add seed commands here.
+     *
+     * Example:
+     * await queryInterface.bulkInsert('People', [{
+     *   name: 'John Doe',
+     *   isBetaMember: false
+     * }], {});
+    */
     const existingUsers = await queryInterface.sequelize.query(
       'SELECT email FROM users WHERE email IN (:emails)',
       {
@@ -60,12 +69,14 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.bulkDelete(
-      'users',
-      {
-        email: { [Op.in]: [testUser.email, referredTestUser.email] },
-      },
-      {},
-    );
-  },
+    /**
+     * Add commands to revert seed here.
+     *
+     * Example:
+     * await queryInterface.bulkDelete('People', null, {});
+     */
+    await queryInterface.bulkDelete('users', {
+      email: { [Op.in]: [testUser.email, referredTestUser.email] }
+    }, {});
+  }
 };
