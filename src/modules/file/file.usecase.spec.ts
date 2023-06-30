@@ -1,10 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FileUseCases } from './file.usecase';
-import {
-  SequelizeFileRepository,
-  FileRepository,
-  FileModel,
-} from './file.repository';
+import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
   ForbiddenException,
   NotFoundException,
@@ -28,6 +24,7 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { FileModel } from './file.model';
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;

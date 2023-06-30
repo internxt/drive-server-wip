@@ -162,19 +162,38 @@ export class FileUseCases {
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      withoutThumbnails?: boolean;
+    } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<File[]> {
-    const filesWithMaybePlainName = await this.fileRepository.findAllCursor(
-      { ...where, userId },
-      options.limit,
-      options.offset,
-      options.sort,
+    let filesWithMaybePlainName;
+    if (options?.withoutThumbnails)
+      filesWithMaybePlainName = await this.fileRepository.findAllCursor(
+        { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    else
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorWithThumbnails(
+          { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+
+    const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
     );
 
-    return filesWithMaybePlainName.map((file) =>
+    return filesWithThumbnailsModified.map((file) =>
       file.plainName ? file : this.decrypFileName(file),
     );
   }
@@ -242,6 +261,21 @@ export class FileUseCases {
       ...file,
       name: decryptedName,
       plainName: decryptedName,
+    }).toJSON();
+  }
+
+  addOldAttributes(file: File): any {
+    const thumbnails = file.thumbnails;
+
+    const thumbnailsWithOldAttributers = thumbnails.map((thumbnail) => ({
+      ...thumbnail,
+      bucket_id: thumbnail.bucketId,
+      bucket_file: thumbnail.bucketFile,
+    }));
+
+    return File.build({
+      ...file,
+      thumbnails: thumbnailsWithOldAttributers,
     }).toJSON();
   }
 

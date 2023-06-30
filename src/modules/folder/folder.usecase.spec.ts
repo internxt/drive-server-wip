@@ -11,7 +11,7 @@ import {
 import { getModelToken } from '@nestjs/sequelize';
 import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
 import { FileUseCases } from '../file/file.usecase';
-import { FileModel, SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFileRepository } from '../file/file.repository';
 import {
   SequelizeShareRepository,
   ShareModel,
@@ -23,6 +23,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
 import { FolderModel } from './folder.model';
+import { FileModel } from '../file/file.model';
 
 const folderId = 4;
 const userId = 1;

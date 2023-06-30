@@ -10,7 +10,6 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { File, FileStatus } from '../file/file.domain';
 import {
-  FileModel,
   FileRepository,
   SequelizeFileRepository,
 } from '../file/file.repository';
@@ -44,6 +43,7 @@ import {
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationService } from '../../externals/notifications/notification.service';
+import { FileModel } from '../file/file.model';
 import { NewsletterService } from '../../externals/newsletter';
 import { HttpClient } from '../../externals/http/http.service';
 import { HttpModule } from '@nestjs/axios';
