@@ -44,7 +44,7 @@ export class SequelizePrivateSharingRepository
         {
           model: this.folderModel,
           required: true,
-          foreignKey: 'folderUuid',
+          foreignKey: 'folderId',
           on: {
             uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
           },
@@ -72,7 +72,7 @@ export class SequelizePrivateSharingRepository
         {
           model: this.folderModel,
           required: true,
-          foreignKey: 'folderUuid',
+          foreignKey: 'folderId',
           on: {
             uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
           },
