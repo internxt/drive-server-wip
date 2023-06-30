@@ -26,6 +26,8 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -64,6 +66,7 @@ export class UserUseCases {
     private userRepository: SequelizeUserRepository,
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
+    private keyServerRepository: SequelizeKeyServerRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
     private folderUseCases: FolderUseCases,
     private configService: ConfigService,
@@ -245,6 +248,7 @@ export class UserUseCases {
     }
 
     const userPass = this.cryptoService.decryptText(password);
+
     const userSalt = this.cryptoService.decryptText(salt);
 
     const { userId: networkPass, uuid: userUuid } =
@@ -486,5 +490,27 @@ export class UserUseCases {
     );
 
     return { token, newToken };
+  }
+
+  async updatePassword(
+    user: User,
+    updatePasswordDto: UpdatePasswordDto,
+  ): Promise<void> {
+    const { currentPassword, newPassword, newSalt, mnemonic, privateKey } =
+      updatePasswordDto;
+
+    if (user.password.toString() !== currentPassword) {
+      throw new Error('Invalid password');
+    }
+
+    await this.userRepository.updateById(user.id, {
+      password: newPassword,
+      hKey: new Buffer(newSalt),
+      mnemonic,
+    });
+
+    await this.keyServerRepository.update(user.id, {
+      encryptVersion: privateKey,
+    });
   }
 }

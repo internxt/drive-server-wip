@@ -12,9 +12,12 @@ import {
   ForbiddenException,
   NotFoundException,
   UseGuards,
+  Patch,
+  Request as RequestDecorator,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -33,6 +36,8 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { AuthGuard } from '@nestjs/passport';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -149,5 +154,20 @@ export class UserController {
   @ApiOkResponse({ description: 'Returns a new token' })
   refreshToken(@UserDecorator() user: User) {
     return this.userUseCases.getAuthTokens(user);
+  }
+
+  @Patch('password')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard())
+  async updatePassword(
+    @RequestDecorator() req,
+    @Body() updatePasswordDto: UpdatePasswordDto,
+  ) {
+    try {
+      await this.userUseCases.updatePassword(req.user, updatePasswordDto);
+      return { status: 'success' };
+    } catch (err) {
+      return { status: 'error', message: err.message };
+    }
   }
 }

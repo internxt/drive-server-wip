@@ -26,6 +26,10 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import {
+  KeyServerModel,
+  SequelizeKeyServerRepository,
+} from '../keyserver/key-server.repository';
 
 @Module({
   imports: [
@@ -34,6 +38,7 @@ import { KeyServerModule } from '../keyserver/key-server.module';
       ReferralModel,
       UserReferralModel,
       FriendInvitationModel,
+      KeyServerModel,
     ]),
     FolderModule,
     forwardRef(() => FileModule),
@@ -45,6 +50,7 @@ import { KeyServerModule } from '../keyserver/key-server.module';
     SequelizeUserRepository,
     SequelizeSharedWorkspaceRepository,
     SequelizeReferralRepository,
+    SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
     UserUseCases,
     FolderUseCases,
