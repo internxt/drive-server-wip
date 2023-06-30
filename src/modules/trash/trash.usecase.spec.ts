@@ -21,6 +21,7 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../..//externals/crypto/crypto.module';
 import { NotFoundException } from '@nestjs/common';
 import { FileModel } from '../file/file.model';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -81,6 +82,10 @@ describe('Trash Use Cases', () => {
         SequelizeUserRepository,
         {
           provide: getModelToken(UserModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
         },
       ],

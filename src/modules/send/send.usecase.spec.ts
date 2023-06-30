@@ -17,6 +17,7 @@ import {
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';
 import { FileModel } from '../file/file.model';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases, notificationService, sendRepository;
@@ -79,6 +80,10 @@ describe('Send Use Cases', () => {
         },
         {
           provide: getModelToken(FolderModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
         },
       ],
