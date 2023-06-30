@@ -502,7 +502,6 @@ export class UserUseCases {
     if (user.password.toString() !== currentPassword) {
       throw new Error('Invalid password');
     }
-
     await this.userRepository.updateById(user.id, {
       password: newPassword,
       hKey: new Buffer(newSalt),

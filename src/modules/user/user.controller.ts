@@ -14,6 +14,7 @@ import {
   UseGuards,
   Patch,
   Request as RequestDecorator,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -158,7 +159,6 @@ export class UserController {
 
   @Patch('password')
   @ApiBearerAuth()
-  @UseGuards(AuthGuard())
   async updatePassword(
     @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
@@ -167,7 +167,7 @@ export class UserController {
       await this.userUseCases.updatePassword(req.user, updatePasswordDto);
       return { status: 'success' };
     } catch (err) {
-      return { status: 'error', message: err.message };
+      throw new BadRequestException(err.message);
     }
   }
 }
