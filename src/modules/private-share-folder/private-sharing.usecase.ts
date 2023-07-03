@@ -22,4 +22,19 @@ export class PrivateSharingUseCase {
     );
     return folders;
   }
+
+  async getSharedFoldersBySharedWith(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<Folder[]> {
+    const folders = await this.privateSharingRespository.findBySharedWith(
+      user.uuid,
+      offset,
+      limit,
+      order,
+    );
+    return folders;
+  }
 }
