@@ -3,7 +3,6 @@ import { FuzzySearchUseCases } from './fuzzy-search.usecase';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '../user/user.domain';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { Public } from '../auth/decorators/public.decorator';
 import { FuzzySearchResults } from './dto/fuzzy-search-result.dto';
 
 @ApiTags('Fuzzy')
@@ -20,7 +19,6 @@ export class FuzzySearchController {
     description: 'Elements founded',
     type: FuzzySearchResults,
   })
-  @Public()
   async fuzzySearch(
     @UserDecorator() user: User,
     @Param('search') search: string,
