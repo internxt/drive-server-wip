@@ -1,9 +1,10 @@
 import { Column, PrimaryKey, Table, Model, Index } from 'sequelize-typescript';
-import { LookUpAttributes } from './look-up.domain';
+import { ItemType, LookUpAttributes } from './look-up.domain';
 
 @Table({
   underscored: true,
   tableName: 'look_up',
+  timestamps: false,
 })
 export class LookUpModel extends Model implements LookUpAttributes {
   @PrimaryKey
@@ -11,10 +12,10 @@ export class LookUpModel extends Model implements LookUpAttributes {
   id: string;
 
   @Column
-  fileId: string;
+  itemUuid: string;
 
   @Column
-  folderId: string;
+  itemType: ItemType;
 
   @Index
   @Column
@@ -22,4 +23,7 @@ export class LookUpModel extends Model implements LookUpAttributes {
 
   @Column
   name: string;
+
+  @Column
+  tokenizedName: string;
 }
