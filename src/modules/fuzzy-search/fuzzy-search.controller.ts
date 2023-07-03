@@ -16,7 +16,7 @@ export class FuzzySearchController {
   })
   @HttpCode(200)
   @ApiOkResponse({
-    description: 'Elements founded',
+    description: 'Elements found',
     type: FuzzySearchResults,
   })
   async fuzzySearch(
