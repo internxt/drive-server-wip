@@ -6,7 +6,7 @@ export class FuzzySearchResult {
   id: string;
 
   @ApiProperty()
-  itemUuid: string;
+  itemId: string;
 
   @ApiProperty({ enum: itemTypes })
   itemType: ItemType;
