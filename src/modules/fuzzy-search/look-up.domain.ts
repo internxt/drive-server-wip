@@ -8,26 +8,26 @@ export type ItemType = typeof itemTypes[number];
 
 export interface LookUpAttributes {
   id: string;
-  itemUuid: FileModel['uuid'];
+  itemId: FileModel['uuid'];
   itemType: ItemType;
-  userUuid: UserModel['uuid'];
+  userId: UserModel['uuid'];
   name: FileModel['plainName'] | FolderModel['plainName'];
   tokenizedName: string;
 }
 
 export class LookUp implements LookUpAttributes {
   id: string;
-  itemUuid: string;
+  itemId: string;
   itemType: ItemType;
-  userUuid: string;
+  userId: string;
   name: string;
   tokenizedName: string;
 
   private constructor(attributes: LookUpAttributes) {
     this.id = attributes.id;
-    this.itemUuid = attributes.itemUuid;
+    this.itemId = attributes.itemId;
     this.itemType = attributes.itemType;
-    this.userUuid = attributes.userUuid;
+    this.userId = attributes.userId;
     this.name = attributes.name;
     this.tokenizedName = attributes.tokenizedName;
   }

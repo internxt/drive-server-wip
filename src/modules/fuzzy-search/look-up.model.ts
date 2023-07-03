@@ -12,14 +12,14 @@ export class LookUpModel extends Model implements LookUpAttributes {
   id: string;
 
   @Column
-  itemUuid: string;
+  itemId: string;
 
   @Column
   itemType: ItemType;
 
   @Index
   @Column
-  userUuid: string;
+  userId: string;
 
   @Column
   name: string;

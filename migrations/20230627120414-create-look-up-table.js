@@ -18,7 +18,7 @@ module.exports = {
         type: Sequelize.DataTypes.TSVECTOR,
         allowNull: false,
       },
-      item_uuid: {
+      item_id: {
         type: Sequelize.STRING(36),
         allowNull: false,
       },
@@ -26,7 +26,7 @@ module.exports = {
         type: Sequelize.STRING(36),
         allowNull: false,
       },
-      user_uuid: {
+      user_id: {
         type: Sequelize.STRING(36),
         allowNull: false,
         references: { model: 'users', key: 'uuid' },
@@ -34,7 +34,7 @@ module.exports = {
     });
 
     await queryInterface.addIndex('look_up', {
-      fields: ['user_uuid'],
+      fields: ['user_id'],
       name: 'user_uuid_look_up_index',
     });
 

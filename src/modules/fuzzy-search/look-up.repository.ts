@@ -6,9 +6,9 @@ import { UserAttributes } from '../user/user.attributes';
 
 type LookUpResult = Array<{
   id: string;
-  itemUuid: string;
+  itemId: string;
   itemType: ItemType;
-  userUuid: string;
+  userId: string;
   name: string;
   rank: number | null;
   similarity: number;
@@ -55,9 +55,9 @@ export class SequelizeLookUpRepository implements LookUpRepository {
 
     return result[0].map((raw: any) => ({
       id: raw.id,
-      itemUuid: raw.item_uuid,
+      itemId: raw.item_id,
       itemType: raw.item_type,
-      userUuid: raw.user_uuid,
+      userId: raw.user_id,
       name: raw.name,
       rank: raw.rank,
       similarity: raw.similarity,
@@ -66,9 +66,9 @@ export class SequelizeLookUpRepository implements LookUpRepository {
 
   async instert(entry: LookUp): Promise<void> {
     await this.model.create({
-      id: entry.itemUuid,
+      id: entry.itemId,
       name: entry.name,
-      userUuid: entry.userUuid,
+      userUuid: entry.userId,
     });
   }
 }

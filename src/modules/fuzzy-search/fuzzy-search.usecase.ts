@@ -15,7 +15,7 @@ export class FuzzySearchUseCases {
 
     return lookupResult.map((lookup) => ({
       id: lookup.id,
-      itemUuid: lookup.itemUuid,
+      itemId: lookup.itemId,
       itemType: lookup.itemType,
       name: lookup.name,
       rank: lookup.rank,
