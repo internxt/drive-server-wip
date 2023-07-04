@@ -51,6 +51,22 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
+export class InvalidPasswordError extends Error {
+  constructor() {
+    super('Invalid password');
+
+    Object.setPrototypeOf(this, InvalidPasswordError.prototype);
+  }
+}
+
+export class KeyServerNotFoundError extends Error {
+  constructor() {
+    super('Key server not found');
+
+    Object.setPrototypeOf(this, KeyServerNotFoundError.prototype);
+  }
+}
+
 type NewUser = Pick<
   UserAttributes,
   'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
@@ -500,13 +516,24 @@ export class UserUseCases {
       updatePasswordDto;
 
     if (user.password.toString() !== currentPassword) {
-      throw new Error('Invalid password');
+      throw new InvalidPasswordError();
     }
     await this.userRepository.updateById(user.id, {
       password: newPassword,
       hKey: new Buffer(newSalt),
       mnemonic,
     });
+
+    const [keyServer] = await this.keyServerRepository.findUserKeysOrCreate(
+      user.id,
+      {
+        encryptVersion: privateKey,
+      },
+    );
+
+    if (!keyServer) {
+      throw new KeyServerNotFoundError();
+    }
 
     await this.keyServerRepository.update(user.id, {
       encryptVersion: privateKey,

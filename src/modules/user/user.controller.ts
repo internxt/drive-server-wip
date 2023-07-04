@@ -30,14 +30,15 @@ import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from './user.domain';
 import {
+  InvalidPasswordError,
   InvalidReferralCodeError,
+  KeyServerNotFoundError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { AuthGuard } from '@nestjs/passport';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @ApiTags('User')
@@ -162,12 +163,31 @@ export class UserController {
   async updatePassword(
     @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
     try {
       await this.userUseCases.updatePassword(req.user, updatePasswordDto);
       return { status: 'success' };
     } catch (err) {
-      throw new BadRequestException(err.message);
+      let errorMessage = err.message;
+
+      if (err instanceof InvalidPasswordError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (err instanceof KeyServerNotFoundError) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/UPDATEPASSWORD] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
     }
   }
 }
