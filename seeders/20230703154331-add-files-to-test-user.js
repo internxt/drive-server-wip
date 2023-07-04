@@ -12,7 +12,6 @@ function generateFakeFolder(userId) {
   const encrypt_version = chance.string({ length: 20 });
   const deleted = chance.bool();
   const deleted_at = chance.date({ string: true });
-  const plain_name = chance.word();
   const uuid = chance.guid();
   const parent_uuid = null;
   const removed = false;
@@ -28,7 +27,7 @@ function generateFakeFolder(userId) {
     encrypt_version,
     deleted,
     deleted_at,
-    plain_name,
+    plain_name: name,
     uuid,
     parent_uuid,
     removed,
@@ -98,7 +97,6 @@ module.exports = {
     const folder = generateFakeFolder(result[0][0].id);
 
     await queryInterface.bulkInsert('folders', [folder]);
-
 
     const { folderId, folderUuid } = await queryInterface.sequelize.query(
       'SELECT uuid, id FROM folders ORDER BY created_at DESC LIMIT 1',
