@@ -30,6 +30,7 @@ module.exports = {
         type: Sequelize.STRING(36),
         allowNull: false,
         references: { model: 'users', key: 'uuid' },
+        onDelete: 'CASCADE',
       },
     });
 

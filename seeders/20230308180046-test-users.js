@@ -16,7 +16,7 @@ const testUser = {
   h_key: 'john doe salt',
   referrer: null,
   referral_code: referralCode,
-  uuid: null,
+  uuid: '87204d6b-c4a7-4f38-bd99-f7f47964a643',
   credit: 0,
   welcome_pack: true,
   register_completed: true,
