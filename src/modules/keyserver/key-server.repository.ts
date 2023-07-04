@@ -69,11 +69,6 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ) {
-    const [keyServer] = await this.findUserKeysOrCreate(userId, data);
-    if (!keyServer) {
-      throw new Error('KeyServer not found');
-    }
-
     await this.model.update(data, { where: { userId } });
   }
 }
