@@ -50,7 +50,7 @@ module.exports = {
      *   name: 'John Doe',
      *   isBetaMember: false
      * }], {});
-    */
+     */
     const existingUsers = await queryInterface.sequelize.query(
       'SELECT email FROM users WHERE email IN (:emails)',
       {
@@ -75,8 +75,12 @@ module.exports = {
      * Example:
      * await queryInterface.bulkDelete('People', null, {});
      */
-    await queryInterface.bulkDelete('users', {
-      email: { [Op.in]: [testUser.email, referredTestUser.email] }
-    }, {});
-  }
+    await queryInterface.bulkDelete(
+      'users',
+      {
+        email: { [Op.in]: [testUser.email, referredTestUser.email] },
+      },
+      {},
+    );
+  },
 };

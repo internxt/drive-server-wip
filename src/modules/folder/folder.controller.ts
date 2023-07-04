@@ -16,7 +16,7 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { validate } from 'uuid';
 
