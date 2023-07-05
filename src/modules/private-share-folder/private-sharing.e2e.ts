@@ -11,8 +11,6 @@ import { Sign } from '../../middlewares/passport';
 
 const user = users.testUser;
 
-console.log('user', user);
-
 describe('PrivateSharing module', () => {
   let app: INestApplication;
   let configService: ConfigService;

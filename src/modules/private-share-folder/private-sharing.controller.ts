@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Logger, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -48,20 +48,31 @@ export class PrivateSharingController {
     @Query('perPage') perPage = 50,
     @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
 
-    return {
-      folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-    };
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDWITH] Error while getting shared folders with user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 
   @Get('sent/folders')
@@ -94,19 +105,30 @@ export class PrivateSharingController {
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ): Promise<Record<'folders', Folder[]>> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
 
-    return {
-      folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-    };
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 }
