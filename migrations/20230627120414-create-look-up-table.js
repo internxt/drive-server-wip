@@ -212,8 +212,20 @@ module.exports = {
       DROP TRIGGER insert_file_to_look_up_table_after_file_inserted ON files;
       DROP FUNCTION insert_file_to_look_up_table();
 
+      DROP TRIGGER update_to_look_up_table_after_file_renamed ON files;
+      DROP FUNCTION update_file_to_look_up_table();
+
+      DROP TRIGGER delete_to_look_up_table_after_file_deleted ON files;
+      DROP FUNCTION delete_file_to_look_up_table();
+      
       DROP TRIGGER insert_folder_to_look_up_table_after_folder_inserted ON folders;
       DROP FUNCTION insert_folder_to_look_up_table();
+      
+      DROP TRIGGER update_to_look_up_table_after_folder_renamed ON folders;
+      DROP FUNCTION update_folder_to_look_up_table();
+
+      DROP TRIGGER delete_to_look_up_table_after_folder_deleted ON folders;
+      DROP FUNCTION delete_folder_to_look_up_table();
     `);
   },
 };
