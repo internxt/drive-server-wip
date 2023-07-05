@@ -62,7 +62,7 @@ async function createUpdateFolderTrigger(queryInterface) {
       UPDATE look_up
       SET 
         name = NEW.plain_name,
-        tokenized_name = to_tsvector(NEW.plain_name),
+        tokenized_name = to_tsvector(NEW.plain_name)
       WHERE id = NEW.uuid;
 
       RETURN NEW;
@@ -85,7 +85,7 @@ async function createUpdateFileTrigger(queryInterface) {
       UPDATE look_up
       SET 
         name = NEW.plain_name,
-        tokenized_name = to_tsvector(NEW.plain_name),
+        tokenized_name = to_tsvector(NEW.plain_name)
       WHERE id = NEW.uuid;
 
       RETURN NEW;
@@ -115,7 +115,7 @@ async function createDeleteFileTrigger(queryInterface) {
     CREATE TRIGGER delete_to_look_up_table_after_file_deleted
     AFTER UPDATE ON files
     FOR EACH ROW
-    WHEN NEW.status = 'TRASHED'
+    WHEN (NEW.status = 'TRASHED')
     EXECUTE FUNCTION delete_file_to_look_up_table();
   `);
 }
@@ -135,7 +135,7 @@ async function createDeleteFolderTrigger(queryInterface) {
     CREATE TRIGGER delete_to_look_up_table_after_folder_deleted
     AFTER UPDATE ON folders
     FOR EACH ROW
-    WHEN NEW.status = 'TRASHED'
+    WHEN (NEW.deleted = TRUE)
     EXECUTE FUNCTION delete_folder_to_look_up_table();
   `);
 }
