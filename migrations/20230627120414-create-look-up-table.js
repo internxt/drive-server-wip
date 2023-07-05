@@ -100,6 +100,46 @@ async function createUpdateFileTrigger(queryInterface) {
   `);
 }
 
+async function createDeleteFileTrigger(queryInterface) {
+  await queryInterface.sequelize.query(`
+    CREATE OR REPLACE FUNCTION delete_file_to_look_up_table()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      DELETE FROM look_up
+      WHERE id = NEW.uuid;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE 'plpgsql';
+
+    CREATE TRIGGER delete_to_look_up_table_after_file_deleted
+    AFTER UPDATE ON files
+    FOR EACH ROW
+    WHEN NEW.status = 'TRASHED'
+    EXECUTE FUNCTION delete_file_to_look_up_table();
+  `);
+}
+
+async function createDeleteFolderTrigger(queryInterface) {
+  await queryInterface.sequelize.query(`
+    CREATE OR REPLACE FUNCTION delete_folder_to_look_up_table()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      DELETE FROM look_up
+      WHERE id = NEW.uuid;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE 'plpgsql';
+
+    CREATE TRIGGER delete_to_look_up_table_after_folder_deleted
+    AFTER UPDATE ON folders
+    FOR EACH ROW
+    WHEN NEW.status = 'TRASHED'
+    EXECUTE FUNCTION delete_folder_to_look_up_table();
+  `);
+}
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     return queryInterface.sequelize
@@ -149,6 +189,9 @@ module.exports = {
 
           await createUpdateFileTrigger(queryInterface);
           await createUpdateFolderTrigger(queryInterface);
+
+          await createDeleteFileTrigger(queryInterface);
+          await createDeleteFolderTrigger(queryInterface);
 
           await transaction.commit();
         } catch (error) {
