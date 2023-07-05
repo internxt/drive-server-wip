@@ -3,6 +3,8 @@
 const { v4 } = require('uuid');
 const { Op, Sequelize } = require('sequelize');
 
+let folderOneUUID, folderTwoUUID;
+
 module.exports = {
   async up(queryInterface) {
     const users = await queryInterface.sequelize.query(
@@ -46,6 +48,8 @@ module.exports = {
       updated_at: new Date(),
     };
 
+    folderOneUUID = folderOne.uuid;
+
     const folderTwo = {
       parent_id: null,
       name: 'FolderTwo',
@@ -60,6 +64,8 @@ module.exports = {
       updated_at: new Date(),
     };
 
+    folderTwoUUID = folderTwo.uuid;
+
     await queryInterface.bulkInsert('folders', [folderOne, folderTwo]);
   },
 
@@ -67,7 +73,7 @@ module.exports = {
     await queryInterface.bulkDelete(
       'folders',
       {
-        uuid: { [Op.in]: [folderOne.uuid, folderTwo.uuid] },
+        uuid: { [Op.in]: [folderOneUUID, folderTwoUUID] },
       },
       {},
     );
