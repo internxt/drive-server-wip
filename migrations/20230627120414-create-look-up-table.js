@@ -54,6 +54,52 @@ async function createInsertFolderTrigger(queryInterface) {
   `);
 }
 
+async function createUpdateFolderTrigger(queryInterface) {
+  await queryInterface.sequelize.query(`
+    CREATE OR REPLACE FUNCTION update_folder_to_look_up_table()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      UPDATE look_up
+      SET 
+        name = NEW.plain_name,
+        tokenized_name = to_tsvector(NEW.plain_name),
+      WHERE id = NEW.uuid;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE 'plpgsql';
+
+    CREATE TRIGGER update_to_look_up_table_after_folder_renamed
+    AFTER UPDATE ON folders
+    FOR EACH ROW
+    WHEN (OLD.plain_name IS DISTINCT FROM NEW.plain_name)
+    EXECUTE FUNCTION update_folder_to_look_up_table();
+  `);
+}
+
+async function createUpdateFileTrigger(queryInterface) {
+  await queryInterface.sequelize.query(`
+    CREATE OR REPLACE FUNCTION update_file_to_look_up_table()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      UPDATE look_up
+      SET 
+        name = NEW.plain_name,
+        tokenized_name = to_tsvector(NEW.plain_name),
+      WHERE id = NEW.uuid;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE 'plpgsql';
+
+    CREATE TRIGGER update_to_look_up_table_after_file_renamed
+    AFTER UPDATE ON files
+    FOR EACH ROW
+    WHEN (OLD.plain_name IS DISTINCT FROM NEW.plain_name)
+    EXECUTE FUNCTION update_file_to_look_up_table();
+  `);
+}
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     return queryInterface.sequelize
@@ -100,6 +146,9 @@ module.exports = {
 
           await createInsertFileTrigger(queryInterface);
           await createInsertFolderTrigger(queryInterface);
+
+          await createUpdateFileTrigger(queryInterface);
+          await createUpdateFolderTrigger(queryInterface);
 
           await transaction.commit();
         } catch (error) {
