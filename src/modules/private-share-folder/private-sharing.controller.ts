@@ -19,7 +19,7 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
-import { GrantPrivilegesDto } from './dto/grant-privilages.dto';
+import { GrantPrivilegesDto } from './dto/grant-privileges';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
