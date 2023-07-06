@@ -1,11 +1,12 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
+  HttpStatus,
   Logger,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -14,12 +15,16 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { PrivateSharingUseCase } from './private-sharing.usecase';
+import {
+  InvalidOwnerError,
+  PrivateSharingUseCase,
+} from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
+import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 
 @ApiTags('Private Sharing')
@@ -36,7 +41,8 @@ export class PrivateSharingController {
   async grantPrivileges(
     @UserDecorator() user: User,
     @Body() dto: GrantPrivilegesDto,
-  ): Promise<Record<'message', string>> {
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       await this.privateSharingUseCase.grantPrivileges(
         user,
@@ -49,7 +55,20 @@ export class PrivateSharingController {
         message: 'Privileges granted',
       };
     } catch (error) {
-      throw new BadRequestException(error.message);
+      let errorMessage = error.message;
+
+      if (error instanceof InvalidOwnerError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else {
+        new Logger().error(
+          `[PRIVATESHARING/GRANTACCESS] ERROR: ${
+            (error as Error).message
+          }, BODY ${JSON.stringify(dto)}, STACK: ${(error as Error).stack}`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+      return { error: errorMessage };
     }
   }
 
