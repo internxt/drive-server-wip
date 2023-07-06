@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Post,
   Query,
 } from '@nestjs/common';
@@ -19,7 +20,7 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
-import { GrantPrivilegesDto } from './dto/grant-privileges';
+import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -82,20 +83,31 @@ export class PrivateSharingController {
     @Query('perPage') perPage = 50,
     @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
 
-    return {
-      folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-    };
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDWITH] Error while getting shared folders with user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 
   @Get('sent/folders')
@@ -128,19 +140,30 @@ export class PrivateSharingController {
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ): Promise<Record<'folders', Folder[]>> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
 
-    return {
-      folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-    };
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 }
