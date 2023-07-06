@@ -198,10 +198,6 @@ describe('PrivateSharingUseCase', () => {
       expect(folderRespository.findByUuid).toHaveBeenCalledWith(
         foundPrivateFolder.folderId,
       );
-      expect(folderRespository.isOwner).toHaveBeenCalledWith(
-        owner,
-        foundFolder.id,
-      );
       expect(
         privateSharingRespository.createPrivateFolderRole,
       ).toHaveBeenCalledWith(foundUser, foundFolder, roleUuid);

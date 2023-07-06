@@ -42,7 +42,7 @@ export class SequelizePrivateSharingRepository
     return privateFolder.get({ plain: true });
   }
 
-  async createPrivateFolder(
+  async create(
     owner: User,
     sharedWith: User,
     folder: Folder,
@@ -56,10 +56,14 @@ export class SequelizePrivateSharingRepository
     return privateFolder.get({ plain: true });
   }
 
-  async createPrivateFolderRole(user: User, folder: Folder, roleUuid: string) {
+  async createPrivateFolderRole(
+    userId: string,
+    folderId: string,
+    roleUuid: string,
+  ) {
     await this.privateSharingFolderRole.create({
-      userId: user.uuid,
-      folderId: folder.uuid,
+      userId: userId,
+      folderId: folderId,
       roleId: roleUuid,
     });
   }

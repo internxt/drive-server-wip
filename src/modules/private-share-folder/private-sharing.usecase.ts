@@ -18,7 +18,6 @@ export class PrivateSharingUseCase {
     privateFolderId: string,
     roleUuid: string,
   ) {
-    const user = await this.userRespository.findByUuid(userUuid);
     const privateFolder = await this.privateSharingRespository.findById(
       privateFolderId,
     );
@@ -26,15 +25,13 @@ export class PrivateSharingUseCase {
       privateFolder.folderId,
     );
 
-    const isOwner = await this.folderRespository.isOwner(owner, folder.id);
-
-    if (!isOwner) {
+    if (owner.id !== folder.userId) {
       throw new Error('You are not the owner of this folder');
     }
 
     await this.privateSharingRespository.createPrivateFolderRole(
-      user,
-      folder,
+      userUuid,
+      folder.uuid,
       roleUuid,
     );
   }
