@@ -43,7 +43,11 @@ export class PrivateSharingUseCase {
     );
   }
 
-  async updateRole(owner: User, privateFolderRoleId: string, roleId: string) {
+  async updateRole(
+    owner: User,
+    privateFolderRoleId: PrivateSharingFolder['id'],
+    roleId: PrivateSharingRole['id'],
+  ) {
     const privateFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleById(
         privateFolderRoleId,
@@ -53,10 +57,8 @@ export class PrivateSharingUseCase {
       privateFolderRole.folderId,
     );
 
-    const isOwner = await this.folderRespository.isOwner(owner, folder.id);
-
-    if (!isOwner) {
-      throw new Error('You are not the owner of this folder');
+    if (owner.id !== folder.userId) {
+      throw new InvalidOwnerError();
     }
 
     await this.privateSharingRespository.updatePrivateFolderRole(
