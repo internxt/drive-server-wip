@@ -37,7 +37,6 @@ export class User implements UserAttributes {
     password,
     mnemonic,
     rootFolderId,
-    rootFolder,
     hKey,
     secret_2FA,
     errorLoginCount,

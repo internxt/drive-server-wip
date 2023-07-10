@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder, SortableFolderAttributes } from './folder.domain';
+import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 
 import { UserModel } from '../user/user.model';
@@ -319,17 +319,6 @@ export class SequelizeFolderRepository implements FolderRepository {
         },
       },
     );
-  }
-
-  async isOwner(user: User, folderId: number): Promise<boolean> {
-    const folder = await this.folderModel.findOne({
-      where: {
-        id: folderId,
-        userId: user.id,
-      },
-    });
-
-    return !!folder;
   }
 
   async findAllCursorWhereUpdatedAfter(
