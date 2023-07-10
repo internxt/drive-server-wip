@@ -58,7 +58,7 @@ export class PrivateSharingController {
       let errorMessage = error.message;
 
       if (error instanceof InvalidOwnerError) {
-        res.status(HttpStatus.BAD_REQUEST);
+        res.status(HttpStatus.FORBIDDEN);
       } else {
         new Logger().error(
           `[PRIVATESHARING/GRANTACCESS] ERROR: ${

@@ -4,6 +4,8 @@ import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { PrivateSharingFolder } from './private-sharing-folder.domain';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -19,9 +21,9 @@ export class PrivateSharingUseCase {
   ) {}
   async grantPrivileges(
     owner: User,
-    userUuid: string,
-    privateFolderId: string,
-    roleUuid: string,
+    userUuid: User['uuid'],
+    privateFolderId: PrivateSharingFolder['id'],
+    roleUuid: PrivateSharingRole['id'],
   ) {
     const privateFolder = await this.privateSharingRespository.findById(
       privateFolderId,
