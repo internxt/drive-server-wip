@@ -8,7 +8,7 @@ const testUser = {
   user_id: 'JohnDoe userId',
   name: 'John',
   lastname: 'Doe',
-  uuid: v4(),
+  uuid: '123e4567-e89b-12d3-a456-426614174000',
   email: 'john@doe.com',
   username: 'john@doe.com',
   bridge_user: 'john@doe.com',
@@ -26,7 +26,7 @@ const referredTestUser = {
   user_id: 'JohnDoe userId',
   name: 'John',
   lastname: 'Doe',
-  uuid: v4(),
+  uuid: '09b073a3-ffc0-42dd-aa6a-dea4702bfbd6',
   email: 'johnTwo@doe.com',
   username: 'johnTwo@doe.com',
   bridge_user: 'johnTwo@doe.com',
@@ -42,6 +42,15 @@ const referredTestUser = {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    /**
+     * Add seed commands here.
+     *
+     * Example:
+     * await queryInterface.bulkInsert('People', [{
+     *   name: 'John Doe',
+     *   isBetaMember: false
+     * }], {});
+     */
     const existingUsers = await queryInterface.sequelize.query(
       'SELECT email FROM users WHERE email IN (:emails)',
       {
@@ -60,6 +69,12 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
+    /**
+     * Add commands to revert seed here.
+     *
+     * Example:
+     * await queryInterface.bulkDelete('People', null, {});
+     */
     await queryInterface.bulkDelete(
       'users',
       {
@@ -69,3 +84,5 @@ module.exports = {
     );
   },
 };
+
+module.exports.users = { testUser, referredTestUser };

@@ -4,7 +4,14 @@ import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { PrivateSharingFolder } from './private-sharing-folder.domain';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
+export class InvalidOwnerError extends Error {
+  constructor() {
+    super('You are not the owner of this folder');
+  }
+}
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -14,11 +21,10 @@ export class PrivateSharingUseCase {
   ) {}
   async grantPrivileges(
     owner: User,
-    userUuid: string,
-    privateFolderId: string,
-    roleUuid: string,
+    userUuid: User['uuid'],
+    privateFolderId: PrivateSharingFolder['id'],
+    roleUuid: PrivateSharingRole['id'],
   ) {
-    const user = await this.userRespository.findByUuid(userUuid);
     const privateFolder = await this.privateSharingRespository.findById(
       privateFolderId,
     );
@@ -26,15 +32,13 @@ export class PrivateSharingUseCase {
       privateFolder.folderId,
     );
 
-    const isOwner = await this.folderRespository.isOwner(owner, folder.id);
-
-    if (!isOwner) {
-      throw new Error('You are not the owner of this folder');
+    if (owner.id !== folder.userId) {
+      throw new InvalidOwnerError();
     }
 
     await this.privateSharingRespository.createPrivateFolderRole(
-      user,
-      folder,
+      userUuid,
+      folder.uuid,
       roleUuid,
     );
   }

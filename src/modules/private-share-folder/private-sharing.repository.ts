@@ -43,18 +43,15 @@ export class SequelizePrivateSharingRepository
     return privateFolder.get({ plain: true });
   }
 
-  async createPrivateFolder(
+  async create(
     owner: User,
     sharedWith: User,
     folder: Folder,
   ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.create({
-      ownerId: owner.id,
-      ownerUuid: owner.uuid,
-      sharedWithId: sharedWith.id,
-      sharedWithUuid: sharedWith.uuid,
-      folderId: folder.id,
-      folderUuid: folder.uuid,
+      ownerId: owner.uuid,
+      sharedWith: sharedWith.uuid,
+      folderId: folder.uuid,
     });
 
     return privateFolder.get({ plain: true });
@@ -86,10 +83,14 @@ export class SequelizePrivateSharingRepository
     return privateFolderRole.get({ plain: true });
   }
 
-  async createPrivateFolderRole(user: User, folder: Folder, roleUuid: string) {
+  async createPrivateFolderRole(
+    userId: string,
+    folderId: string,
+    roleUuid: string,
+  ) {
     await this.privateSharingFolderRole.create({
-      userId: user.uuid,
-      folderId: folder.uuid,
+      userId: userId,
+      folderId: folderId,
       roleId: roleUuid,
     });
   }
@@ -107,7 +108,7 @@ export class SequelizePrivateSharingRepository
         {
           model: this.folderModel,
           required: true,
-          foreignKey: 'folderUuid',
+          foreignKey: 'folderId',
           on: {
             uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
           },
@@ -135,7 +136,7 @@ export class SequelizePrivateSharingRepository
         {
           model: this.folderModel,
           required: true,
-          foreignKey: 'folderUuid',
+          foreignKey: 'folderId',
           on: {
             uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
           },

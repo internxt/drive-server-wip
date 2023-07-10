@@ -3,10 +3,13 @@ import {
   Body,
   Controller,
   Get,
+  HttpStatus,
+  Logger,
   Param,
   Post,
   Put,
   Query,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,13 +18,17 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { PrivateSharingUseCase } from './private-sharing.usecase';
+import {
+  InvalidOwnerError,
+  PrivateSharingUseCase,
+} from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
-import { GrantPrivilegesDto } from './dto/grant-privilages.dto';
+import { Response } from 'express';
+import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
 
 @ApiTags('Private Sharing')
@@ -38,7 +45,8 @@ export class PrivateSharingController {
   async grantPrivileges(
     @UserDecorator() user: User,
     @Body() dto: GrantPrivilegesDto,
-  ): Promise<Record<'message', string>> {
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       await this.privateSharingUseCase.grantPrivileges(
         user,
@@ -51,7 +59,20 @@ export class PrivateSharingController {
         message: 'Privileges granted',
       };
     } catch (error) {
-      throw new BadRequestException(error.message);
+      let errorMessage = error.message;
+
+      if (error instanceof InvalidOwnerError) {
+        res.status(HttpStatus.FORBIDDEN);
+      } else {
+        new Logger().error(
+          `[PRIVATESHARING/GRANTACCESS] ERROR: ${
+            (error as Error).message
+          }, BODY ${JSON.stringify(dto)}, STACK: ${(error as Error).stack}`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+      return { error: errorMessage };
     }
   }
 
@@ -111,20 +132,31 @@ export class PrivateSharingController {
     @Query('perPage') perPage = 50,
     @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
 
-    return {
-      folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-    };
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersBySharedWith(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDWITH] Error while getting shared folders with user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 
   @Get('sent/folders')
@@ -157,19 +189,30 @@ export class PrivateSharingController {
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ): Promise<Record<'folders', Folder[]>> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
 
-    return {
-      folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-    };
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 }
