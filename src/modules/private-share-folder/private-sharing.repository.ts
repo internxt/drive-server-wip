@@ -36,8 +36,24 @@ export class SequelizePrivateSharingRepository
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
   ) {}
 
-  async findById(id: string): Promise<PrivateSharingFolder> {
-    const privateFolder = await this.privateSharingFolderModel.findByPk(id);
+  async findById(
+    id: string,
+  ): Promise<PrivateSharingFolder & { folder: Folder }> {
+    const privateFolder = await this.privateSharingFolderModel.findOne({
+      where: {
+        id,
+      },
+      include: [
+        {
+          model: this.folderModel,
+          required: true,
+          foreignKey: 'folderId',
+          on: {
+            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
+          },
+        },
+      ],
+    });
 
     return privateFolder.get({ plain: true });
   }
