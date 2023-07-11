@@ -28,9 +28,8 @@ export class PrivateSharingUseCase {
     const privateFolder = await this.privateSharingRespository.findById(
       privateFolderId,
     );
-    const folder = await this.folderRespository.findByUuid(
-      privateFolder.folderId,
-    );
+
+    const folder = privateFolder.folder;
 
     if (owner.id !== folder.userId) {
       throw new InvalidOwnerError();
