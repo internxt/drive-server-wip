@@ -234,4 +234,62 @@ export class PrivateSharingController {
       throw error;
     }
   }
+
+  @Get('items/:privateSharingFolderId')
+  @ApiOperation({
+    summary: 'Get all items shared by a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all items shared by a user' })
+  @ApiBearerAuth()
+  async getSharedItems(
+    @UserDecorator() user: User,
+    @Param('privateSharingFolderId') privateSharingFolderId: string,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ): Promise<{ folders: Folder[]; files: File[] }> {
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
+
+      return {
+        folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
+  }
 }
