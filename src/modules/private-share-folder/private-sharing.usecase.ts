@@ -12,6 +12,12 @@ export class InvalidOwnerError extends Error {
     super('You are not the owner of this folder');
   }
 }
+
+export class InvalidRoleError extends Error {
+  constructor() {
+    super('Role not found');
+  }
+}
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -58,6 +64,12 @@ export class PrivateSharingUseCase {
 
     if (owner.id !== folder.userId) {
       throw new InvalidOwnerError();
+    }
+
+    const role = await this.privateSharingRespository.findRoleById(roleId);
+
+    if (!role) {
+      throw new InvalidRoleError();
     }
 
     await this.privateSharingRespository.updatePrivateFolderRole(

@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import {
   InvalidOwnerError,
+  InvalidRoleError,
   PrivateSharingUseCase,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -30,6 +31,7 @@ import { Pagination } from 'src/lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
+import { isInstance } from 'class-validator';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -86,7 +88,8 @@ export class PrivateSharingController {
     @Param('privateFolderRoleId') privateFolderRoleId: string,
     @UserDecorator() user: User,
     @Body() dto: UpdatePrivilegesDto,
-  ): Promise<Record<'message', string>> {
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       await this.privateSharingUseCase.updateRole(
         user,
@@ -98,7 +101,23 @@ export class PrivateSharingController {
         message: 'Role updated',
       };
     } catch (error) {
-      throw new BadRequestException(error.message);
+      let errorMessage = error.message;
+
+      if (error instanceof InvalidOwnerError) {
+        res.status(HttpStatus.FORBIDDEN);
+      } else if (error instanceof InvalidRoleError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else {
+        new Logger().error(
+          `[PRIVATESHARING/UPDATEROLE] ERROR: ${
+            (error as Error).message
+          }, BODY ${JSON.stringify(dto)}, STACK: ${(error as Error).stack}`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
     }
   }
 
