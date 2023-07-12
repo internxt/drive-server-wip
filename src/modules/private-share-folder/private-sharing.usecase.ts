@@ -6,6 +6,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -18,12 +19,25 @@ export class InvalidRoleError extends Error {
     super('Role not found');
   }
 }
+
+export class InvalidPrivateFolderRoleError extends Error {
+  constructor() {
+    super('Private folder role not found');
+  }
+}
+
+export class InvalidChildFolderError extends Error {
+  constructor() {
+    super('Folder not found');
+  }
+}
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
     private userRespository: SequelizeUserRepository,
     private folderRespository: SequelizeFolderRepository,
+    private fileRespository: SequelizeFileRepository,
   ) {}
   async grantPrivileges(
     owner: User,
@@ -110,5 +124,51 @@ export class PrivateSharingUseCase {
       order,
     );
     return folders;
+  }
+
+  async getItems(
+    parentPrivateSharingFolderId: PrivateSharingFolder['id'],
+    folderUuid: Folder['uuid'],
+    user: User,
+  ) {
+    // Check if user has access to the parent private folder
+    const privateSharingFolder = await this.privateSharingRespository.findById(
+      parentPrivateSharingFolderId,
+    );
+
+    const parentFolderUuid = privateSharingFolder.folderId;
+
+    const privateSharingFolderRole =
+      await this.privateSharingRespository.findPrivateFolderRoleByFolderUuidAndUserUuid(
+        parentFolderUuid,
+        user.uuid,
+      );
+
+    if (!privateSharingFolderRole) {
+      throw new InvalidPrivateFolderRoleError();
+    }
+
+    // Check if folderUuid is a child of parentPrivateFolderId
+    const folder = await this.folderRespository.findInTreeByUuid(
+      parentFolderUuid,
+      folderUuid,
+      false,
+    );
+
+    if (!folder) {
+      throw new InvalidChildFolderError();
+    }
+
+    // obtain items from the folder
+    const folders = await this.folderRespository.findAllByParentUuid(
+      folderUuid,
+    );
+
+    const files = await this.fileRespository.findAllByParentUuid(folderUuid);
+
+    return {
+      folders,
+      files,
+    };
   }
 }

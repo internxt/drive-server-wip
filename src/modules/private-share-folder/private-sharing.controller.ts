@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -19,12 +18,15 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  InvalidChildFolderError,
   InvalidOwnerError,
+  InvalidPrivateFolderRoleError,
   InvalidRoleError,
   PrivateSharingUseCase,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
+import { File } from '../file/file.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
@@ -32,6 +34,7 @@ import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
 import { isInstance } from 'class-validator';
+import { PrivateSharingFolder } from './private-sharing-folder.domain';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -235,61 +238,46 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('items/:privateSharingFolderId')
+  @Get('items/:parentPrivateSharingFolderId/:folderId')
   @ApiOperation({
     summary: 'Get all items shared by a user',
-  })
-  @ApiQuery({
-    description: 'Number of page to take by ( default 0 )',
-    name: 'page',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    description: 'Number of items per page ( default 50 )',
-    name: 'perPage',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    description: 'Order by',
-    name: 'orderBy',
-    required: false,
-    type: String,
   })
   @ApiOkResponse({ description: 'Get all items shared by a user' })
   @ApiBearerAuth()
   async getSharedItems(
     @UserDecorator() user: User,
-    @Param('privateSharingFolderId') privateSharingFolderId: string,
-    @Query('orderBy') orderBy: OrderBy,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
-  ): Promise<{ folders: Folder[]; files: File[] }> {
+    @Param('privateSharingFolderId')
+    parentPrivateSharingFolderId: PrivateSharingFolder['id'],
+    @Param('folderId') folderId: Folder['uuid'],
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<
+    { folders: Folder[] | []; files: File[] | [] } | { error: string }
+  > {
     try {
-      const { offset, limit } = Pagination.calculatePagination(page, perPage);
-
-      const order = orderBy
-        ? [orderBy.split(':') as [string, string]]
-        : undefined;
-
-      return {
-        folders: await this.privateSharingUseCase.getSharedFoldersByOwner(
-          user,
-          offset,
-          limit,
-          order,
-        ),
-      };
-    } catch (error) {
-      const err = error as Error;
-      Logger.error(
-        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
-          user.uuid
-        }, ${err.stack || 'No stack trace'}`,
+      return this.privateSharingUseCase.getItems(
+        parentPrivateSharingFolderId,
+        folderId,
+        user,
       );
+    } catch (error) {
+      let errorMessage = error.message;
 
-      throw error;
+      if (error instanceof InvalidPrivateFolderRoleError) {
+        res.status(HttpStatus.FORBIDDEN);
+      } else if (error instanceof InvalidChildFolderError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else {
+        Logger.error(
+          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+            user.uuid
+          }, message: ${error.message}, ${error.stack || 'No stack trace'}`,
+        );
+
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
     }
   }
 }

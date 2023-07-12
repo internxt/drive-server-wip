@@ -4,7 +4,7 @@ import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { FindOptions, Op } from 'sequelize';
 
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
@@ -42,6 +42,9 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
+  findAllByParentUuid(
+    parentUuid: FolderAttributes['uuid'],
+  ): Promise<Array<File> | []>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
 }
@@ -196,6 +199,17 @@ export class SequelizeFileRepository implements FileRepository {
       query.limit = limit;
     }
     const files = await this.fileModel.findAll(query);
+    return files.map((file) => {
+      return this.toDomain(file);
+    });
+  }
+
+  async findAllByParentUuid(
+    parentUuid: FolderAttributes['uuid'],
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      where: { folderUuid: parentUuid, deleted: false },
+    });
     return files.map((file) => {
       return this.toDomain(file);
     });

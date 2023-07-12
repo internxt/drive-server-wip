@@ -43,6 +43,9 @@ export interface FolderRepository {
     folderIds: FolderAttributes['id'][],
     update: Partial<Folder>,
   ): Promise<void>;
+  findAllByParentUuid(
+    parentUuid: FolderAttributes['uuid'],
+  ): Promise<Array<Folder> | []>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
 }
@@ -140,6 +143,16 @@ export class SequelizeFolderRepository implements FolderRepository {
       query.limit = limit;
     }
     const folders = await this.folderModel.findAll(query);
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findAllByParentUuid(
+    parentUuid: FolderAttributes['uuid'],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      where: { parentUuid: parentUuid, deleted: false },
+    });
+
     return folders.map((folder) => this.toDomain(folder));
   }
 
@@ -299,6 +312,33 @@ export class SequelizeFolderRepository implements FolderRepository {
           AND 
             fo.deleted = ${deleted}
       ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = ${folderId}
+    `);
+
+    return folder as FindInTreeResponse;
+  }
+
+  async findInTreeByUuid(
+    folderTreeRootUuid: string,
+    folderUuid: string,
+    deleted: boolean,
+  ): Promise<FindInTreeResponse | null> {
+    const [[folder]] = await this.folderModel.sequelize.query(`
+      WITH RECURSIVE rec AS (
+        SELECT parent_uuid, id, uuid, plain_name
+        FROM folders
+        WHERE
+            uuid = ${this.folderModel.sequelize.escape(folderTreeRootUuid)}
+          AND
+            deleted = ${deleted}
+      UNION
+        SELECT fo.parent_uuid, fo.id, fo.uuid, fo.plain_name
+        FROM folders fo
+        INNER JOIN rec r ON r.uuid = fo.parentUuid
+        WHERE
+            fo.deleted = ${deleted}
+      ) SELECT parent_uuid as parentUuid, id, uuid, plain_name as plainName FROM rec WHERE uuid = ${this.folderModel.sequelize.escape(
+        folderUuid,
+      )}
     `);
 
     return folder as FindInTreeResponse;
