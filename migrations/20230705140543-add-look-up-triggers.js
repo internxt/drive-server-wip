@@ -48,6 +48,7 @@ async function createInsertFolderTrigger(queryInterface) {
     CREATE TRIGGER insert_folder_to_look_up_table_after_folder_inserted
     AFTER INSERT ON folders
     FOR EACH ROW
+    WHEN (NEW.plain_name IS NOT NULL)
     EXECUTE FUNCTION insert_folder_to_look_up_table();
   `);
 }

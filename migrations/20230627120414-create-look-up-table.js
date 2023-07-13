@@ -16,7 +16,7 @@ module.exports = {
             },
             name: {
               type: Sequelize.STRING,
-              allowNull: true,
+              allowNull: false,
             },
             tokenized_name: {
               type: Sequelize.DataTypes.TSVECTOR,
