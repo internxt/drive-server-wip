@@ -51,6 +51,9 @@ export default () => ({
     drive: {
       url: process.env.DRIVE_API_URL,
     },
+    share: {
+      url: process.env.SHARE_DOMAINS,
+    },
   },
   mailer: {
     sandbox: process.env.SENDGRID_MODE_SANDBOX === 'true' || false,
