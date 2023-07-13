@@ -44,7 +44,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         to_tsquery(:partialName) query,
         nullif (ts_rank(lu."tokenized_name", query), 0) rank,
         SIMILARITY(:partialName, lu."name") similarity
-      WHERE  query @@ lu."tokenized_name" or similarity > 0
+      WHERE lu."user_id" = :userUuid AND (query @@ lu."tokenized_name" or similarity > 0)
       ORDER BY rank, similarity desc  nulls  last
       LIMIT 5 OFFSET :offset
   `;
