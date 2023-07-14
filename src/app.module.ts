@@ -48,6 +48,7 @@ import { PrivateShareModule } from './modules/private-share-folder/private-share
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
+        syncronize: true,
         replication: !configService.get('isDevelopment')
           ? configService.get('database.replication')
           : false,
