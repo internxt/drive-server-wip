@@ -3,7 +3,6 @@ import { Folder } from '../folder/folder.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
-import { Op, col } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -27,8 +26,6 @@ export class SequelizePrivateSharingRepository
   constructor(
     @InjectModel(PrivateSharingFolderModel)
     private privateSharingFolderModel: typeof PrivateSharingFolderModel,
-    @InjectModel(FolderModel)
-    private folderModel: typeof FolderModel,
   ) {}
   async findByOwner(
     userUuid: string,
@@ -40,16 +37,7 @@ export class SequelizePrivateSharingRepository
       where: {
         ownerId: userUuid,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
       order: orderBy,
       limit,
       offset,
@@ -68,16 +56,7 @@ export class SequelizePrivateSharingRepository
       where: {
         sharedWith: userUuid,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
       order: orderBy,
       limit,
       offset,

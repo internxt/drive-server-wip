@@ -24,21 +24,25 @@ export class PrivateSharingFolderModel
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
-  @BelongsTo(() => FolderModel, { foreignKey: 'folder_id' })
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'folderId',
+    targetKey: 'uuid',
+    constraints: false,
+  })
   folder: FolderModel;
 
   @ForeignKey(() => FolderModel)
   @Column({ type: DataType.UUIDV4, field: 'folder_id' })
   folderId: string;
 
-  @BelongsTo(() => UserModel, { foreignKey: 'owner_id' })
+  @BelongsTo(() => UserModel, { foreignKey: 'owner_id', targetKey: 'uuid' })
   owner: UserModel;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUIDV4, field: 'owner_id' })
   ownerId: string;
 
-  @BelongsTo(() => UserModel, { foreignKey: 'shared_with' })
+  @BelongsTo(() => UserModel, { foreignKey: 'shared_with', targetKey: 'uuid' })
   sharedWithUser: UserModel;
 
   @ForeignKey(() => UserModel)

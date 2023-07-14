@@ -57,7 +57,9 @@ export class FolderModel extends Model implements FolderAttributes {
   @BelongsTo(() => UserModel)
   user: UserModel;
 
-  @HasOne(() => PrivateSharingFolderModel, { sourceKey: 'uuid' })
+  @HasOne(() => PrivateSharingFolderModel, {
+    constraints: false,
+  })
   privateSharingFolder: PrivateSharingFolderModel;
 
   @Column
