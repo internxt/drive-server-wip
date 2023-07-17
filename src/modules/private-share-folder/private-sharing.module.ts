@@ -16,4 +16,4 @@ import { FolderModel } from '../folder/folder.repository';
   providers: [PrivateSharingUseCase, SequelizePrivateSharingRepository],
   exports: [],
 })
-export class PrivateShareModule {}
+export class PrivateSharingModule {}
