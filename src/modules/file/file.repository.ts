@@ -42,8 +42,12 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  findAllByParentUuid(
-    parentUuid: FolderAttributes['uuid'],
+  findAllByParentId(
+    parentUuid: FolderAttributes['id'],
+    deleted: FileAttributes['deleted'],
+    page: number,
+    perPage: number,
+    order: [string, string][],
   ): Promise<Array<File> | []>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
@@ -204,12 +208,25 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async findAllByParentUuid(
-    parentUuid: FolderAttributes['uuid'],
+  async findAllByParentId(
+    parentId: FolderAttributes['id'],
+    deleted: FileAttributes['deleted'],
+    page: number = null,
+    perPage: number = null,
+    order: [string, string][],
   ): Promise<Array<File> | []> {
-    const files = await this.fileModel.findAll({
-      where: { folderUuid: parentUuid, deleted: false },
-    });
+    const query: FindOptions = {
+      where: { folderId: parentId, deleted },
+      order,
+    };
+
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+    if (page && perPage) {
+      query.offset = offset;
+      query.limit = limit;
+    }
+
+    const files = await this.fileModel.findAll(query);
     return files.map((file) => {
       return this.toDomain(file);
     });
