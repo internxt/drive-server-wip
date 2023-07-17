@@ -7,6 +7,7 @@ import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { OrderBy } from 'src/common/order.type';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -128,8 +129,11 @@ export class PrivateSharingUseCase {
 
   async getItems(
     parentPrivateSharingFolderId: PrivateSharingFolder['id'],
-    folderUuid: Folder['uuid'],
+    folderId: Folder['id'],
     user: User,
+    page: number,
+    perPage: number,
+    order: [string, string][],
   ) {
     // Check if user has access to the parent private folder
     const privateSharingFolder = await this.privateSharingRespository.findById(
@@ -137,6 +141,7 @@ export class PrivateSharingUseCase {
     );
 
     const parentFolderUuid = privateSharingFolder.folderId;
+    const parentFolderId = privateSharingFolder.folder.id;
 
     const privateSharingFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderUuidAndUserUuid(
@@ -148,23 +153,36 @@ export class PrivateSharingUseCase {
       throw new InvalidPrivateFolderRoleError();
     }
 
+    const folder = await this.folderRespository.findById(folderId);
+
     // Check if folderUuid is a child of parentPrivateFolderId
-    const folder = await this.folderRespository.findInTreeByUuid(
-      parentFolderUuid,
-      folderUuid,
+    const folderFound = await this.folderRespository.findInTree(
+      parentFolderId,
+      folder.id,
+      folder.userId,
       false,
     );
 
-    if (!folder) {
+    if (!folderFound) {
       throw new InvalidChildFolderError();
     }
 
     // obtain items from the folder
-    const folders = await this.folderRespository.findAllByParentUuid(
-      folderUuid,
+    const folders = await this.folderRespository.findAllByParentId(
+      folderId,
+      false,
+      page,
+      perPage,
+      order,
     );
 
-    const files = await this.fileRespository.findAllByParentUuid(folderUuid);
+    const files = await this.fileRespository.findAllByParentId(
+      folderId,
+      false,
+      page,
+      perPage,
+      order,
+    );
 
     return {
       folders,

@@ -242,22 +242,50 @@ export class PrivateSharingController {
   @ApiOperation({
     summary: 'Get all items shared by a user',
   })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
   @ApiOkResponse({ description: 'Get all items shared by a user' })
   @ApiBearerAuth()
   async getSharedItems(
     @UserDecorator() user: User,
     @Param('privateSharingFolderId')
     parentPrivateSharingFolderId: PrivateSharingFolder['id'],
-    @Param('folderId') folderId: Folder['uuid'],
+    @Param('folderId') folderId: Folder['id'],
     @Res({ passthrough: true }) res: Response,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
   ): Promise<
     { folders: Folder[] | []; files: File[] | [] } | { error: string }
   > {
     try {
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
+
       return this.privateSharingUseCase.getItems(
         parentPrivateSharingFolderId,
         folderId,
         user,
+        page,
+        perPage,
+        order,
       );
     } catch (error) {
       let errorMessage = error.message;
