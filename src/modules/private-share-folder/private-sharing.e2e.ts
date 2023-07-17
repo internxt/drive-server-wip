@@ -8,13 +8,14 @@ import { AppModule } from '../../app.module';
 import { users } from '../../../seeders/20230308180046-test-users.js';
 import { ConfigService } from '@nestjs/config';
 import { Sign } from '../../middlewares/passport';
-
+import express from 'express';
+import { ExpressAdapter } from '@nestjs/platform-express';
 const user = users.testUser;
 
 describe('PrivateSharing module', () => {
   let app: INestApplication;
   let configService: ConfigService;
-  let expressInstance;
+  const server = express();
 
   function getToken(): string {
     return Sign(
@@ -42,12 +43,11 @@ describe('PrivateSharing module', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication(new ExpressAdapter(server));
     configService = moduleFixture.get<ConfigService>(ConfigService);
     app.useGlobalPipes(new ValidationPipe());
     app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
-    expressInstance = app.getHttpAdapter().getInstance();
   });
 
   afterAll(async () => {
@@ -55,21 +55,22 @@ describe('PrivateSharing module', () => {
   });
 
   it('/private-sharing/receive/folders (GET)', async () => {
-    return await request(expressInstance)
+    console.log('token', getToken());
+    return await request(app.getHttpServer())
       .get('/private-sharing/receive/folders')
       .set('Authorization', 'Bearer ' + getToken())
       .expect(HttpStatus.OK);
   });
 
   it('/private-sharing/sent/folders (GET)', async () => {
-    return await request(expressInstance)
+    return await request(app.getHttpAdapter())
       .get('/private-sharing/sent/folders')
       .set('Authorization', 'Bearer ' + getToken())
       .expect(HttpStatus.OK);
   });
 
   it('/private-sharing/receive/folders (GET)', async () => {
-    return await request(expressInstance)
+    return await request(app.getHttpAdapter())
       .get('/private-sharing/receive/folders')
       .set('Authorization', 'Bearer ' + getToken())
       .then((response) => {
