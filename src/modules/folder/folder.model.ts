@@ -28,7 +28,6 @@ export class FolderModel extends Model implements FolderAttributes {
   id: number;
 
   @Index
-  @ForeignKey(() => PrivateSharingFolderModel)
   @Column
   uuid: string;
 
@@ -65,8 +64,8 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   encryptVersion: '03-aes';
 
-  @Index
-  @Column
+  @Index('plain_name_index')
+  @Column({ field: 'plain_name' })
   plainName: string;
 
   @Default(false)
