@@ -31,4 +31,4 @@ import { PrivateSharingRoleModel } from './private-sharing-role.model';
   ],
   exports: [],
 })
-export class PrivateShareModule {}
+export class PrivateSharingModule {}

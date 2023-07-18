@@ -6,7 +6,6 @@ import { FolderModel } from '../folder/folder.model';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
-import { Op, col } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -43,16 +42,7 @@ export class SequelizePrivateSharingRepository
       where: {
         id,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
     });
 
     return privateFolder.get({ plain: true });
@@ -93,16 +83,7 @@ export class SequelizePrivateSharingRepository
       where: {
         ownerId: userUuid,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
       order: orderBy,
       limit,
       offset,
@@ -121,16 +102,7 @@ export class SequelizePrivateSharingRepository
       where: {
         sharedWith: userUuid,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
       order: orderBy,
       limit,
       offset,
