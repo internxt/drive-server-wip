@@ -27,7 +27,6 @@ export class PrivateSharingFolderModel
   @BelongsTo(() => FolderModel, {
     foreignKey: 'folderId',
     targetKey: 'uuid',
-    constraints: false,
   })
   folder: FolderModel;
 
