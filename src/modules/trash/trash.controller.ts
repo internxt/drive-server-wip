@@ -152,14 +152,17 @@ export class TrashController {
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach(({ email }: { email: string }) => {
-            const itemsToTrashEvent = new ItemsToTrashEvent(
-              moveItemsDto.items,
-              email,
-              clientId,
-            );
-            this.notificationService.add(itemsToTrashEvent);
-          });
+          members.forEach(
+            ({ email, uuid }: { email: string; uuid: string }) => {
+              const itemsToTrashEvent = new ItemsToTrashEvent(
+                moveItemsDto.items,
+                email,
+                clientId,
+                uuid,
+              );
+              this.notificationService.add(itemsToTrashEvent);
+            },
+          );
         })
         .catch((err) => {
           // no op
