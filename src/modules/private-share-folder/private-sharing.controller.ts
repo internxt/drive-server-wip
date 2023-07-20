@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -31,7 +30,6 @@ import { Pagination } from 'src/lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
-import { isInstance } from 'class-validator';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -121,7 +119,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('receive/folders')
+  @Get('shared-with-me/folders')
   @ApiOperation({
     summary: 'Get all folders shared with a user',
   })
@@ -178,7 +176,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('sent/folders')
+  @Get('shared-by-me/folders')
   @ApiOperation({
     summary: 'Get all folders shared by a user',
   })

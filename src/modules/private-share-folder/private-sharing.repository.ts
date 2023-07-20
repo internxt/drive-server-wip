@@ -7,19 +7,18 @@ import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
-import { Op, col } from 'sequelize';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 
 export interface PrivateSharingRepository {
   findByOwner(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
   findBySharedWith(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -42,22 +41,13 @@ export class SequelizePrivateSharingRepository
   ) {}
 
   async findById(
-    id: string,
+    id: PrivateSharingFolder['id'],
   ): Promise<PrivateSharingFolder & { folder: Folder }> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
         id,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
     });
 
     return privateFolder.get({ plain: true });
@@ -109,18 +99,18 @@ export class SequelizePrivateSharingRepository
   }
 
   async createPrivateFolderRole(
-    userId: string,
-    folderId: string,
-    roleUuid: string,
+    userUuid: User['uuid'],
+    folderId: Folder['uuid'],
+    roleUuid: PrivateSharingRole['id'],
   ) {
     await this.privateSharingFolderRole.create({
-      userId: userId,
+      userId: userUuid,
       folderId: folderId,
       roleId: roleUuid,
     });
   }
   async findByOwner(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -129,16 +119,7 @@ export class SequelizePrivateSharingRepository
       where: {
         ownerId: userUuid,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
       order: orderBy,
       limit,
       offset,
@@ -148,7 +129,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async findBySharedWith(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -157,16 +138,7 @@ export class SequelizePrivateSharingRepository
       where: {
         sharedWith: userUuid,
       },
-      include: [
-        {
-          model: this.folderModel,
-          required: true,
-          foreignKey: 'folderId',
-          on: {
-            uuid: { [Op.eq]: col('PrivateSharingFolderModel.folder_id') },
-          },
-        },
-      ],
+      include: [FolderModel],
       order: orderBy,
       limit,
       offset,
