@@ -19,7 +19,7 @@ import {
 } from '@nestjs/swagger';
 import {
   InvalidOwnerError,
-  InvalidRoleError,
+  RoleNotFoundError,
   PrivateSharingUseCase,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -77,14 +77,14 @@ export class PrivateSharingController {
     }
   }
 
-  @Put('update-role/:privateFolderRoleId')
+  @Put('update-role/:id')
   @ApiOperation({
     summary: 'Update role of a user on a folder',
   })
   @ApiOkResponse({ description: 'Update role of a user on a folder' })
   @ApiBearerAuth()
   async updateRole(
-    @Param('privateFolderRoleId')
+    @Param('id')
     privateFolderRoleId: PrivateSharingFolderRole['id'],
     @UserDecorator() user: User,
     @Body() dto: UpdatePrivilegesDto,
@@ -105,7 +105,7 @@ export class PrivateSharingController {
 
       if (error instanceof InvalidOwnerError) {
         res.status(HttpStatus.FORBIDDEN);
-      } else if (error instanceof InvalidRoleError) {
+      } else if (error instanceof RoleNotFoundError) {
         res.status(HttpStatus.BAD_REQUEST);
       } else {
         new Logger().error(
