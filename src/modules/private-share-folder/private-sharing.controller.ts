@@ -185,4 +185,58 @@ export class PrivateSharingController {
       throw error;
     }
   }
+
+  @Get('/folders')
+  @ApiOperation({
+    summary: 'Get all folders shared by a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all folders shared by/with a user' })
+  @ApiBearerAuth()
+  async getAllSharedFolders(
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ): Promise<Record<'sharedByMe' | 'sharedWithMe', Folder[]>> {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return {
+      sharedByMe: await this.privateSharingUseCase.getSharedFoldersByOwner(
+        user,
+        offset,
+        limit,
+        order,
+      ),
+
+      sharedWithMe:
+        await this.privateSharingUseCase.getSharedFoldersBySharedWith(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+    };
+  }
 }
