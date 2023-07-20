@@ -503,4 +503,19 @@ export class UserUseCases {
       email_support: 'mailto:hello@internxt.com',
     });
   }
+
+  async updateCredentials(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+    },
+  ): Promise<void> {
+    const { mnemonic, password } = newCredentials;
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password,
+    });
+  }
 }
