@@ -6,7 +6,7 @@ import {
   DataType,
   Default,
   ForeignKey,
-  HasOne,
+  HasMany,
   Index,
   Model,
   PrimaryKey,
@@ -28,7 +28,6 @@ export class FolderModel extends Model implements FolderAttributes {
   id: number;
 
   @Index
-  @ForeignKey(() => PrivateSharingFolderModel)
   @Column
   uuid: string;
 
@@ -57,7 +56,9 @@ export class FolderModel extends Model implements FolderAttributes {
   @BelongsTo(() => UserModel)
   user: UserModel;
 
-  @HasOne(() => PrivateSharingFolderModel, { sourceKey: 'uuid' })
+  @HasMany(() => PrivateSharingFolderModel, {
+    constraints: false,
+  })
   privateSharingFolder: PrivateSharingFolderModel;
 
   @Column
