@@ -46,7 +46,7 @@ export class FileUseCases {
     throw new Error('Method not implemented.');
   }
 
-  async deleteFilePermanently(file: File, userMock: User): Promise<void> {
+  async deleteFilePermanently(file: File, user: User): Promise<void> {
     throw new Error('Method not implemented.');
   }
 

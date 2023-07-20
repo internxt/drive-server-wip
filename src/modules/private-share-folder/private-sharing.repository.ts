@@ -9,13 +9,13 @@ import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.m
 
 export interface PrivateSharingRepository {
   findByOwner(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
   findBySharedWith(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -74,7 +74,7 @@ export class SequelizePrivateSharingRepository
     });
   }
   async findByOwner(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -93,7 +93,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async findBySharedWith(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],

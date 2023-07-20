@@ -6,7 +6,7 @@ import {
   DataType,
   Default,
   ForeignKey,
-  HasOne,
+  HasMany,
   Index,
   Model,
   PrimaryKey,
@@ -56,7 +56,7 @@ export class FolderModel extends Model implements FolderAttributes {
   @BelongsTo(() => UserModel)
   user: UserModel;
 
-  @HasOne(() => PrivateSharingFolderModel, {
+  @HasMany(() => PrivateSharingFolderModel, {
     constraints: false,
   })
   privateSharingFolder: PrivateSharingFolderModel;
@@ -64,8 +64,8 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   encryptVersion: '03-aes';
 
-  @Index('plain_name_index')
-  @Column({ field: 'plain_name' })
+  @Index
+  @Column
   plainName: string;
 
   @Default(false)

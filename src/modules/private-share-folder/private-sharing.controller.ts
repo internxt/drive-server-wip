@@ -72,7 +72,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('receive/folders')
+  @Get('shared-with-me/folders')
   @ApiOperation({
     summary: 'Get all folders shared with a user',
   })
@@ -129,7 +129,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('sent/folders')
+  @Get('shared-by-me/folders')
   @ApiOperation({
     summary: 'Get all folders shared by a user',
   })
