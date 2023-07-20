@@ -16,6 +16,7 @@ import {
   Request as RequestDecorator,
   Put,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -31,7 +32,6 @@ import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from './user.domain';
 import {
-  InvalidPasswordError,
   InvalidReferralCodeError,
   KeyServerNotFoundError,
   UserAlreadyRegisteredError,
@@ -179,7 +179,7 @@ export class UserController {
     } catch (err) {
       let errorMessage = err.message;
 
-      if (err instanceof InvalidPasswordError) {
+      if (err instanceof UnauthorizedException) {
         res.status(HttpStatus.BAD_REQUEST);
       } else if (err instanceof KeyServerNotFoundError) {
         res.status(HttpStatus.NOT_FOUND);

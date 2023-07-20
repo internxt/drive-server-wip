@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -52,14 +57,6 @@ export class UserAlreadyRegisteredError extends Error {
     super(`User ${email || ''} is already registered`);
 
     Object.setPrototypeOf(this, UserAlreadyRegisteredError.prototype);
-  }
-}
-
-export class InvalidPasswordError extends Error {
-  constructor() {
-    super('Invalid password');
-
-    Object.setPrototypeOf(this, InvalidPasswordError.prototype);
   }
 }
 
@@ -567,11 +564,11 @@ export class UserUseCases {
       updatePasswordDto;
 
     if (user.password.toString() !== currentPassword) {
-      throw new InvalidPasswordError();
+      throw new UnauthorizedException();
     }
     await this.userRepository.updateById(user.id, {
       password: newPassword,
-      hKey: new Buffer(newSalt),
+      hKey: Buffer.from(newSalt),
       mnemonic,
     });
 

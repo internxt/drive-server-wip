@@ -42,7 +42,7 @@ describe('PrivateSharingUseCase', () => {
     referrer: v4(),
     referralCode: v4(),
     credit: 0,
-    hKey: new Buffer('john doe hKey'),
+    hKey: Buffer.from('john doe hKey'),
     rootFolderId: 1,
     errorLoginCount: 0,
     isEmailActivitySended: 1,
