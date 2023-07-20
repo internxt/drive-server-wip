@@ -22,4 +22,10 @@ export class PrivateSharingRoleModel
 
   @Column
   role: string;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }

@@ -11,7 +11,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 
 export interface FileRepository {
-  deleteByFileId(fileId: any): unknown;
+  deleteByFileId(fileId: any): void;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -274,17 +274,13 @@ export class SequelizeFileRepository implements FileRepository {
   async getFilesWhoseFolderIdDoesNotExist(
     userId: File['userId'],
   ): Promise<number> {
-    const folders = await this.fileModel.findAll({
-      where: { userId },
-    });
-
-    const folderIds = folders.map((folder) => folder.folderId);
-
     const { count } = await this.fileModel.findAndCountAll({
       where: {
         folderId: {
           [Op.not]: null,
-          [Op.notIn]: folderIds,
+          [Op.notIn]: this.fileModel.findAll({
+            where: { userId },
+          }),
         },
         userId,
       },
