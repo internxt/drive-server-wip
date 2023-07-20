@@ -74,7 +74,7 @@ export class SequelizePrivateSharingRepository
 
   async updatePrivateFolderRole(
     privateFolderRole: PrivateSharingFolderRole,
-    roleId: string,
+    roleId: PrivateSharingRole['id'],
   ): Promise<void> {
     await this.privateSharingFolderRole.update(
       {
@@ -89,7 +89,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async findPrivateFolderRoleById(
-    privateFolderRoleId: string,
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
   ): Promise<PrivateSharingFolderRole> {
     const privateFolderRole = await this.privateSharingFolderRole.findByPk(
       privateFolderRoleId,

@@ -30,6 +30,7 @@ import { Pagination } from 'src/lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
+import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -83,7 +84,8 @@ export class PrivateSharingController {
   @ApiOkResponse({ description: 'Update role of a user on a folder' })
   @ApiBearerAuth()
   async updateRole(
-    @Param('privateFolderRoleId') privateFolderRoleId: string,
+    @Param('privateFolderRoleId')
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
     @UserDecorator() user: User,
     @Body() dto: UpdatePrivilegesDto,
     @Res({ passthrough: true }) res: Response,
