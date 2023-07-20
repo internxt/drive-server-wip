@@ -23,9 +23,15 @@ export class PrivateSharingPermissionModel
   id: string;
 
   @ForeignKey(() => PrivateSharingRoleModel)
-  @Column({ type: DataType.UUID, field: 'role_id' })
+  @Column({ type: DataType.UUID })
   roleId: string;
 
   @Column
   type: string;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }

@@ -14,7 +14,8 @@ import {
   UseGuards,
   Patch,
   Request as RequestDecorator,
-  BadRequestException,
+  Put,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -40,6 +41,13 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import {
+  RecoverAccountDto,
+  RequestRecoverAccountDto,
+} from './dto/recover-account.dto';
+import { verifyToken } from '../../lib/jwt';
+import getEnv from '../../config/configuration';
+import { validate } from 'uuid';
 
 @ApiTags('User')
 @Controller('users')
@@ -188,6 +196,96 @@ export class UserController {
       }
 
       return { error: errorMessage };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/recover-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Request account recovery',
+  })
+  @Public()
+  async requestAccountRecovery(
+    @Body() body: RequestRecoverAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      await this.userUseCases.sendAccountRecoveryEmail(body.email);
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { email: body.email },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Put('/recover-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Recover account',
+  })
+  @Public()
+  async recoverAccount(
+    @Query('token') token: string,
+    @Body() body: RecoverAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { mnemonic, password } = body;
+    let decodedContent: { payload?: { uuid?: string; action?: string } };
+
+    try {
+      const decoded = verifyToken(token, getEnv().secrets.jwt);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException();
+      }
+
+      decodedContent = decoded as {
+        payload?: { uuid?: string; action?: string };
+      };
+    } catch (err) {
+      throw new ForbiddenException();
+    }
+
+    if (
+      !decodedContent.payload ||
+      !decodedContent.payload.action ||
+      !decodedContent.payload.uuid ||
+      decodedContent.payload.action !== 'recover-account' ||
+      !validate(decodedContent.payload.uuid)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    const userUuid = decodedContent.payload.uuid;
+
+    try {
+      await this.userUseCases.updateCredentials(userUuid, {
+        mnemonic,
+        password,
+      });
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { uuid: userUuid },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
     }
   }
 }

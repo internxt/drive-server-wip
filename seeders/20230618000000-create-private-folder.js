@@ -3,6 +3,8 @@
 const { v4 } = require('uuid');
 const { Op, Sequelize } = require('sequelize');
 
+let sharingFolderOneId, sharingFolderTwoId;
+
 module.exports = {
   async up(queryInterface) {
     const users = await queryInterface.sequelize.query(
@@ -38,6 +40,8 @@ module.exports = {
       updated_at: new Date(),
     };
 
+    sharingFolderOneId = sharingFolderOne.id;
+
     const sharingFolderTwo = {
       id: v4(),
       folder_id: folderTwo.uuid,
@@ -47,6 +51,8 @@ module.exports = {
       created_at: new Date(),
       updated_at: new Date(),
     };
+
+    sharingFolderTwoId = sharingFolderTwo.id;
 
     await queryInterface.bulkInsert('private_sharing_folder', [
       sharingFolderOne,
@@ -58,7 +64,7 @@ module.exports = {
     await queryInterface.bulkDelete(
       'private_sharing_folder',
       {
-        id: { [Op.in]: [sharingFolderOne.id, sharingFolderTwo.id] },
+        id: { [Op.in]: [sharingFolderOneId, sharingFolderTwoId] },
       },
       {},
     );
