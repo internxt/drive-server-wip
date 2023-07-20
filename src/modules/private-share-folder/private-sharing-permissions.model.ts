@@ -28,4 +28,10 @@ export class PrivateSharingPermissionModel
 
   @Column
   type: string;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }

@@ -4,6 +4,8 @@ export interface PrivateSharingPermissionAttributes {
   id: string;
   roleId: Role['id'];
   type: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class PrivateSharingPermission
@@ -12,11 +14,15 @@ export class PrivateSharingPermission
   id: string;
   roleId: Role['id'];
   type: string;
+  createdAt: Date;
+  updatedAt: Date;
 
   constructor(attributes: PrivateSharingPermissionAttributes) {
     this.id = attributes.id;
     this.roleId = attributes.roleId;
     this.type = attributes.type;
+    this.createdAt = attributes.createdAt;
+    this.updatedAt = attributes.updatedAt;
   }
 
   static build(
@@ -30,6 +36,8 @@ export class PrivateSharingPermission
       id: this.id,
       roleId: this.roleId,
       type: this.type,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
     };
   }
 }
