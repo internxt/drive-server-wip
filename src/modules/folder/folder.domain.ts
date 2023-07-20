@@ -120,3 +120,4 @@ export class Folder implements FolderAttributes {
     };
   }
 }
+export { FolderAttributes };

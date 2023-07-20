@@ -11,6 +11,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 
 export interface FileRepository {
+  deleteByFileId(fileId: any): void;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -55,6 +56,10 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectModel(ThumbnailModel)
     private thumbnailModel: typeof ThumbnailModel,
   ) {}
+
+  async deleteByFileId(fileId: any): Promise<unknown> {
+    throw new Error('Method not implemented.');
+  }
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
