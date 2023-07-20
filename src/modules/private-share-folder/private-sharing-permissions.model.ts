@@ -29,9 +29,9 @@ export class PrivateSharingPermissionModel
   @Column
   type: string;
 
-  @Column({ field: 'created_at' })
+  @Column
   createdAt: Date;
 
-  @Column({ field: 'updated_at' })
+  @Column
   updatedAt: Date;
 }
