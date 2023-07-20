@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -16,7 +16,11 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { Sign, SignEmail } from '../../middlewares/passport';
+import {
+  Sign,
+  SignEmail,
+  SignWithCustomDuration,
+} from '../../middlewares/passport';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
@@ -466,5 +470,37 @@ export class UserUseCases {
     );
 
     return { token, newToken };
+  }
+
+  async sendAccountRecoveryEmail(email: User['email']) {
+    const mailer = new MailerService(this.configService);
+    const secret = this.configService.get('secrets.jwt');
+
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const recoverAccountToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: user.uuid,
+          action: 'recover-account',
+        },
+      },
+      secret,
+      '30m',
+    );
+
+    const url = `${process.env.HOST_DRIVE_WEB}/recover-account/${recoverAccountToken}`;
+    const recoverAccountTemplateId = this.configService.get(
+      'mailer.templates.recoverAccountEmail',
+    );
+
+    return mailer.send(user.email, recoverAccountTemplateId, {
+      verification_url: url,
+      email_support: 'mailto:hello@internxt.com',
+    });
   }
 }
