@@ -31,23 +31,23 @@ export class PrivateSharingFolderModel
   folder: FolderModel;
 
   @ForeignKey(() => FolderModel)
-  @Column({ type: DataType.UUIDV4, field: 'folder_id' })
+  @Column({ type: DataType.UUIDV4 })
   folderId: string;
 
   @BelongsTo(() => UserModel, { foreignKey: 'owner_id', targetKey: 'uuid' })
   owner: UserModel;
 
   @ForeignKey(() => UserModel)
-  @Column({ type: DataType.UUIDV4, field: 'owner_id' })
+  @Column({ type: DataType.UUIDV4 })
   ownerId: string;
 
   @BelongsTo(() => UserModel, { foreignKey: 'shared_with', targetKey: 'uuid' })
   sharedWithUser: UserModel;
 
   @ForeignKey(() => UserModel)
-  @Column({ type: DataType.UUIDV4, field: 'shared_with' })
+  @Column({ type: DataType.UUIDV4 })
   sharedWith: string;
 
-  @Column({ type: DataType.STRING, field: 'encryption_key' })
+  @Column({ type: DataType.STRING })
   encryptionKey: string;
 }

@@ -1,8 +1,12 @@
+import { User } from '../user/user.domain';
+import { Folder } from '../folder/folder.domain';
+import { PrivateSharingRole as Role } from './private-sharing-role.domain';
+
 export interface PrivateSharingFolderRolesAttributes {
   id: string;
-  folderId: string;
-  userId: string;
-  roleId: string;
+  folderId: Folder['uuid'];
+  userId: User['uuid'];
+  roleId: Role['id'];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -11,9 +15,9 @@ export class PrivateSharingFolderRole
   implements PrivateSharingFolderRolesAttributes
 {
   id: string;
-  folderId: string;
-  userId: string;
-  roleId: string;
+  folderId: Folder['uuid'];
+  userId: User['uuid'];
+  roleId: Role['id'];
   createdAt: Date;
   updatedAt: Date;
 
