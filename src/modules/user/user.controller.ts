@@ -12,6 +12,8 @@ import {
   ForbiddenException,
   NotFoundException,
   UseGuards,
+  Put,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -33,6 +35,13 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import {
+  RecoverAccountDto,
+  RequestRecoverAccountDto,
+} from './dto/recover-account.dto';
+import { verifyToken } from '../../lib/jwt';
+import getEnv from '../../config/configuration';
+import { validate } from 'uuid';
 
 @ApiTags('User')
 @Controller('users')
@@ -149,5 +158,34 @@ export class UserController {
   @ApiOkResponse({ description: 'Returns a new token' })
   refreshToken(@UserDecorator() user: User) {
     return this.userUseCases.getAuthTokens(user);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/recover-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Request account recovery',
+  })
+  @Public()
+  async requestAccountRecovery(
+    @Body() body: RequestRecoverAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      await this.userUseCases.sendAccountRecoveryEmail(body.email);
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { email: body.email },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
+    }
   }
 }
