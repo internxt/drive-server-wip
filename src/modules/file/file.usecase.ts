@@ -32,10 +32,23 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
+
+  getByUserExceptParents(arg: any): Promise<File[]> {
+    throw new Error('Method not implemented.');
+  }
+
+  getByFileIdAndUser(arg: any): Promise<File> {
+    throw new Error('Method not implemented.');
+  }
+
+  async deleteFilePermanently(file: File, user: User): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);

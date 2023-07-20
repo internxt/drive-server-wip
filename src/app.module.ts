@@ -19,6 +19,7 @@ import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
+import { PrivateSharingModule } from './modules/private-share-folder/private-sharing.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
     BridgeModule,
     DeviceModule,
     CryptoModule,
+    PrivateSharingModule,
     SharedWorkspaceModule,
     ThumbnailModule,
   ],

@@ -6,6 +6,7 @@ import {
   DataType,
   Default,
   ForeignKey,
+  HasMany,
   Index,
   Model,
   PrimaryKey,
@@ -13,6 +14,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.model';
 import { FolderAttributes } from './folder.attributes';
+import { PrivateSharingFolderModel } from '../private-share-folder/private-sharing-folder.model';
 
 @Table({
   underscored: true,
@@ -53,6 +55,11 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @BelongsTo(() => UserModel)
   user: UserModel;
+
+  @HasMany(() => PrivateSharingFolderModel, {
+    constraints: false,
+  })
+  privateSharingFolder: PrivateSharingFolderModel;
 
   @Column
   encryptVersion: '03-aes';
