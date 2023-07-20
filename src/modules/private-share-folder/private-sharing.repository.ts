@@ -37,7 +37,7 @@ export class SequelizePrivateSharingRepository
   ) {}
 
   async findById(
-    id: string,
+    id: PrivateSharingFolder['id'],
   ): Promise<PrivateSharingFolder & { folder: Folder }> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
