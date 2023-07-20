@@ -584,7 +584,7 @@ export class UserUseCases {
     }
 
     await this.keyServerRepository.update(user.id, {
-      encryptVersion: privateKey,
+      privateKey,
     });
   }
 }
