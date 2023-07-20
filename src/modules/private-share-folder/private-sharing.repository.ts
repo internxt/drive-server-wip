@@ -6,6 +6,7 @@ import { FolderModel } from '../folder/folder.model';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -63,12 +64,12 @@ export class SequelizePrivateSharingRepository
   }
 
   async createPrivateFolderRole(
-    userId: string,
-    folderId: string,
-    roleUuid: string,
+    userUuid: User['uuid'],
+    folderId: Folder['uuid'],
+    roleUuid: PrivateSharingRole['id'],
   ) {
     await this.privateSharingFolderRole.create({
-      userId: userId,
+      userId: userUuid,
       folderId: folderId,
       roleId: roleUuid,
     });
