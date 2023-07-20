@@ -26,12 +26,14 @@ export class RoleNotFoundError extends Error {
 export class InvalidPrivateFolderRoleError extends Error {
   constructor() {
     super('Private folder role not found');
+    Object.setPrototypeOf(this, InvalidPrivateFolderRoleError.prototype);
   }
 }
 
 export class InvalidChildFolderError extends Error {
   constructor() {
     super('Folder not found');
+    Object.setPrototypeOf(this, InvalidChildFolderError.prototype);
   }
 }
 @Injectable()
