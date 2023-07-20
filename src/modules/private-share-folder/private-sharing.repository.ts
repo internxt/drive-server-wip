@@ -3,16 +3,17 @@ import { Folder } from '../folder/folder.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
+import { User } from '../user/user.domain';
 
 export interface PrivateSharingRepository {
   findByOwner(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
   findBySharedWith(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -28,7 +29,7 @@ export class SequelizePrivateSharingRepository
     private privateSharingFolderModel: typeof PrivateSharingFolderModel,
   ) {}
   async findByOwner(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -47,7 +48,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async findBySharedWith(
-    userUuid: string,
+    userUuid: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],

@@ -1,6 +1,8 @@
+import { PrivateSharingRole as Role } from './private-sharing-role.domain';
+
 export interface PrivateSharingPermissionAttributes {
   id: string;
-  roleId: string;
+  roleId: Role['id'];
   type: string;
 }
 
@@ -8,7 +10,7 @@ export class PrivateSharingPermission
   implements PrivateSharingPermissionAttributes
 {
   id: string;
-  roleId: string;
+  roleId: Role['id'];
   type: string;
 
   constructor(attributes: PrivateSharingPermissionAttributes) {
