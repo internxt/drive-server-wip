@@ -499,8 +499,8 @@ export class UserUseCases {
     );
 
     return mailer.send(user.email, recoverAccountTemplateId, {
-      verification_url: url,
-      email_support: 'mailto:hello@internxt.com',
+      email,
+      recovery_url: url,
     });
   }
 
