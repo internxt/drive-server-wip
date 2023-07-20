@@ -21,7 +21,7 @@ import {
   InvalidChildFolderError,
   InvalidOwnerError,
   InvalidPrivateFolderRoleError,
-  InvalidRoleError,
+  RoleNotFoundError,
   PrivateSharingUseCase,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -33,7 +33,7 @@ import { Pagination } from 'src/lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
-import { isInstance } from 'class-validator';
+import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 
 @ApiTags('Private Sharing')
@@ -81,14 +81,15 @@ export class PrivateSharingController {
     }
   }
 
-  @Put('update-role/:privateFolderRoleId')
+  @Put('update-role/:id')
   @ApiOperation({
     summary: 'Update role of a user on a folder',
   })
   @ApiOkResponse({ description: 'Update role of a user on a folder' })
   @ApiBearerAuth()
   async updateRole(
-    @Param('privateFolderRoleId') privateFolderRoleId: string,
+    @Param('id')
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
     @UserDecorator() user: User,
     @Body() dto: UpdatePrivilegesDto,
     @Res({ passthrough: true }) res: Response,
@@ -108,7 +109,7 @@ export class PrivateSharingController {
 
       if (error instanceof InvalidOwnerError) {
         res.status(HttpStatus.FORBIDDEN);
-      } else if (error instanceof InvalidRoleError) {
+      } else if (error instanceof RoleNotFoundError) {
         res.status(HttpStatus.BAD_REQUEST);
       } else {
         new Logger().error(
@@ -124,7 +125,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('receive/folders')
+  @Get('shared-with-me/folders')
   @ApiOperation({
     summary: 'Get all folders shared with a user',
   })
@@ -181,7 +182,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('sent/folders')
+  @Get('shared-by-me/folders')
   @ApiOperation({
     summary: 'Get all folders shared by a user',
   })

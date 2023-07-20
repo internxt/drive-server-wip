@@ -12,12 +12,14 @@ import { OrderBy } from 'src/common/order.type';
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
+    Object.setPrototypeOf(this, InvalidOwnerError.prototype);
   }
 }
 
-export class InvalidRoleError extends Error {
+export class RoleNotFoundError extends Error {
   constructor() {
     super('Role not found');
+    Object.setPrototypeOf(this, RoleNotFoundError.prototype);
   }
 }
 
@@ -84,7 +86,7 @@ export class PrivateSharingUseCase {
     const role = await this.privateSharingRespository.findRoleById(roleId);
 
     if (!role) {
-      throw new InvalidRoleError();
+      throw new RoleNotFoundError();
     }
 
     await this.privateSharingRespository.updatePrivateFolderRole(
