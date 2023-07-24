@@ -82,6 +82,10 @@ export class UserUseCases {
     return this.userRepository.findByUsername(email);
   }
 
+  getUserByEmailAddress(email: UserAttributes['email']) {
+    return this.userRepository.findByEmail(email);
+  }
+
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
     return this.userRepository.findAllBy({ bridgeUser });
   }
