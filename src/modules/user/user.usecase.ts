@@ -509,13 +509,15 @@ export class UserUseCases {
     newCredentials: {
       mnemonic: string;
       password: string;
+      salt: string;
     },
   ): Promise<void> {
-    const { mnemonic, password } = newCredentials;
+    const { mnemonic, password, salt } = newCredentials;
 
     await this.userRepository.updateByUuid(userUuid, {
       mnemonic,
-      password,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
     });
   }
 }

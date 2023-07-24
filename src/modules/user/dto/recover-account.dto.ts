@@ -8,6 +8,12 @@ export class RecoverAccountDto {
   password: string;
 
   @ApiProperty({
+    example: 'some_salt',
+    description: 'Hashed password salt',
+  })
+  salt: string;
+
+  @ApiProperty({
     example: 'some_encrypted_mnemonic',
     description: 'User mnemonic encrypted with the new pass',
   })
