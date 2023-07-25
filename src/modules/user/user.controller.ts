@@ -201,7 +201,7 @@ export class UserController {
     @Body() body: RecoverAccountDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { mnemonic, password, salt } = body;
+    const { mnemonic, password, salt, privateKey } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
     try {
@@ -235,6 +235,7 @@ export class UserController {
         mnemonic,
         password,
         salt,
+        privateKey,
       });
     } catch (err) {
       new Logger().error(
