@@ -263,7 +263,7 @@ export class UserController {
     type: String,
   })
   async getPublicKeyByEmail(@Param('email') email: User['email']) {
-    const user = await this.userUseCases.getUserByEmailAddress(email);
+    const user = await this.userUseCases.getUserByUsername(email);
 
     if (!user) {
       throw new NotFoundException();
