@@ -27,7 +27,7 @@ export class RecoverAccountDto {
     example: 'encrypted private key',
     description: "User's private key encrypted with the user's plain password",
   })
-  @IsNotEmpty()
+  // @IsNotEmpty()
   privateKey: string;
 }
 
