@@ -9,6 +9,7 @@ interface KeyServerRepository {
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]>;
+  deleteByUserId(userId: UserAttributes['id']): Promise<void>;
 }
 
 @Injectable()
@@ -26,5 +27,9 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
       where: { userId },
       defaults: data,
     });
+  }
+
+  async deleteByUserId(userId: UserAttributes['id']): Promise<void> {
+    await this.model.destroy({ where: { userId } });
   }
 }
