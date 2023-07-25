@@ -22,6 +22,13 @@ export class RecoverAccountDto {
   })
   @IsNotEmpty()
   mnemonic: string;
+
+  @ApiProperty({
+    example: 'encrypted private key',
+    description: "User's private key encrypted with the user's plain password",
+  })
+  @IsNotEmpty()
+  privateKey: string;
 }
 
 export class RequestRecoverAccountDto {
