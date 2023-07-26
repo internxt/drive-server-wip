@@ -30,6 +30,7 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -76,6 +77,7 @@ export class UserUseCases {
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
+    private readonly keyServerRepository: SequelizeKeyServerRepository,
   ) {}
 
   getUserByUsername(email: string) {
@@ -509,13 +511,22 @@ export class UserUseCases {
     newCredentials: {
       mnemonic: string;
       password: string;
+      salt: string;
+      privateKey: string;
     },
   ): Promise<void> {
-    const { mnemonic, password } = newCredentials;
+    const { mnemonic, password, salt } = newCredentials;
 
     await this.userRepository.updateByUuid(userUuid, {
       mnemonic,
-      password,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
     });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    // TODO: Replace with updating the private key once AFS is ready.
+    // Requires to send the private key encrypted with the user's password
+    await this.keyServerRepository.deleteByUserId(user.id);
   }
 }

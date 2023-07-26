@@ -203,7 +203,7 @@ export class UserController {
     @Body() body: RecoverAccountDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { mnemonic, password } = body;
+    const { mnemonic, password, salt, privateKey } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
     try {
@@ -236,6 +236,8 @@ export class UserController {
       await this.userUseCases.updateCredentials(userUuid, {
         mnemonic,
         password,
+        salt,
+        privateKey,
       });
     } catch (err) {
       new Logger().error(

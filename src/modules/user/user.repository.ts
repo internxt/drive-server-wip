@@ -94,10 +94,7 @@ export class SequelizeUserRepository implements UserRepository {
     await this.modelUser.update(update, { where: { id }, transaction });
   }
 
-  async updateByUuid(
-    uuid: User['uuid'],
-    update: Partial<UserAttributes>,
-  ): Promise<void> {
+  async updateByUuid(uuid: User['uuid'], update: Partial<User>): Promise<void> {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
