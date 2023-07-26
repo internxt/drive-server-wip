@@ -10,6 +10,8 @@ import { PrivateSharingRole } from './private-sharing-role.domain';
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
+
+    Object.setPrototypeOf(this, InvalidOwnerError.prototype);
   }
 }
 @Injectable()
@@ -69,5 +71,31 @@ export class PrivateSharingUseCase {
       order,
     );
     return folders;
+  }
+
+  async createPrivateSharingFolder(
+    owner: User,
+    folderId: Folder['uuid'],
+    sharedWithId: User['uuid'],
+    encryptionKey: PrivateSharingFolder['encryptionKey'],
+  ) {
+    const folder = await this.folderRespository.findByUuid(folderId);
+
+    if (folder.userId !== owner.id) {
+      throw new InvalidOwnerError();
+    }
+
+    // TODO: validate if user has a role with share permissions over the folder
+    // it must be included when the permissions are defined
+
+    const privateFolder =
+      await this.privateSharingRespository.createPrivateFolder(
+        folderId,
+        owner.uuid,
+        sharedWithId,
+        encryptionKey,
+      );
+
+    return privateFolder;
   }
 }

@@ -3,10 +3,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
 import { UserModel } from './user.model';
-import {
-  FriendInvitationModel,
-  SequelizeSharedWorkspaceRepository,
-} from '../../shared-workspace/shared-workspace.repository';
+import { FriendInvitationModel, SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import {
   SequelizeUserReferralsRepository,
   UserReferralModel,
@@ -26,6 +23,7 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { SharedWorkspaceModule } from 'src/shared-workspace/shared-workspace.module';
 
 @Module({
   imports: [
@@ -37,6 +35,7 @@ import { KeyServerModule } from '../keyserver/key-server.module';
     ]),
     FolderModule,
     forwardRef(() => FileModule),
+    SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
   ],

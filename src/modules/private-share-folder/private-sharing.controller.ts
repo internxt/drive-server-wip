@@ -26,11 +26,16 @@ import { OrderBy } from 'src/common/order.type';
 import { Pagination } from 'src/lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
+import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
+import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
 export class PrivateSharingController {
-  constructor(private readonly privateSharingUseCase: PrivateSharingUseCase) {}
+  constructor(
+    private readonly privateSharingUseCase: PrivateSharingUseCase,
+    private readonly userUseCase: UserUseCases,
+  ) {}
 
   @Post('grant-privileges')
   @ApiOperation({
@@ -238,5 +243,50 @@ export class PrivateSharingController {
           order,
         ),
     };
+  }
+
+  @Post('/create')
+  @ApiOperation({
+    summary: 'Create a private folder',
+  })
+  @ApiOkResponse({ description: 'Create a private folder' })
+  @ApiBearerAuth()
+  async createPrivateFolder(
+    @UserDecorator() user: User,
+    @Body() CreatePrivateSharingDto: CreatePrivateSharingDto,
+  ) {
+    try {
+      const invitedUser = await this.userUseCase.getUserByUsername(
+        CreatePrivateSharingDto.email,
+      );
+
+      if (!invitedUser) {
+        new UserNotFoundError();
+      }
+
+      const privateSharingFolder =
+        await this.privateSharingUseCase.createPrivateSharingFolder(
+          user,
+          CreatePrivateSharingDto.folderId,
+          invitedUser.uuid,
+          CreatePrivateSharingDto.encryptionKey,
+        );
+
+      await this.privateSharingUseCase.grantPrivileges(
+        user,
+        invitedUser.uuid,
+        privateSharingFolder.id,
+        CreatePrivateSharingDto.roleId,
+      );
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/CREATE] Error while creating private folder by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 }
