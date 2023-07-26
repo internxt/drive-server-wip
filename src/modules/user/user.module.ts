@@ -3,7 +3,10 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
 import { UserModel } from './user.model';
-import { FriendInvitationModel, SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
+import {
+  FriendInvitationModel,
+  SequelizeSharedWorkspaceRepository,
+} from '../../shared-workspace/shared-workspace.repository';
 import {
   SequelizeUserReferralsRepository,
   UserReferralModel,
