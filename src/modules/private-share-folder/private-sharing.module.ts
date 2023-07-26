@@ -10,7 +10,7 @@ import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.m
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { UserModule } from '../user/user.module';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
-
+import { UserUseCases } from '../user/user.usecase';
 @Module({
   imports: [
     SequelizeModule.forFeature([
@@ -26,6 +26,7 @@ import { PrivateSharingRoleModel } from './private-sharing-role.model';
   controllers: [PrivateSharingController],
   providers: [
     PrivateSharingUseCase,
+    UserUseCases,
     SequelizePrivateSharingRepository,
     SequelizeUserRepository,
   ],
