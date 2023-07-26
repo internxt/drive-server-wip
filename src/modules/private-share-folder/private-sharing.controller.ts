@@ -77,7 +77,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Put('update-role/:id')
+  @Put('role/:id')
   @ApiOperation({
     summary: 'Update role of a user on a folder',
   })
