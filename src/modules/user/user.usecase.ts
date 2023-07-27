@@ -529,4 +529,54 @@ export class UserUseCases {
     // Requires to send the private key encrypted with the user's password
     await this.keyServerRepository.deleteByUserId(user.id);
   }
+
+  async resetUser(
+    user: User,
+    options: {
+      deleteFiles: boolean;
+      deleteFolders: boolean;
+      deleteShares: boolean;
+    },
+  ): Promise<void> {
+    if (options.deleteShares) {
+      await this.shareUseCases.deleteByUser(user);
+    }
+
+    if (options.deleteFolders) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const folders = await this.folderUseCases.getFoldersNotDeleted(
+          user.id,
+          opts,
+        );
+
+        await this.folderUseCases.deleteByUser(user, folders);
+
+        offset += folders.length;
+
+        done = folders.length < limit;
+      } while (!done);
+    }
+
+    if (options.deleteFiles) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const files = await this.fileUseCases.getFilesNotDeleted(user.id, opts);
+
+        await this.fileUseCases.deleteByUser(user, files);
+
+        offset += files.length;
+
+        done = files.length < limit;
+      } while (!done);
+    }
+  }
 }
