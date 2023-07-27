@@ -200,6 +200,7 @@ export class FileUseCases {
 
   async getFilesNotDeleted(
     userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
     options: {
       limit: number;
       offset: number;
@@ -210,6 +211,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.fileRepository.findAllNotDeleted(
       {
+        ...where,
         userId,
       },
       options.limit,
