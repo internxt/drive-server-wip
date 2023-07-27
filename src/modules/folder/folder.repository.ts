@@ -107,6 +107,25 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folder ? this.toDomain(folder) : null;
   }
 
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+  ): Promise<Folder[]> {
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        removed: {
+          [Op.eq]: false,
+        },
+      },
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
   async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {
     const folder = await this.folderModel.findOne({ where });
 
@@ -309,6 +328,8 @@ export class SequelizeFolderRepository implements FolderRepository {
       {
         removed: true,
         removedAt: new Date(),
+        deleted: true,
+        deletedAt: new Date(),
       },
       {
         where: {
