@@ -14,6 +14,7 @@ import {
   UseGuards,
   Put,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -40,6 +41,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import {
   RecoverAccountDto,
   RequestRecoverAccountDto,
+  ResetAccountDto,
 } from './dto/recover-account.dto';
 import { verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
@@ -200,10 +202,11 @@ export class UserController {
   @Public()
   async recoverAccount(
     @Query('token') token: string,
-    @Body() body: RecoverAccountDto,
+    @Query('reset') reset: string,
+    @Body() body: RecoverAccountDto | ResetAccountDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { mnemonic, password, salt, privateKey } = body;
+    const { mnemonic, password, salt } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
     try {
@@ -230,15 +233,33 @@ export class UserController {
       throw new ForbiddenException();
     }
 
+    if (reset && reset !== 'true' && reset !== 'false') {
+      throw new BadRequestException('Invalid value for parameter "reset"');
+    }
+
     const userUuid = decodedContent.payload.uuid;
 
     try {
-      await this.userUseCases.updateCredentials(userUuid, {
-        mnemonic,
-        password,
-        salt,
-        privateKey,
-      });
+      if (reset === 'true') {
+        await this.userUseCases.updateCredentials(
+          userUuid,
+          {
+            mnemonic,
+            password,
+            salt,
+          },
+          true,
+        );
+      } else {
+        const { privateKey } = body as RecoverAccountDto;
+
+        await this.userUseCases.updateCredentials(userUuid, {
+          mnemonic,
+          password,
+          salt,
+          privateKey,
+        });
+      }
     } catch (err) {
       new Logger().error(
         `[USERS/RECOVER_ACCOUNT] ERROR: ${

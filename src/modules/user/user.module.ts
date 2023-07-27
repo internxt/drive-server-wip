@@ -26,6 +26,7 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { ShareModule } from '../share/share.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { KeyServerModule } from '../keyserver/key-server.module';
     forwardRef(() => FileModule),
     HttpClientModule,
     KeyServerModule,
+    forwardRef(() => ShareModule),
   ],
   controllers: [UserController],
   providers: [
