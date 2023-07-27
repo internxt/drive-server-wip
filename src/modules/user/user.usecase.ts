@@ -571,7 +571,7 @@ export class UserUseCases {
 
         offset += folders.length;
 
-        done = folders.length < limit;
+        done = folders.length < limit || folders.length === 0;
       } while (!done);
     }
 
@@ -588,7 +588,7 @@ export class UserUseCases {
 
         offset += files.length;
 
-        done = files.length < limit;
+        done = files.length < limit || files.length === 0;
       } while (!done);
     }
   }
