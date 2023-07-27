@@ -562,8 +562,9 @@ export class UserUseCases {
 
       do {
         const opts = { limit, offset };
-        const folders = await this.folderUseCases.getFoldersNotDeleted(
+        const folders = await this.folderUseCases.getFolders(
           user.id,
+          { parentId: user.rootFolderId, removed: false },
           opts,
         );
 
@@ -582,7 +583,13 @@ export class UserUseCases {
 
       do {
         const opts = { limit, offset };
-        const files = await this.fileUseCases.getFilesNotDeleted(user.id, opts);
+        const files = await this.fileUseCases.getFilesNotDeleted(
+          user.id,
+          {
+            folderId: user.rootFolderId,
+          },
+          opts,
+        );
 
         await this.fileUseCases.deleteByUser(user, files);
 
