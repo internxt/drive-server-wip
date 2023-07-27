@@ -9,6 +9,9 @@ interface KeyServerRepository {
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]>;
+  findPublicKey(
+    userId: UserAttributes['id'],
+  ): Promise<KeyServerAttributes['publicKey']>;
   deleteByUserId(userId: UserAttributes['id']): Promise<void>;
 }
 
@@ -27,6 +30,13 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
       where: { userId },
       defaults: data,
     });
+  }
+
+  async findPublicKey(
+    userId: UserAttributes['id'],
+  ): Promise<KeyServerAttributes['publicKey']> {
+    const keyServer = await this.model.findOne({ where: { userId } });
+    return keyServer.publicKey;
   }
 
   async deleteByUserId(userId: UserAttributes['id']): Promise<void> {

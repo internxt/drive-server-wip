@@ -17,8 +17,10 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -250,5 +252,27 @@ export class UserController {
 
       return { error: 'Internal Server Error' };
     }
+  }
+
+  @Get('/public-key/:email')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get public key by email',
+  })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getPublicKeyByEmail(@Param('email') email: User['email']) {
+    const user = await this.userUseCases.getUserByUsername(email);
+
+    if (!user) {
+      throw new NotFoundException();
+    }
+
+    return {
+      publicKey: await this.keyServerUseCases.getPublicKey(user.id),
+    };
   }
 }
