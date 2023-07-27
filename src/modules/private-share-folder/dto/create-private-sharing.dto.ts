@@ -8,21 +8,21 @@ import { PrivateSharingFolderRole } from '../private-sharing-folder-roles.domain
 export class CreatePrivateSharingDto {
   @IsEmail()
   @IsNotEmpty()
-  @ApiProperty({ required: true })
+  @ApiProperty({ required: true, default: '' })
   email: User['email'];
 
   @IsUUID()
   @IsNotEmpty()
-  @ApiProperty({ required: true })
+  @ApiProperty({ required: true, default: '' })
   folderId: Folder['uuid'];
 
   @IsUUID()
   @IsNotEmpty()
-  @ApiProperty({ required: true })
+  @ApiProperty({ required: true, default: '' })
   roleId: PrivateSharingFolderRole['id'];
 
   @IsString()
   @IsNotEmpty()
-  @ApiProperty({ required: true })
+  @ApiProperty({ required: true, default: '' })
   encryptionKey: PrivateSharingFolder['encryptionKey'];
 }
