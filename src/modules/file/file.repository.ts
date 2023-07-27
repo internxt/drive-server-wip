@@ -104,6 +104,27 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
