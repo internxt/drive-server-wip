@@ -441,6 +441,25 @@ export class FolderUseCases {
     }
   }
 
+  async getFoldersNotDeleted(
+    userId: UserAttributes['id'],
+    options: {
+      limit: number;
+      offset: number;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    return this.folderRepository.findAllNotDeleted(
+      {
+        userId,
+      },
+      options.limit,
+      options.offset,
+    );
+  }
+
   decryptFolderName(folder: Folder): any {
     const decryptedName = this.cryptoService.decryptName(
       folder.name,
