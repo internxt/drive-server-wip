@@ -183,6 +183,10 @@ export class ShareUseCases {
     };
   }
 
+  async deleteByUser(user: User) {
+    await this.shareRepository.deleteByUserId(user.id);
+  }
+
   async deleteShareById(id: number, user: User) {
     const share = await this.shareRepository.findById(id);
     const shareIsOwned = await this.shareIsOwned(user, share);
