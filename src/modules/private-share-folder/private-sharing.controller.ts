@@ -27,15 +27,12 @@ import { Pagination } from 'src/lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
-import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
 export class PrivateSharingController {
-  constructor(
-    private readonly privateSharingUseCase: PrivateSharingUseCase,
-    private readonly userUseCase: UserUseCases,
-  ) {}
+  constructor(private readonly privateSharingUseCase: PrivateSharingUseCase) {}
 
   @Post('grant-privileges')
   @ApiOperation({
@@ -256,25 +253,17 @@ export class PrivateSharingController {
     @Body() CreatePrivateSharingDto: CreatePrivateSharingDto,
   ) {
     try {
-      const invitedUser = await this.userUseCase.getUserByUsername(
-        CreatePrivateSharingDto.email,
-      );
-
-      if (!invitedUser) {
-        new UserNotFoundError();
-      }
-
       const privateSharingFolder =
         await this.privateSharingUseCase.createPrivateSharingFolder(
           user,
           CreatePrivateSharingDto.folderId,
-          invitedUser.uuid,
+          CreatePrivateSharingDto.email,
           CreatePrivateSharingDto.encryptionKey,
         );
 
       await this.privateSharingUseCase.grantPrivileges(
         user,
-        invitedUser.uuid,
+        privateSharingFolder.userId,
         privateSharingFolder.id,
         CreatePrivateSharingDto.roleId,
       );
@@ -284,6 +273,29 @@ export class PrivateSharingController {
         `[PRIVATESHARING/CREATE] Error while creating private folder by user ${
           user.uuid
         }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
+  }
+
+  @Get('/roles')
+  @ApiOperation({
+    summary: 'Get all roles',
+  })
+  @ApiOkResponse({ description: 'Get all roles' })
+  @ApiBearerAuth()
+  async getAllRoles(): Promise<Record<'roles', PrivateSharingRole[]>> {
+    try {
+      return {
+        roles: await this.privateSharingUseCase.getAllRoles(),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETALLROLES] Error while getting all roles, ${
+          err.stack || 'No stack trace'
+        }`,
       );
 
       throw error;

@@ -56,6 +56,6 @@ import { SharedWorkspaceModule } from 'src/shared-workspace/shared-workspace.mod
     PaymentsService,
     NewsletterService,
   ],
-  exports: [UserUseCases],
+  exports: [UserUseCases, SequelizeUserRepository],
 })
 export class UserModule {}

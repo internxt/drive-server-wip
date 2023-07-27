@@ -6,6 +6,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { UserNotFoundError } from '../user/user.usecase';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -18,7 +19,7 @@ export class InvalidOwnerError extends Error {
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
-    private userRespository: SequelizeUserRepository,
+    private userRepository: SequelizeUserRepository,
     private folderRespository: SequelizeFolderRepository,
   ) {}
   async grantPrivileges(
@@ -76,10 +77,18 @@ export class PrivateSharingUseCase {
   async createPrivateSharingFolder(
     owner: User,
     folderId: Folder['uuid'],
-    sharedWithId: User['uuid'],
+    invatedUserEmail: User['email'],
     encryptionKey: PrivateSharingFolder['encryptionKey'],
   ) {
     const folder = await this.folderRespository.findByUuid(folderId);
+
+    const sharedWith = await this.userRepository.findByUsername(
+      invatedUserEmail,
+    );
+
+    if (!sharedWith) {
+      new UserNotFoundError();
+    }
 
     if (folder.userId !== owner.id) {
       throw new InvalidOwnerError();
@@ -92,10 +101,16 @@ export class PrivateSharingUseCase {
       await this.privateSharingRespository.createPrivateFolder(
         folderId,
         owner.uuid,
-        sharedWithId,
+        sharedWith.uuid,
         encryptionKey,
       );
 
     return privateFolder;
+  }
+
+  async getAllRoles(): Promise<PrivateSharingRole[]> {
+    const roles = await this.privateSharingRespository.getAllRoles();
+
+    return roles;
   }
 }

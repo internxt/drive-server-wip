@@ -7,6 +7,7 @@ import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { PrivateSharingRoleModel } from './private-sharing-role.model';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -34,6 +35,8 @@ export class SequelizePrivateSharingRepository
     private folderModel: typeof FolderModel,
     @InjectModel(PrivateSharingFolderRolesModel)
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
+    @InjectModel(PrivateSharingRoleModel)
+    private privateSharingRole: typeof PrivateSharingRoleModel,
   ) {}
 
   async findById(
@@ -126,5 +129,11 @@ export class SequelizePrivateSharingRepository
     });
 
     return privateFolder.get({ plain: true });
+  }
+
+  async getAllRoles(): Promise<PrivateSharingRole[]> {
+    const roles = await this.privateSharingRole.findAll();
+
+    return roles.map((role) => role.get({ plain: true }));
   }
 }
