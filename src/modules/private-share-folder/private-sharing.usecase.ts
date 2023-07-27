@@ -7,7 +7,6 @@ import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
-import { OrderBy } from 'src/common/order.type';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -156,6 +155,13 @@ export class PrivateSharingUseCase {
     if (!privateSharingFolderRole) {
       throw new InvalidPrivateFolderRoleError();
     }
+    const ownerUser = await this.userRespository.findByUuid(
+      privateSharingFolder.id,
+    );
+    const ownerCredentials = {
+      bridgeUser: ownerUser.bridgeUser,
+      bridgePass: ownerUser.userId,
+    };
 
     const folder = await this.folderRespository.findById(folderId);
 
@@ -191,6 +197,7 @@ export class PrivateSharingUseCase {
     return {
       folders,
       files,
+      ownerCredentials,
     };
   }
 }
