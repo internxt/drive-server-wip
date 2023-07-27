@@ -267,6 +267,8 @@ export class PrivateSharingController {
         privateSharingFolder.id,
         CreatePrivateSharingDto.roleId,
       );
+
+      return { message: 'Private folder created'}
     } catch (error) {
       const err = error as Error;
       Logger.error(
