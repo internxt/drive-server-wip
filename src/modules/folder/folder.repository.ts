@@ -328,6 +328,8 @@ export class SequelizeFolderRepository implements FolderRepository {
       {
         removed: true,
         removedAt: new Date(),
+        deleted: true,
+        deletedAt: new Date(),
       },
       {
         where: {
