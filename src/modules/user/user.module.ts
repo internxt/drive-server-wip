@@ -30,6 +30,7 @@ import {
   KeyServerModel,
   SequelizeKeyServerRepository,
 } from '../keyserver/key-server.repository';
+import { CryptoModule } from 'src/externals/crypto/crypto.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import {
     forwardRef(() => FileModule),
     HttpClientModule,
     KeyServerModule,
+    CryptoModule,
   ],
   controllers: [UserController],
   providers: [

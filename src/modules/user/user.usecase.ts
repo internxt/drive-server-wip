@@ -560,28 +560,19 @@ export class UserUseCases {
     user: User,
     updatePasswordDto: UpdatePasswordDto,
   ): Promise<void> {
-    const { currentPassword, newPassword, newSalt, mnemonic, privateKey } =
-      updatePasswordDto;
+    const { newPassword, newSalt, mnemonic, privateKey } = updatePasswordDto;
 
-    if (user.password.toString() !== currentPassword) {
-      throw new UnauthorizedException();
-    }
     await this.userRepository.updateById(user.id, {
       password: newPassword,
       hKey: Buffer.from(newSalt),
       mnemonic,
     });
 
-    const [keyServer] = await this.keyServerRepository.findUserKeysOrCreate(
-      user.id,
-      {
-        encryptVersion: privateKey,
-      },
-    );
-
-    if (!keyServer) {
-      throw new KeyServerNotFoundError();
-    }
+    await this.keyServerRepository.findUserKeysOrCreate(user.id, {
+      userId: user.id,
+      privateKey: privateKey,
+      encryptVersion: updatePasswordDto.encryptVersion,
+    });
 
     await this.keyServerRepository.update(user.id, {
       privateKey,

@@ -48,6 +48,7 @@ import {
 import { verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 
 @ApiTags('User')
 @Controller('users')
@@ -56,6 +57,7 @@ export class UserController {
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -172,9 +174,33 @@ export class UserController {
     @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
     @Res({ passthrough: true }) res: Response,
+    @UserDecorator() user: User,
   ) {
     try {
-      await this.userUseCases.updatePassword(req.user, updatePasswordDto);
+      const currentPassword = await this.cryptoService.decryptText(
+        updatePasswordDto.currentPassword,
+      );
+      const newPassword = await this.cryptoService.decryptText(
+        updatePasswordDto.newPassword,
+      );
+      const newSalt = await this.cryptoService.decryptText(
+        updatePasswordDto.newSalt,
+      );
+
+      const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
+
+      if (user.password.toString() !== currentPassword) {
+        throw new UnauthorizedException();
+      }
+
+      await this.userUseCases.updatePassword(req.user, {
+        currentPassword,
+        newPassword,
+        newSalt,
+        mnemonic,
+        privateKey,
+        encryptVersion,
+      });
       return { status: 'success' };
     } catch (err) {
       let errorMessage = err.message;
