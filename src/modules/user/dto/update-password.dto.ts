@@ -36,4 +36,11 @@ export class UpdatePasswordDto {
     description: 'New private key',
   })
   privateKey: string;
+
+  @IsString()
+  @ApiProperty({
+    example: 'encryptVersion',
+    description: 'Encrypt version',
+  })
+  encryptVersion: string;
 }
