@@ -7,6 +7,8 @@ import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { UserModel } from '../user/user.model';
+import { QueryTypes } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -47,6 +49,23 @@ export class SequelizePrivateSharingRepository
     });
 
     return privateFolder.get({ plain: true });
+  }
+
+  async findByFolderIdAndOwnerId(
+    folderId: Folder['uuid'],
+    ownerId: User['uuid'],
+  ): Promise<PrivateSharingFolder & { folder: Folder }> {
+    console.log('folderId', folderId);
+    console.log('ownerId', ownerId);
+    const privateFolder = await this.privateSharingFolderModel.findOne({
+      where: {
+        folderId,
+        ownerId,
+      },
+      include: [FolderModel],
+    });
+
+    return privateFolder?.get({ plain: true });
   }
 
   async create(
@@ -110,5 +129,29 @@ export class SequelizePrivateSharingRepository
     });
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
+  }
+
+  async findSharedUsersByFolderUuids(
+    folderUuids: string[],
+  ): Promise<(User & { sharedFrom: string })[]> {
+    const users = await this.privateSharingFolderModel.sequelize.query(
+      `
+      SELECT DISTINCT "users"."avatar", "users"."id", "users"."uuid", "users"."email", "users"."name", "users"."lastname", "folders"."uuid" AS "grantedFrom", "folders"."plain_name" as "grantedFromPlainName","roles"."role" as "roleName", "roles"."id" as "roleId"
+      FROM "users"
+      INNER JOIN "private_sharing_folder_roles"
+      ON "users"."uuid" = "private_sharing_folder_roles"."user_id"
+      INNER JOIN "folders"
+      ON "private_sharing_folder_roles"."folder_id" = "folders"."uuid"
+      INNER JOIN "roles"
+      ON "private_sharing_folder_roles"."role_id" = "roles"."id"
+      WHERE "folders"."uuid" IN (:folderUuids)
+      `,
+      {
+        replacements: { folderUuids },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return users as (User & { sharedFrom: string })[];
   }
 }
