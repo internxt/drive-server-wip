@@ -7,7 +7,6 @@ import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { UserModel } from '../user/user.model';
 import { QueryTypes } from 'sequelize';
 
 export interface PrivateSharingRepository {
@@ -133,6 +132,9 @@ export class SequelizePrivateSharingRepository
 
   async findSharedUsersByFolderUuids(
     folderUuids: string[],
+    offset: number,
+    limit: number,
+    order?: [string, string][],
   ): Promise<(User & { sharedFrom: string })[]> {
     const users = await this.privateSharingFolderModel.sequelize.query(
       `
@@ -145,9 +147,12 @@ export class SequelizePrivateSharingRepository
       INNER JOIN "roles"
       ON "private_sharing_folder_roles"."role_id" = "roles"."id"
       WHERE "folders"."uuid" IN (:folderUuids)
+      ${order ? `ORDER BY "users"."${order[0][0]}" ${order[0][1]}` : ''}
+      LIMIT :limit
+      OFFSET :offset
       `,
       {
-        replacements: { folderUuids },
+        replacements: { folderUuids, limit, offset },
         type: QueryTypes.SELECT,
       },
     );
