@@ -290,6 +290,10 @@ export class SequelizeShareRepository implements ShareRepository {
     return shares.map(this.toDomain.bind(this));
   }
 
+  async deleteByUserId(userId: User['id']): Promise<void> {
+    await this.shareModel.destroy({ where: { userId } });
+  }
+
   private toDomain(model: ShareModel): Share {
     let item: File | Folder = null;
     if (model.isFolder) {

@@ -27,6 +27,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
 import { SharedWorkspaceModule } from 'src/shared-workspace/shared-workspace.module';
+import { ShareModule } from '../share/share.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { SharedWorkspaceModule } from 'src/shared-workspace/shared-workspace.mod
     SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
+    forwardRef(() => ShareModule),
   ],
   controllers: [UserController],
   providers: [
