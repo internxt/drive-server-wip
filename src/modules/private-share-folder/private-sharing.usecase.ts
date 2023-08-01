@@ -70,4 +70,35 @@ export class PrivateSharingUseCase {
     );
     return folders;
   }
+
+  async getSharedWithByFolderId(
+    user: User,
+    folderId: Folder['uuid'],
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ) {
+    const privateSharingFolder =
+      await this.privateSharingRespository.findByFolderIdAndOwnerId(
+        folderId,
+        user.uuid,
+      );
+
+    if (!privateSharingFolder) {
+      throw new Error('Folder not found');
+    }
+
+    const parentFolders = await this.folderRespository.findAllParentsUuid(
+      folderId,
+    );
+
+    const parentFoldersIds = parentFolders.map((folder) => folder.uuid);
+
+    const users =
+      await this.privateSharingRespository.findSharedUsersByFolderUuids(
+        parentFoldersIds,
+      );
+
+    return users;
+  }
 }

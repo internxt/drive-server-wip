@@ -4,6 +4,7 @@ import {
   Get,
   HttpStatus,
   Logger,
+  Param,
   Post,
   Query,
   Res,
@@ -238,5 +239,66 @@ export class PrivateSharingController {
           order,
         ),
     };
+  }
+
+  @Get('shared-with/by-folder-id/:folderId')
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Get all users that have access to a folder',
+  })
+  @ApiOperation({
+    summary: 'Get all users that have access to a folder',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  async getSharedWithByFolderId(
+    @UserDecorator() user: User,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+    @Query('orderBy') orderBy: OrderBy,
+    @Param('folderId') folderId: string,
+  ): Promise<Record<'users', User[]>> {
+    try {
+      const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
+
+      return {
+        users: await this.privateSharingUseCase.getSharedWithByFolderId(
+          user,
+          folderId,
+          offset,
+          limit,
+          order,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
   }
 }
