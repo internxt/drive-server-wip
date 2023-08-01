@@ -97,6 +97,9 @@ export class PrivateSharingUseCase {
     const users =
       await this.privateSharingRespository.findSharedUsersByFolderUuids(
         parentFoldersIds,
+        offset,
+        limit,
+        order,
       );
 
     return users;
