@@ -1,4 +1,4 @@
-import { sign, SignOptions } from 'jsonwebtoken';
+import { sign, SignOptions, verify } from 'jsonwebtoken';
 
 export function generateJWT(
   payload: Record<string, unknown>,
@@ -16,4 +16,8 @@ export function generateJWT(
       expiresIn: duration,
     });
   }
+}
+
+export function verifyToken(token: string, secret: string) {
+  return verify(token, secret);
 }

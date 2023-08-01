@@ -31,6 +31,8 @@ import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
+import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -229,6 +231,120 @@ export class PrivateSharingController {
         `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
           user.uuid
         }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
+  }
+
+  @Get('/folders')
+  @ApiOperation({
+    summary: 'Get all folders shared by a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all folders shared by/with a user' })
+  @ApiBearerAuth()
+  async getAllSharedFolders(
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ): Promise<Record<'sharedByMe' | 'sharedWithMe', Folder[]>> {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return {
+      sharedByMe: await this.privateSharingUseCase.getSharedFoldersByOwner(
+        user,
+        offset,
+        limit,
+        order,
+      ),
+
+      sharedWithMe:
+        await this.privateSharingUseCase.getSharedFoldersBySharedWith(
+          user,
+          offset,
+          limit,
+          order,
+        ),
+    };
+  }
+
+  @Post('/create')
+  @ApiOperation({
+    summary: 'Create a private folder',
+  })
+  @ApiOkResponse({ description: 'Create a private folder' })
+  @ApiBearerAuth()
+  async createPrivateFolder(
+    @UserDecorator() user: User,
+    @Body() CreatePrivateSharingDto: CreatePrivateSharingDto,
+  ) {
+    try {
+      const privateSharingFolder =
+        await this.privateSharingUseCase.createPrivateSharingFolder(
+          user,
+          CreatePrivateSharingDto.folderId,
+          CreatePrivateSharingDto.email,
+          CreatePrivateSharingDto.encryptionKey,
+        );
+
+      await this.privateSharingUseCase.grantPrivileges(
+        user,
+        privateSharingFolder.userId,
+        privateSharingFolder.id,
+        CreatePrivateSharingDto.roleId,
+      );
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/CREATE] Error while creating private folder by user ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
+  }
+
+  @Get('/roles')
+  @ApiOperation({
+    summary: 'Get all roles',
+  })
+  @ApiOkResponse({ description: 'Get all roles' })
+  @ApiBearerAuth()
+  async getAllRoles(): Promise<Record<'roles', PrivateSharingRole[]>> {
+    try {
+      return {
+        roles: await this.privateSharingUseCase.getAllRoles(),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETALLROLES] Error while getting all roles, ${
+          err.stack || 'No stack trace'
+        }`,
       );
 
       throw error;

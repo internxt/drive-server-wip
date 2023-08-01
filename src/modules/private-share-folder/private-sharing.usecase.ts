@@ -6,6 +6,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { UserNotFoundError } from '../user/user.usecase';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -18,13 +19,15 @@ export class RoleNotFoundError extends Error {
   constructor() {
     super('Role not found');
     Object.setPrototypeOf(this, RoleNotFoundError.prototype);
+
+    Object.setPrototypeOf(this, InvalidOwnerError.prototype);
   }
 }
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
-    private userRespository: SequelizeUserRepository,
+    private userRepository: SequelizeUserRepository,
     private folderRespository: SequelizeFolderRepository,
   ) {}
   async grantPrivileges(
@@ -112,5 +115,45 @@ export class PrivateSharingUseCase {
       order,
     );
     return folders;
+  }
+
+  async createPrivateSharingFolder(
+    owner: User,
+    folderId: Folder['uuid'],
+    invatedUserEmail: User['email'],
+    encryptionKey: PrivateSharingFolder['encryptionKey'],
+  ) {
+    const folder = await this.folderRespository.findByUuid(folderId);
+
+    const sharedWith = await this.userRepository.findByUsername(
+      invatedUserEmail,
+    );
+
+    if (!sharedWith) {
+      new UserNotFoundError();
+    }
+
+    if (folder.userId !== owner.id) {
+      throw new InvalidOwnerError();
+    }
+
+    // TODO: validate if user has a role with share permissions over the folder
+    // it must be included when the permissions are defined
+
+    const privateFolder =
+      await this.privateSharingRespository.createPrivateFolder(
+        folderId,
+        owner.uuid,
+        sharedWith.uuid,
+        encryptionKey,
+      );
+
+    return privateFolder;
+  }
+
+  async getAllRoles(): Promise<PrivateSharingRole[]> {
+    const roles = await this.privateSharingRespository.getAllRoles();
+
+    return roles;
   }
 }

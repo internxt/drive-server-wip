@@ -27,6 +27,7 @@ export class NotificationListener {
       payload: event.payload,
       email: event.email,
       clientId: event.clientId,
+      userId: event.userId,
     };
     const res = await this.http
       .post(apiNotificationURL, eventData, {

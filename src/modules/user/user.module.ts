@@ -26,6 +26,7 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { SharedWorkspaceModule } from 'src/shared-workspace/shared-workspace.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { KeyServerModule } from '../keyserver/key-server.module';
     ]),
     FolderModule,
     forwardRef(() => FileModule),
+    SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
   ],
@@ -54,6 +56,6 @@ import { KeyServerModule } from '../keyserver/key-server.module';
     PaymentsService,
     NewsletterService,
   ],
-  exports: [UserUseCases],
+  exports: [UserUseCases, SequelizeUserRepository],
 })
 export class UserModule {}

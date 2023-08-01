@@ -34,6 +34,7 @@ import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
+import getEnv from '../../config/configuration';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -45,6 +46,15 @@ export class ShareController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
   ) {}
+
+  @Get('/domains')
+  @Public()
+  @ApiOkResponse({
+    description: 'Get the domains for the sharing links',
+  })
+  getDomains() {
+    return { list: getEnv().apis.share.url.split(',') };
+  }
 
   @Get('/list')
   @HttpCode(200)

@@ -10,7 +10,7 @@ export class User implements UserAttributes {
   password: string;
   mnemonic: string;
   rootFolderId: number;
-  hKey: Buffer;
+  hKey: Buffer | string;
   secret_2FA: string;
   errorLoginCount: number;
   isEmailActivitySended: number;

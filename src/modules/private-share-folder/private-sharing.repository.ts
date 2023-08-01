@@ -146,4 +146,26 @@ export class SequelizePrivateSharingRepository
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
   }
+
+  async createPrivateFolder(
+    folderId: Folder['uuid'],
+    ownerUuid: User['uuid'],
+    sharedWithUuid: User['uuid'],
+    encryptionKey: PrivateSharingFolder['encryptionKey'],
+  ) {
+    const privateFolder = await this.privateSharingFolderModel.create({
+      folderId,
+      ownerId: ownerUuid,
+      sharedWith: sharedWithUuid,
+      encryptionKey,
+    });
+
+    return privateFolder.get({ plain: true });
+  }
+
+  async getAllRoles(): Promise<PrivateSharingRole[]> {
+    const roles = await this.privateSharingRole.findAll();
+
+    return roles.map((role) => role.get({ plain: true }));
+  }
 }

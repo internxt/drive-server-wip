@@ -22,3 +22,11 @@ export function Sign(payload: object, secret: string, expires = false): string {
 
   return token;
 }
+
+export function SignWithCustomDuration(
+  payload: object,
+  secret: string,
+  expiresIn: string,
+): string {
+  return jwt.sign(payload, secret, { expiresIn });
+}

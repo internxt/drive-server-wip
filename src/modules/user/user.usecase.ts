@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -16,7 +16,11 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { Sign, SignEmail } from '../../middlewares/passport';
+import {
+  Sign,
+  SignEmail,
+  SignWithCustomDuration,
+} from '../../middlewares/passport';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
@@ -26,6 +30,7 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -46,6 +51,13 @@ export class UserAlreadyRegisteredError extends Error {
     super(`User ${email || ''} is already registered`);
 
     Object.setPrototypeOf(this, UserAlreadyRegisteredError.prototype);
+  }
+}
+
+export class UserNotFoundError extends Error {
+  constructor() {
+    super('User not found');
+    Object.setPrototypeOf(this, UserNotFoundError.prototype);
   }
 }
 
@@ -72,6 +84,7 @@ export class UserUseCases {
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
+    private readonly keyServerRepository: SequelizeKeyServerRepository,
   ) {}
 
   getUserByUsername(email: string) {
@@ -466,5 +479,61 @@ export class UserUseCases {
     );
 
     return { token, newToken };
+  }
+
+  async sendAccountRecoveryEmail(email: User['email']) {
+    const mailer = new MailerService(this.configService);
+    const secret = this.configService.get('secrets.jwt');
+
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const recoverAccountToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: user.uuid,
+          action: 'recover-account',
+        },
+      },
+      secret,
+      '30m',
+    );
+
+    const url = `${process.env.HOST_DRIVE_WEB}/recover-account/${recoverAccountToken}`;
+    const recoverAccountTemplateId = this.configService.get(
+      'mailer.templates.recoverAccountEmail',
+    );
+
+    return mailer.send(user.email, recoverAccountTemplateId, {
+      email,
+      recovery_url: url,
+    });
+  }
+
+  async updateCredentials(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+      salt: string;
+      privateKey: string;
+    },
+  ): Promise<void> {
+    const { mnemonic, password, salt } = newCredentials;
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    // TODO: Replace with updating the private key once AFS is ready.
+    // Requires to send the private key encrypted with the user's password
+    await this.keyServerRepository.deleteByUserId(user.id);
   }
 }
