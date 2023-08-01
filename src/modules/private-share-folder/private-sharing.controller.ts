@@ -263,12 +263,12 @@ export class PrivateSharingController {
 
       await this.privateSharingUseCase.grantPrivileges(
         user,
-        privateSharingFolder.userId,
+        privateSharingFolder.sharedWith,
         privateSharingFolder.id,
         CreatePrivateSharingDto.roleId,
       );
 
-      return { message: 'Private folder created'}
+      return { message: 'Private folder created' };
     } catch (error) {
       const err = error as Error;
       Logger.error(
