@@ -1,4 +1,4 @@
-name: Pre build ( Helth check )
+name: Pre build ( Health check )
 on:
     push:
         branches:
