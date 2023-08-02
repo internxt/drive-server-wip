@@ -54,8 +54,6 @@ export class SequelizePrivateSharingRepository
     folderId: Folder['uuid'],
     ownerId: User['uuid'],
   ): Promise<PrivateSharingFolder & { folder: Folder }> {
-    console.log('folderId', folderId);
-    console.log('ownerId', ownerId);
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
         folderId,

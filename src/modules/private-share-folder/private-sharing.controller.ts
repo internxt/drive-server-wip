@@ -301,4 +301,33 @@ export class PrivateSharingController {
       throw error;
     }
   }
+
+  @Get('/by-folder-id/:folderId')
+  @ApiOperation({
+    summary: 'Get Private Shared folder by folder id',
+  })
+  @ApiOkResponse({ description: 'Get Private Shared folder by folder id' })
+  @ApiBearerAuth()
+  async getPrivateSharedFolderByFolderId(
+    @UserDecorator() user: User,
+    @Query('folderId') folderId: string,
+  ) {
+    try {
+      return {
+        data: await this.privateSharingUseCase.getPrivateSharedFolderByFolderId(
+          user,
+          folderId,
+        ),
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[PRIVATESHARING/GETBYFOLDERID] Error while getting private shared folder by folder id ${
+          user.uuid
+        }, ${err.stack || 'No stack trace'}`,
+      );
+
+      throw error;
+    }
+  }
 }
