@@ -183,8 +183,23 @@ export class PrivateSharingUseCase {
     const users =
       await this.privateSharingRespository.findSharedUsersByFolderUuids(
         parentFoldersIds,
+        offset,
+        limit,
+        order,
       );
 
     return users;
+  }
+
+  async getPrivateSharedFolderByFolderId(
+    user: User,
+    folderId: Folder['uuid'],
+  ): Promise<PrivateSharingFolder> {
+    const privateFolder =
+      await this.privateSharingRespository.findByFolderIdAndOwnerId(
+        folderId,
+        user.uuid,
+      );
+    return privateFolder;
   }
 }
