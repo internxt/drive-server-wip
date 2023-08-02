@@ -310,7 +310,7 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async getPrivateSharedFolderByFolderId(
     @UserDecorator() user: User,
-    @Query('folderId') folderId: string,
+    @Param('folderId') folderId: string,
   ) {
     try {
       return {
