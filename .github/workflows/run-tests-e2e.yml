@@ -1,4 +1,4 @@
-name: Run test suite
+name: Run test suite ( unit tests + e2e tests )
 on:
   push:
     branches:
