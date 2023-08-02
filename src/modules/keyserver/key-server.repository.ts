@@ -4,7 +4,7 @@ import { UserAttributes } from '../user/user.attributes';
 import { KeyServer, KeyServerAttributes } from './key-server.domain';
 import { KeyServerModel } from './key-server.model';
 
-interface KeyServerRepository {
+export interface KeyServerRepository {
   findUserKeysOrCreate(
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
