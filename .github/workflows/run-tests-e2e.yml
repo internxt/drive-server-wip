@@ -1,4 +1,4 @@
-name: run-tests-e2e
+name: Run test suite
 on:
   push:
     branches:
@@ -54,5 +54,8 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Run tests
+      - name: Run unit tests
+        run: yarn test
+
+      - name: Run e2e tests
         run: yarn migrate:test && yarn run db:seed:test:all && yarn run test:e2e
