@@ -48,6 +48,7 @@ import { HttpClient } from '../../externals/http/http.service';
 import { HttpModule } from '@nestjs/axios';
 import { FileModel } from '../file/file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -214,6 +215,7 @@ describe('Share Use Cases', () => {
         SequelizeSharedWorkspaceRepository,
         SequelizeReferralRepository,
         SequelizeUserReferralsRepository,
+        SequelizeKeyServerRepository,
         PaymentsService,
         EventEmitter2,
         NotificationService,
@@ -222,9 +224,15 @@ describe('Share Use Cases', () => {
         {
           provide: HttpClient,
           useValue: {
-            // proporciona una implementación ficticia del método post
             post: jest.fn().mockResolvedValue({}),
-            // Agrega aquí otros métodos que puedan ser llamados
+          },
+        },
+        {
+          provide: SequelizeKeyServerRepository,
+          useValue: {
+            findUserKeysOrCreate: () => {
+              return {};
+            },
           },
         },
         {
