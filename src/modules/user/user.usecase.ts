@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -16,7 +16,11 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { Sign, SignEmail } from '../../middlewares/passport';
+import {
+  Sign,
+  SignEmail,
+  SignWithCustomDuration,
+} from '../../middlewares/passport';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
@@ -26,6 +30,9 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { FileUseCases } from '../file/file.usecase';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
+import { ShareUseCases } from '../share/share.usecase';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -65,13 +72,16 @@ export class UserUseCases {
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
+    private shareUseCases: ShareUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
     private networkService: BridgeService,
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
+    private readonly keyServerRepository: SequelizeKeyServerRepository,
   ) {}
 
   getUserByUsername(email: string) {
@@ -466,5 +476,127 @@ export class UserUseCases {
     );
 
     return { token, newToken };
+  }
+
+  async sendAccountRecoveryEmail(email: User['email']) {
+    const mailer = new MailerService(this.configService);
+    const secret = this.configService.get('secrets.jwt');
+
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const recoverAccountToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: user.uuid,
+          action: 'recover-account',
+        },
+      },
+      secret,
+      '30m',
+    );
+
+    const url = `${process.env.HOST_DRIVE_WEB}/recover-account/${recoverAccountToken}`;
+    const recoverAccountTemplateId = this.configService.get(
+      'mailer.templates.recoverAccountEmail',
+    );
+
+    return mailer.send(user.email, recoverAccountTemplateId, {
+      email,
+      recovery_url: url,
+    });
+  }
+
+  async updateCredentials(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+      salt: string;
+      privateKey?: string;
+    },
+    withReset = false,
+  ): Promise<void> {
+    const { mnemonic, password, salt } = newCredentials;
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (withReset) {
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+      });
+    }
+
+    // TODO: Replace with updating the private key once AFS is ready.
+    // Requires to send the private key encrypted with the user's password
+    await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async resetUser(
+    user: User,
+    options: {
+      deleteFiles: boolean;
+      deleteFolders: boolean;
+      deleteShares: boolean;
+    },
+  ): Promise<void> {
+    if (options.deleteShares) {
+      await this.shareUseCases.deleteByUser(user);
+    }
+
+    if (options.deleteFolders) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const folders = await this.folderUseCases.getFolders(
+          user.id,
+          { parentId: user.rootFolderId, removed: false },
+          opts,
+        );
+
+        await this.folderUseCases.deleteByUser(user, folders);
+
+        offset += folders.length;
+
+        done = folders.length < limit || folders.length === 0;
+      } while (!done);
+    }
+
+    if (options.deleteFiles) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const files = await this.fileUseCases.getFilesNotDeleted(
+          user.id,
+          {
+            folderId: user.rootFolderId,
+          },
+          opts,
+        );
+
+        await this.fileUseCases.deleteByUser(user, files);
+
+        offset += files.length;
+
+        done = files.length < limit || files.length === 0;
+      } while (!done);
+    }
   }
 }
