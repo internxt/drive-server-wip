@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
-import { PrivateSharingUseCase } from './private-sharing.usecase';
+import {
+  InvalidOwnerError,
+  PrivateSharingUseCase,
+} from './private-sharing.usecase';
 import { Folder } from '../folder/folder.domain';
 import { v4 } from 'uuid';
 import { User } from '../user/user.domain';
@@ -10,7 +13,6 @@ import { SequelizeFolderRepository } from '../folder/folder.repository';
 describe('PrivateSharingUseCase', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
   let privateSharingRespository: SequelizePrivateSharingRepository;
-  let userRespository: SequelizeUserRepository;
   let folderRespository: SequelizeFolderRepository;
 
   const userRepositoryMock = {
@@ -42,7 +44,7 @@ describe('PrivateSharingUseCase', () => {
     referrer: v4(),
     referralCode: v4(),
     credit: 0,
-    hKey: new Buffer('john doe hKey'),
+    hKey: Buffer.from('john doe hKey'),
     rootFolderId: 1,
     errorLoginCount: 0,
     isEmailActivitySended: 1,
@@ -101,9 +103,6 @@ describe('PrivateSharingUseCase', () => {
     );
     privateSharingRespository = module.get<SequelizePrivateSharingRepository>(
       SequelizePrivateSharingRepository,
-    );
-    userRespository = module.get<SequelizeUserRepository>(
-      SequelizeUserRepository,
     );
     folderRespository = module.get<SequelizeFolderRepository>(
       SequelizeFolderRepository,
@@ -173,16 +172,15 @@ describe('PrivateSharingUseCase', () => {
     });
 
     it('should grant privileges if the owner is indeed the owner of the folder', async () => {
-      const foundUser = { ...user, uuid: userUuid };
-      const foundFolder = { ...folders[0], uuid: folderUuid };
-      const foundPrivateFolder = { folderId: 1 };
+      const folderId = v4();
+      const foundPrivateFolder = {
+        folderId: folderId,
+        folder: { userId: owner.id, uuid: folderId },
+      };
 
-      userRepositoryMock.findByUuid.mockResolvedValue(foundUser);
       privateSharingRepositoryMock.findById.mockImplementation(() =>
         Promise.resolve(foundPrivateFolder),
       );
-      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      folderRepositoryMock.isOwner.mockResolvedValue(true);
 
       await privateSharingUseCase.grantPrivileges(
         owner,
@@ -191,45 +189,36 @@ describe('PrivateSharingUseCase', () => {
         roleUuid,
       );
 
-      expect(userRespository.findByUuid).toHaveBeenCalledWith(userUuid);
       expect(privateSharingRespository.findById).toHaveBeenCalledWith(
         privateFolderId,
       );
-      expect(folderRespository.findByUuid).toHaveBeenCalledWith(
-        foundPrivateFolder.folderId,
-      );
       expect(
         privateSharingRespository.createPrivateFolderRole,
-      ).toHaveBeenCalledWith(foundUser, foundFolder, roleUuid);
+      ).toHaveBeenCalledWith(userUuid, foundPrivateFolder.folderId, roleUuid);
     });
 
     it('should throw an error if the owner is not the owner of the folder', async () => {
-      const foundUser = { ...user, uuid: userUuid };
-      const foundFolder = { ...folders[0], uuid: folderUuid };
-      const foundPrivateFolder = { folderId: 1 };
+      const foundPrivateFolder = {
+        folderId: 1,
+        folder: { userId: owner.id + 1 },
+      }; // Un usuario diferente
 
-      userRepositoryMock.findByUuid.mockResolvedValue(foundUser);
       privateSharingRepositoryMock.findById.mockResolvedValue(
         foundPrivateFolder,
       );
-      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      folderRepositoryMock.isOwner.mockResolvedValue(false);
 
-      expect(
+      await expect(
         privateSharingUseCase.grantPrivileges(
           owner,
           userUuid,
           privateFolderId,
           roleUuid,
         ),
-      ).rejects.toThrow('You are not the owner of this folder');
+      ).rejects.toThrow(InvalidOwnerError);
 
-      expect(userRepositoryMock.findByUuid).toHaveBeenCalledWith(userUuid);
       expect(privateSharingRepositoryMock.findById).toHaveBeenCalledWith(
         privateFolderId,
       );
-      expect(folderRepositoryMock.findByUuid).toHaveBeenCalled();
-      expect(folderRepositoryMock.isOwner).toHaveBeenCalled();
     });
   });
 });
