@@ -26,6 +26,7 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
+import { StopSharingDto } from './dto/stop-shring.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -238,5 +239,18 @@ export class PrivateSharingController {
           order,
         ),
     };
+  }
+
+  @Post('stop')
+  @ApiOperation({
+    summary: 'Stop sharing folders',
+  })
+  @ApiBearerAuth()
+  async stopSharing(
+    @Body() stopsharingDto: StopSharingDto,  
+    @UserDecorator() user: User
+  ): Promise<any> {
+
+    return '';
   }
 }
