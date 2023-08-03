@@ -26,7 +26,7 @@ import { FileModel } from '../file/file.model';
       FolderModel,
     ]),
     forwardRef(() => UserModule),
-    FileModule,
+    forwardRef(() => FileModule),
     FolderModule,
     NotificationModule,
     CryptoModule,

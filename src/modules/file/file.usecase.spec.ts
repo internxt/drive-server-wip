@@ -494,6 +494,8 @@ describe('FileUseCases', () => {
       expect(result).toStrictEqual({
         ...expectedFiles,
         name: fileAttributes['name'],
+        shares: undefined,
+        thumbnails: undefined,
         folderId,
       });
     });

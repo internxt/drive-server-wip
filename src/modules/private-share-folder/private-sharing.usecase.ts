@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
@@ -23,6 +23,14 @@ export class RoleNotFoundError extends Error {
     Object.setPrototypeOf(this, InvalidOwnerError.prototype);
   }
 }
+
+export class UserNotInvitedError extends Error {
+  constructor() {
+    super('User not invited');
+    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+  }
+}
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -55,13 +63,23 @@ export class PrivateSharingUseCase {
 
   async updateRole(
     owner: User,
-    privateFolderRoleId: PrivateSharingFolder['id'],
+    invatedUserEmail: User['email'],
+    folderId: Folder['uuid'],
     roleId: PrivateSharingRole['id'],
   ) {
+    const sharedWith = await this.userRepository.findByUsername(
+      invatedUserEmail,
+    );
+
     const privateFolderRole =
-      await this.privateSharingRespository.findPrivateFolderRoleById(
-        privateFolderRoleId,
+      await this.privateSharingRespository.findPrivateFolderRoleByUserIdAndFolderId(
+        sharedWith.uuid,
+        folderId,
       );
+
+    if (!privateFolderRole) {
+      throw new UserNotInvitedError();
+    }
 
     const folder = await this.folderRespository.findByUuid(
       privateFolderRole.folderId,

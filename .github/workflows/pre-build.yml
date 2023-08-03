@@ -1,0 +1,26 @@
+name: Pre build ( Health check )
+on:
+    push:
+        branches:
+          - 'master'
+          - 'develop'
+    pull_request:
+        branches:
+          - 'master'
+          - 'develop'
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check Out Repo
+              uses: actions/checkout@v2
+            - name: Setup npm
+              run: |
+                echo "registry=https://registry.yarnpkg.com/" > .npmrc
+                echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
+                echo //npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_ACCESS_TOKEN }} >> .npmrc
+                echo "always-auth=true" >> .npmrc
+            - name: Install dependencies
+              run: yarn install
+            - name: Build
+              run: yarn build
