@@ -23,8 +23,8 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { OrderBy } from 'src/common/order.type';
-import { Pagination } from 'src/lib/pagination';
+import { OrderBy } from '../../common/order.type';
+import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 
