@@ -14,6 +14,7 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
@@ -21,6 +22,7 @@ import {
   InvalidOwnerError,
   RoleNotFoundError,
   PrivateSharingUseCase,
+  UserNotInvitedError,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -29,8 +31,9 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
-import { UpdatePrivilegesDto } from './dto/update-privilages.dto';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
+import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -83,18 +86,23 @@ export class PrivateSharingController {
   })
   @ApiOkResponse({ description: 'Update role of a user on a folder' })
   @ApiBearerAuth()
+  @ApiParam({
+    name: 'id',
+    description: 'Role id',
+    type: String,
+  })
   async updateRole(
-    @Param('id')
-    privateFolderRoleId: PrivateSharingFolderRole['id'],
+    @Param('id') id: PrivateSharingRole['id'],
     @UserDecorator() user: User,
-    @Body() dto: UpdatePrivilegesDto,
+    @Body() dto: UpdatePrivateSharingFolderRoleDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
       await this.privateSharingUseCase.updateRole(
         user,
-        privateFolderRoleId,
-        dto.roleId,
+        dto.email,
+        dto.folderId,
+        id,
       );
 
       return {
@@ -103,7 +111,10 @@ export class PrivateSharingController {
     } catch (error) {
       let errorMessage = error.message;
 
-      if (error instanceof InvalidOwnerError) {
+      if (
+        error instanceof InvalidOwnerError ||
+        error instanceof UserNotInvitedError
+      ) {
         res.status(HttpStatus.FORBIDDEN);
       } else if (error instanceof RoleNotFoundError) {
         res.status(HttpStatus.BAD_REQUEST);
