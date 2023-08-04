@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { PrivateSharingController } from './private-sharing.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingFolderRolesUseCase } from './private-sharing-folder-roles.usecase';
