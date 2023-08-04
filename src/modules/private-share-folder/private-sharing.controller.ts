@@ -8,6 +8,8 @@ import {
   Query,
   Res,
   Delete,
+  ParseUUIDPipe,
+  Param,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -242,19 +244,19 @@ export class PrivateSharingController {
     };
   }
 
-  @Delete('stop')
+  @Delete('stop/folder-id/:folderId')
   @ApiOperation({
     summary: 'Stop sharing a folder',
   })
   @ApiBearerAuth()
   async stopSharing(
-    @Body() { folderUuid }: StopSharingDto,  
+    @Param('foldeId', ParseUUIDPipe) folderUuid: string,
     @UserDecorator() user: User
   ): Promise<any> {
     return await this.privateSharingUseCase.stopSharing(folderUuid);
   }
 
-  @Delete('remove')
+  @Delete('remove/folder-id/:folderId/user-id/:userId')
   @ApiOperation({
     summary: 'Remove user from shared folder',
   })
@@ -266,8 +268,8 @@ export class PrivateSharingController {
   })
   @ApiBearerAuth()
   async removUserFromSharedFolder(
-    @Body() { folderUuid }: StopSharingDto,  
-    @Query('userUuid') userUuid: string,
+    @Param('foldeId', ParseUUIDPipe) folderUuid: string,
+    @Query('userId', ParseUUIDPipe) userUuid: string,
     @UserDecorator() user: User
   ): Promise<any> {
     return await this.privateSharingUseCase.removeUserShared(folderUuid, userUuid);
