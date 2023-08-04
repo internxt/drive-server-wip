@@ -70,4 +70,14 @@ export class PrivateSharingUseCase {
     );
     return folders;
   }
+
+  async stopSharing(folderUuid: Folder['uuid']): Promise<any> {
+    const sharingRemoved = await this.privateSharingRespository.removeByFolderUuid(folderUuid);
+    return sharingRemoved;
+  }
+
+  async removeUserShared(folderUuid: Folder['uuid'], userUuid: User['uuid']): Promise<any>{
+    const userSharedRemoved = await this.privateSharingRespository.removeBySharedWith(folderUuid, userUuid);
+    return userSharedRemoved;
+  }
 }

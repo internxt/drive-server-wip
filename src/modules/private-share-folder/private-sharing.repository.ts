@@ -22,11 +22,11 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
-  removeByFolderId(
-    folderId: Folder['uuid'],
+  removeByFolderUuid(
+    folderUuid: Folder['uuid'],
   ): Promise<any>;
   removeBySharedWith(
-    folderId: Folder['uuid'],
+    folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<any>;
 }
@@ -43,11 +43,22 @@ export class SequelizePrivateSharingRepository
     @InjectModel(PrivateSharingFolderRolesModel)
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
   ) {}
-  removeByFolderId(): Promise<any> {
-    throw new Error('Method not implemented.');
+
+  private async removeByField(field: Partial<PrivateSharingFolder>) {
+    const privateFolder = await this.privateSharingFolderModel.destroy({
+      where: field
+    });
+    return privateFolder;
   }
-  removeBySharedWith(): Promise<any> {
-    throw new Error('Method not implemented.');
+
+  async removeByFolderUuid(folderUuid: string): Promise<any> {
+    const privatesRemovedByFolderUuid = await this.removeByField({folderId: folderUuid});
+    return privatesRemovedByFolderUuid;
+  }
+
+  async removeBySharedWith(folderUuid: string, userUuid: string): Promise<any> {
+    const sharedWithRemoved = await this.removeByField({folderId: folderUuid, sharedWith: userUuid});
+    return sharedWithRemoved;
   }
 
   async findById(

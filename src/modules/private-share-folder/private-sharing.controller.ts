@@ -26,7 +26,7 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
-import { StopSharingDto } from './dto/stop-shring.dto';
+import { StopSharingDto } from './dto/stop-sharing.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -253,11 +253,11 @@ export class PrivateSharingController {
   })
   @ApiBearerAuth()
   async stopSharing(
-    @Body() stopsharingDto: StopSharingDto,  
+    @Body() { folderUuid }: StopSharingDto,  
     @Query('userUuid') userUuid: string,
     @UserDecorator() user: User
   ): Promise<any> {
-    
-    return '';
+    if(userUuid) return await this.privateSharingUseCase.removeUserShared(folderUuid, userUuid);
+    return await this.privateSharingUseCase.stopSharing(folderUuid);
   }
 }
