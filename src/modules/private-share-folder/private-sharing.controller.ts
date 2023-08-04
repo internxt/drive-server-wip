@@ -245,12 +245,19 @@ export class PrivateSharingController {
   @ApiOperation({
     summary: 'Stop sharing folders',
   })
+  @ApiQuery({
+    description: 'User uuid to remove a specific user from sharing',
+    name: 'userUuid',
+    required: false,
+    type: String,
+  })
   @ApiBearerAuth()
   async stopSharing(
     @Body() stopsharingDto: StopSharingDto,  
+    @Query('userUuid') userUuid: string,
     @UserDecorator() user: User
   ): Promise<any> {
-
+    
     return '';
   }
 }

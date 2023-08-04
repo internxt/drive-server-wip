@@ -22,6 +22,13 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
+  removeByFolderId(
+    folderId: Folder['uuid'],
+  ): Promise<any>;
+  removeBySharedWith(
+    folderId: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<any>;
 }
 
 @Injectable()
@@ -36,6 +43,12 @@ export class SequelizePrivateSharingRepository
     @InjectModel(PrivateSharingFolderRolesModel)
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
   ) {}
+  removeByFolderId(): Promise<any> {
+    throw new Error('Method not implemented.');
+  }
+  removeBySharedWith(): Promise<any> {
+    throw new Error('Method not implemented.');
+  }
 
   async findById(
     id: PrivateSharingFolder['id'],
