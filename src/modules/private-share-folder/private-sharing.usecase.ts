@@ -144,6 +144,10 @@ export class PrivateSharingUseCase {
       parentPrivateSharingFolderId,
     );
 
+    const owner = await this.userRespository.findByUuid(
+      privateSharingFolder.ownerId,
+    );
+
     const parentFolderUuid = privateSharingFolder.folderId;
     const parentFolderId = privateSharingFolder.folder.id;
 
@@ -191,6 +195,10 @@ export class PrivateSharingUseCase {
     return {
       folders,
       files,
+      credentials: {
+        userId: owner.userId,
+        username: owner.username,
+      },
     };
   }
 }
