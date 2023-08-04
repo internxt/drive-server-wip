@@ -24,6 +24,12 @@ const invalidName = /[\\/]|^\s*$/;
 
 type SortParams = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
 
+export class NotFoundFolderException extends NotFoundException {
+  constructor() {
+    super('folder not found');
+  }
+}
+
 @Injectable()
 export class FolderUseCases {
   constructor(
@@ -50,6 +56,18 @@ export class FolderUseCases {
 
     if (folder.userId !== user.id) {
       throw new ForbiddenException();
+    }
+
+    return folder;
+  }
+
+  async getFolderByUuid(
+    folderUuid: FolderAttributes['uuid'],
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuid(folderUuid, false);
+
+    if (!folder) {
+      throw new NotFoundFolderException();
     }
 
     return folder;

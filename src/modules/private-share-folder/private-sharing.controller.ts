@@ -29,7 +29,6 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
-import { StopSharingDto } from './dto/stop-sharing.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -259,12 +258,6 @@ export class PrivateSharingController {
   @Delete('remove/folder-id/:folderId/user-id/:userId')
   @ApiOperation({
     summary: 'Remove user from shared folder',
-  })
-  @ApiQuery({
-    description: 'User uuid to remove a specific user from sharing',
-    name: 'userUuid',
-    required: false,
-    type: String,
   })
   @ApiBearerAuth()
   async removUserFromSharedFolder(
