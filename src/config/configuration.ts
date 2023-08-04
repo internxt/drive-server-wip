@@ -51,6 +51,9 @@ export default () => ({
     drive: {
       url: process.env.DRIVE_API_URL,
     },
+    share: {
+      url: process.env.SHARE_DOMAINS,
+    },
   },
   mailer: {
     sandbox: process.env.SENDGRID_MODE_SANDBOX === 'true' || false,
@@ -64,6 +67,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_SEND_LINK_CREATE_RECEIVER || '',
       welcomeVerifyEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_WELCOME_EMAIL_VERIFICATION || '',
+      recoverAccountEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
     },
   },
   newsletter: {

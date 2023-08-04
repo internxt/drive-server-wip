@@ -12,8 +12,13 @@ export interface UserRepository {
   findById(id: number): Promise<User | null>;
   findByUuid(uuid: User['uuid']): Promise<User | null>;
   findAllBy(where: any): Promise<Array<User> | []>;
+  findByEmail(email: User['email']): Promise<User | null>;
   findByBridgeUser(bridgeUser: User['bridgeUser']): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
+  updateByUuid(
+    uuid: User['uuid'],
+    update: Partial<UserAttributes>,
+  ): Promise<void>;
   toDomain(model: UserModel): User;
   toModel(domain: User): Partial<UserAttributes>;
 }
@@ -26,6 +31,11 @@ export class SequelizeUserRepository implements UserRepository {
   ) {}
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
+    return user ? this.toDomain(user) : null;
+  }
+
+  async findByEmail(email: User['email']): Promise<User> {
+    const user = await this.modelUser.findOne({ where: { email } });
     return user ? this.toDomain(user) : null;
   }
 
@@ -82,6 +92,10 @@ export class SequelizeUserRepository implements UserRepository {
     transaction?: Transaction,
   ): Promise<void> {
     await this.modelUser.update(update, { where: { id }, transaction });
+  }
+
+  async updateByUuid(uuid: User['uuid'], update: Partial<User>): Promise<void> {
+    await this.modelUser.update(update, { where: { uuid } });
   }
 
   toDomain(model: UserModel): User {

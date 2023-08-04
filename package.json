@@ -83,6 +83,7 @@
     "winston": "^3.7.2"
   },
   "devDependencies": {
+    "@golevelup/ts-jest": "^0.4.0",
     "@internxt/eslint-config-internxt": "^1.0.9",
     "@jbiskur/nestjs-test-utilities": "^3.4.1",
     "@nestjs/schematics": "^8.0.0",
