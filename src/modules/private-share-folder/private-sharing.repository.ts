@@ -44,9 +44,9 @@ export class SequelizePrivateSharingRepository
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
   ) {}
 
-  private async removeByField(field: Partial<PrivateSharingFolder>) {
+  private async removeByField(fields: Partial<PrivateSharingFolder>) {
     const privateFolder = await this.privateSharingFolderModel.destroy({
-      where: field
+      where: fields
     });
     return privateFolder;
   }
