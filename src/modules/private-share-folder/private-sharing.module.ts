@@ -9,7 +9,6 @@ import { FolderModel } from '../folder/folder.repository';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { UserModule } from '../user/user.module';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
-import { PrivateSharingFolderRolesUseCase } from './private-sharing-folder-roles.usecase';
 import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 
@@ -30,7 +29,6 @@ import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.m
     PrivateSharingUseCase,
     SequelizePrivateSharingRepository,
     SequelizeUserRepository,
-    PrivateSharingFolderRolesUseCase,
     PrivateSharingFolderRolesRepository
   ],
   exports: [],

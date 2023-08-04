@@ -9,10 +9,12 @@ import { v4 } from 'uuid';
 import { User } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
 
 describe('PrivateSharingUseCase', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
   let privateSharingRespository: SequelizePrivateSharingRepository;
+  let privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository;
   let folderRespository: SequelizeFolderRepository;
 
   const userRepositoryMock = {
@@ -29,6 +31,11 @@ describe('PrivateSharingUseCase', () => {
     findBySharedWith: jest.fn(),
     findById: jest.fn(),
     createPrivateFolderRole: jest.fn(),
+  };
+
+  const folderRolesRepositoryMock = {
+    removeByFolderUuid: jest.fn(),
+    removeByUserUuid: jest.fn(),
   };
 
   const user = User.build({
@@ -94,7 +101,13 @@ describe('PrivateSharingUseCase', () => {
         {
           provide: SequelizeFolderRepository,
           useValue: folderRepositoryMock,
+        },{
+          provide: PrivateSharingFolderRolesRepository,
+          useValue: folderRolesRepositoryMock,
         },
+        // {
+        //   provide: PrivateSharingFolderRolesUseCase,
+        // }
       ],
     }).compile();
 
@@ -106,6 +119,9 @@ describe('PrivateSharingUseCase', () => {
     );
     folderRespository = module.get<SequelizeFolderRepository>(
       SequelizeFolderRepository,
+    );
+    privateSharingFolderRolesRespository = module.get<PrivateSharingFolderRolesRepository>(
+      PrivateSharingFolderRolesRepository,
     );
   });
 
@@ -219,6 +235,38 @@ describe('PrivateSharingUseCase', () => {
       expect(privateSharingRepositoryMock.findById).toHaveBeenCalledWith(
         privateFolderId,
       );
+    });
+  });
+
+  describe('stopSharing', () => {
+    const userUuid = v4();
+    const privateFolderId = v4();
+    const roleUuid = v4();
+    const owner = user;
+    const folderUuid = v4();
+
+    it('should not found if folder does not exist', async () => {
+      // const foundPrivateFolder = {
+      //   folderId: 1,
+      //   folder: { userId: owner.id + 1 },
+      // }; // Un usuario diferente
+
+      // privateSharingRepositoryMock.findById.mockResolvedValue(
+      //   foundPrivateFolder,
+      // );
+
+      // await expect(
+      //   privateSharingUseCase.grantPrivileges(
+      //     owner,
+      //     userUuid,
+      //     privateFolderId,
+      //     roleUuid,
+      //   ),
+      // ).rejects.toThrow(InvalidOwnerError);
+
+      // expect(privateSharingRepositoryMock.findById).toHaveBeenCalledWith(
+      //   privateFolderId,
+      // );
     });
   });
 });
