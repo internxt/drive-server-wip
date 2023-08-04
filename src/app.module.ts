@@ -20,7 +20,7 @@ import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
 import { PrivateSharingModule } from './modules/private-share-folder/private-sharing.module';
-import { PrivateSharingFolderRolesModule } from './modules/private-share-folder/private-sharing-folder-roles.module';
+
 
 @Module({
   imports: [
@@ -99,7 +99,6 @@ import { PrivateSharingFolderRolesModule } from './modules/private-share-folder/
     DeviceModule,
     CryptoModule,
     PrivateSharingModule,
-    PrivateSharingFolderRolesModule,
     SharedWorkspaceModule,
     ThumbnailModule,
   ],
