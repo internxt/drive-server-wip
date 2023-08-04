@@ -38,8 +38,6 @@ export class SequelizePrivateSharingRepository
   constructor(
     @InjectModel(PrivateSharingFolderModel)
     private privateSharingFolderModel: typeof PrivateSharingFolderModel,
-    @InjectModel(FolderModel)
-    private folderModel: typeof FolderModel,
     @InjectModel(PrivateSharingFolderRolesModel)
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
   ) {}
