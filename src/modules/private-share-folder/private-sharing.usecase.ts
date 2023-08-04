@@ -6,7 +6,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { PrivateSharingFolderRolesUseCase } from './private-sharing-folder-roles.usecase';
+import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -19,7 +19,7 @@ export class PrivateSharingUseCase {
     private privateSharingRespository: SequelizePrivateSharingRepository,
     private userRespository: SequelizeUserRepository,
     private folderRespository: SequelizeFolderRepository,
-    private readonly privateSharingFolderRolesUseCase: PrivateSharingFolderRolesUseCase,
+    private privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository,
   ) {}
   async grantPrivileges(
     owner: User,
@@ -74,13 +74,13 @@ export class PrivateSharingUseCase {
   }
 
   async stopSharing(folderUuid: Folder['uuid']): Promise<any> {
-    const folderRolesRemoved = await this.privateSharingFolderRolesUseCase.removeByFolder(folderUuid);
+    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByFolderUuid(folderUuid);
     const sharingRemoved = await this.privateSharingRespository.removeByFolderUuid(folderUuid);
     return {sharingRemoved, folderRolesRemoved};
   }
 
   async removeUserShared(folderUuid: Folder['uuid'], userUuid: User['uuid']): Promise<any>{
-    const folderRolesRemoved = await this.privateSharingFolderRolesUseCase.removeByUserAndFolder(folderUuid,userUuid);
+    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByUserUuid(folderUuid,userUuid);
     const userSharedRemoved = await this.privateSharingRespository.removeBySharedWith(folderUuid, userUuid);
     return {userSharedRemoved, folderRolesRemoved};
   }

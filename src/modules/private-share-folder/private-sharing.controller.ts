@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   Res,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -241,9 +242,21 @@ export class PrivateSharingController {
     };
   }
 
-  @Post('stop')
+  @Delete('stop')
   @ApiOperation({
-    summary: 'Stop sharing folders',
+    summary: 'Stop sharing a folder',
+  })
+  @ApiBearerAuth()
+  async stopSharing(
+    @Body() { folderUuid }: StopSharingDto,  
+    @UserDecorator() user: User
+  ): Promise<any> {
+    return await this.privateSharingUseCase.stopSharing(folderUuid);
+  }
+
+  @Delete('remove')
+  @ApiOperation({
+    summary: 'Remove user from shared folder',
   })
   @ApiQuery({
     description: 'User uuid to remove a specific user from sharing',
@@ -252,12 +265,11 @@ export class PrivateSharingController {
     type: String,
   })
   @ApiBearerAuth()
-  async stopSharing(
+  async removUserFromSharedFolder(
     @Body() { folderUuid }: StopSharingDto,  
     @Query('userUuid') userUuid: string,
     @UserDecorator() user: User
   ): Promise<any> {
-    if(userUuid) return await this.privateSharingUseCase.removeUserShared(folderUuid, userUuid);
-    return await this.privateSharingUseCase.stopSharing(folderUuid);
+    return await this.privateSharingUseCase.removeUserShared(folderUuid, userUuid);
   }
 }
