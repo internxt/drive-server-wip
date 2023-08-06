@@ -9,6 +9,7 @@ import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.m
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
+import { UserModel } from '../user/user.model';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -123,7 +124,15 @@ export class SequelizePrivateSharingRepository
       where: {
         ownerId: userUuid,
       },
-      include: [FolderModel],
+      include: [
+        FolderModel,
+        {
+          model: UserModel,
+          foreignKey: 'ownerId',
+          as: 'owner',
+          attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+        },
+      ],
       order: orderBy,
       limit,
       offset,
@@ -142,7 +151,15 @@ export class SequelizePrivateSharingRepository
       where: {
         sharedWith: userUuid,
       },
-      include: [FolderModel],
+      include: [
+        FolderModel,
+        {
+          model: UserModel,
+          foreignKey: 'ownerId',
+          as: 'owner',
+          attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+        },
+      ],
       order: orderBy,
       limit,
       offset,
