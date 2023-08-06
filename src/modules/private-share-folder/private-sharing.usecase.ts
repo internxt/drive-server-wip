@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
@@ -36,11 +36,19 @@ export class InvalidChildFolderError extends Error {
     Object.setPrototypeOf(this, InvalidChildFolderError.prototype);
   }
 }
+
+export class UserNotInvitedError extends Error {
+  constructor() {
+    super('User not invited');
+    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+  }
+}
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
-    private userRespository: SequelizeUserRepository,
+    private userRepository: SequelizeUserRepository,
     private folderRespository: SequelizeFolderRepository,
     private fileRespository: SequelizeFileRepository,
   ) {}
@@ -69,13 +77,21 @@ export class PrivateSharingUseCase {
 
   async updateRole(
     owner: User,
-    privateFolderRoleId: PrivateSharingFolder['id'],
+    invatedUserId: User['uuid'],
+    folderId: Folder['uuid'],
     roleId: PrivateSharingRole['id'],
   ) {
+    const sharedWith = await this.userRepository.findByUuid(invatedUserId);
+
     const privateFolderRole =
-      await this.privateSharingRespository.findPrivateFolderRoleById(
-        privateFolderRoleId,
+      await this.privateSharingRespository.findPrivateFolderRoleByUserIdAndFolderId(
+        sharedWith.uuid,
+        folderId,
       );
+
+    if (!privateFolderRole) {
+      throw new UserNotInvitedError();
+    }
 
     const folder = await this.folderRespository.findByUuid(
       privateFolderRole.folderId,
@@ -144,7 +160,7 @@ export class PrivateSharingUseCase {
       parentPrivateSharingFolderId,
     );
 
-    const owner = await this.userRespository.findByUuid(
+    const owner = await this.userRepository.findByUuid(
       privateSharingFolder.ownerId,
     );
 
