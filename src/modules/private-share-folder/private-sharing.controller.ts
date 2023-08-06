@@ -31,7 +31,6 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
-import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 
@@ -100,7 +99,7 @@ export class PrivateSharingController {
     try {
       await this.privateSharingUseCase.updateRole(
         user,
-        dto.email,
+        dto.userId,
         dto.folderId,
         id,
       );

@@ -60,13 +60,11 @@ export class PrivateSharingUseCase {
 
   async updateRole(
     owner: User,
-    invatedUserEmail: User['email'],
+    invatedUserId: User['uuid'],
     folderId: Folder['uuid'],
     roleId: PrivateSharingRole['id'],
   ) {
-    const sharedWith = await this.userRepository.findByUsername(
-      invatedUserEmail,
-    );
+    const sharedWith = await this.userRepository.findByUuid(invatedUserId);
 
     const privateFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleByUserIdAndFolderId(
