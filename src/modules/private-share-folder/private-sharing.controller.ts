@@ -10,6 +10,7 @@ import {
   Delete,
   ParseUUIDPipe,
   Param,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,8 +20,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  FolderNotSharedError,
   InvalidOwnerError,
   PrivateSharingUseCase,
+  UserNotInSharedFolder,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -255,6 +258,12 @@ export class PrivateSharingController {
     try {
       return await this.privateSharingUseCase.stopSharing(folderUuid);
     } catch (error) {
+      if (
+        error instanceof FolderNotSharedError ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
       new Logger().error(
         `[PRIVATESHARING/STOP] ERROR: ${
           (error as Error).message
@@ -262,7 +271,6 @@ export class PrivateSharingController {
           error.stack || 'No stack trace'
         }`,
       );
-      throw error;
     }
   }
 
@@ -282,6 +290,12 @@ export class PrivateSharingController {
         userUuid,
       );
     } catch (error) {
+      if (
+        error instanceof UserNotInSharedFolder ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
       new Logger().error(
         `[PRIVATESHARING/REMOVE] ERROR: ${
           (error as Error).message
@@ -290,7 +304,6 @@ export class PrivateSharingController {
           error.stack || 'No stack trace'
         }`,
       );
-      throw error;
     }
   }
 }
