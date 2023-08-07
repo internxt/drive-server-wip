@@ -29,6 +29,13 @@ export interface PrivateSharingRepository {
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<any>;
+  findByFolder(
+    folderUuid: Folder['uuid'],
+  ): Promise<PrivateSharingFolder[]>;
+  findByFolderAndSharedWith(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<PrivateSharingFolder[]>;
 }
 
 @Injectable()
@@ -149,5 +156,24 @@ export class SequelizePrivateSharingRepository
     });
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
+  }
+
+  async findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]> {
+    const sharedFolders = await this.privateSharingFolderModel.findAll({
+      where: {
+        folderId: folderUuid,
+      },
+    });
+    return sharedFolders;
+  }
+
+  async findByFolderAndSharedWith( folderUuid: Folder['uuid'], userUuid: User['uuid']): Promise<PrivateSharingFolder[]> {
+    const sharedFolders = await this.privateSharingFolderModel.findAll({
+      where: {
+        folderId: folderUuid,
+        sharedWith: userUuid,
+      },
+    });
+    return sharedFolders
   }
 }
