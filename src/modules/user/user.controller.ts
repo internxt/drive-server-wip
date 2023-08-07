@@ -46,6 +46,7 @@ import { verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('User')
 @Controller('users')
@@ -57,6 +58,7 @@ export class UserController {
   ) {}
 
   @UseGuards(ThrottlerGuard)
+  @Throttle(5, 3600)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
