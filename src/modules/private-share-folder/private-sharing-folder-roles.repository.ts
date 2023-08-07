@@ -34,15 +34,20 @@ export class PrivateSharingFolderRolesRepository
     return privateFolder;
   }
 
-  async removeByUser(folderUuid: string, userUuid: string): Promise<any> {
+  async removeByUser(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<any> {
     return await this.removeByField({ folderId: folderUuid, userId: userUuid });
   }
 
-  async removeByFolder(folderUuid: string): Promise<any> {
+  async removeByFolder(folderUuid: Folder['uuid']): Promise<any> {
     return await this.removeByField({ folderId: folderUuid });
   }
 
-  async findByFolder(folderUuid: string): Promise<PrivateSharingFolderRole[]> {
+  async findByFolder(
+    folderUuid: Folder['uuid'],
+  ): Promise<PrivateSharingFolderRole[]> {
     const sharedFolderRolesByFolder =
       await this.privateSharingFolderRolesModel.findAll({
         where: { folderId: folderUuid },
@@ -51,8 +56,8 @@ export class PrivateSharingFolderRolesRepository
   }
 
   async findByFolderAndUser(
-    folderUuid: string,
-    userUuid: string,
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
   ): Promise<PrivateSharingFolderRole[]> {
     const sharedFolderRolesByFolderAndUser =
       await this.privateSharingFolderRolesModel.findAll({
