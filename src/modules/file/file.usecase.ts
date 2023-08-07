@@ -322,4 +322,20 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
     });
   }
+
+  async getAllByParentId(
+    parentId: FolderAttributes['id'],
+    deleted: FileAttributes['deleted'],
+    page: number = null,
+    perPage: number = null,
+    order: [string, string][],
+  ) {
+    return this.fileRepository.findAllByParentId(
+      parentId,
+      deleted,
+      page,
+      perPage,
+      order,
+    );
+  }
 }

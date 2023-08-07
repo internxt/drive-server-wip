@@ -303,7 +303,7 @@ export class PrivateSharingController {
     };
   }
 
-  @Get('items/:parentPrivateSharingFolderId/:folderId')
+  @Get('items/shared-folder/:sharedFolderId/folder/:folderId')
   @ApiOperation({
     summary: 'Get all items shared by a user',
   })
@@ -329,13 +329,12 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async getSharedItems(
     @UserDecorator() user: User,
-    @Param('privateSharingFolderId')
-    parentPrivateSharingFolderId: PrivateSharingFolder['id'],
-    @Param('folderId') folderId: Folder['id'],
-    @Res({ passthrough: true }) res: Response,
+    @Param('folderId') folderId: Folder['uuid'],
+    @Param('sharedFolder') sharedFolderId: PrivateSharingFolder['id'],
     @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<
     { folders: Folder[] | []; files: File[] | [] } | { error: string }
   > {
@@ -345,8 +344,8 @@ export class PrivateSharingController {
         : undefined;
 
       return this.privateSharingUseCase.getItems(
-        parentPrivateSharingFolderId,
         folderId,
+        sharedFolderId,
         user,
         page,
         perPage,

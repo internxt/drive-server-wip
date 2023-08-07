@@ -1,13 +1,12 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
-import { SequelizeUserRepository } from '../user/user.repository';
-import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { SequelizeFileRepository } from '../file/file.repository';
-import { OrderBy } from 'src/common/order.type';
+import { FileUseCases } from '../file/file.usecase';
+import { UserUseCases } from '../user/user.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -48,9 +47,9 @@ export class UserNotInvitedError extends Error {
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
-    private userRepository: SequelizeUserRepository,
-    private folderRespository: SequelizeFolderRepository,
-    private fileRespository: SequelizeFileRepository,
+    private folderUsecase: FolderUseCases,
+    private fileUsecase: FileUseCases,
+    private userUsecase: UserUseCases,
   ) {}
   async grantPrivileges(
     owner: User,
@@ -81,7 +80,7 @@ export class PrivateSharingUseCase {
     folderId: Folder['uuid'],
     roleId: PrivateSharingRole['id'],
   ) {
-    const sharedWith = await this.userRepository.findByUuid(invatedUserId);
+    const sharedWith = await this.userUsecase.getUser(invatedUserId);
 
     const privateFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleByUserIdAndFolderId(
@@ -93,7 +92,7 @@ export class PrivateSharingUseCase {
       throw new UserNotInvitedError();
     }
 
-    const folder = await this.folderRespository.findByUuid(
+    const folder = await this.folderUsecase.getByUuid(
       privateFolderRole.folderId,
     );
 
@@ -148,28 +147,16 @@ export class PrivateSharingUseCase {
   }
 
   async getItems(
-    parentPrivateSharingFolderId: PrivateSharingFolder['id'],
-    folderId: Folder['id'],
+    folderId: Folder['uuid'],
+    sharedFolderId: PrivateSharingFolder['id'],
     user: User,
     page: number,
     perPage: number,
     order: [string, string][],
   ) {
-    // Check if user has access to the parent private folder
-    const privateSharingFolder = await this.privateSharingRespository.findById(
-      parentPrivateSharingFolderId,
-    );
-
-    const owner = await this.userRepository.findByUuid(
-      privateSharingFolder.ownerId,
-    );
-
-    const parentFolderUuid = privateSharingFolder.folderId;
-    const parentFolderId = privateSharingFolder.folder.id;
-
     const privateSharingFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderUuidAndUserUuid(
-        parentFolderUuid,
+        sharedFolderId,
         user.uuid,
       );
 
@@ -177,13 +164,23 @@ export class PrivateSharingUseCase {
       throw new InvalidPrivateFolderRoleError();
     }
 
-    const folder = await this.folderRespository.findById(folderId);
+    // Check if user has access to the parent private folder
+    const privateSharingFolder =
+      await this.privateSharingRespository.findPrivateFolderByFolderUuidAndUserUuid(
+        sharedFolderId,
+        user.uuid,
+      );
+
+    const owner = await this.userUsecase.getUser(privateSharingFolder.ownerId);
+
+    const folder = await this.folderUsecase.getByUuid(folderId);
+    const parentFolder = await this.folderUsecase.getByUuid(sharedFolderId);
 
     // Check if folderUuid is a child of parentPrivateFolderId
-    const folderFound = await this.folderRespository.findInTree(
-      parentFolderId,
+    const folderFound = await this.folderUsecase.getInTree(
+      parentFolder.id,
       folder.id,
-      folder.userId,
+      owner.id,
       false,
     );
 
@@ -192,16 +189,14 @@ export class PrivateSharingUseCase {
     }
 
     // obtain items from the folder
-    const folders = await this.folderRespository.findAllByParentId(
-      folderId,
-      false,
+    const folders = await this.folderUsecase.getFoldersByParent(
+      folder.id,
       page,
       perPage,
-      order,
     );
 
-    const files = await this.fileRespository.findAllByParentId(
-      folderId,
+    const files = await this.fileUsecase.getAllByParentId(
+      folder.id,
       false,
       page,
       perPage,
