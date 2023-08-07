@@ -56,7 +56,7 @@ export class UserController {
     private readonly keyServerUseCases: KeyServerUseCases,
   ) {}
 
-  @UseGuards(ThrottlerGuard)
+  // @UseGuards(ThrottlerGuard)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
