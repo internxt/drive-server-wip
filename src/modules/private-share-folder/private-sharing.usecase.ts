@@ -91,7 +91,7 @@ export class PrivateSharingUseCase {
     return { stoped };
   }
 
-  private async validateFolderShared(folderUuid: string) {
+  private async validateFolderShared(folderUuid: Folder['uuid']) {
     const folderRolesByFolder =
       await this.privateSharingFolderRolesRespository.findByFolder(folderUuid);
     const sharingByFolder = await this.privateSharingRespository.findByFolder(
@@ -122,8 +122,8 @@ export class PrivateSharingUseCase {
   }
 
   private async ValidateUserInFolderShared(
-    folderUuid: string,
-    userUuid: string,
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
   ) {
     const folderRolesByFolderAndUser =
       await this.privateSharingFolderRolesRespository.findByFolderAndUser(
