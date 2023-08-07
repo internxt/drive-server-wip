@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { forwardRef } from '@nestjs/common';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import {
   InvalidOwnerError,
@@ -10,12 +11,13 @@ import { User } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
+import { FolderModule } from '../folder/folder.module';
+import { UserModule } from '../user/user.module';
 
 describe('PrivateSharingUseCase', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
   let privateSharingRespository: SequelizePrivateSharingRepository;
   let privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository;
-  let folderRespository: SequelizeFolderRepository;
 
   const userRepositoryMock = {
     findByUuid: jest.fn(),
@@ -31,6 +33,8 @@ describe('PrivateSharingUseCase', () => {
     findBySharedWith: jest.fn(),
     findById: jest.fn(),
     createPrivateFolderRole: jest.fn(),
+    removeByFolderUuid: jest.fn(),
+    removeBySharedWith:jest.fn(),
   };
 
   const folderRolesRepositoryMock = {
@@ -105,9 +109,6 @@ describe('PrivateSharingUseCase', () => {
           provide: PrivateSharingFolderRolesRepository,
           useValue: folderRolesRepositoryMock,
         },
-        // {
-        //   provide: PrivateSharingFolderRolesUseCase,
-        // }
       ],
     }).compile();
 
@@ -116,9 +117,6 @@ describe('PrivateSharingUseCase', () => {
     );
     privateSharingRespository = module.get<SequelizePrivateSharingRepository>(
       SequelizePrivateSharingRepository,
-    );
-    folderRespository = module.get<SequelizeFolderRepository>(
-      SequelizeFolderRepository,
     );
     privateSharingFolderRolesRespository = module.get<PrivateSharingFolderRolesRepository>(
       PrivateSharingFolderRolesRepository,
@@ -177,7 +175,7 @@ describe('PrivateSharingUseCase', () => {
         limit,
         order,
       );
-
+      console.log('result',result)
       expect(result).toEqual(folders);
       expect(privateSharingRespository.findBySharedWith).toHaveBeenCalledWith(
         user.uuid,
@@ -245,28 +243,14 @@ describe('PrivateSharingUseCase', () => {
     const owner = user;
     const folderUuid = v4();
 
-    it('should not found if folder does not exist', async () => {
-      // const foundPrivateFolder = {
-      //   folderId: 1,
-      //   folder: { userId: owner.id + 1 },
-      // }; // Un usuario diferente
-
-      // privateSharingRepositoryMock.findById.mockResolvedValue(
-      //   foundPrivateFolder,
-      // );
-
-      // await expect(
-      //   privateSharingUseCase.grantPrivileges(
-      //     owner,
-      //     userUuid,
-      //     privateFolderId,
-      //     roleUuid,
-      //   ),
-      // ).rejects.toThrow(InvalidOwnerError);
-
-      // expect(privateSharingRepositoryMock.findById).toHaveBeenCalledWith(
-      //   privateFolderId,
-      // );
+    it('should receive folderId', async () => {
+      const result  = await privateSharingUseCase.stopSharing('');
+    });
+    it('should show not found if folder does not exist', async () => {
+      
+    });
+    it('should stop successfully', async () => {
+      
     });
   });
 });

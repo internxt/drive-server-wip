@@ -9,6 +9,7 @@ import { AnalyticsListener } from './listeners/analytics.listener';
 import { ShareLinkListener } from './listeners/share-link.listener';
 import { AuthListener } from './listeners/auth.listener';
 import { NewsletterService } from '../newsletter';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 @Module({
   imports: [ConfigModule, HttpClientModule, MailerModule],
   controllers: [],
@@ -20,7 +21,8 @@ import { NewsletterService } from '../newsletter';
     ShareLinkListener,
     AuthListener,
     NewsletterService,
+    EventEmitter2,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService,EventEmitter2],
 })
 export class NotificationModule {}
