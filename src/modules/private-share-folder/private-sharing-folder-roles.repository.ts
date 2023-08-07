@@ -11,11 +11,11 @@ export interface PrivateSharingRolesRepository {
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<PrivateSharingFolderRole[]>;
-  removeByFolder(folderUuid: Folder['uuid']): Promise<any>;
+  removeByFolder(folderUuid: Folder['uuid']): Promise<number>;
   removeByUser(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
-  ): Promise<any>;
+  ): Promise<number>;
 }
 
 @Injectable()
@@ -27,21 +27,23 @@ export class PrivateSharingFolderRolesRepository
     private privateSharingFolderRolesModel: typeof PrivateSharingFolderRolesModel,
   ) {}
 
-  private async removeByField(fields: Partial<PrivateSharingFolderRole>) {
-    const privateFolder = await this.privateSharingFolderRolesModel.destroy({
+  private async removeByField(
+    fields: Partial<PrivateSharingFolderRole>,
+  ): Promise<number> {
+    const amountRemoves = await this.privateSharingFolderRolesModel.destroy({
       where: fields,
     });
-    return privateFolder;
+    return amountRemoves;
   }
 
   async removeByUser(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
-  ): Promise<any> {
+  ): Promise<number> {
     return await this.removeByField({ folderId: folderUuid, userId: userUuid });
   }
 
-  async removeByFolder(folderUuid: Folder['uuid']): Promise<any> {
+  async removeByFolder(folderUuid: Folder['uuid']): Promise<number> {
     return await this.removeByField({ folderId: folderUuid });
   }
 
