@@ -11,6 +11,16 @@ export class InvalidOwnerError extends Error {
     super('You are not the owner of this folder');
   }
 }
+export class FolderNotSharedError extends Error {
+  constructor() {
+    super('This folder is not shared');
+  }
+}
+export class UserNotInSharedFolder extends Error {
+  constructor() {
+    super('User is not in shared folder');
+  }
+}
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -70,14 +80,39 @@ export class PrivateSharingUseCase {
   }
 
   async stopSharing(folderUuid: Folder['uuid']): Promise<any> {
-    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByFolderUuid(folderUuid);
+    await this.validateFolderShared(folderUuid);
+    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByFolder(folderUuid);
     const sharingRemoved = await this.privateSharingRespository.removeByFolderUuid(folderUuid);
-    return {sharingRemoved, folderRolesRemoved};
+    const stoped = folderRolesRemoved + sharingRemoved > 0;
+    return {stoped};
+  }
+
+  private async validateFolderShared(folderUuid: string) {
+    const folderRolesByFolder = await this.privateSharingFolderRolesRespository.findByFolder(folderUuid);
+    const sharingByFolder = await this.privateSharingRespository.findByFolder(folderUuid);
+    if (folderRolesByFolder.length === 0 && sharingByFolder.length === 0) {
+      throw new FolderNotSharedError();
+    }
   }
 
   async removeUserShared(folderUuid: Folder['uuid'], userUuid: User['uuid']): Promise<any>{
-    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByUserUuid(folderUuid,userUuid);
+    await this.ValidateUserInFolderShared(folderUuid, userUuid);
+    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByUser(folderUuid,userUuid);
     const userSharedRemoved = await this.privateSharingRespository.removeBySharedWith(folderUuid, userUuid);
-    return {userSharedRemoved, folderRolesRemoved};
+    const removed = folderRolesRemoved + userSharedRemoved > 0;
+    return {removed};
+  }
+
+  private async ValidateUserInFolderShared(folderUuid: string, userUuid: string) {
+    const folderRolesByFolderAndUser = await this.privateSharingFolderRolesRespository
+      .findByFolderAndUser(folderUuid, userUuid);
+    const sharingByFolderAndSharedWith = await this.privateSharingRespository
+      .findByFolderAndSharedWith(folderUuid, userUuid);
+    if (
+      folderRolesByFolderAndUser.length === 0 && 
+      sharingByFolderAndSharedWith.length === 0
+    ) {
+      throw new UserNotInSharedFolder();
+    }
   }
 }
