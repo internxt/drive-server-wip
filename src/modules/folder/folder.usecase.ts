@@ -61,9 +61,7 @@ export class FolderUseCases {
     return folder;
   }
 
-  async getFolderByUuid(
-    folderUuid: FolderAttributes['uuid'],
-  ): Promise<Folder> {
+  async getFolderByUuid(folderUuid: FolderAttributes['uuid']): Promise<Folder> {
     const folder = await this.folderRepository.findByUuid(folderUuid, false);
 
     if (!folder) {

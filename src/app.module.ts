@@ -21,7 +21,6 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
 import { PrivateSharingModule } from './modules/private-share-folder/private-sharing.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({

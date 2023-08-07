@@ -81,35 +81,62 @@ export class PrivateSharingUseCase {
 
   async stopSharing(folderUuid: Folder['uuid']): Promise<any> {
     await this.validateFolderShared(folderUuid);
-    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByFolder(folderUuid);
-    const sharingRemoved = await this.privateSharingRespository.removeByFolderUuid(folderUuid);
+    const folderRolesRemoved =
+      await this.privateSharingFolderRolesRespository.removeByFolder(
+        folderUuid,
+      );
+    const sharingRemoved =
+      await this.privateSharingRespository.removeByFolderUuid(folderUuid);
     const stoped = folderRolesRemoved + sharingRemoved > 0;
-    return {stoped};
+    return { stoped };
   }
 
   private async validateFolderShared(folderUuid: string) {
-    const folderRolesByFolder = await this.privateSharingFolderRolesRespository.findByFolder(folderUuid);
-    const sharingByFolder = await this.privateSharingRespository.findByFolder(folderUuid);
+    const folderRolesByFolder =
+      await this.privateSharingFolderRolesRespository.findByFolder(folderUuid);
+    const sharingByFolder = await this.privateSharingRespository.findByFolder(
+      folderUuid,
+    );
     if (folderRolesByFolder.length === 0 && sharingByFolder.length === 0) {
       throw new FolderNotSharedError();
     }
   }
 
-  async removeUserShared(folderUuid: Folder['uuid'], userUuid: User['uuid']): Promise<any>{
+  async removeUserShared(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<any> {
     await this.ValidateUserInFolderShared(folderUuid, userUuid);
-    const folderRolesRemoved = await this.privateSharingFolderRolesRespository.removeByUser(folderUuid,userUuid);
-    const userSharedRemoved = await this.privateSharingRespository.removeBySharedWith(folderUuid, userUuid);
+    const folderRolesRemoved =
+      await this.privateSharingFolderRolesRespository.removeByUser(
+        folderUuid,
+        userUuid,
+      );
+    const userSharedRemoved =
+      await this.privateSharingRespository.removeBySharedWith(
+        folderUuid,
+        userUuid,
+      );
     const removed = folderRolesRemoved + userSharedRemoved > 0;
-    return {removed};
+    return { removed };
   }
 
-  private async ValidateUserInFolderShared(folderUuid: string, userUuid: string) {
-    const folderRolesByFolderAndUser = await this.privateSharingFolderRolesRespository
-      .findByFolderAndUser(folderUuid, userUuid);
-    const sharingByFolderAndSharedWith = await this.privateSharingRespository
-      .findByFolderAndSharedWith(folderUuid, userUuid);
+  private async ValidateUserInFolderShared(
+    folderUuid: string,
+    userUuid: string,
+  ) {
+    const folderRolesByFolderAndUser =
+      await this.privateSharingFolderRolesRespository.findByFolderAndUser(
+        folderUuid,
+        userUuid,
+      );
+    const sharingByFolderAndSharedWith =
+      await this.privateSharingRespository.findByFolderAndSharedWith(
+        folderUuid,
+        userUuid,
+      );
     if (
-      folderRolesByFolderAndUser.length === 0 && 
+      folderRolesByFolderAndUser.length === 0 &&
       sharingByFolderAndSharedWith.length === 0
     ) {
       throw new UserNotInSharedFolder();

@@ -250,7 +250,7 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async stopSharing(
     @Param('folderId', ParseUUIDPipe) folderUuid: string,
-    @UserDecorator() user: User
+    @UserDecorator() user: User,
   ): Promise<any> {
     try {
       return await this.privateSharingUseCase.stopSharing(folderUuid);
@@ -258,9 +258,9 @@ export class PrivateSharingController {
       new Logger().error(
         `[PRIVATESHARING/STOP] ERROR: ${
           (error as Error).message
-        }, Error while stopping shared folder by folder ${
-          folderUuid
-        }, ${error.stack || 'No stack trace'}`,
+        }, Error while stopping shared folder by folder ${folderUuid}, ${
+          error.stack || 'No stack trace'
+        }`,
       );
       throw error;
     }
@@ -274,16 +274,21 @@ export class PrivateSharingController {
   async removUserFromSharedFolder(
     @Param('folderId', ParseUUIDPipe) folderUuid: string,
     @Param('userId', ParseUUIDPipe) userUuid: string,
-    @UserDecorator() user: User
+    @UserDecorator() user: User,
   ): Promise<any> {
     try {
-      return await this.privateSharingUseCase.removeUserShared(folderUuid, userUuid);
+      return await this.privateSharingUseCase.removeUserShared(
+        folderUuid,
+        userUuid,
+      );
     } catch (error) {
       new Logger().error(
         `[PRIVATESHARING/REMOVE] ERROR: ${
           (error as Error).message
         }, Error while stopping shared folder by folder 
-        ${folderUuid} and by shared user ${userUuid}, ${error.stack || 'No stack trace'}`,
+        ${folderUuid} and by shared user ${userUuid}, ${
+          error.stack || 'No stack trace'
+        }`,
       );
       throw error;
     }

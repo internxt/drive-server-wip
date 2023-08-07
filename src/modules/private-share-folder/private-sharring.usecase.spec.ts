@@ -35,7 +35,7 @@ describe('PrivateSharingUseCase', () => {
     findById: jest.fn(),
     createPrivateFolderRole: jest.fn(),
     removeByFolderUuid: jest.fn(),
-    removeBySharedWith:jest.fn(),
+    removeBySharedWith: jest.fn(),
     findByFolder: jest.fn(),
     findByFolderAndSharedWith: jest.fn(),
   };
@@ -95,22 +95,26 @@ describe('PrivateSharingUseCase', () => {
     }),
   ];
 
-  const folerRoles: PrivateSharingFolderRole[] = [PrivateSharingFolderRole.build({
-    id: v4(),
-    folderId: v4(),
-    userId: v4(),
-    roleId: v4(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })];
+  const folerRoles: PrivateSharingFolderRole[] = [
+    PrivateSharingFolderRole.build({
+      id: v4(),
+      folderId: v4(),
+      userId: v4(),
+      roleId: v4(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  ];
 
-  const sharingResult: PrivateSharingFolder[]= [PrivateSharingFolder.build({
-    id: v4(),
-    folderId: v4(),
-    ownerId: v4(),
-    sharedWith: v4(),
-    encryptionKey: v4(),
-  })]
+  const sharingResult: PrivateSharingFolder[] = [
+    PrivateSharingFolder.build({
+      id: v4(),
+      folderId: v4(),
+      ownerId: v4(),
+      sharedWith: v4(),
+      encryptionKey: v4(),
+    }),
+  ];
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -127,7 +131,8 @@ describe('PrivateSharingUseCase', () => {
         {
           provide: SequelizeFolderRepository,
           useValue: folderRepositoryMock,
-        },{
+        },
+        {
           provide: PrivateSharingFolderRolesRepository,
           useValue: folderRolesRepositoryMock,
         },
@@ -140,9 +145,10 @@ describe('PrivateSharingUseCase', () => {
     privateSharingRespository = module.get<SequelizePrivateSharingRepository>(
       SequelizePrivateSharingRepository,
     );
-    privateSharingFolderRolesRespository = module.get<PrivateSharingFolderRolesRepository>(
-      PrivateSharingFolderRolesRepository,
-    );
+    privateSharingFolderRolesRespository =
+      module.get<PrivateSharingFolderRolesRepository>(
+        PrivateSharingFolderRolesRepository,
+      );
   });
 
   it('should be defined', () => {
@@ -260,22 +266,23 @@ describe('PrivateSharingUseCase', () => {
   });
 
   describe('stopSharing', () => {
-    const folderUuid = v4();   
-    
+    const folderUuid = v4();
+
     it('should throw folder not shared', async () => {
       const empty = [];
       jest
         .spyOn(privateSharingFolderRolesRespository, 'findByFolder')
         .mockResolvedValue(empty);
       jest
-          .spyOn(privateSharingRespository, 'findByFolder')
-          .mockResolvedValue(empty);
-      await expect(privateSharingUseCase.stopSharing(folderUuid))
-        .rejects.toThrowError(new FolderNotSharedError())
+        .spyOn(privateSharingRespository, 'findByFolder')
+        .mockResolvedValue(empty);
+      await expect(
+        privateSharingUseCase.stopSharing(folderUuid),
+      ).rejects.toThrowError(new FolderNotSharedError());
     });
 
     it('should return stoped in false', async () => {
-      const resultExpected = {stoped: false};
+      const resultExpected = { stoped: false };
       jest
         .spyOn(privateSharingFolderRolesRespository, 'findByFolder')
         .mockResolvedValue(folerRoles);
@@ -289,12 +296,13 @@ describe('PrivateSharingUseCase', () => {
         .spyOn(privateSharingRespository, 'removeByFolderUuid')
         .mockResolvedValue(0);
 
-      await expect(privateSharingUseCase.stopSharing(folderUuid))
-        .resolves.toEqual(resultExpected)
+      await expect(
+        privateSharingUseCase.stopSharing(folderUuid),
+      ).resolves.toEqual(resultExpected);
     });
 
     it('should stop successfully', async () => {
-      const resultExpected = {stoped: true};
+      const resultExpected = { stoped: true };
       jest
         .spyOn(privateSharingFolderRolesRespository, 'findByFolder')
         .mockResolvedValue(folerRoles);
@@ -308,8 +316,9 @@ describe('PrivateSharingUseCase', () => {
         .spyOn(privateSharingRespository, 'removeByFolderUuid')
         .mockResolvedValue(1);
 
-      await expect(privateSharingUseCase.stopSharing(folderUuid))
-        .resolves.toEqual(resultExpected)
+      await expect(
+        privateSharingUseCase.stopSharing(folderUuid),
+      ).resolves.toEqual(resultExpected);
     });
   });
 
@@ -325,12 +334,13 @@ describe('PrivateSharingUseCase', () => {
       jest
         .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
         .mockResolvedValue(empty);
-      await expect(privateSharingUseCase.removeUserShared(folderUuid, userUuid))
-      .rejects.toThrowError(new UserNotInSharedFolder())
-     });
+      await expect(
+        privateSharingUseCase.removeUserShared(folderUuid, userUuid),
+      ).rejects.toThrowError(new UserNotInSharedFolder());
+    });
 
-     it('should return removed in false', async () => {
-      const resultExpected = {removed: false};
+    it('should return removed in false', async () => {
+      const resultExpected = { removed: false };
       jest
         .spyOn(privateSharingFolderRolesRespository, 'findByFolderAndUser')
         .mockResolvedValue(folerRoles);
@@ -338,18 +348,19 @@ describe('PrivateSharingUseCase', () => {
         .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
         .mockResolvedValue(sharingResult);
       jest
-      .spyOn(privateSharingFolderRolesRespository, 'removeByUser')
-      .mockResolvedValue(0);
+        .spyOn(privateSharingFolderRolesRespository, 'removeByUser')
+        .mockResolvedValue(0);
       jest
-      .spyOn(privateSharingRespository, 'removeBySharedWith')
-      .mockResolvedValue(0);
+        .spyOn(privateSharingRespository, 'removeBySharedWith')
+        .mockResolvedValue(0);
 
-      await expect(privateSharingUseCase.removeUserShared(folderUuid, userUuid))
-        .resolves.toEqual(resultExpected)
-     });
+      await expect(
+        privateSharingUseCase.removeUserShared(folderUuid, userUuid),
+      ).resolves.toEqual(resultExpected);
+    });
 
-     it('should remove successfully', async () => {
-      const resultExpected = {removed: true};
+    it('should remove successfully', async () => {
+      const resultExpected = { removed: true };
       jest
         .spyOn(privateSharingFolderRolesRespository, 'findByFolderAndUser')
         .mockResolvedValue(folerRoles);
@@ -357,14 +368,15 @@ describe('PrivateSharingUseCase', () => {
         .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
         .mockResolvedValue(sharingResult);
       jest
-      .spyOn(privateSharingFolderRolesRespository, 'removeByUser')
-      .mockResolvedValue(1);
+        .spyOn(privateSharingFolderRolesRespository, 'removeByUser')
+        .mockResolvedValue(1);
       jest
-      .spyOn(privateSharingRespository, 'removeBySharedWith')
-      .mockResolvedValue(1);
+        .spyOn(privateSharingRespository, 'removeBySharedWith')
+        .mockResolvedValue(1);
 
-      await expect(privateSharingUseCase.removeUserShared(folderUuid, userUuid))
-        .resolves.toEqual(resultExpected)
-     });
+      await expect(
+        privateSharingUseCase.removeUserShared(folderUuid, userUuid),
+      ).resolves.toEqual(resultExpected);
+    });
   });
 });

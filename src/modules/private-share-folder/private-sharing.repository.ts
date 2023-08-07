@@ -22,16 +22,12 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
-  removeByFolderUuid(
-    folderUuid: Folder['uuid'],
-  ): Promise<any>;
+  removeByFolderUuid(folderUuid: Folder['uuid']): Promise<any>;
   removeBySharedWith(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<any>;
-  findByFolder(
-    folderUuid: Folder['uuid'],
-  ): Promise<PrivateSharingFolder[]>;
+  findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]>;
   findByFolderAndSharedWith(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
@@ -51,18 +47,23 @@ export class SequelizePrivateSharingRepository
 
   private async removeByField(fields: Partial<PrivateSharingFolder>) {
     const privateFolder = await this.privateSharingFolderModel.destroy({
-      where: fields
+      where: fields,
     });
     return privateFolder;
   }
 
   async removeByFolderUuid(folderUuid: string): Promise<any> {
-    const privatesRemovedByFolderUuid = await this.removeByField({folderId: folderUuid});
+    const privatesRemovedByFolderUuid = await this.removeByField({
+      folderId: folderUuid,
+    });
     return privatesRemovedByFolderUuid;
   }
 
   async removeBySharedWith(folderUuid: string, userUuid: string): Promise<any> {
-    const sharedWithRemoved = await this.removeByField({folderId: folderUuid, sharedWith: userUuid});
+    const sharedWithRemoved = await this.removeByField({
+      folderId: folderUuid,
+      sharedWith: userUuid,
+    });
     return sharedWithRemoved;
   }
 
@@ -158,7 +159,9 @@ export class SequelizePrivateSharingRepository
     return sharedFolders.map((folder) => folder.get({ plain: true }));
   }
 
-  async findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]> {
+  async findByFolder(
+    folderUuid: Folder['uuid'],
+  ): Promise<PrivateSharingFolder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
         folderId: folderUuid,
@@ -167,13 +170,16 @@ export class SequelizePrivateSharingRepository
     return sharedFolders;
   }
 
-  async findByFolderAndSharedWith( folderUuid: Folder['uuid'], userUuid: User['uuid']): Promise<PrivateSharingFolder[]> {
+  async findByFolderAndSharedWith(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<PrivateSharingFolder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
         folderId: folderUuid,
         sharedWith: userUuid,
       },
     });
-    return sharedFolders
+    return sharedFolders;
   }
 }
