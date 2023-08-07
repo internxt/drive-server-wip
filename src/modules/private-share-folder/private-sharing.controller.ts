@@ -382,7 +382,7 @@ export class PrivateSharingController {
 
       await this.privateSharingUseCase.grantPrivileges(
         user,
-        privateSharingFolder.userId,
+        privateSharingFolder.sharedWith,
         privateSharingFolder.id,
         CreatePrivateSharingDto.roleId,
       );
@@ -406,9 +406,10 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async getPrivateSharedFolderByFolderId(
     @UserDecorator() user: User,
-    @Query('folderId') folderId: string,
+    @Param('folderId') folderId: string,
   ) {
     try {
+      console.log({ byfolderidfolderId: folderId });
       return {
         data: await this.privateSharingUseCase.getPrivateSharedFolderByFolderId(
           user,
