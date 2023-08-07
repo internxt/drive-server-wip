@@ -14,11 +14,13 @@ export class InvalidOwnerError extends Error {
 export class FolderNotSharedError extends Error {
   constructor() {
     super('This folder is not shared');
+    Object.setPrototypeOf(this, FolderNotSharedError.prototype);
   }
 }
 export class UserNotInSharedFolder extends Error {
   constructor() {
     super('User is not in shared folder');
+    Object.setPrototypeOf(this, UserNotInSharedFolder.prototype);
   }
 }
 @Injectable()
