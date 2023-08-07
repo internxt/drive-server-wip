@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { forwardRef } from '@nestjs/common';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import {
   FolderNotSharedError,
@@ -13,7 +12,7 @@ import { User } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
-import { PrivateSharingFolderRole, PrivateSharingFolderRolesAttributes } from './private-sharing-folder-roles.domain';
+import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 
 describe('PrivateSharingUseCase', () => {
@@ -261,7 +260,6 @@ describe('PrivateSharingUseCase', () => {
   });
 
   describe('stopSharing', () => {
-    const userUuid = v4();
     const folderUuid = v4();   
     
     it('should throw folder not shared', async () => {
