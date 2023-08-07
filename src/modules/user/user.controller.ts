@@ -37,7 +37,6 @@ import {
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import {
   RecoverAccountDto,
   RequestRecoverAccountDto,
@@ -46,6 +45,7 @@ import {
 import { verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
 
 @ApiTags('User')
 @Controller('users')
@@ -56,7 +56,7 @@ export class UserController {
     private readonly keyServerUseCases: KeyServerUseCases,
   ) {}
 
-  // @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
