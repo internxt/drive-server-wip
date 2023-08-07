@@ -36,7 +36,7 @@ import { ShareModule } from '../share/share.module';
       UserReferralModel,
       FriendInvitationModel,
     ]),
-    FolderModule,
+    forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
     HttpClientModule,
     KeyServerModule,
@@ -49,13 +49,12 @@ import { ShareModule } from '../share/share.module';
     SequelizeReferralRepository,
     SequelizeUserReferralsRepository,
     UserUseCases,
-    FolderUseCases,
     CryptoService,
     BridgeService,
     NotificationService,
     PaymentsService,
     NewsletterService,
   ],
-  exports: [UserUseCases],
+  exports: [UserUseCases, SequelizeUserRepository],
 })
 export class UserModule {}
