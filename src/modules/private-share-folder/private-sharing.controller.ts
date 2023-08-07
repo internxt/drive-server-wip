@@ -325,6 +325,17 @@ export class PrivateSharingController {
     required: false,
     type: String,
   })
+  @ApiParam({
+    name: 'folderId',
+    description:
+      'folder id about which you need to know the items, this folder must be a child of" shared folder".',
+    type: String,
+  })
+  @ApiParam({
+    name: 'sharedFolderId',
+    description: 'Folder id of the shared folder',
+    type: String,
+  })
   @ApiOkResponse({ description: 'Get all items shared by a user' })
   @ApiBearerAuth()
   async getSharedItems(
