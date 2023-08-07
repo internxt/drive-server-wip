@@ -29,7 +29,7 @@ import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.m
     PrivateSharingUseCase,
     SequelizePrivateSharingRepository,
     SequelizeUserRepository,
-    PrivateSharingFolderRolesRepository
+    PrivateSharingFolderRolesRepository,
   ],
   exports: [],
 })
