@@ -91,7 +91,7 @@ export class PrivateSharingUseCase {
     }
 
     await this.privateSharingRespository.updatePrivateFolderRole(
-      privateFolderRole,
+      privateFolderRole?.id,
       roleId,
     );
 
