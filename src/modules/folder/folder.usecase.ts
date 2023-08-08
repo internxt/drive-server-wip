@@ -116,22 +116,6 @@ export class FolderUseCases {
     return folderIsInsideTree;
   }
 
-  async getInTree(
-    parentId: FolderAttributes['id'],
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-    deleted: boolean,
-  ) {
-    const folderInsideTree = await this.folderRepository.findInTree(
-      parentId,
-      folderId,
-      userId,
-      deleted,
-    );
-
-    return folderInsideTree;
-  }
-
   async getChildrenFoldersToUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
