@@ -164,7 +164,6 @@ export class PrivateSharingUseCase {
       throw new InvalidPrivateFolderRoleError();
     }
 
-    // Check if user has access to the parent private folder
     const privateSharingFolder =
       await this.privateSharingRespository.findPrivateFolderByFolderIdAndUserId(
         sharedFolderId,
@@ -176,12 +175,10 @@ export class PrivateSharingUseCase {
     const folder = await this.folderUsecase.getByUuid(folderId);
     const parentFolder = await this.folderUsecase.getByUuid(sharedFolderId);
 
-    // Check if folderUuid is a child of parentPrivateFolderId
-    const folderFound = await this.folderUsecase.getInTree(
+    const folderFound = await this.folderUsecase.isFolderInsideFolder(
       parentFolder.id,
       folder.id,
       owner.id,
-      false,
     );
 
     if (!folderFound) {
