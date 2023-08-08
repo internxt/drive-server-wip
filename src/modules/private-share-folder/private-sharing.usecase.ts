@@ -83,7 +83,7 @@ export class PrivateSharingUseCase {
     const sharedWith = await this.userUsecase.getUser(invatedUserId);
 
     const privateFolderRole =
-      await this.privateSharingRespository.findPrivateFolderRoleByUserIdAndFolderId(
+      await this.privateSharingRespository.findPrivateFolderRoleByFolderUuidAndUserUuid(
         sharedWith.uuid,
         folderId,
       );
