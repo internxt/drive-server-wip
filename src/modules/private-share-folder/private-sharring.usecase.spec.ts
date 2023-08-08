@@ -257,7 +257,7 @@ describe('Private sharing folder use cases', () => {
       );
       expect(
         privateSharingRepositoryMock.updatePrivateFolderRole,
-      ).toHaveBeenCalledWith(foundPrivateFolderRole, roleId);
+      ).toHaveBeenCalledWith(foundPrivateFolderRole.id, roleId);
     });
 
     it('When a non-owner attempts to update the role, the invited user doesnt update their role.', async () => {
