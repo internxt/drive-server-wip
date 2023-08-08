@@ -30,7 +30,7 @@ describe('Private sharing folder use cases', () => {
     createPrivateFolderRole: jest.fn(),
     findPrivateFolderRoleById: jest.fn(),
     updatePrivateFolderRole: jest.fn(),
-    findPrivateFolderRoleByFolderUuidAndUserUuid: jest.fn(),
+    findPrivateFolderRoleByFolderIdAndUserId: jest.fn(),
     findRoleById: jest.fn(),
   };
 
@@ -236,7 +236,7 @@ describe('Private sharing folder use cases', () => {
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
         foundPrivateFolderRole,
       );
-      privateSharingRepositoryMock.findPrivateFolderRoleByFolderUuidAndUserUuid.mockResolvedValue(
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
         foundPrivateFolderRole,
       );
       privateSharingRepositoryMock.findRoleById.mockResolvedValue({
@@ -271,7 +271,7 @@ describe('Private sharing folder use cases', () => {
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
         foundPrivateFolderRole,
       );
-      privateSharingRepositoryMock.findPrivateFolderRoleByFolderUuidAndUserUuid.mockResolvedValue(
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
         foundPrivateFolderRole,
       );
       privateSharingRepositoryMock.findRoleById.mockResolvedValue({
