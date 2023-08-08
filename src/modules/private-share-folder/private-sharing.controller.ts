@@ -9,6 +9,9 @@ import {
   Put,
   Query,
   Res,
+  Delete,
+  ParseUUIDPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,10 +22,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  FolderNotSharedError,
   InvalidOwnerError,
   RoleNotFoundError,
   PrivateSharingUseCase,
   UserNotInvitedError,
+  UserNotInSharedFolder,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -448,6 +453,66 @@ export class PrivateSharingController {
       );
 
       throw error;
+    }
+  }
+  @Delete('stop/folder-id/:folderId')
+  @ApiOperation({
+    summary: 'Stop sharing one folder',
+  })
+  @ApiBearerAuth()
+  async stopSharing(
+    @Param('folderId', ParseUUIDPipe) folderUuid: string,
+    @UserDecorator() user: User,
+  ): Promise<any> {
+    try {
+      return await this.privateSharingUseCase.stopSharing(folderUuid);
+    } catch (error) {
+      if (
+        error instanceof FolderNotSharedError ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      new Logger().error(
+        `[PRIVATESHARING/STOP] ERROR: ${
+          (error as Error).message
+        }, Error while stopping shared folder by folder ${folderUuid}, ${
+          error.stack || 'No stack trace'
+        }`,
+      );
+    }
+  }
+
+  @Delete('remove/folder-id/:folderId/user-id/:userId')
+  @ApiOperation({
+    summary: 'Remove user from shared folder',
+  })
+  @ApiBearerAuth()
+  async removUserFromSharedFolder(
+    @Param('folderId', ParseUUIDPipe) folderUuid: string,
+    @Param('userId', ParseUUIDPipe) userUuid: string,
+    @UserDecorator() user: User,
+  ): Promise<any> {
+    try {
+      return await this.privateSharingUseCase.removeUserShared(
+        folderUuid,
+        userUuid,
+      );
+    } catch (error) {
+      if (
+        error instanceof UserNotInSharedFolder ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      new Logger().error(
+        `[PRIVATESHARING/REMOVE] ERROR: ${
+          (error as Error).message
+        }, Error while stopping shared folder by folder 
+        ${folderUuid} and by shared user ${userUuid}, ${
+          error.stack || 'No stack trace'
+        }`,
+      );
     }
   }
 }

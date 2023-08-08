@@ -1,12 +1,13 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
-import { SequelizeUserRepository } from '../user/user.repository';
-import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { UserNotFoundError } from '../user/user.usecase';
+import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -31,12 +32,25 @@ export class UserNotInvitedError extends Error {
   }
 }
 
+export class FolderNotSharedError extends Error {
+  constructor() {
+    super('This folder is not shared');
+    Object.setPrototypeOf(this, FolderNotSharedError.prototype);
+  }
+}
+export class UserNotInSharedFolder extends Error {
+  constructor() {
+    super('User is not in shared folder');
+    Object.setPrototypeOf(this, UserNotInSharedFolder.prototype);
+  }
+}
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
     private userRepository: SequelizeUserRepository,
     private folderRespository: SequelizeFolderRepository,
+    private privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository,
   ) {}
   async grantPrivileges(
     owner: User,
@@ -219,5 +233,69 @@ export class PrivateSharingUseCase {
         user.uuid,
       );
     return privateFolder;
+  }
+
+  async stopSharing(folderUuid: Folder['uuid']): Promise<any> {
+    await this.validateFolderShared(folderUuid);
+    const folderRolesRemoved =
+      await this.privateSharingFolderRolesRespository.removeByFolder(
+        folderUuid,
+      );
+    const sharingRemoved =
+      await this.privateSharingRespository.removeByFolderUuid(folderUuid);
+    const stoped = folderRolesRemoved + sharingRemoved > 0;
+    return { stoped };
+  }
+
+  private async validateFolderShared(folderUuid: Folder['uuid']) {
+    const folderRolesByFolder =
+      await this.privateSharingFolderRolesRespository.findByFolder(folderUuid);
+    const sharingByFolder = await this.privateSharingRespository.findByFolder(
+      folderUuid,
+    );
+    if (folderRolesByFolder.length === 0 && sharingByFolder.length === 0) {
+      throw new FolderNotSharedError();
+    }
+  }
+
+  async removeUserShared(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<any> {
+    await this.ValidateUserInFolderShared(folderUuid, userUuid);
+    const folderRolesRemoved =
+      await this.privateSharingFolderRolesRespository.removeByUser(
+        folderUuid,
+        userUuid,
+      );
+    const userSharedRemoved =
+      await this.privateSharingRespository.removeBySharedWith(
+        folderUuid,
+        userUuid,
+      );
+    const removed = folderRolesRemoved + userSharedRemoved > 0;
+    return { removed };
+  }
+
+  private async ValidateUserInFolderShared(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ) {
+    const folderRolesByFolderAndUser =
+      await this.privateSharingFolderRolesRespository.findByFolderAndUser(
+        folderUuid,
+        userUuid,
+      );
+    const sharingByFolderAndSharedWith =
+      await this.privateSharingRespository.findByFolderAndSharedWith(
+        folderUuid,
+        userUuid,
+      );
+    if (
+      folderRolesByFolderAndUser.length === 0 &&
+      sharingByFolderAndSharedWith.length === 0
+    ) {
+      throw new UserNotInSharedFolder();
+    }
   }
 }
