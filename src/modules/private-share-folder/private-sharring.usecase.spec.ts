@@ -294,7 +294,7 @@ describe('Private sharing folder use cases', () => {
       expect(folderRepositoryMock.findByUuid).toHaveBeenCalled();
     });
 
-    it('When the user does not have role, then it shows user is not invited', async () => {
+    it('When the user has no role in the folder, the user should not be able to update the role', async () => {
       const roleId = v4();
       const owner = user;
       const invitedUserId = v4();
@@ -324,7 +324,7 @@ describe('Private sharing folder use cases', () => {
       ).rejects.toThrow(UserNotInvitedError);
     });
 
-    it('When the user is not the owner, then it shows invalid owner', async () => {
+    it('When the user is not the owner of the folder, it should not allow to update the role', async () => {
       const roleId = v4();
       const owner = user;
       const invitedUserId = v4();
@@ -359,7 +359,7 @@ describe('Private sharing folder use cases', () => {
       ).rejects.toThrow(InvalidOwnerError);
     });
 
-    it('When passed role does not exist, the it shows role not found', async () => {
+    it('When trying to update a non-existent role then it should not allow the update', async () => {
       const roleId = v4();
       const owner = user;
       const invitedUserId = v4();
