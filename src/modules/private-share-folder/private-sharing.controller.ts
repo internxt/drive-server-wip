@@ -303,7 +303,7 @@ export class PrivateSharingController {
     };
   }
 
-  @Get('items/shared-folder/:sharedFolderId/folder/:folderId')
+  @Get('items/shared-folder-id/:sharedFolderId/child-folder-id/:childFolderId')
   @ApiOperation({
     summary: 'Get all items shared by a user',
   })
@@ -326,9 +326,9 @@ export class PrivateSharingController {
     type: String,
   })
   @ApiParam({
-    name: 'folderId',
+    name: 'childFolderId',
     description:
-      'folder id about which you need to know the items, this folder must be a child of" shared folder".',
+      'folder id about which you need to know the items, this folder must be the "shared folder" or a child of this.',
     type: String,
   })
   @ApiParam({
@@ -340,7 +340,7 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async getSharedItems(
     @UserDecorator() user: User,
-    @Param('folderId') folderId: Folder['uuid'],
+    @Param('childFolderId') childFolderId: Folder['uuid'],
     @Param('sharedFolder') sharedFolderId: PrivateSharingFolder['id'],
     @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
@@ -355,7 +355,7 @@ export class PrivateSharingController {
         : undefined;
 
       return this.privateSharingUseCase.getItems(
-        folderId,
+        childFolderId,
         sharedFolderId,
         user,
         page,
