@@ -89,20 +89,6 @@ export class SequelizePrivateSharingRepository
     );
   }
 
-  async findPrivateFolderRoleByUserIdAndFolderId(
-    userId: User['uuid'],
-    folderId: Folder['uuid'],
-  ): Promise<PrivateSharingFolderRole> {
-    const privateFolderRole = await this.privateSharingFolderRole.findOne({
-      where: {
-        userId,
-        folderId,
-      },
-    });
-
-    return privateFolderRole?.get({ plain: true });
-  }
-
   async findPrivateFolderRoleByFolderUuidAndUserUuid(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
@@ -114,7 +100,7 @@ export class SequelizePrivateSharingRepository
       },
     });
 
-    return privateFolderRole.get({ plain: true });
+    return privateFolderRole?.get({ plain: true });
   }
 
   async findPrivateFolderByFolderUuidAndUserUuid(
