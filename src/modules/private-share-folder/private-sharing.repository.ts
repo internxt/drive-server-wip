@@ -13,17 +13,39 @@ import { UserModel } from '../user/user.model';
 
 export interface PrivateSharingRepository {
   findByOwner(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
   findBySharedWith(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
+  findById(
+    id: PrivateSharingFolder['id'],
+  ): Promise<PrivateSharingFolder & { folder: Folder }>;
+  findRoleById(roleId: PrivateSharingRole['id']): Promise<PrivateSharingRole>;
+  create(
+    owner: User,
+    sharedWith: User,
+    folder: Folder,
+  ): Promise<PrivateSharingFolder>;
+  updatePrivateFolderRole(
+    privateFolderRole: PrivateSharingFolderRole,
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void>;
+  findPrivateFolderRoleByFolderIdAndUserId(
+    userId: User['uuid'],
+    folderId: Folder['uuid'],
+  ): Promise<PrivateSharingFolderRole>;
+  createPrivateFolderRole(
+    userId: User['uuid'],
+    folderId: Folder['uuid'],
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -51,10 +73,12 @@ export class SequelizePrivateSharingRepository
       include: [FolderModel],
     });
 
-    return privateFolder.get({ plain: true });
+    return privateFolder?.get({ plain: true });
   }
 
-  async findRoleById(roleId: PrivateSharingRole['id']) {
+  async findRoleById(
+    roleId: PrivateSharingRole['id'],
+  ): Promise<PrivateSharingRole> {
     const role = await this.privateSharingRole.findByPk(roleId);
     return role?.get({ plain: true });
   }
@@ -70,7 +94,7 @@ export class SequelizePrivateSharingRepository
       folderId: folder.uuid,
     });
 
-    return privateFolder.get({ plain: true });
+    return privateFolder?.get({ plain: true });
   }
 
   async updatePrivateFolderRole(
@@ -89,28 +113,28 @@ export class SequelizePrivateSharingRepository
     );
   }
 
-  async findPrivateFolderRoleByFolderUuidAndUserUuid(
-    userUuid: User['uuid'],
-    folderUuid: Folder['uuid'],
+  async findPrivateFolderRoleByFolderIdAndUserId(
+    userId: User['uuid'],
+    folderId: Folder['uuid'],
   ): Promise<PrivateSharingFolderRole> {
     const privateFolderRole = await this.privateSharingFolderRole.findOne({
       where: {
-        folderId: folderUuid,
-        userId: userUuid,
+        folderId: folderId,
+        userId: userId,
       },
     });
 
     return privateFolderRole?.get({ plain: true });
   }
 
-  async findPrivateFolderByFolderUuidAndUserUuid(
-    folderUuid: Folder['uuid'],
-    userUuid: User['uuid'],
+  async findPrivateFolderByFolderIdAndUserId(
+    folderId: Folder['uuid'],
+    userId: User['uuid'],
   ): Promise<PrivateSharingFolder & { folder: Folder }> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
-        folderId: folderUuid,
-        sharedWith: userUuid,
+        folderId: folderId,
+        sharedWith: userId,
       },
       include: [FolderModel],
     });
@@ -119,25 +143,26 @@ export class SequelizePrivateSharingRepository
   }
 
   async createPrivateFolderRole(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     folderId: Folder['uuid'],
-    roleUuid: PrivateSharingRole['id'],
-  ) {
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void> {
     await this.privateSharingFolderRole.create({
-      userId: userUuid,
+      userId: userId,
       folderId: folderId,
-      roleId: roleUuid,
+      roleId: roleId,
     });
   }
+
   async findByOwner(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        ownerId: userUuid,
+        ownerId: userId,
       },
       include: [
         FolderModel,
@@ -157,14 +182,14 @@ export class SequelizePrivateSharingRepository
   }
 
   async findBySharedWith(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        sharedWith: userUuid,
+        sharedWith: userId,
       },
       include: [
         FolderModel,

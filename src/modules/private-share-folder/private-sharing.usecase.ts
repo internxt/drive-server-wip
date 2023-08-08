@@ -83,7 +83,7 @@ export class PrivateSharingUseCase {
     const sharedWith = await this.userUsecase.getUser(invatedUserId);
 
     const privateFolderRole =
-      await this.privateSharingRespository.findPrivateFolderRoleByFolderUuidAndUserUuid(
+      await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
         sharedWith.uuid,
         folderId,
       );
@@ -166,7 +166,7 @@ export class PrivateSharingUseCase {
 
     // Check if user has access to the parent private folder
     const privateSharingFolder =
-      await this.privateSharingRespository.findPrivateFolderByFolderUuidAndUserUuid(
+      await this.privateSharingRespository.findPrivateFolderByFolderIdAndUserId(
         sharedFolderId,
         user.uuid,
       );
