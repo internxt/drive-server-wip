@@ -34,7 +34,7 @@ export interface PrivateSharingRepository {
     folder: Folder,
   ): Promise<PrivateSharingFolder>;
   updatePrivateFolderRole(
-    privateFolderRole: PrivateSharingFolderRole,
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
     roleId: PrivateSharingRole['id'],
   ): Promise<void>;
   findPrivateFolderRoleByFolderIdAndUserId(
@@ -98,7 +98,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async updatePrivateFolderRole(
-    privateFolderRole: PrivateSharingFolderRole,
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
     roleId: PrivateSharingRole['id'],
   ): Promise<void> {
     await this.privateSharingFolderRole.update(
@@ -107,7 +107,7 @@ export class SequelizePrivateSharingRepository
       },
       {
         where: {
-          id: privateFolderRole.id,
+          id: privateFolderRoleId,
         },
       },
     );
