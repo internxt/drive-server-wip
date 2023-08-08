@@ -155,7 +155,7 @@ export class PrivateSharingUseCase {
     order: [string, string][],
   ) {
     const privateSharingFolderRole =
-      await this.privateSharingRespository.findPrivateFolderRoleByFolderUuidAndUserUuid(
+      await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
         user.uuid,
         sharedFolderId,
       );
