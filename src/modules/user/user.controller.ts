@@ -58,7 +58,7 @@ export class UserController {
   ) {}
 
   @UseGuards(ThrottlerGuard)
-  // @Throttle(5, 3600)
+  @Throttle(5, 3600)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
