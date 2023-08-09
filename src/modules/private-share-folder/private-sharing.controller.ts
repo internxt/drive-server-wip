@@ -341,7 +341,7 @@ export class PrivateSharingController {
   async getSharedItems(
     @UserDecorator() user: User,
     @Param('childFolderId') childFolderId: Folder['uuid'],
-    @Param('sharedFolder') sharedFolderId: PrivateSharingFolder['id'],
+    @Param('sharedFolder') sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
@@ -350,8 +350,6 @@ export class PrivateSharingController {
     { folders: Folder[] | []; files: File[] | [] } | { error: string }
   > {
     try {
-      console.log('childFolderId', childFolderId);
-      console.log('sharedFolderId', sharedFolderId);
       const order = orderBy
         ? [orderBy.split(':') as [string, string]]
         : undefined;

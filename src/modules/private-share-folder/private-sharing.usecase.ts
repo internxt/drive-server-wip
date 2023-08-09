@@ -148,7 +148,7 @@ export class PrivateSharingUseCase {
 
   async getItems(
     folderId: Folder['uuid'],
-    sharedFolderId: PrivateSharingFolder['id'],
+    sharedFolderId: Folder['uuid'],
     user: User,
     page: number,
     perPage: number,
