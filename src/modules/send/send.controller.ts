@@ -18,8 +18,7 @@ import { User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSendLinkDto } from './dto/create-send-link.dto';
-import { ThrottlerGuard } from '@nestjs/throttler';
-
+import { ThrottlerGuard } from '../../guards/throttler.guard';
 @ApiTags('Sends')
 @Controller('links')
 export class SendController {

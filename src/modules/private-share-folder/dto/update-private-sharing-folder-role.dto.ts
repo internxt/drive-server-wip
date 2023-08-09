@@ -1,13 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../user/user.domain';
-import { IsEmail, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 import { Folder } from '../../folder/folder.domain';
 
 export class UpdatePrivateSharingFolderRoleDto {
-  @IsEmail()
+  @IsUUID()
   @IsNotEmpty()
   @ApiProperty({ required: true, default: '' })
-  email: User['email'];
+  userId: User['uuid'];
 
   @IsUUID()
   @IsNotEmpty()

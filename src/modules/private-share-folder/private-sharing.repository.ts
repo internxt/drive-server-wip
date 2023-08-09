@@ -14,13 +14,13 @@ import { UserModel } from '../user/user.model';
 
 export interface PrivateSharingRepository {
   findByOwner(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
   findBySharedWith(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
@@ -35,6 +35,28 @@ export interface PrivateSharingRepository {
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<PrivateSharingFolder[]>;
+  findById(
+    id: PrivateSharingFolder['id'],
+  ): Promise<PrivateSharingFolder & { folder: Folder }>;
+  findRoleById(roleId: PrivateSharingRole['id']): Promise<PrivateSharingRole>;
+  create(
+    owner: User,
+    sharedWith: User,
+    folder: Folder,
+  ): Promise<PrivateSharingFolder>;
+  updatePrivateFolderRole(
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void>;
+  findPrivateFolderRoleByFolderIdAndUserId(
+    userId: User['uuid'],
+    folderId: Folder['uuid'],
+  ): Promise<PrivateSharingFolderRole>;
+  createPrivateFolderRole(
+    userId: User['uuid'],
+    folderId: Folder['uuid'],
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -87,10 +109,12 @@ export class SequelizePrivateSharingRepository
       include: [FolderModel],
     });
 
-    return privateFolder.get({ plain: true });
+    return privateFolder?.get({ plain: true });
   }
 
-  async findRoleById(roleId: PrivateSharingRole['id']) {
+  async findRoleById(
+    roleId: PrivateSharingRole['id'],
+  ): Promise<PrivateSharingRole> {
     const role = await this.privateSharingRole.findByPk(roleId);
     return role?.get({ plain: true });
   }
@@ -106,7 +130,7 @@ export class SequelizePrivateSharingRepository
       folderId: folder.uuid,
     });
 
-    return privateFolder.get({ plain: true });
+    return privateFolder?.get({ plain: true });
   }
 
   async findByFolderIdAndOwnerId(
@@ -125,7 +149,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async updatePrivateFolderRole(
-    privateFolderRole: PrivateSharingFolderRole,
+    privateFolderRoleId: PrivateSharingFolderRole['id'],
     roleId: PrivateSharingRole['id'],
   ): Promise<void> {
     await this.privateSharingFolderRole.update(
@@ -134,13 +158,13 @@ export class SequelizePrivateSharingRepository
       },
       {
         where: {
-          id: privateFolderRole.id,
+          id: privateFolderRoleId,
         },
       },
     );
   }
 
-  async findPrivateFolderRoleByUserIdAndFolderId(
+  async findPrivateFolderRoleByFolderIdAndUserId(
     userId: User['uuid'],
     folderId: Folder['uuid'],
   ): Promise<PrivateSharingFolderRole> {
@@ -155,25 +179,26 @@ export class SequelizePrivateSharingRepository
   }
 
   async createPrivateFolderRole(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     folderId: Folder['uuid'],
-    roleUuid: PrivateSharingRole['id'],
-  ) {
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void> {
     await this.privateSharingFolderRole.create({
-      userId: userUuid,
+      userId: userId,
       folderId: folderId,
-      roleId: roleUuid,
+      roleId: roleId,
     });
   }
+
   async findByOwner(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        ownerId: userUuid,
+        ownerId: userId,
       },
       include: [
         FolderModel,
@@ -193,14 +218,14 @@ export class SequelizePrivateSharingRepository
   }
 
   async findBySharedWith(
-    userUuid: User['uuid'],
+    userId: User['uuid'],
     offset: number,
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
-        sharedWith: userUuid,
+        sharedWith: userId,
       },
       include: [
         FolderModel,

@@ -105,7 +105,7 @@ export class PrivateSharingController {
     try {
       await this.privateSharingUseCase.updateRole(
         user,
-        dto.email,
+        dto.userId,
         dto.folderId,
         id,
       );

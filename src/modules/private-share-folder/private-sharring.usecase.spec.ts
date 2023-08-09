@@ -5,6 +5,8 @@ import {
   InvalidOwnerError,
   PrivateSharingUseCase,
   UserNotInSharedFolder,
+  RoleNotFoundError,
+  UserNotInvitedError,
 } from './private-sharing.usecase';
 import { Folder } from '../folder/folder.domain';
 import { v4 } from 'uuid';
@@ -15,7 +17,7 @@ import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-ro
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 
-describe('PrivateSharingUseCase', () => {
+describe('Private sharing folder use cases', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
   let privateSharingRespository: SequelizePrivateSharingRepository;
   let privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository;
@@ -26,7 +28,6 @@ describe('PrivateSharingUseCase', () => {
 
   const folderRepositoryMock = {
     findByUuid: jest.fn(),
-    isOwner: jest.fn(),
   };
 
   const privateSharingRepositoryMock = {
@@ -47,6 +48,8 @@ describe('PrivateSharingUseCase', () => {
     removeByUser: jest.fn(),
     findByFolder: jest.fn(),
     findByFolderAndUser: jest.fn(),
+    findPrivateFolderRoleByFolderIdAndUserId: jest.fn(),
+    findRoleById: jest.fn(),
   };
 
   const user = User.build({
@@ -159,14 +162,8 @@ describe('PrivateSharingUseCase', () => {
     expect(privateSharingFolderRolesRespository).toBeDefined();
   });
 
-  describe('getSharedFoldersByOwner', () => {
-    const userUuid = v4();
-    const privateFolderId = v4();
-    const roleUuid = v4();
-    const owner = user;
-    const folderUuid = v4();
-
-    it('should return the folders shared by a specific user', async () => {
+  describe('Request private shared folder', () => {
+    it('When retrieving private folders shared by a specific user', async () => {
       jest
         .spyOn(privateSharingRespository, 'findByOwner')
         .mockResolvedValue(folders);
@@ -191,7 +188,7 @@ describe('PrivateSharingUseCase', () => {
       );
     });
 
-    it('should return the folders shared with a specific user', async () => {
+    it('When retrieving private folders shared with a specific user', async () => {
       jest
         .spyOn(privateSharingRespository, 'findBySharedWith')
         .mockResolvedValue(folders);
@@ -215,8 +212,15 @@ describe('PrivateSharingUseCase', () => {
         order,
       );
     });
+  });
 
-    it('should grant privileges if the owner is indeed the owner of the folder', async () => {
+  describe('Manage private shared folder roles', () => {
+    const userUuid = v4();
+    const privateFolderId = v4();
+    const roleUuid = v4();
+    const owner = user;
+
+    it('When privileges are granted by the owner, then the invited user gets role', async () => {
       const folderId = v4();
       const foundPrivateFolder = {
         folderId: folderId,
@@ -242,7 +246,7 @@ describe('PrivateSharingUseCase', () => {
       ).toHaveBeenCalledWith(userUuid, foundPrivateFolder.folderId, roleUuid);
     });
 
-    it('should throw an error if the owner is not the owner of the folder', async () => {
+    it('When a non-owner attempts to grant privileges, the invited user doesnt receive roles', async () => {
       const foundPrivateFolder = {
         folderId: 1,
         folder: { userId: owner.id + 1 },
@@ -266,10 +270,10 @@ describe('PrivateSharingUseCase', () => {
       );
     });
 
-    it('should update the role of a private folder', async () => {
-      const privateFolderRoleId = v4();
+    it('When the role is updated by the owner, the invited user updates their role', async () => {
       const roleId = v4();
       const owner = user;
+      const invitedUserId = v4();
       const folderUuid = v4();
       const foundFolder = { ...folders[0], uuid: folderUuid };
       const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
@@ -277,34 +281,66 @@ describe('PrivateSharingUseCase', () => {
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
         foundPrivateFolderRole,
       );
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findRoleById.mockResolvedValue({
+        id: roleId,
+      });
       folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      folderRepositoryMock.isOwner.mockResolvedValue(true);
+      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
 
       await privateSharingUseCase.updateRole(
         owner,
-        privateFolderRoleId,
+        invitedUserId,
+        folderUuid,
         roleId,
       );
 
-      expect(
-        privateSharingRepositoryMock.findPrivateFolderRoleById,
-      ).toHaveBeenCalledWith(privateFolderRoleId);
       expect(folderRepositoryMock.findByUuid).toHaveBeenCalledWith(
         foundPrivateFolderRole.folderId,
       );
-      expect(folderRepositoryMock.isOwner).toHaveBeenCalledWith(
-        owner,
-        foundFolder.id,
-      );
       expect(
         privateSharingRepositoryMock.updatePrivateFolderRole,
-      ).toHaveBeenCalledWith(foundPrivateFolderRole, roleId);
+      ).toHaveBeenCalledWith(foundPrivateFolderRole.id, roleId);
     });
 
-    it('should throw an error if the user is not the owner of the folder', async () => {
-      const privateFolderRoleId = v4();
+    it('When a non-owner attempts to update the role, the invited user doesnt update their role.', async () => {
+      const roleId = v4();
+      const owner = { ...user, id: user.id + 1 } as User;
+      const folderUuid = v4();
+      const invitedUserId = v4();
+      const foundFolder = { ...folders[0], uuid: folderUuid };
+      const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
+
+      privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findRoleById.mockResolvedValue({
+        id: roleId,
+      });
+      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
+      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
+
+      expect(
+        privateSharingUseCase.updateRole(
+          owner,
+          invitedUserId,
+          folderUuid,
+          roleId,
+        ),
+      ).rejects.toThrow('You are not the owner of this folder');
+
+      expect(folderRepositoryMock.findByUuid).toHaveBeenCalled();
+    });
+
+    it('When the user has no role in the folder, the user should not be able to update the role', async () => {
       const roleId = v4();
       const owner = user;
+      const invitedUserId = v4();
       const folderUuid = v4();
       const foundFolder = { ...folders[0], uuid: folderUuid };
       const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
@@ -312,18 +348,86 @@ describe('PrivateSharingUseCase', () => {
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
         foundPrivateFolderRole,
       );
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
+        null,
+      );
+      privateSharingRepositoryMock.findRoleById.mockResolvedValue({
+        id: roleId,
+      });
       folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      folderRepositoryMock.isOwner.mockResolvedValue(false);
+      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
 
       expect(
-        privateSharingUseCase.updateRole(owner, privateFolderRoleId, roleId),
-      ).rejects.toThrow('You are not the owner of this folder');
+        privateSharingUseCase.updateRole(
+          owner,
+          invitedUserId,
+          folderUuid,
+          roleId,
+        ),
+      ).rejects.toThrow(UserNotInvitedError);
+    });
+
+    it('When the user is not the owner of the folder, it should not allow to update the role', async () => {
+      const roleId = v4();
+      const owner = user;
+      const invitedUserId = v4();
+      const folderUuid = v4();
+      const foundFolder = { ...folders[0], uuid: folderUuid };
+      const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
+      const folderWithDifferentOwner = {
+        ...foundFolder,
+        userId: owner.id + '1',
+      };
+      privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findRoleById.mockResolvedValue({
+        id: roleId,
+      });
+      folderRepositoryMock.findByUuid.mockResolvedValue(
+        folderWithDifferentOwner,
+      );
+      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
 
       expect(
-        privateSharingRepositoryMock.findPrivateFolderRoleById,
-      ).toHaveBeenCalledWith(privateFolderRoleId);
-      expect(folderRepositoryMock.findByUuid).toHaveBeenCalled();
-      expect(folderRepositoryMock.isOwner).toHaveBeenCalled();
+        privateSharingUseCase.updateRole(
+          owner,
+          invitedUserId,
+          folderUuid,
+          roleId,
+        ),
+      ).rejects.toThrow(InvalidOwnerError);
+    });
+
+    it('When trying to update a non-existent role then it should not allow the update', async () => {
+      const roleId = v4();
+      const owner = user;
+      const invitedUserId = v4();
+      const folderUuid = v4();
+      const foundFolder = { ...folders[0], uuid: folderUuid };
+      const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
+
+      privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findPrivateFolderRoleByFolderIdAndUserId.mockResolvedValue(
+        foundPrivateFolderRole,
+      );
+      privateSharingRepositoryMock.findRoleById.mockResolvedValue(null);
+      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
+      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
+
+      expect(
+        privateSharingUseCase.updateRole(
+          owner,
+          invitedUserId,
+          folderUuid,
+          roleId,
+        ),
+      ).rejects.toThrow(RoleNotFoundError);
     });
   });
 
