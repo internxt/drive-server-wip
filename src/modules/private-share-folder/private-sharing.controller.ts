@@ -340,7 +340,7 @@ export class PrivateSharingController {
   async getSharedItems(
     @UserDecorator() user: User,
     @Param('childFolderId') childFolderId: Folder['uuid'],
-    @Param('sharedFolder') sharedFolderId: Folder['uuid'],
+    @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
     @Res({ passthrough: true }) res: Response,
     @Query('page') page = 0,
