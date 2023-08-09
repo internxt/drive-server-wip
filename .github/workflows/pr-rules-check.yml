@@ -4,10 +4,6 @@ on:
     types: [opened, synchronize, reopened]
 jobs:
   check:
-    permissions:
-      contents: read
-      packages: read
-      pull-requests: write
     name: Pre-merge checks
     runs-on: ubuntu-latest
     strategy:
