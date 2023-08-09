@@ -10,28 +10,8 @@ jobs:
       matrix:
         node-version: [16.x]
     steps:
-      - name: Check Out Repo
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-          registry-url: 'https://npm.pkg.github.com'
-
-      - run: echo "registry=https://registry.yarnpkg.com/" > .npmrc
-      - run: echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
-      # You cannot read packages from other private repos with GITHUB_TOKEN
-      # You have to use a PAT instead https://github.com/actions/setup-node/issues/49
-      - run: echo //npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_ACCESS_TOKEN }} >> .npmrc
-      - run: echo "always-auth=true" >> .npmrc
-
-      - name: Install dependencies
-        run: yarn
-        env:
-          NODE_AUTH_TOKEN: ${{ github.token }}
-
-      - name: Run check
-        run: yarn danger ci
+      - uses: actions/checkout@v1
+      - name: Danger
+        uses: danger/danger-js@9.1.6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
