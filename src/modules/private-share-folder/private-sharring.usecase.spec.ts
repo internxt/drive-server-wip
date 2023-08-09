@@ -11,11 +11,16 @@ import { v4 } from 'uuid';
 import { User } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { createMock } from '@golevelup/ts-jest';
+import { FileUseCases } from '../file/file.usecase';
+import { UserUseCases } from '../user/user.usecase';
 
 describe('Private sharing folder use cases', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
   let privateSharingRespository: SequelizePrivateSharingRepository;
-  let folderRespository: SequelizeFolderRepository;
+  let folderUseCases: FolderUseCases;
+  let userUseCases: UserUseCases;
 
   const userRepositoryMock = {
     findByUuid: jest.fn(),
@@ -100,6 +105,18 @@ describe('Private sharing folder use cases', () => {
           provide: SequelizeFolderRepository,
           useValue: folderRepositoryMock,
         },
+        {
+          provide: FolderUseCases,
+          useValue: createMock<FolderUseCases>(),
+        },
+        {
+          provide: FileUseCases,
+          useValue: createMock<FileUseCases>(),
+        },
+        {
+          provide: UserUseCases,
+          useValue: createMock<UserUseCases>(),
+        },
       ],
     }).compile();
 
@@ -109,9 +126,8 @@ describe('Private sharing folder use cases', () => {
     privateSharingRespository = module.get<SequelizePrivateSharingRepository>(
       SequelizePrivateSharingRepository,
     );
-    folderRespository = module.get<SequelizeFolderRepository>(
-      SequelizeFolderRepository,
-    );
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
+    userUseCases = module.get<UserUseCases>(UserUseCases);
   });
 
   it('should be defined', () => {
@@ -230,9 +246,9 @@ describe('Private sharing folder use cases', () => {
     it('When the role is updated by the owner, the invited user updates their role', async () => {
       const roleId = v4();
       const owner = user;
-      const invitedUserId = v4();
+      const invitedUserId: User['uuid'] = v4();
       const folderUuid = v4();
-      const foundFolder = { ...folders[0], uuid: folderUuid };
+      const foundFolder = { ...folders[0], uuid: folderUuid } as Folder;
       const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
 
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
@@ -244,17 +260,17 @@ describe('Private sharing folder use cases', () => {
       privateSharingRepositoryMock.findRoleById.mockResolvedValue({
         id: roleId,
       });
-      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
-
+      const getFolderSpy = jest
+        .spyOn(folderUseCases, 'getByUuid')
+        .mockResolvedValue(foundFolder);
+      jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
       await privateSharingUseCase.updateRole(
         owner,
         invitedUserId,
         folderUuid,
         roleId,
       );
-
-      expect(folderRepositoryMock.findByUuid).toHaveBeenCalledWith(
+      expect(getFolderSpy).toHaveBeenCalledWith(
         foundPrivateFolderRole.folderId,
       );
       expect(
@@ -267,7 +283,7 @@ describe('Private sharing folder use cases', () => {
       const owner = { ...user, id: user.id + 1 } as User;
       const folderUuid = v4();
       const invitedUserId = v4();
-      const foundFolder = { ...folders[0], uuid: folderUuid };
+      const foundFolder = { ...folders[0], uuid: folderUuid } as Folder;
       const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
 
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
@@ -279,10 +295,12 @@ describe('Private sharing folder use cases', () => {
       privateSharingRepositoryMock.findRoleById.mockResolvedValue({
         id: roleId,
       });
-      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
+      const getFolderSpy = jest
+        .spyOn(folderUseCases, 'getByUuid')
+        .mockResolvedValue(foundFolder);
+      jest.spyOn(userUseCases, 'getUser').mockResolvedValue(owner);
 
-      expect(
+      await expect(
         privateSharingUseCase.updateRole(
           owner,
           invitedUserId,
@@ -291,7 +309,7 @@ describe('Private sharing folder use cases', () => {
         ),
       ).rejects.toThrow('You are not the owner of this folder');
 
-      expect(folderRepositoryMock.findByUuid).toHaveBeenCalled();
+      expect(getFolderSpy).toHaveBeenCalled();
     });
 
     it('When the user has no role in the folder, the user should not be able to update the role', async () => {
@@ -364,7 +382,7 @@ describe('Private sharing folder use cases', () => {
       const owner = user;
       const invitedUserId = v4();
       const folderUuid = v4();
-      const foundFolder = { ...folders[0], uuid: folderUuid };
+      const foundFolder = { ...folders[0], uuid: folderUuid } as Folder;
       const foundPrivateFolderRole = { id: 1, folderId: foundFolder.id };
 
       privateSharingRepositoryMock.findPrivateFolderRoleById.mockResolvedValue(
@@ -374,8 +392,8 @@ describe('Private sharing folder use cases', () => {
         foundPrivateFolderRole,
       );
       privateSharingRepositoryMock.findRoleById.mockResolvedValue(null);
-      folderRepositoryMock.findByUuid.mockResolvedValue(foundFolder);
-      userRepositoryMock.findByUuid.mockResolvedValue(invitedUserId);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(foundFolder);
+      jest.spyOn(userUseCases, 'getUser').mockResolvedValue(owner);
 
       expect(
         privateSharingUseCase.updateRole(

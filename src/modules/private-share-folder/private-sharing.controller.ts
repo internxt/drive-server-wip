@@ -350,6 +350,8 @@ export class PrivateSharingController {
     { folders: Folder[] | []; files: File[] | [] } | { error: string }
   > {
     try {
+      console.log('childFolderId', childFolderId);
+      console.log('sharedFolderId', sharedFolderId);
       const order = orderBy
         ? [orderBy.split(':') as [string, string]]
         : undefined;
