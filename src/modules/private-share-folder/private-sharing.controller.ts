@@ -36,7 +36,6 @@ import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { PrivateSharingFolder } from './private-sharing-folder.domain';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -161,9 +160,9 @@ export class PrivateSharingController {
   @ApiBearerAuth()
   async getSharedFoldersWithAUser(
     @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-    @Query('orderBy') orderBy: OrderBy,
   ): Promise<Record<'folders', Folder[]>> {
     try {
       const { offset, limit } = Pagination.calculatePagination(page, perPage);
