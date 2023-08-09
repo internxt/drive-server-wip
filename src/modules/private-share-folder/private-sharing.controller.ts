@@ -343,9 +343,9 @@ export class PrivateSharingController {
     @Param('childFolderId') childFolderId: Folder['uuid'],
     @Param('sharedFolder') sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
+    @Res({ passthrough: true }) res: Response,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-    @Res({ passthrough: true }) res: Response,
   ): Promise<
     { folders: Folder[] | []; files: File[] | [] } | { error: string }
   > {
