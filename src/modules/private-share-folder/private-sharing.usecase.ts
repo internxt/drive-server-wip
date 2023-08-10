@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
@@ -7,7 +7,12 @@ import { PrivateSharingRole } from './private-sharing-role.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-
+import { File, FileStatus } from '../file/file.domain';
+import {
+  generateTokenWithPlainSecret,
+  verifyWithDefaultSecret,
+} from '../../lib/jwt';
+import getEnv from '../../config/configuration';
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
@@ -148,65 +153,141 @@ export class PrivateSharingUseCase {
 
   async getItems(
     folderId: Folder['uuid'],
-    sharedFolderId: Folder['uuid'],
+    token: string | null,
     user: User,
     page: number,
     perPage: number,
     order: [string, string][],
-  ) {
-    const privateSharingFolderRole =
+  ): Promise<{
+    folders: Folder[];
+    files: File[];
+    credentials: {
+      networkPass: User['userId'];
+      networkUser: User['bridgeUser'];
+    };
+    token: string;
+  }> {
+    const getFolderContent = async (
+      userId: User['id'],
+      folderId: Folder['id'],
+    ) => {
+      return {
+        folders: await this.folderUsecase.getFolders(
+          userId,
+          {
+            parentId: folderId,
+            deleted: false,
+          },
+          {
+            limit: perPage,
+            offset: page * perPage,
+          },
+        ),
+        files: await this.fileUsecase.getFiles(
+          userId,
+          {
+            folderId: folderId,
+            status: FileStatus.EXISTS,
+          },
+          {
+            limit: perPage,
+            offset: page * perPage,
+          },
+        ),
+      };
+    };
+
+    const folder = await this.folderUsecase.getByUuid(folderId);
+
+    if (folder.isOwnedBy(user)) {
+      return {
+        ...(await getFolderContent(user.id, folder.id)),
+        credentials: {
+          networkPass: user.userId,
+          networkUser: user.bridgeUser,
+        },
+        token: '',
+      };
+    }
+
+    const requestedFolderIsSharedRootFolder = !token;
+
+    const decoded = requestedFolderIsSharedRootFolder
+      ? null
+      : (verifyWithDefaultSecret(token) as
+          | {
+              sharedRootFolderId: PrivateSharingFolder['id'];
+              parentFolderId: Folder['parent']['uuid'];
+              folder: {
+                uuid: Folder['uuid'];
+                id: Folder['id'];
+              };
+              owner: {
+                id: User['id'];
+                uuid: User['uuid'];
+              };
+            }
+          | string);
+
+    if (typeof decoded === 'string') {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    const userRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
         user.uuid,
-        sharedFolderId,
+        requestedFolderIsSharedRootFolder
+          ? folderId
+          : decoded.sharedRootFolderId,
       );
 
-    if (!privateSharingFolderRole) {
-      throw new InvalidPrivateFolderRoleError();
+    if (!userRole) {
+      throw new ForbiddenException('User does not have access to this folder');
     }
 
     const privateSharingFolder =
-      await this.privateSharingRespository.findPrivateFolderByFolderIdAndUserId(
-        sharedFolderId,
+      await this.privateSharingRespository.findPrivateFolderByFolderIdAndSharedWith(
+        requestedFolderIsSharedRootFolder
+          ? folderId
+          : decoded.sharedRootFolderId,
         user.uuid,
       );
 
     const owner = await this.userUsecase.getUser(privateSharingFolder.ownerId);
 
-    const folder = await this.folderUsecase.getByUuid(folderId);
-    const parentFolder = await this.folderUsecase.getByUuid(sharedFolderId);
+    if (!requestedFolderIsSharedRootFolder) {
+      const navigationUp = folder.uuid === decoded.parentFolderId;
+      const navigationDown = folder.uuid === decoded.folder.uuid;
 
-    const folderFound = await this.folderUsecase.isFolderInsideFolder(
-      parentFolder.id,
-      folder.id,
-      owner.id,
+      if (!navigationDown && !navigationUp) {
+        throw new ForbiddenException(
+          'User does not have access to this folder',
     );
-
-    if (!folderFound) {
-      throw new InvalidChildFolderError();
+      }
     }
 
-    // obtain items from the folder
-    const folders = await this.folderUsecase.getFoldersByParent(
-      folder.id,
-      page,
-      perPage,
-    );
-
-    const files = await this.fileUsecase.getAllByParentId(
-      folder.id,
-      false,
-      page,
-      perPage,
-      order,
-    );
-
     return {
-      folders,
-      files,
+      ...(await getFolderContent(owner.id, folder.id)),
       credentials: {
-        userId: owner.userId,
-        username: owner.username,
+        networkPass: owner.userId,
+        networkUser: owner.bridgeUser,
       },
+      token: generateTokenWithPlainSecret(
+        {
+          sharedRootFolderId: privateSharingFolder.folderId,
+          parentFolderId: folder.parentId,
+          folder: {
+            uuid: folder.uuid,
+            id: folder.id,
+          },
+          owner: {
+            id: owner.id,
+            uuid: owner.uuid,
+          },
+        },
+        '1d',
+        getEnv().secrets.jwt,
+      ),
     };
   }
 }
