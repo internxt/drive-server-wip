@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
@@ -144,7 +144,7 @@ export class PrivateSharingUseCase {
     );
 
     if (!sharedWith) {
-      new UserNotFoundError();
+      throw new UserNotFoundError();
     }
 
     if (folder.userId !== owner.id) {
