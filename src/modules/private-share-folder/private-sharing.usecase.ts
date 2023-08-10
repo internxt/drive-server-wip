@@ -79,11 +79,11 @@ export class PrivateSharingUseCase {
 
   async updateRole(
     owner: User,
-    invatedUserId: User['uuid'],
+    userOwningTheRole: User['uuid'],
     folderId: Folder['uuid'],
     roleId: PrivateSharingRole['id'],
   ) {
-    const sharedWith = await this.userUsecase.getUser(invatedUserId);
+    const sharedWith = await this.userUsecase.getUser(userOwningTheRole);
 
     const privateFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
@@ -110,7 +110,7 @@ export class PrivateSharingUseCase {
     }
 
     await this.privateSharingRespository.updatePrivateFolderRole(
-      privateFolderRole?.id,
+      privateFolderRole.id,
       roleId,
     );
 
@@ -260,7 +260,7 @@ export class PrivateSharingUseCase {
       if (!navigationDown && !navigationUp) {
         throw new ForbiddenException(
           'User does not have access to this folder',
-    );
+        );
       }
     }
 
