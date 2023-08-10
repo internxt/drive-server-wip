@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrivateSharingController } from './private-sharing.controller';
 import { PrivateSharingUseCase } from './private-sharing.usecase';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
@@ -9,6 +9,7 @@ import { FolderModel } from '../folder/folder.repository';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
+import { UserModule } from '../user/user.module';
 @Module({
   imports: [
     SequelizeModule.forFeature([
@@ -18,6 +19,7 @@ import { PrivateSharingRoleModel } from './private-sharing-role.model';
       FolderModel,
       UserModel,
     ]),
+    forwardRef(() => UserModule),
     FolderModule,
   ],
   controllers: [PrivateSharingController],
