@@ -6,7 +6,8 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { UserNotFoundError } from '../user/user.usecase';
+import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -33,8 +34,8 @@ export class UserNotInvitedError extends Error {
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
-    private userRepository: SequelizeUserRepository,
-    private folderRespository: SequelizeFolderRepository,
+    private folderUsecase: FolderUseCases,
+    private userUsecase: UserUseCases,
   ) {}
   async grantPrivileges(
     owner: User,
@@ -65,7 +66,7 @@ export class PrivateSharingUseCase {
     folderId: Folder['uuid'],
     roleId: PrivateSharingRole['id'],
   ) {
-    const sharedWith = await this.userRepository.findByUuid(invatedUserId);
+    const sharedWith = await this.userUsecase.getUser(invatedUserId);
 
     const privateFolderRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
@@ -77,7 +78,7 @@ export class PrivateSharingUseCase {
       throw new UserNotInvitedError();
     }
 
-    const folder = await this.folderRespository.findByUuid(
+    const folder = await this.folderUsecase.getByUuid(
       privateFolderRole.folderId,
     );
 
@@ -137,9 +138,9 @@ export class PrivateSharingUseCase {
     invatedUserEmail: User['email'],
     encryptionKey: PrivateSharingFolder['encryptionKey'],
   ) {
-    const folder = await this.folderRespository.findByUuid(folderId);
+    const folder = await this.folderUsecase.getByUuid(folderId);
 
-    const sharedWith = await this.userRepository.findByUsername(
+    const sharedWith = await this.userUsecase.getUserByUsername(
       invatedUserEmail,
     );
 
