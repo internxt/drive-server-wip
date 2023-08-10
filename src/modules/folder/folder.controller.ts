@@ -315,4 +315,37 @@ export class FolderController {
       });
     }
   }
+
+  @Get('/:id/metadata')
+  async getFolderById(
+    @UserDecorator() user: User,
+    @Param('id') folderId: Folder['id'],
+  ) {
+    if (folderId < 0) {
+      throw new BadRequestException('Invalid id provided');
+    }
+
+    try {
+      const folder = await this.folderUseCases.getFolderByUserId(
+        folderId,
+        user.id,
+      );
+
+      return folder;
+    } catch (err) {
+      if (
+        err instanceof NotFoundException ||
+        err instanceof ForbiddenException
+      ) {
+        throw err;
+      }
+      logger('error', {
+        id: 'get-folder-by-id',
+        user: user.uuid,
+        message: `Error getting folder ${err.message}. STACK ${
+          err.stack || 'NO STACK'
+        }`,
+      });
+    }
+  }
 }

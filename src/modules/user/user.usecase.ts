@@ -30,7 +30,9 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
+import { ShareUseCases } from '../share/share.usecase';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -77,7 +79,9 @@ export class UserUseCases {
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
+    private shareUseCases: ShareUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
     private networkService: BridgeService,
@@ -519,8 +523,9 @@ export class UserUseCases {
       mnemonic: string;
       password: string;
       salt: string;
-      privateKey: string;
+      privateKey?: string;
     },
+    withReset = false,
   ): Promise<void> {
     const { mnemonic, password, salt } = newCredentials;
 
@@ -532,8 +537,73 @@ export class UserUseCases {
 
     const user = await this.userRepository.findByUuid(userUuid);
 
+    if (withReset) {
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+      });
+    }
+
     // TODO: Replace with updating the private key once AFS is ready.
     // Requires to send the private key encrypted with the user's password
     await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async resetUser(
+    user: User,
+    options: {
+      deleteFiles: boolean;
+      deleteFolders: boolean;
+      deleteShares: boolean;
+    },
+  ): Promise<void> {
+    if (options.deleteShares) {
+      await this.shareUseCases.deleteByUser(user);
+    }
+
+    if (options.deleteFolders) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const folders = await this.folderUseCases.getFolders(
+          user.id,
+          { parentId: user.rootFolderId, removed: false },
+          opts,
+        );
+
+        await this.folderUseCases.deleteByUser(user, folders);
+
+        offset += folders.length;
+
+        done = folders.length < limit || folders.length === 0;
+      } while (!done);
+    }
+
+    if (options.deleteFiles) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const files = await this.fileUseCases.getFilesNotDeleted(
+          user.id,
+          {
+            folderId: user.rootFolderId,
+          },
+          opts,
+        );
+
+        await this.fileUseCases.deleteByUser(user, files);
+
+        offset += files.length;
+
+        done = files.length < limit || files.length === 0;
+      } while (!done);
+    }
   }
 }
