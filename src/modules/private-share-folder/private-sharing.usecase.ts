@@ -58,23 +58,21 @@ export class PrivateSharingUseCase {
   ) {}
   async grantPrivileges(
     owner: User,
-    userUuid: User['uuid'],
+    invitedUser: User['uuid'],
     privateFolderId: PrivateSharingFolder['id'],
     roleUuid: PrivateSharingRole['id'],
   ) {
-    const privateFolder = await this.privateSharingRespository.findById(
+    const privateFolderSharing = await this.privateSharingRespository.findById(
       privateFolderId,
     );
 
-    const folder = privateFolder.folder;
-
-    if (owner.id !== folder.userId) {
-      throw new InvalidOwnerError();
+    if (owner.uuid !== privateFolderSharing.ownerId) {
+      throw new ForbiddenException();
     }
 
     await this.privateSharingRespository.createPrivateFolderRole(
-      userUuid,
-      folder.uuid,
+      invitedUser,
+      privateFolderSharing.folder.uuid,
       roleUuid,
     );
   }
