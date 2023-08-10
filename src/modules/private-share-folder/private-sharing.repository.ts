@@ -127,14 +127,14 @@ export class SequelizePrivateSharingRepository
     return privateFolderRole?.get({ plain: true });
   }
 
-  async findPrivateFolderByFolderIdAndUserId(
+  async findPrivateFolderByFolderIdAndSharedWith(
     folderId: Folder['uuid'],
-    userId: User['uuid'],
+    sharedWith: User['uuid'],
   ): Promise<PrivateSharingFolder & { folder: Folder }> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
-        folderId: folderId,
-        sharedWith: userId,
+        folderId,
+        sharedWith,
       },
       include: [FolderModel],
     });
