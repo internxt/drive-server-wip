@@ -300,7 +300,7 @@ export class PrivateSharingController {
     };
   }
 
-  @Post('/share')
+  @Post('/create')
   @ApiOperation({
     summary: 'Create a private folder',
   })

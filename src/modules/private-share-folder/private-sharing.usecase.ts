@@ -152,9 +152,6 @@ export class PrivateSharingUseCase {
       throw new InvalidOwnerError();
     }
 
-    // TODO: validate if user has a role with share permissions over the folder
-    // it must be included when the permissions are defined
-
     const privateFolder =
       await this.privateSharingRespository.createPrivateFolder(
         folderId,
