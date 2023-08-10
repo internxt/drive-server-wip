@@ -198,7 +198,7 @@ export class SequelizePrivateSharingRepository
     ownerUuid: User['uuid'],
     sharedWithUuid: User['uuid'],
     encryptionKey: PrivateSharingFolder['encryptionKey'],
-  ) {
+  ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.create({
       folderId,
       ownerId: ownerUuid,
