@@ -18,7 +18,9 @@ import {
 } from '@nestjs/swagger';
 import {
   InvalidOwnerError,
+  InvalidSharedFolderError,
   PrivateSharingUseCase,
+  UserNotInvitedError,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -272,8 +274,9 @@ export class PrivateSharingController {
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
     @Query('orderBy') orderBy: OrderBy,
-    @Param('folderId') folderId: string,
-  ): Promise<Record<'users', User[]>> {
+    @Param('folderId') folderId: Folder['uuid'],
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Record<'users', User[]> | Record<'error', string>> {
     try {
       const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
@@ -291,14 +294,22 @@ export class PrivateSharingController {
         ),
       };
     } catch (error) {
-      const err = error as Error;
-      Logger.error(
-        `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
-          user.uuid
-        }, ${err.stack || 'No stack trace'}`,
-      );
+      let errorMessage = error.message;
 
-      throw error;
+      if (error instanceof InvalidSharedFolderError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (error instanceof UserNotInvitedError) {
+        res.status(HttpStatus.FORBIDDEN);
+      } else {
+        Logger.error(
+          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+            user.uuid
+          }, ${error.stack || 'No stack trace'}`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal server error';
+      }
+      return { error: errorMessage };
     }
   }
 }

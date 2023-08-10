@@ -12,6 +12,21 @@ export class InvalidOwnerError extends Error {
     super('You are not the owner of this folder');
   }
 }
+
+export class InvalidSharedFolderError extends Error {
+  constructor() {
+    super('This is not a shared folder');
+    Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
+  }
+}
+
+export class UserNotInvitedError extends Error {
+  constructor() {
+    super('User not invited');
+    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+  }
+}
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -78,16 +93,6 @@ export class PrivateSharingUseCase {
     limit: number,
     order: [string, string][],
   ) {
-    const privateSharingFolder =
-      await this.privateSharingRespository.findByFolderIdAndOwnerId(
-        folderId,
-        user.uuid,
-      );
-
-    if (!privateSharingFolder) {
-      throw new Error('Folder not found');
-    }
-
     const parentFolders = await this.folderRespository.findAllParentsUuid(
       folderId,
     );
@@ -101,6 +106,18 @@ export class PrivateSharingUseCase {
         limit,
         order,
       );
+
+    if (users.length === 0) {
+      throw new InvalidSharedFolderError();
+    }
+
+    const userIsInvited = users.some(
+      (invitedUser) => invitedUser.uuid === user.uuid,
+    );
+
+    if (!userIsInvited) {
+      throw new UserNotInvitedError();
+    }
 
     return users;
   }
