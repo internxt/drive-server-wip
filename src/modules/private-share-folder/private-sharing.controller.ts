@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpStatus,
   Logger,
@@ -302,7 +303,7 @@ export class PrivateSharingController {
     };
   }
 
-  @Get('items/shared-folder-id/:sharedFolderId/child-folder-id/:childFolderId')
+  @Get('items/:sharedFolderId')
   @ApiOperation({
     summary: 'Get all items shared by a user',
   })
@@ -325,24 +326,23 @@ export class PrivateSharingController {
     type: String,
   })
   @ApiParam({
-    name: 'childFolderId',
-    description:
-      'folder id about which you need to know the items, this folder must be the "shared folder" or a child of this.',
-    type: String,
-  })
-  @ApiParam({
     name: 'sharedFolderId',
     description: 'Folder id of the shared folder',
     type: String,
   })
-  @ApiOkResponse({ description: 'Get all items shared by a user' })
+  @ApiQuery({
+    name: 'token',
+    description: 'Token that authorizes the access to the shared content',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   @ApiBearerAuth()
-  async getSharedItems(
+  async getPrivateShareItems(
     @UserDecorator() user: User,
-    @Param('childFolderId') childFolderId: Folder['uuid'],
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Query('orderBy') orderBy: OrderBy,
     @Res({ passthrough: true }) res: Response,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('token') token: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ): Promise<
@@ -354,8 +354,8 @@ export class PrivateSharingController {
         : undefined;
 
       return this.privateSharingUseCase.getItems(
-        childFolderId,
         sharedFolderId,
+        token,
         user,
         page,
         perPage,
@@ -364,10 +364,8 @@ export class PrivateSharingController {
     } catch (error) {
       let errorMessage = error.message;
 
-      if (error instanceof InvalidPrivateFolderRoleError) {
-        res.status(HttpStatus.FORBIDDEN);
-      } else if (error instanceof InvalidChildFolderError) {
-        res.status(HttpStatus.BAD_REQUEST);
+      if (error instanceof ForbiddenException) {
+        throw error;
       } else {
         Logger.error(
           `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
