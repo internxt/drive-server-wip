@@ -13,6 +13,8 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { createMock } from '@golevelup/ts-jest';
+import { PrivateSharingFolder } from './private-sharing-folder.domain';
+import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 
 describe('Private sharing folder use cases', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
@@ -29,6 +31,7 @@ describe('Private sharing folder use cases', () => {
     updatePrivateFolderRole: jest.fn(),
     findPrivateFolderRoleByFolderIdAndUserId: jest.fn(),
     findRoleById: jest.fn(),
+    createPrivateFolder: jest.fn(),
   };
 
   const user = User.build({
@@ -78,6 +81,14 @@ describe('Private sharing folder use cases', () => {
       deletedAt: null,
     }),
   ];
+
+  const privateSharingFolder = PrivateSharingFolder.build({
+    id: v4(),
+    folderId: v4(),
+    ownerId: v4(),
+    sharedWith: v4(),
+    encryptionKey: '',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -387,6 +398,124 @@ describe('Private sharing folder use cases', () => {
           roleId,
         ),
       ).rejects.toThrow(RoleNotFoundError);
+    });
+  });
+
+  describe('when user shares a folder', () => {
+    it('When the user is the owner of the folder, then it should be able to share the folder', async () => {
+      const owner = user;
+      const sharedWith = { ...user, id: user.id + 1 } as User;
+      const invatedUserEmail = 'email@email.com';
+      const folderUuid = v4();
+      const foundFolder = {
+        ...folders[0],
+        uuid: folderUuid,
+        userId: owner.id,
+      } as Folder;
+      const encryptionKey = 'encryptionKey';
+      const privateSharingFolderCustom = {
+        ...privateSharingFolder,
+        encryptionKey,
+      };
+      const createPrivateFolderMock =
+        privateSharingRepositoryMock.createPrivateFolder.mockResolvedValue(
+          privateSharingFolderCustom,
+        );
+      const getFolderMock = jest
+        .spyOn(folderUseCases, 'getByUuid')
+        .mockResolvedValue(foundFolder);
+      const getUserByUsernameMock = jest
+        .spyOn(userUseCases, 'getUserByUsername')
+        .mockResolvedValue(sharedWith);
+      await privateSharingUseCase.createPrivateSharingFolder(
+        owner,
+        folderUuid,
+        invatedUserEmail,
+        encryptionKey,
+      );
+      expect(createPrivateFolderMock).toBeCalledWith(
+        folderUuid,
+        owner.uuid,
+        sharedWith.uuid,
+        encryptionKey,
+      );
+      expect(getFolderMock).toBeCalled();
+      expect(getUserByUsernameMock).toBeCalled();
+    });
+
+    it('When the user is the owner of the folder, then should allow granting privileges to the guest user to the folder', async () => {
+      const owner = user;
+      const roleId = v4();
+      const encryptionKey = 'encryptionKey';
+      const privateSharingFolderCustom = {
+        ...privateSharingFolder,
+        encryptionKey,
+        folder: folders[0],
+      };
+      const findPrivateSharingMock =
+        privateSharingRepositoryMock.findById.mockResolvedValue(
+          privateSharingFolderCustom,
+        );
+      const createPrivateRolMock =
+        privateSharingRepositoryMock.createPrivateFolderRole;
+
+      await privateSharingUseCase.grantPrivileges(
+        owner,
+        privateSharingFolderCustom.sharedWith,
+        privateSharingFolderCustom.id,
+        roleId,
+      );
+      expect(findPrivateSharingMock).toBeCalled();
+      expect(createPrivateRolMock).toBeCalledWith(
+        privateSharingFolderCustom.sharedWith,
+        privateSharingFolderCustom.folder.uuid,
+        roleId,
+      );
+    });
+
+    it('When a non-owner attempts to share a folder, then should not allow folder sharing', async () => {
+      const owner = user;
+      const sharedWith = { ...user, id: user.id + 1 } as User;
+      const invatedUserEmail = 'email@email.com';
+      const folderUuid = v4();
+      const foundFolder = {
+        ...folders[0],
+        uuid: folderUuid,
+        userId: owner.id + 1, // another owner
+      } as Folder;
+      const roleId = v4();
+      const encryptionKey = 'encryptionKey';
+      const privateSharingFolderCustom = {
+        ...privateSharingFolder,
+        encryptionKey,
+        folder: foundFolder,
+      };
+      privateSharingRepositoryMock.findById.mockResolvedValue(
+        privateSharingFolderCustom,
+      );
+
+      jest
+        .spyOn(userUseCases, 'getUserByUsername')
+        .mockResolvedValue(sharedWith);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(foundFolder);
+
+      await expect(
+        privateSharingUseCase.createPrivateSharingFolder(
+          owner,
+          folderUuid,
+          invatedUserEmail,
+          encryptionKey,
+        ),
+      ).rejects.toThrow(InvalidOwnerError);
+
+      await expect(
+        privateSharingUseCase.grantPrivileges(
+          owner,
+          folderUuid,
+          privateSharingFolder.id,
+          roleId,
+        ),
+      ).rejects.toThrow(InvalidOwnerError);
     });
   });
 });
