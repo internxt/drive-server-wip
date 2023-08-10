@@ -148,7 +148,7 @@ export class SequelizePrivateSharingRepository
   }
 
   async findSharedUsersByFolderUuids(
-    folderUuids: string[],
+    folderUuids: Folder['uuid'][],
     offset: number,
     limit: number,
     order?: [string, string][],
