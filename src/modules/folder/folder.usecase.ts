@@ -1,14 +1,11 @@
 import {
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
@@ -29,7 +26,6 @@ export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
-    @Inject(forwardRef(() => FileUseCases))
     private readonly cryptoService: CryptoService,
   ) {}
 
