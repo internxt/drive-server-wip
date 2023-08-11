@@ -30,6 +30,27 @@ export class UserNotInvitedError extends Error {
   }
 }
 
+export class InvitedUserNotFoundError extends Error {
+  constructor(email: string) {
+    super(`Invited user: ${email} not found`);
+    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+  }
+}
+
+export class UserAlreadyHasRole extends Error {
+  constructor() {
+    super('User already has a role');
+    Object.setPrototypeOf(this, UserAlreadyHasRole.prototype);
+  }
+}
+
+export class OwnerCannotBeSharedError extends Error {
+  constructor() {
+    super('Owner cannot be shared');
+    Object.setPrototypeOf(this, OwnerCannotBeSharedError.prototype);
+  }
+}
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -78,7 +99,7 @@ export class PrivateSharingUseCase {
       throw new UserNotInvitedError();
     }
 
-    const folder = await this.folderUsecase.getByUuid(
+    const folder = await this.folderUsecase.getFolderByUuid(
       privateFolderRole.folderId,
     );
 
@@ -138,18 +159,34 @@ export class PrivateSharingUseCase {
     invatedUserEmail: User['email'],
     encryptionKey: PrivateSharingFolder['encryptionKey'],
   ) {
-    const folder = await this.folderUsecase.getByUuid(folderId);
-
     const sharedWith = await this.userUsecase.getUserByUsername(
       invatedUserEmail,
     );
 
     if (!sharedWith) {
-      throw new UserNotFoundError();
+      throw new InvitedUserNotFoundError(invatedUserEmail);
     }
+
+    // owner should not be invited to his own folder
+    if (owner.id === sharedWith.id) {
+      throw new OwnerCannotBeSharedError();
+    }
+
+    const folder = await this.folderUsecase.getFolderByUuid(folderId);
 
     if (folder.userId !== owner.id) {
       throw new InvalidOwnerError();
+    }
+
+    // if a user has a role could not be invited again
+    const sharedWithRoleFound =
+      await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
+        sharedWith.uuid,
+        folderId,
+      );
+
+    if (sharedWithRoleFound) {
+      throw new UserAlreadyHasRole();
     }
 
     const privateFolder =

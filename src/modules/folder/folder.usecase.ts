@@ -30,7 +30,6 @@ export class FolderUseCases {
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => FileUseCases))
-    private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -38,7 +37,7 @@ export class FolderUseCases {
     return this.folderRepository.findByIds(user, folderIds);
   }
 
-  async getByUuid(uuid: Folder['uuid']) {
+  async getFolderByUuid(uuid: Folder['uuid']) {
     const folder = await this.folderRepository.findByUuid(uuid, false);
 
     if (!folder) {

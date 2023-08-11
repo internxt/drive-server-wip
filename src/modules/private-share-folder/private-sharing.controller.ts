@@ -309,6 +309,7 @@ export class PrivateSharingController {
   async createPrivateFolder(
     @UserDecorator() user: User,
     @Body() CreatePrivateSharingDto: CreatePrivateSharingDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
     try {
       const privateSharingFolder =
@@ -328,14 +329,13 @@ export class PrivateSharingController {
 
       return { message: 'Private folder created' };
     } catch (error) {
-      const err = error as Error;
-      Logger.error(
-        `[PRIVATESHARING/CREATE] Error while creating private folder by user ${
+      new Logger().error(
+        `[PRIVATESHARING/CREATE] Error: while creating private folder by user ${
           user.uuid
-        }, ${err.stack || 'No stack trace'}`,
+        }, ${error.stack || 'No stack trace'}`,
       );
-
-      throw error;
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      return { error: 'Internal Server Error' };
     }
   }
 
@@ -345,19 +345,21 @@ export class PrivateSharingController {
   })
   @ApiOkResponse({ description: 'Get all roles' })
   @ApiBearerAuth()
-  async getAllRoles(): Promise<Record<'roles', PrivateSharingRole[]>> {
+  async getAllRoles(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Record<'roles', PrivateSharingRole[]>> {
     try {
       return {
         roles: await this.privateSharingUseCase.getAllRoles(),
       };
     } catch (error) {
-      const err = error as Error;
-      Logger.error(
-        `[PRIVATESHARING/GETALLROLES] Error while getting all roles, ${
-          err.stack || 'No stack trace'
+      new Logger().error(
+        `[PRIVATESHARING/GETALLROLES] Error: while getting all roles, ${
+          error.stack || 'No stack trace'
         }`,
       );
 
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
       throw error;
     }
   }

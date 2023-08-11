@@ -254,7 +254,7 @@ describe('Private sharing folder use cases', () => {
         id: roleId,
       });
       const getFolderSpy = jest
-        .spyOn(folderUseCases, 'getByUuid')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(foundFolder);
       jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
@@ -291,7 +291,7 @@ describe('Private sharing folder use cases', () => {
         id: roleId,
       });
       const getFolderSpy = jest
-        .spyOn(folderUseCases, 'getByUuid')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(foundFolder);
       jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
@@ -324,7 +324,9 @@ describe('Private sharing folder use cases', () => {
       privateSharingRepositoryMock.findRoleById.mockResolvedValue({
         id: roleId,
       });
-      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(foundFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(foundFolder);
       jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
       expect(
@@ -358,7 +360,7 @@ describe('Private sharing folder use cases', () => {
         id: roleId,
       });
       jest
-        .spyOn(folderUseCases, 'getByUuid')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(folderWithDifferentOwner);
       jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
@@ -387,7 +389,9 @@ describe('Private sharing folder use cases', () => {
         foundPrivateFolderRole,
       );
       privateSharingRepositoryMock.findRoleById.mockResolvedValue(null);
-      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(foundFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(foundFolder);
 
       jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
       expect(
@@ -422,7 +426,7 @@ describe('Private sharing folder use cases', () => {
           privateSharingFolderCustom,
         );
       const getFolderMock = jest
-        .spyOn(folderUseCases, 'getByUuid')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(foundFolder);
       const getUserByUsernameMock = jest
         .spyOn(userUseCases, 'getUserByUsername')
@@ -497,7 +501,9 @@ describe('Private sharing folder use cases', () => {
       jest
         .spyOn(userUseCases, 'getUserByUsername')
         .mockResolvedValue(sharedWith);
-      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(foundFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(foundFolder);
 
       await expect(
         privateSharingUseCase.createPrivateSharingFolder(
