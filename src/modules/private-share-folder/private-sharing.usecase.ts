@@ -198,9 +198,7 @@ export class PrivateSharingUseCase {
     return privateFolder;
   }
 
-  async getAllRoles(): Promise<PrivateSharingRole[]> {
-    const roles = await this.privateSharingRespository.getAllRoles();
-
-    return roles;
+  getAllRoles(): Promise<PrivateSharingRole[]> {
+    return this.privateSharingRespository.getAllRoles();
   }
 }

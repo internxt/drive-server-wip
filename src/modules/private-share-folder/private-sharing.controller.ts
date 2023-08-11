@@ -302,9 +302,9 @@ export class PrivateSharingController {
 
   @Post('/create')
   @ApiOperation({
-    summary: 'Create a private folder',
+    summary: 'Share folder to a user',
   })
-  @ApiOkResponse({ description: 'Create a private folder' })
+  @ApiOkResponse({ description: 'Share folder to a user' })
   @ApiBearerAuth()
   async createPrivateFolder(
     @UserDecorator() user: User,
@@ -341,9 +341,9 @@ export class PrivateSharingController {
 
   @Get('/roles')
   @ApiOperation({
-    summary: 'Get all roles',
+    summary: 'Get all roles of private sharing',
   })
-  @ApiOkResponse({ description: 'Get all roles' })
+  @ApiOkResponse({ description: 'Get all roles of private sharing' })
   @ApiBearerAuth()
   async getAllRoles(
     @Res({ passthrough: true }) res: Response,
