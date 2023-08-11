@@ -1,10 +1,12 @@
 import {
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
   HttpStatus,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -26,6 +28,9 @@ import {
   RoleNotFoundError,
   PrivateSharingUseCase,
   UserNotInvitedError,
+  InvitedUserNotFoundError,
+  OwnerCannotBeSharedWithError,
+  UserAlreadyHasRole,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -326,6 +331,22 @@ export class PrivateSharingController {
 
       return { message: 'Private folder created' };
     } catch (error) {
+      if (error instanceof InvitedUserNotFoundError) {
+        throw new NotFoundException(error.message);
+      }
+
+      if (error instanceof OwnerCannotBeSharedWithError) {
+        throw new ConflictException(error.message);
+      }
+
+      if (error instanceof UserAlreadyHasRole) {
+        throw new ConflictException(error.message);
+      }
+
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+
       new Logger().error(
         `[PRIVATESHARING/CREATE] Error: while creating private folder by user ${
           user.uuid
