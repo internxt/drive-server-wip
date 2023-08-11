@@ -5,11 +5,12 @@ import { SequelizePrivateSharingRepository } from './private-sharing.repository'
 import { SequelizeModule } from '@nestjs/sequelize';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModule } from '../folder/folder.module';
-import { FolderModel } from '../folder/folder.repository';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
-import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { UserModule } from '../user/user.module';
+import { PrivateSharingRoleModel } from './private-sharing-role.model';
+import { FolderModel } from '../folder/folder.repository';
+
 @Module({
   imports: [
     SequelizeModule.forFeature([
@@ -22,12 +23,12 @@ import { UserModule } from '../user/user.module';
     forwardRef(() => UserModule),
     FolderModule,
   ],
-  controllers: [PrivateSharingController],
   providers: [
     SequelizePrivateSharingRepository,
     PrivateSharingUseCase,
     SequelizeUserRepository,
   ],
-  exports: [],
+  controllers: [PrivateSharingController],
+  exports: [PrivateSharingUseCase],
 })
 export class PrivateSharingModule {}

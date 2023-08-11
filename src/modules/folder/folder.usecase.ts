@@ -33,7 +33,7 @@ export class FolderUseCases {
     return this.folderRepository.findByIds(user, folderIds);
   }
 
-  async getFolderByUuid(uuid: Folder['uuid']) {
+  async getByUuid(uuid: Folder['uuid']) {
     const folder = await this.folderRepository.findByUuid(uuid, false);
 
     if (!folder) {
