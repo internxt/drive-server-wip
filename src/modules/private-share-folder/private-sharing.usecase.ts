@@ -62,10 +62,10 @@ export class UserAlreadyHasRole extends Error {
   }
 }
 
-export class OwnerCannotBeSharedError extends Error {
+export class OwnerCannotBeSharedWithError extends Error {
   constructor() {
-    super('Owner cannot be shared');
-    Object.setPrototypeOf(this, OwnerCannotBeSharedError.prototype);
+    super('Owner cannot share the folder with itself');
+    Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
 
@@ -173,37 +173,37 @@ export class PrivateSharingUseCase {
   async createPrivateSharingFolder(
     owner: User,
     folderId: Folder['uuid'],
-    invatedUserEmail: User['email'],
+    invitedUserEmail: User['email'],
     encryptionKey: PrivateSharingFolder['encryptionKey'],
     roleId: PrivateSharingRole['id'],
   ): Promise<void> {
     const sharedWith = await this.userUsecase.getUserByUsername(
-      invatedUserEmail,
+      invitedUserEmail,
     );
 
     if (!sharedWith) {
-      throw new InvitedUserNotFoundError(invatedUserEmail);
+      throw new InvitedUserNotFoundError(invitedUserEmail);
     }
 
-    // owner should not be invited to his own folder
     if (owner.id === sharedWith.id) {
-      throw new OwnerCannotBeSharedError();
+      throw new OwnerCannotBeSharedWithError();
     }
 
     const folder = await this.folderUsecase.getByUuid(folderId);
 
     if (folder.userId !== owner.id) {
-      throw new InvalidOwnerError();
+      throw new ForbiddenException('You are not the owner of this folder');
     }
 
-    // if a user has a role could not be invited again
-    const sharedWithFound =
+    const sharedWithMaybeExistentRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
         sharedWith.uuid,
         folderId,
       );
 
-    if (sharedWithFound) {
+    const invitedUserAlreadyHasARole = !!sharedWithMaybeExistentRole;
+
+    if (invitedUserAlreadyHasARole) {
       throw new UserAlreadyHasRole();
     }
 
