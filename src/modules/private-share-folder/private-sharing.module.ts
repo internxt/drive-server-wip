@@ -10,6 +10,7 @@ import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { UserModule } from '../user/user.module';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { FolderModel } from '../folder/folder.repository';
+import { FileModule } from '../file/file.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FolderModel } from '../folder/folder.repository';
     ]),
     forwardRef(() => UserModule),
     FolderModule,
+    FileModule,
   ],
   providers: [
     SequelizePrivateSharingRepository,
