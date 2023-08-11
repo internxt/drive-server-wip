@@ -148,10 +148,11 @@ export class SequelizeFolderRepository implements FolderRepository {
     deleted: FolderAttributes['deleted'],
     page: number = null,
     perPage: number = null,
+    order: [string, string][] = [['id', 'ASC']],
   ): Promise<Array<Folder> | []> {
     const query: FindOptions = {
       where: { parentId, deleted },
-      order: [['id', 'ASC']],
+      order,
     };
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
     if (page && perPage) {

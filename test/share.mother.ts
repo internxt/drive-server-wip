@@ -1,5 +1,5 @@
-import { Folder } from './../src/modules/folder/folder.domain';
-import { Share } from './../src/modules/share/share.domain';
+import { Folder } from '../src/modules/folder/folder.domain';
+import { Share } from '../src/modules/share/share.domain';
 
 const mockFolder = Folder.build({
   id: 1,
