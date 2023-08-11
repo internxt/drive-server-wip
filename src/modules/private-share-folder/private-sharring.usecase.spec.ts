@@ -422,6 +422,7 @@ describe('Private sharing folder use cases', () => {
       const sharedWith = { ...user, id: user.id + 1 } as User;
       const invatedUserEmail = 'email@email.com';
       const folderUuid = v4();
+      const roleId = v4();
       const foundFolder = {
         ...folders[0],
         uuid: folderUuid,
@@ -453,6 +454,7 @@ describe('Private sharing folder use cases', () => {
         folderUuid,
         invatedUserEmail,
         encryptionKey,
+        roleId,
       );
       expect(createPrivateFolderMock).toBeCalledWith(
         folderUuid,
@@ -462,36 +464,6 @@ describe('Private sharing folder use cases', () => {
       );
       expect(getFolderMock).toBeCalled();
       expect(getUserByUsernameMock).toBeCalled();
-    });
-
-    it('When the user is the owner of the folder, then should allow granting privileges to the guest user to the folder', async () => {
-      const owner = user;
-      const roleId = v4();
-      const encryptionKey = 'encryptionKey';
-      const privateSharingFolderCustom = {
-        ...privateSharingFolder,
-        encryptionKey,
-        folder: folders[0],
-      };
-      const findPrivateSharingMock =
-        privateSharingRepositoryMock.findById.mockResolvedValue(
-          privateSharingFolderCustom,
-        );
-      const createPrivateRolMock =
-        privateSharingRepositoryMock.createPrivateFolderRole;
-
-      await privateSharingUseCase.grantPrivileges(
-        owner,
-        privateSharingFolderCustom.sharedWith,
-        privateSharingFolderCustom.id,
-        roleId,
-      );
-      expect(findPrivateSharingMock).toBeCalled();
-      expect(createPrivateRolMock).toBeCalledWith(
-        privateSharingFolderCustom.sharedWith,
-        privateSharingFolderCustom.folder.uuid,
-        roleId,
-      );
     });
 
     it('When a non-owner attempts to share a folder, then should not allow folder sharing', async () => {
@@ -528,14 +500,6 @@ describe('Private sharing folder use cases', () => {
           folderUuid,
           invatedUserEmail,
           encryptionKey,
-        ),
-      ).rejects.toThrow(InvalidOwnerError);
-
-      await expect(
-        privateSharingUseCase.grantPrivileges(
-          owner,
-          folderUuid,
-          privateSharingFolder.id,
           roleId,
         ),
       ).rejects.toThrow(InvalidOwnerError);
@@ -546,6 +510,7 @@ describe('Private sharing folder use cases', () => {
       const sharedWith = { ...user, id: user.id + 1 } as User;
       const invatedUserEmail = 'email@email.com';
       const folderUuid = v4();
+      const roleId = v4();
       const foundFolder = {
         ...folders[0],
         uuid: folderUuid,
@@ -571,6 +536,7 @@ describe('Private sharing folder use cases', () => {
           folderUuid,
           invatedUserEmail,
           encryptionKey,
+          roleId,
         ),
       ).rejects.toThrow(UserAlreadyHasRole);
     });
@@ -581,6 +547,7 @@ describe('Private sharing folder use cases', () => {
       const sharedWith = user;
       const invatedUserEmail = 'email@email.com';
       const folderUuid = v4();
+      const roleId = v4();
       const encryptionKey = 'encryptionKey';
       jest
         .spyOn(userUseCases, 'getUserByUsername')
@@ -592,6 +559,7 @@ describe('Private sharing folder use cases', () => {
           folderUuid,
           invatedUserEmail,
           encryptionKey,
+          roleId,
         ),
       ).rejects.toThrow(OwnerCannotBeSharedError);
     });

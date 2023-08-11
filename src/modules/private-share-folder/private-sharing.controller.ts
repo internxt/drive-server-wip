@@ -300,7 +300,7 @@ export class PrivateSharingController {
     };
   }
 
-  @Post('/create')
+  @Post('/share')
   @ApiOperation({
     summary: 'Share folder to a user',
   })
@@ -312,18 +312,11 @@ export class PrivateSharingController {
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      const privateSharingFolder =
-        await this.privateSharingUseCase.createPrivateSharingFolder(
-          user,
-          CreatePrivateSharingDto.folderId,
-          CreatePrivateSharingDto.email,
-          CreatePrivateSharingDto.encryptionKey,
-        );
-
-      await this.privateSharingUseCase.grantPrivileges(
+      await this.privateSharingUseCase.createPrivateSharingFolder(
         user,
-        privateSharingFolder.sharedWith,
-        privateSharingFolder.id,
+        CreatePrivateSharingDto.folderId,
+        CreatePrivateSharingDto.email,
+        CreatePrivateSharingDto.encryptionKey,
         CreatePrivateSharingDto.roleId,
       );
 

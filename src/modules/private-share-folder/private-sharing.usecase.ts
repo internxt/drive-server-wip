@@ -156,7 +156,8 @@ export class PrivateSharingUseCase {
     folderId: Folder['uuid'],
     invatedUserEmail: User['email'],
     encryptionKey: PrivateSharingFolder['encryptionKey'],
-  ) {
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void> {
     const sharedWith = await this.userUsecase.getUserByUsername(
       invatedUserEmail,
     );
@@ -195,7 +196,11 @@ export class PrivateSharingUseCase {
         encryptionKey,
       );
 
-    return privateFolder;
+    await this.privateSharingRespository.createPrivateFolderRole(
+      privateFolder.sharedWith,
+      folder.uuid,
+      roleId,
+    );
   }
 
   getAllRoles(): Promise<PrivateSharingRole[]> {
