@@ -48,6 +48,27 @@ export class UserNotInvitedError extends Error {
   }
 }
 
+export class InvitedUserNotFoundError extends Error {
+  constructor(email: string) {
+    super(`Invited user: ${email} not found`);
+    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+  }
+}
+
+export class UserAlreadyHasRole extends Error {
+  constructor() {
+    super('User already has a role');
+    Object.setPrototypeOf(this, UserAlreadyHasRole.prototype);
+  }
+}
+
+export class OwnerCannotBeSharedWithError extends Error {
+  constructor() {
+    super('Owner cannot share the folder with itself');
+    Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
+  }
+}
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -147,6 +168,62 @@ export class PrivateSharingUseCase {
       order,
     );
     return folders;
+  }
+
+  async createPrivateSharingFolder(
+    owner: User,
+    folderId: Folder['uuid'],
+    invitedUserEmail: User['email'],
+    encryptionKey: PrivateSharingFolder['encryptionKey'],
+    roleId: PrivateSharingRole['id'],
+  ): Promise<void> {
+    const sharedWith = await this.userUsecase.getUserByUsername(
+      invitedUserEmail,
+    );
+
+    if (!sharedWith) {
+      throw new InvitedUserNotFoundError(invitedUserEmail);
+    }
+
+    if (owner.id === sharedWith.id) {
+      throw new OwnerCannotBeSharedWithError();
+    }
+
+    const folder = await this.folderUsecase.getByUuid(folderId);
+
+    if (folder.userId !== owner.id) {
+      throw new ForbiddenException('You are not the owner of this folder');
+    }
+
+    const sharedWithMaybeExistentRole =
+      await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
+        sharedWith.uuid,
+        folderId,
+      );
+
+    const invitedUserAlreadyHasARole = !!sharedWithMaybeExistentRole;
+
+    if (invitedUserAlreadyHasARole) {
+      throw new UserAlreadyHasRole();
+    }
+
+    const privateFolder =
+      await this.privateSharingRespository.createPrivateFolder(
+        folderId,
+        owner.uuid,
+        sharedWith.uuid,
+        encryptionKey,
+      );
+
+    await this.privateSharingRespository.createPrivateFolderRole(
+      privateFolder.sharedWith,
+      folder.uuid,
+      roleId,
+    );
+  }
+
+  getAllRoles(): Promise<PrivateSharingRole[]> {
+    return this.privateSharingRespository.getAllRoles();
   }
 
   async getItems(

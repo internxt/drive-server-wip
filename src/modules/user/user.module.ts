@@ -26,6 +26,7 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
 import { ShareModule } from '../share/share.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { ShareModule } from '../share/share.module';
     ]),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
+    SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
     forwardRef(() => ShareModule),

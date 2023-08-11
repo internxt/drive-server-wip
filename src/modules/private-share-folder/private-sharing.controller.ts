@@ -1,10 +1,12 @@
 import {
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
   HttpStatus,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -26,6 +28,9 @@ import {
   RoleNotFoundError,
   PrivateSharingUseCase,
   UserNotInvitedError,
+  InvitedUserNotFoundError,
+  OwnerCannotBeSharedWithError,
+  UserAlreadyHasRole,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -35,6 +40,7 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import { Response } from 'express';
 import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
+import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
 import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 
@@ -301,6 +307,79 @@ export class PrivateSharingController {
           order,
         ),
     };
+  }
+
+  @Post('/share')
+  @ApiOperation({
+    summary: 'Share folder to a user',
+  })
+  @ApiOkResponse({ description: 'Share folder to a user' })
+  @ApiBearerAuth()
+  async createPrivateFolder(
+    @UserDecorator() user: User,
+    @Body() CreatePrivateSharingDto: CreatePrivateSharingDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      await this.privateSharingUseCase.createPrivateSharingFolder(
+        user,
+        CreatePrivateSharingDto.folderId,
+        CreatePrivateSharingDto.email,
+        CreatePrivateSharingDto.encryptionKey,
+        CreatePrivateSharingDto.roleId,
+      );
+
+      return { message: 'Private folder created' };
+    } catch (error) {
+      if (error instanceof InvitedUserNotFoundError) {
+        throw new NotFoundException(error.message);
+      }
+
+      if (error instanceof OwnerCannotBeSharedWithError) {
+        throw new ConflictException(error.message);
+      }
+
+      if (error instanceof UserAlreadyHasRole) {
+        throw new ConflictException(error.message);
+      }
+
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+
+      new Logger().error(
+        `[PRIVATESHARING/CREATE] Error: while creating private folder by user ${
+          user.uuid
+        }, ${error.stack || 'No stack trace'}`,
+      );
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      return { error: 'Internal Server Error' };
+    }
+  }
+
+  @Get('/roles')
+  @ApiOperation({
+    summary: 'Get all roles of private sharing',
+  })
+  @ApiOkResponse({ description: 'Get all roles of private sharing' })
+  @ApiBearerAuth()
+  async getAllRoles(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Record<'roles', PrivateSharingRole[]>> {
+    try {
+      return {
+        roles: await this.privateSharingUseCase.getAllRoles(),
+      };
+    } catch (error) {
+      new Logger().error(
+        `[PRIVATESHARING/GETALLROLES] Error: while getting all roles, ${
+          error.stack || 'No stack trace'
+        }`,
+      );
+
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      throw error;
+    }
   }
 
   @Get('items/:sharedFolderId')
