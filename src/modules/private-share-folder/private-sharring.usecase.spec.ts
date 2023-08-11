@@ -16,7 +16,6 @@ import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { createMock } from '@golevelup/ts-jest';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
-import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 
 describe('Private sharing folder use cases', () => {

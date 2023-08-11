@@ -2,11 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
-import { SequelizeUserRepository } from '../user/user.repository';
-import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
+import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 
 export class InvalidOwnerError extends Error {
