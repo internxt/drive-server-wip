@@ -179,13 +179,13 @@ export class PrivateSharingUseCase {
     }
 
     // if a user has a role could not be invited again
-    const sharedWithRoleFound =
+    const sharedWithFound =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
         sharedWith.uuid,
         folderId,
       );
 
-    if (sharedWithRoleFound) {
+    if (sharedWithFound) {
       throw new UserAlreadyHasRole();
     }
 
