@@ -36,7 +36,7 @@ module.exports = {
         },
       },
       encryption_key: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(800),
         allowNull: false,
       },
       created_at: {

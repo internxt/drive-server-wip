@@ -56,6 +56,13 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
+export class UserNotFoundError extends Error {
+  constructor() {
+    super('User not found');
+    Object.setPrototypeOf(this, UserNotFoundError.prototype);
+  }
+}
+
 type NewUser = Pick<
   UserAttributes,
   'email' | 'name' | 'lastname' | 'mnemonic' | 'password'

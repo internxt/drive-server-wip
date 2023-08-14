@@ -1,6 +1,6 @@
 'use strict';
 
-const tableName = 'private_sharing_folder_roles';
+const tableName = 'permissions';
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
@@ -11,26 +11,17 @@ module.exports = {
         allowNull: false,
         primaryKey: true,
       },
-      user_id: {
-        type: Sequelize.STRING(36),
-        references: {
-          model: 'users',
-          key: 'uuid',
-        },
-      },
-      folder_id: {
-        type: Sequelize.UUID,
-        references: {
-          model: 'folders',
-          key: 'uuid',
-        },
-      },
       role_id: {
         type: Sequelize.UUID,
         references: {
           model: 'roles',
           key: 'id',
         },
+        allowNull: false,
+      },
+      type: {
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       created_at: {
         type: Sequelize.DATE,

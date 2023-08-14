@@ -11,26 +11,28 @@ import { UserModule } from '../user/user.module';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
+import { FileModule } from '../file/file.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([
       PrivateSharingFolderModel,
       PrivateSharingRoleModel,
-      UserModel,
       FolderModel,
       PrivateSharingFolderRolesModel,
+      UserModel,
     ]),
-    forwardRef(() => FolderModule),
     forwardRef(() => UserModule),
+    FolderModule,
+    FileModule,
   ],
-  controllers: [PrivateSharingController],
   providers: [
-    PrivateSharingUseCase,
     SequelizePrivateSharingRepository,
+    PrivateSharingUseCase,
     SequelizeUserRepository,
     PrivateSharingFolderRolesRepository,
   ],
-  exports: [],
+  controllers: [PrivateSharingController],
+  exports: [PrivateSharingUseCase],
 })
 export class PrivateSharingModule {}
