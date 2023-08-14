@@ -217,6 +217,14 @@ describe('Private Sharing Use Cases', () => {
       it('When you are the owner, then you should get the items', async () => {
         const folder = rootSharedFolder;
         const expectedFolders = getChildrenOf(folder);
+        const expectedFolderFormatWithShared = expectedFolders.map((f) => {
+          return {
+            ...f,
+            sharedWithMe: null,
+            encryptionKey: null,
+            dateShared: null,
+          };
+        });
         const expectedFiles = [];
         const getFolderByUuidSpy = jest
           .spyOn(folderUseCases, 'getByUuid')
@@ -242,7 +250,7 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolders);
+        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(files).toStrictEqual(expectedFiles);
         expect(token).toStrictEqual('');
         expect(credentials).toStrictEqual({
@@ -254,6 +262,14 @@ describe('Private Sharing Use Cases', () => {
       it('When you are an invited user, then you should get the items', async () => {
         const folder = rootSharedFolder;
         const expectedFolders = getChildrenOf(folder);
+        const expectedFolderFormatWithShared = expectedFolders.map((f) => {
+          return {
+            ...f,
+            sharedWithMe: null,
+            encryptionKey: null,
+            dateShared: null,
+          };
+        });
         const expectedFiles = [];
         const getFolderByUuidSpy = jest
           .spyOn(folderUseCases, 'getByUuid')
@@ -312,7 +328,7 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolders);
+        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(findRoleSpy).toHaveBeenCalledWith(
           invitedUser.uuid,
           rootSharedFolder.uuid,
@@ -365,6 +381,14 @@ describe('Private Sharing Use Cases', () => {
       it('When you are the owner, then you should get the items', async () => {
         const folder = childOfRoot;
         const expectedFolders = getChildrenOf(folder);
+        const expectedFolderFormatWithShared = expectedFolders.map((f) => {
+          return {
+            ...f,
+            sharedWithMe: null,
+            encryptionKey: null,
+            dateShared: null,
+          };
+        });
         const expectedFiles = [];
         const getFolderByUuidSpy = jest
           .spyOn(folderUseCases, 'getByUuid')
@@ -390,7 +414,7 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolders);
+        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(files).toStrictEqual(expectedFiles);
         expect(token).toStrictEqual('');
         expect(credentials).toStrictEqual({
@@ -402,6 +426,14 @@ describe('Private Sharing Use Cases', () => {
       it('When you are an invited user, then you should get the items', async () => {
         const folder = childOfRoot;
         const expectedFolders = getChildrenOf(folder);
+        const expectedFolderFormatWithShared = expectedFolders.map((f) => {
+          return {
+            ...f,
+            sharedWithMe: null,
+            encryptionKey: null,
+            dateShared: null,
+          };
+        });
         const expectedFiles = [];
         const getFolderByUuidSpy = jest
           .spyOn(folderUseCases, 'getByUuid')
@@ -475,7 +507,7 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolders);
+        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(findRoleSpy).toHaveBeenCalledWith(
           invitedUser.uuid,
           rootSharedFolder.uuid,
