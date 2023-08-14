@@ -26,6 +26,7 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
 import { ShareModule } from '../share/share.module';
 
 @Module({
@@ -36,8 +37,9 @@ import { ShareModule } from '../share/share.module';
       UserReferralModel,
       FriendInvitationModel,
     ]),
-    FolderModule,
+    forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
+    SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
     forwardRef(() => ShareModule),
@@ -49,13 +51,12 @@ import { ShareModule } from '../share/share.module';
     SequelizeReferralRepository,
     SequelizeUserReferralsRepository,
     UserUseCases,
-    FolderUseCases,
     CryptoService,
     BridgeService,
     NotificationService,
     PaymentsService,
     NewsletterService,
   ],
-  exports: [UserUseCases],
+  exports: [UserUseCases, SequelizeUserRepository],
 })
 export class UserModule {}
