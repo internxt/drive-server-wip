@@ -93,6 +93,10 @@ export class Folder implements FolderAttributes {
     this.parent = parent;
   }
 
+  isOwnedBy(user: User): boolean {
+    return this.userId === user.id;
+  }
+
   setUser(user) {
     if (user && !(user instanceof User)) {
       throw Error('user invalid');

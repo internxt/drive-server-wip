@@ -1,4 +1,4 @@
-import { User } from './../src/modules/user/user.domain';
+import { User } from '../src/modules/user/user.domain';
 
 const userMock = User.build({
   id: 2,
