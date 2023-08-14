@@ -343,30 +343,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
-  async findAllParentsUuid(uuid: Folder['uuid']): Promise<Folder[]> {
-    const folders: Folder[] = [];
-
-    const findFolder = async (currentFolderUuid: string) => {
-      const currentFolder = await this.folderModel.findOne({
-        where: { uuid: currentFolderUuid },
-      });
-
-      if (!currentFolder) {
-        return;
-      }
-
-      folders.push(currentFolder.get({ plain: true }));
-
-      if (currentFolder.parentId) {
-        await findFolder(currentFolder.parentUuid);
-      }
-    };
-
-    await findFolder(uuid);
-
-    return folders;
-  }
-
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
     updatedAfter: Date,

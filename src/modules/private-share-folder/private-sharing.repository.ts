@@ -84,23 +84,6 @@ export class SequelizePrivateSharingRepository
     return role?.get({ plain: true });
   }
 
-  async findByFolderIdAndOwnerId(
-    folderId: Folder['uuid'],
-    ownerId: User['uuid'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }> {
-    console.log('folderId', folderId);
-    console.log('ownerId', ownerId);
-    const privateFolder = await this.privateSharingFolderModel.findOne({
-      where: {
-        folderId,
-        ownerId,
-      },
-      include: [FolderModel],
-    });
-
-    return privateFolder?.get({ plain: true });
-  }
-
   async create(
     owner: User,
     sharedWith: User,
@@ -244,36 +227,6 @@ export class SequelizePrivateSharingRepository
     });
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
-  }
-
-  async findSharedUsersByFolderUuids(
-    folderUuids: Folder['uuid'][],
-    offset: number,
-    limit: number,
-    order?: [string, string][],
-  ): Promise<(User & { sharedFrom: string })[]> {
-    const users = await this.privateSharingFolderModel.sequelize.query(
-      `
-      SELECT DISTINCT "users"."avatar", "users"."id", "users"."uuid", "users"."email", "users"."name", "users"."lastname", "folders"."uuid" AS "grantedFrom", "folders"."plain_name" as "grantedFromPlainName","roles"."role" as "roleName", "roles"."id" as "roleId"
-      FROM "users"
-      INNER JOIN "private_sharing_folder_roles"
-      ON "users"."uuid" = "private_sharing_folder_roles"."user_id"
-      INNER JOIN "folders"
-      ON "private_sharing_folder_roles"."folder_id" = "folders"."uuid"
-      INNER JOIN "roles"
-      ON "private_sharing_folder_roles"."role_id" = "roles"."id"
-      WHERE "folders"."uuid" IN (:folderUuids)
-      ${order ? `ORDER BY "users"."${order[0][0]}" ${order[0][1]}` : ''}
-      LIMIT :limit
-      OFFSET :offset
-      `,
-      {
-        replacements: { folderUuids, limit, offset },
-        type: QueryTypes.SELECT,
-      },
-    );
-
-    return users as (User & { sharedFrom: string })[];
   }
 
   async createPrivateFolder(
