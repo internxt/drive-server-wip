@@ -22,19 +22,17 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  InvalidChildFolderError,
   InvalidOwnerError,
-  InvalidPrivateFolderRoleError,
   RoleNotFoundError,
   PrivateSharingUseCase,
   UserNotInvitedError,
   InvitedUserNotFoundError,
   OwnerCannotBeSharedWithError,
   UserAlreadyHasRole,
+  GetItemsReponse,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
-import { File } from '../file/file.domain';
 import { User } from '../user/user.domain';
 import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
@@ -284,29 +282,19 @@ export class PrivateSharingController {
     @Query('orderBy') orderBy: OrderBy,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-  ): Promise<Record<'sharedByMe' | 'sharedWithMe', Folder[]>> {
+  ): Promise<GetItemsReponse | { error: string }> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
-    return {
-      sharedByMe: await this.privateSharingUseCase.getSharedFoldersByOwner(
-        user,
-        offset,
-        limit,
-        order,
-      ),
-
-      sharedWithMe:
-        await this.privateSharingUseCase.getSharedFoldersBySharedWith(
-          user,
-          offset,
-          limit,
-          order,
-        ),
-    };
+    return this.privateSharingUseCase.getSharedFolders(
+      user,
+      offset,
+      limit,
+      order,
+    );
   }
 
   @Post('/share')
@@ -424,9 +412,7 @@ export class PrivateSharingController {
     @Query('token') token: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-  ): Promise<
-    { folders: Folder[] | []; files: File[] | [] } | { error: string }
-  > {
+  ): Promise<GetItemsReponse | { error: string }> {
     try {
       const order = orderBy
         ? [orderBy.split(':') as [string, string]]

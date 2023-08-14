@@ -15,7 +15,7 @@ import {
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
-import { SequelizeFolderRepository } from './folder.repository';
+import { FolderModel, SequelizeFolderRepository } from './folder.repository';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -384,6 +384,10 @@ export class FolderUseCases {
     );
   }
 
+  getFolderName(folder: Folder): Folder {
+    return folder.plainName ? folder : this.decryptFolderName(folder);
+  }
+
   async getFoldersByParent(folderId: number, page, perPage) {
     return this.folderRepository.findAllByParentId(
       folderId,
@@ -465,5 +469,9 @@ export class FolderUseCases {
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
     await this.folderRepository.deleteByUser(user, folders);
+  }
+
+  format(folder: FolderModel): Folder {
+    return this.getFolderName(this.folderRepository.folderToDomain(folder));
   }
 }

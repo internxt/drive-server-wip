@@ -13,6 +13,7 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
+import { FolderModel } from '../folder/folder.model';
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
@@ -68,6 +69,31 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
+
+export type GetItemsReponse = {
+  folders: Folder[] | FolderWithSharedInfo[] | [];
+  files: File[] | [];
+  credentials: {
+    networkPass: User['userId'];
+    networkUser: User['bridgeUser'];
+  };
+  token: string;
+};
+
+export type FolderModelWithSharedInfo = {
+  folder: FolderModel;
+  encryptionKey: PrivateSharingFolder['encryptionKey'];
+  dateShared: Date;
+  sharedWithMe: boolean;
+};
+
+export type FolderWithSharedInfo = Partial<
+  Folder & {
+    encryptionKey: PrivateSharingFolder['encryptionKey'];
+    dateShared: Date;
+    sharedWithMe: boolean;
+  }
+>;
 
 @Injectable()
 export class PrivateSharingUseCase {
@@ -137,6 +163,43 @@ export class PrivateSharingUseCase {
 
     return {
       message: 'Role updated',
+    };
+  }
+
+  // folders shared with me and folders shared by me
+  async getSharedFolders(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<GetItemsReponse> {
+    const foldersWithSharedInfo =
+      await this.privateSharingRespository.findByOwnerAndSharedWithMe(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+    const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
+      const { sharedWithMe, encryptionKey, dateShared, folder } =
+        folderWithSharedInfo;
+      const folderToDomain = this.folderUsecase.format(folder);
+
+      return {
+        ...folderToDomain,
+        encryptionKey: encryptionKey,
+        dateShared: dateShared,
+        sharedWithMe: sharedWithMe,
+      };
+    }) as FolderWithSharedInfo[];
+    return {
+      folders: folders,
+      files: [],
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
     };
   }
 
@@ -233,31 +296,31 @@ export class PrivateSharingUseCase {
     page: number,
     perPage: number,
     order: [string, string][],
-  ): Promise<{
-    folders: Folder[];
-    files: File[];
-    credentials: {
-      networkPass: User['userId'];
-      networkUser: User['bridgeUser'];
-    };
-    token: string;
-  }> {
+  ): Promise<GetItemsReponse> {
     const getFolderContent = async (
       userId: User['id'],
       folderId: Folder['id'],
     ) => {
+      const folders = await this.folderUsecase.getFolders(
+        userId,
+        {
+          parentId: folderId,
+          deleted: false,
+        },
+        {
+          limit: perPage,
+          offset: page * perPage,
+        },
+      );
       return {
-        folders: await this.folderUsecase.getFolders(
-          userId,
-          {
-            parentId: folderId,
-            deleted: false,
-          },
-          {
-            limit: perPage,
-            offset: page * perPage,
-          },
-        ),
+        folders: folders.map((folder) => {
+          return {
+            ...folder,
+            encryptionKey: null,
+            dateShared: null,
+            sharedWithMe: null,
+          };
+        }),
         files: await this.fileUsecase.getFiles(
           userId,
           {
@@ -271,7 +334,6 @@ export class PrivateSharingUseCase {
         ),
       };
     };
-
     const folder = await this.folderUsecase.getByUuid(folderId);
 
     if (folder.isOwnedBy(user)) {
