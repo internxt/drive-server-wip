@@ -10,6 +10,12 @@ import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain'
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { UserModel } from '../user/user.model';
+import { Op } from 'sequelize';
+import sequelize from 'sequelize';
+import {
+  FolderModelWithSharedInfo,
+  FolderWithSharedInfo,
+} from './private-sharing.usecase';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -206,6 +212,62 @@ export class SequelizePrivateSharingRepository
     });
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
+  }
+
+  async findByOwnerAndSharedWithMe(
+    userId: User['uuid'],
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<FolderWithSharedInfo[] | FolderModelWithSharedInfo[]> {
+    const sharedFolders = await this.privateSharingFolderModel.findAll({
+      where: {
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      },
+      attributes: [
+        // TODO: to check if is necessary to show the encryption_key in this query
+        [
+          sequelize.literal(
+            `MAX("PrivateSharingFolderModel"."encryption_key")`,
+          ),
+          'encryptionKey',
+        ],
+        // TODO: check if this should be updated_at
+        [
+          sequelize.literal(`MAX("PrivateSharingFolderModel"."created_at")`),
+          'dateShared',
+        ],
+        [
+          sequelize.literal(
+            `CASE WHEN "PrivateSharingFolderModel"."owner_id" != '${userId}' THEN true ELSE false END`,
+          ),
+          'sharedWithMe',
+        ],
+      ],
+      group: [
+        'folder.id',
+        'folder->user.id',
+        'PrivateSharingFolderModel.owner_id',
+      ],
+      include: [
+        {
+          model: FolderModel,
+          include: [
+            {
+              model: UserModel,
+              foreignKey: 'userId',
+              as: 'user',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+            },
+          ],
+        },
+      ],
+      order: orderBy,
+      limit,
+      offset,
+    });
+
+    return sharedFolders.map((shared) => shared.get({ plain: true }));
   }
 
   async createPrivateFolder(
