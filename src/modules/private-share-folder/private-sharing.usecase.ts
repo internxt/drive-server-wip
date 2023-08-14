@@ -394,7 +394,8 @@ export class PrivateSharingUseCase {
 
     if (!requestedFolderIsSharedRootFolder) {
       const navigationUp = folder.uuid === decoded.parentFolderId;
-      const navigationDown = folder.uuid === decoded.folder.uuid;
+      // It should compare if the folder is a child of the parent folder
+      const navigationDown = folder.parentId === decoded.folder.id;
 
       if (!navigationDown && !navigationUp) {
         throw new ForbiddenException(
