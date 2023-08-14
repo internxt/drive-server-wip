@@ -91,6 +91,10 @@ export class UserUseCases {
     private readonly keyServerRepository: SequelizeKeyServerRepository,
   ) {}
 
+  findByUuids(uuids: User['uuid'][]): Promise<User[]> {
+    return this.userRepository.findByUuids(uuids);
+  }
+
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
   }
