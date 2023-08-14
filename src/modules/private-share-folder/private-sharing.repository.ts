@@ -3,7 +3,10 @@ import { Folder } from '../folder/folder.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
-import { PrivateSharingFolder } from './private-sharing-folder.domain';
+import {
+  PrivateSharingFolder,
+  PrivateSharingFolderAttributes,
+} from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
@@ -290,5 +293,20 @@ export class SequelizePrivateSharingRepository
     const roles = await this.privateSharingRole.findAll();
 
     return roles.map((role) => role.get({ plain: true }));
+  }
+
+  private toDomain(model: PrivateSharingFolderModel): PrivateSharingFolder {
+    const modelData =
+      typeof model.toJSON === 'function' ? model.toJSON() : model;
+    return PrivateSharingFolder.build({
+      ...modelData,
+      fodler: Folder.build({
+        ...modelData.folder,
+        parent: modelData.folder.parent
+          ? Folder.build(modelData.folder.parent)
+          : null,
+        user: modelData.folder.user ? User.build(modelData.folder.user) : null,
+      }),
+    });
   }
 }
