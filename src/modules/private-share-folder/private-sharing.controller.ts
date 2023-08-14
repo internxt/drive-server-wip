@@ -321,7 +321,10 @@ export class PrivateSharingController {
     @UserDecorator() user: User,
   ): Promise<any> {
     try {
-      return await this.privateSharingUseCase.stopSharing(folderUuid);
+      return await this.privateSharingUseCase.stopSharing(
+        folderUuid,
+        user.uuid,
+      );
     } catch (error) {
       if (
         error instanceof FolderNotSharedError ||

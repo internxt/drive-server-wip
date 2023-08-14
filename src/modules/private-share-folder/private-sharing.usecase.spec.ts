@@ -1042,7 +1042,7 @@ describe('Private Sharing Use Cases', () => {
         .spyOn(privateSharingRespository, 'findByFolder')
         .mockResolvedValue(empty);
       await expect(
-        privateSharingUseCase.stopSharing(folderUuid),
+        privateSharingUseCase.stopSharing(folderUuid, user.uuid),
       ).rejects.toThrowError(FolderNotSharedError);
     });
 
@@ -1077,7 +1077,7 @@ describe('Private Sharing Use Cases', () => {
         .mockResolvedValue(0);
 
       await expect(
-        privateSharingUseCase.stopSharing(folderUuid),
+        privateSharingUseCase.stopSharing(folderUuid, user.uuid),
       ).resolves.toEqual(resultExpected);
     });
 
@@ -1112,7 +1112,7 @@ describe('Private Sharing Use Cases', () => {
         .mockResolvedValue(1);
 
       await expect(
-        privateSharingUseCase.stopSharing(folderUuid),
+        privateSharingUseCase.stopSharing(folderUuid, user.uuid),
       ).resolves.toEqual(resultExpected);
     });
   });

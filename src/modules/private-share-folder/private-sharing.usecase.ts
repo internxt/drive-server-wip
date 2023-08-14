@@ -185,7 +185,10 @@ export class PrivateSharingUseCase {
     return folders;
   }
 
-  async stopSharing(folderUuid: Folder['uuid']): Promise<any> {
+  async stopSharing(
+    folderUuid: Folder['uuid'],
+    userId: User['uuid'],
+  ): Promise<any> {
     await this.validateFolderShared(folderUuid);
     const folderRolesRemoved =
       await this.privateSharingFolderRolesRespository.removeByFolder(
