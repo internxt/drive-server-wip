@@ -75,15 +75,7 @@ describe('Send Use Cases', () => {
           useValue: jest.fn(),
         },
         {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        {
           provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
         },
       ],

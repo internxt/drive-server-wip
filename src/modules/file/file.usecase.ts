@@ -198,6 +198,27 @@ export class FileUseCases {
     );
   }
 
+  async getFilesNotDeleted(
+    userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    return this.fileRepository.findAllNotDeleted(
+      {
+        ...where,
+        userId,
+      },
+      options.limit,
+      options.offset,
+    );
+  }
+
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],

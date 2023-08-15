@@ -17,12 +17,14 @@ import {
   Put,
   Query,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -44,11 +46,13 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
   RequestRecoverAccountDto,
+  ResetAccountDto,
 } from './dto/recover-account.dto';
 import { verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('User')
 @Controller('users')
@@ -61,6 +65,7 @@ export class UserController {
   ) {}
 
   @UseGuards(ThrottlerGuard)
+  @Throttle(5, 3600)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
@@ -263,10 +268,11 @@ export class UserController {
   @Public()
   async recoverAccount(
     @Query('token') token: string,
-    @Body() body: RecoverAccountDto,
+    @Query('reset') reset: string,
+    @Body() body: RecoverAccountDto | ResetAccountDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { mnemonic, password } = body;
+    const { mnemonic, password, salt } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
     try {
@@ -293,13 +299,33 @@ export class UserController {
       throw new ForbiddenException();
     }
 
+    if (reset && reset !== 'true' && reset !== 'false') {
+      throw new BadRequestException('Invalid value for parameter "reset"');
+    }
+
     const userUuid = decodedContent.payload.uuid;
 
     try {
-      await this.userUseCases.updateCredentials(userUuid, {
-        mnemonic,
-        password,
-      });
+      if (reset === 'true') {
+        await this.userUseCases.updateCredentials(
+          userUuid,
+          {
+            mnemonic,
+            password,
+            salt,
+          },
+          true,
+        );
+      } else {
+        const { privateKey } = body as RecoverAccountDto;
+
+        await this.userUseCases.updateCredentials(userUuid, {
+          mnemonic,
+          password,
+          salt,
+          privateKey,
+        });
+      }
     } catch (err) {
       new Logger().error(
         `[USERS/RECOVER_ACCOUNT] ERROR: ${
@@ -313,5 +339,27 @@ export class UserController {
 
       return { error: 'Internal Server Error' };
     }
+  }
+
+  @Get('/public-key/:email')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get public key by email',
+  })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getPublicKeyByEmail(@Param('email') email: User['email']) {
+    const user = await this.userUseCases.getUserByUsername(email);
+
+    if (!user) {
+      throw new NotFoundException();
+    }
+
+    return {
+      publicKey: await this.keyServerUseCases.getPublicKey(user.id),
+    };
   }
 }

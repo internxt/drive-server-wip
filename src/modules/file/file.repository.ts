@@ -4,7 +4,7 @@ import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { FindOptions, Op } from 'sequelize';
 
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
@@ -100,6 +100,27 @@ export class SequelizeFileRepository implements FileRepository {
       offset,
       additionalOrders,
     );
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+      order,
+    });
 
     return files.map(this.toDomain.bind(this));
   }

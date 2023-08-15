@@ -1,18 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Keys, KeyServer } from './key-server.domain';
-import { KeyServerRepository } from './key-server.repository';
+import { SequelizeKeyServerRepository } from './key-server.repository';
 import { KeyServerUseCases } from './key-server.usecase';
 
 describe('Key Server Use Cases', () => {
   let service: KeyServerUseCases;
-  let keyServerRepository: KeyServerRepository;
+  let keyServerRepository: SequelizeKeyServerRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         KeyServerUseCases,
+        SequelizeKeyServerRepository,
         {
-          provide: 'KEY_SERVER_REPOSITORY',
+          provide: SequelizeKeyServerRepository,
           useValue: {
             findUserKeysOrCreate: () => {
               return {};
@@ -24,8 +25,8 @@ describe('Key Server Use Cases', () => {
 
     service = module.get<KeyServerUseCases>(KeyServerUseCases);
 
-    keyServerRepository = module.get<KeyServerRepository>(
-      'KEY_SERVER_REPOSITORY',
+    keyServerRepository = module.get<SequelizeKeyServerRepository>(
+      SequelizeKeyServerRepository,
     );
   });
 

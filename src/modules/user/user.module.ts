@@ -26,11 +26,11 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
-import {
-  KeyServerModel,
-  SequelizeKeyServerRepository,
-} from '../keyserver/key-server.repository';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { CryptoModule } from 'src/externals/crypto/crypto.module';
+import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
+import { ShareModule } from '../share/share.module';
+import { KeyServerModel } from '../keyserver/key-server.model';
 
 @Module({
   imports: [
@@ -41,11 +41,13 @@ import { CryptoModule } from 'src/externals/crypto/crypto.module';
       FriendInvitationModel,
       KeyServerModel,
     ]),
-    FolderModule,
+    forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
+    SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
     CryptoModule,
+    forwardRef(() => ShareModule),
   ],
   controllers: [UserController],
   providers: [
@@ -55,13 +57,12 @@ import { CryptoModule } from 'src/externals/crypto/crypto.module';
     SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
     UserUseCases,
-    FolderUseCases,
     CryptoService,
     BridgeService,
     NotificationService,
     PaymentsService,
     NewsletterService,
   ],
-  exports: [UserUseCases],
+  exports: [UserUseCases, SequelizeUserRepository],
 })
 export class UserModule {}
