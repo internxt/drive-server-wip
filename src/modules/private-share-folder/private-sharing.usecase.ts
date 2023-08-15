@@ -83,6 +83,13 @@ export class OwnerCannotBeSharedWithError extends Error {
   }
 }
 
+export class InvalidSharedFolderError extends Error {
+  constructor() {
+    super('This is not a shared folder');
+    Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
+  }
+}
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -445,5 +452,28 @@ export class PrivateSharingUseCase {
         getEnv().secrets.jwt,
       ),
     };
+  }
+
+  async getSharedWithByFolderId(
+    user: User,
+    folderId: Folder['uuid'],
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<User[]> {
+    const privateSharings =
+      await this.privateSharingRespository.findByOwnerAndFolderId(
+        user.uuid,
+        folderId,
+        offset,
+        limit,
+        order,
+      );
+
+    const sharedsWith = privateSharings.map((privateSharing) => {
+      return privateSharing.sharedWith;
+    });
+
+    return this.userUsecase.findByUuids(sharedsWith);
   }
 }

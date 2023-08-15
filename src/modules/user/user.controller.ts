@@ -12,8 +12,11 @@ import {
   ForbiddenException,
   NotFoundException,
   UseGuards,
+  Patch,
+  Request as RequestDecorator,
   Put,
   Query,
+  UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
 import {
@@ -32,11 +35,14 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { User } from './user.domain';
 import {
   InvalidReferralCodeError,
+  KeyServerNotFoundError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
   RequestRecoverAccountDto,
@@ -45,7 +51,7 @@ import {
 import { verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
-import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('User')
@@ -55,6 +61,7 @@ export class UserController {
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -164,6 +171,63 @@ export class UserController {
   @ApiOkResponse({ description: 'Returns a new token' })
   refreshToken(@UserDecorator() user: User) {
     return this.userUseCases.getAuthTokens(user);
+  }
+
+  @Patch('password')
+  @ApiBearerAuth()
+  async updatePassword(
+    @RequestDecorator() req,
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+    @UserDecorator() user: User,
+  ) {
+    try {
+      const currentPassword = await this.cryptoService.decryptText(
+        updatePasswordDto.currentPassword,
+      );
+      const newPassword = await this.cryptoService.decryptText(
+        updatePasswordDto.newPassword,
+      );
+      const newSalt = await this.cryptoService.decryptText(
+        updatePasswordDto.newSalt,
+      );
+
+      const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
+
+      if (user.password.toString() !== currentPassword) {
+        throw new UnauthorizedException();
+      }
+
+      await this.userUseCases.updatePassword(req.user, {
+        currentPassword,
+        newPassword,
+        newSalt,
+        mnemonic,
+        privateKey,
+        encryptVersion,
+      });
+      return { status: 'success' };
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof UnauthorizedException) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (err instanceof KeyServerNotFoundError) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/UPDATEPASSWORD] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
   }
 
   @UseGuards(ThrottlerGuard)
