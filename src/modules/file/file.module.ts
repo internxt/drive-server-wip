@@ -23,6 +23,6 @@ import { FileModel } from './file.model';
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],
-  exports: [FileUseCases],
+  exports: [FileUseCases, SequelizeFileRepository],
 })
 export class FileModule {}
