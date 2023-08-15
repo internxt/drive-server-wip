@@ -3,22 +3,14 @@ import { Folder } from '../folder/folder.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { PrivateSharingFolderModel } from './private-sharing-folder.model';
 import { FolderModel } from '../folder/folder.model';
-import {
-  PrivateSharingFolder,
-  PrivateSharingFolderAttributes,
-} from './private-sharing-folder.domain';
+import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { UserModel } from '../user/user.model';
-import { Op } from 'sequelize';
-import sequelize from 'sequelize';
-import {
-  FolderModelWithSharedInfo,
-  FolderWithSharedInfo,
-} from './private-sharing.usecase';
+import sequelize, { Op } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -222,7 +214,7 @@ export class SequelizePrivateSharingRepository
     offset: number,
     limit: number,
     orderBy?: [string, string][],
-  ): Promise<FolderWithSharedInfo[] | FolderModelWithSharedInfo[]> {
+  ): Promise<PrivateSharingFolder[]> {
     const sharedFolders = await this.privateSharingFolderModel.findAll({
       where: {
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
@@ -235,16 +227,9 @@ export class SequelizePrivateSharingRepository
           ),
           'encryptionKey',
         ],
-        // TODO: check if this should be updated_at
         [
           sequelize.literal(`MAX("PrivateSharingFolderModel"."created_at")`),
-          'dateShared',
-        ],
-        [
-          sequelize.literal(
-            `CASE WHEN "PrivateSharingFolderModel"."owner_id" != '${userId}' THEN true ELSE false END`,
-          ),
-          'sharedWithMe',
+          'createdAt',
         ],
       ],
       group: [
@@ -270,7 +255,7 @@ export class SequelizePrivateSharingRepository
       offset,
     });
 
-    return sharedFolders.map((shared) => shared.get({ plain: true }));
+    return sharedFolders.map((shared) => this.toDomain(shared));
   }
 
   async createPrivateFolder(
@@ -296,16 +281,16 @@ export class SequelizePrivateSharingRepository
   }
 
   private toDomain(model: PrivateSharingFolderModel): PrivateSharingFolder {
-    const modelData =
-      typeof model.toJSON === 'function' ? model.toJSON() : model;
+    const folder = model.folder.get({ plain: true });
+    const user = model.folder.user.get({ plain: true });
+    delete folder.user;
+
     return PrivateSharingFolder.build({
-      ...modelData,
-      fodler: Folder.build({
-        ...modelData.folder,
-        parent: modelData.folder.parent
-          ? Folder.build(modelData.folder.parent)
-          : null,
-        user: modelData.folder.user ? User.build(modelData.folder.user) : null,
+      ...model.get({ plain: true }),
+      folder: Folder.build({
+        ...folder,
+        parent: folder.parent ? Folder.build(folder.parent) : null,
+        user: user ? User.build(user) : null,
       }),
     });
   }

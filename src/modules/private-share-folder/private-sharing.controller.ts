@@ -29,7 +29,6 @@ import {
   InvitedUserNotFoundError,
   OwnerCannotBeSharedWithError,
   UserAlreadyHasRole,
-  GetItemsReponse,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -41,6 +40,7 @@ import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
 import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { GetItemsReponse } from './dto/get-items-and-shared-folders.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')

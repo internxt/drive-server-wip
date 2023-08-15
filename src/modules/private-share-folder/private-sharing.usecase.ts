@@ -7,13 +7,16 @@ import { PrivateSharingRole } from './private-sharing-role.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File, FileStatus } from '../file/file.domain';
+import { FileStatus } from '../file/file.domain';
 import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
-import { FolderModel } from '../folder/folder.model';
+import {
+  FolderWithSharedInfo,
+  GetItemsReponse,
+} from './dto/get-items-and-shared-folders.dto';
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
@@ -69,31 +72,6 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
-
-export type GetItemsReponse = {
-  folders: Folder[] | FolderWithSharedInfo[] | [];
-  files: File[] | [];
-  credentials: {
-    networkPass: User['userId'];
-    networkUser: User['bridgeUser'];
-  };
-  token: string;
-};
-
-export type FolderModelWithSharedInfo = {
-  folder: FolderModel;
-  encryptionKey: PrivateSharingFolder['encryptionKey'];
-  dateShared: Date;
-  sharedWithMe: boolean;
-};
-
-export type FolderWithSharedInfo = Partial<
-  Folder & {
-    encryptionKey: PrivateSharingFolder['encryptionKey'];
-    dateShared: Date;
-    sharedWithMe: boolean;
-  }
->;
 
 @Injectable()
 export class PrivateSharingUseCase {
@@ -181,15 +159,11 @@ export class PrivateSharingUseCase {
         order,
       );
     const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
-      const { sharedWithMe, encryptionKey, dateShared, folder } =
-        folderWithSharedInfo;
-      const folderToDomain = this.folderUsecase.format(folder);
-
       return {
-        ...folderToDomain,
-        encryptionKey: encryptionKey,
-        dateShared: dateShared,
-        sharedWithMe: sharedWithMe,
+        ...folderWithSharedInfo.folder,
+        encryptionKey: folderWithSharedInfo.encryptionKey,
+        dateShared: folderWithSharedInfo.createdAt,
+        sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
       };
     }) as FolderWithSharedInfo[];
     return {
@@ -301,26 +275,29 @@ export class PrivateSharingUseCase {
       userId: User['id'],
       folderId: Folder['id'],
     ) => {
-      const folders = await this.folderUsecase.getFolders(
-        userId,
-        {
-          parentId: folderId,
-          deleted: false,
-        },
-        {
-          limit: perPage,
-          offset: page * perPage,
-        },
-      );
+      const folders = (
+        await this.folderUsecase.getFolders(
+          userId,
+          {
+            parentId: folderId,
+            deleted: false,
+          },
+          {
+            limit: perPage,
+            offset: page * perPage,
+          },
+        )
+      ).map((folder) => {
+        return {
+          ...folder,
+          encryptionKey: null,
+          dateShared: null,
+          sharedWithMe: null,
+        };
+      }) as FolderWithSharedInfo[];
+
       return {
-        folders: folders.map((folder) => {
-          return {
-            ...folder,
-            encryptionKey: null,
-            dateShared: null,
-            sharedWithMe: null,
-          };
-        }),
+        folders,
         files: await this.fileUsecase.getFiles(
           userId,
           {
