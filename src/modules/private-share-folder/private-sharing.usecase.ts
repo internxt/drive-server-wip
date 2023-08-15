@@ -375,8 +375,13 @@ export class PrivateSharingUseCase {
     if (!requestedFolderIsSharedRootFolder) {
       const navigationUp = folder.uuid === decoded.parentFolderId;
       const navigationDown = folder.parentId === decoded.folder.id;
+      const insideTheSharedRootFolder =
+        decoded.sharedRootFolderId === decoded.folder.uuid;
 
-      if (!navigationDown && !navigationUp) {
+      if (
+        (!navigationDown && !navigationUp) ||
+        (navigationUp && insideTheSharedRootFolder)
+      ) {
         throw new ForbiddenException(
           'User does not have access to this folder',
         );
