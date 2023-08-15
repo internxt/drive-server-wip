@@ -41,7 +41,7 @@ import {
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
