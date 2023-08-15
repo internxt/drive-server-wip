@@ -25,9 +25,7 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
-  findById(
-    id: PrivateSharingFolder['id'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }>;
+  findById(id: PrivateSharingFolder['id']): Promise<PrivateSharingFolder>;
   findRoleById(roleId: PrivateSharingRole['id']): Promise<PrivateSharingRole>;
   create(
     owner: User,
@@ -66,7 +64,7 @@ export class SequelizePrivateSharingRepository
 
   async findById(
     id: PrivateSharingFolder['id'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }> {
+  ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
         id,
@@ -131,7 +129,7 @@ export class SequelizePrivateSharingRepository
   async findPrivateFolderByFolderIdAndSharedWith(
     folderId: Folder['uuid'],
     sharedWith: User['uuid'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }> {
+  ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
         folderId,

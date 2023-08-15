@@ -299,16 +299,16 @@ describe('Private Sharing Use Cases', () => {
             privateSharingRespository,
             'findPrivateFolderByFolderIdAndSharedWith',
           )
-          .mockResolvedValue({
-            folder: folder,
-            ...PrivateSharingFolder.build({
+          .mockResolvedValue(
+            PrivateSharingFolder.build({
               id: v4(),
               folderId: rootSharedFolder.uuid,
               encryptionKey: '',
               ownerId: user.uuid,
+              folder: folder,
               sharedWith: invitedUser.uuid,
             }),
-          });
+          );
         const getUserSpy = jest
           .spyOn(userUseCases, 'getUser')
           .mockResolvedValue(user);
@@ -462,16 +462,16 @@ describe('Private Sharing Use Cases', () => {
             privateSharingRespository,
             'findPrivateFolderByFolderIdAndSharedWith',
           )
-          .mockResolvedValue({
-            folder: folder,
-            ...PrivateSharingFolder.build({
+          .mockResolvedValue(
+            PrivateSharingFolder.build({
               id: v4(),
               folderId: rootSharedFolder.uuid,
               encryptionKey: '',
+              folder: folder,
               ownerId: user.uuid,
               sharedWith: invitedUser.uuid,
             }),
-          });
+          );
         const getUserSpy = jest
           .spyOn(userUseCases, 'getUser')
           .mockResolvedValue(user);
@@ -481,8 +481,8 @@ describe('Private Sharing Use Cases', () => {
             sharedRootFolderId: rootSharedFolder.uuid,
             parentFolderId: rootSharedFolder.parentId,
             folder: {
-              id: folder.id,
-              uuid: folder.uuid,
+              id: folder.parentId,
+              uuid: v4(),
             },
             owner: {
               id: user.id,
@@ -639,14 +639,12 @@ describe('Private Sharing Use Cases', () => {
           encryptionKey: '',
           ownerId: owner.uuid,
           sharedWith: invitedUser.uuid,
+          folder: rootSharedFolder,
         });
 
         const findByIdPrivateSharingSpy = jest
           .spyOn(privateSharingRespository, 'findById')
-          .mockResolvedValue({
-            folder: rootSharedFolder,
-            ...privateSharingFolder,
-          });
+          .mockResolvedValue(privateSharingFolder);
 
         const createPrivateFolderRoleSpy = jest.spyOn(
           privateSharingRespository,
@@ -685,7 +683,7 @@ describe('Private Sharing Use Cases', () => {
               ownerId: realOwnerId,
               sharedWith: invitedUser.uuid,
             }),
-          });
+          } as PrivateSharingFolder);
 
         await expect(
           privateSharingUseCase.grantPrivileges(

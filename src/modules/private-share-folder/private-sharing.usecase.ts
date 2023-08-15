@@ -312,6 +312,9 @@ export class PrivateSharingUseCase {
       };
     };
     const folder = await this.folderUsecase.getByUuid(folderId);
+    const parentFolder = folder.parentId
+      ? await this.folderUsecase.getFolder(folder.parentId)
+      : null;
 
     if (folder.isOwnedBy(user)) {
       return {
@@ -389,7 +392,7 @@ export class PrivateSharingUseCase {
       token: generateTokenWithPlainSecret(
         {
           sharedRootFolderId: privateSharingFolder.folderId,
-          parentFolderId: folder.parentId,
+          parentFolderId: parentFolder?.uuid || null,
           folder: {
             uuid: folder.uuid,
             id: folder.id,

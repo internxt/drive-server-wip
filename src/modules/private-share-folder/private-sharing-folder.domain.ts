@@ -7,8 +7,8 @@ export interface PrivateSharingFolderAttributes {
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
   encryptionKey: string;
-  folder: any;
-  createdAt: Date;
+  folder?: any;
+  createdAt?: Date;
 }
 
 export class PrivateSharingFolder implements PrivateSharingFolderAttributes {
@@ -17,8 +17,8 @@ export class PrivateSharingFolder implements PrivateSharingFolderAttributes {
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
   encryptionKey: string;
-  folder: Folder;
-  createdAt: Date;
+  folder?: Folder;
+  createdAt?: Date;
 
   constructor(attributes: PrivateSharingFolderAttributes) {
     this.id = attributes.id;

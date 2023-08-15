@@ -15,7 +15,7 @@ import {
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
-import { FolderModel, SequelizeFolderRepository } from './folder.repository';
+import { SequelizeFolderRepository } from './folder.repository';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -469,9 +469,5 @@ export class FolderUseCases {
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
     await this.folderRepository.deleteByUser(user, folders);
-  }
-
-  format(folder: FolderModel): Folder {
-    return this.getFolderName(this.folderRepository.folderToDomain(folder));
   }
 }

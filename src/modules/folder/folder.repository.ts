@@ -368,15 +368,9 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
-  folderToDomain(folder: FolderModel): Folder {
-    return this.toDomain(folder);
-  }
-
   private toDomain(model: FolderModel): Folder {
-    const modelData =
-      typeof model.toJSON === 'function' ? model.toJSON() : model;
     return Folder.build({
-      ...modelData,
+      ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
       user: model.user ? User.build(model.user) : null,
     });
