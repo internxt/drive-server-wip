@@ -32,6 +32,13 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     });
   }
 
+  async update(
+    userId: UserAttributes['id'],
+    data: Partial<KeyServerAttributes>,
+  ) {
+    await this.model.update(data, { where: { userId } });
+  }
+
   async findPublicKey(
     userId: UserAttributes['id'],
   ): Promise<KeyServerAttributes['publicKey']> {
