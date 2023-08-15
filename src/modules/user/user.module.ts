@@ -27,7 +27,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { CryptoModule } from 'src/externals/crypto/crypto.module';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
 import { ShareModule } from '../share/share.module';
 import { KeyServerModel } from '../keyserver/key-server.model';
