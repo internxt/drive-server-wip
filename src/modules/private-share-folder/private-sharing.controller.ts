@@ -375,7 +375,7 @@ export class PrivateSharingController {
     @UserDecorator() user: User,
   ): Promise<{ message: string }> {
     try {
-      await this.privateSharingUseCase.removeUserShared(
+      await this.privateSharingUseCase.removeSharedWith(
         folderUuid,
         userUuid,
         user,

@@ -222,37 +222,39 @@ export class PrivateSharingUseCase {
     await this.privateSharingRespository.removeByFolder(folder);
   }
 
-  async removeUserShared(
+  async removeSharedWith(
     folderUuid: Folder['uuid'],
-    userUuid: User['uuid'],
+    sharedWithUuid: User['uuid'],
     owner: User,
   ): Promise<void> {
     const folder = await this.folderUsecase.getByUuid(folderUuid);
-    if (folder.userId !== owner.id) {
+
+    if (!folder.isOwnedBy(owner)) {
       throw new InvalidOwnerError();
     }
-    if (owner.uuid === userUuid) {
+
+    if (owner.uuid === sharedWithUuid) {
       throw new OwnerCannotBeRemovedWithError();
     }
-    const user = await this.userUsecase.getUser(userUuid);
 
     const sharedFolderWithUserToRemove =
       await this.privateSharingRespository.findByFolderAndSharedWith(
         folderUuid,
-        user.uuid,
+        sharedWithUuid,
       );
-    if (sharedFolderWithUserToRemove.length === 0) {
-      throw new FolderNotSharedWithUserError(user.email);
+
+    if (!sharedFolderWithUserToRemove) {
+      throw new FolderNotSharedWithUserError();
     }
 
     await this.privateSharingFolderRolesRespository.removeByUser(
       folderUuid,
-      user.uuid,
+      sharedWithUuid,
     );
 
     await this.privateSharingRespository.removeBySharedWith(
       folderUuid,
-      user.uuid,
+      sharedWithUuid,
     );
   }
 
