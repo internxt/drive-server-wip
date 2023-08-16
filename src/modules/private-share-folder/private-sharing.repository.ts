@@ -8,9 +8,9 @@ import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { QueryTypes } from 'sequelize';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { UserModel } from '../user/user.model';
+import { Op } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -230,6 +230,26 @@ export class SequelizePrivateSharingRepository
     });
 
     return privateFolderSharing.map((folder) => folder.get({ plain: true }));
+  }
+
+  async findByOwnerOrSharedWithFolderId(
+    userId: User['uuid'],
+    folderId: Folder['uuid'],
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<PrivateSharingFolder[]> {
+    const privateFolderSharing = await this.privateSharingFolderModel.findAll({
+      where: {
+        folderId,
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      },
+      order: orderBy,
+      limit,
+      offset,
+    });
+
+    return privateFolderSharing.map((sharing) => sharing.get({ plain: true }));
   }
 
   async findBySharedWith(

@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { Op } from 'sequelize';
+
 import { Folder } from '../folder/folder.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
 import { PrivateSharingFolderRolesModel } from './private-sharing-folder-roles.model';
 import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain';
+import { PrivateSharingRoleModel } from './private-sharing-role.model';
+import { PrivateSharingRole } from './private-sharing-role.domain';
 
 export interface PrivateSharingRolesRepository {
   findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolderRole[]>;
@@ -16,6 +20,9 @@ export interface PrivateSharingRolesRepository {
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<number>;
+  findByUsers(
+    users: User[],
+  ): Promise<(PrivateSharingFolderRole & { role: PrivateSharingRole })[]>;
 }
 
 @Injectable()
@@ -68,6 +75,24 @@ export class PrivateSharingFolderRolesRepository
         where: { folderId: folderUuid, userId: userUuid },
       });
     return folderRolesByFolderAndUser.map((role) =>
+      role.get({
+        plain: true,
+      }),
+    );
+  }
+
+  async findByUsers(
+    users: User[],
+  ): Promise<(PrivateSharingFolderRole & { role: PrivateSharingRole })[]> {
+    const folderRoles = await this.privateSharingFolderRolesModel.findAll({
+      where: {
+        userId: {
+          [Op.in]: users.map((user) => user.uuid),
+        },
+      },
+      include: [PrivateSharingRoleModel],
+    });
+    return folderRoles.map((role) =>
       role.get({
         plain: true,
       }),
