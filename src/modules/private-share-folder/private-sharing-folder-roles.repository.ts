@@ -27,44 +27,50 @@ export class PrivateSharingFolderRolesRepository
     private privateSharingFolderRolesModel: typeof PrivateSharingFolderRolesModel,
   ) {}
 
-  private async removeByField(
-    fields: Partial<PrivateSharingFolderRole>,
+  private removeByField(
+    where: Partial<Record<keyof PrivateSharingFolderRole, any>>,
   ): Promise<number> {
-    const amountRemoves = await this.privateSharingFolderRolesModel.destroy({
-      where: fields,
+    return this.privateSharingFolderRolesModel.destroy({
+      where,
     });
-    return amountRemoves;
   }
 
-  async removeByUser(
+  removeByUser(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<number> {
-    return await this.removeByField({ folderId: folderUuid, userId: userUuid });
+    return this.removeByField({ folderId: folderUuid, userId: userUuid });
   }
 
-  async removeByFolder(folderUuid: Folder['uuid']): Promise<number> {
-    return await this.removeByField({ folderId: folderUuid });
+  removeByFolder(folderUuid: Folder['uuid']): Promise<number> {
+    return this.removeByField({ folderId: folderUuid });
   }
 
   async findByFolder(
     folderUuid: Folder['uuid'],
   ): Promise<PrivateSharingFolderRole[]> {
-    const sharedFolderRolesByFolder =
-      await this.privateSharingFolderRolesModel.findAll({
-        where: { folderId: folderUuid },
-      });
-    return sharedFolderRolesByFolder;
+    const rolesByFolder = await this.privateSharingFolderRolesModel.findAll({
+      where: { folderId: folderUuid },
+    });
+    return rolesByFolder.map((role) =>
+      role.get({
+        plain: true,
+      }),
+    );
   }
 
   async findByFolderAndUser(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<PrivateSharingFolderRole[]> {
-    const sharedFolderRolesByFolderAndUser =
+    const folderRolesByFolderAndUser =
       await this.privateSharingFolderRolesModel.findAll({
         where: { folderId: folderUuid, userId: userUuid },
       });
-    return sharedFolderRolesByFolderAndUser;
+    return folderRolesByFolderAndUser.map((role) =>
+      role.get({
+        plain: true,
+      }),
+    );
   }
 }

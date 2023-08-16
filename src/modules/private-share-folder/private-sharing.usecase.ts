@@ -27,6 +27,12 @@ export class FolderNotSharedError extends Error {
     Object.setPrototypeOf(this, FolderNotSharedError.prototype);
   }
 }
+export class FolderNotSharedWithUserError extends Error {
+  constructor(email: User['email']) {
+    super(`This folder is not shared with this user ${email}`);
+    Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
+  }
+}
 export class UserNotInSharedFolder extends Error {
   constructor() {
     super('User is not in shared folder');
@@ -63,9 +69,9 @@ export class UserNotInvitedError extends Error {
 }
 
 export class InvitedUserNotFoundError extends Error {
-  constructor(email: string) {
+  constructor(email: User['email']) {
     super(`Invited user: ${email} not found`);
-    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+    Object.setPrototypeOf(this, InvitedUserNotFoundError.prototype);
   }
 }
 
@@ -82,10 +88,15 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
-
+export class OwnerCannotBeRemovedWithError extends Error {
+  constructor() {
+    super('Owner cannot be removed from the folder sharing');
+    Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
+  }
+}
 export class InvalidSharedFolderError extends Error {
   constructor() {
-    super('This is not a shared folder');
+    super('This folder is not being shared');
     Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
   }
 }
@@ -192,72 +203,57 @@ export class PrivateSharingUseCase {
     return folders;
   }
 
-  async stopSharing(
-    folderUuid: Folder['uuid'],
-    userId: User['uuid'],
-  ): Promise<any> {
-    await this.validateFolderShared(folderUuid);
-    const folderRolesRemoved =
-      await this.privateSharingFolderRolesRespository.removeByFolder(
-        folderUuid,
-      );
-    const sharingRemoved =
-      await this.privateSharingRespository.removeByFolderUuid(folderUuid);
-    const stoped = folderRolesRemoved + sharingRemoved > 0;
-    return { stoped };
-  }
+  async stopSharing(folderUuid: Folder['uuid'], owner: User): Promise<void> {
+    const folder = await this.folderUsecase.getByUuid(folderUuid);
+    if (folder.userId !== owner.id) {
+      throw new InvalidOwnerError();
+    }
 
-  private async validateFolderShared(folderUuid: Folder['uuid']) {
-    const folderRolesByFolder =
-      await this.privateSharingFolderRolesRespository.findByFolder(folderUuid);
-    const sharingByFolder = await this.privateSharingRespository.findByFolder(
+    const sharedFolders = await this.privateSharingRespository.findByFolder(
       folderUuid,
     );
-    if (folderRolesByFolder.length === 0 && sharingByFolder.length === 0) {
+    if (sharedFolders.length === 0) {
       throw new FolderNotSharedError();
     }
+
+    await this.privateSharingFolderRolesRespository.removeByFolder(folderUuid);
+    await this.privateSharingRespository.removeByFolderUuid(folderUuid);
   }
 
   async removeUserShared(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
-  ): Promise<any> {
-    await this.ValidateUserInFolderShared(folderUuid, userUuid);
-    const folderRolesRemoved =
-      await this.privateSharingFolderRolesRespository.removeByUser(
-        folderUuid,
-        userUuid,
-      );
-    const userSharedRemoved =
-      await this.privateSharingRespository.removeBySharedWith(
-        folderUuid,
-        userUuid,
-      );
-    const removed = folderRolesRemoved + userSharedRemoved > 0;
-    return { removed };
-  }
+    owner: User,
+  ): Promise<void> {
+    const folder = await this.folderUsecase.getByUuid(folderUuid);
+    if (folder.userId !== owner.id) {
+      throw new InvalidOwnerError();
+    }
+    if (owner.uuid === userUuid) {
+      throw new OwnerCannotBeRemovedWithError();
+    }
+    const user = await this.userUsecase.getUser(userUuid);
 
-  private async ValidateUserInFolderShared(
-    folderUuid: Folder['uuid'],
-    userUuid: User['uuid'],
-  ) {
-    const folderRolesByFolderAndUser =
-      await this.privateSharingFolderRolesRespository.findByFolderAndUser(
-        folderUuid,
-        userUuid,
-      );
-    const sharingByFolderAndSharedWith =
+    const sharedFolderWithUserToRemove =
       await this.privateSharingRespository.findByFolderAndSharedWith(
         folderUuid,
-        userUuid,
+        user.uuid,
       );
-    if (
-      folderRolesByFolderAndUser.length === 0 &&
-      sharingByFolderAndSharedWith.length === 0
-    ) {
-      throw new UserNotInSharedFolder();
+    if (sharedFolderWithUserToRemove.length === 0) {
+      throw new FolderNotSharedWithUserError(user.email);
     }
+
+    await this.privateSharingFolderRolesRespository.removeByUser(
+      folderUuid,
+      user.uuid,
+    );
+
+    await this.privateSharingRespository.removeBySharedWith(
+      folderUuid,
+      user.uuid,
+    );
   }
+
   async createPrivateSharingFolder(
     owner: User,
     folderId: Folder['uuid'],
