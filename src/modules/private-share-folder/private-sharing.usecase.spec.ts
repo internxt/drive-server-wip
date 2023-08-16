@@ -11,7 +11,6 @@ import {
   PrivateSharingUseCase,
   RoleNotFoundError,
   UserAlreadyHasRole,
-  UserNotInSharedFolder,
   UserNotInvitedError,
 } from './private-sharing.usecase';
 import { Folder } from '../folder/folder.domain';
@@ -1033,7 +1032,6 @@ describe('Private Sharing Use Cases', () => {
     });
   });
   describe('User stops sharing a folder', () => {
-    const folderUuid = v4();
     it('When user is not the owner, then then it should not be allowed to stop sharing', async () => {
       const owner = user;
       const folder = Folder.build({
