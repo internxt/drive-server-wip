@@ -12,6 +12,8 @@ import {
   Put,
   Query,
   Res,
+  Delete,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,9 +24,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  InvalidChildFolderError,
+  FolderNotSharedError,
   InvalidOwnerError,
-  InvalidPrivateFolderRoleError,
   RoleNotFoundError,
   PrivateSharingUseCase,
   UserNotInvitedError,
@@ -32,6 +33,8 @@ import {
   OwnerCannotBeSharedWithError,
   UserAlreadyHasRole,
   InvalidSharedFolderError,
+  FolderNotSharedWithUserError,
+  OwnerCannotBeRemovedWithError,
 } from './private-sharing.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Folder } from '../folder/folder.domain';
@@ -310,6 +313,99 @@ export class PrivateSharingController {
     };
   }
 
+  @Delete('stop/folder-id/:folderId')
+  @ApiParam({
+    name: 'folderId',
+    description: 'Folder id of the shared folder',
+    type: String,
+  })
+  @ApiOperation({
+    summary: 'Stop sharing one folder',
+  })
+  @ApiOkResponse({ description: 'Folder stopped sharing' })
+  @ApiBearerAuth()
+  async stopSharing(
+    @Param('folderId', ParseUUIDPipe) folderUuid: Folder['uuid'],
+    @UserDecorator() user: User,
+  ): Promise<{ message: string }> {
+    try {
+      await this.privateSharingUseCase.stopSharing(folderUuid, user);
+
+      return { message: 'Folder stopped sharing' };
+    } catch (error) {
+      if (error instanceof InvalidOwnerError) {
+        throw new ForbiddenException(error.message);
+      }
+      if (error instanceof FolderNotSharedError) {
+        throw new ConflictException(error.message);
+      }
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+
+      new Logger().error(
+        `[PRIVATESHARING/STOP] ERROR: ${
+          (error as Error).message
+        }, Error while stopping shared folder by folder ${folderUuid}, ${
+          error.stack || 'No stack trace'
+        }`,
+      );
+    }
+  }
+
+  @Delete('shared-with/folder-id/:folderId/user-id/:userId')
+  @ApiParam({
+    name: 'userId',
+    description: 'User id to remove from the shared folder',
+    type: String,
+  })
+  @ApiParam({
+    name: 'folderId',
+    description: 'Folder id of the shared folder to remove the user from',
+    type: String,
+  })
+  @ApiOperation({
+    summary: 'Remove user from shared folder',
+  })
+  @ApiOkResponse({ description: 'User removed from shared folder' })
+  @ApiBearerAuth()
+  async removUserFromSharedFolder(
+    @Param('folderId', ParseUUIDPipe) folderUuid: Folder['uuid'],
+    @Param('userId', ParseUUIDPipe) userUuid: User['uuid'],
+    @UserDecorator() user: User,
+  ): Promise<{ message: string }> {
+    try {
+      await this.privateSharingUseCase.removeSharedWith(
+        folderUuid,
+        userUuid,
+        user,
+      );
+
+      return { message: 'User removed from shared folder' };
+    } catch (error) {
+      if (error instanceof InvalidOwnerError) {
+        throw new ForbiddenException(error.message);
+      }
+      if (error instanceof OwnerCannotBeRemovedWithError) {
+        throw new ConflictException(error.message);
+      }
+      if (error instanceof FolderNotSharedWithUserError) {
+        throw new ConflictException(error.message);
+      }
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+
+      new Logger().error(
+        `[PRIVATESHARING/REMOVE] ERROR: ${
+          (error as Error).message
+        }, Error while stopping shared folder by folder 
+        ${folderUuid} and by shared user ${userUuid}, ${
+          error.stack || 'No stack trace'
+        }`,
+      );
+    }
+  }
   @Post('/share')
   @ApiOperation({
     summary: 'Share folder to a user',

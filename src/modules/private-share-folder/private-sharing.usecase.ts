@@ -4,6 +4,8 @@ import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
+
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -17,6 +19,24 @@ export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
     Object.setPrototypeOf(this, InvalidOwnerError.prototype);
+  }
+}
+export class FolderNotSharedError extends Error {
+  constructor() {
+    super('This folder is not shared');
+    Object.setPrototypeOf(this, FolderNotSharedError.prototype);
+  }
+}
+export class FolderNotSharedWithUserError extends Error {
+  constructor() {
+    super(`This folder is not shared with the given user`);
+    Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
+  }
+}
+export class UserNotInSharedFolder extends Error {
+  constructor() {
+    super('User is not in shared folder');
+    Object.setPrototypeOf(this, UserNotInSharedFolder.prototype);
   }
 }
 
@@ -49,9 +69,9 @@ export class UserNotInvitedError extends Error {
 }
 
 export class InvitedUserNotFoundError extends Error {
-  constructor(email: string) {
+  constructor(email: User['email']) {
     super(`Invited user: ${email} not found`);
-    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+    Object.setPrototypeOf(this, InvitedUserNotFoundError.prototype);
   }
 }
 
@@ -68,10 +88,15 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
-
+export class OwnerCannotBeRemovedWithError extends Error {
+  constructor() {
+    super('Owner cannot be removed from the folder sharing');
+    Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
+  }
+}
 export class InvalidSharedFolderError extends Error {
   constructor() {
-    super('This is not a shared folder');
+    super('This folder is not being shared');
     Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
   }
 }
@@ -80,6 +105,7 @@ export class InvalidSharedFolderError extends Error {
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
+    private privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository,
     private folderUsecase: FolderUseCases,
     private fileUsecase: FileUseCases,
     private userUsecase: UserUseCases,
@@ -175,6 +201,61 @@ export class PrivateSharingUseCase {
       order,
     );
     return folders;
+  }
+
+  async stopSharing(folderUuid: Folder['uuid'], owner: User): Promise<void> {
+    const folder = await this.folderUsecase.getByUuid(folderUuid);
+
+    if (!folder.isOwnedBy(owner)) {
+      throw new InvalidOwnerError();
+    }
+
+    const privateSharings = await this.privateSharingRespository.findByFolder(
+      folder.uuid,
+    );
+
+    if (privateSharings.length === 0) {
+      throw new FolderNotSharedError();
+    }
+
+    await this.privateSharingFolderRolesRespository.removeByFolder(folder);
+    await this.privateSharingRespository.removeByFolder(folder);
+  }
+
+  async removeSharedWith(
+    folderUuid: Folder['uuid'],
+    sharedWithUuid: User['uuid'],
+    owner: User,
+  ): Promise<void> {
+    const folder = await this.folderUsecase.getByUuid(folderUuid);
+
+    if (!folder.isOwnedBy(owner)) {
+      throw new InvalidOwnerError();
+    }
+
+    if (owner.uuid === sharedWithUuid) {
+      throw new OwnerCannotBeRemovedWithError();
+    }
+
+    const sharedFolderWithUserToRemove =
+      await this.privateSharingRespository.findByFolderAndSharedWith(
+        folderUuid,
+        sharedWithUuid,
+      );
+
+    if (!sharedFolderWithUserToRemove) {
+      throw new FolderNotSharedWithUserError();
+    }
+
+    await this.privateSharingFolderRolesRespository.removeByUser(
+      folderUuid,
+      sharedWithUuid,
+    );
+
+    await this.privateSharingRespository.removeBySharedWith(
+      folderUuid,
+      sharedWithUuid,
+    );
   }
 
   async createPrivateSharingFolder(
