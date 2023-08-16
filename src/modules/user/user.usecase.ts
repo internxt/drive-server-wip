@@ -670,9 +670,9 @@ export class UserUseCases {
   }
 
   async getSignedAvatarUrl(avatarKey: string) {
-    console.log('getsigned', avatarKey);
-    const s3 = this.avatarS3Service.getInstance();
-    const url = await s3.getSignedUrlPromise('getObject', {
+    if (!avatarKey) return null;
+    const s3instance = this.avatarS3Service.getInstance();
+    const url = await s3instance.getSignedUrlPromise('getObject', {
       Bucket: process.env.AVATAR_BUCKET,
       Key: avatarKey,
       Expires: 24 * 3600,

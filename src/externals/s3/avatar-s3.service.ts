@@ -17,7 +17,7 @@ export class AvatarS3Service implements IS3Singleton<AWS.S3> {
       region: process.env.AVATAR_REGION,
       credentials: {
         accessKeyId: process.env.AVATAR_ACCESS_KEY,
-        secretAccessKey: process.env.AVATAR_SECRET,
+        secretAccessKey: process.env.AVATAR_SECRET_KEY,
       },
       s3ForcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE === 'true',
     });
