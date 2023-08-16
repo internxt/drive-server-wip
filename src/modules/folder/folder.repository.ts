@@ -63,6 +63,22 @@ export class SequelizeFolderRepository implements FolderRepository {
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where,
+      order,
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithParent(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
       include: [
         {
           model: FolderModel,
