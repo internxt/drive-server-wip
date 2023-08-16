@@ -42,7 +42,10 @@ export class PrivateSharingFolderRolesModel
   @Column({ type: DataType.UUIDV4 })
   folderId: string;
 
-  @BelongsTo(() => PrivateSharingRoleModel, { foreignKey: 'role_id' })
+  @BelongsTo(() => PrivateSharingRoleModel, {
+    foreignKey: 'role_id',
+    targetKey: 'id',
+  })
   role: PrivateSharingRoleModel;
 
   @ForeignKey(() => PrivateSharingRoleModel)
