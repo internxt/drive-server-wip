@@ -72,31 +72,25 @@ export class SequelizePrivateSharingRepository
     private privateSharingRole: typeof PrivateSharingRoleModel,
   ) {}
 
-  private async removeByField(
-    fields: Partial<PrivateSharingFolder>,
+  private removeByField(
+    where: Partial<Record<keyof PrivateSharingFolder, any>>,
   ): Promise<number> {
-    const amountRemoves = await this.privateSharingFolderModel.destroy({
-      where: fields,
+    return this.privateSharingFolderModel.destroy({
+      where,
     });
-    return amountRemoves;
   }
 
-  async removeByFolderUuid(folderUuid: string): Promise<number> {
-    const privatesRemovedByFolderUuid = await this.removeByField({
+  removeByFolderUuid(folderUuid: string): Promise<number> {
+    return this.removeByField({
       folderId: folderUuid,
     });
-    return privatesRemovedByFolderUuid;
   }
 
-  async removeBySharedWith(
-    folderUuid: string,
-    userUuid: string,
-  ): Promise<number> {
-    const sharedWithRemoved = await this.removeByField({
+  removeBySharedWith(folderUuid: string, userUuid: string): Promise<number> {
+    return this.removeByField({
       folderId: folderUuid,
       sharedWith: userUuid,
     });
-    return sharedWithRemoved;
   }
 
   async findById(
@@ -264,28 +258,24 @@ export class SequelizePrivateSharingRepository
     return sharedFolders.map((folder) => folder.get({ plain: true }));
   }
 
-  async findByFolder(
-    folderUuid: Folder['uuid'],
-  ): Promise<PrivateSharingFolder[]> {
-    const sharedFolders = await this.privateSharingFolderModel.findAll({
+  findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]> {
+    return this.privateSharingFolderModel.findAll({
       where: {
         folderId: folderUuid,
       },
     });
-    return sharedFolders;
   }
 
-  async findByFolderAndSharedWith(
+  findByFolderAndSharedWith(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<PrivateSharingFolder[]> {
-    const sharedFolders = await this.privateSharingFolderModel.findAll({
+    return this.privateSharingFolderModel.findAll({
       where: {
         folderId: folderUuid,
         sharedWith: userUuid,
       },
     });
-    return sharedFolders;
   }
 
   async createPrivateFolder(
