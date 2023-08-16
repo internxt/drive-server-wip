@@ -101,6 +101,18 @@ export class InvalidSharedFolderError extends Error {
   }
 }
 
+type UserWithRole = Pick<
+  User,
+  'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
+> & {
+  role: {
+    name: PrivateSharingRole['role'];
+    id: PrivateSharingFolder['id'];
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
+
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
@@ -460,9 +472,9 @@ export class PrivateSharingUseCase {
     offset: number,
     limit: number,
     order: [string, string][],
-  ): Promise<User[]> {
+  ): Promise<UserWithRole[]> {
     const privateSharings =
-      await this.privateSharingRespository.findByOwnerAndFolderId(
+      await this.privateSharingRespository.findByOwnerOrSharedWithFolderId(
         user.uuid,
         folderId,
         offset,
@@ -470,10 +482,55 @@ export class PrivateSharingUseCase {
         order,
       );
 
+    if (privateSharings.length === 0) {
+      throw new ForbiddenException();
+    }
+
     const sharedsWith = privateSharings.map((privateSharing) => {
       return privateSharing.sharedWith;
     });
 
-    return this.userUsecase.findByUuids(sharedsWith);
+    const users = await this.userUsecase.findByUuids(sharedsWith);
+
+    const privateFolderRoles =
+      await this.privateSharingFolderRolesRespository.findByUsers(users);
+
+    const usersWithRoles: UserWithRole[] = users.map((user) => {
+      const { role, createdAt, updatedAt } = privateFolderRoles.find(
+        (role) => role.userId === user.uuid,
+      );
+      return {
+        ...user,
+        role: {
+          id: role.id,
+          name: role.role,
+          createdAt,
+          updatedAt,
+        },
+      };
+    });
+
+    const [{ ownerId }] = privateSharings;
+
+    const { name, lastname, email, avatar, uuid } =
+      ownerId === user.uuid ? user : await this.userUsecase.getUser(ownerId);
+
+    const ownerWithRole: UserWithRole = {
+      name,
+      lastname,
+      email,
+      avatar,
+      uuid,
+      role: {
+        id: 'NONE',
+        name: 'OWNER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    };
+
+    usersWithRoles.push(ownerWithRole);
+
+    return usersWithRoles;
   }
 }
