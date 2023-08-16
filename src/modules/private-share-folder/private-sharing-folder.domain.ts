@@ -27,19 +27,12 @@ export class PrivateSharingFolder implements PrivateSharingFolderAttributes {
     this.sharedWith = attributes.sharedWith;
     this.encryptionKey = attributes.encryptionKey;
     this.createdAt = attributes.createdAt;
-    this.setFolder(attributes.folder);
+    this.folder = attributes.folder;
   }
 
   static build(
     privateShareFolder: PrivateSharingFolderAttributes,
   ): PrivateSharingFolder {
     return new PrivateSharingFolder(privateShareFolder);
-  }
-
-  setFolder(folder) {
-    if (folder && !(folder instanceof Folder)) {
-      throw Error('folder invalid');
-    }
-    this.folder = folder;
   }
 }
