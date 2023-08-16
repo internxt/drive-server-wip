@@ -25,7 +25,7 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
-  removeByFolderUuid(folderUuid: Folder['uuid']): Promise<number>;
+  removeByFolder(folder: Folder): Promise<number>;
   removeBySharedWith(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
@@ -34,7 +34,7 @@ export interface PrivateSharingRepository {
   findByFolderAndSharedWith(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
-  ): Promise<PrivateSharingFolder[]>;
+  ): Promise<PrivateSharingFolder | null>;
   findById(
     id: PrivateSharingFolder['id'],
   ): Promise<PrivateSharingFolder & { folder: Folder }>;
@@ -72,24 +72,25 @@ export class SequelizePrivateSharingRepository
     private privateSharingRole: typeof PrivateSharingRoleModel,
   ) {}
 
-  private removeByField(
-    where: Partial<Record<keyof PrivateSharingFolder, any>>,
-  ): Promise<number> {
+  private removeByField(where: Partial<PrivateSharingFolder>): Promise<number> {
     return this.privateSharingFolderModel.destroy({
       where,
     });
   }
 
-  removeByFolderUuid(folderUuid: string): Promise<number> {
+  removeByFolder(folder: Folder): Promise<number> {
     return this.removeByField({
-      folderId: folderUuid,
+      folderId: folder.uuid,
     });
   }
 
-  removeBySharedWith(folderUuid: string, userUuid: string): Promise<number> {
+  removeBySharedWith(
+    folderUuid: Folder['uuid'],
+    sharedWith: User['uuid'],
+  ): Promise<number> {
     return this.removeByField({
       folderId: folderUuid,
-      sharedWith: userUuid,
+      sharedWith,
     });
   }
 
@@ -268,12 +269,12 @@ export class SequelizePrivateSharingRepository
 
   findByFolderAndSharedWith(
     folderUuid: Folder['uuid'],
-    userUuid: User['uuid'],
-  ): Promise<PrivateSharingFolder[]> {
-    return this.privateSharingFolderModel.findAll({
+    sharedWith: User['uuid'],
+  ): Promise<PrivateSharingFolder | null> {
+    return this.privateSharingFolderModel.findOne({
       where: {
         folderId: folderUuid,
-        sharedWith: userUuid,
+        sharedWith: sharedWith,
       },
     });
   }

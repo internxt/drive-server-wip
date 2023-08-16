@@ -11,7 +11,7 @@ export interface PrivateSharingRolesRepository {
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<PrivateSharingFolderRole[]>;
-  removeByFolder(folderUuid: Folder['uuid']): Promise<number>;
+  removeByFolder(folder: Folder): Promise<number>;
   removeByUser(
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
@@ -42,8 +42,8 @@ export class PrivateSharingFolderRolesRepository
     return this.removeByField({ folderId: folderUuid, userId: userUuid });
   }
 
-  removeByFolder(folderUuid: Folder['uuid']): Promise<number> {
-    return this.removeByField({ folderId: folderUuid });
+  removeByFolder(folder: Folder): Promise<number> {
+    return this.removeByField({ folderId: folder.uuid });
   }
 
   async findByFolder(
