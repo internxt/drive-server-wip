@@ -376,7 +376,7 @@ export class PrivateSharingUseCase {
       folderId: Folder['id'],
     ) => {
       const folders = (
-        await this.folderUsecase.getFolders(
+        await this.folderUsecase.getFoldersWithParent(
           userId,
           {
             parentId: folderId,
