@@ -25,6 +25,16 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
+  removeByFolder(folder: Folder): Promise<number>;
+  removeBySharedWith(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<number>;
+  findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]>;
+  findByFolderAndSharedWith(
+    folderUuid: Folder['uuid'],
+    userUuid: User['uuid'],
+  ): Promise<PrivateSharingFolder | null>;
   findById(
     id: PrivateSharingFolder['id'],
   ): Promise<PrivateSharingFolder & { folder: Folder }>;
@@ -56,13 +66,33 @@ export class SequelizePrivateSharingRepository
   constructor(
     @InjectModel(PrivateSharingFolderModel)
     private privateSharingFolderModel: typeof PrivateSharingFolderModel,
-    @InjectModel(FolderModel)
-    private folderModel: typeof FolderModel,
     @InjectModel(PrivateSharingFolderRolesModel)
     private privateSharingFolderRole: typeof PrivateSharingFolderRolesModel,
     @InjectModel(PrivateSharingRoleModel)
     private privateSharingRole: typeof PrivateSharingRoleModel,
   ) {}
+
+  private removeByField(where: Partial<PrivateSharingFolder>): Promise<number> {
+    return this.privateSharingFolderModel.destroy({
+      where,
+    });
+  }
+
+  removeByFolder(folder: Folder): Promise<number> {
+    return this.removeByField({
+      folderId: folder.uuid,
+    });
+  }
+
+  removeBySharedWith(
+    folderUuid: Folder['uuid'],
+    sharedWith: User['uuid'],
+  ): Promise<number> {
+    return this.removeByField({
+      folderId: folderUuid,
+      sharedWith,
+    });
+  }
 
   async findById(
     id: PrivateSharingFolder['id'],
@@ -227,6 +257,26 @@ export class SequelizePrivateSharingRepository
     });
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
+  }
+
+  findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]> {
+    return this.privateSharingFolderModel.findAll({
+      where: {
+        folderId: folderUuid,
+      },
+    });
+  }
+
+  findByFolderAndSharedWith(
+    folderUuid: Folder['uuid'],
+    sharedWith: User['uuid'],
+  ): Promise<PrivateSharingFolder | null> {
+    return this.privateSharingFolderModel.findOne({
+      where: {
+        folderId: folderUuid,
+        sharedWith: sharedWith,
+      },
+    });
   }
 
   async createPrivateFolder(
