@@ -384,8 +384,25 @@ export class FolderUseCases {
     );
   }
 
-  getFolderName(folder: Folder): Folder {
-    return folder.plainName ? folder : this.decryptFolderName(folder);
+  async getFoldersWithParent(
+    userId: FolderAttributes['userId'],
+    where: Partial<FolderAttributes>,
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findAllCursorWithParent(
+        { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
   }
 
   async getFoldersByParent(folderId: number, page, perPage) {
