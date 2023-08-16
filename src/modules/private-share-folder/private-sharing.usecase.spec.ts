@@ -4,7 +4,9 @@ import { createMock } from '@golevelup/ts-jest';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import {
   FolderNotSharedError,
+  FolderNotSharedWithUserError,
   InvalidOwnerError,
+  OwnerCannotBeRemovedWithError,
   OwnerCannotBeSharedWithError,
   PrivateSharingUseCase,
   RoleNotFoundError,
@@ -1030,213 +1032,206 @@ describe('Private Sharing Use Cases', () => {
       ).rejects.toThrow(OwnerCannotBeSharedWithError);
     });
   });
-  describe('stopSharing', () => {
+  describe('User stops sharing a folder', () => {
     const folderUuid = v4();
+    it('When user is not the owner, then then it should not be allowed to stop sharing', async () => {
+      const owner = user;
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
 
-    it('should throw folder not shared', async () => {
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+
+      await expect(
+        privateSharingUseCase.stopSharing(folder.uuid, otherUser),
+      ).rejects.toThrowError(InvalidOwnerError);
+    });
+
+    it('When user tries to stop sharing a folder that is not shared, then it should not be allowed to stop sharing', async () => {
+      const owner = user;
       const empty = [];
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'findByFolder')
-        .mockResolvedValue(empty);
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
         .spyOn(privateSharingRespository, 'findByFolder')
         .mockResolvedValue(empty);
       await expect(
-        privateSharingUseCase.stopSharing(folderUuid, user.uuid),
+        privateSharingUseCase.stopSharing(folder.uuid, owner),
       ).rejects.toThrowError(FolderNotSharedError);
     });
 
-    it('should return stoped in false', async () => {
-      const resultExpected = { stoped: false };
+    it('When owner stops sharing a folder, then it should be allowed to stop sharing', async () => {
+      const owner = user;
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
+      const privateSharingFolder = PrivateSharingFolder.build({
+        id: v4(),
+        folderId: folder.uuid,
+        encryptionKey: '',
+        ownerId: owner.uuid,
+        sharedWith: otherUser.uuid,
+      });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
-        .spyOn(privateSharingFolderRolesRespository, 'findByFolder')
-        .mockResolvedValue([
-          PrivateSharingFolderRole.build({
-            id: v4(),
-            folderId: v4(),
-            userId: v4(),
-            roleId: v4(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-        ]);
-      jest.spyOn(privateSharingRespository, 'findByFolder').mockResolvedValue([
-        PrivateSharingFolder.build({
-          id: v4(),
-          folderId: v4(),
-          ownerId: v4(),
-          sharedWith: v4(),
-          encryptionKey: v4(),
-        }),
-      ]);
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'removeByFolder')
-        .mockResolvedValue(0);
-      jest
-        .spyOn(privateSharingRespository, 'removeByFolderUuid')
-        .mockResolvedValue(0);
-
-      await expect(
-        privateSharingUseCase.stopSharing(folderUuid, user.uuid),
-      ).resolves.toEqual(resultExpected);
-    });
-
-    it('should stop successfully', async () => {
-      const resultExpected = { stoped: true };
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'findByFolder')
-        .mockResolvedValue([
-          PrivateSharingFolderRole.build({
-            id: v4(),
-            folderId: v4(),
-            userId: v4(),
-            roleId: v4(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-        ]);
-      jest.spyOn(privateSharingRespository, 'findByFolder').mockResolvedValue([
-        PrivateSharingFolder.build({
-          id: v4(),
-          folderId: v4(),
-          ownerId: v4(),
-          sharedWith: v4(),
-          encryptionKey: v4(),
-        }),
-      ]);
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'removeByFolder')
-        .mockResolvedValue(1);
-      jest
-        .spyOn(privateSharingRespository, 'removeByFolderUuid')
-        .mockResolvedValue(1);
-
-      await expect(
-        privateSharingUseCase.stopSharing(folderUuid, user.uuid),
-      ).resolves.toEqual(resultExpected);
+        .spyOn(privateSharingRespository, 'findByFolder')
+        .mockResolvedValue([privateSharingFolder]);
+      const removeFolderRolesCompletlyMock = jest.spyOn(
+        privateSharingFolderRolesRespository,
+        'removeByFolder',
+      );
+      const stopSharingMock = jest.spyOn(
+        privateSharingRespository,
+        'removeByFolderUuid',
+      );
+      await privateSharingUseCase.stopSharing(folder.uuid, owner);
+      expect(removeFolderRolesCompletlyMock).toHaveBeenCalled();
+      expect(stopSharingMock).toHaveBeenCalled();
     });
   });
-
-  describe('removeUserSharing', () => {
+  describe('User removes a user from a shared folder', () => {
     const userUuid = v4();
-    const folderUuid = v4();
 
-    it('should throw user is not in shared folder', async () => {
+    it('When user is not the owner, then then it should not be allowed to remove a user', async () => {
+      const owner = user;
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+
+      await expect(
+        privateSharingUseCase.removeUserShared(
+          folder.uuid,
+          userUuid,
+          otherUser,
+        ),
+      ).rejects.toThrowError(InvalidOwnerError);
+    });
+
+    it('When owner tries to remove its own sharing, then it should not be allowed to remove itself', async () => {
+      const owner = user;
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      await expect(
+        privateSharingUseCase.removeUserShared(folder.uuid, owner.uuid, owner),
+      ).rejects.toThrowError(OwnerCannotBeRemovedWithError);
+    });
+
+    it('When owner tries to remove a user not shared, then it should not be allowed to remove the user', async () => {
+      const owner = user;
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
       const empty = [];
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'findByFolderAndUser')
-        .mockResolvedValue(empty);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest.spyOn(userUseCases, 'getUser').mockResolvedValue(otherUser);
       jest
         .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
         .mockResolvedValue(empty);
       await expect(
-        privateSharingUseCase.removeUserShared(folderUuid, userUuid),
-      ).rejects.toThrowError(UserNotInSharedFolder);
+        privateSharingUseCase.removeUserShared(folder.uuid, userUuid, owner),
+      ).rejects.toThrowError(FolderNotSharedWithUserError);
     });
 
-    it('should return removed in false', async () => {
-      const resultExpected = { removed: false };
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'findByFolderAndUser')
-        .mockResolvedValue([
-          PrivateSharingFolderRole.build({
-            id: v4(),
-            folderId: v4(),
-            userId: v4(),
-            roleId: v4(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-        ]);
+    it('When owner removes a user, then it should be allowed to remove the user', async () => {
+      const owner = user;
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      const privateSharingFolder = PrivateSharingFolder.build({
+        id: v4(),
+        folderId: folder.uuid,
+        encryptionKey: '',
+        ownerId: owner.uuid,
+        sharedWith: otherUser.uuid,
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest.spyOn(userUseCases, 'getUser').mockResolvedValue(otherUser);
       jest
         .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
-        .mockResolvedValue([
-          PrivateSharingFolder.build({
-            id: v4(),
-            folderId: v4(),
-            ownerId: v4(),
-            sharedWith: v4(),
-            encryptionKey: v4(),
-          }),
-        ]);
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'removeByUser')
-        .mockResolvedValue(0);
-      jest
-        .spyOn(privateSharingRespository, 'removeBySharedWith')
-        .mockResolvedValue(0);
-
-      await expect(
-        privateSharingUseCase.removeUserShared(folderUuid, userUuid),
-      ).resolves.toEqual(resultExpected);
-    });
-
-    it('should remove successfully', async () => {
-      const resultExpected = { removed: true };
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'findByFolderAndUser')
-        .mockResolvedValue([
-          PrivateSharingFolderRole.build({
-            id: v4(),
-            folderId: v4(),
-            userId: v4(),
-            roleId: v4(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-        ]);
-      jest
-        .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
-        .mockResolvedValue([
-          PrivateSharingFolder.build({
-            id: v4(),
-            folderId: v4(),
-            ownerId: v4(),
-            sharedWith: v4(),
-            encryptionKey: v4(),
-          }),
-        ]);
-      jest
-        .spyOn(privateSharingFolderRolesRespository, 'removeByUser')
-        .mockResolvedValue(1);
-      jest
-        .spyOn(privateSharingRespository, 'removeBySharedWith')
-        .mockResolvedValue(1);
-
-      await expect(
-        privateSharingUseCase.removeUserShared(folderUuid, userUuid),
-      ).resolves.toEqual(resultExpected);
+        .mockResolvedValue([privateSharingFolder]);
+      const removeFolderRoleMock = jest.spyOn(
+        privateSharingFolderRolesRespository,
+        'removeByUser',
+      );
+      const removeSharedWithMock = jest.spyOn(
+        privateSharingRespository,
+        'removeBySharedWith',
+      );
+      await privateSharingUseCase.removeUserShared(
+        folder.uuid,
+        userUuid,
+        owner,
+      );
+      expect(removeFolderRoleMock).toHaveBeenCalled();
+      expect(removeSharedWithMock).toHaveBeenCalled();
     });
   });
+  function newUser(): User {
+    return User.build({
+      id: Math.random(),
+      userId: '',
+      name: 'John',
+      lastname: 'Doe',
+      uuid: v4(),
+      email: '',
+      username: '',
+      bridgeUser: '',
+      password: '',
+      mnemonic: '',
+      referrer: v4(),
+      referralCode: v4(),
+      credit: 0,
+      hKey: Buffer.from(''),
+      rootFolderId: 0,
+      errorLoginCount: 0,
+      isEmailActivitySended: 0,
+      lastResend: new Date(),
+      syncDate: new Date(),
+      welcomePack: false,
+      registerCompleted: false,
+      secret_2FA: '',
+      backupsBucket: '',
+      sharedWorkspace: false,
+      tempKey: '',
+      avatar: '',
+    });
+  }
 });
-
-function newUser(): User {
-  return User.build({
-    id: Math.random(),
-    userId: '',
-    name: 'John',
-    lastname: 'Doe',
-    uuid: v4(),
-    email: '',
-    username: '',
-    bridgeUser: '',
-    password: '',
-    mnemonic: '',
-    referrer: v4(),
-    referralCode: v4(),
-    credit: 0,
-    hKey: Buffer.from(''),
-    rootFolderId: 0,
-    errorLoginCount: 0,
-    isEmailActivitySended: 0,
-    lastResend: new Date(),
-    syncDate: new Date(),
-    welcomePack: false,
-    registerCompleted: false,
-    secret_2FA: '',
-    backupsBucket: '',
-    sharedWorkspace: false,
-    tempKey: '',
-    avatar: '',
-  });
-}
