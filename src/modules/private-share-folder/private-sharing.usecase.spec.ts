@@ -244,7 +244,7 @@ describe('Private Sharing Use Cases', () => {
           .mockResolvedValue(folder);
 
         jest
-          .spyOn(folderUseCases, 'getFolders')
+          .spyOn(folderUseCases, 'getFoldersWithParent')
           .mockResolvedValue(expectedFolders);
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedFiles);
 
@@ -289,7 +289,7 @@ describe('Private Sharing Use Cases', () => {
           .mockResolvedValue(folder);
 
         jest
-          .spyOn(folderUseCases, 'getFolders')
+          .spyOn(folderUseCases, 'getFoldersWithParent')
           .mockResolvedValue(expectedFolders);
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedFiles);
         const findRoleSpy = jest
@@ -367,7 +367,7 @@ describe('Private Sharing Use Cases', () => {
         jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
         jest
-          .spyOn(folderUseCases, 'getFolders')
+          .spyOn(folderUseCases, 'getFoldersWithParent')
           .mockResolvedValue(expectedFolders);
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedFiles);
         jest
@@ -408,7 +408,7 @@ describe('Private Sharing Use Cases', () => {
           .mockResolvedValue(folder);
 
         jest
-          .spyOn(folderUseCases, 'getFolders')
+          .spyOn(folderUseCases, 'getFoldersWithParent')
           .mockResolvedValue(expectedFolders);
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([]);
 
@@ -452,7 +452,7 @@ describe('Private Sharing Use Cases', () => {
           .spyOn(folderUseCases, 'getByUuid')
           .mockResolvedValue(folder);
         jest
-          .spyOn(folderUseCases, 'getFolders')
+          .spyOn(folderUseCases, 'getFoldersWithParent')
           .mockResolvedValue(expectedFolders);
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedFiles);
         const findRoleSpy = jest
@@ -546,7 +546,7 @@ describe('Private Sharing Use Cases', () => {
         jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
         jest
-          .spyOn(folderUseCases, 'getFolders')
+          .spyOn(folderUseCases, 'getFoldersWithParent')
           .mockResolvedValue(expectedFolders);
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedFiles);
         jest
