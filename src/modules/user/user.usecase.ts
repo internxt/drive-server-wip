@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -30,6 +35,7 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
@@ -56,6 +62,13 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
+export class KeyServerNotFoundError extends Error {
+  constructor() {
+    super('Key server not found');
+
+    Object.setPrototypeOf(this, KeyServerNotFoundError.prototype);
+  }
+}
 export class UserNotFoundError extends Error {
   constructor() {
     super('User not found');
@@ -90,6 +103,10 @@ export class UserUseCases {
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
   ) {}
+
+  findByUuids(uuids: User['uuid'][]): Promise<User[]> {
+    return this.userRepository.findByUuids(uuids);
+  }
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
@@ -262,6 +279,7 @@ export class UserUseCases {
     }
 
     const userPass = this.cryptoService.decryptText(password);
+
     const userSalt = this.cryptoService.decryptText(salt);
 
     const { userId: networkPass, uuid: userUuid } =
@@ -328,8 +346,11 @@ export class UserUseCases {
         notifySignUpError(err);
       }
 
+      const newTokenPayload = this.getNewTokenPayload(user);
+
       return {
         token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
+        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
@@ -353,6 +374,23 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  getNewTokenPayload(userData: any) {
+    return {
+      payload: {
+        uuid: userData.uuid,
+        email: userData.email,
+        name: userData.name,
+        lastname: userData.lastname,
+        username: userData.username,
+        sharedWorkspace: true,
+        networkCredentials: {
+          user: userData.bridgeUser,
+          pass: userData.userId,
+        },
+      },
+    };
   }
 
   async invitationAccepted(
@@ -605,5 +643,28 @@ export class UserUseCases {
         done = files.length < limit || files.length === 0;
       } while (!done);
     }
+  }
+
+  async updatePassword(
+    user: User,
+    updatePasswordDto: UpdatePasswordDto,
+  ): Promise<void> {
+    const { newPassword, newSalt, mnemonic, privateKey } = updatePasswordDto;
+
+    await this.userRepository.updateById(user.id, {
+      password: newPassword,
+      hKey: Buffer.from(newSalt),
+      mnemonic,
+    });
+
+    await this.keyServerRepository.findUserKeysOrCreate(user.id, {
+      userId: user.id,
+      privateKey: privateKey,
+      encryptVersion: updatePasswordDto.encryptVersion,
+    });
+
+    await this.keyServerRepository.update(user.id, {
+      privateKey,
+    });
   }
 }

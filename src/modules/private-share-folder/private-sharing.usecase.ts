@@ -4,6 +4,8 @@ import { User } from '../user/user.domain';
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import { PrivateSharingFolder } from './private-sharing-folder.domain';
 import { PrivateSharingRole } from './private-sharing-role.domain';
+import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
+
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -21,6 +23,24 @@ export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
     Object.setPrototypeOf(this, InvalidOwnerError.prototype);
+  }
+}
+export class FolderNotSharedError extends Error {
+  constructor() {
+    super('This folder is not shared');
+    Object.setPrototypeOf(this, FolderNotSharedError.prototype);
+  }
+}
+export class FolderNotSharedWithUserError extends Error {
+  constructor() {
+    super(`This folder is not shared with the given user`);
+    Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
+  }
+}
+export class UserNotInSharedFolder extends Error {
+  constructor() {
+    super('User is not in shared folder');
+    Object.setPrototypeOf(this, UserNotInSharedFolder.prototype);
   }
 }
 
@@ -53,9 +73,9 @@ export class UserNotInvitedError extends Error {
 }
 
 export class InvitedUserNotFoundError extends Error {
-  constructor(email: string) {
+  constructor(email: User['email']) {
     super(`Invited user: ${email} not found`);
-    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+    Object.setPrototypeOf(this, InvitedUserNotFoundError.prototype);
   }
 }
 
@@ -72,11 +92,36 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
+export class OwnerCannotBeRemovedWithError extends Error {
+  constructor() {
+    super('Owner cannot be removed from the folder sharing');
+    Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
+  }
+}
+export class InvalidSharedFolderError extends Error {
+  constructor() {
+    super('This folder is not being shared');
+    Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
+  }
+}
+
+type UserWithRole = Pick<
+  User,
+  'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
+> & {
+  role: {
+    name: PrivateSharingRole['role'];
+    id: PrivateSharingFolder['id'];
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
 
 @Injectable()
 export class PrivateSharingUseCase {
   constructor(
     private privateSharingRespository: SequelizePrivateSharingRepository,
+    private privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository,
     private folderUsecase: FolderUseCases,
     private fileUsecase: FileUseCases,
     private userUsecase: UserUseCases,
@@ -205,6 +250,61 @@ export class PrivateSharingUseCase {
       order,
     );
     return folders;
+  }
+
+  async stopSharing(folderUuid: Folder['uuid'], owner: User): Promise<void> {
+    const folder = await this.folderUsecase.getByUuid(folderUuid);
+
+    if (!folder.isOwnedBy(owner)) {
+      throw new InvalidOwnerError();
+    }
+
+    const privateSharings = await this.privateSharingRespository.findByFolder(
+      folder.uuid,
+    );
+
+    if (privateSharings.length === 0) {
+      throw new FolderNotSharedError();
+    }
+
+    await this.privateSharingFolderRolesRespository.removeByFolder(folder);
+    await this.privateSharingRespository.removeByFolder(folder);
+  }
+
+  async removeSharedWith(
+    folderUuid: Folder['uuid'],
+    sharedWithUuid: User['uuid'],
+    owner: User,
+  ): Promise<void> {
+    const folder = await this.folderUsecase.getByUuid(folderUuid);
+
+    if (!folder.isOwnedBy(owner)) {
+      throw new InvalidOwnerError();
+    }
+
+    if (owner.uuid === sharedWithUuid) {
+      throw new OwnerCannotBeRemovedWithError();
+    }
+
+    const sharedFolderWithUserToRemove =
+      await this.privateSharingRespository.findByFolderAndSharedWith(
+        folderUuid,
+        sharedWithUuid,
+      );
+
+    if (!sharedFolderWithUserToRemove) {
+      throw new FolderNotSharedWithUserError();
+    }
+
+    await this.privateSharingFolderRolesRespository.removeByUser(
+      folderUuid,
+      sharedWithUuid,
+    );
+
+    await this.privateSharingRespository.removeBySharedWith(
+      folderUuid,
+      sharedWithUuid,
+    );
   }
 
   async createPrivateSharingFolder(
@@ -411,5 +511,73 @@ export class PrivateSharingUseCase {
         getEnv().secrets.jwt,
       ),
     };
+  }
+
+  async getSharedWithByFolderId(
+    user: User,
+    folderId: Folder['uuid'],
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<UserWithRole[]> {
+    const privateSharings =
+      await this.privateSharingRespository.findByOwnerOrSharedWithFolderId(
+        user.uuid,
+        folderId,
+        offset,
+        limit,
+        order,
+      );
+
+    if (privateSharings.length === 0) {
+      throw new ForbiddenException();
+    }
+
+    const sharedsWith = privateSharings.map((privateSharing) => {
+      return privateSharing.sharedWith;
+    });
+
+    const users = await this.userUsecase.findByUuids(sharedsWith);
+
+    const privateFolderRoles =
+      await this.privateSharingFolderRolesRespository.findByUsers(users);
+
+    const usersWithRoles: UserWithRole[] = users.map((user) => {
+      const { role, createdAt, updatedAt } = privateFolderRoles.find(
+        (role) => role.userId === user.uuid,
+      );
+      return {
+        ...user,
+        role: {
+          id: role.id,
+          name: role.role,
+          createdAt,
+          updatedAt,
+        },
+      };
+    });
+
+    const [{ ownerId }] = privateSharings;
+
+    const { name, lastname, email, avatar, uuid } =
+      ownerId === user.uuid ? user : await this.userUsecase.getUser(ownerId);
+
+    const ownerWithRole: UserWithRole = {
+      name,
+      lastname,
+      email,
+      avatar,
+      uuid,
+      role: {
+        id: 'NONE',
+        name: 'OWNER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    };
+
+    usersWithRoles.push(ownerWithRole);
+
+    return usersWithRoles;
   }
 }

@@ -3,7 +3,10 @@ import { createMock } from '@golevelup/ts-jest';
 
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import {
+  FolderNotSharedError,
+  FolderNotSharedWithUserError,
   InvalidOwnerError,
+  OwnerCannotBeRemovedWithError,
   OwnerCannotBeSharedWithError,
   PrivateSharingUseCase,
   RoleNotFoundError,
@@ -27,10 +30,12 @@ import {
 import { ConfigModule } from '@nestjs/config';
 import configuration from '../../config/configuration';
 import { ForbiddenException } from '@nestjs/common';
+import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
 
 describe('Private Sharing Use Cases', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
   let privateSharingRespository: SequelizePrivateSharingRepository;
+  let privateSharingFolderRolesRespository: PrivateSharingFolderRolesRepository;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let userUseCases: UserUseCases;
@@ -178,6 +183,10 @@ describe('Private Sharing Use Cases', () => {
           useValue: userRepositoryMock,
         },
         {
+          provide: PrivateSharingFolderRolesRepository,
+          useValue: createMock<PrivateSharingFolderRolesRepository>(),
+        },
+        {
           provide: SequelizeFolderRepository,
           useValue: createMock<SequelizeFolderRepository>(),
         },
@@ -202,6 +211,10 @@ describe('Private Sharing Use Cases', () => {
     privateSharingRespository = module.get<SequelizePrivateSharingRepository>(
       SequelizePrivateSharingRepository,
     );
+    privateSharingFolderRolesRespository =
+      module.get<PrivateSharingFolderRolesRepository>(
+        PrivateSharingFolderRolesRepository,
+      );
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
     userUseCases = module.get<UserUseCases>(UserUseCases);
@@ -1048,35 +1061,208 @@ describe('Private Sharing Use Cases', () => {
       ).rejects.toThrow(OwnerCannotBeSharedWithError);
     });
   });
-});
+  describe('User stops sharing a folder', () => {
+    it('When user is not the owner, then then it should not be allowed to stop sharing', async () => {
+      const owner = user;
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
 
-function newUser(): User {
-  return User.build({
-    id: Math.random(),
-    userId: '',
-    name: 'John',
-    lastname: 'Doe',
-    uuid: v4(),
-    email: '',
-    username: '',
-    bridgeUser: '',
-    password: '',
-    mnemonic: '',
-    referrer: v4(),
-    referralCode: v4(),
-    credit: 0,
-    hKey: Buffer.from(''),
-    rootFolderId: 0,
-    errorLoginCount: 0,
-    isEmailActivitySended: 0,
-    lastResend: new Date(),
-    syncDate: new Date(),
-    welcomePack: false,
-    registerCompleted: false,
-    secret_2FA: '',
-    backupsBucket: '',
-    sharedWorkspace: false,
-    tempKey: '',
-    avatar: '',
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+
+      await expect(
+        privateSharingUseCase.stopSharing(folder.uuid, otherUser),
+      ).rejects.toThrowError(InvalidOwnerError);
+    });
+
+    it('When user tries to stop sharing a folder that is not shared, then it should not be allowed to stop sharing', async () => {
+      const owner = user;
+      const empty = [];
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(privateSharingRespository, 'findByFolder')
+        .mockResolvedValue(empty);
+      await expect(
+        privateSharingUseCase.stopSharing(folder.uuid, owner),
+      ).rejects.toThrowError(FolderNotSharedError);
+    });
+
+    it('When owner stops sharing a folder, then it should be allowed to stop sharing', async () => {
+      const owner = user;
+      const folder = Folder.build({
+        ...folders[0],
+        userId: owner.id,
+      });
+      const otherUser = User.build({
+        ...owner,
+        id: owner.id + 1,
+        uuid: v4(),
+      });
+      const privateSharingFolder = PrivateSharingFolder.build({
+        id: v4(),
+        folderId: folder.uuid,
+        encryptionKey: '',
+        ownerId: owner.uuid,
+        sharedWith: otherUser.uuid,
+      });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(privateSharingRespository, 'findByFolder')
+        .mockResolvedValue([privateSharingFolder]);
+      const removeFolderRolesCompletlyMock = jest.spyOn(
+        privateSharingFolderRolesRespository,
+        'removeByFolder',
+      );
+      const stopSharingMock = jest.spyOn(
+        privateSharingRespository,
+        'removeByFolder',
+      );
+      await privateSharingUseCase.stopSharing(folder.uuid, owner);
+      expect(removeFolderRolesCompletlyMock).toHaveBeenCalled();
+      expect(stopSharingMock).toHaveBeenCalled();
+    });
   });
-}
+  describe('Owner removes a user from a shared folder', () => {
+    const userUuid = v4();
+
+    it('When the user requesting the removal is not the owner then, it fails', async () => {
+      const owner = newUser();
+      const notTheOwner = newUser();
+      const sharedWith = newUser();
+      const folder = newFolder(owner);
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+
+      await expect(
+        privateSharingUseCase.removeSharedWith(
+          folder.uuid,
+          notTheOwner.uuid,
+          sharedWith,
+        ),
+      ).rejects.toThrowError(InvalidOwnerError);
+    });
+
+    it('When the owner tries to remove its own sharing, then it should not be allowed to remove itself', async () => {
+      const owner = newUser();
+      const folder = newFolder(owner);
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      await expect(
+        privateSharingUseCase.removeSharedWith(folder.uuid, owner.uuid, owner),
+      ).rejects.toThrowError(OwnerCannotBeRemovedWithError);
+    });
+
+    it('When the owner tries to remove a user that is not invited to the folder then, it fails', async () => {
+      const owner = newUser();
+      const otherUser = newUser();
+      const folder = newFolder(owner);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
+        .mockResolvedValue(null);
+      await expect(
+        privateSharingUseCase.removeSharedWith(
+          folder.uuid,
+          otherUser.uuid,
+          owner,
+        ),
+      ).rejects.toThrowError(FolderNotSharedWithUserError);
+    });
+
+    it('When the owner removes a user which was previously invited then, it should work', async () => {
+      const owner = user;
+      const otherUser = newUser();
+      const folder = newFolder(owner);
+
+      const privateSharingFolder = PrivateSharingFolder.build({
+        id: v4(),
+        folderId: folder.uuid,
+        encryptionKey: '',
+        ownerId: owner.uuid,
+        sharedWith: otherUser.uuid,
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
+        .mockResolvedValue(privateSharingFolder);
+
+      const removeFolderRoleMock = jest.spyOn(
+        privateSharingFolderRolesRespository,
+        'removeByUser',
+      );
+      const removeSharedWithMock = jest.spyOn(
+        privateSharingRespository,
+        'removeBySharedWith',
+      );
+
+      await privateSharingUseCase.removeSharedWith(
+        folder.uuid,
+        userUuid,
+        owner,
+      );
+      expect(removeFolderRoleMock).toHaveBeenCalled();
+      expect(removeSharedWithMock).toHaveBeenCalled();
+    });
+  });
+
+  function newUser(): User {
+    return User.build({
+      id: Math.random() * 999999,
+      userId: '',
+      name: 'John',
+      lastname: 'Doe',
+      uuid: v4(),
+      email: '',
+      username: '',
+      bridgeUser: '',
+      password: '',
+      mnemonic: '',
+      referrer: v4(),
+      referralCode: v4(),
+      credit: 0,
+      hKey: Buffer.from(''),
+      rootFolderId: 0,
+      errorLoginCount: 0,
+      isEmailActivitySended: 0,
+      lastResend: new Date(),
+      syncDate: new Date(),
+      welcomePack: false,
+      registerCompleted: false,
+      secret_2FA: '',
+      backupsBucket: '',
+      sharedWorkspace: false,
+      tempKey: '',
+      avatar: '',
+    });
+  }
+
+  function newFolder(owner?: User): Folder {
+    return Folder.build({
+      id: Math.random(),
+      uuid: v4(),
+      name: 'folder',
+      parentId: 0,
+      userId: owner?.id ?? 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      bucket: '',
+      plainName: '',
+      encryptVersion: '03-aes',
+      deleted: false,
+      removed: false,
+      deletedAt: undefined,
+      removedAt: undefined,
+    });
+  }
+});
