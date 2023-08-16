@@ -10,7 +10,7 @@ import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain'
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { UserModel } from '../user/user.model';
-import { Op } from 'sequelize';
+import sequelize, { Op } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -25,6 +25,7 @@ export interface PrivateSharingRepository {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Folder[]>;
+  findById(id: PrivateSharingFolder['id']): Promise<PrivateSharingFolder>;
   removeByFolder(folder: Folder): Promise<number>;
   removeBySharedWith(
     folderUuid: Folder['uuid'],
@@ -35,9 +36,6 @@ export interface PrivateSharingRepository {
     folderUuid: Folder['uuid'],
     userUuid: User['uuid'],
   ): Promise<PrivateSharingFolder | null>;
-  findById(
-    id: PrivateSharingFolder['id'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }>;
   findRoleById(roleId: PrivateSharingRole['id']): Promise<PrivateSharingRole>;
   create(
     owner: User,
@@ -96,7 +94,7 @@ export class SequelizePrivateSharingRepository
 
   async findById(
     id: PrivateSharingFolder['id'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }> {
+  ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
         id,
@@ -161,7 +159,7 @@ export class SequelizePrivateSharingRepository
   async findPrivateFolderByFolderIdAndSharedWith(
     folderId: Folder['uuid'],
     sharedWith: User['uuid'],
-  ): Promise<PrivateSharingFolder & { folder: Folder }> {
+  ): Promise<PrivateSharingFolder> {
     const privateFolder = await this.privateSharingFolderModel.findOne({
       where: {
         folderId,
@@ -279,24 +277,79 @@ export class SequelizePrivateSharingRepository
     return sharedFolders.map((folder) => folder.get({ plain: true }));
   }
 
-  findByFolder(folderUuid: Folder['uuid']): Promise<PrivateSharingFolder[]> {
-    return this.privateSharingFolderModel.findAll({
+  async findByOwnerAndSharedWithMe(
+    userId: User['uuid'],
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<PrivateSharingFolder[]> {
+    const sharedFolders = await this.privateSharingFolderModel.findAll({
+      where: {
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      },
+      attributes: [
+        // TODO: to check if is necessary to show the encryption_key in this query
+        [
+          sequelize.literal(
+            `MAX("PrivateSharingFolderModel"."encryption_key")`,
+          ),
+          'encryptionKey',
+        ],
+        [
+          sequelize.literal(`MAX("PrivateSharingFolderModel"."created_at")`),
+          'createdAt',
+        ],
+      ],
+      group: [
+        'folder.id',
+        'folder->user.id',
+        'PrivateSharingFolderModel.owner_id',
+      ],
+      include: [
+        {
+          model: FolderModel,
+          include: [
+            {
+              model: UserModel,
+              foreignKey: 'userId',
+              as: 'user',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+            },
+          ],
+        },
+      ],
+      order: orderBy,
+      limit,
+      offset,
+    });
+
+    return sharedFolders.map((shared) => this.toDomain(shared));
+  }
+
+  async findByFolder(
+    folderUuid: Folder['uuid'],
+  ): Promise<PrivateSharingFolder[]> {
+    const privateSharings = await this.privateSharingFolderModel.findAll({
       where: {
         folderId: folderUuid,
       },
     });
+
+    return privateSharings.map((sharing) => sharing.get({ plain: true }));
   }
 
-  findByFolderAndSharedWith(
+  async findByFolderAndSharedWith(
     folderUuid: Folder['uuid'],
     sharedWith: User['uuid'],
   ): Promise<PrivateSharingFolder | null> {
-    return this.privateSharingFolderModel.findOne({
+    const privateSharing = await this.privateSharingFolderModel.findOne({
       where: {
         folderId: folderUuid,
         sharedWith: sharedWith,
       },
     });
+
+    return privateSharing?.get({ plain: true });
   }
 
   async createPrivateFolder(
@@ -319,5 +372,20 @@ export class SequelizePrivateSharingRepository
     const roles = await this.privateSharingRole.findAll();
 
     return roles.map((role) => role.get({ plain: true }));
+  }
+
+  private toDomain(model: PrivateSharingFolderModel): PrivateSharingFolder {
+    const folder = model.folder.get({ plain: true });
+    const user = model.folder.user.get({ plain: true });
+    delete folder.user;
+
+    return PrivateSharingFolder.build({
+      ...model.get({ plain: true }),
+      folder: Folder.build({
+        ...folder,
+        parent: folder.parent ? Folder.build(folder.parent) : null,
+        user: user ? User.build(user) : null,
+      }),
+    });
   }
 }

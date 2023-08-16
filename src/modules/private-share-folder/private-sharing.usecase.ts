@@ -9,12 +9,16 @@ import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-ro
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File, FileStatus } from '../file/file.domain';
+import { FileStatus } from '../file/file.domain';
 import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
+import {
+  FolderWithSharedInfo,
+  GetItemsReponse,
+} from './dto/get-items-and-shared-folders.dto';
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
@@ -185,6 +189,39 @@ export class PrivateSharingUseCase {
     };
   }
 
+  // folders shared with me and folders shared by me
+  async getSharedFolders(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<GetItemsReponse> {
+    const foldersWithSharedInfo =
+      await this.privateSharingRespository.findByOwnerAndSharedWithMe(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+    const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
+      return {
+        ...folderWithSharedInfo.folder,
+        encryptionKey: folderWithSharedInfo.encryptionKey,
+        dateShared: folderWithSharedInfo.createdAt,
+        sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
+      };
+    }) as FolderWithSharedInfo[];
+    return {
+      folders: folders,
+      files: [],
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+    };
+  }
+
   async getSharedFoldersByOwner(
     user: User,
     offset: number,
@@ -333,21 +370,13 @@ export class PrivateSharingUseCase {
     page: number,
     perPage: number,
     order: [string, string][],
-  ): Promise<{
-    folders: Folder[];
-    files: File[];
-    credentials: {
-      networkPass: User['userId'];
-      networkUser: User['bridgeUser'];
-    };
-    token: string;
-  }> {
+  ): Promise<GetItemsReponse> {
     const getFolderContent = async (
       userId: User['id'],
       folderId: Folder['id'],
     ) => {
-      return {
-        folders: await this.folderUsecase.getFolders(
+      const folders = (
+        await this.folderUsecase.getFoldersWithParent(
           userId,
           {
             parentId: folderId,
@@ -357,7 +386,18 @@ export class PrivateSharingUseCase {
             limit: perPage,
             offset: page * perPage,
           },
-        ),
+        )
+      ).map((folder) => {
+        return {
+          ...folder,
+          encryptionKey: null,
+          dateShared: null,
+          sharedWithMe: null,
+        };
+      }) as FolderWithSharedInfo[];
+
+      return {
+        folders,
         files: await this.fileUsecase.getFiles(
           userId,
           {
@@ -371,8 +411,10 @@ export class PrivateSharingUseCase {
         ),
       };
     };
-
     const folder = await this.folderUsecase.getByUuid(folderId);
+    const parentFolder = folder.parentId
+      ? await this.folderUsecase.getFolder(folder.parentId)
+      : null;
 
     if (folder.isOwnedBy(user)) {
       return {
@@ -432,9 +474,14 @@ export class PrivateSharingUseCase {
 
     if (!requestedFolderIsSharedRootFolder) {
       const navigationUp = folder.uuid === decoded.parentFolderId;
-      const navigationDown = folder.uuid === decoded.folder.uuid;
+      const navigationDown = folder.parentId === decoded.folder.id;
+      const insideTheSharedRootFolder =
+        decoded.sharedRootFolderId === decoded.folder.uuid;
 
-      if (!navigationDown && !navigationUp) {
+      if (
+        (!navigationDown && !navigationUp) ||
+        (navigationUp && insideTheSharedRootFolder)
+      ) {
         throw new ForbiddenException(
           'User does not have access to this folder',
         );
@@ -450,7 +497,7 @@ export class PrivateSharingUseCase {
       token: generateTokenWithPlainSecret(
         {
           sharedRootFolderId: privateSharingFolder.folderId,
-          parentFolderId: folder.parentId,
+          parentFolderId: parentFolder?.uuid || null,
           folder: {
             uuid: folder.uuid,
             id: folder.id,
