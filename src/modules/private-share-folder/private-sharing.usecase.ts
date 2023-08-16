@@ -28,8 +28,8 @@ export class FolderNotSharedError extends Error {
   }
 }
 export class FolderNotSharedWithUserError extends Error {
-  constructor(email: User['email']) {
-    super(`This folder is not shared with this user ${email}`);
+  constructor() {
+    super(`This folder is not shared with the given user`);
     Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
   }
 }
@@ -205,19 +205,21 @@ export class PrivateSharingUseCase {
 
   async stopSharing(folderUuid: Folder['uuid'], owner: User): Promise<void> {
     const folder = await this.folderUsecase.getByUuid(folderUuid);
-    if (folder.userId !== owner.id) {
+
+    if (!folder.isOwnedBy(owner)) {
       throw new InvalidOwnerError();
     }
 
-    const sharedFolders = await this.privateSharingRespository.findByFolder(
-      folderUuid,
+    const privateSharings = await this.privateSharingRespository.findByFolder(
+      folder.uuid,
     );
-    if (sharedFolders.length === 0) {
+
+    if (privateSharings.length === 0) {
       throw new FolderNotSharedError();
     }
 
-    await this.privateSharingFolderRolesRespository.removeByFolder(folderUuid);
-    await this.privateSharingRespository.removeByFolderUuid(folderUuid);
+    await this.privateSharingFolderRolesRespository.removeByFolder(folder);
+    await this.privateSharingRespository.removeByFolder(folder);
   }
 
   async removeUserShared(
