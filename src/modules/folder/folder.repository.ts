@@ -323,26 +323,31 @@ export class SequelizeFolderRepository implements FolderRepository {
     userId: number,
     deleted: boolean,
   ): Promise<FindInTreeResponse | null> {
-    const [[folder]] = await this.folderModel.sequelize.query(`
+    const [[folder]] = await this.folderModel.sequelize.query(
+      `
       WITH RECURSIVE rec AS (
         SELECT parent_id, id, plain_name
         FROM folders
         WHERE
-            id = ${folderTreeRootId}
+            id = (:folderTreeRootId)
           AND
-            deleted = ${deleted}
+            deleted = (:deleted)
           AND
-            user_id = ${userId}            
+            user_id = (:userId)            
         UNION
         SELECT fo.parent_id, fo.id, fo.plain_name
         FROM folders fo
         INNER JOIN rec r ON r.id = fo.parent_id
         WHERE
-            fo.user_id = ${userId} 
+            fo.user_id = (:userId)
           AND 
-            fo.deleted = ${deleted}
-      ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = ${folderId}
-    `);
+            fo.deleted = (:deleted)
+      ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = (:folderId)
+    `,
+      {
+        replacements: { folderTreeRootId, folderId, userId, deleted },
+      },
+    );
 
     return folder as FindInTreeResponse;
   }
