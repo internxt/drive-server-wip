@@ -58,4 +58,10 @@ export class PrivateSharingFolderModel
 
   @Column({ type: DataType.STRING })
   encryptionKey: string;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
 }
