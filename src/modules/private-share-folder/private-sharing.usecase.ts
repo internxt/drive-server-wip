@@ -105,6 +105,20 @@ export class InvalidSharedFolderError extends Error {
   }
 }
 
+export class SharedFolderInTheTrashError extends Error {
+  constructor() {
+    super('This folder is in the trash');
+    Object.setPrototypeOf(this, SharedFolderInTheTrashError.prototype);
+  }
+}
+
+export class SharedFolderRemovedError extends Error {
+  constructor() {
+    super('This folder has been removed');
+    Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);
+  }
+}
+
 type UserWithRole = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
@@ -412,6 +426,15 @@ export class PrivateSharingUseCase {
       };
     };
     const folder = await this.folderUsecase.getByUuid(folderId);
+
+    if (folder.isTrashed()) {
+      throw new SharedFolderInTheTrashError();
+    }
+
+    if (folder.isRemoved()) {
+      throw new SharedFolderRemovedError();
+    }
+
     const parentFolder = folder.parentId
       ? await this.folderUsecase.getFolder(folder.parentId)
       : null;
