@@ -31,6 +31,8 @@
     "prepare-hooks": "husky install"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.391.0",
+    "@aws-sdk/s3-request-presigner": "^3.391.0",
     "@hapi/joi": "^17.1.1",
     "@internxt/inxt-js": "^2.0.3",
     "@internxt/lib": "^1.2.0",
@@ -54,7 +56,6 @@
     "@types/passport-jwt": "^3.0.6",
     "agentkeepalive": "^4.3.0",
     "analytics-node": "^6.0.0",
-    "aws-sdk": "^2.1437.0",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.13.2",
