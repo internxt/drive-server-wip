@@ -2,6 +2,7 @@ import { v4 } from 'uuid';
 
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
+import { PrivateSharingFolder } from '../src/modules/private-share-folder/private-sharing-folder.domain';
 
 function newFolder(owner?: User): Folder {
   return Folder.build({
@@ -53,7 +54,19 @@ function newUser(): User {
   });
 }
 
-export {
-  newUser,
-  newFolder,
-};
+function newPrivateSharingFolder(bindTo: {
+  owner?: User;
+  sharedWith?: User;
+  folder?: Folder;
+}) {
+  return PrivateSharingFolder.build({
+    id: v4(),
+    folderId: bindTo.folder?.uuid ?? v4(),
+    ownerId: bindTo.owner?.uuid ?? v4(),
+    sharedWith: bindTo.sharedWith?.uuid ?? v4(),
+    createdAt: new Date(),
+    encryptionKey: '',
+  });
+}
+
+export { newUser, newFolder, newPrivateSharingFolder };
