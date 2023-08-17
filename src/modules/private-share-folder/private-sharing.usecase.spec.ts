@@ -1070,7 +1070,7 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When user tries to stop sharing a folder that is not shared, then it should not be allowed to stop sharing', async () => {
-      const owner = user;
+      const owner = newUser();
       const empty = [];
       const folder = newFolder(owner);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
@@ -1083,7 +1083,7 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When owner stops sharing a folder, then it should be allowed to stop sharing', async () => {
-      const owner = user;
+      const owner = newUser();
       const folder = newFolder(owner);
       const otherUser = newUser();
       const privateSharingFolder = newPrivateSharingFolder({
