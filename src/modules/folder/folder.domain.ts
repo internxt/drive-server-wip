@@ -97,6 +97,17 @@ export class Folder implements FolderAttributes {
     return this.userId === user.id;
   }
 
+  isTrashed(): boolean {
+    if (this.removed) {
+      return false;
+    }
+    return this.deleted;
+  }
+
+  isRemoved(): boolean {
+    return this.removed;
+  }
+
   setUser(user) {
     if (user && !(user instanceof User)) {
       throw Error('user invalid');
