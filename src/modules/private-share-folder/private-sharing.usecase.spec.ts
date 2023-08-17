@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { createMock } from '@golevelup/ts-jest';
+import { ForbiddenException } from '@nestjs/common';
+import { v4 } from 'uuid';
 
 import { SequelizePrivateSharingRepository } from './private-sharing.repository';
 import {
@@ -14,7 +17,6 @@ import {
   UserNotInvitedError,
 } from './private-sharing.usecase';
 import { Folder } from '../folder/folder.domain';
-import { v4 } from 'uuid';
 import { User } from '../user/user.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
@@ -27,10 +29,13 @@ import {
   generateWithDefaultSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
-import { ConfigModule } from '@nestjs/config';
 import configuration from '../../config/configuration';
-import { ForbiddenException } from '@nestjs/common';
 import { PrivateSharingFolderRolesRepository } from './private-sharing-folder-roles.repository';
+import {
+  newFolder,
+  newPrivateSharingFolder,
+  newUser,
+} from '../../../test/fixtures';
 
 describe('Private Sharing Use Cases', () => {
   let privateSharingUseCase: PrivateSharingUseCase;
@@ -890,13 +895,10 @@ describe('Private Sharing Use Cases', () => {
 
   describe('Inviting users to join the a private sharing', () => {
     it('When the owner wants to share a folder privately then, it should be able to do so', async () => {
-      const owner = user;
-      const sharedWith = invitedUser;
+      const owner = newUser();
+      const sharedWith = newUser();
       const roleId = v4();
-      const folderToShare = Folder.build({
-        ...rootSharedFolder,
-        userId: owner.id,
-      });
+      const folderToShare = newFolder(owner);
       const encryptionKey = 'encryptionKey';
 
       const getUserSpy = jest
@@ -917,12 +919,10 @@ describe('Private Sharing Use Cases', () => {
       const createPrivateFolderSpy = jest
         .spyOn(privateSharingRespository, 'createPrivateFolder')
         .mockResolvedValue(
-          PrivateSharingFolder.build({
-            id: v4(),
-            folderId: folderToShare.uuid,
-            encryptionKey: '',
-            ownerId: owner.uuid,
-            sharedWith: sharedWith.uuid,
+          newPrivateSharingFolder({
+            owner,
+            folder: folderToShare,
+            sharedWith,
           }),
         );
 
@@ -958,14 +958,11 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When a non-owner attempts to share a folder then, the share is denied', async () => {
-      const owner = user;
+      const owner = newUser();
       const notTheOwner = newUser();
       const sharedWith = invitedUser;
       const roleId = v4();
-      const folderToShare = Folder.build({
-        ...rootSharedFolder,
-        userId: owner.id,
-      });
+      const folderToShare = newFolder(owner);
       const encryptionKey = 'encryptionKey';
 
       const getUserSpy = jest
@@ -991,10 +988,10 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When the invited user already has a role in the folder then, the role is not created', async () => {
-      const owner = user;
-      const sharedWith = invitedUser;
+      const owner = newUser();
+      const sharedWith = newUser();
       const roleId = v4();
-      const folderToShare = rootSharedFolder;
+      const folderToShare = newFolder(owner);
       const encryptionKey = 'encryptionKey';
 
       const getUserSpy = jest
@@ -1040,10 +1037,9 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When the owner shares the folder with itself then, the creation fails', async () => {
-      const owner = user;
+      const owner = newUser();
       const sharedWith = owner;
-      const invatedUserEmail = 'email@email.com';
-      const folderUuid = v4();
+      const folder = newFolder(owner);
       const roleId = v4();
       const encryptionKey = 'encryptionKey';
       jest
@@ -1053,8 +1049,8 @@ describe('Private Sharing Use Cases', () => {
       await expect(
         privateSharingUseCase.createPrivateSharingFolder(
           owner,
-          folderUuid,
-          invatedUserEmail,
+          folder.uuid,
+          owner.email,
           encryptionKey,
           roleId,
         ),
@@ -1062,32 +1058,21 @@ describe('Private Sharing Use Cases', () => {
     });
   });
   describe('User stops sharing a folder', () => {
-    it('When user is not the owner, then then it should not be allowed to stop sharing', async () => {
-      const owner = user;
-      const folder = Folder.build({
-        ...folders[0],
-        userId: owner.id,
-      });
-      const otherUser = User.build({
-        ...owner,
-        id: owner.id + 1,
-        uuid: v4(),
-      });
-
+    it('When user is not the owner then, it should not be allowed to stop sharing', async () => {
+      const owner = newUser();
+      const folder = newFolder(owner);
+      const notTheOwner = newUser();
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
       await expect(
-        privateSharingUseCase.stopSharing(folder.uuid, otherUser),
+        privateSharingUseCase.stopSharing(folder.uuid, notTheOwner),
       ).rejects.toThrowError(InvalidOwnerError);
     });
 
     it('When user tries to stop sharing a folder that is not shared, then it should not be allowed to stop sharing', async () => {
-      const owner = user;
+      const owner = newUser();
       const empty = [];
-      const folder = Folder.build({
-        ...folders[0],
-        userId: owner.id,
-      });
+      const folder = newFolder(owner);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
         .spyOn(privateSharingRespository, 'findByFolder')
@@ -1098,22 +1083,13 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When owner stops sharing a folder, then it should be allowed to stop sharing', async () => {
-      const owner = user;
-      const folder = Folder.build({
-        ...folders[0],
-        userId: owner.id,
-      });
-      const otherUser = User.build({
-        ...owner,
-        id: owner.id + 1,
-        uuid: v4(),
-      });
-      const privateSharingFolder = PrivateSharingFolder.build({
-        id: v4(),
-        folderId: folder.uuid,
-        encryptionKey: '',
-        ownerId: owner.uuid,
-        sharedWith: otherUser.uuid,
+      const owner = newUser();
+      const folder = newFolder(owner);
+      const otherUser = newUser();
+      const privateSharingFolder = newPrivateSharingFolder({
+        owner,
+        sharedWith: otherUser,
+        folder,
       });
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
@@ -1180,16 +1156,13 @@ describe('Private Sharing Use Cases', () => {
     });
 
     it('When the owner removes a user which was previously invited then, it should work', async () => {
-      const owner = user;
+      const owner = newUser();
       const otherUser = newUser();
       const folder = newFolder(owner);
-
-      const privateSharingFolder = PrivateSharingFolder.build({
-        id: v4(),
-        folderId: folder.uuid,
-        encryptionKey: '',
-        ownerId: owner.uuid,
-        sharedWith: otherUser.uuid,
+      const privateSharingFolder = newPrivateSharingFolder({
+        owner,
+        folder,
+        sharedWith: otherUser,
       });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
@@ -1211,58 +1184,9 @@ describe('Private Sharing Use Cases', () => {
         userUuid,
         owner,
       );
+
       expect(removeFolderRoleMock).toHaveBeenCalled();
       expect(removeSharedWithMock).toHaveBeenCalled();
     });
   });
-
-  function newUser(): User {
-    return User.build({
-      id: Math.random() * 999999,
-      userId: '',
-      name: 'John',
-      lastname: 'Doe',
-      uuid: v4(),
-      email: '',
-      username: '',
-      bridgeUser: '',
-      password: '',
-      mnemonic: '',
-      referrer: v4(),
-      referralCode: v4(),
-      credit: 0,
-      hKey: Buffer.from(''),
-      rootFolderId: 0,
-      errorLoginCount: 0,
-      isEmailActivitySended: 0,
-      lastResend: new Date(),
-      syncDate: new Date(),
-      welcomePack: false,
-      registerCompleted: false,
-      secret_2FA: '',
-      backupsBucket: '',
-      sharedWorkspace: false,
-      tempKey: '',
-      avatar: '',
-    });
-  }
-
-  function newFolder(owner?: User): Folder {
-    return Folder.build({
-      id: Math.random(),
-      uuid: v4(),
-      name: 'folder',
-      parentId: 0,
-      userId: owner?.id ?? 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      bucket: '',
-      plainName: '',
-      encryptVersion: '03-aes',
-      deleted: false,
-      removed: false,
-      deletedAt: undefined,
-      removedAt: undefined,
-    });
-  }
 });
