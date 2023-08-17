@@ -182,15 +182,13 @@ export class UserController {
     @UserDecorator() user: User,
   ) {
     try {
-      const currentPassword = await this.cryptoService.decryptText(
+      const currentPassword = this.cryptoService.decryptText(
         updatePasswordDto.currentPassword,
       );
-      const newPassword = await this.cryptoService.decryptText(
+      const newPassword = this.cryptoService.decryptText(
         updatePasswordDto.newPassword,
       );
-      const newSalt = await this.cryptoService.decryptText(
-        updatePasswordDto.newSalt,
-      );
+      const newSalt = this.cryptoService.decryptText(updatePasswordDto.newSalt);
 
       const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
 

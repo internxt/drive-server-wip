@@ -11,7 +11,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 
 export interface FileRepository {
-  deleteByFileId(fileId: any): void;
+  deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
