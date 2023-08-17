@@ -363,6 +363,90 @@ export class PrivateSharingUseCase {
     return this.privateSharingRespository.getAllRoles();
   }
 
+  private getFolderContentPaginated = async (
+    userId: User['id'],
+    folderId: Folder['id'],
+    page: number,
+    perPage: number,
+  ) => {
+    const folders = (
+      await this.folderUsecase.getFoldersWithParent(
+        userId,
+        {
+          parentId: folderId,
+          deleted: false,
+        },
+        {
+          limit: perPage,
+          offset: page * perPage,
+        },
+      )
+    ).map((folder) => {
+      return {
+        ...folder,
+        encryptionKey: null,
+        dateShared: null,
+        sharedWithMe: null,
+      };
+    }) as FolderWithSharedInfo[];
+
+    // if folders count is the same just return the folders
+    if (folders.length === perPage) {
+      return {
+        folders,
+        files: [],
+      };
+    }
+
+    // if folders count is less than perPage then we need to get the files since offset 0
+    if (folders.length < perPage && folders.length > 0) {
+      const files = await this.fileUsecase.getFiles(
+        userId,
+        {
+          folderId: folderId,
+          status: FileStatus.EXISTS,
+        },
+        {
+          limit: perPage - folders.length,
+          offset: 0,
+        },
+      );
+      return {
+        folders,
+        files,
+      };
+    }
+
+    // if folders count is 0 then we need to get the files since offset base on the last page
+    const totalOwnerFolders =
+      await this.folderUsecase.getFoldersWithCertainParentCount(
+        userId,
+        folderId,
+      );
+
+    const foldersInLastPage = totalOwnerFolders % perPage;
+    const folderLastPage = Math.ceil(totalOwnerFolders / perPage);
+    const baseOffsetToGetFiles =
+      foldersInLastPage > 0 ? perPage - foldersInLastPage : 0;
+
+    const files = await this.fileUsecase.getFiles(
+      userId,
+      {
+        folderId: folderId,
+        status: FileStatus.EXISTS,
+      },
+      {
+        limit: perPage,
+        offset: (page - folderLastPage) * perPage + baseOffsetToGetFiles,
+      },
+    );
+
+    return {
+      folders,
+      files,
+    };
+  };
+
   async getItems(
     folderId: Folder['uuid'],
     token: string | null,
@@ -371,46 +455,6 @@ export class PrivateSharingUseCase {
     perPage: number,
     order: [string, string][],
   ): Promise<GetItemsReponse> {
-    const getFolderContent = async (
-      userId: User['id'],
-      folderId: Folder['id'],
-    ) => {
-      const folders = (
-        await this.folderUsecase.getFoldersWithParent(
-          userId,
-          {
-            parentId: folderId,
-            deleted: false,
-          },
-          {
-            limit: perPage,
-            offset: page * perPage,
-          },
-        )
-      ).map((folder) => {
-        return {
-          ...folder,
-          encryptionKey: null,
-          dateShared: null,
-          sharedWithMe: null,
-        };
-      }) as FolderWithSharedInfo[];
-
-      return {
-        folders,
-        files: await this.fileUsecase.getFiles(
-          userId,
-          {
-            folderId: folderId,
-            status: FileStatus.EXISTS,
-          },
-          {
-            limit: perPage,
-            offset: page * perPage,
-          },
-        ),
-      };
-    };
     const folder = await this.folderUsecase.getByUuid(folderId);
     const parentFolder = folder.parentId
       ? await this.folderUsecase.getFolder(folder.parentId)
@@ -418,7 +462,12 @@ export class PrivateSharingUseCase {
 
     if (folder.isOwnedBy(user)) {
       return {
-        ...(await getFolderContent(user.id, folder.id)),
+        ...(await this.getFolderContentPaginated(
+          user.id,
+          folder.id,
+          page,
+          perPage,
+        )),
         credentials: {
           networkPass: user.userId,
           networkUser: user.bridgeUser,
@@ -489,7 +538,12 @@ export class PrivateSharingUseCase {
     }
 
     return {
-      ...(await getFolderContent(owner.id, folder.id)),
+      ...(await this.getFolderContentPaginated(
+        owner.id,
+        folder.id,
+        page,
+        perPage,
+      )),
       credentials: {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
@@ -542,24 +596,20 @@ export class PrivateSharingUseCase {
     const privateFolderRoles =
       await this.privateSharingFolderRolesRespository.findByUsers(users);
 
-    const usersWithRoles: UserWithRole[] = await Promise.all(
-      users.map(async (user) => {
-        const { role, createdAt, updatedAt } = privateFolderRoles.find(
-          (role) => role.userId === user.uuid,
-        );
-        const avatar = await this.userUsecase.getAvatarUrl(user.avatar);
-        return {
-          ...user,
-          avatar,
-          role: {
-            id: role.id,
-            name: role.role,
-            createdAt,
-            updatedAt,
-          },
-        };
-      }),
-    );
+    const usersWithRoles: UserWithRole[] = users.map((user) => {
+      const { role, createdAt, updatedAt } = privateFolderRoles.find(
+        (role) => role.userId === user.uuid,
+      );
+      return {
+        ...user,
+        role: {
+          id: role.id,
+          name: role.role,
+          createdAt,
+          updatedAt,
+        },
+      };
+    });
 
     const [{ ownerId }] = privateSharings;
 
@@ -570,7 +620,7 @@ export class PrivateSharingUseCase {
       name,
       lastname,
       email,
-      avatar: await this.userUsecase.getAvatarUrl(avatar),
+      avatar,
       uuid,
       role: {
         id: 'NONE',

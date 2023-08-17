@@ -455,6 +455,17 @@ export class FolderUseCases {
     return this.folderRepository.getFoldersWhoseParentIdDoesNotExist(userId);
   }
 
+  getFoldersWithCertainParentCount(
+    userId: UserAttributes['id'],
+    parentId: FolderAttributes['id'],
+  ): Promise<number> {
+    return this.folderRepository.getFoldersCountWhere({
+      userId,
+      parentId,
+      deleted: false,
+    });
+  }
+
   async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {
     let remainingFolders = await this.folderRepository.clearOrphansFolders(
       userId,

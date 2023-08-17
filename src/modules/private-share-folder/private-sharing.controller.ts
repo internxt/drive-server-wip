@@ -14,6 +14,7 @@ import {
   Res,
   Delete,
   ParseUUIDPipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -509,8 +510,8 @@ export class PrivateSharingController {
     @Res({ passthrough: true }) res: Response,
     @Query('orderBy') orderBy: OrderBy,
     @Query('token') token: string,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query('page', new ParseIntPipe()) page = 0,
+    @Query('perPage', new ParseIntPipe()) perPage = 50,
   ): Promise<GetItemsReponse | { error: string }> {
     try {
       const order = orderBy
