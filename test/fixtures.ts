@@ -72,18 +72,20 @@ function newUser(): User {
   });
 }
 
-function newPrivateSharingFolder(bindTo: {
+function newPrivateSharingFolder(bindTo?: {
   owner?: User;
   sharedWith?: User;
   folder?: Folder;
 }) {
   return PrivateSharingFolder.build({
     id: v4(),
-    folderId: bindTo.folder?.uuid ?? v4(),
-    ownerId: bindTo.owner?.uuid ?? v4(),
-    sharedWith: bindTo.sharedWith?.uuid ?? v4(),
+    folderId: bindTo?.folder?.uuid || v4(),
+    ownerId: bindTo?.owner?.uuid || v4(),
+    sharedWith: bindTo?.sharedWith?.uuid || v4(),
     createdAt: randomDataGenerator.date(),
-    encryptionKey: '',
+    encryptionKey: randomDataGenerator.string({
+      length: 32,
+    }),
   });
 }
 
