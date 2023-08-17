@@ -39,6 +39,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -102,6 +103,7 @@ export class UserUseCases {
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
+    private avatarService: AvatarService,
   ) {}
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -666,5 +668,11 @@ export class UserUseCases {
     await this.keyServerRepository.update(user.id, {
       privateKey,
     });
+  }
+
+  async getAvatarUrl(avatarKey: string) {
+    if (!avatarKey) return null;
+
+    return this.avatarService.getDownloadUrl(avatarKey);
   }
 }

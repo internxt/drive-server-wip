@@ -542,20 +542,24 @@ export class PrivateSharingUseCase {
     const privateFolderRoles =
       await this.privateSharingFolderRolesRespository.findByUsers(users);
 
-    const usersWithRoles: UserWithRole[] = users.map((user) => {
-      const { role, createdAt, updatedAt } = privateFolderRoles.find(
-        (role) => role.userId === user.uuid,
-      );
-      return {
-        ...user,
-        role: {
-          id: role.id,
-          name: role.role,
-          createdAt,
-          updatedAt,
-        },
-      };
-    });
+    const usersWithRoles: UserWithRole[] = await Promise.all(
+      users.map(async (user) => {
+        const { role, createdAt, updatedAt } = privateFolderRoles.find(
+          (role) => role.userId === user.uuid,
+        );
+        const avatar = await this.userUsecase.getAvatarUrl(user.avatar);
+        return {
+          ...user,
+          avatar,
+          role: {
+            id: role.id,
+            name: role.role,
+            createdAt,
+            updatedAt,
+          },
+        };
+      }),
+    );
 
     const [{ ownerId }] = privateSharings;
 
@@ -566,7 +570,7 @@ export class PrivateSharingUseCase {
       name,
       lastname,
       email,
-      avatar,
+      avatar: await this.userUsecase.getAvatarUrl(avatar),
       uuid,
       role: {
         id: 'NONE',

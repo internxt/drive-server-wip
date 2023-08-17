@@ -31,6 +31,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
 import { ShareModule } from '../share/share.module';
 import { KeyServerModel } from '../keyserver/key-server.model';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { KeyServerModel } from '../keyserver/key-server.model';
     NotificationService,
     PaymentsService,
     NewsletterService,
+    AvatarService,
   ],
   exports: [UserUseCases, SequelizeUserRepository],
 })

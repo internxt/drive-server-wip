@@ -31,6 +31,8 @@
     "prepare-hooks": "husky install"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.391.0",
+    "@aws-sdk/s3-request-presigner": "^3.391.0",
     "@hapi/joi": "^17.1.1",
     "@internxt/inxt-js": "^2.0.3",
     "@internxt/lib": "^1.2.0",

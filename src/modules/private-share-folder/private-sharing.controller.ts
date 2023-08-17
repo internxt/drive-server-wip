@@ -604,7 +604,7 @@ export class PrivateSharingController {
         res.status(HttpStatus.FORBIDDEN);
       } else {
         Logger.error(
-          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared with by folder ${
             user.uuid
           }, ${error.stack || 'No stack trace'}`,
         );
