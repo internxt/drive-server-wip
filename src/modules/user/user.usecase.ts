@@ -40,6 +40,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
 import { AvatarS3Service } from '../../externals/s3/avatar-s3.service';
+
 class ReferralsNotAvailableError extends Error {
   constructor() {
     super('Referrals program not available for this user');

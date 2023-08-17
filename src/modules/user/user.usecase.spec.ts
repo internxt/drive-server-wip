@@ -19,6 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { File, FileAttributes } from '../file/file.domain';
+import { AvatarS3Service } from '../../externals/s3/avatar-s3.service';
 
 describe('User use cases', () => {
   let userUseCases: UserUseCases;
@@ -272,6 +273,10 @@ const createTestingModule = (): Promise<TestingModule> => {
       {
         provide: SequelizeKeyServerRepository,
         useValue: createMock<SequelizeKeyServerRepository>(),
+      },
+      {
+        provide: AvatarS3Service,
+        useValue: createMock<AvatarS3Service>(),
       },
       UserUseCases,
     ],

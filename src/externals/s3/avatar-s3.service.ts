@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import * as AWS from 'aws-sdk';
 
-interface IS3Singleton<T> {
-  getInstance(): T;
+interface IS3Singleton {
+  getInstance(): AWS.S3;
 }
 @Injectable()
-export class AvatarS3Service implements IS3Singleton<AWS.S3> {
+export class AvatarS3Service implements IS3Singleton {
   private static instance: AWS.S3;
 
   getInstance(): AWS.S3 {
