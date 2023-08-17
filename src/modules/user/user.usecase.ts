@@ -39,7 +39,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
-import { AvatarS3Service } from '../../externals/s3/avatar-s3.service';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -103,7 +103,7 @@ export class UserUseCases {
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
-    private avatarS3Service: AvatarS3Service,
+    private avatarService: AvatarService,
   ) {}
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -670,20 +670,9 @@ export class UserUseCases {
     });
   }
 
-  async getSignedAvatarUrl(avatarKey: string) {
+  async getAvatarUrl(avatarKey: string) {
     if (!avatarKey) return null;
-    const s3instance = this.avatarS3Service.getInstance();
-    const url = await s3instance.getSignedUrlPromise('getObject', {
-      Bucket: process.env.AVATAR_BUCKET,
-      Key: avatarKey,
-      Expires: 24 * 3600,
-    });
 
-    const endpointRewrite = process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS;
-    if (endpointRewrite) {
-      return url.replace(process.env.AVATAR_ENDPOINT, endpointRewrite);
-    } else {
-      return url;
-    }
+    return this.avatarService.getDownloadUrl(avatarKey);
   }
 }

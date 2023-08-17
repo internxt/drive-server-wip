@@ -547,7 +547,7 @@ export class PrivateSharingUseCase {
         const { role, createdAt, updatedAt } = privateFolderRoles.find(
           (role) => role.userId === user.uuid,
         );
-        const avatar = await this.userUsecase.getSignedAvatarUrl(user.avatar);
+        const avatar = await this.userUsecase.getAvatarUrl(user.avatar);
         return {
           ...user,
           avatar,
@@ -570,7 +570,7 @@ export class PrivateSharingUseCase {
       name,
       lastname,
       email,
-      avatar: await this.userUsecase.getSignedAvatarUrl(avatar),
+      avatar: await this.userUsecase.getAvatarUrl(avatar),
       uuid,
       role: {
         id: 'NONE',

@@ -49,7 +49,7 @@ import { HttpModule } from '@nestjs/axios';
 import { FileModel } from '../file/file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { AvatarS3Service } from '../../externals/s3/avatar-s3.service';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -222,7 +222,7 @@ describe('Share Use Cases', () => {
         NotificationService,
         ConfigService,
         NewsletterService,
-        AvatarS3Service,
+        AvatarService,
         {
           provide: HttpClient,
           useValue: {
