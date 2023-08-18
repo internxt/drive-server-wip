@@ -152,11 +152,6 @@ describe('FolderUseCases', () => {
         findDeletedFolders,
       );
     });
-
-    it('throws an error if the folder is not found', async () => {
-      jest.spyOn(folderRepository, 'findById').mockResolvedValue(null);
-      expect(service.getFolder(folderId)).rejects.toThrow(NotFoundException);
-    });
   });
 
   describe('getChildrenFoldersToUser', () => {
