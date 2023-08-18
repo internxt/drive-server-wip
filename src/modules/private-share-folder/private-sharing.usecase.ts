@@ -196,14 +196,13 @@ export class PrivateSharingUseCase {
     limit: number,
     order: [string, string][],
   ): Promise<GetItemsReponse> {
-    const { sharedFolders, count } =
+    const { sharedFolders, groupedFoldersCount } =
       await this.privateSharingRespository.findByOwnerAndSharedWithMe(
         user.uuid,
         offset,
         limit,
         order,
       );
-    console.log(count);
     const folders = sharedFolders.map((folderWithSharedInfo) => {
       return {
         ...folderWithSharedInfo.folder,
@@ -212,6 +211,9 @@ export class PrivateSharingUseCase {
         sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
       };
     }) as FolderWithSharedInfo[];
+
+    const totalPages = Math.ceil(groupedFoldersCount.length / limit);
+    const page = offset / limit;
     return {
       folders: folders,
       files: [],
@@ -219,7 +221,7 @@ export class PrivateSharingUseCase {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
       },
-      hasNextPage: false,
+      hasNextPage: page < totalPages - 1,
       token: '',
     };
   }
@@ -365,12 +367,12 @@ export class PrivateSharingUseCase {
     return this.privateSharingRespository.getAllRoles();
   }
 
-  private getFolderContentPaginated = async (
+  private async getFolderContentPaginated(
     userId: User['id'],
     folderId: Folder['id'],
     page: number,
     perPage: number,
-  ) => {
+  ) {
     const totalFolders =
       await this.folderUsecase.getFoldersWithCertainParentCount(
         userId,
@@ -402,7 +404,7 @@ export class PrivateSharingUseCase {
       };
     }) as FolderWithSharedInfo[];
 
-    const totalPages = Math.ceil((totalFolders + totalFiles) / perPage);
+    const totalPages = Math.ceil(totalFolders + totalFiles / perPage);
     const hasNextPage = page < totalPages - 1;
 
     if (folders.length === perPage) {
@@ -455,7 +457,7 @@ export class PrivateSharingUseCase {
       files,
       hasNextPage,
     };
-  };
+  }
 
   async getItems(
     folderId: Folder['uuid'],
