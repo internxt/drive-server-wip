@@ -427,7 +427,7 @@ export class PrivateSharingUseCase {
       };
     };
     const folder = await this.folderUsecase.getByUuid(folderId);
-    console.log('folder', folder);
+
     if (folder.isTrashed()) {
       throw new SharedFolderInTheTrashError();
     }
