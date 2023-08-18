@@ -284,7 +284,7 @@ export class SequelizePrivateSharingRepository
     orderBy?: [string, string][],
   ): Promise<{
     sharedFolders: PrivateSharingFolder[];
-    count: GroupedCountResultItem[];
+    groupedFoldersCount: GroupedCountResultItem[];
   }> {
     const { count, rows } =
       await this.privateSharingFolderModel.findAndCountAll({
@@ -329,7 +329,7 @@ export class SequelizePrivateSharingRepository
 
     return {
       sharedFolders: rows.map((shared) => this.toDomain(shared)),
-      count,
+      groupedFoldersCount: count,
     };
   }
 
