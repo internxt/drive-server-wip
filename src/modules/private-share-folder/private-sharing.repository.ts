@@ -320,6 +320,10 @@ export class SequelizePrivateSharingRepository
       include: [
         {
           model: FolderModel,
+          where: {
+            deleted: false,
+            removed: false,
+          },
           include: [
             {
               model: UserModel,
