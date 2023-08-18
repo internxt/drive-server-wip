@@ -57,7 +57,7 @@ describe('Testing fixtures tests', () => {
 
     it('When it generates a folder with owner, then the userId should be the owner id', () => {
       const owner = fixtures.newUser();
-      const folder = fixtures.newFolder(owner);
+      const folder = fixtures.newFolder({ owner });
 
       expect(folder.userId).toBe(owner.id);
     });
@@ -95,6 +95,23 @@ describe('Testing fixtures tests', () => {
       const otherFolder = fixtures.newFolder();
 
       expect(folder.plainName).not.toBe(otherFolder.plainName);
+    });
+
+    it('When it generates a folder and settable attributes are provided, then those attributes are set', () => {
+      const settableAttributes: fixtures.FolderSettableAttributes = {
+        deleted: true,
+        deletedAt: new Date(),
+        removed: true,
+        removedAt: new Date(),
+      };
+      const folder = fixtures.newFolder({
+        attributes: settableAttributes,
+      });
+
+      expect(folder.deleted).toBe(settableAttributes.deleted);
+      expect(folder.deletedAt).toBe(settableAttributes.deletedAt);
+      expect(folder.removed).toBe(settableAttributes.removed);
+      expect(folder.removedAt).toBe(settableAttributes.removedAt);
     });
   });
 

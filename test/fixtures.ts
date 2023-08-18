@@ -10,15 +10,25 @@ const constants = {
 };
 const randomDataGenerator = new Chance();
 
-function newFolder(owner?: User): Folder {
+export type FolderSettableAttributes = Pick<
+  Folder,
+  'deleted' | 'deletedAt' | 'removed' | 'removedAt'
+>;
+type NewFolderParams = {
+  attributes?: Partial<FolderSettableAttributes>;
+  owner?: User;
+};
+function newFolder(params?: NewFolderParams): Folder {
   const randomCreatedAt = randomDataGenerator.date();
 
-  return Folder.build({
-    id: randomDataGenerator.natural(),
+  const folder = Folder.build({
+    id: randomDataGenerator.natural({ min: 1 }),
     uuid: v4(),
-    name: 'folder',
-    parentId: randomDataGenerator.natural(),
-    userId: owner?.id || randomDataGenerator.natural(),
+    name: randomDataGenerator.string({
+      length: 20,
+    }),
+    parentId: randomDataGenerator.natural({ min: 1 }),
+    userId: randomDataGenerator.natural({ min: 1 }),
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({
@@ -37,6 +47,15 @@ function newFolder(owner?: User): Folder {
     deletedAt: undefined,
     removedAt: undefined,
   });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      folder[key] = params.attributes[key];
+    });
+
+  params?.owner && (folder.userId = params.owner.id);
+
+  return folder;
 }
 
 function newUser(): User {
