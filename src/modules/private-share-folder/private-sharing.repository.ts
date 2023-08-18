@@ -10,7 +10,7 @@ import { PrivateSharingFolderRole } from './private-sharing-folder-roles.domain'
 import { PrivateSharingRole } from './private-sharing-role.domain';
 import { PrivateSharingRoleModel } from './private-sharing-role.model';
 import { UserModel } from '../user/user.model';
-import sequelize, { Op } from 'sequelize';
+import sequelize, { GroupedCountResultItem, Op } from 'sequelize';
 
 export interface PrivateSharingRepository {
   findByOwner(
@@ -282,48 +282,55 @@ export class SequelizePrivateSharingRepository
     offset: number,
     limit: number,
     orderBy?: [string, string][],
-  ): Promise<PrivateSharingFolder[]> {
-    const sharedFolders = await this.privateSharingFolderModel.findAll({
-      where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
-      },
-      attributes: [
-        // TODO: to check if is necessary to show the encryption_key in this query
-        [
-          sequelize.literal(
-            `MAX("PrivateSharingFolderModel"."encryption_key")`,
-          ),
-          'encryptionKey',
-        ],
-        [
-          sequelize.literal(`MAX("PrivateSharingFolderModel"."created_at")`),
-          'createdAt',
-        ],
-      ],
-      group: [
-        'folder.id',
-        'folder->user.id',
-        'PrivateSharingFolderModel.owner_id',
-      ],
-      include: [
-        {
-          model: FolderModel,
-          include: [
-            {
-              model: UserModel,
-              foreignKey: 'userId',
-              as: 'user',
-              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
-            },
-          ],
+  ): Promise<{
+    sharedFolders: PrivateSharingFolder[];
+    count: GroupedCountResultItem[];
+  }> {
+    const { count, rows } =
+      await this.privateSharingFolderModel.findAndCountAll({
+        where: {
+          [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
         },
-      ],
-      order: orderBy,
-      limit,
-      offset,
-    });
+        attributes: [
+          // TODO: to check if is necessary to show the encryption_key in this query
+          [
+            sequelize.literal(
+              `MAX("PrivateSharingFolderModel"."encryption_key")`,
+            ),
+            'encryptionKey',
+          ],
+          [
+            sequelize.literal(`MAX("PrivateSharingFolderModel"."created_at")`),
+            'createdAt',
+          ],
+        ],
+        group: [
+          'folder.id',
+          'folder->user.id',
+          'PrivateSharingFolderModel.owner_id',
+        ],
+        include: [
+          {
+            model: FolderModel,
+            include: [
+              {
+                model: UserModel,
+                foreignKey: 'userId',
+                as: 'user',
+                attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+              },
+            ],
+          },
+        ],
+        order: orderBy,
+        limit,
+        offset,
+      });
 
-    return sharedFolders.map((shared) => this.toDomain(shared));
+    return {
+      sharedFolders: rows.map((shared) => this.toDomain(shared)),
+      count,
+    };
   }
 
   async findByFolder(

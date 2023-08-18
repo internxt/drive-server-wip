@@ -10,6 +10,7 @@ export interface GetItemsReponse {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
   };
+  hasNextPage: boolean;
   token: string;
 }
 

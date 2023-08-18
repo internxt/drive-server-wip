@@ -196,14 +196,15 @@ export class PrivateSharingUseCase {
     limit: number,
     order: [string, string][],
   ): Promise<GetItemsReponse> {
-    const foldersWithSharedInfo =
+    const { sharedFolders, count } =
       await this.privateSharingRespository.findByOwnerAndSharedWithMe(
         user.uuid,
         offset,
         limit,
         order,
       );
-    const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
+    console.log(count);
+    const folders = sharedFolders.map((folderWithSharedInfo) => {
       return {
         ...folderWithSharedInfo.folder,
         encryptionKey: folderWithSharedInfo.encryptionKey,
@@ -218,6 +219,7 @@ export class PrivateSharingUseCase {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
       },
+      hasNextPage: false,
       token: '',
     };
   }
@@ -369,6 +371,16 @@ export class PrivateSharingUseCase {
     page: number,
     perPage: number,
   ) => {
+    const totalFolders =
+      await this.folderUsecase.getFoldersWithCertainParentCount(
+        userId,
+        folderId,
+      );
+    const totalFiles = await this.fileUsecase.getFolderFilesCount(
+      userId,
+      folderId,
+    );
+
     const folders = (
       await this.folderUsecase.getFoldersWithParent(
         userId,
@@ -390,15 +402,17 @@ export class PrivateSharingUseCase {
       };
     }) as FolderWithSharedInfo[];
 
-    // if folders count is the same just return the folders
+    const totalPages = Math.ceil((totalFolders + totalFiles) / perPage);
+    const hasNextPage = page < totalPages - 1;
+
     if (folders.length === perPage) {
       return {
         folders,
         files: [],
+        hasNextPage,
       };
     }
 
-    // if folders count is less than perPage then we need to get the files since offset 0
     if (folders.length < perPage && folders.length > 0) {
       const files = await this.fileUsecase.getFiles(
         userId,
@@ -414,18 +428,13 @@ export class PrivateSharingUseCase {
       return {
         folders,
         files,
+        hasNextPage,
       };
     }
 
     // if folders count is 0 then we need to get the files since offset base on the last page
-    const totalOwnerFolders =
-      await this.folderUsecase.getFoldersWithCertainParentCount(
-        userId,
-        folderId,
-      );
-
-    const foldersInLastPage = totalOwnerFolders % perPage;
-    const folderLastPage = Math.ceil(totalOwnerFolders / perPage);
+    const foldersInLastPage = totalFolders % perPage;
+    const folderLastPage = Math.ceil(totalFolders / perPage);
     const baseOffsetToGetFiles =
       foldersInLastPage > 0 ? perPage - foldersInLastPage : 0;
 
@@ -444,6 +453,7 @@ export class PrivateSharingUseCase {
     return {
       folders,
       files,
+      hasNextPage,
     };
   };
 

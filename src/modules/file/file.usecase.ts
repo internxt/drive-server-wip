@@ -23,6 +23,7 @@ import {
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { Folder } from '../folder/folder.domain';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -319,6 +320,14 @@ export class FileUseCases {
   getDriveFilesCount(userId: UserAttributes['id']) {
     return this.fileRepository.getFilesCountWhere({
       userId,
+      status: FileStatus.EXISTS,
+    });
+  }
+
+  getFolderFilesCount(userId: UserAttributes['id'], folderId: Folder['id']) {
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      folderId,
       status: FileStatus.EXISTS,
     });
   }
