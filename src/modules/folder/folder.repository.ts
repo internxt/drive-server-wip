@@ -84,6 +84,10 @@ export class SequelizeFolderRepository implements FolderRepository {
           model: FolderModel,
           as: 'parent',
           attributes: ['id', 'uuid'],
+          where: {
+            deleted: false,
+            removed: false,
+          },
         },
       ],
       limit,

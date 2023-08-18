@@ -13,6 +13,8 @@ import {
   OwnerCannotBeSharedWithError,
   PrivateSharingUseCase,
   RoleNotFoundError,
+  SharedFolderInTheTrashError,
+  SharedFolderRemovedError,
   UserAlreadyHasRole,
   UserNotInvitedError,
 } from './private-sharing.usecase';
@@ -232,6 +234,42 @@ describe('Private Sharing Use Cases', () => {
 
   describe('Listing items on a private shared folder', () => {
     describe('When listing the items in the root of the private shared folder', () => {
+      it('When the private shared folder is in the trash, then the items are not provided', async () => {
+        const user = newUser();
+        const folder = newFolder({
+          owner: user,
+          attributes: {
+            deleted: true,
+            deletedAt: new Date(),
+          },
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+
+        await expect(
+          privateSharingUseCase.getItems(folder.uuid, null, user, 0, 10, []),
+        ).rejects.toThrow(SharedFolderInTheTrashError);
+        expect(true).toBeTruthy();
+      });
+
+      it('When the private shared folder has been removed, then the items are not provided', async () => {
+        const user = newUser();
+        const folder = newFolder({
+          owner: user,
+          attributes: {
+            removed: true,
+            removedAt: new Date(),
+          },
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+
+        await expect(
+          privateSharingUseCase.getItems(folder.uuid, null, user, 0, 10, []),
+        ).rejects.toThrow(SharedFolderRemovedError);
+        expect(true).toBeTruthy();
+      });
+
       it('When you are the owner, then you should get the items', async () => {
         const folder = rootSharedFolder;
         const expectedFolders = getChildrenOf(folder);
@@ -898,7 +936,7 @@ describe('Private Sharing Use Cases', () => {
       const owner = newUser();
       const sharedWith = newUser();
       const roleId = v4();
-      const folderToShare = newFolder(owner);
+      const folderToShare = newFolder({ owner });
       const encryptionKey = 'encryptionKey';
 
       const getUserSpy = jest
@@ -962,7 +1000,7 @@ describe('Private Sharing Use Cases', () => {
       const notTheOwner = newUser();
       const sharedWith = invitedUser;
       const roleId = v4();
-      const folderToShare = newFolder(owner);
+      const folderToShare = newFolder({ owner });
       const encryptionKey = 'encryptionKey';
 
       const getUserSpy = jest
@@ -991,7 +1029,7 @@ describe('Private Sharing Use Cases', () => {
       const owner = newUser();
       const sharedWith = newUser();
       const roleId = v4();
-      const folderToShare = newFolder(owner);
+      const folderToShare = newFolder({ owner });
       const encryptionKey = 'encryptionKey';
 
       const getUserSpy = jest
@@ -1039,7 +1077,7 @@ describe('Private Sharing Use Cases', () => {
     it('When the owner shares the folder with itself then, the creation fails', async () => {
       const owner = newUser();
       const sharedWith = owner;
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
       const roleId = v4();
       const encryptionKey = 'encryptionKey';
       jest
@@ -1057,10 +1095,11 @@ describe('Private Sharing Use Cases', () => {
       ).rejects.toThrow(OwnerCannotBeSharedWithError);
     });
   });
+
   describe('User stops sharing a folder', () => {
     it('When user is not the owner then, it should not be allowed to stop sharing', async () => {
       const owner = newUser();
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
       const notTheOwner = newUser();
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
@@ -1072,7 +1111,7 @@ describe('Private Sharing Use Cases', () => {
     it('When user tries to stop sharing a folder that is not shared, then it should not be allowed to stop sharing', async () => {
       const owner = newUser();
       const empty = [];
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
         .spyOn(privateSharingRespository, 'findByFolder')
@@ -1084,7 +1123,7 @@ describe('Private Sharing Use Cases', () => {
 
     it('When owner stops sharing a folder, then it should be allowed to stop sharing', async () => {
       const owner = newUser();
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
       const otherUser = newUser();
       const privateSharingFolder = newPrivateSharingFolder({
         owner,
@@ -1108,6 +1147,7 @@ describe('Private Sharing Use Cases', () => {
       expect(stopSharingMock).toHaveBeenCalled();
     });
   });
+
   describe('Owner removes a user from a shared folder', () => {
     const userUuid = v4();
 
@@ -1115,7 +1155,7 @@ describe('Private Sharing Use Cases', () => {
       const owner = newUser();
       const notTheOwner = newUser();
       const sharedWith = newUser();
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
@@ -1130,7 +1170,7 @@ describe('Private Sharing Use Cases', () => {
 
     it('When the owner tries to remove its own sharing, then it should not be allowed to remove itself', async () => {
       const owner = newUser();
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       await expect(
@@ -1141,7 +1181,7 @@ describe('Private Sharing Use Cases', () => {
     it('When the owner tries to remove a user that is not invited to the folder then, it fails', async () => {
       const owner = newUser();
       const otherUser = newUser();
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
         .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
@@ -1158,7 +1198,7 @@ describe('Private Sharing Use Cases', () => {
     it('When the owner removes a user which was previously invited then, it should work', async () => {
       const owner = newUser();
       const otherUser = newUser();
-      const folder = newFolder(owner);
+      const folder = newFolder({ owner });
       const privateSharingFolder = newPrivateSharingFolder({
         owner,
         folder,

@@ -194,7 +194,13 @@ export class SequelizePrivateSharingRepository
         ownerId: userId,
       },
       include: [
-        FolderModel,
+        {
+          model: FolderModel,
+          where: {
+            deleted: false,
+            removed: false,
+          },
+        },
         {
           model: UserModel,
           foreignKey: 'ownerId',
@@ -261,7 +267,13 @@ export class SequelizePrivateSharingRepository
         sharedWith: userId,
       },
       include: [
-        FolderModel,
+        {
+          model: FolderModel,
+          where: {
+            deleted: false,
+            removed: false,
+          },
+        },
         {
           model: UserModel,
           foreignKey: 'ownerId',
