@@ -389,6 +389,7 @@ export class PrivateSharingUseCase {
         {
           parentId: folderId,
           deleted: false,
+          removed: false,
         },
         {
           limit: perPage,

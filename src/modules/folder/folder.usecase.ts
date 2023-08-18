@@ -463,6 +463,7 @@ export class FolderUseCases {
       userId,
       parentId,
       deleted: false,
+      removed: false,
     });
   }
 
