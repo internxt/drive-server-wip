@@ -46,7 +46,7 @@ import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
 import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { GetItemsReponse } from './dto/get-items-and-shared-folders.dto';
+import { GetFilesResponse, GetFoldersReponse, GetItemsReponse } from './dto/get-items-and-shared-folders.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')
@@ -469,7 +469,7 @@ export class PrivateSharingController {
     }
   }
 
-  @Get('items/:sharedFolderId')
+  @Get('items/:sharedFolderId/folders')
   @ApiOperation({
     summary: 'Get all items shared by a user',
   })
@@ -503,7 +503,7 @@ export class PrivateSharingController {
   })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   @ApiBearerAuth()
-  async getPrivateShareItems(
+  async getPrivateShareFolders(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
     @Res({ passthrough: true }) res: Response,
@@ -511,13 +511,89 @@ export class PrivateSharingController {
     @Query('token') token: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-  ): Promise<GetItemsReponse | { error: string }> {
+  ): Promise<GetFoldersReponse | { error: string }> {
     try {
       const order = orderBy
         ? [orderBy.split(':') as [string, string]]
         : undefined;
 
-      return this.privateSharingUseCase.getItems(
+      return this.privateSharingUseCase.getFolders(
+        sharedFolderId,
+        token,
+        user,
+        page,
+        perPage,
+        order,
+      );
+    } catch (error) {
+      let errorMessage = error.message;
+
+      if (error instanceof ForbiddenException) {
+        throw error;
+      } else {
+        Logger.error(
+          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+            user.uuid
+          }, message: ${error.message}, ${error.stack || 'No stack trace'}`,
+        );
+
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @Get('items/:sharedFolderId/files')
+  @ApiOperation({
+    summary: 'Get all items shared by a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiParam({
+    name: 'sharedFolderId',
+    description: 'Folder id of the shared folder',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'token',
+    description: 'Token that authorizes the access to the shared content',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all items inside a shared folder' })
+  @ApiBearerAuth()
+  async getPrivateShareFiles(
+    @UserDecorator() user: User,
+    @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
+    @Res({ passthrough: true }) res: Response,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('token') token: string,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ): Promise<GetFilesResponse | { error: string }> {
+    try {
+      const order = orderBy
+        ? [orderBy.split(':') as [string, string]]
+        : undefined;
+
+      return this.privateSharingUseCase.getFiles(
         sharedFolderId,
         token,
         user,

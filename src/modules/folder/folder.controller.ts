@@ -298,6 +298,10 @@ export class FolderController {
         user,
       );
 
+      if (!folder) {
+        throw new NotFoundException();
+      }
+
       return folder;
     } catch (err) {
       if (

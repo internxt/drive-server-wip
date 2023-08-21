@@ -72,15 +72,11 @@ export class FolderUseCases {
     return folder;
   }
 
-  async getFolder(
+  getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
   ) {
-    const folder = await this.folderRepository.findById(folderId, deleted);
-    if (!folder) {
-      throw new NotFoundException(`Folder with ID ${folderId} not found`);
-    }
-    return folder;
+    return this.folderRepository.findById(folderId, deleted);
   }
 
   async isFolderInsideFolder(

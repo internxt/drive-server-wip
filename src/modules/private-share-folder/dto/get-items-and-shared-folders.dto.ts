@@ -13,7 +13,30 @@ export interface GetItemsReponse {
   token: string;
 }
 
+export interface GetFoldersReponse {
+  items: FolderWithSharedInfo[];
+  credentials: {
+    networkPass: User['userId'];
+    networkUser: User['bridgeUser'];
+  };
+  token: string;
+}
+
+export interface GetFilesResponse {
+  items: FileWithSharedInfo[];
+  credentials: {
+    networkPass: User['userId'];
+    networkUser: User['bridgeUser'];
+  };
+  token: string;
+}
 export interface FolderWithSharedInfo extends Folder {
+  encryptionKey: PrivateSharingFolder['encryptionKey'] | null;
+  dateShared: Date | null;
+  sharedWithMe: boolean | null;
+}
+
+export interface FileWithSharedInfo extends File {
   encryptionKey: PrivateSharingFolder['encryptionKey'] | null;
   dateShared: Date | null;
   sharedWithMe: boolean | null;

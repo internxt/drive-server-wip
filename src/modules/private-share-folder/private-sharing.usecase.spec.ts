@@ -247,7 +247,7 @@ describe('Private Sharing Use Cases', () => {
         jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
         await expect(
-          privateSharingUseCase.getItems(folder.uuid, null, user, 0, 10, []),
+          privateSharingUseCase.getFiles(folder.uuid, null, user, 0, 10, []),
         ).rejects.toThrow(SharedFolderInTheTrashError);
         expect(true).toBeTruthy();
       });
@@ -265,7 +265,7 @@ describe('Private Sharing Use Cases', () => {
         jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
 
         await expect(
-          privateSharingUseCase.getItems(folder.uuid, null, user, 0, 10, []),
+          privateSharingUseCase.getFiles(folder.uuid, null, user, 0, 10, []),
         ).rejects.toThrow(SharedFolderRemovedError);
         expect(true).toBeTruthy();
       });
@@ -292,11 +292,10 @@ describe('Private Sharing Use Cases', () => {
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedFiles);
 
         const {
-          folders: receivedFolders,
-          files,
+          items: files,
           token,
           credentials,
-        } = await privateSharingUseCase.getItems(
+        } = await privateSharingUseCase.getFiles(
           folder.uuid,
           null,
           user,
@@ -306,7 +305,6 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(files).toStrictEqual(expectedFiles);
         expect(token).toStrictEqual('');
         expect(credentials).toStrictEqual({
@@ -370,11 +368,10 @@ describe('Private Sharing Use Cases', () => {
           .mockResolvedValue(user);
 
         const {
-          folders: receivedFolders,
-          files,
+          items: files,
           token,
           credentials,
-        } = await privateSharingUseCase.getItems(
+        } = await privateSharingUseCase.getFiles(
           folder.uuid,
           null,
           invitedUser,
@@ -384,7 +381,6 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(findRoleSpy).toHaveBeenCalledWith(
           invitedUser.uuid,
           rootSharedFolder.uuid,
@@ -421,7 +417,7 @@ describe('Private Sharing Use Cases', () => {
           .mockResolvedValue(null);
 
         await expect(
-          privateSharingUseCase.getItems(
+          privateSharingUseCase.getFiles(
             folder.uuid,
             null,
             invitedUser,
@@ -456,11 +452,10 @@ describe('Private Sharing Use Cases', () => {
         jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([]);
 
         const {
-          folders: receivedFolders,
-          files,
+          items: files,
           token,
           credentials,
-        } = await privateSharingUseCase.getItems(
+        } = await privateSharingUseCase.getFiles(
           folder.uuid,
           null,
           user,
@@ -470,7 +465,6 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(files).toStrictEqual(expectedFiles);
         expect(token).toStrictEqual('');
         expect(credentials).toStrictEqual({
@@ -549,11 +543,10 @@ describe('Private Sharing Use Cases', () => {
         );
 
         const {
-          folders: receivedFolders,
-          files,
+          items: files,
           token,
           credentials,
-        } = await privateSharingUseCase.getItems(
+        } = await privateSharingUseCase.getFiles(
           folder.uuid,
           tokenFromTheLastCall,
           invitedUser,
@@ -563,7 +556,6 @@ describe('Private Sharing Use Cases', () => {
         );
 
         expect(getFolderByUuidSpy).toHaveBeenCalledWith(folder.uuid);
-        expect(receivedFolders).toStrictEqual(expectedFolderFormatWithShared);
         expect(findRoleSpy).toHaveBeenCalledWith(
           invitedUser.uuid,
           rootSharedFolder.uuid,
@@ -616,7 +608,7 @@ describe('Private Sharing Use Cases', () => {
         );
 
         await expect(
-          privateSharingUseCase.getItems(
+          privateSharingUseCase.getFiles(
             folder.uuid,
             tokenFromTheLastCall,
             invitedUser,
