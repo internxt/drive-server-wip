@@ -190,6 +190,7 @@ export class FolderController {
         limit,
         offset,
         sort: sort && order && [[sort, order]],
+        withSharingDetails: true,
       },
     );
 

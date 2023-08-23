@@ -363,17 +363,32 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      withSharingDetails?: boolean;
+    } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<Folder[]> {
-    const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
-      { ...where, userId },
-      options.limit,
-      options.offset,
-      options.sort,
-    );
+    let foldersWithMaybePlainName;
+    if (!options?.withSharingDetails)
+      foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
+        { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    else
+      foldersWithMaybePlainName =
+        await this.folderRepository.findAllCursorWithShareInfo(
+          { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
 
     return foldersWithMaybePlainName.map((folder) =>
       folder.plainName ? folder : this.decryptFolderName(folder),

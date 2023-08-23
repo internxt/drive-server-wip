@@ -1,3 +1,5 @@
+import { Share } from '../share/share.domain';
+
 export interface FolderAttributes {
   id: number;
   parentId: number;
@@ -15,4 +17,5 @@ export interface FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   removedAt: Date;
+  shares?: Share[];
 }

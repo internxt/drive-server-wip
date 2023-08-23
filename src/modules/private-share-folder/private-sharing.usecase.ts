@@ -464,8 +464,6 @@ export class PrivateSharingUseCase {
       throw new ForbiddenException('Invalid token');
     }
 
-    console.log('user.uuid', user.uuid);
-
     const userRole =
       await this.privateSharingRespository.findPrivateFolderRoleByFolderIdAndUserId(
         user.uuid,
@@ -506,8 +504,6 @@ export class PrivateSharingUseCase {
         );
       }
     }
-
-    console.log({ parentFolder, folder });
 
     return {
       items: await getFolderContent(owner.id, folder.id),

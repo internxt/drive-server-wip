@@ -15,6 +15,8 @@ import {
 import { UserModel } from '../user/user.model';
 import { FolderAttributes } from './folder.attributes';
 import { PrivateSharingFolderModel } from '../private-share-folder/private-sharing-folder.model';
+import { ShareModel } from '../share/share.repository';
+import { Share } from '../share/share.domain';
 
 @Table({
   underscored: true,
@@ -88,4 +90,7 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   removedAt: Date;
+
+  @HasMany(() => ShareModel, 'folderId')
+  shares: Share[];
 }

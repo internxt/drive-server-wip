@@ -11,6 +11,7 @@ import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
+import { ShareModel } from '../share/share.repository';
 
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
@@ -63,6 +64,36 @@ export class SequelizeFolderRepository implements FolderRepository {
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where,
+      order,
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithShareInfo(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      include: [
+        {
+          model: ShareModel,
+          attributes: [
+            'id',
+            'active',
+            'hashed_password',
+            'code',
+            'token',
+            'is_folder',
+          ],
+          required: false,
+        },
+      ],
       limit,
       offset,
       where,
