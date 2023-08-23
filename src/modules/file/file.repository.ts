@@ -257,6 +257,19 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
+  async findOneByFileId(
+    fileId: FileAttributes['fileId'],
+    userId: FileAttributes['userId'],
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        fileId: fileId,
+        userId,
+      },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
   async updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],

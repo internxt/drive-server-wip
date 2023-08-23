@@ -42,8 +42,14 @@ export class FileUseCases {
     throw new Error('Method not implemented.');
   }
 
-  getByFileIdAndUser(arg: any): Promise<File> {
-    throw new Error('Method not implemented.');
+  async getByFileIdAndUser(user: User, fileId: File['fileId']): Promise<File> {
+    const file = await this.fileRepository.findOneByFileId(fileId, user.id);
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return file;
   }
 
   async deleteFilePermanently(file: File, user: User): Promise<void> {

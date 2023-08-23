@@ -75,6 +75,35 @@ export class FileController {
     }
   }
 
+  @Get('/:fileId/metadata')
+  async getFileById(
+    @UserDecorator() user: User,
+    @Param('fileId') fileId: File['fileId'],
+  ) {
+    if (!fileId) {
+      throw new BadRequestException('Invalid FileID');
+    }
+
+    try {
+      const file = await this.fileUseCases.getByFileIdAndUser(user, fileId);
+
+      return file;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATA] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
+  }
+
   @Get('/')
   async getFiles(
     @UserDecorator() user: User,
