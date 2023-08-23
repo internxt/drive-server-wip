@@ -34,6 +34,10 @@ export interface FolderWithSharedInfo extends Folder {
   encryptionKey: PrivateSharingFolder['encryptionKey'] | null;
   dateShared: Date | null;
   sharedWithMe: boolean | null;
+  credentials: {
+    networkPass: User['userId'];
+    networkUser: User['bridgeUser'];
+  };
 }
 
 export interface FileWithSharedInfo extends File {
