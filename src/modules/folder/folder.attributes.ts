@@ -1,3 +1,4 @@
+import { PrivateSharingFolder } from '../private-share-folder/private-sharing-folder.domain';
 import { Share } from '../share/share.domain';
 
 export interface FolderAttributes {
@@ -18,4 +19,5 @@ export interface FolderAttributes {
   updatedAt: Date;
   removedAt: Date;
   shares?: Share[];
+  privateShares?: PrivateSharingFolder[];
 }

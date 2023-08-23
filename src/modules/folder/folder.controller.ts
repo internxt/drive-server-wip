@@ -185,6 +185,7 @@ export class FolderController {
       {
         parentId: folderId,
         deleted: false,
+        removed: false,
       },
       {
         limit,

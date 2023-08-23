@@ -1,3 +1,4 @@
+import { PrivateSharingFolder } from 'src/modules/private-share-folder/private-sharing-folder.domain';
 import { Share } from '../../../modules/share/share.domain';
 
 export class FolderDto {
@@ -17,4 +18,5 @@ export class FolderDto {
   createdAt: Date;
   updatedAt: Date;
   shares?: Share[];
+  privateShares?: PrivateSharingFolder[];
 }
