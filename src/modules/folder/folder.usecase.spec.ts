@@ -463,6 +463,8 @@ describe('FolderUseCases', () => {
       const expectedResult = {
         ...folderAtributes,
         size: 0,
+        shares: [],
+        privateShares: [],
       };
       delete expectedResult.parentId;
 
