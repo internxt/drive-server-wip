@@ -226,8 +226,13 @@ export class PrivateSharingUseCase {
         encryptionKey: folderWithSharedInfo.encryptionKey,
         dateShared: folderWithSharedInfo.createdAt,
         sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
+        credentials: {
+          networkPass: folderWithSharedInfo.folder.user.userId,
+          networkUser: folderWithSharedInfo.folder.user.bridgeUser,
+        },
       };
     }) as FolderWithSharedInfo[];
+
     return {
       folders: folders,
       files: [],
