@@ -99,6 +99,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           attributes: ['id'],
           required: false,
           as: 'privateShares',
+          limit: 1, // used to check if there is at least one private share
         },
       ],
       limit,
