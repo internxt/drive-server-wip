@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsEnum, IsNotEmpty } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsPositive,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum ItemType {
@@ -13,6 +21,8 @@ export class ItemToTrash {
     example: '4',
     description: 'Id of file or folder',
   })
+  @IsInt()
+  @IsPositive()
   id: string;
 
   @IsEnum(ItemType)
@@ -24,11 +34,12 @@ export class ItemToTrash {
 }
 
 export class MoveItemsToTrashDto {
-  @IsNotEmpty()
   @ApiProperty({
     description: 'Array of items with files and folders ids',
   })
+  @IsArray()
   @ArrayMaxSize(50)
   @Type(() => ItemToTrash)
+  @ValidateNested()
   items: ItemToTrash[];
 }
