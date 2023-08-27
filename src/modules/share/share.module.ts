@@ -37,11 +37,11 @@ import { FileModel } from '../file/file.model';
   providers: [
     {
       provide: FOLDER_MODEL_TOKEN,
-      useValue: null,
+      useValue: FolderModel,
     },
     {
       provide: USER_MODEL_TOKEN,
-      useValue: null,
+      useValue: UserModel,
     },
     SequelizeShareRepository,
     SequelizeFileRepository,
