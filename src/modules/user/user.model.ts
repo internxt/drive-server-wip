@@ -15,6 +15,7 @@ import {
 import { FolderModel } from '../folder/folder.model';
 import { UserAttributes } from './user.attributes';
 
+export const USER_MODEL_TOKEN = Symbol('UserModelToken');
 @Table({
   underscored: true,
   timestamps: true,

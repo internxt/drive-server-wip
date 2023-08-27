@@ -22,10 +22,11 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { FolderModel } from './folder.model';
+import { FOLDER_MODEL_TOKEN, FolderModel } from './folder.model';
 import { FileModel } from '../file/file.model';
 import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { USER_MODEL_TOKEN } from '../user/user.model';
 
 const folderId = 4;
 const userId = 1;
@@ -42,6 +43,14 @@ describe('FolderUseCases', () => {
         FileUseCases,
         SequelizeFileRepository,
         SequelizeFolderRepository,
+        {
+          provide: FOLDER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
+        {
+          provide: USER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
         {
           provide: getModelToken(FolderModel),
           useValue: jest.fn(),

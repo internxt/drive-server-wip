@@ -26,6 +26,8 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { FileModel } from './file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { USER_MODEL_TOKEN } from '../user/user.model';
+import { FOLDER_MODEL_TOKEN } from '../folder/folder.model';
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
@@ -71,6 +73,14 @@ describe('FileUseCases', () => {
       providers: [
         FileUseCases,
         SequelizeFileRepository,
+        {
+          provide: FOLDER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
+        {
+          provide: USER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
         {
           provide: getModelToken(FileModel),
           useValue: jest.fn(),

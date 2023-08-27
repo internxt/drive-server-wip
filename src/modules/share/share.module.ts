@@ -5,11 +5,11 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 import { FileModule } from '../file/file.module';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
-import { FolderModel } from '../folder/folder.model';
+import { FOLDER_MODEL_TOKEN, FolderModel } from '../folder/folder.model';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { UserModule } from '../user/user.module';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { UserModel } from '../user/user.model';
+import { USER_MODEL_TOKEN, UserModel } from '../user/user.model';
 import { ShareController } from './share.controller';
 import { SequelizeShareRepository, ShareModel } from './share.repository';
 import { ShareUseCases } from './share.usecase';
@@ -20,14 +20,14 @@ import { FileModel } from '../file/file.model';
 @Module({
   imports: [
     SequelizeModule.forFeature([
+      FolderModel,
       ShareModel,
       FileModel,
-      FolderModel,
       UserModel,
       ThumbnailModel,
     ]),
-    forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
+    forwardRef(() => FileModule),
     forwardRef(() => UserModule),
     forwardRef(() => ThumbnailModule),
     NotificationModule,
@@ -35,6 +35,14 @@ import { FileModel } from '../file/file.model';
   ],
   controllers: [ShareController],
   providers: [
+    {
+      provide: FOLDER_MODEL_TOKEN,
+      useValue: null,
+    },
+    {
+      provide: USER_MODEL_TOKEN,
+      useValue: null,
+    },
     SequelizeShareRepository,
     SequelizeFileRepository,
     SequelizeFolderRepository,

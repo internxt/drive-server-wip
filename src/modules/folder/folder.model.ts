@@ -19,6 +19,7 @@ import { ShareModel } from '../share/share.repository';
 import { Share } from '../share/share.domain';
 import { PrivateSharingFolder } from '../private-share-folder/private-sharing-folder.domain';
 
+export const FOLDER_MODEL_TOKEN = Symbol('FolderModelToken');
 @Table({
   underscored: true,
   timestamps: true,

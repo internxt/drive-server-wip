@@ -22,6 +22,8 @@ import { CryptoModule } from '../..//externals/crypto/crypto.module';
 import { NotFoundException } from '@nestjs/common';
 import { FileModel } from '../file/file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { USER_MODEL_TOKEN } from '../user/user.model';
+import { FOLDER_MODEL_TOKEN } from '../folder/folder.model';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -63,6 +65,14 @@ describe('Trash Use Cases', () => {
         TrashUseCases,
         FileUseCases,
         SequelizeFileRepository,
+        {
+          provide: FOLDER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
+        {
+          provide: USER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
         {
           provide: getModelToken(FileModel),
           useValue: jest.fn(),

@@ -50,6 +50,8 @@ import { FileModel } from '../file/file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
+import { FOLDER_MODEL_TOKEN } from '../folder/folder.model';
+import { USER_MODEL_TOKEN } from '../user/user.model';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -223,6 +225,14 @@ describe('Share Use Cases', () => {
         ConfigService,
         NewsletterService,
         AvatarService,
+        {
+          provide: FOLDER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
+        {
+          provide: USER_MODEL_TOKEN,
+          useValue: jest.fn(),
+        },
         {
           provide: HttpClient,
           useValue: {

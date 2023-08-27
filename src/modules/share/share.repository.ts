@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
 import { File, FileAttributes } from '../file/file.domain';
@@ -17,8 +22,8 @@ import {
 } from 'sequelize-typescript';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { UserModel } from '../user/user.model';
-import { FolderModel } from '../folder/folder.model';
+import { USER_MODEL_TOKEN, UserModel } from '../user/user.model';
+import { FOLDER_MODEL_TOKEN, FolderModel } from '../folder/folder.model';
 import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
@@ -135,9 +140,9 @@ export class SequelizeShareRepository implements ShareRepository {
     private shareModel: typeof ShareModel,
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
-    @InjectModel(FolderModel)
+    @Inject(forwardRef(() => FOLDER_MODEL_TOKEN))
     private folderModel: typeof FolderModel,
-    @InjectModel(UserModel)
+    @Inject(forwardRef(() => USER_MODEL_TOKEN))
     private userModel: typeof UserModel,
   ) {}
 
