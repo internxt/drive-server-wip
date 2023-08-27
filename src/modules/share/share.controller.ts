@@ -264,7 +264,7 @@ export class ShareController {
         body,
       )}`,
     );
-    console.log('1');
+
     try {
       const share = await this.shareUseCases.createShareFolder(
         parseInt(folderId),
