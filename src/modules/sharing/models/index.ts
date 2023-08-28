@@ -32,7 +32,6 @@ export class PermissionModel extends Model implements PermissionAttributes {
   roleId: string;
 
   @Column
-  @NotNull
   name: string;
 
   @Column
@@ -53,7 +52,6 @@ export class RoleModel extends Model implements RoleAttributes {
   id: string;
 
   @Column
-  @NotNull
   name: string;
 
   @Column
@@ -74,11 +72,11 @@ export class SharingRolesModel extends Model implements SharingRoleAttributes {
   id: SharingRoleAttributes['id'];
 
   @ForeignKey(() => SharingModel)
-  @Column
+  @Column(DataType.UUIDV4)
   sharingId: SharingRoleAttributes['sharingId'];
 
   @ForeignKey(() => RoleModel)
-  @Column
+  @Column(DataType.UUIDV4)
   roleId: SharingRoleAttributes['roleId'];
 
   @BelongsTo(() => RoleModel)
@@ -101,24 +99,24 @@ export class SharingModel extends Model implements SharingAttributes {
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
-  @Column
+  @Column(DataType.UUIDV4)
   itemId: SharingAttributes['itemId'];
 
-  @Column
+  @Column(DataType.STRING)
   itemType: SharingAttributes['itemType'];
 
   @ForeignKey(() => UserModel)
-  @Column
+  @Column(DataType.UUIDV4)
   ownerId: SharingAttributes['ownerId'];
 
   @ForeignKey(() => UserModel)
-  @Column
+  @Column(DataType.UUIDV4)
   sharedWith: SharingAttributes['sharedWith'];
 
-  @Column
+  @Column(DataType.STRING)
   encryptionAlgorithm: SharingAttributes['encryptionAlgorithm'];
 
-  @Column
+  @Column(DataType.STRING)
   encryptionKey: SharingAttributes['encryptionKey'];
 
   @Column
@@ -141,27 +139,27 @@ export class SharingInviteModel
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
-  @Column
+  @Column(DataType.UUIDV4)
   itemId: SharingInviteAttributes['itemId'];
 
-  @Column
+  @Column(DataType.STRING)
   itemType: SharingInviteAttributes['itemType'];
 
   @ForeignKey(() => UserModel)
-  @Column
+  @Column(DataType.UUIDV4)
   sharedWith: SharingInviteAttributes['sharedWith'];
 
-  @Column
+  @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];
 
-  @Column
+  @Column(DataType.STRING)
   encryptionAlgorithm: SharingInviteAttributes['encryptionAlgorithm'];
 
-  @Column
+  @Column(DataType.STRING)
   type: SharingInviteAttributes['type'];
 
   @ForeignKey(() => RoleModel)
-  @Column
+  @Column(DataType.UUIDV4)
   roleId: SharingInviteAttributes['roleId'];
 
   @Column
