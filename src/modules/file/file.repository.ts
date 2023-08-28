@@ -68,6 +68,20 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async findById(
+    fileUuid: string,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        ...where,
+      },
+    });
+
+    return this.toDomain(file);
+  }
+
   async findByUuid(
     fileUuid: string,
     userId: number,
