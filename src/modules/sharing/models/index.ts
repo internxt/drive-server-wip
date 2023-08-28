@@ -13,7 +13,6 @@ import {
   RoleAttributes,
   SharingAttributes,
   SharingInviteAttributes,
-  SharingKeyAttributes,
   SharingRoleAttributes,
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
@@ -116,29 +115,11 @@ export class SharingModel extends Model implements SharingAttributes {
   @Column
   sharedWith: SharingAttributes['sharedWith'];
 
-  @ForeignKey(() => SharingKeyModel)
   @Column
-  sharingKeyId: SharingAttributes['sharingKeyId'];
+  encryptionAlgorithm: SharingAttributes['encryptionAlgorithm'];
 
   @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-}
-
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'sharing_keys',
-})
-export class SharingKeyModel extends Model implements SharingKeyAttributes {
-  @PrimaryKey
-  @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: SharingAttributes['id'];
-
-  @Column
-  key: SharingKeyAttributes['key'];
+  encryptionKey: SharingAttributes['encryptionKey'];
 
   @Column
   createdAt: Date;
@@ -178,6 +159,10 @@ export class SharingInviteModel
 
   @Column
   type: SharingInviteAttributes['type'];
+
+  @ForeignKey(() => RoleModel)
+  @Column
+  roleId: SharingInviteAttributes['roleId'];
 
   @Column
   createdAt: Date;
