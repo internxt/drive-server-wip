@@ -19,7 +19,7 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      ownerId: {
+      owner_id: {
         type: Sequelize.UUID,
         allowNull: false,
       },

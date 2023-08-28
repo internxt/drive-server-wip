@@ -27,7 +27,7 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      encryptionKey: {
+      encryption_key: {
         type: Sequelize.STRING,
         allowNull: false,
       },
@@ -35,7 +35,7 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      roleId: {
+      role_id: {
         type: Sequelize.UUID,
         allowNull: false,
       },
