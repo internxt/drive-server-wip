@@ -4,25 +4,20 @@ import { User } from '../user/user.domain';
 
 type ItemId = File['uuid'] | Folder['uuid'];
 
-export interface SharingKeyAttributes {
-  id: string;
-  key: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface SharingAttributes {
   id: string;
   itemId: ItemId;
   itemType: 'file' | 'folder';
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
-  sharingKeyId: SharingKeyAttributes['id'];
+  encryptionKey: string;
+  encryptionAlgorithm: string;
 }
 
 export interface SharingRoleAttributes {
   id: string;
-  role: string;
+  sharingId: SharingAttributes['id'];
+  roleId: RoleAttributes['id'];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,41 +33,11 @@ export interface PermissionAttributes {
   name: string;
 }
 
-export interface SharingInviteAttributes {
+export interface SharingInviteAttributes
+  extends Omit<SharingAttributes, 'ownerId'> {
   id: string;
-  itemId: ItemId;
-  itemType: 'file' | 'folder';
-  sharedWith: User['uuid'];
-  encryptionKey: string;
-  encryptionAlgorithm: string;
   type: 'SELF' | 'OWNER';
-}
-
-export class SharingKey implements SharingKeyAttributes {
-  id: string;
-  key: string;
-  createdAt: Date;
-  updatedAt: Date;
-
-  constructor(attributes: SharingKeyAttributes) {
-    this.id = attributes.id;
-    this.key = attributes.key;
-    this.createdAt = attributes.createdAt;
-    this.updatedAt = attributes.updatedAt;
-  }
-
-  static build(sharingKey: SharingKeyAttributes): SharingKey {
-    return new SharingKey(sharingKey);
-  }
-
-  toJSON(): SharingKeyAttributes {
-    return {
-      id: this.id,
-      key: this.key,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
-  }
+  roleId: RoleAttributes['id'];
 }
 
 export class Sharing implements SharingAttributes {
@@ -81,7 +46,8 @@ export class Sharing implements SharingAttributes {
   itemType: 'file' | 'folder';
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
-  sharingKeyId: SharingKeyAttributes['id'];
+  encryptionKey: string;
+  encryptionAlgorithm: string;
 
   constructor(attributes: SharingAttributes) {
     this.id = attributes.id;
@@ -89,11 +55,16 @@ export class Sharing implements SharingAttributes {
     this.itemType = attributes.itemType;
     this.ownerId = attributes.ownerId;
     this.sharedWith = attributes.sharedWith;
-    this.sharingKeyId = attributes.sharingKeyId;
+    this.encryptionKey = attributes.encryptionKey;
+    this.encryptionAlgorithm = attributes.encryptionAlgorithm;
   }
 
   static build(sharing: SharingAttributes): Sharing {
     return new Sharing(sharing);
+  }
+
+  isOwnedBy(user: User): boolean {
+    return this.ownerId === user.uuid;
   }
 
   toJSON(): SharingAttributes {
@@ -103,20 +74,23 @@ export class Sharing implements SharingAttributes {
       itemType: this.itemType,
       ownerId: this.ownerId,
       sharedWith: this.sharedWith,
-      sharingKeyId: this.sharingKeyId,
+      encryptionKey: this.encryptionKey,
+      encryptionAlgorithm: this.encryptionAlgorithm,
     };
   }
 }
 
 export class SharingRole implements SharingRoleAttributes {
   id: string;
-  role: string;
+  sharingId: SharingAttributes['id'];
+  roleId: RoleAttributes['id'];
   createdAt: Date;
   updatedAt: Date;
 
   constructor(attributes: SharingRoleAttributes) {
     this.id = attributes.id;
-    this.role = attributes.role;
+    this.sharingId = attributes.sharingId;
+    this.roleId = attributes.roleId;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
   }
@@ -128,7 +102,8 @@ export class SharingRole implements SharingRoleAttributes {
   toJSON(): SharingRoleAttributes {
     return {
       id: this.id,
-      role: this.role,
+      sharingId: this.sharingId,
+      roleId: this.roleId,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
@@ -188,6 +163,7 @@ export class SharingInvite implements SharingInviteAttributes {
   encryptionKey: string;
   encryptionAlgorithm: string;
   type: 'SELF' | 'OWNER';
+  roleId: string;
 
   constructor(attributes: SharingInviteAttributes) {
     this.id = attributes.id;
@@ -197,10 +173,19 @@ export class SharingInvite implements SharingInviteAttributes {
     this.encryptionKey = attributes.encryptionKey;
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
     this.type = attributes.type;
+    this.roleId = attributes.roleId;
   }
 
   static build(sharingInvite: SharingInviteAttributes): SharingInvite {
     return new SharingInvite(sharingInvite);
+  }
+
+  isARequest(): boolean {
+    return this.type === 'SELF';
+  }
+
+  isSharedWith(user: User): boolean {
+    return user.uuid === this.sharedWith;
   }
 
   toJSON(): SharingInviteAttributes {
@@ -212,6 +197,7 @@ export class SharingInvite implements SharingInviteAttributes {
       encryptionKey: this.encryptionKey,
       encryptionAlgorithm: this.encryptionAlgorithm,
       type: this.type,
+      roleId: this.roleId,
     };
   }
 }
