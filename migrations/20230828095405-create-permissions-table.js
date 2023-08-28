@@ -15,6 +15,10 @@ module.exports = {
       role_id: {
         type: Sequelize.UUID,
         allowNull: false,
+        references: {
+          model: 'roles',
+          key: 'id',
+        },
       },
       name: {
         type: Sequelize.STRING,
@@ -23,10 +27,12 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
+        defaultValue: Sequelize.NOW,
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
+        defaultValue: Sequelize.NOW,
       },
     });
   },

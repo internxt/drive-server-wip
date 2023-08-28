@@ -20,15 +20,19 @@ module.exports = {
         allowNull: false,
       },
       shared_with: {
-        type: Sequelize.UUID,
+        type: Sequelize.STRING(36),
         allowNull: false,
+        references: {
+          model: 'users',
+          key: 'uuid',
+        },
       },
       encryption_algorithm: {
         type: Sequelize.STRING,
         allowNull: false,
       },
       encryption_key: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(800),
         allowNull: false,
       },
       type: {
@@ -38,14 +42,20 @@ module.exports = {
       role_id: {
         type: Sequelize.UUID,
         allowNull: false,
+        references: {
+          model: 'roles',
+          key: 'id',
+        },
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
+        defaultValue: Sequelize.NOW,
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
+        defaultValue: Sequelize.NOW,
       },
     });
   },

@@ -14,10 +14,18 @@ module.exports = {
       sharing_id: {
         type: Sequelize.UUID,
         allowNull: false,
+        references: {
+          model: 'sharings',
+          key: 'id',
+        },
       },
       role_id: {
         type: Sequelize.UUID,
         allowNull: false,
+        references: {
+          model: 'roles',
+          key: 'id',
+        },
       },
       created_at: {
         type: Sequelize.DATE,
