@@ -468,7 +468,7 @@ export class SharingService {
 
     if (isAnInvitation) {
       if (createInviteDto.itemType === 'file') {
-        throw new Error('Method not implemented');
+        throw new NotImplementedException();
       }
 
       const item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
@@ -481,6 +481,8 @@ export class SharingService {
       const invite = SharingInvite.build({
         id: v4(),
         ...createInviteDto,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       delete invite['id'];
