@@ -155,8 +155,8 @@ export class TrashController {
         this.fileUseCases.getFilesByFilesIds(user.id, fileIds),
         this.folderUseCases.getFoldersByIds(user, folderIds),
       ]);
-
-      if (files.length === 0 && folders.length === 0) {
+      const trashedItems = [...files, ...folders];
+      if (trashedItems.length === 0) {
         throw new BadRequestException('items not trasheables');
       }
 
@@ -179,7 +179,7 @@ export class TrashController {
           // no op
         });
 
-      return { trashedItems: [...folders, ...files] };
+      return { trashedItems };
     } catch (err) {
       const { email, uuid } = user;
       if (err instanceof BadRequestException) {
