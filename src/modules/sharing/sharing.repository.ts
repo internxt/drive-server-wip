@@ -48,6 +48,7 @@ interface SharingRepository {
 
   findRoles(): Promise<Role[]>;
   deleteSharingRole(sharingRole: SharingRole): Promise<void>;
+  deleteSharingRolesBySharing(sharing: Sharing): Promise<void>;
 }
 
 @Injectable()
@@ -329,6 +330,14 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharingRoles.destroy({
       where: {
         id: sharingRole.id,
+      },
+    });
+  }
+
+  async deleteSharingRolesBySharing(sharing: Sharing): Promise<void> {
+    await this.sharingRoles.destroy({
+      where: {
+        sharingId: sharing.id,
       },
     });
   }
