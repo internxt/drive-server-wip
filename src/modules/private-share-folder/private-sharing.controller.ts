@@ -46,7 +46,11 @@ import { GrantPrivilegesDto } from './dto/grant-privileges.dto';
 import { CreatePrivateSharingDto } from './dto/create-private-sharing.dto';
 import { UpdatePrivateSharingFolderRoleDto } from './dto/update-private-sharing-folder-role.dto';
 import { PrivateSharingRole } from './private-sharing-role.domain';
-import { GetFilesResponse, GetFoldersReponse, GetItemsReponse } from './dto/get-items-and-shared-folders.dto';
+import {
+  GetFilesResponse,
+  GetFoldersReponse,
+  GetItemsReponse,
+} from './dto/get-items-and-shared-folders.dto';
 
 @ApiTags('Private Sharing')
 @Controller('private-sharing')

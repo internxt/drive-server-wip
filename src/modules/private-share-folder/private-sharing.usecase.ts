@@ -296,15 +296,13 @@ export class PrivateSharingUseCase {
   async removeSharedWith(
     folderUuid: Folder['uuid'],
     sharedWithUuid: User['uuid'],
-    owner: User,
+    requester: User,
   ): Promise<void> {
     const folder = await this.folderUsecase.getByUuid(folderUuid);
 
-    if (!folder.isOwnedBy(owner)) {
-      throw new InvalidOwnerError();
-    }
+    const isRequesterOwner = folder.isOwnedBy(requester);
 
-    if (owner.uuid === sharedWithUuid) {
+    if (isRequesterOwner && requester.uuid === sharedWithUuid) {
       throw new OwnerCannotBeRemovedWithError();
     }
 
