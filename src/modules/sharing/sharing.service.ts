@@ -177,6 +177,284 @@ export class SharingService {
     return this.sharingRepository.getInvitesByItem(itemId, itemType);
   }
 
+  async getFolders(
+    folderId: Folder['uuid'],
+    token: string | null,
+    user: User,
+    page: number,
+    perPage: number,
+    order: [string, string][],
+  ): Promise<GetFoldersReponse> {
+    const getFolderContent = async (
+      userId: User['id'],
+      folderId: Folder['id'],
+    ) => {
+      const folders = (
+        await this.folderUsecases.getFoldersWithParent(
+          userId,
+          {
+            parentId: folderId,
+            deleted: false,
+            removed: false,
+          },
+          {
+            limit: perPage,
+            offset: page * perPage,
+          },
+        )
+      ).map((folder) => {
+        return {
+          ...folder,
+          encryptionKey: null,
+          dateShared: null,
+          sharedWithMe: null,
+        };
+      }) as FolderWithSharedInfo[];
+
+      return folders;
+    };
+    const folder = await this.folderUsecases.getByUuid(folderId);
+
+    if (folder.isTrashed()) {
+      throw new SharedFolderInTheTrashError();
+    }
+
+    if (folder.isRemoved()) {
+      throw new SharedFolderRemovedError();
+    }
+
+    const parentFolder = folder.parentId
+      ? await this.folderUsecases.getFolder(folder.parentId)
+      : null;
+
+    if (folder.isOwnedBy(user)) {
+      return {
+        items: await getFolderContent(user.id, folder.id),
+        credentials: {
+          networkPass: user.userId,
+          networkUser: user.bridgeUser,
+        },
+        token: '',
+      };
+    }
+
+    const requestedFolderIsSharedRootFolder = !token;
+
+    const decoded = requestedFolderIsSharedRootFolder
+      ? null
+      : (verifyWithDefaultSecret(token) as
+          | {
+              sharedRootFolderId: Folder['uuid'];
+              parentFolderId: Folder['parent']['uuid'];
+              folder: {
+                uuid: Folder['uuid'];
+                id: Folder['id'];
+              };
+              owner: {
+                id: User['id'];
+                uuid: User['uuid'];
+              };
+            }
+          | string);
+
+    if (typeof decoded === 'string') {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    const sharing = await this.sharingRepository.findOneSharing({
+      sharedWith: user.uuid,
+      itemId: requestedFolderIsSharedRootFolder
+        ? folderId
+        : decoded.sharedRootFolderId,
+    });
+
+    if (!sharing) {
+      throw new ForbiddenException('User does not have access to this folder');
+    }
+
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+
+    if (!requestedFolderIsSharedRootFolder) {
+      const navigationUp = folder.uuid === decoded.parentFolderId;
+      const navigationDown = folder.parentId === decoded.folder.id;
+      const navigationUpFromSharedFolder =
+        navigationUp && decoded.sharedRootFolderId === decoded.folder.uuid;
+
+      if (navigationUpFromSharedFolder) {
+        throw new ForbiddenException(
+          'User does not have access to this folder',
+        );
+      }
+
+      if (!navigationDown && !navigationUp) {
+        throw new ForbiddenException(
+          'User does not have access to this folder',
+        );
+      }
+    }
+
+    return {
+      items: await getFolderContent(owner.id, folder.id),
+      credentials: {
+        networkPass: owner.userId,
+        networkUser: owner.bridgeUser,
+      },
+      token: generateTokenWithPlainSecret(
+        {
+          sharedRootFolderId: sharing.itemId,
+          parentFolderId: parentFolder?.uuid || null,
+          folder: {
+            uuid: folder.uuid,
+            id: folder.id,
+          },
+          owner: {
+            id: owner.id,
+            uuid: owner.uuid,
+          },
+        },
+        '1d',
+        getEnv().secrets.jwt,
+      ),
+    };
+  }
+
+  async getFiles(
+    folderId: Folder['uuid'],
+    token: string | null,
+    user: User,
+    page: number,
+    perPage: number,
+    order: [string, string][],
+  ): Promise<GetFilesResponse> {
+    const getFilesFromFolder = async (
+      userId: User['id'],
+      folderId: Folder['id'],
+    ) => {
+      const files = (
+        await this.fileUsecases.getFiles(
+          userId,
+          {
+            folderId: folderId,
+            status: FileStatus.EXISTS,
+          },
+          {
+            limit: perPage,
+            offset: page * perPage,
+          },
+        )
+      ).map((file) => {
+        return {
+          ...file,
+          encryptionKey: null,
+          dateShared: null,
+          sharedWithMe: null,
+        };
+      }) as FileWithSharedInfo[];
+
+      return files;
+    };
+    const folder = await this.folderUsecases.getByUuid(folderId);
+
+    if (folder.isTrashed()) {
+      throw new SharedFolderInTheTrashError();
+    }
+
+    if (folder.isRemoved()) {
+      throw new SharedFolderRemovedError();
+    }
+
+    const parentFolder = folder.parentId
+      ? await this.folderUsecases.getFolder(folder.parentId)
+      : null;
+
+    if (folder.isOwnedBy(user)) {
+      return {
+        items: await getFilesFromFolder(user.id, folder.id),
+        credentials: {
+          networkPass: user.userId,
+          networkUser: user.bridgeUser,
+        },
+        token: '',
+      };
+    }
+
+    const requestedFolderIsSharedRootFolder = !token;
+
+    const decoded = requestedFolderIsSharedRootFolder
+      ? null
+      : (verifyWithDefaultSecret(token) as
+          | {
+              sharedRootFolderId: Folder['uuid'];
+              parentFolderId: Folder['parent']['uuid'];
+              folder: {
+                uuid: Folder['uuid'];
+                id: Folder['id'];
+              };
+              owner: {
+                id: User['id'];
+                uuid: User['uuid'];
+              };
+            }
+          | string);
+
+    if (typeof decoded === 'string') {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    const sharing = await this.sharingRepository.findOneSharing({
+      sharedWith: user.uuid,
+      itemId: requestedFolderIsSharedRootFolder
+        ? folderId
+        : decoded.sharedRootFolderId,
+    });
+
+    if (!sharing) {
+      throw new ForbiddenException('User does not have access to this folder');
+    }
+
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+
+    if (!requestedFolderIsSharedRootFolder) {
+      const navigationUp = folder.uuid === decoded.parentFolderId;
+      const navigationDown = folder.parentId === decoded.folder.id;
+      const insideTheSharedRootFolder =
+        decoded.sharedRootFolderId === decoded.folder.uuid;
+
+      if (
+        (!navigationDown && !navigationUp) ||
+        (navigationUp && insideTheSharedRootFolder)
+      ) {
+        throw new ForbiddenException(
+          'User does not have access to this folder',
+        );
+      }
+    }
+
+    return {
+      items: await getFilesFromFolder(owner.id, folder.id),
+      credentials: {
+        networkPass: owner.userId,
+        networkUser: owner.bridgeUser,
+      },
+      token: generateTokenWithPlainSecret(
+        {
+          sharedRootFolderId: sharing.itemId,
+          parentFolderId: parentFolder?.uuid || null,
+          folder: {
+            uuid: folder.uuid,
+            id: folder.id,
+          },
+          owner: {
+            id: owner.id,
+            uuid: owner.uuid,
+          },
+        },
+        '1d',
+        getEnv().secrets.jwt,
+      ),
+    };
+  }
+
   async createInvite(
     user: User,
     createInviteDto: CreateInviteDto,
