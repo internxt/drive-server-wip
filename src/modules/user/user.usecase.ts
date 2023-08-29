@@ -106,6 +106,10 @@ export class UserUseCases {
     private avatarService: AvatarService,
   ) {}
 
+  findByEmail(email: User['email']): Promise<User | null> {
+    return this.userRepository.findByUsername(email);
+  }
+
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
     return this.userRepository.findByUuids(uuids);
   }

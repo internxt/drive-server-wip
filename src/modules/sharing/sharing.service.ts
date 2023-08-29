@@ -466,6 +466,14 @@ export class SharingService {
       throw new BadRequestException();
     }
 
+    const userJoining = await this.usersUsecases.findByEmail(
+      createInviteDto.sharedWith,
+    );
+
+    if (!userJoining) {
+      throw new NotFoundException('Invited user not found');
+    }
+
     if (isAnInvitation) {
       if (createInviteDto.itemType === 'file') {
         throw new NotImplementedException();
@@ -481,6 +489,7 @@ export class SharingService {
       const invite = SharingInvite.build({
         id: v4(),
         ...createInviteDto,
+        sharedWith: userJoining.uuid,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -582,11 +591,45 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    await this.sharingRepository.deleteSharingRolesBySharing(sharing);
     return this.sharingRepository.deleteSharing(id);
   }
 
   async getRoles(): Promise<Role[]> {
     return this.sharingRepository.findRoles();
+  }
+
+  async getUserRole(sharingId: Sharing['id'], user: User): Promise<Role> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id: sharingId,
+    });
+
+    if (sharing.isOwnedBy(user)) {
+      return Role.build({
+        id: v4(),
+        createdAt: sharing.createdAt,
+        name: 'OWNER',
+        updatedAt: sharing.updatedAt,
+      });
+    }
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    const sharingRole = await this.sharingRepository.findSharingRoleBy({
+      sharingId: sharing.id,
+    });
+
+    if (!sharingRole) {
+      throw new NotFoundException();
+    }
+
+    const role = await this.sharingRepository.findRoleBy({
+      id: sharingRole.roleId,
+    });
+
+    return role;
   }
 
   async updateSharingRole(

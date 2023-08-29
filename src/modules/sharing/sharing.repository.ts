@@ -48,6 +48,7 @@ interface SharingRepository {
 
   findRoles(): Promise<Role[]>;
   deleteSharingRole(sharingRole: SharingRole): Promise<void>;
+  deleteSharingRolesBySharing(sharing: Sharing): Promise<void>;
 }
 
 @Injectable()
@@ -98,6 +99,12 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharingRoles.update(update, { where: { id: sharingRoleId } });
   }
 
+  async findRoleBy(where: Partial<Role>): Promise<Role | null> {
+    const raw = await this.roles.findOne({ where });
+
+    return raw ? Role.build(raw) : null;
+  }
+
   async findRoles(): Promise<Role[]> {
     const roles = await this.roles.findAll();
 
@@ -108,6 +115,16 @@ export class SequelizeSharingRepository implements SharingRepository {
     const raw = await this.sharings.findByPk(sharingId);
 
     return Sharing.build(raw);
+  }
+
+  async findSharingRoleBy(
+    where: Partial<SharingRole>,
+  ): Promise<SharingRole | null> {
+    const raw = await this.sharingRoles.findOne({
+      where,
+    });
+
+    return raw ? SharingRole.build(raw) : null;
   }
 
   async findSharingRoles(where: Partial<SharingRole>): Promise<SharingRole[]> {
@@ -329,6 +346,14 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharingRoles.destroy({
       where: {
         id: sharingRole.id,
+      },
+    });
+  }
+
+  async deleteSharingRolesBySharing(sharing: Sharing): Promise<void> {
+    await this.sharingRoles.destroy({
+      where: {
+        sharingId: sharing.id,
       },
     });
   }
