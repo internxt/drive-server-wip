@@ -493,10 +493,12 @@ export class SharingService {
     }
   }
 
-  async acceptInvite(user: User, acceptInviteDto: AcceptInviteDto) {
-    const invite = await this.sharingRepository.getInviteById(
-      acceptInviteDto.invitationId,
-    );
+  async acceptInvite(
+    user: User,
+    inviteId: SharingInvite['id'],
+    acceptInviteDto: AcceptInviteDto,
+  ) {
+    const invite = await this.sharingRepository.getInviteById(inviteId);
 
     if (!invite) {
       throw new NotFoundException();
@@ -543,6 +545,7 @@ export class SharingService {
       roleId: invite.roleId,
       sharingId: sharing.id,
     });
+    await this.sharingRepository.deleteInvite(invite);
   }
 
   async removeInvite(user: User, id: SharingInvite['id']) {
@@ -559,8 +562,9 @@ export class SharingService {
     }
 
     const isUserTheOwnerOfTheResource = item.isOwnedBy(user);
+    const isAnInvitedUser = invite.isSharedWith(user);
 
-    if (!isUserTheOwnerOfTheResource) {
+    if (!isUserTheOwnerOfTheResource && !isAnInvitedUser) {
       throw new ForbiddenException();
     }
 
