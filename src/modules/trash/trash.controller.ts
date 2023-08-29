@@ -169,6 +169,13 @@ export class TrashController {
         .catch((err) => {
           // no op
         });
+
+      const [files, folders] = await Promise.all([
+        this.fileUseCases.getFilesByFilesIds(user.id, fileIds),
+        this.folderUseCases.getFoldersByIds(user, folderIds),
+      ]);
+
+      return { trashedItems: [...folders, ...files] };
     } catch (err) {
       const { email, uuid } = user;
       if (err instanceof BadRequestException) {

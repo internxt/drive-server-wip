@@ -326,4 +326,11 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
     });
   }
+
+  getFilesByFilesIds(
+    userId: UserAttributes['id'],
+    fileIds: FileAttributes['fileId'][],
+  ) {
+    return this.fileRepository.findAllByFileIds(userId, fileIds);
+  }
 }

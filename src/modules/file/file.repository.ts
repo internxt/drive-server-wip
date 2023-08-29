@@ -44,6 +44,10 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  findAllByFileIds(
+    userId: User['id'],
+    fileIds: File['fileId'][],
+  ): Promise<File[]>;
 }
 
 @Injectable()
@@ -371,6 +375,22 @@ export class SequelizeFileRepository implements FileRepository {
         },
       },
     );
+  }
+
+  async findAllByFileIds(
+    userId: User['id'],
+    fileIds: File['fileId'][],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        userId,
+        fileId: {
+          [Op.in]: fileIds,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   private toDomain(model: FileModel): File {
