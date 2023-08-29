@@ -109,6 +109,9 @@ export class UserUseCases {
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
     return this.userRepository.findByUuids(uuids);
   }
+  findById(id: User['id']): Promise<User | null> {
+    return this.userRepository.findById(id);
+  }
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
