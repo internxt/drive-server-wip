@@ -572,7 +572,7 @@ export class SharingService {
   }
 
   async removeSharing(user: User, id: Sharing['id']) {
-    const sharing = await this.sharingRepository.findSharing(id);
+    const sharing = await this.sharingRepository.findOneSharing({ id });
 
     if (!sharing) {
       throw new NotFoundException();
@@ -600,9 +600,9 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    const sharing = await this.sharingRepository.findSharing(
-      sharingRole.sharingId,
-    );
+    const sharing = await this.sharingRepository.findOneSharing({
+      id: sharingRole.sharingId,
+    });
 
     if (!sharing) {
       throw new NotFoundException();
@@ -641,9 +641,9 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    const sharing = await this.sharingRepository.findSharing(
-      sharingRole.sharingId,
-    );
+    const sharing = await this.sharingRepository.findOneSharing({
+      id: sharingRole.sharingId,
+    });
 
     if (!sharing) {
       throw new NotFoundException();
@@ -667,5 +667,139 @@ export class SharingService {
       throw new ForbiddenException();
     }
     await this.sharingRepository.deleteSharingRole(sharingRole);
+  }
+
+  async getSharedFoldersBySharedWith(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<Folder[]> {
+    const folders = await this.sharingRepository.findAllSharing(
+      { sharedWith: user.uuid },
+      offset,
+      limit,
+      order,
+    );
+    return folders;
+  }
+
+  async getSharedFoldersByOwner(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<Folder[]> {
+    const folders = await this.sharingRepository.findAllSharing(
+      { ownerId: user.uuid },
+      offset,
+      limit,
+      order,
+    );
+    return folders;
+  }
+
+  async getSharedFolders(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<GetItemsReponse> {
+    const foldersWithSharedInfo =
+      await this.sharingRepository.findByOwnerAndSharedWithMe(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+    const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
+      return {
+        ...folderWithSharedInfo.folder,
+        encryptionKey: folderWithSharedInfo.encryptionKey,
+        dateShared: folderWithSharedInfo.createdAt,
+        sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
+        credentials: {
+          networkPass: folderWithSharedInfo.folder.user.userId,
+          networkUser: folderWithSharedInfo.folder.user.bridgeUser,
+        },
+      };
+    }) as FolderWithSharedInfo[];
+
+    return {
+      folders: folders,
+      files: [],
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+    };
+  }
+
+  async getSharedWithByItemId(
+    user: User,
+    folderId: Folder['uuid'],
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<UserWithRole[]> {
+    const privateSharings =
+      await this.sharingRepository.findByOwnerOrSharedWithFolderId(
+        user.uuid,
+        folderId,
+        offset,
+        limit,
+        order,
+      );
+
+    if (privateSharings.length === 0) {
+      throw new ForbiddenException();
+    }
+
+    const sharedsWith = privateSharings.map((privateSharing) => {
+      return privateSharing.sharedWith;
+    });
+
+    const users = await this.usersUsecases.findByUuids(sharedsWith);
+
+    const sharingsWithRoles =
+      await this.sharingRepository.findSharingsWithRolesBySharedWith(users);
+
+    const usersWithRoles: UserWithRole[] = await Promise.all(
+      users.map(async (user) => {
+        const { role } = sharingsWithRoles.find(
+          (sharing) => sharing.sharedWith === user.uuid,
+        );
+        const avatar = await this.usersUsecases.getAvatarUrl(user.avatar);
+        return {
+          ...user,
+          avatar,
+          role,
+        };
+      }),
+    );
+
+    const [{ ownerId }] = privateSharings;
+
+    const { name, lastname, email, avatar, uuid } =
+      ownerId === user.uuid ? user : await this.usersUsecases.getUser(ownerId);
+
+    const ownerWithRole: UserWithRole = {
+      name,
+      lastname,
+      email,
+      avatar: await this.usersUsecases.getAvatarUrl(avatar),
+      uuid,
+      role: {
+        id: 'NONE',
+        name: 'OWNER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    };
+
+    usersWithRoles.push(ownerWithRole);
+
+    return usersWithRoles;
   }
 }
