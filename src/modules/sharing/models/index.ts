@@ -16,6 +16,7 @@ import {
   SharingRoleAttributes,
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
+import { FolderModel } from 'src/modules/folder/folder.model';
 
 @Table({
   underscored: true,
@@ -64,34 +65,6 @@ export class RoleModel extends Model implements RoleAttributes {
 @Table({
   underscored: true,
   timestamps: true,
-  tableName: 'sharing_roles',
-})
-export class SharingRolesModel extends Model implements SharingRoleAttributes {
-  @PrimaryKey
-  @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: SharingRoleAttributes['id'];
-
-  @ForeignKey(() => SharingModel)
-  @Column(DataType.UUIDV4)
-  sharingId: SharingRoleAttributes['sharingId'];
-
-  @ForeignKey(() => RoleModel)
-  @Column(DataType.UUIDV4)
-  roleId: SharingRoleAttributes['roleId'];
-
-  @BelongsTo(() => RoleModel)
-  role: RoleModel;
-
-  @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-}
-
-@Table({
-  underscored: true,
-  timestamps: true,
   tableName: 'sharings',
 })
 export class SharingModel extends Model implements SharingAttributes {
@@ -102,6 +75,12 @@ export class SharingModel extends Model implements SharingAttributes {
   @Column(DataType.UUIDV4)
   itemId: SharingAttributes['itemId'];
 
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+  })
+  folder: FolderModel;
+
   @Column(DataType.STRING)
   itemType: SharingAttributes['itemType'];
 
@@ -109,9 +88,23 @@ export class SharingModel extends Model implements SharingAttributes {
   @Column(DataType.UUIDV4)
   ownerId: SharingAttributes['ownerId'];
 
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'owner_id',
+    targetKey: 'uuid',
+    as: 'owner',
+  })
+  owner: UserModel;
+
   @ForeignKey(() => UserModel)
   @Column(DataType.UUIDV4)
   sharedWith: SharingAttributes['sharedWith'];
+
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'shared_with',
+    targetKey: 'uuid',
+    as: 'invited',
+  })
+  sharedWithUser: UserModel;
 
   @Column(DataType.STRING)
   encryptionAlgorithm: SharingAttributes['encryptionAlgorithm'];
