@@ -582,6 +582,7 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    await this.sharingRepository.deleteSharingRolesBySharing(sharing);
     return this.sharingRepository.deleteSharing(id);
   }
 
