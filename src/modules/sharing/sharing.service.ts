@@ -17,6 +17,129 @@ import { Folder } from '../folder/folder.domain';
 import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
+import getEnv from '../../config/configuration';
+import {
+  generateTokenWithPlainSecret,
+  verifyWithDefaultSecret,
+} from '../../lib/jwt';
+import {
+  FileWithSharedInfo,
+  FolderWithSharedInfo,
+  GetFilesResponse,
+  GetFoldersReponse,
+  GetItemsReponse,
+} from './dto/get-items-and-shared-folders.dto';
+
+export class InvalidOwnerError extends Error {
+  constructor() {
+    super('You are not the owner of this folder');
+    Object.setPrototypeOf(this, InvalidOwnerError.prototype);
+  }
+}
+export class FolderNotSharedError extends Error {
+  constructor() {
+    super('This folder is not shared');
+    Object.setPrototypeOf(this, FolderNotSharedError.prototype);
+  }
+}
+export class FolderNotSharedWithUserError extends Error {
+  constructor() {
+    super(`This folder is not shared with the given user`);
+    Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
+  }
+}
+export class UserNotInSharedFolder extends Error {
+  constructor() {
+    super('User is not in shared folder');
+    Object.setPrototypeOf(this, UserNotInSharedFolder.prototype);
+  }
+}
+
+export class RoleNotFoundError extends Error {
+  constructor() {
+    super('Role not found');
+    Object.setPrototypeOf(this, RoleNotFoundError.prototype);
+  }
+}
+
+export class InvalidPrivateFolderRoleError extends Error {
+  constructor() {
+    super('Private folder role not found');
+    Object.setPrototypeOf(this, InvalidPrivateFolderRoleError.prototype);
+  }
+}
+
+export class InvalidChildFolderError extends Error {
+  constructor() {
+    super('Folder not found');
+    Object.setPrototypeOf(this, InvalidChildFolderError.prototype);
+  }
+}
+
+export class UserNotInvitedError extends Error {
+  constructor() {
+    super('User not invited');
+    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
+  }
+}
+
+export class InvitedUserNotFoundError extends Error {
+  constructor(email: User['email']) {
+    super(`Invited user: ${email} not found`);
+    Object.setPrototypeOf(this, InvitedUserNotFoundError.prototype);
+  }
+}
+
+export class UserAlreadyHasRole extends Error {
+  constructor() {
+    super('User already has a role');
+    Object.setPrototypeOf(this, UserAlreadyHasRole.prototype);
+  }
+}
+
+export class OwnerCannotBeSharedWithError extends Error {
+  constructor() {
+    super('Owner cannot share the folder with itself');
+    Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
+  }
+}
+export class OwnerCannotBeRemovedWithError extends Error {
+  constructor() {
+    super('Owner cannot be removed from the folder sharing');
+    Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
+  }
+}
+export class InvalidSharedFolderError extends Error {
+  constructor() {
+    super('This folder is not being shared');
+    Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
+  }
+}
+
+export class SharedFolderInTheTrashError extends Error {
+  constructor() {
+    super('This folder is in the trash');
+    Object.setPrototypeOf(this, SharedFolderInTheTrashError.prototype);
+  }
+}
+
+export class SharedFolderRemovedError extends Error {
+  constructor() {
+    super('This folder has been removed');
+    Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);
+  }
+}
+type UserWithRole = Pick<
+  User,
+  'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
+> & {
+  role: {
+    name: Role['name'];
+    id: Role['id'];
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
 
 @Injectable()
 export class SharingService {
