@@ -22,24 +22,28 @@ import {
   GetFoldersReponse,
   GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
+
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
     Object.setPrototypeOf(this, InvalidOwnerError.prototype);
   }
 }
+
 export class FolderNotSharedError extends Error {
   constructor() {
     super('This folder is not shared');
     Object.setPrototypeOf(this, FolderNotSharedError.prototype);
   }
 }
+
 export class FolderNotSharedWithUserError extends Error {
   constructor() {
     super(`This folder is not shared with the given user`);
     Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
   }
 }
+
 export class UserNotInSharedFolder extends Error {
   constructor() {
     super('User is not in shared folder');
@@ -95,12 +99,14 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
+
 export class OwnerCannotBeRemovedWithError extends Error {
   constructor() {
     super('Owner cannot be removed from the folder sharing');
     Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
   }
 }
+
 export class InvalidSharedFolderError extends Error {
   constructor() {
     super('This folder is not being shared');
@@ -119,6 +125,13 @@ export class SharedFolderRemovedError extends Error {
   constructor() {
     super('This folder has been removed');
     Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);
+  }
+}
+
+export class InvalidPermissionsError extends Error {
+  constructor() {
+    super('You dont have permissions on this folder');
+    Object.setPrototypeOf(this, InvalidPermissionsError.prototype);
   }
 }
 
@@ -304,6 +317,10 @@ export class PrivateSharingUseCase {
 
     if (isRequesterOwner && requester.uuid === sharedWithUuid) {
       throw new OwnerCannotBeRemovedWithError();
+    }
+
+    if (!isRequesterOwner && requester.uuid !== sharedWithUuid) {
+      throw new InvalidPermissionsError();
     }
 
     const sharedFolderWithUserToRemove =
