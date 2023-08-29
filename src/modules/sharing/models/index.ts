@@ -4,7 +4,6 @@ import {
   DataType,
   ForeignKey,
   Model,
-  NotNull,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
@@ -13,10 +12,9 @@ import {
   RoleAttributes,
   SharingAttributes,
   SharingInviteAttributes,
-  SharingRoleAttributes,
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
-import { FolderModel } from 'src/modules/folder/folder.model';
+import { FolderModel } from '../../folder/folder.model';
 
 @Table({
   underscored: true,
