@@ -3,6 +3,10 @@ import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 
 type ItemId = File['uuid'] | Folder['uuid'];
+type AddTimeStamps<T> = T & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export interface SharingAttributes {
   id: string;
@@ -12,6 +16,8 @@ export interface SharingAttributes {
   sharedWith: User['uuid'];
   encryptionKey: string;
   encryptionAlgorithm: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SharingRoleAttributes {
@@ -48,8 +54,20 @@ export class Sharing implements SharingAttributes {
   sharedWith: User['uuid'];
   encryptionKey: string;
   encryptionAlgorithm: string;
+  createdAt: Date;
+  updatedAt: Date;
 
-  constructor(attributes: SharingAttributes) {
+  folder?: Folder;
+  file?: File;
+  role?: Role;
+
+  constructor(
+    attributes: SharingAttributes & {
+      folder?: Folder;
+      file?: File;
+      role?: Role;
+    },
+  ) {
     this.id = attributes.id;
     this.itemId = attributes.itemId;
     this.itemType = attributes.itemType;
@@ -57,6 +75,11 @@ export class Sharing implements SharingAttributes {
     this.sharedWith = attributes.sharedWith;
     this.encryptionKey = attributes.encryptionKey;
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
+    this.createdAt = attributes.createdAt;
+    this.updatedAt = attributes.updatedAt;
+
+    this.folder = attributes.folder;
+    this.file = attributes.file;
   }
 
   static build(sharing: SharingAttributes): Sharing {
@@ -65,18 +88,6 @@ export class Sharing implements SharingAttributes {
 
   isOwnedBy(user: User): boolean {
     return this.ownerId === user.uuid;
-  }
-
-  toJSON(): SharingAttributes {
-    return {
-      id: this.id,
-      itemId: this.itemId,
-      itemType: this.itemType,
-      ownerId: this.ownerId,
-      sharedWith: this.sharedWith,
-      encryptionKey: this.encryptionKey,
-      encryptionAlgorithm: this.encryptionAlgorithm,
-    };
   }
 }
 
@@ -110,23 +121,30 @@ export class SharingRole implements SharingRoleAttributes {
   }
 }
 
-export class Role implements RoleAttributes {
+type RoleWithTimeStamps = AddTimeStamps<RoleAttributes>;
+export class Role implements RoleWithTimeStamps {
   id: string;
   name: string;
+  createdAt: Date;
+  updatedAt: Date;
 
-  constructor(attributes: RoleAttributes) {
+  constructor(attributes: RoleWithTimeStamps) {
     this.id = attributes.id;
     this.name = attributes.name;
+    this.createdAt = attributes.createdAt;
+    this.updatedAt = attributes.updatedAt;
   }
 
-  static build(role: RoleAttributes): Role {
+  static build(role: RoleWithTimeStamps): Role {
     return new Role(role);
   }
 
-  toJSON(): RoleAttributes {
+  toJSON(): RoleWithTimeStamps {
     return {
       id: this.id,
       name: this.name,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
     };
   }
 }
@@ -164,6 +182,8 @@ export class SharingInvite implements SharingInviteAttributes {
   encryptionAlgorithm: string;
   type: 'SELF' | 'OWNER';
   roleId: string;
+  createdAt: Date;
+  updatedAt: Date;
 
   constructor(attributes: SharingInviteAttributes) {
     this.id = attributes.id;
@@ -174,6 +194,8 @@ export class SharingInvite implements SharingInviteAttributes {
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
     this.type = attributes.type;
     this.roleId = attributes.roleId;
+    this.createdAt = attributes.createdAt;
+    this.updatedAt = attributes.updatedAt;
   }
 
   static build(sharingInvite: SharingInviteAttributes): SharingInvite {
@@ -198,6 +220,8 @@ export class SharingInvite implements SharingInviteAttributes {
       encryptionAlgorithm: this.encryptionAlgorithm,
       type: this.type,
       roleId: this.roleId,
+      updatedAt: this.updatedAt,
+      createdAt: this.createdAt,
     };
   }
 }
