@@ -151,6 +151,15 @@ export class TrashController {
         this.folderUseCases.moveFoldersToTrash(folderIds),
       ]);
 
+      const [files, folders] = await Promise.all([
+        this.fileUseCases.getFilesByFilesIds(user.id, fileIds),
+        this.folderUseCases.getFoldersByIds(user, folderIds),
+      ]);
+
+      if (files.length === 0 && folders.length === 0) {
+        throw new BadRequestException('items not trasheables');
+      }
+
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
@@ -169,11 +178,6 @@ export class TrashController {
         .catch((err) => {
           // no op
         });
-
-      const [files, folders] = await Promise.all([
-        this.fileUseCases.getFilesByFilesIds(user.id, fileIds),
-        this.folderUseCases.getFoldersByIds(user, folderIds),
-      ]);
 
       return { trashedItems: [...folders, ...files] };
     } catch (err) {
