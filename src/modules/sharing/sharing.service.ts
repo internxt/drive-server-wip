@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 
@@ -12,7 +13,7 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
@@ -158,7 +159,7 @@ export class SharingService {
     let item: File | Folder | null;
 
     if (itemType === 'file') {
-      throw new Error('Not implemented yet');
+      throw new NotImplementedException();
     } else if (itemType === 'folder') {
       item = await this.folderUsecases.getByUuid(itemId);
     }
@@ -208,7 +209,7 @@ export class SharingService {
 
       return this.sharingRepository.createInvite(invite);
     } else {
-      throw new Error('Method not implemented');
+      throw new NotImplementedException();
     }
   }
 
