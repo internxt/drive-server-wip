@@ -5,8 +5,8 @@ import {
   RoleModel,
   SharingInviteModel,
   SharingModel,
-  SharingRolesModel,
 } from './models';
+import { SharingRolesModel } from './models/sharing-roles.model';
 import {
   Sharing,
   SharingInvite,
