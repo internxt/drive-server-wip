@@ -252,6 +252,14 @@ export class SharingController {
     return this.sharingService.getRoles();
   }
 
+  @Get('/:sharingId/role')
+  getUserRole(
+    @UserDecorator() user: User,
+    @Param('sharingId') sharingId: Sharing['id'],
+  ) {
+    return this.sharingService.getUserRole(sharingId, user);
+  }
+
   @Put('/:id/roles/:sharingRoleId')
   @ApiParam({
     name: 'id',

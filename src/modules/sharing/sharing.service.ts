@@ -590,6 +590,39 @@ export class SharingService {
     return this.sharingRepository.findRoles();
   }
 
+  async getUserRole(sharingId: Sharing['id'], user: User): Promise<Role> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id: sharingId,
+    });
+
+    if (sharing.isOwnedBy(user)) {
+      return Role.build({
+        id: v4(),
+        createdAt: sharing.createdAt,
+        name: 'OWNER',
+        updatedAt: sharing.updatedAt,
+      });
+    }
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    const sharingRole = await this.sharingRepository.findSharingRoleBy({
+      sharingId: sharing.id,
+    });
+
+    if (!sharingRole) {
+      throw new NotFoundException();
+    }
+
+    const role = await this.sharingRepository.findRoleBy({
+      id: sharingRole.roleId,
+    });
+
+    return role;
+  }
+
   async updateSharingRole(
     user: User,
     id: SharingRole['id'],
