@@ -466,6 +466,14 @@ export class SharingService {
       throw new BadRequestException();
     }
 
+    const userJoining = await this.usersUsecases.findByEmail(
+      createInviteDto.sharedWith,
+    );
+
+    if (!userJoining) {
+      throw new NotFoundException('Invited user not found');
+    }
+
     if (isAnInvitation) {
       if (createInviteDto.itemType === 'file') {
         throw new NotImplementedException();
@@ -481,6 +489,7 @@ export class SharingService {
       const invite = SharingInvite.build({
         id: v4(),
         ...createInviteDto,
+        sharedWith: userJoining.uuid,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
