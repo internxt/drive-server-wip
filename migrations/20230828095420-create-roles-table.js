@@ -4,7 +4,7 @@ const tableName = 'roles';
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable(tableName);
+    await queryInterface.dropTable(tableName, { cascade: true });
     await queryInterface.createTable(tableName, {
       id: {
         type: Sequelize.UUID,
