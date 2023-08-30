@@ -69,7 +69,7 @@ export class SequelizeSharingRepository implements SharingRepository {
   findSharingRole(
     sharingRoleId?: SharingRole['id'],
   ): Promise<SharingRole | null> {
-    return this.sharingRoles.findByPk(sharingRoleId);
+    return sharingRoleId ? this.sharingRoles.findByPk(sharingRoleId) : null;
   }
 
   async findByOwnerOrSharedWithFolderId(
@@ -211,6 +211,19 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return sharedFolders.map((folder) => folder.get({ plain: true }));
+  }
+
+  async findSharingByItemAndSharedWith(
+    itemId: Sharing['itemId'],
+    sharedWith: Sharing['sharedWith'],
+  ): Promise<Sharing | null> {
+    const sharing = await this.sharings.findOne({
+      where: {
+        itemId,
+        sharedWith,
+      },
+    });
+    return sharing ? Sharing.build(sharing) : null;
   }
 
   async findByOwnerAndSharedWithMe(

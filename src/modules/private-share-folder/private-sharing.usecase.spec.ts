@@ -9,6 +9,7 @@ import {
   FolderNotSharedError,
   FolderNotSharedWithUserError,
   InvalidOwnerError,
+  InvalidPermissionsError,
   OwnerCannotBeRemovedWithError,
   OwnerCannotBeSharedWithError,
   PrivateSharingUseCase,
@@ -1143,21 +1144,63 @@ describe('Private Sharing Use Cases', () => {
   describe('Owner removes a user from a shared folder', () => {
     const userUuid = v4();
 
-    it('When the user requesting the removal is not the owner then, it fails', async () => {
+    it('When the user is not the owner and tries to remove himself from the sharing, it works', async () => {
       const owner = newUser();
-      const notTheOwner = newUser();
-      const sharedWith = newUser();
+      const otherUser = newUser();
       const folder = newFolder({ owner });
+      const privateSharingFolder = newPrivateSharingFolder({
+        owner,
+        folder,
+        sharedWith: otherUser,
+      });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
+        .mockResolvedValue(privateSharingFolder);
+
+      const removeFolderRoleMock = jest.spyOn(
+        privateSharingFolderRolesRespository,
+        'removeByUser',
+      );
+      const removeSharedWithMock = jest.spyOn(
+        privateSharingRespository,
+        'removeBySharedWith',
+      );
+
+      await privateSharingUseCase.removeSharedWith(
+        folder.uuid,
+        otherUser.uuid,
+        otherUser,
+      );
+
+      expect(removeFolderRoleMock).toHaveBeenCalled();
+      expect(removeSharedWithMock).toHaveBeenCalled();
+    });
+
+    it('When the user is not the owner and is requesting the removal of other user then, it fails', async () => {
+      const owner = newUser();
+      const notTheOwner = newUser();
+      const otherUser = newUser();
+      const folder = newFolder({ owner });
+      const privateSharingFolder = newPrivateSharingFolder({
+        owner,
+        folder,
+        sharedWith: otherUser,
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(privateSharingRespository, 'findByFolderAndSharedWith')
+        .mockResolvedValue(privateSharingFolder);
 
       await expect(
         privateSharingUseCase.removeSharedWith(
           folder.uuid,
-          notTheOwner.uuid,
-          sharedWith,
+          otherUser.uuid,
+          notTheOwner,
         ),
-      ).rejects.toThrowError(InvalidOwnerError);
+      ).rejects.toThrowError(InvalidPermissionsError);
     });
 
     it('When the owner tries to remove its own sharing, then it should not be allowed to remove itself', async () => {
