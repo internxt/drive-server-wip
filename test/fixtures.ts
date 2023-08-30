@@ -4,21 +4,26 @@ import { Chance } from 'chance';
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
 import { PrivateSharingFolder } from '../src/modules/private-share-folder/private-sharing-folder.domain';
+import { Sharing, SharingRole } from '../src/modules/sharing/sharing.domain';
+import { File } from '../src/modules/file/file.domain';
 
-const constants = {
+export const constants = {
   BUCKET_ID_LENGTH: 24,
 };
+
 const randomDataGenerator = new Chance();
 
 export type FolderSettableAttributes = Pick<
   Folder,
   'deleted' | 'deletedAt' | 'removed' | 'removedAt'
 >;
+
 type NewFolderParams = {
   attributes?: Partial<FolderSettableAttributes>;
   owner?: User;
 };
-function newFolder(params?: NewFolderParams): Folder {
+
+export const newFolder = (params?: NewFolderParams): Folder => {
   const randomCreatedAt = randomDataGenerator.date();
 
   const folder = Folder.build({
@@ -56,9 +61,9 @@ function newFolder(params?: NewFolderParams): Folder {
   params?.owner && (folder.userId = params.owner.id);
 
   return folder;
-}
+};
 
-function newUser(): User {
+export const newUser = (): User => {
   const randomEmail = randomDataGenerator.email();
 
   return User.build({
@@ -89,13 +94,13 @@ function newUser(): User {
     tempKey: '',
     avatar: v4(),
   });
-}
+};
 
-function newPrivateSharingFolder(bindTo?: {
+export const newPrivateSharingFolder = (bindTo?: {
   owner?: User;
   sharedWith?: User;
   folder?: Folder;
-}) {
+}): PrivateSharingFolder => {
   return PrivateSharingFolder.build({
     id: v4(),
     folderId: bindTo?.folder?.uuid || v4(),
@@ -106,6 +111,37 @@ function newPrivateSharingFolder(bindTo?: {
       length: 32,
     }),
   });
-}
+};
 
-export { newUser, newFolder, newPrivateSharingFolder, constants };
+export const newSharing = (bindTo?: {
+  owner?: User;
+  sharedWith?: User;
+  item?: File | Folder;
+}): Sharing => {
+  return Sharing.build({
+    id: v4(),
+    itemId: bindTo?.item?.uuid || v4(),
+    itemType: (bindTo?.item instanceof File ? 'file' : 'folder') || 'folder',
+    ownerId: bindTo?.owner?.uuid || v4(),
+    sharedWith: bindTo?.sharedWith?.uuid || v4(),
+    createdAt: randomDataGenerator.date(),
+    updatedAt: randomDataGenerator.date(),
+    encryptionAlgorithm: 'test',
+    encryptionKey: randomDataGenerator.string({
+      length: 32,
+    }),
+  });
+};
+
+export const newSharingRole = (bindTo?: {
+  sharingId?: string;
+  roleId?: string;
+}): SharingRole => {
+  return SharingRole.build({
+    id: v4(),
+    sharingId: bindTo?.sharingId,
+    roleId: bindTo?.roleId,
+    createdAt: randomDataGenerator.date(),
+    updatedAt: randomDataGenerator.date(),
+  });
+};
