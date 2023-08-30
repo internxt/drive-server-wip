@@ -12,6 +12,7 @@ import {
   ForbiddenException,
   Logger,
   HttpStatus,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -36,7 +37,6 @@ import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { Folder } from '../folder/folder.domain';
 import {
   GetFilesResponse,
-  GetFoldersReponse,
   GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
 import { OrderBy } from '../../common/order.type';
@@ -226,7 +226,7 @@ export class SharingController {
         throw error;
       } else {
         Logger.error(
-          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared folders by user ${
+          `[SHARING/GETSHAREDFILES] Error while getting shared folders by folder ${
             user.uuid
           }, message: ${error.message}, ${error.stack || 'No stack trace'}`,
         );
@@ -348,7 +348,7 @@ export class SharingController {
     } catch (error) {
       const err = error as Error;
       Logger.error(
-        `[PRIVATESHARING/GETSHAREDWITH] Error while getting shared folders with user ${
+        `[SHARING/GETSHAREDFOLDERS] Error while getting shared folders with user ${
           user.uuid
         }, ${err.stack || 'No stack trace'}`,
       );
@@ -405,7 +405,7 @@ export class SharingController {
     } catch (error) {
       const err = error as Error;
       Logger.error(
-        `[SHARING/GET_SHARED_BY] Error while getting shared folders by user ${
+        `[SHARING/GETSHAREDBYME] Error while getting shared folders by user ${
           user.uuid
         }, ${err.stack || 'No stack trace'}`,
       );
@@ -512,7 +512,7 @@ export class SharingController {
         res.status(HttpStatus.FORBIDDEN);
       } else {
         Logger.error(
-          `[PRIVATESHARING/GETSHAREDBY] Error while getting shared with by folder ${
+          `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
             user.uuid
           }, ${error.stack || 'No stack trace'}`,
         );
@@ -521,5 +521,29 @@ export class SharingController {
       }
       return { error: errorMessage };
     }
+  }
+
+  @Delete('shared-with/item-id/:itemId/user-id/:userId')
+  @ApiParam({
+    name: 'userId',
+    description: 'User id to remove from the shared item',
+    type: String,
+  })
+  @ApiParam({
+    name: 'itemId',
+    description: 'Item id of the shared item to remove the user from',
+    type: String,
+  })
+  @ApiOperation({
+    summary: 'Remove user from shared item',
+  })
+  @ApiOkResponse({ description: 'User removed from shared item' })
+  @ApiBearerAuth()
+  removeUserFromSharedItem(
+    @Param('userId', ParseUUIDPipe) userUuid: User['uuid'],
+    @Param('itemId', ParseUUIDPipe) itemId: Sharing['itemId'],
+    @UserDecorator() user: User,
+  ): Promise<{ message: string }> {
+    return this.sharingService.removeSharedWith(itemId, userUuid, user);
   }
 }
