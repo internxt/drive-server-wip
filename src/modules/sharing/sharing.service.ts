@@ -177,6 +177,18 @@ export class SharingService {
     return this.sharingRepository.getInvitesByItem(itemId, itemType);
   }
 
+  getInvitesByUser(
+    user: User,
+    limit: number,
+    offset: number,
+  ): Promise<SharingInvite[]> {
+    return this.sharingRepository.getInvites(
+      { sharedWith: user.uuid },
+      limit,
+      offset,
+    );
+  }
+
   async getFolders(
     folderId: Folder['uuid'],
     token: string | null,

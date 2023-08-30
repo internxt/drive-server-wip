@@ -41,6 +41,8 @@ import {
 } from './dto/get-items-and-shared-folders.dto';
 import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
+import API_LIMITS from '../../lib/http/limits';
+import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 
 @Controller('sharings')
 export class SharingController {
@@ -56,6 +58,58 @@ export class SharingController {
       throw new BadRequestException('Invalid item type');
     }
     return this.sharingService.getInvites(user, itemType, itemId);
+  }
+
+  @Get('/invites')
+  @ApiOperation({
+    summary: 'Get all the invites that a user has received',
+  })
+  @ApiQuery({
+    description: 'Number of items to request',
+    name: 'limit',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Offset from to start requesting items',
+    name: 'offset',
+    required: false,
+    type: Number,
+  })
+  async getInvitesByUser(
+    @UserDecorator() user: User,
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+  ) {
+    if (
+      limit < API_LIMITS.SHARING.GET.INVITATIONS.LIMIT.LOWER_BOUND ||
+      limit > API_LIMITS.SHARING.GET.INVITATIONS.LIMIT.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'limit',
+        API_LIMITS.SHARING.GET.INVITATIONS.LIMIT.LOWER_BOUND,
+        API_LIMITS.SHARING.GET.INVITATIONS.LIMIT.UPPER_BOUND,
+      );
+    }
+
+    if (
+      offset < API_LIMITS.SHARING.GET.INVITATIONS.OFFSET.LOWER_BOUND ||
+      offset > API_LIMITS.SHARING.GET.INVITATIONS.OFFSET.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'offset',
+        API_LIMITS.SHARING.GET.INVITATIONS.OFFSET.LOWER_BOUND,
+        API_LIMITS.SHARING.GET.INVITATIONS.OFFSET.UPPER_BOUND,
+      );
+    }
+
+    const invites = await this.sharingService.getInvitesByUser(
+      user,
+      limit,
+      offset,
+    );
+
+    return { invites };
   }
 
   @Post('/invites/send')
