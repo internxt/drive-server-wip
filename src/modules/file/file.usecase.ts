@@ -64,6 +64,10 @@ export class FileUseCases {
     return file;
   }
 
+  getByUuids(uuids: File['uuid'][]): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids);
+  }
+
   async getFilesByFolderId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],

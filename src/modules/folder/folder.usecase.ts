@@ -43,6 +43,10 @@ export class FolderUseCases {
     return folder;
   }
 
+  getByUuids(uuids: Folder['uuid'][]): Promise<Folder[]> {
+    return this.folderRepository.findByUuids(uuids);
+  }
+
   async getFolderByUuidAndUser(
     folderUuid: FolderAttributes['uuid'],
     user: User,

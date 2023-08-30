@@ -13,6 +13,7 @@ import {
   Sharing,
   SharingAttributes,
   SharingInvite,
+  SharingInviteWithItem,
   SharingRole,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
@@ -197,16 +198,41 @@ export class SharingService {
     return this.sharingRepository.getInvitesByItem(itemId, itemType);
   }
 
-  getInvitesByUser(
+  async getInvitesByUser(
     user: User,
     limit: number,
     offset: number,
-  ): Promise<SharingInvite[]> {
-    return this.sharingRepository.getInvites(
+  ): Promise<SharingInviteWithItem[]> {
+    const invites = await this.sharingRepository.getInvites(
       { sharedWith: user.uuid },
       limit,
       offset,
     );
+
+    const folderInvites = invites.filter(
+      (invite) => invite.itemType === 'folder',
+    );
+
+    const fileInvites = invites.filter((invite) => invite.itemType === 'file');
+
+    const [folders, files] = await Promise.all([
+      this.folderUsecases.getByUuids(
+        folderInvites.map((invite) => invite.itemId),
+      ),
+      this.fileUsecases.getByUuids(fileInvites.map((invite) => invite.itemId)),
+    ]);
+
+    return invites.map((invite) => {
+      const item =
+        invite.itemType === 'folder'
+          ? folders.find((folder) => folder.uuid === invite.itemId)
+          : files.find((file) => file.uuid === invite.itemId);
+
+      return new SharingInviteWithItem({
+        ...invite,
+        item,
+      });
+    });
   }
 
   async getFolders(

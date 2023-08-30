@@ -82,6 +82,18 @@ export class SequelizeFileRepository implements FileRepository {
     return this.toDomain(file);
   }
 
+  async findByUuids(uuids: File['uuid'][]): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      where: {
+        uuid: {
+          [Op.in]: uuids,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findByUuid(
     fileUuid: string,
     userId: number,
