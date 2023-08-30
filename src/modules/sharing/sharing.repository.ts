@@ -276,6 +276,22 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharings.destroy({ where: { id } });
   }
 
+  async getInvites(
+    where: Partial<SharingInvite>,
+    limit: number,
+    offset: number,
+  ): Promise<SharingInvite[]> {
+    const rawInvites = await this.sharingInvites.findAll({
+      where,
+      limit,
+      offset,
+    });
+
+    return rawInvites.map((invite) =>
+      SharingInvite.build(invite.get({ plain: true })),
+    );
+  }
+
   async getInvitesByItem(
     itemId: string,
     itemType: 'file' | 'folder',
