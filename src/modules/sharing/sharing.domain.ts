@@ -225,3 +225,35 @@ export class SharingInvite implements SharingInviteAttributes {
     };
   }
 }
+
+export class SharingInviteWithItem extends SharingInvite {
+  item: File | Folder;
+
+  constructor(attributes: SharingInviteAttributes & { item: File | Folder }) {
+    super(attributes);
+
+    this.item = attributes.item;
+  }
+
+  static build(
+    sharingInvite: SharingInviteAttributes & { item: File | Folder },
+  ): SharingInvite {
+    return new SharingInviteWithItem(sharingInvite);
+  }
+
+  toJSON(): SharingInviteAttributes & { item: File | Folder } {
+    return {
+      id: this.id,
+      itemId: this.itemId,
+      itemType: this.itemType,
+      sharedWith: this.sharedWith,
+      encryptionKey: this.encryptionKey,
+      encryptionAlgorithm: this.encryptionAlgorithm,
+      type: this.type,
+      roleId: this.roleId,
+      updatedAt: this.updatedAt,
+      createdAt: this.createdAt,
+      item: this.item,
+    };
+  }
+}
