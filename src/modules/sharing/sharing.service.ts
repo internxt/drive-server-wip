@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,7 +8,13 @@ import {
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 
-import { Role, Sharing, SharingInvite, SharingRole } from './sharing.domain';
+import {
+  Role,
+  Sharing,
+  SharingAttributes,
+  SharingInvite,
+  SharingRole,
+} from './sharing.domain';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
@@ -37,18 +44,21 @@ export class InvalidOwnerError extends Error {
     Object.setPrototypeOf(this, InvalidOwnerError.prototype);
   }
 }
+
 export class FolderNotSharedError extends Error {
   constructor() {
     super('This folder is not shared');
     Object.setPrototypeOf(this, FolderNotSharedError.prototype);
   }
 }
-export class FolderNotSharedWithUserError extends Error {
+
+export class ItemNotSharedWithUserError extends Error {
   constructor() {
-    super(`This folder is not shared with the given user`);
-    Object.setPrototypeOf(this, FolderNotSharedWithUserError.prototype);
+    super(`This item is not shared with the given user`);
+    Object.setPrototypeOf(this, ItemNotSharedWithUserError.prototype);
   }
 }
+
 export class UserNotInSharedFolder extends Error {
   constructor() {
     super('User is not in shared folder');
@@ -104,16 +114,25 @@ export class OwnerCannotBeSharedWithError extends Error {
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
+
 export class OwnerCannotBeRemovedWithError extends Error {
   constructor() {
-    super('Owner cannot be removed from the folder sharing');
+    super('Owner cannot be removed from the item sharing');
     Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
   }
 }
+
 export class InvalidSharedFolderError extends Error {
   constructor() {
     super('This folder is not being shared');
     Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
+  }
+}
+
+export class InvalidPermissionsError extends Error {
+  constructor() {
+    super('You dont have permissions on this item');
+    Object.setPrototypeOf(this, InvalidPermissionsError.prototype);
   }
 }
 
@@ -130,6 +149,7 @@ export class SharedFolderRemovedError extends Error {
     Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);
   }
 }
+
 type UserWithRole = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
@@ -673,42 +693,44 @@ export class SharingService {
   }
 
   async removeSharingRole(
-    user: User,
+    requester: User,
     sharingRoleId: SharingRole['id'],
   ): Promise<void> {
     const sharingRole = await this.sharingRepository.findSharingRole(
       sharingRoleId,
     );
-
     if (!sharingRole) {
-      throw new NotFoundException();
+      throw new NotFoundException('Sharing role not found');
     }
 
     const sharing = await this.sharingRepository.findOneSharing({
       id: sharingRole.sharingId,
     });
-
     if (!sharing) {
-      throw new NotFoundException();
+      throw new NotFoundException('Sharing not found');
     }
 
     let item: File | Folder;
-
     if (sharing.itemType === 'file') {
-      throw new Error('Not implemented yet');
+      item = await this.fileUsecases.getByUuid(sharing.itemId);
     } else if (sharing.itemType === 'folder') {
       item = await this.folderUsecases.getByUuid(sharing.itemId);
     }
 
     if (!item) {
-      throw new NotFoundException();
+      throw new NotFoundException('Item not found');
     }
 
-    const isTheUserAuthorizedToRemoveTheRole = item.isOwnedBy(user);
+    const isRequesterOwner = item.isOwnedBy(requester);
 
-    if (!isTheUserAuthorizedToRemoveTheRole) {
-      throw new ForbiddenException();
+    if (isRequesterOwner && requester.uuid === sharing.sharedWith) {
+      throw new ConflictException(new OwnerCannotBeRemovedWithError().message);
     }
+
+    if (!isRequesterOwner && requester.uuid !== sharing.sharedWith) {
+      throw new ForbiddenException(new InvalidPermissionsError().message);
+    }
+
     await this.sharingRepository.deleteSharingRole(sharingRole);
   }
 
@@ -844,5 +866,53 @@ export class SharingService {
     usersWithRoles.push(ownerWithRole);
 
     return usersWithRoles;
+  }
+
+  async removeSharedWith(
+    itemId: SharingAttributes['itemId'],
+    sharedWithUuid: SharingAttributes['sharedWith'],
+    requester: User,
+  ): Promise<{ message: string }> {
+    const sharedItemWithUser =
+      await this.sharingRepository.findSharingByItemAndSharedWith(
+        itemId,
+        sharedWithUuid,
+      );
+
+    if (!sharedItemWithUser) {
+      throw new ConflictException(new ItemNotSharedWithUserError().message);
+    }
+
+    let item: File | Folder;
+    if (sharedItemWithUser.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(sharedItemWithUser.itemId);
+    } else if (sharedItemWithUser.itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(sharedItemWithUser.itemId);
+    }
+
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
+
+    const isRequesterOwner = item.isOwnedBy(requester);
+
+    if (isRequesterOwner && requester.uuid === sharedItemWithUser.sharedWith) {
+      throw new ConflictException(new OwnerCannotBeRemovedWithError().message);
+    }
+    if (!isRequesterOwner && requester.uuid !== sharedItemWithUser.sharedWith) {
+      throw new ForbiddenException(new InvalidPermissionsError().message);
+    }
+
+    const sharingRole = await this.sharingRepository.findSharingRole(
+      sharedItemWithUser.role?.id,
+    );
+    if (!sharingRole) {
+      throw new NotFoundException('Sharing role not found');
+    }
+
+    await this.sharingRepository.deleteSharingRole(sharingRole);
+    await this.sharingRepository.deleteSharing(sharedItemWithUser.id);
+
+    return { message: 'User removed from shared folder' };
   }
 }
