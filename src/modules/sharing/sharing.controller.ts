@@ -296,9 +296,28 @@ export class SharingController {
     }
   }
 
-  @Delete('/:id')
-  removeSharing(@UserDecorator() user: User, @Param('id') id: string) {
-    return this.sharingService.removeSharing(user, id);
+  @Delete('/:itemType/:itemId')
+  @ApiParam({
+    name: 'itemType',
+    description: 'file | folder',
+    type: String,
+  })
+  @ApiParam({
+    name: 'itemId',
+    description: 'UUID of the item to remove from any sharing',
+    type: String,
+  })
+  @ApiOperation({
+    summary: 'Stop sharing an item',
+  })
+  @ApiOkResponse({ description: 'Item removed from sharing' })
+  @ApiBearerAuth()
+  removeSharing(
+    @UserDecorator() user: User,
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Param('itemId') itemId: Sharing['itemId'],
+  ) {
+    return this.sharingService.removeSharing(user, itemId, itemType);
   }
 
   /**

@@ -677,8 +677,15 @@ export class SharingService {
     await this.sharingRepository.deleteInvite(invite);
   }
 
-  async removeSharing(user: User, id: Sharing['id']) {
-    const sharing = await this.sharingRepository.findOneSharing({ id });
+  async removeSharing(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+  ) {
+    const sharing = await this.sharingRepository.findOneSharing({
+      itemId,
+      itemType,
+    });
 
     if (!sharing) {
       throw new NotFoundException();
@@ -689,7 +696,7 @@ export class SharingService {
     }
 
     await this.sharingRepository.deleteSharingRolesBySharing(sharing);
-    return this.sharingRepository.deleteSharing(id);
+    return this.sharingRepository.deleteSharing(sharing.id);
   }
 
   async getRoles(): Promise<Role[]> {
