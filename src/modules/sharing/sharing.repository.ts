@@ -180,7 +180,7 @@ export class SequelizeSharingRepository implements SharingRepository {
   async findOneSharing(where: Partial<Sharing>): Promise<Sharing | null> {
     const raw = await this.sharings.findOne({ where });
 
-    return Sharing.build(raw);
+    return raw ? Sharing.build(raw) : null;
   }
 
   async findAllSharing(
@@ -347,7 +347,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     itemId: SharingInvite['itemId'],
     itemType: SharingInvite['itemType'],
     sharedWith: SharingInvite['sharedWith'],
-  ): Promise<SharingInvite> {
+  ): Promise<SharingInvite | null> {
     const raw = await this.sharingInvites.findOne({
       where: {
         itemId,
@@ -356,7 +356,7 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
     });
 
-    return SharingInvite.build(raw);
+    return raw ? SharingInvite.build(raw) : null;
   }
 
   async createInvite(
