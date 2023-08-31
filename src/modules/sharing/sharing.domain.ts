@@ -89,6 +89,10 @@ export class Sharing implements SharingAttributes {
   isOwnedBy(user: User): boolean {
     return this.ownerId === user.uuid;
   }
+
+  isSharedWith(user: User): boolean {
+    return this.sharedWith === user.uuid;
+  }
 }
 
 export class SharingRole implements SharingRoleAttributes {

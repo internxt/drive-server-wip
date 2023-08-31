@@ -131,7 +131,7 @@ export class InvalidSharedFolderError extends Error {
   }
 }
 
-export class InvalidPermissionsError extends Error {
+export class InvalidPermissionsError extends ForbiddenException {
   constructor() {
     super('You dont have permissions on this item');
     Object.setPrototypeOf(this, InvalidPermissionsError.prototype);
@@ -948,49 +948,43 @@ export class SharingService {
 
   async removeSharedWith(
     itemId: SharingAttributes['itemId'],
+    itemType: SharingAttributes['itemType'],
     sharedWithUuid: SharingAttributes['sharedWith'],
     requester: User,
-  ): Promise<{ message: string }> {
-    const sharedItemWithUser =
-      await this.sharingRepository.findSharingByItemAndSharedWith(
-        itemId,
-        sharedWithUuid,
-      );
+  ): Promise<void> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      itemId,
+      itemType,
+      sharedWith: sharedWithUuid,
+    });
 
-    if (!sharedItemWithUser) {
+    if (!sharing) {
       throw new ConflictException(new ItemNotSharedWithUserError().message);
     }
 
     let item: File | Folder;
-    if (sharedItemWithUser.itemType === 'file') {
-      item = await this.fileUsecases.getByUuid(sharedItemWithUser.itemId);
-    } else if (sharedItemWithUser.itemType === 'folder') {
-      item = await this.folderUsecases.getByUuid(sharedItemWithUser.itemId);
+    if (sharing.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(sharing.itemId);
+    } else if (sharing.itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(sharing.itemId);
     }
 
     if (!item) {
       throw new NotFoundException('Item not found');
     }
 
-    const isRequesterOwner = item.isOwnedBy(requester);
-
-    if (isRequesterOwner && requester.uuid === sharedItemWithUser.sharedWith) {
-      throw new ConflictException(new OwnerCannotBeRemovedWithError().message);
-    }
-    if (!isRequesterOwner && requester.uuid !== sharedItemWithUser.sharedWith) {
-      throw new ForbiddenException(new InvalidPermissionsError().message);
+    if (!item.isOwnedBy(requester) && !sharing.isSharedWith(requester)) {
+      throw new InvalidPermissionsError();
     }
 
-    const sharingRole = await this.sharingRepository.findSharingRole(
-      sharedItemWithUser.role?.id,
-    );
+    const sharingRole = await this.sharingRepository.findSharingRoleBy({
+      sharingId: sharing.id,
+    });
     if (!sharingRole) {
       throw new NotFoundException('Sharing role not found');
     }
 
     await this.sharingRepository.deleteSharingRole(sharingRole);
-    await this.sharingRepository.deleteSharing(sharedItemWithUser.id);
-
-    return { message: 'User removed from shared folder' };
+    await this.sharingRepository.deleteSharing(sharing.id);
   }
 }

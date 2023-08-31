@@ -136,7 +136,7 @@ export class SharingController {
   @Delete('/invites/:id')
   @ApiParam({
     name: 'id',
-    description: 'Id of the invitation to accept',
+    description: 'Id of the invitation to delete',
     type: String,
   })
   async removeInvite(
@@ -580,27 +580,40 @@ export class SharingController {
     }
   }
 
-  @Delete('shared-with/item-id/:itemId/user-id/:userId')
+  @Delete('/:itemType/:itemId/users/:userId')
   @ApiParam({
     name: 'userId',
-    description: 'User id to remove from the shared item',
+    description: 'UUID of the user to remove from the shared item',
+    type: String,
+  })
+  @ApiParam({
+    name: 'itemType',
+    description: 'file | folder',
     type: String,
   })
   @ApiParam({
     name: 'itemId',
-    description: 'Item id of the shared item to remove the user from',
+    description: 'UUID of the item to remove the user from',
     type: String,
   })
   @ApiOperation({
-    summary: 'Remove user from shared item',
+    summary: 'Remove a user from a shared item',
   })
   @ApiOkResponse({ description: 'User removed from shared item' })
   @ApiBearerAuth()
-  removeUserFromSharedItem(
+  async removeUserFromSharedItem(
     @Param('userId', ParseUUIDPipe) userUuid: User['uuid'],
     @Param('itemId', ParseUUIDPipe) itemId: Sharing['itemId'],
+    @Param('itemType') itemType: Sharing['itemType'],
     @UserDecorator() user: User,
   ): Promise<{ message: string }> {
-    return this.sharingService.removeSharedWith(itemId, userUuid, user);
+    await this.sharingService.removeSharedWith(
+      itemId,
+      itemType,
+      userUuid,
+      user,
+    );
+
+    return { message: 'User removed from shared folder' };
   }
 }
