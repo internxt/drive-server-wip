@@ -21,6 +21,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 
 import {
@@ -75,6 +76,9 @@ export class SharingController {
     name: 'offset',
     required: false,
     type: Number,
+  })
+  @ApiResponse({
+    description: 'Get all the invites that a user has received',
   })
   async getInvitesByUser(
     @UserDecorator() user: User,

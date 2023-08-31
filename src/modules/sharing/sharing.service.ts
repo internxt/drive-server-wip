@@ -13,7 +13,7 @@ import {
   Sharing,
   SharingAttributes,
   SharingInvite,
-  SharingInviteWithItem,
+  SharingInviteWithItemAndUser,
   SharingRole,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
@@ -38,6 +38,7 @@ import {
   GetFoldersReponse,
   GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
+import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -202,7 +203,7 @@ export class SharingService {
     user: User,
     limit: number,
     offset: number,
-  ): Promise<SharingInviteWithItem[]> {
+  ): Promise<(GetInviteDto & { item: File | Folder })[]> {
     const invites = await this.sharingRepository.getInvites(
       { sharedWith: user.uuid },
       limit,
@@ -216,23 +217,37 @@ export class SharingService {
     const fileInvites = invites.filter((invite) => invite.itemType === 'file');
 
     const [folders, files] = await Promise.all([
-      this.folderUsecases.getByUuids(
-        folderInvites.map((invite) => invite.itemId),
-      ),
-      this.fileUsecases.getByUuids(fileInvites.map((invite) => invite.itemId)),
+      folderInvites.length === 0
+        ? []
+        : this.folderUsecases.getByUuids(
+            folderInvites.map((invite) => invite.itemId),
+          ),
+      fileInvites.length === 0
+        ? []
+        : this.fileUsecases.getByUuids(
+            fileInvites.map((invite) => invite.itemId),
+          ),
     ]);
 
-    return invites.map((invite) => {
-      const item =
-        invite.itemType === 'folder'
-          ? folders.find((folder) => folder.uuid === invite.itemId)
-          : files.find((file) => file.uuid === invite.itemId);
+    return Promise.all(
+      invites.map(async (invite) => {
+        const item: File | Folder =
+          invite.itemType === 'folder'
+            ? folders.find((folder) => folder.uuid === invite.itemId)
+            : files.find((file) => file.uuid === invite.itemId);
 
-      return new SharingInviteWithItem({
-        ...invite,
-        item,
-      });
-    });
+        return {
+          ...invite,
+          invited: {
+            ...invite.invited,
+            avatar: await this.usersUsecases.getAvatarUrl(
+              invite.invited.avatar,
+            ),
+          },
+          item,
+        };
+      }),
+    );
   }
 
   async getFolders(

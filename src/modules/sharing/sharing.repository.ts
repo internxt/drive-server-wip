@@ -20,6 +20,7 @@ import { Folder } from '../folder/folder.domain';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
 import sequelize, { Op, WhereOptions } from 'sequelize';
+import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -295,16 +296,23 @@ export class SequelizeSharingRepository implements SharingRepository {
     where: Partial<SharingInvite>,
     limit: number,
     offset: number,
-  ): Promise<SharingInvite[]> {
-    const rawInvites = await this.sharingInvites.findAll({
+  ): Promise<GetInvitesDto> {
+    const invitesWithInviteds = await this.sharingInvites.findAll({
       where,
       limit,
       offset,
+      include: [
+        {
+          model: UserModel,
+          as: 'invited',
+          attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+          required: true,
+        },
+      ],
+      nest: true,
     });
 
-    return rawInvites.map((invite) =>
-      SharingInvite.build(invite.get({ plain: true })),
-    );
+    return invitesWithInviteds.map((i) => i.toJSON<GetInviteDto>());
   }
 
   async getInvitesByItem(

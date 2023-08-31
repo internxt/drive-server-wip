@@ -226,22 +226,29 @@ export class SharingInvite implements SharingInviteAttributes {
   }
 }
 
-export class SharingInviteWithItem extends SharingInvite {
+export class SharingInviteWithItemAndUser extends SharingInvite {
   item: File | Folder;
+  user: User;
 
-  constructor(attributes: SharingInviteAttributes & { item: File | Folder }) {
+  constructor(
+    attributes: SharingInviteAttributes & { item: File | Folder; user: User },
+  ) {
     super(attributes);
 
     this.item = attributes.item;
+    this.user = attributes.user;
   }
 
   static build(
-    sharingInvite: SharingInviteAttributes & { item: File | Folder },
+    sharingInvite: SharingInviteAttributes & {
+      item: File | Folder;
+      user: User;
+    },
   ): SharingInvite {
-    return new SharingInviteWithItem(sharingInvite);
+    return new SharingInviteWithItemAndUser(sharingInvite);
   }
 
-  toJSON(): SharingInviteAttributes & { item: File | Folder } {
+  toJSON(): SharingInviteAttributes & { item: File | Folder; user: User } {
     return {
       id: this.id,
       itemId: this.itemId,
@@ -254,6 +261,7 @@ export class SharingInviteWithItem extends SharingInvite {
       updatedAt: this.updatedAt,
       createdAt: this.createdAt,
       item: this.item,
+      user: this.user,
     };
   }
 }

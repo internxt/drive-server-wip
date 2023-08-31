@@ -140,6 +140,13 @@ export class SharingInviteModel
   @Column(DataType.UUIDV4)
   sharedWith: SharingInviteAttributes['sharedWith'];
 
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'sharedWith',
+    targetKey: 'uuid',
+    as: 'invited',
+  })
+  sharedWithUser: UserModel;
+
   @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];
 
