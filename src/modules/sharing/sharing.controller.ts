@@ -121,7 +121,6 @@ export class SharingController {
     @UserDecorator() user: User,
     @Body() createInviteDto: CreateInviteDto,
   ) {
-    // TODO: Validate params;
     return this.sharingService.createInvite(user, createInviteDto);
   }
 

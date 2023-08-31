@@ -103,14 +103,14 @@ export class InvitedUserNotFoundError extends Error {
   }
 }
 
-export class UserAlreadyHasRole extends Error {
+export class UserAlreadyHasRole extends BadRequestException {
   constructor() {
     super('User already has a role');
     Object.setPrototypeOf(this, UserAlreadyHasRole.prototype);
   }
 }
 
-export class OwnerCannotBeSharedWithError extends Error {
+export class OwnerCannotBeSharedWithError extends BadRequestException {
   constructor() {
     super('Owner cannot share the folder with itself');
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
@@ -532,6 +532,10 @@ export class SharingService {
     user: User,
     createInviteDto: CreateInviteDto,
   ): Promise<SharingInvite> {
+    if (createInviteDto.sharedWith === user.email) {
+      throw new OwnerCannotBeSharedWithError();
+    }
+
     const isAnInvitation = createInviteDto.type === 'OWNER';
     const isARequestToJoin = createInviteDto.type === 'SELF';
 
@@ -550,6 +554,26 @@ export class SharingService {
     if (isAnInvitation) {
       if (createInviteDto.itemType === 'file') {
         throw new NotImplementedException();
+      }
+
+      const [invitation, sharing] = await Promise.all([
+        this.sharingRepository.getInviteByItemAndUser(
+          createInviteDto.itemId,
+          createInviteDto.itemType,
+          userJoining.uuid,
+        ),
+        this.sharingRepository.findOneSharing({
+          itemId: createInviteDto.itemId,
+          itemType: createInviteDto.itemType,
+          sharedWith: userJoining.uuid,
+        }),
+      ]);
+
+      const userAlreadyInvited = invitation !== null;
+      const userAlreadyJoined = sharing !== null;
+
+      if (userAlreadyInvited || userAlreadyJoined) {
+        throw new UserAlreadyHasRole();
       }
 
       const item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
