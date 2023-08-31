@@ -237,14 +237,14 @@ export class SequelizeSharingRepository implements SharingRepository {
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
       },
       attributes: [
-        // TODO: to check if is necessary to show the encryption_key in this query
+        [sequelize.literal(`"SharingModel"."id"`), 'sharingId'],
         [
           sequelize.literal(`MAX("SharingModel"."encryption_key")`),
           'encryptionKey',
         ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
-      group: ['folder.id', 'folder->user.id', 'SharingModel.owner_id'],
+      group: ['folder.id', 'folder->user.id', 'SharingModel.id'],
       include: [
         {
           model: FolderModel,
@@ -255,7 +255,6 @@ export class SequelizeSharingRepository implements SharingRepository {
           include: [
             {
               model: UserModel,
-              foreignKey: 'userId',
               as: 'user',
               attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
             },
@@ -267,7 +266,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       offset,
     });
 
-    return sharedFolders.map((shared) => this.toDomain(shared));
+    return sharedFolders.map((shared) => {
+      shared.set('id', shared.get('sharingId'));
+      return this.toDomain(shared);
+    });
   }
 
   private toDomain(model: SharingModel): Sharing {

@@ -818,6 +818,7 @@ export class SharingService {
     const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
       return {
         ...folderWithSharedInfo.folder,
+        sharingId: folderWithSharedInfo.id,
         encryptionKey: folderWithSharedInfo.encryptionKey,
         dateShared: folderWithSharedInfo.createdAt,
         sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
