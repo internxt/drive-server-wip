@@ -397,6 +397,12 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async deleteInvitesBy(where: Partial<SharingInvite>): Promise<void> {
+    await this.sharingInvites.destroy({
+      where,
+    });
+  }
+
   async deleteInvite(invite: SharingInvite): Promise<void> {
     await this.sharingInvites.destroy({
       where: {

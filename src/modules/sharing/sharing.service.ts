@@ -695,6 +695,10 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    await this.sharingRepository.deleteInvitesBy({
+      itemId,
+      itemType,
+    });
     await this.sharingRepository.deleteSharingRolesBySharing(sharing);
     return this.sharingRepository.deleteSharing(sharing.id);
   }
