@@ -68,9 +68,9 @@ export class SequelizeSharingRepository implements SharingRepository {
   ) {}
 
   findSharingRole(
-    sharingRoleId?: SharingRole['id'],
+    sharingRoleId: SharingRole['id'],
   ): Promise<SharingRole | null> {
-    return sharingRoleId ? this.sharingRoles.findByPk(sharingRoleId) : null;
+    return this.sharingRoles.findByPk(sharingRoleId);
   }
 
   async findByOwnerOrSharedWithFolderId(
