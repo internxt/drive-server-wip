@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 
@@ -40,7 +40,7 @@ export class TrashUseCases {
     for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
       const files = await this.fileUseCases.getFiles(
         trashOwner.id,
-        { deleted: true, removed: false },
+        { status: FileStatus.TRASHED, deleted: true, removed: false },
         { limit: emptyTrashChunkSize, offset: i },
       );
 
