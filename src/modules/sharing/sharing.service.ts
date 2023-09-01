@@ -177,7 +177,7 @@ export class SharingService {
     user: User,
     itemType: Sharing['itemType'],
     itemId: Sharing['itemId'],
-  ): Promise<SharingInvite[]> {
+  ): Promise<GetInvitesDto> {
     let item: File | Folder | null;
 
     if (itemType === 'file') {
@@ -196,7 +196,14 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    return this.sharingRepository.getInvitesByItem(itemId, itemType);
+    return this.sharingRepository.getInvites(
+      {
+        itemId,
+        itemType,
+      },
+      100,
+      0,
+    );
   }
 
   async getInvitesByUser(
