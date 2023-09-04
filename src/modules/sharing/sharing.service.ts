@@ -749,18 +749,10 @@ export class SharingService {
 
   async updateSharingRole(
     user: User,
-    id: SharingRole['id'],
+    id: Sharing['id'],
     dto: UpdateSharingRoleDto,
   ): Promise<void> {
-    const sharingRole = await this.sharingRepository.findSharingRole(id);
-
-    if (!sharingRole) {
-      throw new NotFoundException();
-    }
-
-    const sharing = await this.sharingRepository.findOneSharing({
-      id: sharingRole.sharingId,
-    });
+    const sharing = await this.sharingRepository.findSharingById(id);
 
     if (!sharing) {
       throw new NotFoundException();
@@ -784,7 +776,10 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    await this.sharingRepository.updateSharingRole(id, dto);
+    await this.sharingRepository.updateSharingRoleBy(
+      { sharingId: sharing.id },
+      dto,
+    );
   }
 
   async removeSharingRole(

@@ -100,6 +100,13 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharingRoles.update(update, { where: { id: sharingRoleId } });
   }
 
+  async updateSharingRoleBy(
+    where: Partial<SharingRole>,
+    update: Partial<Omit<SharingRole, 'id'>>,
+  ): Promise<void> {
+    await this.sharingRoles.update(update, { where });
+  }
+
   async findRoleBy(where: Partial<Role>): Promise<Role | null> {
     const raw = await this.roles.findOne({ where });
 
