@@ -557,7 +557,7 @@ export class SharingController {
     @Query('orderBy') orderBy: OrderBy,
     @Param('folderId') folderId: Folder['uuid'],
     @Res({ passthrough: true }) res: Response,
-  ): Promise<Record<'users', any[]> | Record<'error', string>> {
+  ): Promise<{ users: Array<any> } | { error: string }> {
     try {
       const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
@@ -573,7 +573,7 @@ export class SharingController {
         order,
       );
 
-      return { users };
+      return { users: users.map((u) => ({ ...u, sharedWith: u.uuid })) };
     } catch (error) {
       let errorMessage = error.message;
 
