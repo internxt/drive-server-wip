@@ -19,6 +19,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { FileStatus } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -101,7 +102,7 @@ export class ShareUseCases {
         share.fileId,
         share.userId,
         {
-          deleted: false,
+          status: FileStatus.EXISTS,
         },
       );
 

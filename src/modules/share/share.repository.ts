@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
-import { File, FileAttributes } from '../file/file.domain';
+import { File, FileAttributes, FileStatus } from '../file/file.domain';
 import {
   AllowNull,
   AutoIncrement,
@@ -154,7 +154,7 @@ export class SequelizeShareRepository implements ShareRepository {
         {
           model: this.fileModel,
           where: {
-            deleted: false,
+            status: FileStatus.EXISTS,
           },
           required: false,
         },
@@ -162,6 +162,7 @@ export class SequelizeShareRepository implements ShareRepository {
           model: this.folderModel,
           where: {
             deleted: false,
+            removed: false,
           },
           required: false,
         },
@@ -181,7 +182,7 @@ export class SequelizeShareRepository implements ShareRepository {
         {
           model: this.fileModel,
           where: {
-            deleted: false,
+            status: FileStatus.EXISTS,
           },
         },
       ],
@@ -271,7 +272,7 @@ export class SequelizeShareRepository implements ShareRepository {
         {
           model: this.fileModel,
           where: {
-            deleted: false,
+            status: FileStatus.EXISTS,
           },
           required: false,
         },

@@ -30,7 +30,7 @@ import { UpdateShareDto } from './dto/update-share.dto';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { ShareLinkViewEvent } from '../../externals/notifications/events/share-link-view.event';
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
-import { File, FileAttributes } from '../file/file.domain';
+import { File, FileAttributes, FileStatus } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
@@ -342,7 +342,7 @@ export class ShareController {
         folderId,
         share.userId,
         {
-          deleted: false,
+          status: FileStatus.EXISTS,
           page: parseInt(page),
           perPage: parseInt(perPage),
         },

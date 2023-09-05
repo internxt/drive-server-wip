@@ -4,7 +4,7 @@ import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { FindOptions, Op } from 'sequelize';
 
 import { User } from '../user/user.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
@@ -203,7 +203,7 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({
-      where: { id, deleted: false },
+      where: { id, status: FileStatus.EXISTS },
     });
 
     return file ? this.toDomain(file) : null;
@@ -211,7 +211,7 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
     const file = await this.fileModel.findOne({
-      where: { uuid, deleted: false },
+      where: { uuid, status: FileStatus.EXISTS },
     });
 
     return file ? this.toDomain(file) : null;
@@ -231,31 +231,15 @@ export class SequelizeFileRepository implements FileRepository {
   async findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
-    { deleted, page, perPage }: FileOptions,
+    { status, page, perPage }: FileOptions,
   ): Promise<Array<File> | []> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
     const query: FindOptions = {
-      where: { folderId, userId, deleted },
-      order: [['id', 'ASC']],
-    };
-    if (page && perPage) {
-      query.offset = offset;
-      query.limit = limit;
-    }
-    const files = await this.fileModel.findAll(query);
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
-  }
-
-  async findAllByUserIdExceptFolderIds(
-    userId: FileAttributes['userId'],
-    exceptFolderIds: FileAttributes['folderId'][],
-    { deleted, page, perPage }: FileOptions,
-  ): Promise<Array<File> | []> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const query: FindOptions = {
-      where: { userId, deleted, folderId: { [Op.notIn]: exceptFolderIds } },
+      where: {
+        folderId,
+        userId,
+        status,
+      },
       order: [['id', 'ASC']],
     };
     if (page && perPage) {
@@ -271,13 +255,13 @@ export class SequelizeFileRepository implements FileRepository {
   async findOne(
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
-    { deleted }: FileOptions,
+    { status }: FileOptions,
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         id: fileId,
         userId,
-        deleted,
+        status,
       },
     });
     return file ? this.toDomain(file) : null;
@@ -348,10 +332,6 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<void> {
     await this.fileModel.update(
       {
-        // Remove this after status is the main field
-        deleted: true,
-        deletedAt: new Date(),
-        //
         status: FileStatus.TRASHED,
         updatedAt: new Date(),
       },
