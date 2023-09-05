@@ -280,6 +280,7 @@ export class SequelizeShareRepository implements ShareRepository {
           model: this.folderModel,
           where: {
             deleted: false,
+            removed: false,
           },
           required: false,
         },
