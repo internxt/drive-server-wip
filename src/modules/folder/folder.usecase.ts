@@ -448,6 +448,7 @@ export class FolderUseCases {
     return this.folderRepository.getFoldersCountWhere({
       userId,
       deleted: true,
+      removed: false,
     });
   }
 
