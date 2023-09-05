@@ -923,14 +923,15 @@ export class SharingService {
 
     const usersWithRoles: UserWithRole[] = await Promise.all(
       users.map(async (user) => {
-        const { role } = sharingsWithRoles.find(
+        const sharing = sharingsWithRoles.find(
           (sharing) => sharing.sharedWith === user.uuid,
         );
         const avatar = await this.usersUsecases.getAvatarUrl(user.avatar);
         return {
           ...user,
+          sharingId: sharing.id,
           avatar,
-          role,
+          role: sharing.role,
         };
       }),
     );
