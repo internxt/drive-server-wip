@@ -150,6 +150,13 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
+  async findByUuids(uuids: FolderAttributes['uuid'][]): Promise<Folder[]> {
+    const folders = await this.folderModel.findAll({
+      where: { uuid: { [Op.in]: uuids } },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
   async findAllByParentIdCursor(
     where: Partial<FolderAttributes>,
     limit: number,

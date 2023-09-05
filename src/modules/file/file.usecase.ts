@@ -38,6 +38,10 @@ export class FileUseCases {
     private cryptoService: CryptoService,
   ) {}
 
+  getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
+    return this.fileRepository.findById(uuid);
+  }
+
   getByUserExceptParents(arg: any): Promise<File[]> {
     throw new Error('Method not implemented.');
   }
@@ -58,6 +62,10 @@ export class FileUseCases {
     }
 
     return file;
+  }
+
+  getByUuids(uuids: File['uuid'][]): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids);
   }
 
   async getFilesByFolderId(

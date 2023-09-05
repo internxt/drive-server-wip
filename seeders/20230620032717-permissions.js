@@ -23,7 +23,7 @@ module.exports = {
           permissions.push({
             id: uuidv4(),
             role_id: roleId,
-            type: `Permission${j + 1}`,
+            name: `Permission${j + 1}`,
             created_at: new Date(),
             updated_at: new Date(),
           });
