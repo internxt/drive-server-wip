@@ -336,23 +336,18 @@ export class SharingController {
     return this.sharingService.getUserRole(sharingId, user);
   }
 
-  @Put('/:id/roles/:sharingRoleId')
+  @Put('/:sharingId/role')
   @ApiParam({
-    name: 'id',
+    name: 'sharingId',
     description: 'Id of the sharing whose role is going to be updated',
-    type: String,
-  })
-  @ApiParam({
-    name: 'sharingRoleId',
-    description: 'Id of the sharing role whose role is going to be updated',
     type: String,
   })
   updateSharingRole(
     @UserDecorator() user: User,
-    @Param('sharingRoleId') sharingRoleId: SharingRole['id'],
+    @Param('sharingId') sharingId: Sharing['id'],
     @Body() dto: UpdateSharingRoleDto,
   ) {
-    return this.sharingService.updateSharingRole(user, sharingRoleId, dto);
+    return this.sharingService.updateSharingRole(user, sharingId, dto);
   }
 
   @Delete('/:sharingId/roles/:sharingRoleId')
@@ -562,7 +557,7 @@ export class SharingController {
     @Query('orderBy') orderBy: OrderBy,
     @Param('folderId') folderId: Folder['uuid'],
     @Res({ passthrough: true }) res: Response,
-  ): Promise<Record<'users', any[]> | Record<'error', string>> {
+  ): Promise<{ users: Array<any> } | { error: string }> {
     try {
       const { offset, limit } = Pagination.calculatePagination(page, perPage);
 

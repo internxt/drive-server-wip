@@ -152,10 +152,11 @@ export class SharedFolderRemovedError extends Error {
   }
 }
 
-type UserWithRole = Pick<
+type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
 > & {
+  sharingId: Sharing['id'];
   role: {
     name: Role['name'];
     id: Role['id'];
@@ -749,18 +750,10 @@ export class SharingService {
 
   async updateSharingRole(
     user: User,
-    id: SharingRole['id'],
+    id: Sharing['id'],
     dto: UpdateSharingRoleDto,
   ): Promise<void> {
-    const sharingRole = await this.sharingRepository.findSharingRole(id);
-
-    if (!sharingRole) {
-      throw new NotFoundException();
-    }
-
-    const sharing = await this.sharingRepository.findOneSharing({
-      id: sharingRole.sharingId,
-    });
+    const sharing = await this.sharingRepository.findSharingById(id);
 
     if (!sharing) {
       throw new NotFoundException();
@@ -784,7 +777,10 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    await this.sharingRepository.updateSharingRole(id, dto);
+    await this.sharingRepository.updateSharingRoleBy(
+      { sharingId: sharing.id },
+      dto,
+    );
   }
 
   async removeSharingRole(
@@ -903,7 +899,7 @@ export class SharingService {
     offset: number,
     limit: number,
     order: [string, string][],
-  ): Promise<UserWithRole[]> {
+  ): Promise<SharingInfo[]> {
     const privateSharings =
       await this.sharingRepository.findByOwnerOrSharedWithFolderId(
         user.uuid,
@@ -926,16 +922,17 @@ export class SharingService {
     const sharingsWithRoles =
       await this.sharingRepository.findSharingsWithRolesBySharedWith(users);
 
-    const usersWithRoles: UserWithRole[] = await Promise.all(
+    const usersWithRoles: SharingInfo[] = await Promise.all(
       users.map(async (user) => {
-        const { role } = sharingsWithRoles.find(
+        const sharing = sharingsWithRoles.find(
           (sharing) => sharing.sharedWith === user.uuid,
         );
         const avatar = await this.usersUsecases.getAvatarUrl(user.avatar);
         return {
           ...user,
+          sharingId: sharing.id,
           avatar,
-          role,
+          role: sharing.role,
         };
       }),
     );
@@ -945,10 +942,11 @@ export class SharingService {
     const { name, lastname, email, avatar, uuid } =
       ownerId === user.uuid ? user : await this.usersUsecases.getUser(ownerId);
 
-    const ownerWithRole: UserWithRole = {
+    const ownerWithRole: SharingInfo = {
       name,
       lastname,
       email,
+      sharingId: null,
       avatar: await this.usersUsecases.getAvatarUrl(avatar),
       uuid,
       role: {
