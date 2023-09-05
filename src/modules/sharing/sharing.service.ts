@@ -152,10 +152,11 @@ export class SharedFolderRemovedError extends Error {
   }
 }
 
-type UserWithRole = Pick<
+type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
 > & {
+  sharingId: Sharing['id'];
   role: {
     name: Role['name'];
     id: Role['id'];
@@ -898,7 +899,7 @@ export class SharingService {
     offset: number,
     limit: number,
     order: [string, string][],
-  ): Promise<UserWithRole[]> {
+  ): Promise<SharingInfo[]> {
     const privateSharings =
       await this.sharingRepository.findByOwnerOrSharedWithFolderId(
         user.uuid,
@@ -921,7 +922,7 @@ export class SharingService {
     const sharingsWithRoles =
       await this.sharingRepository.findSharingsWithRolesBySharedWith(users);
 
-    const usersWithRoles: UserWithRole[] = await Promise.all(
+    const usersWithRoles: SharingInfo[] = await Promise.all(
       users.map(async (user) => {
         const sharing = sharingsWithRoles.find(
           (sharing) => sharing.sharedWith === user.uuid,
@@ -941,10 +942,11 @@ export class SharingService {
     const { name, lastname, email, avatar, uuid } =
       ownerId === user.uuid ? user : await this.usersUsecases.getUser(ownerId);
 
-    const ownerWithRole: UserWithRole = {
+    const ownerWithRole: SharingInfo = {
       name,
       lastname,
       email,
+      sharingId: null,
       avatar: await this.usersUsecases.getAvatarUrl(avatar),
       uuid,
       role: {

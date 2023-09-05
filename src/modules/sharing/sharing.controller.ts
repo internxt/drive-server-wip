@@ -573,7 +573,7 @@ export class SharingController {
         order,
       );
 
-      return { users: users.map((u) => ({ ...u, sharedWith: u.uuid })) };
+      return { users };
     } catch (error) {
       let errorMessage = error.message;
 
