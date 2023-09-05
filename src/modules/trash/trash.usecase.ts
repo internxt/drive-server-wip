@@ -40,7 +40,7 @@ export class TrashUseCases {
     for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
       const files = await this.fileUseCases.getFiles(
         trashOwner.id,
-        { status: FileStatus.TRASHED, deleted: true, removed: false },
+        { status: FileStatus.TRASHED, removed: false },
         { limit: emptyTrashChunkSize, offset: i },
       );
 

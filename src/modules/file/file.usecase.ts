@@ -321,7 +321,6 @@ export class FileUseCases {
     return this.fileRepository.getFilesCountWhere({
       userId,
       status: FileStatus.TRASHED,
-      deleted: true,
       removed: false,
     });
   }
