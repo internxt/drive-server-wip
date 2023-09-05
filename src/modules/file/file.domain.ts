@@ -155,15 +155,6 @@ export class File implements FileAttributes {
     }
     this.user = user;
   }
-  moveToTrash() {
-    this.deleted = true;
-    this.deletedAt = new Date();
-  }
-
-  removeFromTrash() {
-    this.deleted = false;
-    this.deletedAt = null;
-  }
 
   toJSON(): FileDto {
     return {
