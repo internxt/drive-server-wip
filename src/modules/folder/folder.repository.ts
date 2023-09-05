@@ -94,13 +94,13 @@ export class SequelizeFolderRepository implements FolderRepository {
           ],
           required: false,
         },
-        {
-          model: PrivateSharingFolderModel,
-          attributes: ['id'],
-          required: false,
-          as: 'privateShares',
-          limit: 1, // used to check if there is at least one private share
-        },
+        // {
+        //   model: PrivateSharingFolderModel,
+        //   attributes: ['id'],
+        //   required: false,
+        //   as: 'privateShares',
+        //   limit: 1, // used to check if there is at least one private share
+        // },
       ],
       limit,
       offset,

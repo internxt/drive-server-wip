@@ -19,5 +19,5 @@ export interface FolderAttributes {
   updatedAt: Date;
   removedAt: Date;
   shares?: Share[];
-  privateShares?: PrivateSharingFolder[];
+  // privateShares?: PrivateSharingFolder[];
 }

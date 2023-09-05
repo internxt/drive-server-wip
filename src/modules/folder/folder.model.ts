@@ -96,9 +96,9 @@ export class FolderModel extends Model implements FolderAttributes {
   @HasMany(() => ShareModel, 'folderId')
   shares: Share[];
 
-  @HasMany(() => PrivateSharingFolderModel, {
-    foreignKey: 'folderId',
-    sourceKey: 'uuid',
-  })
-  privateShares: PrivateSharingFolder[];
+  // @HasMany(() => PrivateSharingFolderModel, {
+  //   foreignKey: 'folderId',
+  //   sourceKey: 'uuid',
+  // })
+  // privateShares: PrivateSharingFolder[];
 }

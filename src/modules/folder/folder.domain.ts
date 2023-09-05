@@ -34,7 +34,7 @@ export class Folder implements FolderAttributes {
   updatedAt: Date;
   size: number;
   shares?: Share[];
-  privateShares?: PrivateSharingFolder[];
+  // privateShares?: PrivateSharingFolder[];
   private constructor({
     id,
     uuid,
@@ -53,8 +53,8 @@ export class Folder implements FolderAttributes {
     removed,
     removedAt,
     shares = [],
-    privateShares = [],
-  }: FolderAttributes) {
+  }: // privateShares = [],
+  FolderAttributes) {
     this.type = 'folder';
     this.id = id;
     this.parentId = parentId;
@@ -74,7 +74,7 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.shares = shares;
-    this.privateShares = privateShares;
+    // this.privateShares = privateShares;
   }
 
   static build(file: FolderAttributes): Folder {
@@ -141,7 +141,7 @@ export class Folder implements FolderAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       shares: this.shares,
-      privateShares: this.privateShares,
+      // privateShares: this.privateShares,
     };
   }
 }
