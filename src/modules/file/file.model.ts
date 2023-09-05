@@ -83,22 +83,6 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   updatedAt: Date;
 
-  @Default(false)
-  @Column
-  removed: boolean;
-
-  @AllowNull
-  @Column
-  removedAt: Date;
-
-  @Default(false)
-  @Column
-  deleted: boolean;
-
-  @AllowNull
-  @Column
-  deletedAt: Date;
-
   @Column({
     type: DataType.ENUM,
     values: Object.values(FileStatus),

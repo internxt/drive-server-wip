@@ -27,10 +27,6 @@ export interface FileAttributes {
   folder?: any;
   folderUuid: string;
   encryptVersion: string;
-  deleted: boolean;
-  deletedAt: Date;
-  removed: boolean;
-  removedAt: Date;
   userId: number;
   user?: any;
   modificationTime: Date;
@@ -43,10 +39,9 @@ export interface FileAttributes {
 }
 
 export interface FileOptions {
-  deleted: FileAttributes['deleted'];
-  removed?: FileAttributes['removed'];
   page?: number;
   perPage?: number;
+  status: File['status'];
 }
 
 export class File implements FileAttributes {
@@ -86,8 +81,6 @@ export class File implements FileAttributes {
     folder,
     folderUuid,
     encryptVersion,
-    deleted,
-    deletedAt,
     userId,
     user,
     modificationTime,
@@ -95,8 +88,6 @@ export class File implements FileAttributes {
     updatedAt,
     uuid,
     plainName,
-    removed,
-    removedAt,
     status,
     shares,
     thumbnails,
@@ -110,8 +101,6 @@ export class File implements FileAttributes {
     this.size = size;
     this.bucket = bucket;
     this.encryptVersion = encryptVersion;
-    this.deleted = deleted;
-    this.deletedAt = deletedAt;
     this.userId = userId;
     this.setUser(user);
     this.modificationTime = modificationTime;
@@ -120,11 +109,15 @@ export class File implements FileAttributes {
     this.folderUuid = folderUuid;
     this.uuid = uuid;
     this.plainName = plainName;
-    this.removed = removed;
-    this.removedAt = removedAt;
     this.status = status;
     this.shares = shares;
     this.thumbnails = thumbnails;
+
+    this.deleted =
+      status === FileStatus.TRASHED || status === FileStatus.DELETED;
+    this.deletedAt = updatedAt;
+    this.removed = status === FileStatus.DELETED;
+    this.removedAt = updatedAt;
   }
 
   static build(file: FileAttributes): File {
