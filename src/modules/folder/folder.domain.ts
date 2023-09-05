@@ -1,5 +1,6 @@
 import { PrivateSharingFolder } from '../private-share-folder/private-sharing-folder.domain';
 import { Share } from '../share/share.domain';
+import { SharingModel } from '../sharing/models';
 import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
 import { FolderAttributes } from './folder.attributes';
@@ -34,7 +35,7 @@ export class Folder implements FolderAttributes {
   updatedAt: Date;
   size: number;
   shares?: Share[];
-  // privateShares?: PrivateSharingFolder[];
+  privateShares?: SharingModel[];
   private constructor({
     id,
     uuid,
@@ -53,6 +54,7 @@ export class Folder implements FolderAttributes {
     removed,
     removedAt,
     shares = [],
+    privateShares = [],
   }: // privateShares = [],
   FolderAttributes) {
     this.type = 'folder';
@@ -74,7 +76,7 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.shares = shares;
-    // this.privateShares = privateShares;
+    this.privateShares = privateShares;
   }
 
   static build(file: FolderAttributes): Folder {
@@ -141,7 +143,7 @@ export class Folder implements FolderAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       shares: this.shares,
-      // privateShares: this.privateShares,
+      privateShares: this.privateShares,
     };
   }
 }

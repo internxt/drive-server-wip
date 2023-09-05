@@ -18,6 +18,7 @@ import { PrivateSharingFolderModel } from '../private-share-folder/private-shari
 import { ShareModel } from '../share/share.repository';
 import { Share } from '../share/share.domain';
 import { PrivateSharingFolder } from '../private-share-folder/private-sharing-folder.domain';
+import { SharingModel } from '../sharing/models';
 
 export const FOLDER_MODEL_TOKEN = Symbol('FolderModelToken');
 @Table({
@@ -96,9 +97,9 @@ export class FolderModel extends Model implements FolderAttributes {
   @HasMany(() => ShareModel, 'folderId')
   shares: Share[];
 
-  // @HasMany(() => PrivateSharingFolderModel, {
-  //   foreignKey: 'folderId',
-  //   sourceKey: 'uuid',
-  // })
-  // privateShares: PrivateSharingFolder[];
+  @HasMany(() => SharingModel, {
+    foreignKey: 'itemId',
+    sourceKey: 'uuid',
+  })
+  privateShares: SharingModel[];
 }

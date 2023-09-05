@@ -1,5 +1,6 @@
 import { PrivateSharingFolder } from 'src/modules/private-share-folder/private-sharing-folder.domain';
 import { Share } from '../../../modules/share/share.domain';
+import { SharingModel } from 'src/modules/sharing/models';
 
 export class FolderDto {
   id: number;
@@ -18,5 +19,5 @@ export class FolderDto {
   createdAt: Date;
   updatedAt: Date;
   shares?: Share[];
-  privateShares?: PrivateSharingFolder[];
+  privateShares?: SharingModel[];
 }

@@ -13,6 +13,7 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { ShareModel } from '../share/share.repository';
 import { PrivateSharingFolderModel } from '../private-share-folder/private-sharing-folder.model';
+import { SharingModel } from '../sharing/models';
 
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
@@ -94,13 +95,13 @@ export class SequelizeFolderRepository implements FolderRepository {
           ],
           required: false,
         },
-        // {
-        //   model: PrivateSharingFolderModel,
-        //   attributes: ['id'],
-        //   required: false,
-        //   as: 'privateShares',
-        //   limit: 1, // used to check if there is at least one private share
-        // },
+        {
+          model: SharingModel,
+          attributes: ['id'],
+          required: false,
+          as: 'privateShares',
+          limit: 1, // used to check if there is at least one private share
+        },
       ],
       limit,
       offset,

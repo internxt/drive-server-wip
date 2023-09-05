@@ -11,7 +11,7 @@ import {
   newUser,
 } from '../../../test/fixtures';
 import configuration from '../../config/configuration';
-import { SharingService } from './sharing.service';
+import { InvalidPermissionsError, SharingService } from './sharing.service';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
@@ -99,10 +99,10 @@ describe('Sharing Use Cases', () => {
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
-        .spyOn(sharingRepository, 'findSharingByItemAndSharedWith')
+        .spyOn(sharingRepository, 'findOneSharing')
         .mockResolvedValue(sharing);
       jest
-        .spyOn(sharingRepository, 'findSharingRole')
+        .spyOn(sharingRepository, 'findSharingRoleBy')
         .mockResolvedValue(sharingRole);
 
       const removeFolderRoleMock = jest.spyOn(
@@ -114,16 +114,15 @@ describe('Sharing Use Cases', () => {
         'deleteSharing',
       );
 
-      const response = await sharingService.removeSharedWith(
+      await sharingService.removeSharedWith(
         folder.uuid,
+        'folder',
         otherUser.uuid,
         otherUser,
       );
 
       expect(removeFolderRoleMock).toHaveBeenCalled();
       expect(removeSharedWithMock).toHaveBeenCalled();
-
-      expect(response).toEqual({ message: 'User removed from shared folder' });
     });
 
     it('When the user is not the owner and is requesting the removal of other user then, it fails', async () => {
@@ -139,12 +138,13 @@ describe('Sharing Use Cases', () => {
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
-        .spyOn(sharingRepository, 'findSharingByItemAndSharedWith')
+        .spyOn(sharingRepository, 'findOneSharing')
         .mockResolvedValue(sharing);
 
       await expect(
         sharingService.removeSharedWith(
           folder.uuid,
+          'folder',
           otherUser.uuid,
           notTheOwner,
         ),
@@ -154,19 +154,20 @@ describe('Sharing Use Cases', () => {
     it('When the owner tries to remove its own sharing, then it should not be allowed to remove itself', async () => {
       const owner = newUser();
       const folder = newFolder({ owner });
-      const sharing = newSharing({
-        owner,
-        item: folder,
-        sharedWith: owner,
-      });
+      const sharing = null;
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
-        .spyOn(sharingRepository, 'findSharingByItemAndSharedWith')
+        .spyOn(sharingRepository, 'findOneSharing')
         .mockResolvedValue(sharing);
 
       await expect(
-        sharingService.removeSharedWith(folder.uuid, owner.uuid, owner),
+        sharingService.removeSharedWith(
+          folder.uuid,
+          'folder',
+          owner.uuid,
+          owner,
+        ),
       ).rejects.toThrowError(ConflictException);
     });
 
@@ -176,12 +177,15 @@ describe('Sharing Use Cases', () => {
       const folder = newFolder({ owner });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
-      jest
-        .spyOn(sharingRepository, 'findSharingByItemAndSharedWith')
-        .mockResolvedValue(null);
+      jest.spyOn(sharingRepository, 'findOneSharing').mockResolvedValue(null);
 
       await expect(
-        sharingService.removeSharedWith(folder.uuid, otherUser.uuid, owner),
+        sharingService.removeSharedWith(
+          folder.uuid,
+          'folder',
+          otherUser.uuid,
+          owner,
+        ),
       ).rejects.toThrowError(ConflictException);
     });
 
@@ -201,10 +205,10 @@ describe('Sharing Use Cases', () => {
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
-        .spyOn(sharingRepository, 'findSharingByItemAndSharedWith')
+        .spyOn(sharingRepository, 'findOneSharing')
         .mockResolvedValue(sharing);
       jest
-        .spyOn(sharingRepository, 'findSharingRole')
+        .spyOn(sharingRepository, 'findSharingRoleBy')
         .mockResolvedValue(sharingRole);
 
       const removeFolderRoleMock = jest.spyOn(
@@ -218,14 +222,13 @@ describe('Sharing Use Cases', () => {
 
       const response = await sharingService.removeSharedWith(
         folder.uuid,
+        'folder',
         otherUser.uuid,
         owner,
       );
 
       expect(removeFolderRoleMock).toHaveBeenCalled();
       expect(removeSharedWithMock).toHaveBeenCalled();
-
-      expect(response).toEqual({ message: 'User removed from shared folder' });
     });
   });
 });

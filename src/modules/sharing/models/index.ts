@@ -76,6 +76,7 @@ export class SharingModel extends Model implements SharingAttributes {
   @BelongsTo(() => FolderModel, {
     foreignKey: 'itemId',
     targetKey: 'uuid',
+    constraints: false,
   })
   folder: FolderModel;
 
