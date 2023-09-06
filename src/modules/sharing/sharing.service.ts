@@ -315,6 +315,8 @@ export class SharingService {
           networkPass: user.userId,
           networkUser: user.bridgeUser,
         },
+        bucket: '',
+        encryptionKey: null,
         token: '',
       };
     }
@@ -374,8 +376,13 @@ export class SharingService {
       }
     }
 
+    const [ownerRootFolder, items] = await Promise.all([
+      this.folderUsecases.getFolderByUserId(user.rootFolderId, user.id),
+      getFolderContent(owner.id, folder.id),
+    ]);
+
     return {
-      items: await getFolderContent(owner.id, folder.id),
+      items,
       credentials: {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
@@ -396,6 +403,8 @@ export class SharingService {
         '1d',
         getEnv().secrets.jwt,
       ),
+      bucket: ownerRootFolder.bucket,
+      encryptionKey: sharing.encryptionKey,
     };
   }
 
@@ -456,6 +465,8 @@ export class SharingService {
           networkUser: user.bridgeUser,
         },
         token: '',
+        bucket: '',
+        encryptionKey: null,
       };
     }
 
@@ -511,8 +522,13 @@ export class SharingService {
       }
     }
 
+    const [ownerRootFolder, items] = await Promise.all([
+      this.folderUsecases.getFolderByUserId(user.rootFolderId, user.id),
+      getFilesFromFolder(owner.id, folder.id),
+    ]);
+
     return {
-      items: await getFilesFromFolder(owner.id, folder.id),
+      items,
       credentials: {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
@@ -533,6 +549,8 @@ export class SharingService {
         '1d',
         getEnv().secrets.jwt,
       ),
+      bucket: ownerRootFolder.bucket,
+      encryptionKey: sharing.encryptionKey,
     };
   }
 

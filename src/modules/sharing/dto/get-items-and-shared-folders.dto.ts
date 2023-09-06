@@ -19,7 +19,9 @@ export interface GetFoldersReponse {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
   };
+  encryptionKey: Sharing['encryptionKey'] | null;
   token: string;
+  bucket: string;
 }
 
 export interface GetFilesResponse {
@@ -28,7 +30,9 @@ export interface GetFilesResponse {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
   };
+  encryptionKey: Sharing['encryptionKey'] | null;
   token: string;
+  bucket: string;
 }
 export interface FolderWithSharedInfo extends Folder {
   encryptionKey: Sharing['encryptionKey'] | null;
