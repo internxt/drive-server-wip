@@ -377,7 +377,7 @@ export class SharingService {
     }
 
     const [ownerRootFolder, items] = await Promise.all([
-      this.folderUsecases.getFolderByUserId(user.rootFolderId, user.id),
+      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
       getFolderContent(owner.id, folder.id),
     ]);
 
@@ -523,7 +523,7 @@ export class SharingService {
     }
 
     const [ownerRootFolder, items] = await Promise.all([
-      this.folderUsecases.getFolderByUserId(user.rootFolderId, user.id),
+      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
       getFilesFromFolder(owner.id, folder.id),
     ]);
 
