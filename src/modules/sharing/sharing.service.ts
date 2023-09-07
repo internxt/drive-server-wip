@@ -248,9 +248,10 @@ export class SharingService {
           ...invite,
           invited: {
             ...invite.invited,
-            avatar: invite.invited.avatar
-              ? await this.usersUsecases.getAvatarUrl(invite.invited.avatar)
-              : null,
+            // avatar: invite.invited.avatar
+            //   ? await this.usersUsecases.getAvatarUrl(invite.invited.avatar)
+            //   : null,
+            avatar: null,
           },
           item,
         };
@@ -945,9 +946,10 @@ export class SharingService {
         const sharing = sharingsWithRoles.find(
           (sharing) => sharing.sharedWith === user.uuid,
         );
-        const avatar = user.avatar
-          ? await this.usersUsecases.getAvatarUrl(user.avatar)
-          : null;
+        // const avatar = user.avatar
+        //   ? await this.usersUsecases.getAvatarUrl(user.avatar)
+        //   : null;
+        const avatar = null;
         return {
           ...user,
           sharingId: sharing.id,
@@ -967,7 +969,8 @@ export class SharingService {
       lastname,
       email,
       sharingId: null,
-      avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
+      // avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
+      avatar: null,
       uuid,
       role: {
         id: 'NONE',
