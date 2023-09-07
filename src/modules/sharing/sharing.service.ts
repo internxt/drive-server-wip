@@ -248,9 +248,9 @@ export class SharingService {
           ...invite,
           invited: {
             ...invite.invited,
-            avatar: await this.usersUsecases.getAvatarUrl(
-              invite.invited.avatar,
-            ),
+            avatar: invite.invited.avatar
+              ? await this.usersUsecases.getAvatarUrl(invite.invited.avatar)
+              : null,
           },
           item,
         };
@@ -945,7 +945,9 @@ export class SharingService {
         const sharing = sharingsWithRoles.find(
           (sharing) => sharing.sharedWith === user.uuid,
         );
-        const avatar = await this.usersUsecases.getAvatarUrl(user.avatar);
+        const avatar = user.avatar
+          ? await this.usersUsecases.getAvatarUrl(user.avatar)
+          : null;
         return {
           ...user,
           sharingId: sharing.id,
@@ -965,7 +967,7 @@ export class SharingService {
       lastname,
       email,
       sharingId: null,
-      avatar: await this.usersUsecases.getAvatarUrl(avatar),
+      avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
       uuid,
       role: {
         id: 'NONE',
