@@ -193,7 +193,21 @@ export class FolderController {
       },
     );
 
-    return { result: folders };
+    return {
+      result: folders.map((f) => {
+        let folderStatus: FileStatus;
+
+        if (f.removed) {
+          folderStatus = FileStatus.DELETED;
+        } else if (f.deleted) {
+          folderStatus = FileStatus.TRASHED;
+        } else {
+          folderStatus = FileStatus.EXISTS;
+        }
+
+        return { ...f, status: folderStatus };
+      }),
+    };
   }
 
   @Get('/')
