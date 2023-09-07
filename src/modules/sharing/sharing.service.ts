@@ -890,6 +890,10 @@ export class SharingService {
     const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
       return {
         ...folderWithSharedInfo.folder,
+        plainName:
+          folderWithSharedInfo.folder.plainName ||
+          this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
+            .plainName,
         sharingId: folderWithSharedInfo.id,
         encryptionKey: folderWithSharedInfo.encryptionKey,
         dateShared: folderWithSharedInfo.createdAt,
