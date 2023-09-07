@@ -790,9 +790,10 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    const isTheUserAuthorizedToUpdateTheRole = sharedItem.isOwnedBy(user);
+    const isTheOwner = sharedItem.isOwnedBy(user);
+    const isAnInvitedUser = sharing.isSharedWith(user);
 
-    if (!isTheUserAuthorizedToUpdateTheRole) {
+    if (!isTheOwner && !isAnInvitedUser) {
       throw new ForbiddenException();
     }
 
