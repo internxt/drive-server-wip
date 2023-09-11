@@ -69,8 +69,8 @@ export class Folder implements FolderAttributes {
     this.removedAt = removedAt;
   }
 
-  static build(file: FolderAttributes): Folder {
-    return new Folder(file);
+  static build(folder: FolderAttributes): Folder {
+    return new Folder(folder);
   }
 
   isRootFolder(): boolean {

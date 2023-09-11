@@ -21,6 +21,7 @@ import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
 import sequelize, { Op, WhereOptions } from 'sequelize';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
+import { File } from '../file/file.domain';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -71,6 +72,15 @@ export class SequelizeSharingRepository implements SharingRepository {
     sharingRoleId: SharingRole['id'],
   ): Promise<SharingRole | null> {
     return this.sharingRoles.findByPk(sharingRoleId);
+  }
+
+  async findSharingsWithRolesByItem(
+    item: File | Folder,
+  ): Promise<(SharingAttributes & { role: Role })[]> {
+    return this.findSharingsWithRoles({
+      itemId: item.uuid,
+      itemType: (item as any).fileId ? 'file' : 'folder',
+    });
   }
 
   async findByOwnerOrSharedWithFolderId(
