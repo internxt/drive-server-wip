@@ -40,7 +40,8 @@ import {
 } from './dto/get-items-and-shared-folders.dto';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
 import { ConfigService } from '@nestjs/config';
-import { MailerService } from 'src/externals/mailer/mailer.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { Sign } from '../../middlewares/passport';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -625,11 +626,13 @@ export class SharingService {
         updatedAt: new Date(),
       });
 
-      delete invite['id'];
-
-      await this.sharingRepository.createInvite(invite);
+      const createdInvite = await this.sharingRepository.createInvite(invite);
 
       if (createInviteDto.notifyUser) {
+        const authToken = Sign(
+          this.usersUsecases.getNewTokenPayload(userJoining),
+          this.configService.get('secrets.jwt'),
+        );
         new MailerService(this.configService)
           .sendInvitationToSharingReceivedEmail(
             user.email,
@@ -638,10 +641,10 @@ export class SharingService {
             {
               acceptUrl: `${this.configService.get(
                 'clients.drive.web',
-              )}/sharings/${invite.id}/accept?token=${''}`,
+              )}/sharings/${createdInvite.id}/accept?token=${authToken}`,
               declineUrl: `${this.configService.get(
                 'clients.drive.web',
-              )}/sharings/${invite.id}/decline?token=${''}`,
+              )}/sharings/${createdInvite.id}/decline?token=${authToken}`,
               message: createInviteDto.notificationMessage || '',
             },
           )
@@ -650,7 +653,7 @@ export class SharingService {
           });
       }
 
-      return invite;
+      return createdInvite;
     } else {
       throw new NotImplementedException();
     }
