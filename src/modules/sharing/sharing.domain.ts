@@ -2,6 +2,7 @@ import { File } from '../file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 
+export type Item = File | Folder;
 type ItemId = File['uuid'] | Folder['uuid'];
 type AddTimeStamps<T> = T & {
   createdAt: Date;

@@ -9,11 +9,11 @@ import {
 import { v4 } from 'uuid';
 
 import {
+  Item,
   Role,
   Sharing,
   SharingAttributes,
   SharingInvite,
-  SharingInviteWithItemAndUser,
   SharingRole,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
@@ -39,6 +39,8 @@ import {
   GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
+import { ConfigService } from '@nestjs/config';
+import { MailerService } from 'src/externals/mailer/mailer.service';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -172,6 +174,7 @@ export class SharingService {
     private readonly fileUsecases: FileUseCases,
     private readonly folderUsecases: FolderUseCases,
     private readonly usersUsecases: UserUseCases,
+    private readonly configService: ConfigService,
   ) {}
 
   async getInvites(
@@ -620,7 +623,26 @@ export class SharingService {
 
       delete invite['id'];
 
-      return this.sharingRepository.createInvite(invite);
+      await this.sharingRepository.createInvite(invite);
+
+      if (createInviteDto.notifyUser) {
+        new MailerService(this.configService)
+          .sendInvitationToSharingReceivedEmail(
+            user.email,
+            userJoining.email,
+            item.plainName,
+            {
+              acceptUrl: this.configService.get('clients.drive.web'),
+              declineUrl: this.configService.get('clients.drive.web'),
+              message: 'Hello, I want to share with you',
+            },
+          )
+          .catch(() => {
+            // no op
+          });
+      }
+
+      return invite;
     } else {
       throw new NotImplementedException();
     }
@@ -791,9 +813,8 @@ export class SharingService {
     }
 
     const isTheOwner = sharedItem.isOwnedBy(user);
-    const isAnInvitedUser = sharing.isSharedWith(user);
 
-    if (!isTheOwner && !isAnInvitedUser) {
+    if (!isTheOwner) {
       throw new ForbiddenException();
     }
 
@@ -1029,5 +1050,36 @@ export class SharingService {
 
     await this.sharingRepository.deleteSharingRole(sharingRole);
     await this.sharingRepository.deleteSharing(sharing.id);
+  }
+
+  async notifyUserRemovedFromSharing(
+    sharing: Sharing,
+    item: Item,
+  ): Promise<void> {
+    const user = await this.usersUsecases.getUser(sharing.sharedWith);
+
+    if (user) {
+      new MailerService(this.configService)
+        .sendRemovedFromSharingEmail(user.email, item.plainName)
+        .catch(() => {
+          // no op
+        });
+    }
+  }
+
+  async notifyUserSharingRoleUpdated(
+    sharing: Sharing,
+    item: Item,
+    newRole: Role,
+  ): Promise<void> {
+    const user = await this.usersUsecases.getUser(sharing.sharedWith);
+
+    if (user) {
+      new MailerService(this.configService)
+        .sendUpdatedSharingRoleEmail(user.email, item.plainName, newRole.name)
+        .catch(() => {
+          // no op
+        });
+    }
   }
 }

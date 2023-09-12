@@ -55,6 +55,11 @@ export default () => ({
       url: process.env.SHARE_DOMAINS,
     },
   },
+  clients: {
+    drive: {
+      web: process.env.HOST_DRIVE_WEB,
+    },
+  },
   mailer: {
     sandbox: process.env.SENDGRID_MODE_SANDBOX === 'true' || false,
     from: process.env.SENDGRID_FROM || 'hello@internxt.com',
@@ -69,6 +74,12 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_WELCOME_EMAIL_VERIFICATION || '',
       recoverAccountEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
+      invitationToSharingReceived:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
+      removedFromSharing:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
+      updatedSharingRole:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_ROLE_UPDATED || '',
     },
   },
   newsletter: {
