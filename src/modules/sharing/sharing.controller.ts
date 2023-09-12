@@ -32,7 +32,7 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
-import { Sharing, SharingInvite, SharingRole } from './sharing.domain';
+import { Item, Sharing, SharingInvite, SharingRole } from './sharing.domain';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { Folder } from '../folder/folder.domain';
@@ -522,6 +522,64 @@ export class SharingController {
       : undefined;
 
     return this.sharingService.getSharedFolders(user, offset, limit, order);
+  }
+
+  @Get('shared-with/:itemType/:itemId')
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Get all users that have access to a file or folder',
+  })
+  @ApiOperation({
+    summary: 'Get all users that have access to a file or folder',
+  })
+  @ApiQuery({
+    description: 'Items offset',
+    name: 'offset',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items to request',
+    name: 'limit',
+    required: false,
+    type: Number,
+  })
+  async getItemsSharedsWith(
+    @UserDecorator() user: User,
+    @Query('limit') limit = 0,
+    @Query('offset') offset = 50,
+    @Param('itemId') itemId: Sharing['itemId'],
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ users: Array<any> } | { error: string }> {
+    try {
+      const users = await this.sharingService.getItemSharedWith(
+        user,
+        itemId,
+        itemType,
+        offset,
+        limit,
+      );
+
+      return { users };
+    } catch (error) {
+      let errorMessage = error.message;
+
+      if (error instanceof InvalidSharedFolderError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (error instanceof UserNotInvitedError) {
+        res.status(HttpStatus.FORBIDDEN);
+      } else {
+        Logger.error(
+          `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
+            user.uuid
+          }, ${error.stack || 'No stack trace'}`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal server error';
+      }
+      return { error: errorMessage };
+    }
   }
 
   @Get('shared-with/:folderId')

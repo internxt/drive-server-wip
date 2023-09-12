@@ -966,6 +966,86 @@ export class SharingService {
     };
   }
 
+  async getItemSharedWith(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    offset: number,
+    limit: number,
+  ): Promise<SharingInfo[]> {
+    let item: Item;
+
+    if (itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(itemId);
+    } else if (itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(itemId);
+    } else {
+      throw new BadRequestException('Wrong item type');
+    }
+
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
+
+    const sharingsWithRoles =
+      await this.sharingRepository.findSharingsWithRolesByItem(item);
+
+    if (sharingsWithRoles.length === 0) {
+      throw new BadRequestException('This item is not being shared');
+    }
+
+    const sharedsWith = sharingsWithRoles.map((s) => s.sharedWith);
+
+    const isTheOwner = item.isOwnedBy(user);
+    const isAnInvitedUser = sharedsWith.includes(user.uuid);
+
+    if (!isTheOwner && !isAnInvitedUser) {
+      throw new ForbiddenException();
+    }
+
+    const users = await this.usersUsecases.findByUuids(sharedsWith);
+
+    const usersWithRoles: SharingInfo[] = sharingsWithRoles.map(
+      (sharingWithRole) => {
+        const user = users.find(
+          (user) => user.uuid === sharingWithRole.sharedWith,
+        );
+        const avatar = null;
+        return {
+          ...user,
+          sharingId: sharingWithRole.id,
+          avatar,
+          role: sharingWithRole.role,
+        };
+      },
+    );
+
+    const [{ ownerId }] = sharingsWithRoles;
+
+    const { name, lastname, email, avatar, uuid } =
+      ownerId === user.uuid ? user : await this.usersUsecases.getUser(ownerId);
+
+    const ownerWithRole: SharingInfo = {
+      name,
+      lastname,
+      email,
+      sharingId: null,
+      // avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
+      avatar: null,
+      uuid,
+      role: {
+        id: 'NONE',
+        name: 'OWNER',
+        createdAt: item.createdAt,
+        updatedAt: item.createdAt,
+      },
+    };
+
+    usersWithRoles.push(ownerWithRole);
+
+    return usersWithRoles;
+  }
+
   async getSharedWithByItemId(
     user: User,
     itemId: Sharing['itemId'],
