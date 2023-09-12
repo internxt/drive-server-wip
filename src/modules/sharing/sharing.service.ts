@@ -823,15 +823,6 @@ export class SharingService {
       { sharingId: sharing.id },
       dto,
     );
-
-    this.sharingRepository
-      .findRoleBy({ id: dto.roleId })
-      .then((role) => {
-        return this.notifyUserSharingRoleUpdated(sharing, sharedItem, role);
-      })
-      .catch(() => {
-        // no op
-      });
   }
 
   async removeSharingRole(
@@ -1060,10 +1051,6 @@ export class SharingService {
 
     await this.sharingRepository.deleteSharingRole(sharingRole);
     await this.sharingRepository.deleteSharing(sharing.id);
-
-    this.notifyUserRemovedFromSharing(sharing, item).catch(() => {
-      // no op
-    });
   }
 
   async notifyUserRemovedFromSharing(
