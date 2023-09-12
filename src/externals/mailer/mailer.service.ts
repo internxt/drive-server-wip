@@ -75,4 +75,20 @@ export class MailerService {
       context,
     );
   }
+
+  async sendRemovedFromSharingEmail(
+    userRemovedFromSharingEmail: User['email'],
+    itemName: File['plainName'] | Folder['plainName'],
+  ): Promise<void> {
+    const context: RemovedFromSharingContext = {
+      item_name: itemName,
+    };
+
+    await this.send(
+      userRemovedFromSharingEmail,
+      this.configService.get('mailer.templates.removedFromSharing'),
+      context,
+    );
+  }
+
 }

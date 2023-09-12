@@ -9,6 +9,7 @@ import {
 import { v4 } from 'uuid';
 
 import {
+  Item,
   Role,
   Sharing,
   SharingAttributes,
@@ -1050,5 +1051,24 @@ export class SharingService {
 
     await this.sharingRepository.deleteSharingRole(sharingRole);
     await this.sharingRepository.deleteSharing(sharing.id);
+
+    this.notifyUserRemovedFromSharing(sharing, item).catch(() => {
+      // no op
+    });
+  }
+
+  async notifyUserRemovedFromSharing(
+    sharing: Sharing,
+    item: Item,
+  ): Promise<void> {
+    const user = await this.usersUsecases.getUser(sharing.sharedWith);
+
+    if (user) {
+      new MailerService(this.configService)
+        .sendRemovedFromSharingEmail(user.email, item.plainName)
+        .catch(() => {
+          // no op
+        });
+    }
   }
 }
