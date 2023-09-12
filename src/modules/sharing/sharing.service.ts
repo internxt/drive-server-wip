@@ -13,7 +13,6 @@ import {
   Sharing,
   SharingAttributes,
   SharingInvite,
-  SharingInviteWithItemAndUser,
   SharingRole,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
@@ -39,6 +38,8 @@ import {
   GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
+import { ConfigService } from '@nestjs/config';
+import { MailerService } from 'src/externals/mailer/mailer.service';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -172,6 +173,7 @@ export class SharingService {
     private readonly fileUsecases: FileUseCases,
     private readonly folderUsecases: FolderUseCases,
     private readonly usersUsecases: UserUseCases,
+    private readonly configService: ConfigService,
   ) {}
 
   async getInvites(
@@ -620,7 +622,26 @@ export class SharingService {
 
       delete invite['id'];
 
-      return this.sharingRepository.createInvite(invite);
+      await this.sharingRepository.createInvite(invite);
+
+      if (createInviteDto.notifyUser) {
+        new MailerService(this.configService)
+          .sendInvitationToSharingReceivedEmail(
+            user.email,
+            userJoining.email,
+            item.plainName,
+            {
+              acceptUrl: this.configService.get('clients.drive.web'),
+              declineUrl: this.configService.get('clients.drive.web'),
+              message: 'Hello, I want to share with you',
+            },
+          )
+          .catch(() => {
+            // no op
+          });
+      }
+
+      return invite;
     } else {
       throw new NotImplementedException();
     }

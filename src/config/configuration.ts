@@ -55,6 +55,11 @@ export default () => ({
       url: process.env.SHARE_DOMAINS,
     },
   },
+  clients: {
+    drive: {
+      web: process.env.HOST_DRIVE_WEB,
+    },
+  },
   mailer: {
     sandbox: process.env.SENDGRID_MODE_SANDBOX === 'true' || false,
     from: process.env.SENDGRID_FROM || 'hello@internxt.com',

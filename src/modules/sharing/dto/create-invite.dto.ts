@@ -51,5 +51,13 @@ export class CreateInviteDto {
     example: '84f47d08-dc7c-43dc-b27c-bec4edaa9598',
     description: 'Invited user role regarding the item',
   })
+  @IsNotEmpty()
   roleId: SharingInvite['roleId'];
+
+  @ApiProperty({
+    example: 'true | false',
+    description: 'Request to send a notification to the invited user',
+  })
+  notifyUser: boolean;
+
 }
