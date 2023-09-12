@@ -634,7 +634,7 @@ export class SharingService {
             {
               acceptUrl: this.configService.get('clients.drive.web'),
               declineUrl: this.configService.get('clients.drive.web'),
-              message: 'Hello, I want to share with you',
+              message: createInviteDto.notificationMessage || '',
             },
           )
           .catch(() => {

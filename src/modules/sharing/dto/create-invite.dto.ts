@@ -64,5 +64,5 @@ export class CreateInviteDto {
     example: 'I want to share this file with you',
     description: 'Message to send into the notification for the invited user',
   })
-  notificationMessage: string;
+  notificationMessage?: string;
 }
