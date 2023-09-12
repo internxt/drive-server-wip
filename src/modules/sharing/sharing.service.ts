@@ -182,10 +182,10 @@ export class SharingService {
     itemType: Sharing['itemType'],
     itemId: Sharing['itemId'],
   ): Promise<GetInvitesDto> {
-    let item: File | Folder | null;
+    let item: Item | null;
 
     if (itemType === 'file') {
-      throw new NotImplementedException();
+      item = await this.fileUsecases.getByUuid(itemId);
     } else if (itemType === 'folder') {
       item = await this.folderUsecases.getByUuid(itemId);
     }
@@ -867,7 +867,7 @@ export class SharingService {
       throw new NotFoundException('Sharing not found');
     }
 
-    let item: File | Folder;
+    let item: Item;
     if (sharing.itemType === 'file') {
       item = await this.fileUsecases.getByUuid(sharing.itemId);
     } else if (sharing.itemType === 'folder') {
