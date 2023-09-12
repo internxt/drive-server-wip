@@ -1,6 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sendgrid from '@sendgrid/mail';
+import { User } from '../../modules/user/user.domain';
+import { Folder } from '../../modules/folder/folder.domain';
+import { File } from '../../modules/file/file.domain';
+
+type SendInvitationToSharingContext = {
+  notification_message: string;
+  item_name: string;
+  sender_email: string;
+  accept_url: string;
+  decline_url: string;
+};
+
 @Injectable()
 export class MailerService {
   constructor(
@@ -38,5 +50,29 @@ export class MailerService {
       },
     };
     await sendgrid.send(msg);
+  }
+
+  async sendInvitationToSharingReceivedEmail(
+    ownerOfTheItemEmail: User['email'],
+    invitedUserEmail: User['email'],
+    itemName: File['plainName'] | Folder['plainName'],
+    mailInfo: {
+      acceptUrl: string;
+      declineUrl: string;
+      message: string;
+    },
+  ): Promise<void> {
+    const context: SendInvitationToSharingContext = {
+      sender_email: ownerOfTheItemEmail,
+      accept_url: mailInfo.acceptUrl,
+      decline_url: mailInfo.declineUrl,
+      item_name: itemName,
+      notification_message: mailInfo.message,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get('mailer.templates.invitationToSharingReceived'),
+      context,
+    );
   }
 }

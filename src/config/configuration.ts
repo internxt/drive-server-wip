@@ -69,6 +69,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_WELCOME_EMAIL_VERIFICATION || '',
       recoverAccountEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
+      invitationToSharingReceived:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
     },
   },
   newsletter: {
