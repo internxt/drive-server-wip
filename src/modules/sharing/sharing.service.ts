@@ -636,8 +636,12 @@ export class SharingService {
             userJoining.email,
             item.plainName,
             {
-              acceptUrl: this.configService.get('clients.drive.web'),
-              declineUrl: this.configService.get('clients.drive.web'),
+              acceptUrl: `${this.configService.get(
+                'clients.drive.web',
+              )}/sharings/${invite.id}/accept?token=${''}`,
+              declineUrl: `${this.configService.get(
+                'clients.drive.web',
+              )}/sharings/${invite.id}/decline?token=${''}`,
               message: createInviteDto.notificationMessage || '',
             },
           )
@@ -821,10 +825,10 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    let sharedItem: File | Folder;
+    let sharedItem: Item;
 
     if (sharing.itemType === 'file') {
-      throw new Error('Not implemented yet');
+      sharedItem = await this.fileUsecases.getByUuid(sharing.itemId);
     } else if (sharing.itemType === 'folder') {
       sharedItem = await this.folderUsecases.getByUuid(sharing.itemId);
     }
