@@ -678,7 +678,16 @@ export class SharingService {
       }
     }
 
-    const item = await this.folderUsecases.getByUuid(invite.itemId);
+    let item: Item;
+
+    if (invite.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(invite.itemId);
+    } else if (invite.itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(invite.itemId);
+    } else {
+      throw new BadRequestException('Wrong invitation item type');
+    }
+
     const owner = await this.usersUsecases.findById(item.userId);
 
     if (!owner) {
