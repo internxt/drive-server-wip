@@ -813,9 +813,8 @@ export class SharingService {
     }
 
     const isTheOwner = sharedItem.isOwnedBy(user);
-    const isAnInvitedUser = sharing.isSharedWith(user);
 
-    if (!isTheOwner && !isAnInvitedUser) {
+    if (!isTheOwner) {
       throw new ForbiddenException();
     }
 
