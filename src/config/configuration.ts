@@ -78,6 +78,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
       removedFromSharing:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
+      updatedSharingRole:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_ROLE_UPDATED || '',
     },
   },
   newsletter: {

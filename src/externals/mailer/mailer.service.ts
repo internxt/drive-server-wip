@@ -13,6 +13,15 @@ type SendInvitationToSharingContext = {
   decline_url: string;
 };
 
+type RemovedFromSharingContext = {
+  item_name: string;
+};
+
+type UpdatedSharingRoleContext = {
+  item_name: string;
+  new_role: string;
+};
+
 @Injectable()
 export class MailerService {
   constructor(
@@ -91,4 +100,20 @@ export class MailerService {
     );
   }
 
+  async sendUpdatedSharingRoleEmail(
+    userUpdatedSharingRoleEmail: User['email'],
+    itemName: File['plainName'] | Folder['plainName'],
+    newRole: string,
+  ): Promise<void> {
+    const context: UpdatedSharingRoleContext = {
+      item_name: itemName,
+      new_role: newRole,
+    };
+
+    await this.send(
+      userUpdatedSharingRoleEmail,
+      this.configService.get('mailer.templates.updatedSharingRole'),
+      context,
+    );
+  }
 }

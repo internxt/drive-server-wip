@@ -823,6 +823,15 @@ export class SharingService {
       { sharingId: sharing.id },
       dto,
     );
+
+    this.sharingRepository
+      .findRoleBy({ id: dto.roleId })
+      .then((role) => {
+        return this.notifyUserSharingRoleUpdated(sharing, sharedItem, role);
+      })
+      .catch(() => {
+        // no op
+      });
   }
 
   async removeSharingRole(
@@ -1066,6 +1075,22 @@ export class SharingService {
     if (user) {
       new MailerService(this.configService)
         .sendRemovedFromSharingEmail(user.email, item.plainName)
+        .catch(() => {
+          // no op
+        });
+    }
+  }
+
+  async notifyUserSharingRoleUpdated(
+    sharing: Sharing,
+    item: Item,
+    newRole: Role,
+  ): Promise<void> {
+    const user = await this.usersUsecases.getUser(sharing.sharedWith);
+
+    if (user) {
+      new MailerService(this.configService)
+        .sendUpdatedSharingRoleEmail(user.email, item.plainName, newRole.name)
         .catch(() => {
           // no op
         });
