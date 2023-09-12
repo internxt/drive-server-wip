@@ -723,7 +723,15 @@ export class SharingService {
       throw new UserNotFoundError();
     }
 
-    const item = await this.folderUsecases.getByUuid(invite.itemId);
+    let item: Item;
+
+    if (invite.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(invite.itemId);
+    } else if (invite.itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(invite.itemId);
+    } else {
+      throw new BadRequestException('Wrong invitation item type');
+    }
 
     if (!item) {
       throw new NotFoundException('Item associated to the invite not found');
