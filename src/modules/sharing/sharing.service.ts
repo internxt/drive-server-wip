@@ -582,10 +582,6 @@ export class SharingService {
     }
 
     if (isAnInvitation) {
-      if (createInviteDto.itemType === 'file') {
-        throw new NotImplementedException();
-      }
-
       const [invitation, sharing] = await Promise.all([
         this.sharingRepository.getInviteByItemAndUser(
           createInviteDto.itemId,
@@ -606,7 +602,15 @@ export class SharingService {
         throw new UserAlreadyHasRole();
       }
 
-      const item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
+      let item: Item;
+
+      if (createInviteDto.itemType === 'file') {
+        item = await this.fileUsecases.getByUuid(createInviteDto.itemId);
+      } else if (createInviteDto.itemType === 'folder') {
+        item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
+      } else {
+        throw new BadRequestException('Wrong "itemType" param');
+      }
       const resourceIsOwnedByUser = item.isOwnedBy(user);
 
       if (!resourceIsOwnedByUser) {
