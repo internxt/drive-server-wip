@@ -129,13 +129,15 @@ export class TrashController {
         id: v4(),
         message: 'Trying to add 0 items to the trash',
       });
-      return;
+      throw new BadRequestException('No items to move to trash');
     }
-
     try {
       const fileIds: string[] = [];
       const folderIds: number[] = [];
       for (const item of moveItemsDto.items) {
+        if (!item.id || isNaN(parseInt(item.id)) || parseInt(item.id) < 1) {
+          throw new BadRequestException(`Item id ${item.id} invalid`);
+        }
         if (item.type === 'file') {
           fileIds.push(item.id);
         } else if (item.type === 'folder') {
@@ -148,6 +150,15 @@ export class TrashController {
         this.fileUseCases.moveFilesToTrash(user, fileIds),
         this.folderUseCases.moveFoldersToTrash(folderIds),
       ]);
+
+      const [files, folders] = await Promise.all([
+        this.fileUseCases.getFilesByFilesIds(user.id, fileIds),
+        this.folderUseCases.getFoldersByIds(user, folderIds),
+      ]);
+      const trashedItems = [...files, ...folders];
+      if (trashedItems.length === 0) {
+        throw new BadRequestException('items not trasheables');
+      }
 
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
@@ -167,9 +178,13 @@ export class TrashController {
         .catch((err) => {
           // no op
         });
+
+      return { trashedItems };
     } catch (err) {
       const { email, uuid } = user;
-
+      if (err instanceof BadRequestException) {
+        throw new BadRequestException(err.message);
+      }
       new Logger().error(
         `[TRASH/ADD] ERROR: ${(err as Error).message}, BODY ${JSON.stringify({
           ...moveItemsDto,
