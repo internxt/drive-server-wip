@@ -21,7 +21,7 @@ import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
 import sequelize, { Op, WhereOptions } from 'sequelize';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
 
 interface SharingRepository {
@@ -314,8 +314,7 @@ export class SequelizeSharingRepository implements SharingRepository {
         {
           model: FileModel,
           where: {
-            deleted: false,
-            removed: false,
+            status: FileStatus.EXISTS,
           },
           include: [
             {
