@@ -13,8 +13,8 @@ export interface GetItemsReponse {
   token: string;
 }
 
-export interface GetFoldersReponse {
-  items: FolderWithSharedInfo[];
+export interface GetSharedItemsReponse<Item> {
+  items: Item[];
   credentials: {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
@@ -22,18 +22,12 @@ export interface GetFoldersReponse {
   encryptionKey: Sharing['encryptionKey'] | null;
   token: string;
   bucket: string;
+  parent?: Pick<Folder, 'uuid' | 'name'>;
 }
 
-export interface GetFilesResponse {
-  items: FileWithSharedInfo[];
-  credentials: {
-    networkPass: User['userId'];
-    networkUser: User['bridgeUser'];
-  };
-  encryptionKey: Sharing['encryptionKey'] | null;
-  token: string;
-  bucket: string;
-}
+export type GetFoldersReponse = GetSharedItemsReponse<FolderWithSharedInfo>;
+export type GetFilesResponse = GetSharedItemsReponse<FileWithSharedInfo>;
+
 export interface FolderWithSharedInfo extends Folder {
   encryptionKey: Sharing['encryptionKey'] | null;
   dateShared: Date | null;
