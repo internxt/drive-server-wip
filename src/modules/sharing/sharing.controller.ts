@@ -524,6 +524,45 @@ export class SharingController {
     return this.sharingService.getSharedFolders(user, offset, limit, order);
   }
 
+  @Get('/files')
+  @ApiOperation({
+    summary: 'Get all files shared by/with a user',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Order by',
+    name: 'orderBy',
+    required: false,
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all files shared by/with a user' })
+  @ApiBearerAuth()
+  async getAllSharedFiles(
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ): Promise<GetItemsReponse | { error: string }> {
+    const { offset, limit } = Pagination.calculatePagination(page, perPage);
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.sharingService.getSharedFiles(user, offset, limit, order);
+  }
+
   @Get('shared-with/:itemType/:itemId')
   @ApiBearerAuth()
   @ApiOkResponse({

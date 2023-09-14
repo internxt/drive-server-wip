@@ -990,6 +990,48 @@ export class SharingService {
     };
   }
 
+  async getSharedFiles(
+    user: User,
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<GetItemsReponse> {
+    const filesWithSharedInfo =
+      await this.sharingRepository.findFilesByOwnerAndSharedWithMe(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+
+    const files = filesWithSharedInfo.map((fileWithSharedInfo) => {
+      return {
+        ...fileWithSharedInfo.file,
+        plainName:
+          fileWithSharedInfo.file.plainName ||
+          this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
+        sharingId: fileWithSharedInfo.id,
+        encryptionKey: fileWithSharedInfo.encryptionKey,
+        dateShared: fileWithSharedInfo.createdAt,
+        sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
+        credentials: {
+          networkPass: fileWithSharedInfo.file.user.userId,
+          networkUser: fileWithSharedInfo.file.user.bridgeUser,
+        },
+      };
+    }) as FileWithSharedInfo[];
+
+    return {
+      folders: [],
+      files: files,
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+    };
+  }
+
   async getItemSharedWith(
     user: User,
     itemId: Sharing['itemId'],
