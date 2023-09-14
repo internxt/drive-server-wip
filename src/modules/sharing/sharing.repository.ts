@@ -21,7 +21,8 @@ import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
 import sequelize, { Op, WhereOptions } from 'sequelize';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
+import { FileModel } from '../file/file.model';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -290,6 +291,51 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async findFilesByOwnerAndSharedWithMe(
+    userId: User['uuid'],
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<Sharing[]> {
+    const sharedFiles = await this.sharings.findAll({
+      where: {
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      },
+      attributes: [
+        [sequelize.literal(`"SharingModel"."id"`), 'sharingId'],
+        [
+          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          'encryptionKey',
+        ],
+        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+      ],
+      group: ['file.id', 'file->user.id', 'SharingModel.id'],
+      include: [
+        {
+          model: FileModel,
+          where: {
+            status: FileStatus.EXISTS,
+          },
+          include: [
+            {
+              model: UserModel,
+              as: 'user',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+            },
+          ],
+        },
+      ],
+      order: orderBy,
+      limit,
+      offset,
+    });
+
+    return sharedFiles.map((shared) => {
+      shared.set('id', shared.get('sharingId'));
+      return this.toDomainFile(shared);
+    });
+  }
+
   private toDomain(model: SharingModel): Sharing {
     const folder = model.folder.get({ plain: true });
     const user = model.folder.user.get({ plain: true });
@@ -300,6 +346,20 @@ export class SequelizeSharingRepository implements SharingRepository {
       folder: Folder.build({
         ...folder,
         parent: folder.parent ? Folder.build(folder.parent) : null,
+        user: user ? User.build(user) : null,
+      }),
+    });
+  }
+
+  private toDomainFile(model: SharingModel): Sharing {
+    const file = model.file.get({ plain: true });
+    const user = model.file.user.get({ plain: true });
+    delete file.user;
+
+    return Sharing.build({
+      ...model.get({ plain: true }),
+      file: File.build({
+        ...file,
         user: user ? User.build(user) : null,
       }),
     });
