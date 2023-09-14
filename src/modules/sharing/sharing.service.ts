@@ -590,6 +590,17 @@ export class SharingService {
       throw new BadRequestException();
     }
 
+    if (isAnInvitation) {
+      if (
+        !createInviteDto.encryptionAlgorithm ||
+        !createInviteDto.encryptionKey
+      ) {
+        throw new BadRequestException(
+          'Encryption algorithm and encryption key are required',
+        );
+      }
+    }
+
     const userJoining = await this.usersUsecases.findByEmail(
       createInviteDto.sharedWith,
     );
@@ -598,81 +609,77 @@ export class SharingService {
       throw new NotFoundException('Invited user not found');
     }
 
-    if (isAnInvitation) {
-      const [invitation, sharing] = await Promise.all([
-        this.sharingRepository.getInviteByItemAndUser(
-          createInviteDto.itemId,
-          createInviteDto.itemType,
-          userJoining.uuid,
-        ),
-        this.sharingRepository.findOneSharing({
-          itemId: createInviteDto.itemId,
-          itemType: createInviteDto.itemType,
-          sharedWith: userJoining.uuid,
-        }),
-      ]);
-
-      const userAlreadyInvited = invitation !== null;
-      const userAlreadyJoined = sharing !== null;
-
-      if (userAlreadyInvited || userAlreadyJoined) {
-        throw new UserAlreadyHasRole();
-      }
-
-      let item: Item;
-
-      if (createInviteDto.itemType === 'file') {
-        item = await this.fileUsecases.getByUuid(createInviteDto.itemId);
-      } else if (createInviteDto.itemType === 'folder') {
-        item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
-      } else {
-        throw new BadRequestException('Wrong "itemType" param');
-      }
-      const resourceIsOwnedByUser = item.isOwnedBy(user);
-
-      if (!resourceIsOwnedByUser) {
-        throw new ForbiddenException();
-      }
-
-      const invite = SharingInvite.build({
-        id: v4(),
-        ...createInviteDto,
+    const [invitation, sharing] = await Promise.all([
+      this.sharingRepository.getInviteByItemAndUser(
+        createInviteDto.itemId,
+        createInviteDto.itemType,
+        userJoining.uuid,
+      ),
+      this.sharingRepository.findOneSharing({
+        itemId: createInviteDto.itemId,
+        itemType: createInviteDto.itemType,
         sharedWith: userJoining.uuid,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      }),
+    ]);
 
-      const createdInvite = await this.sharingRepository.createInvite(invite);
+    const userAlreadyInvited = invitation !== null;
+    const userAlreadyJoined = sharing !== null;
 
-      if (createInviteDto.notifyUser) {
-        const authToken = Sign(
-          this.usersUsecases.getNewTokenPayload(userJoining),
-          this.configService.get('secrets.jwt'),
-        );
-        new MailerService(this.configService)
-          .sendInvitationToSharingReceivedEmail(
-            user.email,
-            userJoining.email,
-            item.plainName,
-            {
-              acceptUrl: `${this.configService.get(
-                'clients.drive.web',
-              )}/sharings/${createdInvite.id}/accept?token=${authToken}`,
-              declineUrl: `${this.configService.get(
-                'clients.drive.web',
-              )}/sharings/${createdInvite.id}/decline?token=${authToken}`,
-              message: createInviteDto.notificationMessage || '',
-            },
-          )
-          .catch(() => {
-            // no op
-          });
-      }
-
-      return createdInvite;
-    } else {
-      throw new NotImplementedException();
+    if (userAlreadyInvited || userAlreadyJoined) {
+      throw new UserAlreadyHasRole();
     }
+
+    let item: Item;
+
+    if (createInviteDto.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(createInviteDto.itemId);
+    } else if (createInviteDto.itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
+    } else {
+      throw new BadRequestException('Wrong "itemType" param');
+    }
+    const resourceIsOwnedByUser = item.isOwnedBy(user);
+
+    if (!resourceIsOwnedByUser) {
+      throw new ForbiddenException();
+    }
+
+    const invite = SharingInvite.build({
+      id: v4(),
+      ...createInviteDto,
+      sharedWith: userJoining.uuid,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const createdInvite = await this.sharingRepository.createInvite(invite);
+
+    if (createInviteDto.notifyUser) {
+      const authToken = Sign(
+        this.usersUsecases.getNewTokenPayload(userJoining),
+        this.configService.get('secrets.jwt'),
+      );
+      new MailerService(this.configService)
+        .sendInvitationToSharingReceivedEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            acceptUrl: `${this.configService.get(
+              'clients.drive.web',
+            )}/sharings/${createdInvite.id}/accept?token=${authToken}`,
+            declineUrl: `${this.configService.get(
+              'clients.drive.web',
+            )}/sharings/${createdInvite.id}/decline?token=${authToken}`,
+            message: createInviteDto.notificationMessage || '',
+          },
+        )
+        .catch(() => {
+          // no op
+        });
+    }
+
+    return createdInvite;
   }
 
   async acceptInvite(
