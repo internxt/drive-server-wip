@@ -80,11 +80,13 @@ export class FolderUseCases {
     return folder;
   }
 
-  getFolder(
+  async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
   ) {
-    return this.folderRepository.findById(folderId, deleted);
+    const folder = await this.folderRepository.findById(folderId, deleted);
+
+    return this.decryptFolderName(folder);
   }
 
   async isFolderInsideFolder(

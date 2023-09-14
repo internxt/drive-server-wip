@@ -323,6 +323,10 @@ export class SharingService {
         bucket: '',
         encryptionKey: null,
         token: '',
+        parent: {
+          uuid: parentFolder?.uuid || null,
+          name: parentFolder?.plainName || null,
+        },
       };
     }
 
@@ -410,6 +414,10 @@ export class SharingService {
       ),
       bucket: ownerRootFolder.bucket,
       encryptionKey: sharing.encryptionKey,
+      parent: {
+        uuid: parentFolder?.uuid || null,
+        name: parentFolder?.plainName || null,
+      },
     };
   }
 
@@ -472,6 +480,10 @@ export class SharingService {
         token: '',
         bucket: '',
         encryptionKey: null,
+        parent: {
+          uuid: parentFolder?.uuid || null,
+          name: parentFolder?.plainName || null,
+        },
       };
     }
 
@@ -556,6 +568,10 @@ export class SharingService {
       ),
       bucket: ownerRootFolder.bucket,
       encryptionKey: sharing.encryptionKey,
+      parent: {
+        uuid: parentFolder?.uuid || null,
+        name: parentFolder?.plainName || null,
+      },
     };
   }
 

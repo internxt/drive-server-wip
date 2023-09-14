@@ -14,7 +14,7 @@ export interface FolderOptions {
 
 export class Folder implements FolderAttributes {
   id: number;
-  parentId: number;
+  parentId: number | null;
   parent: Folder;
   type: string;
   name: string;
