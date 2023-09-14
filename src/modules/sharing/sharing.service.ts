@@ -955,9 +955,30 @@ export class SharingService {
       };
     }) as FolderWithSharedInfo[];
 
+    const filesWithSharedInfo =
+      await this.sharingRepository.findFilesByOwnerAndSharedWithMe(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+
+    const files = filesWithSharedInfo.map((fileWithSharedInfo) => {
+      return {
+        ...fileWithSharedInfo.file,
+        plainName:
+          fileWithSharedInfo.file.plainName ||
+          this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
+        sharingId: fileWithSharedInfo.id,
+        encryptionKey: fileWithSharedInfo.encryptionKey,
+        dateShared: fileWithSharedInfo.createdAt,
+        sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
+      };
+    }) as FileWithSharedInfo[];
+
     return {
       folders: folders,
-      files: [],
+      files: files,
       credentials: {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
