@@ -930,13 +930,20 @@ export class SharingService {
     limit: number,
     order: [string, string][],
   ): Promise<GetItemsReponse> {
-    const foldersWithSharedInfo =
-      await this.sharingRepository.findByOwnerAndSharedWithMe(
+    const [foldersWithSharedInfo, filesWithSharedInfo] = await Promise.all([
+      this.sharingRepository.findByOwnerAndSharedWithMe(
         user.uuid,
         offset,
         limit,
         order,
-      );
+      ),
+      this.sharingRepository.findFilesByOwnerAndSharedWithMe(
+        user.uuid,
+        offset,
+        limit,
+        order,
+      ),
+    ]);
     const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
       return {
         ...folderWithSharedInfo.folder,
@@ -955,9 +962,26 @@ export class SharingService {
       };
     }) as FolderWithSharedInfo[];
 
+    const files = filesWithSharedInfo.map((fileWithSharedInfo) => {
+      return {
+        ...fileWithSharedInfo.file,
+        plainName:
+          fileWithSharedInfo.file.plainName ||
+          this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
+        sharingId: fileWithSharedInfo.id,
+        encryptionKey: fileWithSharedInfo.encryptionKey,
+        dateShared: fileWithSharedInfo.createdAt,
+        sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
+        credentials: {
+          networkPass: fileWithSharedInfo.file.user.userId,
+          networkUser: fileWithSharedInfo.file.user.bridgeUser,
+        },
+      };
+    }) as FileWithSharedInfo[];
+
     return {
       folders: folders,
-      files: [],
+      files: files,
       credentials: {
         networkPass: user.userId,
         networkUser: user.bridgeUser,

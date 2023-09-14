@@ -49,4 +49,9 @@ export interface FileWithSharedInfo extends File {
   encryptionKey: Sharing['encryptionKey'] | null;
   dateShared: Date | null;
   sharedWithMe: boolean | null;
+  sharingId?: Sharing['id'];
+  credentials: {
+    networkPass: User['userId'];
+    networkUser: User['bridgeUser'];
+  };
 }

@@ -15,6 +15,7 @@ import {
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
 import { FolderModel } from '../../folder/folder.model';
+import { FileModel } from 'src/modules/file/file.model';
 
 @Table({
   underscored: true,
@@ -78,6 +79,12 @@ export class SharingModel extends Model implements SharingAttributes {
     targetKey: 'uuid',
   })
   folder: FolderModel;
+
+  @BelongsTo(() => FileModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+  })
+  file: FileModel;
 
   @Column(DataType.STRING)
   itemType: SharingAttributes['itemType'];
