@@ -9,6 +9,11 @@ type AddTimeStamps<T> = T & {
   updatedAt: Date;
 };
 
+export enum SharingType {
+  Public = 'public',
+  Private = 'private',
+}
+
 export interface SharingAttributes {
   id: string;
   itemId: ItemId;
@@ -17,6 +22,7 @@ export interface SharingAttributes {
   sharedWith: User['uuid'];
   encryptionKey: string;
   encryptionAlgorithm: string;
+  type: SharingType;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,7 +47,7 @@ export interface PermissionAttributes {
 }
 
 export interface SharingInviteAttributes
-  extends Omit<SharingAttributes, 'ownerId'> {
+  extends Omit<SharingAttributes, 'ownerId' | 'type'> {
   id: string;
   type: 'SELF' | 'OWNER';
   roleId: RoleAttributes['id'];
@@ -57,6 +63,7 @@ export class Sharing implements SharingAttributes {
   encryptionAlgorithm: string;
   createdAt: Date;
   updatedAt: Date;
+  type: SharingType;
 
   folder?: Folder;
   file?: File;
@@ -81,6 +88,7 @@ export class Sharing implements SharingAttributes {
 
     this.folder = attributes.folder;
     this.file = attributes.file;
+    this.type = attributes.type;
   }
 
   static build(sharing: SharingAttributes): Sharing {
@@ -94,6 +102,11 @@ export class Sharing implements SharingAttributes {
   isSharedWith(user: User): boolean {
     return this.sharedWith === user.uuid;
   }
+
+  isPublic(): boolean {
+    return this.type === SharingType.Public;
+  }
+
 }
 
 export class SharingRole implements SharingRoleAttributes {

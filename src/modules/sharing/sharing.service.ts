@@ -15,6 +15,7 @@ import {
   SharingAttributes,
   SharingInvite,
   SharingRole,
+  SharingType,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
@@ -727,6 +728,7 @@ export class SharingService {
     const newSharing = Sharing.build({
       ...invite,
       id: v4(),
+      type: SharingType.Private,
       ownerId: owner.uuid,
       encryptionAlgorithm: invite.isARequest()
         ? acceptInviteDto.encryptionAlgorithm
