@@ -44,6 +44,7 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import API_LIMITS from '../../lib/http/limits';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
+import { CreateSharingDto } from './dto/create-sharing.dto';
 
 @Controller('sharings')
 export class SharingController {
@@ -294,6 +295,14 @@ export class SharingController {
 
       return { error: errorMessage };
     }
+  }
+
+  @Post('/')
+  async createSharing(
+    @UserDecorator() user,
+    @Body() acceptInviteDto: CreateSharingDto,
+  ) {
+    await this.sharingService.createSharing(user, acceptInviteDto);
   }
 
   @Delete('/:itemType/:itemId')

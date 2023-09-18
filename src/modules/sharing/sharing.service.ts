@@ -43,6 +43,7 @@ import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Sign } from '../../middlewares/passport';
+import { CreateSharingDto } from './dto/create-sharing.dto';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -683,6 +684,36 @@ export class SharingService {
     return createdInvite;
   }
 
+  async createSharing(user: User, dto: CreateSharingDto): Promise<Sharing> {
+    let item: Item;
+
+    if (dto.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(dto.itemId);
+    } else if (dto.itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(dto.itemId);
+    } else {
+      throw new BadRequestException('Wrong item type');
+    }
+
+    if (!item.isOwnedBy(user)) {
+      throw new ForbiddenException();
+    }
+
+    const newSharing = Sharing.build({
+      ...dto,
+      id: v4(),
+      sharedWith: '00000000-0000-0000-0000-000000000000',
+      type: SharingType.Public,
+      ownerId: user.uuid,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await this.removeSharing(user, dto.itemId, dto.itemType);
+
+    return this.sharingRepository.createSharing(newSharing);
+  }
+
   async acceptInvite(
     user: User,
     inviteId: SharingInvite['id'],
@@ -790,7 +821,7 @@ export class SharingService {
     });
 
     if (!sharing) {
-      throw new NotFoundException();
+      return;
     }
 
     if (!sharing.isOwnedBy(user)) {
