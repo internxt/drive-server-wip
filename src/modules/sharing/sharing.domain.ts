@@ -106,7 +106,6 @@ export class Sharing implements SharingAttributes {
   isPublic(): boolean {
     return this.type === SharingType.Public;
   }
-
 }
 
 export class SharingRole implements SharingRoleAttributes {

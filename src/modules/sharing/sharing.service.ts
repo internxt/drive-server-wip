@@ -44,6 +44,7 @@ import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Sign } from '../../middlewares/passport';
 import { CreateSharingDto } from './dto/create-sharing.dto';
+import { aes } from '@internxt/lib';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -179,6 +180,23 @@ export class SharingService {
     private readonly usersUsecases: UserUseCases,
     private readonly configService: ConfigService,
   ) {}
+
+  async getPublicSharingById(
+    id: Sharing['id'],
+    code: string,
+  ): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing.isPublic()) {
+      throw new ForbiddenException();
+    }
+
+    sharing.encryptionKey = aes.decrypt(sharing.encryptionKey, code);
+
+    return sharing;
+  }
 
   async getInvites(
     user: User,

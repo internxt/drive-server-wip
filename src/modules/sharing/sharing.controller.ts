@@ -44,11 +44,33 @@ import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import API_LIMITS from '../../lib/http/limits';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
+import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 
 @Controller('sharings')
 export class SharingController {
   constructor(private readonly sharingService: SharingService) {}
+
+  @Get('/:sharingId/meta')
+  @Public()
+  @ApiOperation({
+    summary: 'Get sharing metadata',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get sharing metadata' })
+  async getPublicSharing(
+    @Param('sharingId') sharingId: Sharing['id'],
+    @Query('code') code: string,
+  ): Promise<Sharing> {
+    if (!code) {
+      throw new BadRequestException('Code is required');
+    }
+    return this.sharingService.getPublicSharingById(sharingId, code);
+  }
 
   @Get('/:itemType/:itemId/invites')
   getInvites(
