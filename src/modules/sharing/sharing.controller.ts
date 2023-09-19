@@ -65,7 +65,7 @@ export class SharingController {
   async getPublicSharing(
     @Param('sharingId') sharingId: Sharing['id'],
     @Query('code') code: string,
-  ): Promise<Sharing> {
+  ) {
     if (!code) {
       throw new BadRequestException('Code is required');
     }

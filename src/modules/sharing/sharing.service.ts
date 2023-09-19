@@ -172,6 +172,17 @@ type SharingInfo = Pick<
   };
 };
 
+type PublicSharingInfo = Pick<
+  Sharing,
+  | 'itemType'
+  | 'itemId'
+  | 'encryptionAlgorithm'
+  | 'encryptionKey'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'type'
+> & { item: Item; itemToken: string };
+
 @Injectable()
 export class SharingService {
   constructor(
@@ -185,7 +196,7 @@ export class SharingService {
   async getPublicSharingById(
     id: Sharing['id'],
     code: string,
-  ): Promise<Sharing> {
+  ): Promise<PublicSharingInfo> {
     const sharing = await this.sharingRepository.findOneSharing({
       id,
     });
@@ -195,6 +206,8 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    const response: Partial<PublicSharingInfo> = { ...sharing };
+
     let item: Item;
 
     if (sharing.itemType === 'file') {
@@ -202,19 +215,25 @@ export class SharingService {
       if ((item as File).isDeleted()) {
         throw new NotFoundException();
       }
-      const fileInfo = await new Environment({
+      const network = await new Environment({
         bridgePass: owner.userId,
         bridgeUser: owner.bridgeUser,
         bridgeUrl: getEnv().apis.storage.url,
-      }).getFileInfo(item.bucket, item.fileId);
+      });
+      const fileInfo = await network.getFileInfo(item.bucket, item.fileId);
 
       const encryptionKey = await Environment.utils.generateFileKey(
         aes.decrypt(sharing.encryptionKey, code),
         item.bucket,
         Buffer.from(fileInfo.index, 'hex'),
       );
+      response['itemToken'] = await network.createFileToken(
+        item.bucket,
+        item.fileId,
+        'PULL',
+      );
 
-      sharing.encryptionKey = encryptionKey.toString('hex');
+      response.encryptionKey = encryptionKey.toString('hex');
     } else {
       item = await this.folderUsecases.getByUuid(sharing.itemId);
       if ((item as Folder).isRemoved()) {
@@ -222,7 +241,9 @@ export class SharingService {
       }
     }
 
-    return sharing;
+    response['item'] = item;
+
+    return response as PublicSharingInfo;
   }
 
   async getInvites(
