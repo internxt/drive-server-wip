@@ -265,6 +265,22 @@ export class FileUseCases {
     return encryptionKey.toString('hex');
   }
 
+  async getEncryptionKeyFromFile(
+    file: File,
+    encryptedMnemonic: string,
+    code: string,
+    network: Environment,
+  ): Promise<string> {
+    const mnemonic = aes.decrypt(encryptedMnemonic, code);
+    const { index } = await network.getFileInfo(file.bucket, file.fileId);
+    const encryptionKey = await Environment.utils.generateFileKey(
+      mnemonic,
+      file.bucket,
+      Buffer.from(index, 'hex'),
+    );
+    return encryptionKey.toString('hex');
+  }
+
   /**
    * Deletes files of a given user. The file will be deleted in this order:
    * - From the network

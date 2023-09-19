@@ -331,6 +331,155 @@ export class SharingService {
     );
   }
 
+  async getFilesFromPublicFolder(
+    folderId: Folder['uuid'],
+    token: string | null,
+    code: string,
+    page: number,
+    perPage: number,
+  ): Promise<GetFilesResponse> {
+    const getFilesFromFolder = async (
+      userId: User['id'],
+      folderId: Folder['id'],
+    ) => {
+      const files = (
+        await this.fileUsecases.getFiles(
+          userId,
+          {
+            folderId: folderId,
+            status: FileStatus.EXISTS,
+          },
+          {
+            limit: perPage,
+            offset: page * perPage,
+          },
+        )
+      ).map((file) => {
+        return {
+          ...file,
+          encryptionKey: null,
+          dateShared: null,
+          sharedWithMe: null,
+        };
+      }) as FileWithSharedInfo[];
+
+      return files;
+    };
+    const folder = await this.folderUsecases.getByUuid(folderId);
+
+    if (folder.isTrashed()) {
+      throw new SharedFolderInTheTrashError();
+    }
+
+    if (folder.isRemoved()) {
+      throw new SharedFolderRemovedError();
+    }
+
+    const parentFolder = folder.parentId
+      ? await this.folderUsecases.getFolder(folder.parentId)
+      : null;
+
+    const requestedFolderIsSharedRootFolder = !token;
+
+    const decoded = requestedFolderIsSharedRootFolder
+      ? null
+      : (verifyWithDefaultSecret(token) as
+          | {
+              sharedRootFolderId: Folder['uuid'];
+              parentFolderId: Folder['parent']['uuid'];
+              folder: {
+                uuid: Folder['uuid'];
+                id: Folder['id'];
+              };
+              owner: {
+                id: User['id'];
+                uuid: User['uuid'];
+              };
+            }
+          | string);
+
+    if (typeof decoded === 'string') {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    const sharing = await this.sharingRepository.findOneSharing({
+      itemId: requestedFolderIsSharedRootFolder
+        ? folderId
+        : decoded.sharedRootFolderId,
+      itemType: 'folder',
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+
+    if (!requestedFolderIsSharedRootFolder) {
+      const navigationUp = folder.uuid === decoded.parentFolderId;
+      const navigationDown = folder.parentId === decoded.folder.id;
+      const insideTheSharedRootFolder =
+        decoded.sharedRootFolderId === decoded.folder.uuid;
+
+      if (
+        (!navigationDown && !navigationUp) ||
+        (navigationUp && insideTheSharedRootFolder)
+      ) {
+        throw new NotFoundException();
+      }
+    }
+
+    const [ownerRootFolder, items] = await Promise.all([
+      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
+      getFilesFromFolder(owner.id, folder.id),
+    ]);
+
+    const network = await new Environment({
+      bridgePass: owner.userId,
+      bridgeUser: owner.bridgeUser,
+      bridgeUrl: getEnv().apis.storage.url,
+    });
+
+    for (const file of items) {
+      file.encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
+        file,
+        sharing.encryptionKey,
+        code,
+        network,
+      );
+    }
+
+    return {
+      items,
+      credentials: {
+        networkPass: owner.userId,
+        networkUser: owner.bridgeUser,
+      },
+      token: generateTokenWithPlainSecret(
+        {
+          sharedRootFolderId: sharing.itemId,
+          parentFolderId: parentFolder?.uuid || null,
+          folder: {
+            uuid: folder.uuid,
+            id: folder.id,
+          },
+          owner: {
+            id: owner.id,
+            uuid: owner.uuid,
+          },
+        },
+        '1d',
+        getEnv().secrets.jwt,
+      ),
+      bucket: ownerRootFolder.bucket,
+      encryptionKey: null,
+      parent: {
+        uuid: parentFolder?.uuid || null,
+        name: parentFolder?.plainName || null,
+      },
+    };
+  }
+
   async getFolders(
     folderId: Folder['uuid'],
     token: string | null,

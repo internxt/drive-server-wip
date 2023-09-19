@@ -319,6 +319,70 @@ export class SharingController {
     }
   }
 
+  @Get('/public/items/:sharedFolderId/files')
+  @Public()
+  @ApiOperation({
+    summary: 'Get all items shared by a user inside a sharing',
+  })
+  @ApiQuery({
+    description: 'Number of page to take by ( default 0 )',
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    description: 'Number of items per page ( default 50 )',
+    name: 'perPage',
+    required: false,
+    type: Number,
+  })
+  @ApiParam({
+    name: 'sharedFolderId',
+    description: 'Folder id of the shared folder',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'token',
+    description: 'Token that authorizes the access to the shared content',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get all items inside a shared folder' })
+  async getPublicShareFiles(
+    @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
+    @Res({ passthrough: true }) res: Response,
+    @Query('token') token: string,
+    @Query('code') code: string,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ): Promise<GetFilesResponse | { error: string }> {
+    try {
+      return this.sharingService.getFilesFromPublicFolder(
+        sharedFolderId,
+        token,
+        code,
+        page,
+        perPage,
+      );
+    } catch (error) {
+      let errorMessage = error.message;
+
+      if (error instanceof ForbiddenException) {
+        throw error;
+      } else {
+        Logger.error(
+          `[SHARING/GETPUBLICSHAREDFILES] Error while getting shared files by folder ${sharedFolderId}, message: ${
+            error.message
+          }, ${error.stack || 'No stack trace'}`,
+        );
+
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
   @Post('/')
   createSharing(
     @UserDecorator() user,
