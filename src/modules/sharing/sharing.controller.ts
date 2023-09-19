@@ -320,11 +320,11 @@ export class SharingController {
   }
 
   @Post('/')
-  async createSharing(
+  createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,
   ) {
-    await this.sharingService.createSharing(user, acceptInviteDto);
+    return this.sharingService.createSharing(user, acceptInviteDto);
   }
 
   @Delete('/:itemType/:itemId')
