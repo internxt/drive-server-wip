@@ -161,4 +161,4 @@ export const newThumbnail = (file: FileAttributes): Thumbnail => {
     maxWidth: 300,
     maxHeight: 300,
   });
-}
+};
