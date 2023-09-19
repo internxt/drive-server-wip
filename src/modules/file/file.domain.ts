@@ -135,6 +135,10 @@ export class File implements FileAttributes {
     return this.userId === user.id;
   }
 
+  isDeleted(): boolean {
+    return this.status === FileStatus.DELETED;
+  }
+
   isChildrenOf(folder: Folder): boolean {
     return this.folderId === folder.id;
   }

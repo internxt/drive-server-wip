@@ -45,6 +45,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { Sign } from '../../middlewares/passport';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
+import { Environment } from '@internxt/inxt-js';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -188,12 +189,38 @@ export class SharingService {
     const sharing = await this.sharingRepository.findOneSharing({
       id,
     });
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
     if (!sharing.isPublic()) {
       throw new ForbiddenException();
     }
 
-    sharing.encryptionKey = aes.decrypt(sharing.encryptionKey, code);
+    let item: Item;
+
+    if (sharing.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(sharing.itemId);
+      if ((item as File).isDeleted()) {
+        throw new NotFoundException();
+      }
+      const fileInfo = await new Environment({
+        bridgePass: owner.userId,
+        bridgeUser: owner.bridgeUser,
+        bridgeUrl: getEnv().apis.storage.url,
+      }).getFileInfo(item.bucket, item.fileId);
+
+      const encryptionKey = await Environment.utils.generateFileKey(
+        aes.decrypt(sharing.encryptionKey, code),
+        item.bucket,
+        Buffer.from(fileInfo.index, 'hex'),
+      );
+
+      sharing.encryptionKey = encryptionKey.toString('hex');
+    } else {
+      item = await this.folderUsecases.getByUuid(sharing.itemId);
+      if ((item as Folder).isRemoved()) {
+        throw new NotFoundException();
+      }
+    }
 
     return sharing;
   }
