@@ -26,6 +26,8 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { FileModel } from './file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { newThumbnail, newUser } from '../../../test/fixtures';
+
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
@@ -514,6 +516,65 @@ describe('FileUseCases', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe('Unable to decrypt file name');
       }
+    });
+  });
+
+  describe('get files', () => {
+    const user = newUser();
+
+    const fileAttributes: FileAttributes = {
+      id: 0,
+      fileId: '4fda5d98-e5b4-56da-a4f2-000084ac0678',
+      name: 'Myanmar',
+      type: 'type',
+      size: BigInt(60),
+      bucket: 'bucket',
+      folderId,
+      folder: null,
+      encryptVersion: 'aes-2',
+      deleted: false,
+      deletedAt: new Date('2022-09-21T11:11:30.742Z'),
+      userId: user.id,
+      user: null,
+      modificationTime: new Date('2022-09-21T11:11:30.742Z'),
+      createdAt: new Date('2022-09-21T11:11:30.742Z'),
+      updatedAt: new Date('2022-09-21T11:11:30.742Z'),
+      uuid: '',
+      folderUuid: '',
+      removed: false,
+      removedAt: undefined,
+      plainName: 'Myanmar',
+      status: FileStatus.EXISTS,
+    };
+
+    const thumbnails = [
+      newThumbnail(fileAttributes),
+      newThumbnail(fileAttributes),
+    ];
+
+    const file = File.build({
+      ...fileAttributes,
+      thumbnails,
+    });
+
+    it('returns the thumbnails for each file', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValue([file]);
+
+      const files = await service.getAllFilesUpdatedAfter(
+        user.id,
+        new Date('2000-09-10T11:11:30.742Z'),
+        {
+          limit: 50,
+          offset: 0,
+          sort: ['size']['ASC'],
+        },
+      );
+
+      expect(files.flatMap((file) => file.thumbnails)).toHaveLength(
+        thumbnails.length,
+      );
     });
   });
 });

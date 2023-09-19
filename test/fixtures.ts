@@ -5,7 +5,8 @@ import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
 import { PrivateSharingFolder } from '../src/modules/private-share-folder/private-sharing-folder.domain';
 import { Sharing, SharingRole } from '../src/modules/sharing/sharing.domain';
-import { File } from '../src/modules/file/file.domain';
+import { File, FileAttributes } from '../src/modules/file/file.domain';
+import { Thumbnail } from '../src/modules/thumbnail/thumbnail.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -145,3 +146,19 @@ export const newSharingRole = (bindTo?: {
     updatedAt: randomDataGenerator.date(),
   });
 };
+
+export const newThumbnail = (file: FileAttributes): Thumbnail => {
+  return Thumbnail.build({
+    id: randomDataGenerator.integer({ min: 1 }),
+    fileId: file.id,
+    type: 'png',
+    size: randomDataGenerator.integer({ min: 100, max: 300 }),
+    bucketId: file.bucket,
+    bucketFile: file.fileId,
+    encryptVersion: 'aes-3',
+    createdAt: randomDataGenerator.date(),
+    updatedAt: undefined,
+    maxWidth: 300,
+    maxHeight: 300,
+  });
+}
