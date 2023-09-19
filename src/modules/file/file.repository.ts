@@ -9,6 +9,7 @@ import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
+import { ModelType } from 'sequelize-typescript';
 
 export interface FileRepository {
   deleteByFileId(fileId: any): Promise<any>;
@@ -44,6 +45,13 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  findAllCursorWhereUpdatedAfter(
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File>>;
 }
 
 @Injectable()
@@ -125,6 +133,12 @@ export class SequelizeFileRepository implements FileRepository {
       limit,
       offset,
       additionalOrders,
+      [
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+      ],
     );
 
     return files.map(this.toDomain.bind(this));
@@ -156,12 +170,14 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
+    include: Array<{ model: ModelType<any, any>; required: boolean }> = [],
   ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       limit,
       offset,
       where,
       order,
+      include,
     });
 
     return files.map(this.toDomain.bind(this));
