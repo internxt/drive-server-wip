@@ -1059,7 +1059,21 @@ export class SharingService {
       updatedAt: new Date(),
     });
 
-    await this.removeSharing(user, dto.itemId, dto.itemType);
+    await this.sharingRepository.deleteSharingsBy({
+      itemId: dto.itemId,
+      itemType: dto.itemType,
+      type: SharingType.Private,
+    });
+
+    const sharing = await this.sharingRepository.findOneSharingBy({
+      itemId: dto.itemId,
+      itemType: dto.itemType,
+      type: SharingType.Public,
+    });
+
+    if (sharing) {
+      return sharing;
+    }
 
     return this.sharingRepository.createSharing(newSharing);
   }
@@ -1119,6 +1133,11 @@ export class SharingService {
         : invite.encryptionKey,
     });
 
+    await this.sharingRepository.deleteSharingsBy({
+      itemId: invite.itemId,
+      itemType: invite.itemType,
+      type: SharingType.Public,
+    });
     const sharing = await this.sharingRepository.createSharing(newSharing);
     await this.sharingRepository.createSharingRole({
       createdAt: new Date(),
