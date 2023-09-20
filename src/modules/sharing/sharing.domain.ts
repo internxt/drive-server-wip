@@ -114,16 +114,20 @@ export class SharingRole implements SharingRoleAttributes {
   roleId: RoleAttributes['id'];
   createdAt: Date;
   updatedAt: Date;
+  role?: Role;
 
-  constructor(attributes: SharingRoleAttributes) {
+  constructor(attributes: SharingRoleAttributes & { role?: Role }) {
     this.id = attributes.id;
     this.sharingId = attributes.sharingId;
     this.roleId = attributes.roleId;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
+    this.role = attributes.role;
   }
 
-  static build(privateSharingRole: SharingRoleAttributes): SharingRole {
+  static build(
+    privateSharingRole: SharingRoleAttributes & { role?: Role },
+  ): SharingRole {
     return new SharingRole(privateSharingRole);
   }
 
