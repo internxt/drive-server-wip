@@ -1263,18 +1263,21 @@ export class SharingService {
     return this.sharingRepository.findRoles();
   }
 
-  async getUserRole(sharingId: Sharing['id'], user: User): Promise<Role> {
+  async getUserRole(sharingId: Sharing['id'], user: User): Promise<any> {
     const sharing = await this.sharingRepository.findOneSharing({
       id: sharingId,
     });
 
     if (sharing.isOwnedBy(user)) {
-      return Role.build({
-        id: v4(),
-        createdAt: sharing.createdAt,
-        name: 'OWNER',
-        updatedAt: sharing.updatedAt,
-      });
+      return {
+        ...Role.build({
+          id: v4(),
+          createdAt: sharing.createdAt,
+          name: 'OWNER',
+          updatedAt: sharing.updatedAt,
+        }),
+        sharingId: sharing.id,
+      };
     }
 
     if (!sharing) {
@@ -1293,7 +1296,7 @@ export class SharingService {
       id: sharingRole.roleId,
     });
 
-    return role;
+    return { ...role, sharingId: sharing.id };
   }
 
   async updateSharingRole(
