@@ -451,7 +451,7 @@ export class SharingController {
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,
   ) {
-    return this.sharingService.createSharing(user, acceptInviteDto);
+    return this.sharingService.createPublicSharing(user, acceptInviteDto);
   }
 
   @Delete('/:itemType/:itemId')

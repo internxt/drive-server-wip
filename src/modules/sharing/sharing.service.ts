@@ -1004,6 +1004,12 @@ export class SharingService {
       updatedAt: new Date(),
     });
 
+    await this.removeItemFromBeingShared(
+      createInviteDto.itemType,
+      createInviteDto.itemId,
+      SharingType.Public,
+    );
+
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
     if (createInviteDto.notifyUser) {
@@ -1034,7 +1040,10 @@ export class SharingService {
     return createdInvite;
   }
 
-  async createSharing(user: User, dto: CreateSharingDto): Promise<Sharing> {
+  async createPublicSharing(
+    user: User,
+    dto: CreateSharingDto,
+  ): Promise<Sharing> {
     let item: Item;
 
     if (dto.itemType === 'file') {
@@ -1059,11 +1068,11 @@ export class SharingService {
       updatedAt: new Date(),
     });
 
-    await this.sharingRepository.deleteSharingsBy({
-      itemId: dto.itemId,
-      itemType: dto.itemType,
-      type: SharingType.Private,
-    });
+    await this.removeItemFromBeingShared(
+      dto.itemType,
+      dto.itemId,
+      SharingType.Private,
+    );
 
     const sharing = await this.sharingRepository.findOneSharingBy({
       itemId: dto.itemId,
@@ -1076,6 +1085,23 @@ export class SharingService {
     }
 
     return this.sharingRepository.createSharing(newSharing);
+  }
+
+  private async removeItemFromBeingShared(
+    itemType: Sharing['itemType'],
+    itemId: Sharing['itemId'],
+    type: Sharing['type'],
+  ) {
+    await this.sharingRepository.deleteInvitesBy({
+      itemId,
+      itemType,
+    });
+
+    await this.sharingRepository.deleteSharingsBy({
+      itemId,
+      itemType,
+      type,
+    });
   }
 
   async acceptInvite(
@@ -1131,12 +1157,6 @@ export class SharingService {
       encryptionKey: invite.isARequest()
         ? acceptInviteDto.encryptionKey
         : invite.encryptionKey,
-    });
-
-    await this.sharingRepository.deleteSharingsBy({
-      itemId: invite.itemId,
-      itemType: invite.itemType,
-      type: SharingType.Public,
     });
     const sharing = await this.sharingRepository.createSharing(newSharing);
     await this.sharingRepository.createSharingRole({
