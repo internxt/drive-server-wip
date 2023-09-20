@@ -193,6 +193,30 @@ export class SharingService {
     private readonly configService: ConfigService,
   ) {}
 
+  async isItemBeingSharedAboveTheLimit(
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    type: Sharing['type'],
+  ): Promise<boolean> {
+    const [sharingsCountForThisItem, invitesCountForThisItem] =
+      await Promise.all([
+        this.sharingRepository.getSharingsCountBy({
+          itemId,
+          itemType,
+          type,
+        }),
+        this.sharingRepository.getInvitesCountBy({
+          itemId,
+          itemType,
+        }),
+      ]);
+
+    const limit = 100;
+    const count = sharingsCountForThisItem + invitesCountForThisItem;
+
+    return count >= limit;
+  }
+
   async getPublicSharingById(
     id: Sharing['id'],
     code: string,
@@ -1004,6 +1028,16 @@ export class SharingService {
       updatedAt: new Date(),
     });
 
+    const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
+      createInviteDto.itemId,
+      createInviteDto.itemType,
+      SharingType.Private,
+    );
+
+    if (tooManyTimesShared) {
+      throw new BadRequestException('Limit for sharing an item reach');
+    }
+
     await this.removeItemFromBeingShared(
       createInviteDto.itemType,
       createInviteDto.itemId,
@@ -1541,8 +1575,7 @@ export class SharingService {
       lastname,
       email,
       sharingId: null,
-      // avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
-      avatar: null,
+      avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
       uuid,
       role: {
         id: 'NONE',
@@ -1613,8 +1646,7 @@ export class SharingService {
       lastname,
       email,
       sharingId: null,
-      // avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
-      avatar: null,
+      avatar: avatar ? await this.usersUsecases.getAvatarUrl(avatar) : null,
       uuid,
       role: {
         id: 'NONE',

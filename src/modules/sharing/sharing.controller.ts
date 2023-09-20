@@ -22,6 +22,7 @@ import {
   ApiParam,
   ApiQuery,
   ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 
 import {
@@ -46,7 +47,7 @@ import API_LIMITS from '../../lib/http/limits';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
-
+@ApiTags('Sharing')
 @Controller('sharings')
 export class SharingController {
   constructor(private readonly sharingService: SharingService) {}
