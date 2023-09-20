@@ -35,6 +35,7 @@ export interface FolderWithSharedInfo extends Folder {
   dateShared: Date | null;
   sharedWithMe: boolean | null;
   sharingId?: Sharing['id'];
+  sharingType?: Sharing['type'];
   credentials: {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
@@ -46,6 +47,7 @@ export interface FileWithSharedInfo extends File {
   dateShared: Date | null;
   sharedWithMe: boolean | null;
   sharingId?: Sharing['id'];
+  sharingType?: Sharing['type'];
   credentials: {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
