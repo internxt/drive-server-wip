@@ -61,7 +61,7 @@ export class FileUseCases {
       throw new NotFoundException('File not found');
     }
 
-    return file;
+    return this.decrypFileName(file);
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
