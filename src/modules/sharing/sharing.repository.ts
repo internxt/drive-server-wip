@@ -283,8 +283,14 @@ export class SequelizeSharingRepository implements SharingRepository {
           'encryptionKey',
         ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal(`"SharingModel"."type"`), 'sharingType'],
       ],
-      group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
+      group: [
+        'folder.id',
+        'folder->user.id',
+        'SharingModel.item_id',
+        'sharingType',
+      ],
       include: [
         {
           model: FolderModel,
@@ -307,6 +313,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return sharedFolders.map((shared) => {
+      shared.set('type', shared.get('sharingType'));
       return this.toDomain(shared);
     });
   }
@@ -327,8 +334,14 @@ export class SequelizeSharingRepository implements SharingRepository {
           'encryptionKey',
         ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal(`"SharingModel"."type"`), 'sharingType'],
       ],
-      group: ['file.id', 'file->user.id', 'SharingModel.item_id'],
+      group: [
+        'file.id',
+        'file->user.id',
+        'SharingModel.item_id',
+        'sharingType',
+      ],
       include: [
         {
           model: FileModel,
@@ -350,6 +363,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return sharedFiles.map((shared) => {
+      shared.set('type', shared.get('sharingType'));
       return this.toDomainFile(shared);
     });
   }
