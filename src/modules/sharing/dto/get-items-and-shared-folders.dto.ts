@@ -1,5 +1,5 @@
 import { User } from '../../../../src/modules/user/user.domain';
-import { Sharing } from '../sharing.domain';
+import { Role, Sharing } from '../sharing.domain';
 import { Folder } from '../../../../src/modules/folder/folder.domain';
 import { File } from '../../../../src/modules/file/file.domain';
 
@@ -11,6 +11,7 @@ export interface GetItemsReponse {
     networkUser: User['bridgeUser'];
   };
   token: string;
+  role: Role['name'];
 }
 
 export interface GetSharedItemsReponse<Item> {
@@ -23,6 +24,7 @@ export interface GetSharedItemsReponse<Item> {
   token: string;
   bucket: string;
   parent?: Pick<Folder, 'uuid' | 'name'>;
+  role: Role['name'];
 }
 
 export type GetFoldersReponse = GetSharedItemsReponse<FolderWithSharedInfo>;

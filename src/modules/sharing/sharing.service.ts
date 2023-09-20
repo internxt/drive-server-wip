@@ -487,6 +487,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      role: 'NONE',
     };
   }
 
@@ -636,6 +637,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      role: 'NONE',
     };
   }
 
@@ -703,6 +705,7 @@ export class SharingService {
           uuid: parentFolder?.uuid || null,
           name: parentFolder?.plainName || null,
         },
+        role: 'OWNER',
       };
     }
 
@@ -761,9 +764,10 @@ export class SharingService {
       }
     }
 
-    const [ownerRootFolder, items] = await Promise.all([
+    const [ownerRootFolder, items, sharingRole] = await Promise.all([
       this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
       getFolderContent(owner.id, folder.id),
+      this.sharingRepository.findSharingRoleBy({ sharingId: sharing.id }),
     ]);
 
     return {
@@ -794,6 +798,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      role: sharingRole.role.name,
     };
   }
 
@@ -860,6 +865,7 @@ export class SharingService {
           uuid: parentFolder?.uuid || null,
           name: parentFolder?.plainName || null,
         },
+        role: 'OWNER',
       };
     }
 
@@ -915,9 +921,10 @@ export class SharingService {
       }
     }
 
-    const [ownerRootFolder, items] = await Promise.all([
+    const [ownerRootFolder, items, sharingRole] = await Promise.all([
       this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
       getFilesFromFolder(owner.id, folder.id),
+      this.sharingRepository.findSharingRoleBy({ sharingId: sharing.id }),
     ]);
 
     return {
@@ -948,6 +955,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      role: sharingRole.role.name,
     };
   }
 
@@ -1487,6 +1495,7 @@ export class SharingService {
         networkUser: user.bridgeUser,
       },
       token: '',
+      role: 'OWNER',
     };
   }
 
@@ -1538,6 +1547,7 @@ export class SharingService {
         networkUser: user.bridgeUser,
       },
       token: '',
+      role: 'OWNER',
     };
   }
 

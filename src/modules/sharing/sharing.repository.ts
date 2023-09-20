@@ -155,12 +155,20 @@ export class SequelizeSharingRepository implements SharingRepository {
   ): Promise<SharingRole | null> {
     const raw = await this.sharingRoles.findOne({
       where,
+      include: [
+        {
+          model: RoleModel,
+          as: 'role',
+        },
+      ],
     });
 
     return raw ? SharingRole.build(raw) : null;
   }
 
-  async findSharingRoles(where: Partial<SharingRole>): Promise<SharingRole[]> {
+  private async findSharingRoles(
+    where: Partial<SharingRole>,
+  ): Promise<SharingRole[]> {
     const raw = await this.sharingRoles.findAll({
       where,
     });
@@ -178,7 +186,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  private async findSharingsWithRoles(
+  async findSharingsWithRoles(
     where: WhereOptions<Sharing>,
   ): Promise<(SharingAttributes & { role: Role })[]> {
     const sharingsInRaw = await this.sharings.findAll({
