@@ -118,6 +118,12 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharingRoles.update(update, { where });
   }
 
+  async findOneSharingBy(where: Partial<Sharing>): Promise<Sharing | null> {
+    const raw = await this.sharings.findOne({ where });
+
+    return raw ? Sharing.build(raw) : null;
+  }
+
   async findRoleBy(where: Partial<Role>): Promise<Role | null> {
     const raw = await this.roles.findOne({ where });
 
@@ -481,6 +487,12 @@ export class SequelizeSharingRepository implements SharingRepository {
       where: {
         id: invite.id,
       },
+    });
+  }
+
+  async deleteSharingsBy(where: Partial<Sharing>): Promise<void> {
+    await this.sharingInvites.destroy({
+      where,
     });
   }
 }
