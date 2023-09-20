@@ -1423,40 +1423,58 @@ export class SharingService {
         order,
       ),
     ]);
-    const folders = foldersWithSharedInfo.map((folderWithSharedInfo) => {
-      return {
-        ...folderWithSharedInfo.folder,
-        plainName:
-          folderWithSharedInfo.folder.plainName ||
-          this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
-            .plainName,
-        sharingId: folderWithSharedInfo.id,
-        encryptionKey: folderWithSharedInfo.encryptionKey,
-        dateShared: folderWithSharedInfo.createdAt,
-        sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
-        credentials: {
-          networkPass: folderWithSharedInfo.folder.user.userId,
-          networkUser: folderWithSharedInfo.folder.user.bridgeUser,
-        },
-      };
-    }) as FolderWithSharedInfo[];
+    const folders = (await Promise.all(
+      foldersWithSharedInfo.map(async (folderWithSharedInfo) => {
+        const avatar = folderWithSharedInfo.folder.user.avatar;
+        return {
+          ...folderWithSharedInfo.folder,
+          plainName:
+            folderWithSharedInfo.folder.plainName ||
+            this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
+              .plainName,
+          sharingId: folderWithSharedInfo.id,
+          encryptionKey: folderWithSharedInfo.encryptionKey,
+          dateShared: folderWithSharedInfo.createdAt,
+          sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
+          user: {
+            ...folderWithSharedInfo.folder.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+          credentials: {
+            networkPass: folderWithSharedInfo.folder.user.userId,
+            networkUser: folderWithSharedInfo.folder.user.bridgeUser,
+          },
+        };
+      }),
+    )) as FolderWithSharedInfo[];
 
-    const files = filesWithSharedInfo.map((fileWithSharedInfo) => {
-      return {
-        ...fileWithSharedInfo.file,
-        plainName:
-          fileWithSharedInfo.file.plainName ||
-          this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
-        sharingId: fileWithSharedInfo.id,
-        encryptionKey: fileWithSharedInfo.encryptionKey,
-        dateShared: fileWithSharedInfo.createdAt,
-        sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
-        credentials: {
-          networkPass: fileWithSharedInfo.file.user.userId,
-          networkUser: fileWithSharedInfo.file.user.bridgeUser,
-        },
-      };
-    }) as FileWithSharedInfo[];
+    const files = (await Promise.all(
+      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
+        const avatar = fileWithSharedInfo.file.user.avatar;
+        return {
+          ...fileWithSharedInfo.file,
+          plainName:
+            fileWithSharedInfo.file.plainName ||
+            this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
+          sharingId: fileWithSharedInfo.id,
+          encryptionKey: fileWithSharedInfo.encryptionKey,
+          dateShared: fileWithSharedInfo.createdAt,
+          sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
+          user: {
+            ...fileWithSharedInfo.file.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+          credentials: {
+            networkPass: fileWithSharedInfo.file.user.userId,
+            networkUser: fileWithSharedInfo.file.user.bridgeUser,
+          },
+        };
+      }),
+    )) as FileWithSharedInfo[];
 
     return {
       folders: folders,
@@ -1483,22 +1501,31 @@ export class SharingService {
         order,
       );
 
-    const files = filesWithSharedInfo.map((fileWithSharedInfo) => {
-      return {
-        ...fileWithSharedInfo.file,
-        plainName:
-          fileWithSharedInfo.file.plainName ||
-          this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
-        sharingId: fileWithSharedInfo.id,
-        encryptionKey: fileWithSharedInfo.encryptionKey,
-        dateShared: fileWithSharedInfo.createdAt,
-        sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
-        credentials: {
-          networkPass: fileWithSharedInfo.file.user.userId,
-          networkUser: fileWithSharedInfo.file.user.bridgeUser,
-        },
-      };
-    }) as FileWithSharedInfo[];
+    const files = (await Promise.all(
+      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
+        const avatar = fileWithSharedInfo.file.user.avatar;
+        return {
+          ...fileWithSharedInfo.file,
+          plainName:
+            fileWithSharedInfo.file.plainName ||
+            this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
+          sharingId: fileWithSharedInfo.id,
+          encryptionKey: fileWithSharedInfo.encryptionKey,
+          dateShared: fileWithSharedInfo.createdAt,
+          sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
+          user: {
+            ...fileWithSharedInfo.file.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+          credentials: {
+            networkPass: fileWithSharedInfo.file.user.userId,
+            networkUser: fileWithSharedInfo.file.user.bridgeUser,
+          },
+        };
+      }),
+    )) as FileWithSharedInfo[];
 
     return {
       folders: [],
@@ -1550,19 +1577,20 @@ export class SharingService {
 
     const users = await this.usersUsecases.findByUuids(sharedsWith);
 
-    const usersWithRoles: SharingInfo[] = sharingsWithRoles.map(
-      (sharingWithRole) => {
+    const usersWithRoles: SharingInfo[] = await Promise.all(
+      sharingsWithRoles.map(async (sharingWithRole) => {
         const user = users.find(
           (user) => user.uuid === sharingWithRole.sharedWith,
         );
-        const avatar = null;
         return {
           ...user,
           sharingId: sharingWithRole.id,
-          avatar,
+          avatar: user.avatar
+            ? await this.usersUsecases.getAvatarUrl(user.avatar)
+            : null,
           role: sharingWithRole.role,
         };
-      },
+      }),
     );
 
     const [{ ownerId }] = sharingsWithRoles;
@@ -1620,17 +1648,26 @@ export class SharingService {
     }
 
     const users = await this.usersUsecases.findByUuids(sharedsWith);
+    const usersWithAvatars = await Promise.all(
+      users.map(async (user) => {
+        const avatar = user.avatar
+          ? await this.usersUsecases.getAvatarUrl(user.avatar)
+          : null;
+        return {
+          ...user,
+          avatar,
+        };
+      }),
+    );
 
     const usersWithRoles: SharingInfo[] = sharingsWithRoles.map(
       (sharingWithRole) => {
-        const user = users.find(
+        const user = usersWithAvatars.find(
           (user) => user.uuid === sharingWithRole.sharedWith,
         );
-        const avatar = null;
         return {
           ...user,
           sharingId: sharingWithRole.id,
-          avatar,
           role: sharingWithRole.role,
         };
       },
