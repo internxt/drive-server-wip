@@ -487,6 +487,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      name: folder.name,
       role: 'NONE',
     };
   }
@@ -637,6 +638,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      name: folder.name,
       role: 'NONE',
     };
   }
@@ -698,6 +700,7 @@ export class SharingService {
           networkPass: user.userId,
           networkUser: user.bridgeUser,
         },
+        name: folder.plainName,
         bucket: '',
         encryptionKey: null,
         token: '',
@@ -798,6 +801,7 @@ export class SharingService {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
+      name: folder.plainName,
       role: sharingRole.role.name,
     };
   }
@@ -865,6 +869,7 @@ export class SharingService {
           uuid: parentFolder?.uuid || null,
           name: parentFolder?.plainName || null,
         },
+        name: folder.plainName,
         role: 'OWNER',
       };
     }
@@ -949,6 +954,7 @@ export class SharingService {
         '1d',
         getEnv().secrets.jwt,
       ),
+      name: folder.plainName,
       bucket: ownerRootFolder.bucket,
       encryptionKey: sharing.encryptionKey,
       parent: {

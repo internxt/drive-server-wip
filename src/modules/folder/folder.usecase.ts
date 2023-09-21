@@ -33,12 +33,17 @@ export class FolderUseCases {
     return this.folderRepository.findByIds(user, folderIds);
   }
 
-  async getByUuid(uuid: Folder['uuid']) {
+  async getByUuid(uuid: Folder['uuid']): Promise<Folder> {
     const folder = await this.folderRepository.findByUuid(uuid, false);
 
     if (!folder) {
       throw new NotFoundException();
     }
+
+    folder.plainName = this.cryptoService.decryptName(
+      folder.name,
+      folder.parentId,
+    );
 
     return folder;
   }
@@ -83,7 +88,7 @@ export class FolderUseCases {
   async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
-  ) {
+  ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
 
     return this.decryptFolderName(folder);
