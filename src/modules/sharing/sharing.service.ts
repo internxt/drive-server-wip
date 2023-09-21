@@ -1263,8 +1263,10 @@ export class SharingService {
       itemId,
       itemType,
     });
-    await this.sharingRepository.deleteSharingRolesBySharing(sharing);
-    return this.sharingRepository.deleteSharing(sharing.id);
+    await this.sharingRepository.deleteSharingsBy({
+      itemId,
+      itemType,
+    });
   }
 
   async getRoles(): Promise<Role[]> {
