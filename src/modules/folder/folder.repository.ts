@@ -11,6 +11,7 @@ import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
+import { SharingModel } from '../sharing/models';
 
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
@@ -67,6 +68,13 @@ export class SequelizeFolderRepository implements FolderRepository {
       offset,
       where,
       order,
+      include: [
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
     });
 
     return folders.map(this.toDomain.bind(this));
