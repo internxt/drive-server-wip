@@ -1,3 +1,5 @@
+import { Sharing } from '../../sharing/sharing.domain';
+
 export class FolderDto {
   id: number;
   parent?: FolderDto;
@@ -14,4 +16,5 @@ export class FolderDto {
   deletedAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  sharings?: Sharing[];
 }

@@ -1,3 +1,4 @@
+import { Sharing } from '../sharing/sharing.domain';
 import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
 import { FolderAttributes } from './folder.attributes';
@@ -31,6 +32,8 @@ export class Folder implements FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   size: number;
+  sharings?: Sharing[];
+
   private constructor({
     id,
     uuid,
@@ -48,6 +51,7 @@ export class Folder implements FolderAttributes {
     updatedAt,
     removed,
     removedAt,
+    sharings,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -67,6 +71,7 @@ export class Folder implements FolderAttributes {
     this.size = 0;
     this.removed = removed;
     this.removedAt = removedAt;
+    this.sharings = sharings;
   }
 
   static build(folder: FolderAttributes): Folder {
@@ -132,6 +137,7 @@ export class Folder implements FolderAttributes {
       deletedAt: this.deletedAt,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      sharings: this.sharings,
     };
   }
 }
