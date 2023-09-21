@@ -14,6 +14,8 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.model';
 import { FolderAttributes } from './folder.attributes';
+import { SharingModel } from '../sharing/models';
+import { Sharing } from '../sharing/sharing.domain';
 
 @Table({
   underscored: true,
@@ -82,4 +84,7 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @Column
   removedAt: Date;
+
+  @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
+  sharings: Sharing[];
 }
