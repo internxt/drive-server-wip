@@ -20,6 +20,7 @@ export interface GetSharedItemsReponse<Item> {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
   };
+  name: Folder['plainName'];
   encryptionKey: Sharing['encryptionKey'] | null;
   token: string;
   bucket: string;
