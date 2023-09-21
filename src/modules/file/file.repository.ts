@@ -4,11 +4,12 @@ import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { FindOptions, Op } from 'sequelize';
 
 import { User } from '../user/user.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
+import { SharingModel } from '../sharing/models';
 
 export interface FileRepository {
   deleteByFileId(fileId: any): Promise<any>;
@@ -192,6 +193,11 @@ export class SequelizeFileRepository implements FileRepository {
         },
         {
           model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
           required: false,
         },
       ],

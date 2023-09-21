@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SharingService } from './sharing.service';
 import { SharingController } from './sharing.controller';
 import { SequelizeSharingRepository } from './sharing.repository';
@@ -23,7 +23,7 @@ import { SharingRolesModel } from './models/sharing-roles.model';
       SharingModel,
       SharingInviteModel,
     ]),
-    FileModule,
+    forwardRef(() => FileModule),
     FolderModule,
     UserModule,
   ],

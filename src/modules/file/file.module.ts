@@ -11,6 +11,7 @@ import { FolderModule } from '../folder/folder.module';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FileModel } from './file.model';
     forwardRef(() => ShareModule),
     forwardRef(() => FolderModule),
     forwardRef(() => ThumbnailModule),
+    forwardRef(() => SharingModule),
     BridgeModule,
     CryptoModule,
   ],
