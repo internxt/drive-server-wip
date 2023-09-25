@@ -30,4 +30,10 @@ export class CreateSharingDto {
   })
   @IsNotEmpty()
   encryptionAlgorithm: Sharing['encryptionAlgorithm'];
+
+  @ApiProperty({
+    example: 'encryption_algorithm',
+    description: 'Encryption algorithm',
+  })
+  encryptedCode: Sharing['encryptedCode'];
 }
