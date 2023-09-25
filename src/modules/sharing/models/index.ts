@@ -112,6 +112,9 @@ export class SharingModel extends Model implements SharingAttributes {
   })
   sharedWithUser: UserModel;
 
+  @Column({ type: DataType.STRING, allowNull: true, defaultValue: null })
+  encryptedCode: SharingAttributes['encryptedCode'];
+
   @Column(DataType.STRING)
   encryptionAlgorithm: SharingAttributes['encryptionAlgorithm'];
 

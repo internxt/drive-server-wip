@@ -1094,6 +1094,12 @@ export class SharingService {
   ): Promise<Sharing> {
     let item: Item;
 
+    if (!dto.encryptedCode) {
+      throw new BadRequestException(
+        'The "encryptedCode" is required when the sharing "type" is public',
+      );
+    }
+
     if (dto.itemType === 'file') {
       item = await this.fileUsecases.getByUuid(dto.itemId);
     } else if (dto.itemType === 'folder') {

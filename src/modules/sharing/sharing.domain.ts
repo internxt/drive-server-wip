@@ -20,6 +20,7 @@ export interface SharingAttributes {
   itemType: 'file' | 'folder';
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
+  encryptedCode?: string;
   encryptionKey: string;
   encryptionAlgorithm: string;
   type: SharingType;
@@ -63,6 +64,7 @@ export class Sharing implements SharingAttributes {
   encryptionAlgorithm: string;
   createdAt: Date;
   updatedAt: Date;
+  encryptedCode?: string;
   type: SharingType;
 
   folder?: Folder;
@@ -83,6 +85,7 @@ export class Sharing implements SharingAttributes {
     this.sharedWith = attributes.sharedWith;
     this.encryptionKey = attributes.encryptionKey;
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
+    this.encryptedCode = attributes.encryptedCode;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
 
