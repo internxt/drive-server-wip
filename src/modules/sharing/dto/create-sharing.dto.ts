@@ -32,8 +32,8 @@ export class CreateSharingDto {
   encryptionAlgorithm: Sharing['encryptionAlgorithm'];
 
   @ApiProperty({
-    example: 'encryption_algorithm',
-    description: 'Encryption algorithm',
+    example: 'encrypted_code',
+    description: 'Encrypted code',
   })
   encryptedCode: Sharing['encryptedCode'];
 }
