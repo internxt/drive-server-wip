@@ -302,7 +302,15 @@ export class SequelizeSharingRepository implements SharingRepository {
             {
               model: UserModel,
               as: 'user',
-              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+              attributes: [
+                'uuid',
+                'email',
+                'name',
+                'lastname',
+                'avatar',
+                'userId',
+                'bridgeUser',
+              ],
             },
           ],
         },
@@ -352,7 +360,15 @@ export class SequelizeSharingRepository implements SharingRepository {
             {
               model: UserModel,
               as: 'user',
-              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+              attributes: [
+                'uuid',
+                'email',
+                'name',
+                'lastname',
+                'avatar',
+                'userId',
+                'bridgeUser',
+              ],
             },
           ],
         },
