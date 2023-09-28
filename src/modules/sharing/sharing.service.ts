@@ -47,6 +47,8 @@ import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
 
+const SHARE_WITH = '00000000-0000-0000-0000-000000000000';
+
 export class InvalidOwnerError extends Error {
   constructor() {
     super('You are not the owner of this folder');
@@ -1115,7 +1117,7 @@ export class SharingService {
     const newSharing = Sharing.build({
       ...dto,
       id: v4(),
-      sharedWith: '00000000-0000-0000-0000-000000000000',
+      sharedWith: SHARE_WITH,
       type: SharingType.Public,
       ownerId: user.uuid,
       createdAt: new Date(),
@@ -1212,6 +1214,23 @@ export class SharingService {
         ? acceptInviteDto.encryptionKey
         : invite.encryptionKey,
     });
+
+    const ownerSharing = await this.sharingRepository.findOneSharingBy({
+      itemId: newSharing.itemId,
+      itemType: newSharing.itemType,
+      ownerId: newSharing.ownerId,
+    });
+
+    if (!ownerSharing) {
+      await this.sharingRepository.createSharing(
+        Sharing.build({
+          ...newSharing,
+          id: v4(),
+          sharedWith: newSharing.ownerId,
+        }),
+      );
+    }
+
     const sharing = await this.sharingRepository.createSharing(newSharing);
     await this.sharingRepository.createSharingRole({
       createdAt: new Date(),
