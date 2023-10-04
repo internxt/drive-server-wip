@@ -17,12 +17,7 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
-import {
-  getStringFromBinary,
-  convertStringToBinary,
-} from '../../lib/binary-converter';
 
-const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
 @Table({
   underscored: true,
   timestamps: true,
@@ -161,15 +156,6 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toDomain(model: SendLinkModel): SendLink {
-    if (
-      model.title &&
-      model.subject &&
-      model.createdAt > ENCRYPTION_DATE_RELEASE
-    ) {
-      model.title = getStringFromBinary(atob(model.title));
-      model.subject = getStringFromBinary(atob(model.subject));
-    }
-
     const sendLink = SendLink.build({
       id: model.id,
       views: model.views,
@@ -205,10 +191,6 @@ export class SequelizeSendRepository implements SendRepository {
     updatedAt,
     hashedPassword,
   }) {
-    if (title && subject && createdAt > ENCRYPTION_DATE_RELEASE) {
-      title = btoa(convertStringToBinary(title));
-      subject = btoa(convertStringToBinary(subject));
-    }
     return {
       id,
       views,
@@ -226,9 +208,6 @@ export class SequelizeSendRepository implements SendRepository {
     };
   }
   private toDomainItem(model: SendLinkItemModel): SendLinkItem {
-    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
-      model.name = getStringFromBinary(atob(model.name));
-    }
     return SendLinkItem.build({
       id: model.id,
       type: model.type,
@@ -245,9 +224,6 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toModelItem(domain: SendLinkItem) {
-    if (domain.createdAt > ENCRYPTION_DATE_RELEASE) {
-      domain.name = btoa(convertStringToBinary(domain.name));
-    }
     return {
       id: domain.id,
       name: domain.name,

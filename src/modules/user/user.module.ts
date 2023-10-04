@@ -26,6 +26,12 @@ import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { NewsletterService } from '../../externals/newsletter';
 import { KeyServerModule } from '../keyserver/key-server.module';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
+import { ShareModule } from '../share/share.module';
+import { KeyServerModel } from '../keyserver/key-server.model';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 @Module({
   imports: [
@@ -34,26 +40,31 @@ import { KeyServerModule } from '../keyserver/key-server.module';
       ReferralModel,
       UserReferralModel,
       FriendInvitationModel,
+      KeyServerModel,
     ]),
-    FolderModule,
+    forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
+    SharedWorkspaceModule,
     HttpClientModule,
     KeyServerModule,
+    CryptoModule,
+    forwardRef(() => ShareModule),
   ],
   controllers: [UserController],
   providers: [
     SequelizeUserRepository,
     SequelizeSharedWorkspaceRepository,
     SequelizeReferralRepository,
+    SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
     UserUseCases,
-    FolderUseCases,
     CryptoService,
     BridgeService,
     NotificationService,
     PaymentsService,
     NewsletterService,
+    AvatarService,
   ],
-  exports: [UserUseCases],
+  exports: [UserUseCases, SequelizeUserRepository],
 })
 export class UserModule {}

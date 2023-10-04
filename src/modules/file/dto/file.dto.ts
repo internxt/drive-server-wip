@@ -1,3 +1,4 @@
+import { Sharing } from 'src/modules/sharing/sharing.domain';
 import { FolderDto } from '../../folder/dto/folder.dto';
 import { Share } from '../../share/share.domain';
 import { Thumbnail } from '../../thumbnail/thumbnail.domain';
@@ -27,4 +28,5 @@ export class FileDto {
   status: FileStatus;
   shares?: Share[];
   thumbnails?: Thumbnail[];
+  sharings?: Sharing[];
 }

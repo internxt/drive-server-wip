@@ -1,3 +1,4 @@
+import { Sharing } from '../sharing/sharing.domain';
 import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
 import { FolderAttributes } from './folder.attributes';
@@ -14,7 +15,7 @@ export interface FolderOptions {
 
 export class Folder implements FolderAttributes {
   id: number;
-  parentId: number;
+  parentId: number | null;
   parent: Folder;
   type: string;
   name: string;
@@ -31,6 +32,8 @@ export class Folder implements FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   size: number;
+  sharings?: Sharing[];
+
   private constructor({
     id,
     uuid,
@@ -48,6 +51,7 @@ export class Folder implements FolderAttributes {
     updatedAt,
     removed,
     removedAt,
+    sharings,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -67,10 +71,11 @@ export class Folder implements FolderAttributes {
     this.size = 0;
     this.removed = removed;
     this.removedAt = removedAt;
+    this.sharings = sharings;
   }
 
-  static build(file: FolderAttributes): Folder {
-    return new Folder(file);
+  static build(folder: FolderAttributes): Folder {
+    return new Folder(folder);
   }
 
   isRootFolder(): boolean {
@@ -91,6 +96,21 @@ export class Folder implements FolderAttributes {
       throw Error('parent folder invalid');
     }
     this.parent = parent;
+  }
+
+  isOwnedBy(user: User): boolean {
+    return this.userId === user.id;
+  }
+
+  isTrashed(): boolean {
+    if (this.removed) {
+      return false;
+    }
+    return this.deleted;
+  }
+
+  isRemoved(): boolean {
+    return this.removed;
   }
 
   setUser(user) {
@@ -117,6 +137,8 @@ export class Folder implements FolderAttributes {
       deletedAt: this.deletedAt,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      sharings: this.sharings,
     };
   }
 }
+export { FolderAttributes };

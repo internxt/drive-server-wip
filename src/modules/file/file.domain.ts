@@ -1,5 +1,6 @@
 import { Folder } from '../folder/folder.domain';
 import { Share } from '../share/share.domain';
+import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
@@ -40,6 +41,7 @@ export interface FileAttributes {
   status: FileStatus;
   shares?: Share[];
   thumbnails?: Thumbnail[];
+  sharings?: Sharing[];
 }
 
 export interface FileOptions {
@@ -73,6 +75,7 @@ export class File implements FileAttributes {
   plainName: string;
   status: FileStatus;
   shares?: Share[];
+  sharings?: Sharing[];
   thumbnails?: Thumbnail[];
 
   private constructor({
@@ -100,6 +103,7 @@ export class File implements FileAttributes {
     status,
     shares,
     thumbnails,
+    sharings,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -125,6 +129,7 @@ export class File implements FileAttributes {
     this.status = status;
     this.shares = shares;
     this.thumbnails = thumbnails;
+    this.sharings = sharings;
   }
 
   static build(file: FileAttributes): File {
@@ -133,6 +138,10 @@ export class File implements FileAttributes {
 
   isOwnedBy(user: User): boolean {
     return this.userId === user.id;
+  }
+
+  isDeleted(): boolean {
+    return this.status === FileStatus.DELETED;
   }
 
   isChildrenOf(folder: Folder): boolean {
@@ -190,6 +199,7 @@ export class File implements FileAttributes {
       status: this.status,
       shares: this.shares,
       thumbnails: this.thumbnails,
+      sharings: this.sharings,
     };
   }
 }

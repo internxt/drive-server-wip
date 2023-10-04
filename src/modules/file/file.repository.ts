@@ -9,8 +9,10 @@ import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
+import { SharingModel } from '../sharing/models';
 
 export interface FileRepository {
+  deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -56,11 +58,41 @@ export class SequelizeFileRepository implements FileRepository {
     private thumbnailModel: typeof ThumbnailModel,
   ) {}
 
+  async deleteByFileId(fileId: any): Promise<unknown> {
+    throw new Error('Method not implemented.');
+  }
+
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findById(
+    fileUuid: string,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        ...where,
+      },
+    });
+
+    return this.toDomain(file);
+  }
+
+  async findByUuids(uuids: File['uuid'][]): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      where: {
+        uuid: {
+          [Op.in]: uuids,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findByUuid(
@@ -95,6 +127,27 @@ export class SequelizeFileRepository implements FileRepository {
       offset,
       additionalOrders,
     );
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+      order,
+    });
 
     return files.map(this.toDomain.bind(this));
   }
@@ -140,6 +193,11 @@ export class SequelizeFileRepository implements FileRepository {
         },
         {
           model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
           required: false,
         },
       ],

@@ -141,6 +141,12 @@ export class SequelizeShareRepository implements ShareRepository {
     private userModel: typeof UserModel,
   ) {}
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  findAllByUserPaginated() {
+    // must be implemented
+    return {} as any;
+  }
+
   async findById(id: ShareAttributes['id']) {
     const share = await this.shareModel.findByPk(id, {
       include: [
@@ -282,6 +288,10 @@ export class SequelizeShareRepository implements ShareRepository {
       order,
     });
     return shares.map(this.toDomain.bind(this));
+  }
+
+  async deleteByUserId(userId: User['id']): Promise<void> {
+    await this.shareModel.destroy({ where: { userId } });
   }
 
   private toDomain(model: ShareModel): Share {
