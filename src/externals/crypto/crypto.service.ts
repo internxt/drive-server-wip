@@ -5,6 +5,10 @@ import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
+export enum AsymmetricEncryptionAlgorithms {
+  EllipticCurve = 'ed25519',
+}
+
 @Injectable()
 export class CryptoService {
   private configService: ConfigService;

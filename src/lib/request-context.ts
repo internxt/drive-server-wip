@@ -58,7 +58,7 @@ export class RequestContext {
         'utm_content',
         'utm_id',
       ];
-      UTMS.map((utm) => {
+      UTMS.forEach((utm) => {
         if (searchParams.has(utm)) {
           campaign[utm] = searchParams.get(utm);
         }

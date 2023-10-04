@@ -110,7 +110,7 @@ export class SendUseCases {
 
     const sendLinkCreatedEvent = new SendLinkCreatedEvent({
       sendLink: {
-        ...(await this.sendRepository.findById(sendLink.id)),
+        ...sendLink,
         plainCode,
         size: totalSize,
         totalFiles: totalFiles,

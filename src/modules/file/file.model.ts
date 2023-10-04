@@ -18,6 +18,8 @@ import { ShareModel } from '../share/share.repository';
 import { Share } from '../share/share.domain';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { UserModel } from '../user/user.model';
+import { SharingModel } from '../sharing/models';
+import { Sharing } from '../sharing/sharing.domain';
 
 @Table({
   underscored: true,
@@ -112,4 +114,7 @@ export class FileModel extends Model implements FileAttributes {
 
   @HasMany(() => ThumbnailModel, 'fileId')
   thumbnails: ThumbnailModel[];
+
+  @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
+  sharings: Sharing[];
 }

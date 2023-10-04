@@ -32,10 +32,27 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
+
+  getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
+    return this.fileRepository.findById(uuid);
+  }
+
+  getByUserExceptParents(arg: any): Promise<File[]> {
+    throw new Error('Method not implemented.');
+  }
+
+  getByFileIdAndUser(arg: any): Promise<File> {
+    throw new Error('Method not implemented.');
+  }
+
+  async deleteFilePermanently(file: File, user: User): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
@@ -44,7 +61,11 @@ export class FileUseCases {
       throw new NotFoundException('File not found');
     }
 
-    return file;
+    return this.decrypFileName(file);
+  }
+
+  getByUuids(uuids: File['uuid'][]): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids);
   }
 
   async getFilesByFolderId(
@@ -185,6 +206,27 @@ export class FileUseCases {
     );
   }
 
+  async getFilesNotDeleted(
+    userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    return this.fileRepository.findAllNotDeleted(
+      {
+        ...where,
+        userId,
+      },
+      options.limit,
+      options.offset,
+    );
+  }
+
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
@@ -218,6 +260,22 @@ export class FileUseCases {
     const encryptionKey = await Environment.utils.generateFileKey(
       mnemonic,
       share.bucket,
+      Buffer.from(index, 'hex'),
+    );
+    return encryptionKey.toString('hex');
+  }
+
+  async getEncryptionKeyFromFile(
+    file: File,
+    encryptedMnemonic: string,
+    code: string,
+    network: Environment,
+  ): Promise<string> {
+    const mnemonic = aes.decrypt(encryptedMnemonic, code);
+    const { index } = await network.getFileInfo(file.bucket, file.fileId);
+    const encryptionKey = await Environment.utils.generateFileKey(
+      mnemonic,
+      file.bucket,
       Buffer.from(index, 'hex'),
     );
     return encryptionKey.toString('hex');

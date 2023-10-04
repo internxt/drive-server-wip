@@ -61,6 +61,7 @@ export class TrashController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('type') type: 'files' | 'folders',
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (!limit || offset === undefined || !type) {
       throw new BadRequestException();
@@ -74,23 +75,38 @@ export class TrashController {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
-    let result: File[] | Folder[];
+    try {
+      let result: File[] | Folder[];
 
-    if (type === 'files') {
-      result = await this.fileUseCases.getFiles(
-        user.id,
-        { status: FileStatus.TRASHED },
-        { limit, offset },
+      if (type === 'files') {
+        result = await this.fileUseCases.getFiles(
+          user.id,
+          { status: FileStatus.TRASHED },
+          { limit, offset },
+        );
+      } else {
+        result = await this.folderUseCases.getFolders(
+          user.id,
+          { deleted: true, removed: false },
+          { limit, offset },
+        );
+      }
+
+      return { result };
+    } catch (error) {
+      const { email, uuid } = user;
+      new Logger().error(
+        `[TRASH/GET_PAGINATED] ERROR: ${
+          (error as Error).message
+        } USER: ${JSON.stringify({
+          email,
+          uuid,
+        })} STACK: ${(error as Error).stack}`,
       );
-    } else {
-      result = await this.folderUseCases.getFolders(
-        user.id,
-        { deleted: true, removed: false },
-        { limit, offset },
-      );
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
     }
-
-    return { result };
   }
 
   // @UseGuards(ThrottlerGuard)
@@ -136,14 +152,17 @@ export class TrashController {
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach(({ email }: { email: string }) => {
-            const itemsToTrashEvent = new ItemsToTrashEvent(
-              moveItemsDto.items,
-              email,
-              clientId,
-            );
-            this.notificationService.add(itemsToTrashEvent);
-          });
+          members.forEach(
+            ({ email, uuid }: { email: string; uuid: string }) => {
+              const itemsToTrashEvent = new ItemsToTrashEvent(
+                moveItemsDto.items,
+                email,
+                clientId,
+                uuid,
+              );
+              this.notificationService.add(itemsToTrashEvent);
+            },
+          );
         })
         .catch((err) => {
           // no op

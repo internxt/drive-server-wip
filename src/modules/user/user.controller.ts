@@ -12,11 +12,19 @@ import {
   ForbiddenException,
   NotFoundException,
   UseGuards,
+  Patch,
+  Request as RequestDecorator,
+  Put,
+  Query,
+  UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -27,12 +35,24 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { User } from './user.domain';
 import {
   InvalidReferralCodeError,
+  KeyServerNotFoundError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import {
+  RecoverAccountDto,
+  RequestRecoverAccountDto,
+  ResetAccountDto,
+} from './dto/recover-account.dto';
+import { verifyToken } from '../../lib/jwt';
+import getEnv from '../../config/configuration';
+import { validate } from 'uuid';
+import { CryptoService } from '../../externals/crypto/crypto.service';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('User')
 @Controller('users')
@@ -41,9 +61,11 @@ export class UserController {
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
+  @Throttle(5, 3600)
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
@@ -149,5 +171,193 @@ export class UserController {
   @ApiOkResponse({ description: 'Returns a new token' })
   refreshToken(@UserDecorator() user: User) {
     return this.userUseCases.getAuthTokens(user);
+  }
+
+  @Patch('password')
+  @ApiBearerAuth()
+  async updatePassword(
+    @RequestDecorator() req,
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+    @UserDecorator() user: User,
+  ) {
+    try {
+      const currentPassword = this.cryptoService.decryptText(
+        updatePasswordDto.currentPassword,
+      );
+      const newPassword = this.cryptoService.decryptText(
+        updatePasswordDto.newPassword,
+      );
+      const newSalt = this.cryptoService.decryptText(updatePasswordDto.newSalt);
+
+      const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
+
+      if (user.password.toString() !== currentPassword) {
+        throw new UnauthorizedException();
+      }
+
+      await this.userUseCases.updatePassword(req.user, {
+        currentPassword,
+        newPassword,
+        newSalt,
+        mnemonic,
+        privateKey,
+        encryptVersion,
+      });
+      return { status: 'success' };
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof UnauthorizedException) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (err instanceof KeyServerNotFoundError) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/UPDATEPASSWORD] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/recover-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Request account recovery',
+  })
+  @Public()
+  async requestAccountRecovery(
+    @Body() body: RequestRecoverAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      await this.userUseCases.sendAccountRecoveryEmail(body.email);
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { email: body.email },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Put('/recover-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Recover account',
+  })
+  @Public()
+  async recoverAccount(
+    @Query('token') token: string,
+    @Query('reset') reset: string,
+    @Body() body: RecoverAccountDto | ResetAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { mnemonic, password, salt } = body;
+    let decodedContent: { payload?: { uuid?: string; action?: string } };
+
+    try {
+      const decoded = verifyToken(token, getEnv().secrets.jwt);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException();
+      }
+
+      decodedContent = decoded as {
+        payload?: { uuid?: string; action?: string };
+      };
+    } catch (err) {
+      throw new ForbiddenException();
+    }
+
+    if (
+      !decodedContent.payload ||
+      !decodedContent.payload.action ||
+      !decodedContent.payload.uuid ||
+      decodedContent.payload.action !== 'recover-account' ||
+      !validate(decodedContent.payload.uuid)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    if (reset && reset !== 'true' && reset !== 'false') {
+      throw new BadRequestException('Invalid value for parameter "reset"');
+    }
+
+    const userUuid = decodedContent.payload.uuid;
+
+    try {
+      if (reset === 'true') {
+        await this.userUseCases.updateCredentials(
+          userUuid,
+          {
+            mnemonic,
+            password,
+            salt,
+          },
+          true,
+        );
+      } else {
+        const { privateKey } = body as RecoverAccountDto;
+
+        await this.userUseCases.updateCredentials(userUuid, {
+          mnemonic,
+          password,
+          salt,
+          privateKey,
+        });
+      }
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { uuid: userUuid },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
+    }
+  }
+
+  @Get('/public-key/:email')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get public key by email',
+  })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getPublicKeyByEmail(@Param('email') email: User['email']) {
+    const user = await this.userUseCases.getUserByUsername(email);
+
+    if (!user) {
+      throw new NotFoundException();
+    }
+
+    return {
+      publicKey: await this.keyServerUseCases.getPublicKey(user.id),
+    };
   }
 }

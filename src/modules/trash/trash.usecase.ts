@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class TrashUseCases {
+  async clearTrash(user: User) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
@@ -17,10 +20,14 @@ export class TrashUseCases {
    * @param trashOwner User whose trash is going to be emptied
    */
   async emptyTrash(trashOwner: User): Promise<void> {
-    const count = await this.fileUseCases.getTrashFilesCount(trashOwner.id);
+    const filesCount = await this.fileUseCases.getTrashFilesCount(
+      trashOwner.id,
+    );
+    const foldersCount = await this.folderUseCases.getTrashFoldersCount(
+      trashOwner.id,
+    );
     const emptyTrashChunkSize = 100;
-
-    for (let i = 0; i < count; i += emptyTrashChunkSize) {
+    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
       const folders = await this.folderUseCases.getFolders(
         trashOwner.id,
         { deleted: true, removed: false },
@@ -30,10 +37,10 @@ export class TrashUseCases {
       await this.folderUseCases.deleteByUser(trashOwner, folders);
     }
 
-    for (let i = 0; i < count; i += emptyTrashChunkSize) {
+    for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
       const files = await this.fileUseCases.getFiles(
         trashOwner.id,
-        { deleted: true, removed: false },
+        { status: FileStatus.TRASHED },
         { limit: emptyTrashChunkSize, offset: i },
       );
 

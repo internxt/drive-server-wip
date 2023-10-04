@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder, SortableFolderAttributes } from './folder.domain';
+import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 
 import { UserModel } from '../user/user.model';
@@ -11,6 +11,7 @@ import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
+import { SharingModel } from '../sharing/models';
 
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
@@ -67,6 +68,40 @@ export class SequelizeFolderRepository implements FolderRepository {
       offset,
       where,
       order,
+      include: [
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithParent(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      include: [
+        {
+          model: FolderModel,
+          as: 'parent',
+          attributes: ['id', 'uuid'],
+          where: {
+            deleted: false,
+            removed: false,
+          },
+        },
+      ],
+      limit,
+      offset,
+      where,
+      order,
     });
 
     return folders.map(this.toDomain.bind(this));
@@ -80,6 +115,13 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findByIds(user: User, ids: FolderAttributes['id'][]) {
     const folders = await this.folderModel.findAll({
       where: { id: { [Op.in]: ids }, userId: user.id },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findByUuids(uuids: FolderAttributes['uuid'][]): Promise<Folder[]> {
+    const folders = await this.folderModel.findAll({
+      where: { uuid: { [Op.in]: uuids } },
     });
     return folders.map((folder) => this.toDomain(folder));
   }
@@ -107,6 +149,25 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folder ? this.toDomain(folder) : null;
   }
 
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+  ): Promise<Folder[]> {
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        removed: {
+          [Op.eq]: false,
+        },
+      },
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
   async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {
     const folder = await this.folderModel.findOne({ where });
 
@@ -129,10 +190,11 @@ export class SequelizeFolderRepository implements FolderRepository {
     deleted: FolderAttributes['deleted'],
     page: number = null,
     perPage: number = null,
+    order: [string, string][] = [['id', 'ASC']],
   ): Promise<Array<Folder> | []> {
     const query: FindOptions = {
       where: { parentId, deleted },
-      order: [['id', 'ASC']],
+      order,
     };
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
     if (page && perPage) {
@@ -280,26 +342,31 @@ export class SequelizeFolderRepository implements FolderRepository {
     userId: number,
     deleted: boolean,
   ): Promise<FindInTreeResponse | null> {
-    const [[folder]] = await this.folderModel.sequelize.query(`
+    const [[folder]] = await this.folderModel.sequelize.query(
+      `
       WITH RECURSIVE rec AS (
         SELECT parent_id, id, plain_name
         FROM folders
         WHERE
-            id = ${folderTreeRootId}
+            id = (:folderTreeRootId)
           AND
-            deleted = ${deleted}
+            deleted = (:deleted)
           AND
-            user_id = ${userId}            
+            user_id = (:userId)            
         UNION
         SELECT fo.parent_id, fo.id, fo.plain_name
         FROM folders fo
         INNER JOIN rec r ON r.id = fo.parent_id
         WHERE
-            fo.user_id = ${userId} 
+            fo.user_id = (:userId)
           AND 
-            fo.deleted = ${deleted}
-      ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = ${folderId}
-    `);
+            fo.deleted = (:deleted)
+      ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = (:folderId)
+    `,
+      {
+        replacements: { folderTreeRootId, folderId, userId, deleted },
+      },
+    );
 
     return folder as FindInTreeResponse;
   }
@@ -309,6 +376,8 @@ export class SequelizeFolderRepository implements FolderRepository {
       {
         removed: true,
         removedAt: new Date(),
+        deleted: true,
+        deletedAt: new Date(),
       },
       {
         where: {
@@ -358,3 +427,4 @@ export class SequelizeFolderRepository implements FolderRepository {
     return domain.toJSON();
   }
 }
+export { FolderModel };

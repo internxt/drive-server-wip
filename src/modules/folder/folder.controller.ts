@@ -16,7 +16,7 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { validate } from 'uuid';
 
@@ -193,7 +193,21 @@ export class FolderController {
       },
     );
 
-    return { result: folders };
+    return {
+      result: folders.map((f) => {
+        let folderStatus: FileStatus;
+
+        if (f.removed) {
+          folderStatus = FileStatus.DELETED;
+        } else if (f.deleted) {
+          folderStatus = FileStatus.TRASHED;
+        } else {
+          folderStatus = FileStatus.EXISTS;
+        }
+
+        return { ...f, status: folderStatus };
+      }),
+    };
   }
 
   @Get('/')
@@ -298,6 +312,10 @@ export class FolderController {
         user,
       );
 
+      if (!folder) {
+        throw new NotFoundException();
+      }
+
       return folder;
     } catch (err) {
       if (
@@ -308,6 +326,39 @@ export class FolderController {
       }
       logger('error', {
         id: 'get-folder',
+        user: user.uuid,
+        message: `Error getting folder ${err.message}. STACK ${
+          err.stack || 'NO STACK'
+        }`,
+      });
+    }
+  }
+
+  @Get('/:id/metadata')
+  async getFolderById(
+    @UserDecorator() user: User,
+    @Param('id') folderId: Folder['id'],
+  ) {
+    if (folderId < 0) {
+      throw new BadRequestException('Invalid id provided');
+    }
+
+    try {
+      const folder = await this.folderUseCases.getFolderByUserId(
+        folderId,
+        user.id,
+      );
+
+      return folder;
+    } catch (err) {
+      if (
+        err instanceof NotFoundException ||
+        err instanceof ForbiddenException
+      ) {
+        throw err;
+      }
+      logger('error', {
+        id: 'get-folder-by-id',
         user: user.uuid,
         message: `Error getting folder ${err.message}. STACK ${
           err.stack || 'NO STACK'
