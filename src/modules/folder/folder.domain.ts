@@ -113,6 +113,14 @@ export class Folder implements FolderAttributes {
     return this.removed;
   }
 
+  isRoot(): boolean {
+    return this.bucket && this.parentId === null;
+  }
+
+  isBackup(driveRootFolder: Folder): boolean {
+    return this.isRoot() && driveRootFolder.bucket !== this.bucket;
+  }
+
   setUser(user) {
     if (user && !(user instanceof User)) {
       throw Error('user invalid');

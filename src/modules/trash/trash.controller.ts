@@ -146,7 +146,7 @@ export class TrashController {
       }
       await Promise.all([
         this.fileUseCases.moveFilesToTrash(user, fileIds),
-        this.folderUseCases.moveFoldersToTrash(folderIds),
+        this.folderUseCases.moveFoldersToTrash(user, folderIds),
       ]);
 
       this.userUseCases

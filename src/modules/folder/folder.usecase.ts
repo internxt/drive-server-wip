@@ -288,11 +288,40 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
-  async moveFoldersToTrash(folderIds: FolderAttributes['id'][]): Promise<void> {
-    return this.folderRepository.updateManyByFolderId(folderIds, {
-      deleted: true,
-      deletedAt: new Date(),
-    });
+  async moveFoldersToTrash(
+    user: User,
+    folderIds: FolderAttributes['id'][],
+  ): Promise<void> {
+    const [folders, driveRootFolder] = await Promise.all([
+      this.getFoldersByIds(user, folderIds),
+      this.getFolder(user.rootFolderId),
+    ]);
+
+    const backups = folders.filter((f) => f.isBackup(driveRootFolder));
+    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder));
+
+    await Promise.all([
+      driveFolders.length > 0
+        ? this.folderRepository.updateManyByFolderId(
+            driveFolders.map((f) => f.id),
+            {
+              deleted: true,
+              deletedAt: new Date(),
+            },
+          )
+        : Promise.resolve(),
+      backups.length > 0
+        ? this.folderRepository.updateManyByFolderId(
+            backups.map((f) => f.id),
+            {
+              deleted: true,
+              deletedAt: new Date(),
+              removed: true,
+              removedAt: new Date(),
+            },
+          )
+        : Promise.resolve(),
+    ]);
   }
 
   async getFoldersByParentId(
