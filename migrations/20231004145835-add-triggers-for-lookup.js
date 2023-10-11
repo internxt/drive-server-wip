@@ -59,7 +59,10 @@ module.exports = {
     await queryInterface.sequelize.query(`
       CREATE OR REPLACE FUNCTION update_file_in_look_up_table()
       RETURNS TRIGGER AS $$
+      DECLARE
+        user_record users%ROWTYPE;
       BEGIN
+        SELECT * INTO user_record FROM users WHERE id = NEW.user_id;
         -- If the name has been changed, update the lookup table
         IF NEW.status = 'EXISTS' AND OLD.plain_name != NEW.plain_name THEN
           UPDATE look_up
@@ -69,7 +72,7 @@ module.exports = {
           WHERE 
             item_type = 'file' 
             AND item_id = NEW.uuid 
-            AND user_id = NEW.user_id;
+            AND user_id = user_record.uuid;
         -- If the file status changes to deleted / trashed
         ELSIF OLD.status = 'EXISTS' AND NEW.status != 'EXISTS' THEN
           -- Remove the lookup entry
@@ -77,7 +80,7 @@ module.exports = {
           WHERE
             item_type = 'file' 
             AND item_id = NEW.uuid 
-            AND user_id = NEW.user_id;
+            AND user_id = user_record.uuid;
         END IF;
     
         RETURN NEW;
@@ -93,7 +96,10 @@ module.exports = {
     await queryInterface.sequelize.query(`
       CREATE OR REPLACE FUNCTION update_folder_in_look_up_table()
       RETURNS TRIGGER AS $$
+      DECLARE
+        user_record users%ROWTYPE;
       BEGIN
+        SELECT * INTO user_record FROM users WHERE id = NEW.user_id;
         -- If the name has been changed, update the lookup table
         IF NEW.deleted = false AND NEW.removed = false AND OLD.plain_name != NEW.plain_name THEN
           UPDATE look_up
@@ -103,7 +109,7 @@ module.exports = {
           WHERE 
             item_type = 'folder' 
             AND item_id = NEW.uuid 
-            AND user_id = NEW.user_id;
+            AND user_id = user_record.uuid;
         -- If the file status changes to deleted / trashed
         ELSIF OLD.deleted = false AND NEW.removed = false AND (NEW.deleted = true OR NEW.removed = true) THEN
           -- Remove the lookup entry
@@ -111,7 +117,7 @@ module.exports = {
           WHERE
             item_type = 'folder' 
             AND item_id = NEW.uuid 
-            AND user_id = NEW.user_id;
+            AND user_id = user_record.uuid;
         END IF;
 
         RETURN NEW;
