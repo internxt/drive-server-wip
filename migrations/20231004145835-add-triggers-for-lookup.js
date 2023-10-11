@@ -73,6 +73,10 @@ module.exports = {
             item_type = 'file' 
             AND item_id = NEW.uuid 
             AND user_id = user_record.uuid;
+        -- If the file is restored
+        ELSIF NEW.status = 'EXISTS' AND old.status != 'EXISTS' THEN
+          INSERT INTO look_up (id, name, tokenized_name, item_id, item_type, user_id)
+          VALUES (uuid_generate_v4(), NEW.plain_name, to_tsvector(NEW.plain_name), NEW.uuid, 'file', user_record.uuid);
         -- If the file status changes to deleted / trashed
         ELSIF OLD.status = 'EXISTS' AND NEW.status != 'EXISTS' THEN
           -- Remove the lookup entry
@@ -110,6 +114,10 @@ module.exports = {
             item_type = 'folder' 
             AND item_id = NEW.uuid 
             AND user_id = user_record.uuid;
+        -- If the folder is restored
+        ELSIF NEW.deleted = false and NEW.removed = false AND (old.deleted = true or old.removed = true) THEN
+          INSERT INTO look_up (id, name, tokenized_name, item_id, item_type, user_id)
+          VALUES (uuid_generate_v4(), NEW.plain_name, to_tsvector(NEW.plain_name), NEW.uuid, 'folder', user_record.uuid);
         -- If the file status changes to deleted / trashed
         ELSIF OLD.deleted = false AND NEW.removed = false AND (NEW.deleted = true OR NEW.removed = true) THEN
           -- Remove the lookup entry
