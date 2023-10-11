@@ -2,7 +2,7 @@ import { FileModel } from '../file/file.model';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
 
-export const itemTypes = ['FILE', 'FOLDER'] as const;
+export const itemTypes = ['file', 'folder'] as const;
 
 export type ItemType = typeof itemTypes[number];
 

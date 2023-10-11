@@ -7,19 +7,7 @@ export class FuzzySearchUseCases {
     private repository: LookUpRepository,
   ) {}
 
-  async fuzzySearch(
-    user: string,
-    text: string,
-  ): Promise<Array<FuzzySearchResult>> {
-    const lookupResult = await this.repository.search(user, text, 0);
-
-    return lookupResult.map((lookup) => ({
-      id: lookup.id,
-      itemId: lookup.itemId,
-      itemType: lookup.itemType,
-      name: lookup.name,
-      rank: lookup.rank,
-      similarity: lookup.similarity,
-    }));
+  fuzzySearch(user: string, text: string): Promise<Array<FuzzySearchResult>> {
+    return this.repository.search(user, text, 0);
   }
 }
