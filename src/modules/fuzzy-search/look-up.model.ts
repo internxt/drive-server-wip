@@ -1,5 +1,16 @@
-import { Column, PrimaryKey, Table, Model, Index } from 'sequelize-typescript';
+import {
+  Column,
+  PrimaryKey,
+  Table,
+  Model,
+  Index,
+  BelongsTo,
+  ForeignKey,
+} from 'sequelize-typescript';
 import { ItemType, LookUpAttributes } from './look-up.domain';
+import { FileModel } from '../file/file.model';
+import { FolderModel } from '../folder/folder.model';
+import { UserModel } from '../user/user.model';
 
 @Table({
   underscored: true,
@@ -18,6 +29,7 @@ export class LookUpModel extends Model implements LookUpAttributes {
   itemType: ItemType;
 
   @Index
+  @ForeignKey(() => UserModel)
   @Column
   userId: string;
 
@@ -26,4 +38,24 @@ export class LookUpModel extends Model implements LookUpAttributes {
 
   @Column
   tokenizedName: string;
+
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'userId',
+    targetKey: 'uuid',
+  })
+  user: UserModel;
+
+  @BelongsTo(() => FileModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+    as: 'file',
+  })
+  file: FileModel;
+
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+    as: 'folder',
+  })
+  folder: FolderModel;
 }
