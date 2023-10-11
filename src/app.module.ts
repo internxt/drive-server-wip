@@ -19,6 +19,7 @@ import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
+import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 import { SharingModule } from './modules/sharing/sharing.module';
 
 @Module({
@@ -99,6 +100,7 @@ import { SharingModule } from './modules/sharing/sharing.module';
     CryptoModule,
     SharedWorkspaceModule,
     ThumbnailModule,
+    FuzzySearchModule,
     SharingModule,
   ],
   controllers: [],
