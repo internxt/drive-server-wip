@@ -93,6 +93,7 @@ export const newUser = (): User => {
     sharedWorkspace: false,
     tempKey: '',
     avatar: v4(),
+    lastPasswordChangedAt: new Date(),
   });
 };
 
