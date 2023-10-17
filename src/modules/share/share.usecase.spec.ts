@@ -86,6 +86,7 @@ describe('Share Use Cases', () => {
     hKey: undefined,
     secret_2FA: '',
     tempKey: '',
+    lastPasswordChangedAt: new Date(),
   });
   const userMock = User.build({
     id: 2,
@@ -114,6 +115,7 @@ describe('Share Use Cases', () => {
     hKey: undefined,
     secret_2FA: '',
     tempKey: '',
+    lastPasswordChangedAt: new Date(),
   });
   const mockFolder = Folder.build({
     id: 1,

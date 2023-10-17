@@ -63,6 +63,7 @@ describe('FileUseCases', () => {
     hKey: undefined,
     secret_2FA: '',
     tempKey: '',
+    lastPasswordChangedAt: new Date(),
   });
 
   beforeEach(async () => {
@@ -270,6 +271,7 @@ describe('FileUseCases', () => {
       hKey: undefined,
       secret_2FA: '',
       tempKey: '',
+      lastPasswordChangedAt: new Date(),
     });
 
     it.skip('should be able to delete a trashed file', async () => {
