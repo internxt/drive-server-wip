@@ -211,6 +211,7 @@ export class FolderUseCases {
       folders.map((folder) => {
         return {
           userId: user.id,
+          plainName: folder.name,
           name: this.cryptoService.encryptName(
             folder.name,
             folder.parentFolderId,
