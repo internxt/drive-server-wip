@@ -83,7 +83,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       include: [
         {
           model: FileModel,
-          attributes: ['type', 'id', 'size'],
+          attributes: ['type', 'id', 'size', 'bucket', 'fileId', 'plainName'],
           as: 'file',
         },
         {
