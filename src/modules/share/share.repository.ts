@@ -15,7 +15,6 @@ import {
   Table,
   Unique,
 } from 'sequelize-typescript';
-import { FileModel } from '../file/file.repository';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { UserModel } from '../user/user.model';
@@ -24,6 +23,7 @@ import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
+import { FileModel } from '../file/file.model';
 
 @Table({
   underscored: true,
@@ -140,6 +140,12 @@ export class SequelizeShareRepository implements ShareRepository {
     @InjectModel(UserModel)
     private userModel: typeof UserModel,
   ) {}
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  findAllByUserPaginated() {
+    // must be implemented
+    return {} as any;
+  }
 
   async findById(id: ShareAttributes['id']) {
     const share = await this.shareModel.findByPk(id, {
@@ -282,6 +288,10 @@ export class SequelizeShareRepository implements ShareRepository {
       order,
     });
     return shares.map(this.toDomain.bind(this));
+  }
+
+  async deleteByUserId(userId: User['id']): Promise<void> {
+    await this.shareModel.destroy({ where: { userId } });
   }
 
   private toDomain(model: ShareModel): Share {

@@ -10,7 +10,7 @@ export class User implements UserAttributes {
   password: string;
   mnemonic: string;
   rootFolderId: number;
-  hKey: Buffer;
+  hKey: Buffer | string;
   secret_2FA: string;
   errorLoginCount: number;
   isEmailActivitySended: number;
@@ -38,7 +38,6 @@ export class User implements UserAttributes {
     password,
     mnemonic,
     rootFolderId,
-    rootFolder,
     hKey,
     secret_2FA,
     errorLoginCount,
@@ -91,7 +90,7 @@ export class User implements UserAttributes {
   }
 
   isGuestOnSharedWorkspace(): boolean {
-    return !(this.email === this.bridgeUser);
+    return this.email !== this.bridgeUser;
   }
 
   toJSON() {

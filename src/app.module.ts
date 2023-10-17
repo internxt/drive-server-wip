@@ -18,6 +18,9 @@ import { BridgeModule } from './externals/bridge/bridge.module';
 import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
+import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
+import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
+import { SharingModule } from './modules/sharing/sharing.module';
 
 @Module({
   imports: [
@@ -63,7 +66,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
                 require: true,
                 rejectUnauthorized: false,
               },
-              application_name: 'drive-server-wip'
+              application_name: 'drive-server-wip',
             }
           : {},
         logging: !configService.get('database.debug')
@@ -96,6 +99,9 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     DeviceModule,
     CryptoModule,
     SharedWorkspaceModule,
+    ThumbnailModule,
+    FuzzySearchModule,
+    SharingModule,
   ],
   controllers: [],
   providers: [],
