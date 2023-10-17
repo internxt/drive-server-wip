@@ -2,115 +2,17 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { FindOptions, Op } from 'sequelize';
-import {
-  AllowNull,
-  BelongsTo,
-  Column,
-  DataType,
-  Default,
-  ForeignKey,
-  Index,
-  Model,
-  PrimaryKey,
-  Table,
-  Unique,
-} from 'sequelize-typescript';
-import { UserModel } from '../user/user.model';
+
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
-import { FolderModel } from '../folder/folder.model';
-
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'files',
-})
-export class FileModel extends Model implements FileAttributes {
-  @PrimaryKey
-  @Column
-  id: number;
-
-  @Unique
-  @Column(DataType.UUIDV4)
-  uuid: string;
-
-  @Column(DataType.STRING(24))
-  fileId: string;
-
-  @Index
-  @Column
-  name: string;
-
-  @Index
-  @Column
-  plainName: string;
-
-  @Column
-  type: string;
-
-  @Column(DataType.BIGINT.UNSIGNED)
-  size: bigint;
-
-  @Column(DataType.STRING(24))
-  bucket: string;
-
-  @ForeignKey(() => FolderModel)
-  @Column(DataType.INTEGER)
-  folderId: number;
-
-  @BelongsTo(() => FolderModel)
-  folder: FolderModel;
-
-  @ForeignKey(() => FolderModel)
-  @Column(DataType.UUIDV4)
-  folderUuid: string;
-
-  @Column
-  encryptVersion: string;
-
-  @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
-
-  @BelongsTo(() => UserModel)
-  user: UserModel;
-
-  @Column
-  modificationTime: Date;
-
-  @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-
-  @Default(false)
-  @Column
-  removed: boolean;
-
-  @AllowNull
-  @Column
-  removedAt: Date;
-
-  @Default(false)
-  @Column
-  deleted: boolean;
-
-  @AllowNull
-  @Column
-  deletedAt: Date;
-
-  @Column({
-    type: DataType.ENUM,
-    values: Object.values(FileStatus),
-    defaultValue: FileStatus.EXISTS,
-    allowNull: false,
-  })
-  status: FileStatus;
-}
+import { ShareModel } from '../share/share.repository';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { FileModel } from './file.model';
+import { SharingModel } from '../sharing/models';
 
 export interface FileRepository {
+  deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -125,6 +27,11 @@ export interface FileRepository {
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
     options: FileOptions,
+  ): Promise<File | null>;
+  findByUuid(
+    fileUuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
@@ -145,13 +52,63 @@ export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
+    @InjectModel(ShareModel)
+    private shareModel: typeof ShareModel,
+    @InjectModel(ThumbnailModel)
+    private thumbnailModel: typeof ThumbnailModel,
   ) {}
+
+  async deleteByFileId(fileId: any): Promise<unknown> {
+    throw new Error('Method not implemented.');
+  }
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findById(
+    fileUuid: string,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        ...where,
+      },
+    });
+
+    return this.toDomain(file);
+  }
+
+  async findByUuids(uuids: File['uuid'][]): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      where: {
+        uuid: {
+          [Op.in]: uuids,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findByUuid(
+    fileUuid: string,
+    userId: number,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        userId,
+        ...where,
+      },
+    });
+
+    return this.toDomain(file);
   }
 
   async findAllCursorWhereUpdatedAfter(
@@ -174,17 +131,77 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
-    additionalOrders: Array<[keyof FileModel, string]> = [],
+    order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       limit,
       offset,
       where,
-      order: [['id', 'ASC'], ...additionalOrders],
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnails(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.shareModel,
+          attributes: [
+            'id',
+            'active',
+            'hashed_password',
+            'code',
+            'token',
+            'is_folder',
+          ],
+          required: false,
+        },
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
+      order,
     });
 
     return files.map(this.toDomain.bind(this));

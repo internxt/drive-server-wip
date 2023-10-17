@@ -10,7 +10,7 @@ export interface UserAttributes {
   mnemonic: string;
   rootFolderId: number;
   rootFolder?: any;
-  hKey: Buffer;
+  hKey: Buffer | string;
   secret_2FA: string;
   errorLoginCount: number;
   isEmailActivitySended: number;

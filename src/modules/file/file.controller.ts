@@ -1,4 +1,12 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Logger,
+  NotFoundException,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -7,6 +15,7 @@ import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
 import { File } from './file.domain';
+import { validate } from 'uuid';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -37,12 +46,43 @@ export class FileController {
     return { count };
   }
 
+  @Get('/:uuid/meta')
+  async getFileMetadata(
+    @UserDecorator() user: User,
+    @Param('uuid') fileUuid: File['uuid'],
+  ) {
+    if (!validate(fileUuid)) {
+      throw new BadRequestException('Invalid UUID');
+    }
+
+    try {
+      const file = await this.fileUseCases.getFileMetadata(user, fileUuid);
+
+      return file;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATA] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
+  }
+
   @Get('/')
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: typeof filesStatuses[number],
+    @Query('sort') sort?: string,
+    @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
   ) {
     if (!isNumber(limit) || !isNumber(offset)) {
@@ -87,7 +127,7 @@ export class FileController {
     const files: File[] = await fns[status].bind(this.fileUseCases)(
       user.id,
       new Date(updatedAt || 1),
-      { limit, offset },
+      { limit, offset, sort: sort && order && [[sort, order]] },
     );
 
     return files.map((f) => {

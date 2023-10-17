@@ -14,9 +14,17 @@ import { Share } from '../share/share.domain';
 import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
-import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
+import {
+  File,
+  FileAttributes,
+  FileOptions,
+  FileStatus,
+  SortableFileAttributes,
+} from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
+
+type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FileUseCases {
@@ -24,23 +32,49 @@ export class FileUseCases {
     private fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => ShareUseCases))
     private shareUseCases: ShareUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUsecases: FolderUseCases,
     private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
 
-  getByFileIdAndUser(
-    fileId: FileAttributes['id'],
-    userId: UserAttributes['id'],
-    options: FileOptions = { deleted: false },
-  ): Promise<File> {
-    return this.fileRepository.findOne(fileId, userId, options);
+  getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
+    return this.fileRepository.findById(uuid);
+  }
+
+  getByUserExceptParents(arg: any): Promise<File[]> {
+    throw new Error('Method not implemented.');
+  }
+
+  getByFileIdAndUser(arg: any): Promise<File> {
+    throw new Error('Method not implemented.');
+  }
+
+  async deleteFilePermanently(file: File, user: User): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
+
+  async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id);
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return this.decrypFileName(file);
+  }
+
+  getByUuids(uuids: File['uuid'][]): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids);
   }
 
   async getFilesByFolderId(
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-    options = { deleted: false, limit: 20, offset: 0 },
+    folderId: FileAttributes['folderId'],
+    userId: FileAttributes['userId'],
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ) {
     const parentFolder = await this.folderUsecases.getFolderByUserId(
       folderId,
@@ -51,13 +85,13 @@ export class FileUseCases {
       throw new NotFoundException();
     }
 
-    if (!(parentFolder.userId === userId)) {
+    if (parentFolder.userId !== userId) {
       throw new ForbiddenException();
     }
 
     return this.getFiles(
       userId,
-      { folderId, deleted: options.deleted },
+      { folderId, status: FileStatus.EXISTS },
       options,
     );
   }
@@ -69,7 +103,7 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    options: { limit: number; offset: number; sort?: SortParams },
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -82,8 +116,7 @@ export class FileUseCases {
     return this.getFilesUpdatedAfter(
       userId,
       {
-        deleted: false,
-        removed: false,
+        status: FileStatus.EXISTS,
       },
       updatedAfter,
       options,
@@ -97,7 +130,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
-      { removed: true },
+      { status: FileStatus.DELETED },
       updatedAfter,
       options,
     );
@@ -110,7 +143,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.getFilesUpdatedAfter(
       userId,
-      { deleted: true, removed: false },
+      { status: FileStatus.TRASHED },
       updatedAfter,
       options,
     );
@@ -120,11 +153,10 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    options: { limit: number; offset: number; sort?: SortParams },
   ): Promise<File[]> {
-    const additionalOrders: Array<[keyof FileAttributes, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC'],
-    ];
+    const additionalOrders: SortParams = options.sort ?? [['updatedAt', 'ASC']];
+
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
@@ -138,20 +170,60 @@ export class FileUseCases {
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
-    options = { limit: 20, offset: 0 },
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      withoutThumbnails?: boolean;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
   ): Promise<File[]> {
-    const filesWithMaybePlainName = await this.fileRepository.findAllCursor(
+    let filesWithMaybePlainName;
+    if (options?.withoutThumbnails)
+      filesWithMaybePlainName = await this.fileRepository.findAllCursor(
+        { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    else
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorWithThumbnails(
+          { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+
+    const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesWithThumbnailsModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getFilesNotDeleted(
+    userId: UserAttributes['id'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    return this.fileRepository.findAllNotDeleted(
       {
         ...where,
-        // enforce userId always
         userId,
       },
       options.limit,
       options.offset,
-    );
-
-    return filesWithMaybePlainName.map((file) =>
-      file.plainName ? file : this.decrypFileName(file),
     );
   }
 
@@ -163,20 +235,6 @@ export class FileUseCases {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
       folderId,
       userId,
-      options,
-    );
-
-    return files.map((file) => file.toJSON());
-  }
-
-  async getByUserExceptParents(
-    userId: FolderAttributes['userId'],
-    exceptFolderIds: FolderAttributes['id'][],
-    options: FileOptions = { deleted: false },
-  ) {
-    const files = await this.fileRepository.findAllByUserIdExceptFolderIds(
-      userId,
-      exceptFolderIds,
       options,
     );
 
@@ -202,6 +260,22 @@ export class FileUseCases {
     const encryptionKey = await Environment.utils.generateFileKey(
       mnemonic,
       share.bucket,
+      Buffer.from(index, 'hex'),
+    );
+    return encryptionKey.toString('hex');
+  }
+
+  async getEncryptionKeyFromFile(
+    file: File,
+    encryptedMnemonic: string,
+    code: string,
+    network: Environment,
+  ): Promise<string> {
+    const mnemonic = aes.decrypt(encryptedMnemonic, code);
+    const { index } = await network.getFileInfo(file.bucket, file.fileId);
+    const encryptionKey = await Environment.utils.generateFileKey(
+      mnemonic,
+      file.bucket,
       Buffer.from(index, 'hex'),
     );
     return encryptionKey.toString('hex');
@@ -235,6 +309,21 @@ export class FileUseCases {
     }).toJSON();
   }
 
+  addOldAttributes(file: File): any {
+    const thumbnails = file.thumbnails;
+
+    const thumbnailsWithOldAttributers = thumbnails.map((thumbnail) => ({
+      ...thumbnail,
+      bucket_id: thumbnail.bucketId,
+      bucket_file: thumbnail.bucketFile,
+    }));
+
+    return File.build({
+      ...file,
+      thumbnails: thumbnailsWithOldAttributers,
+    }).toJSON();
+  }
+
   /**
    * Gets the number of orphan files of a given user
    * @param userId User whose files are orphan
@@ -245,10 +334,16 @@ export class FileUseCases {
   }
 
   getTrashFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, deleted: true });
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      status: FileStatus.TRASHED,
+    });
   }
 
   getDriveFilesCount(userId: UserAttributes['id']) {
-    return this.fileRepository.getFilesCountWhere({ userId, deleted: false });
+    return this.fileRepository.getFilesCountWhere({
+      userId,
+      status: FileStatus.EXISTS,
+    });
   }
 }

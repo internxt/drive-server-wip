@@ -1,35 +1,76 @@
 import {
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { FileUseCases } from '../file/file.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Folder, FolderOptions } from './folder.domain';
+import {
+  Folder,
+  FolderOptions,
+  SortableFolderAttributes,
+} from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 
 const invalidName = /[\\/]|^\s*$/;
+
+type SortParams = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
-    @Inject(forwardRef(() => FileUseCases))
-    private fileUseCases: FileUseCases,
     private readonly cryptoService: CryptoService,
-  ) { }
+  ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
     return this.folderRepository.findByIds(user, folderIds);
+  }
+
+  async getByUuid(uuid: Folder['uuid']): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuid(uuid, false);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    folder.plainName = this.cryptoService.decryptName(
+      folder.name,
+      folder.parentId,
+    );
+
+    return folder;
+  }
+
+  getByUuids(uuids: Folder['uuid'][]): Promise<Folder[]> {
+    return this.folderRepository
+      .findByUuids(uuids)
+      .then((folders) =>
+        folders.map((folder) => this.decryptFolderName(folder)),
+      );
+  }
+
+  async getFolderByUuidAndUser(
+    folderUuid: FolderAttributes['uuid'],
+    user: User,
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuid(folderUuid, false);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    if (folder.userId !== user.id) {
+      throw new ForbiddenException();
+    }
+
+    return folder;
   }
 
   async getFolderByUserId(
@@ -47,12 +88,10 @@ export class FolderUseCases {
   async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
-  ) {
+  ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
-    if (!folder) {
-      throw new NotFoundException(`Folder with ID ${folderId} not found`);
-    }
-    return folder;
+
+    return this.decryptFolderName(folder);
   }
 
   async isFolderInsideFolder(
@@ -172,6 +211,7 @@ export class FolderUseCases {
       folders.map((folder) => {
         return {
           userId: user.id,
+          plainName: folder.name,
           name: this.cryptoService.encryptName(
             folder.name,
             folder.parentFolderId,
@@ -249,11 +289,40 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
-  async moveFoldersToTrash(folderIds: FolderAttributes['id'][]): Promise<void> {
-    return this.folderRepository.updateManyByFolderId(folderIds, {
-      deleted: true,
-      deletedAt: new Date(),
-    });
+  async moveFoldersToTrash(
+    user: User,
+    folderIds: FolderAttributes['id'][],
+  ): Promise<void> {
+    const [folders, driveRootFolder] = await Promise.all([
+      this.getFoldersByIds(user, folderIds),
+      this.getFolder(user.rootFolderId),
+    ]);
+
+    const backups = folders.filter((f) => f.isBackup(driveRootFolder));
+    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder));
+
+    await Promise.all([
+      driveFolders.length > 0
+        ? this.folderRepository.updateManyByFolderId(
+            driveFolders.map((f) => f.id),
+            {
+              deleted: true,
+              deletedAt: new Date(),
+            },
+          )
+        : Promise.resolve(),
+      backups.length > 0
+        ? this.folderRepository.updateManyByFolderId(
+            backups.map((f) => f.id),
+            {
+              deleted: true,
+              deletedAt: new Date(),
+              removed: true,
+              removedAt: new Date(),
+            },
+          )
+        : Promise.resolve(),
+    ]);
   }
 
   async getFoldersByParentId(
@@ -261,16 +330,6 @@ export class FolderUseCases {
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
   ): Promise<Folder[]> {
-    const parentFolder = await this.getFolderByUserId(parentId, userId);
-
-    if (!parentFolder) {
-      throw new NotFoundException();
-    }
-
-    if (!(parentFolder.userId === userId)) {
-      throw new ForbiddenException();
-    }
-
     return this.getFolders(
       userId,
       { parentId, deleted: options.deleted },
@@ -281,7 +340,7 @@ export class FolderUseCases {
   getAllFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(userId, {}, updatedAfter, options);
   }
@@ -289,17 +348,23 @@ export class FolderUseCases {
   getNotTrashedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
-    return this.getFoldersUpdatedAfter(userId, {
-      deleted: false, removed: false,
-    }, updatedAfter, options);
+    return this.getFoldersUpdatedAfter(
+      userId,
+      {
+        deleted: false,
+        removed: false,
+      },
+      updatedAfter,
+      options,
+    );
   }
 
   getRemovedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(
       userId,
@@ -312,7 +377,7 @@ export class FolderUseCases {
   getTrashedFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Folder[]> {
     return this.getFoldersUpdatedAfter(
       userId,
@@ -326,34 +391,54 @@ export class FolderUseCases {
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,
     updatedAfter: Date,
-    options: { limit: number, offset: number },
+    options: { limit: number; offset: number },
   ): Promise<Array<Folder>> {
     const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC']
+      ['updatedAt', 'ASC'],
     ];
     return this.folderRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
       options.limit,
       options.offset,
-      additionalOrders
+      additionalOrders,
     );
   }
 
   async getFolders(
-    userId: UserAttributes['id'],
+    userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options = { limit: 20, offset: 0 },
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
+      { ...where, userId },
+      options.limit,
+      options.offset,
+      options.sort,
+    );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
+  async getFoldersWithParent(
+    userId: FolderAttributes['userId'],
+    where: Partial<FolderAttributes>,
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
   ): Promise<Folder[]> {
     const foldersWithMaybePlainName =
-      await this.folderRepository.findAllByParentIdCursor(
-        {
-          ...where,
-          // enforce userId always
-          userId,
-        },
+      await this.folderRepository.findAllCursorWithParent(
+        { ...where, userId },
         options.limit,
         options.offset,
+        options.sort,
       );
 
     return foldersWithMaybePlainName.map((folder) =>
@@ -404,6 +489,7 @@ export class FolderUseCases {
     return this.folderRepository.getFoldersCountWhere({
       userId,
       deleted: true,
+      removed: false,
     });
   }
 

@@ -34,11 +34,10 @@ import {
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
 import { Folder } from '../folder/folder.domain';
-import { File } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
-import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -49,7 +48,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-  ) { }
+  ) {}
 
   @Get('/paginated')
   @HttpCode(200)
@@ -59,19 +58,12 @@ export class TrashController {
   @ApiOkResponse({ description: 'Files on trash for a given folder' })
   async getTrashedFilesPaginated(
     @UserDecorator() user: User,
-    @Query('folderId') folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('type') type: 'files' | 'folders',
-    @Query('root') root: boolean,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    if (
-      !limit ||
-      offset === undefined ||
-      !type ||
-      root === undefined ||
-      (!root && !folderId)
-    ) {
+    if (!limit || offset === undefined || !type) {
       throw new BadRequestException();
     }
 
@@ -83,16 +75,13 @@ export class TrashController {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
-    let result: File[] | Folder[];
+    try {
+      let result: File[] | Folder[];
 
-    const deleted = root;
-
-    if (root) {
       if (type === 'files') {
-        // Root level could have different folders
         result = await this.fileUseCases.getFiles(
           user.id,
-          { deleted: true, removed: false },
+          { status: FileStatus.TRASHED },
           { limit, offset },
         );
       } else {
@@ -102,27 +91,22 @@ export class TrashController {
           { limit, offset },
         );
       }
-    } else {
-      if (type === 'files') {
-        result = await this.fileUseCases.getFilesByFolderId(folderId, user.id, {
-          deleted,
-          limit,
-          offset,
-        });
-      } else {
-        result = await this.folderUseCases.getFoldersByParentId(
-          folderId,
-          user.id,
-          {
-            deleted,
-            limit,
-            offset,
-          },
-        );
-      }
-    }
 
-    return { result };
+      return { result };
+    } catch (error) {
+      const { email, uuid } = user;
+      new Logger().error(
+        `[TRASH/GET_PAGINATED] ERROR: ${
+          (error as Error).message
+        } USER: ${JSON.stringify({
+          email,
+          uuid,
+        })} STACK: ${(error as Error).stack}`,
+      );
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      return { error: 'Internal Server Error' };
+    }
   }
 
   // @UseGuards(ThrottlerGuard)
@@ -162,26 +146,28 @@ export class TrashController {
       }
       await Promise.all([
         this.fileUseCases.moveFilesToTrash(user, fileIds),
-        this.folderUseCases.moveFoldersToTrash(folderIds),
+        this.folderUseCases.moveFoldersToTrash(user, folderIds),
       ]);
 
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach(({ email }: { email: string }) => {
-            const itemsToTrashEvent = new ItemsToTrashEvent(
-              moveItemsDto.items,
-              email,
-              clientId,
-            );
-            this.notificationService.add(itemsToTrashEvent);
-          });
+          members.forEach(
+            ({ email, uuid }: { email: string; uuid: string }) => {
+              const itemsToTrashEvent = new ItemsToTrashEvent(
+                moveItemsDto.items,
+                email,
+                clientId,
+                uuid,
+              );
+              this.notificationService.add(itemsToTrashEvent);
+            },
+          );
         })
         .catch((err) => {
           // no op
         });
     } catch (err) {
-      let errorMessage = err.message;
       const { email, uuid } = user;
 
       new Logger().error(
@@ -191,9 +177,8 @@ export class TrashController {
         })}, STACK: ${(err as Error).stack}`,
       );
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-      errorMessage = 'Internal Server Error';
 
-      return { error: errorMessage };
+      return { error: 'Internal Server Error' };
     }
   }
 

@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -16,7 +21,11 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { Sign, SignEmail } from '../../middlewares/passport';
+import {
+  Sign,
+  SignEmail,
+  SignWithCustomDuration,
+} from '../../middlewares/passport';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
@@ -26,6 +35,11 @@ import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { FileUseCases } from '../file/file.usecase';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
+import { ShareUseCases } from '../share/share.usecase';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -49,6 +63,20 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
+export class KeyServerNotFoundError extends Error {
+  constructor() {
+    super('Key server not found');
+
+    Object.setPrototypeOf(this, KeyServerNotFoundError.prototype);
+  }
+}
+export class UserNotFoundError extends Error {
+  constructor() {
+    super('User not found');
+    Object.setPrototypeOf(this, UserNotFoundError.prototype);
+  }
+}
+
 type NewUser = Pick<
   UserAttributes,
   'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
@@ -65,14 +93,29 @@ export class UserUseCases {
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
+    private shareUseCases: ShareUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
     private networkService: BridgeService,
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
+    private readonly keyServerRepository: SequelizeKeyServerRepository,
+    private avatarService: AvatarService,
   ) {}
+
+  findByEmail(email: User['email']): Promise<User | null> {
+    return this.userRepository.findByUsername(email);
+  }
+
+  findByUuids(uuids: User['uuid'][]): Promise<User[]> {
+    return this.userRepository.findByUuids(uuids);
+  }
+  findById(id: User['id']): Promise<User | null> {
+    return this.userRepository.findById(id);
+  }
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
@@ -237,87 +280,60 @@ export class UserUseCases {
   async createUser(newUser: NewUser) {
     const { email, password, salt } = newUser;
 
+    const maybeExistentUser = await this.userRepository.findByUsername(email);
+    const userAlreadyExists = !!maybeExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
     const userPass = this.cryptoService.decryptText(password);
+
     const userSalt = this.cryptoService.decryptText(salt);
 
-    const transaction = await this.userRepository.createTransaction();
-
-    let bucket: any;
-    let userUuid: string, userId: string;
-    let rootFolder: Folder;
+    const { userId: networkPass, uuid: userUuid } =
+      await this.networkService.createUser(email);
 
     const notifySignUpError = (err: Error) =>
       this.notificationService.add(
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    const [userResult, isNewUser] = await this.userRepository.findOrCreate({
-      where: { username: email },
-      defaults: {
-        email: email,
-        name: newUser.name,
-        lastname: newUser.lastname,
-        password: userPass,
-        mnemonic: newUser.mnemonic,
-        hKey: userSalt,
-        referrer: newUser.referrer,
-        referralCode: v4(),
-        uuid: null,
-        credit: 0,
-        welcomePack: true,
-        registerCompleted: newUser.registerCompleted,
-        username: newUser.email,
-        bridgeUser: newUser.email,
-      },
-      transaction,
-    });
-
-    if (!isNewUser) {
-      throw new UserAlreadyRegisteredError(newUser.email);
-    }
-
-    let hasBeenSubscribedPromise;
-
-    try {
-      const response = await this.networkService.createUser(email);
-      userId = response.userId;
-      userUuid = response.uuid;
-
-      hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
-        userResult.email,
-        userResult.bridgeUser,
-        userId,
-      ).catch((err) => {
-        Logger.error(
-          `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
-            err.stack || 'NO STACK'
-          }`,
-        );
-        notifySignUpError(err);
-        return false;
-      });
-
-      await this.userRepository.updateById(
-        userResult.id,
-        { userId, uuid: userUuid },
-        transaction,
-      );
-
-      bucket = await this.networkService.createBucket(email, userId);
-
-      await transaction.commit();
-    } catch (err) {
+    const hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
+      email,
+      email,
+      networkPass,
+    ).catch((err) => {
       Logger.error(
-        `[SIGNUP/NETWORK/ERROR]: ${err.message}, ${err.stack || 'NO STACK'}`,
+        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
+          err.stack || 'NO STACK'
+        }`,
       );
       notifySignUpError(err);
-      await transaction.rollback().catch(notifySignUpError);
-      throw err;
-    }
+      return false;
+    });
+
+    const user = await this.userRepository.create({
+      email,
+      name: newUser.name,
+      lastname: newUser.lastname,
+      password: userPass,
+      hKey: userSalt,
+      referrer: newUser.referrer,
+      referralCode: v4(),
+      uuid: userUuid,
+      userId: networkPass,
+      credit: 0,
+      welcomePack: true,
+      registerCompleted: newUser.registerCompleted,
+      username: email,
+      bridgeUser: email,
+      mnemonic: newUser.mnemonic,
+    });
 
     try {
-      const [root] = await this.createInitialFolders(userResult, bucket.id);
-      rootFolder = root;
+      const bucket = await this.networkService.createBucket(email, networkPass);
+      const [rootFolder] = await this.createInitialFolders(user, bucket.id);
 
       const hasReferrer = !!newUser.referrer;
       if (hasReferrer) {
@@ -333,23 +349,26 @@ export class UserUseCases {
         hasBeenSubscribed = await hasBeenSubscribedPromise;
 
         if (!hasBeenSubscribed) {
-          await this.createUserReferrals(userResult.id);
+          await this.createUserReferrals(user.id);
         }
       } catch (err) {
         notifySignUpError(err);
       }
 
+      const newTokenPayload = this.getNewTokenPayload(user);
+
       return {
         token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
+        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
         user: {
-          ...userResult.toJSON(),
-          hKey: userResult.hKey.toString(),
-          password: userResult.password.toString(),
-          mnemonic: userResult.mnemonic.toString(),
+          ...user.toJSON(),
+          hKey: user.hKey.toString(),
+          password: user.password.toString(),
+          mnemonic: user.mnemonic.toString(),
           rootFolderId: rootFolder.id,
           bucket: bucket.id,
           uuid: userUuid,
-          userId,
+          userId: networkPass,
           hasReferralsProgram: !hasBeenSubscribed,
         },
         uuid: userUuid,
@@ -364,6 +383,23 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  getNewTokenPayload(userData: any) {
+    return {
+      payload: {
+        uuid: userData.uuid,
+        email: userData.email,
+        name: userData.name,
+        lastname: userData.lastname,
+        username: userData.username,
+        sharedWorkspace: true,
+        networkCredentials: {
+          user: userData.bridgeUser,
+          pass: userData.userId,
+        },
+      },
+    };
   }
 
   async invitationAccepted(
@@ -494,5 +530,156 @@ export class UserUseCases {
     );
 
     return { token, newToken };
+  }
+
+  async sendAccountRecoveryEmail(email: User['email']) {
+    const mailer = new MailerService(this.configService);
+    const secret = this.configService.get('secrets.jwt');
+
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const recoverAccountToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: user.uuid,
+          action: 'recover-account',
+        },
+      },
+      secret,
+      '30m',
+    );
+
+    const url = `${process.env.HOST_DRIVE_WEB}/recover-account/${recoverAccountToken}`;
+    const recoverAccountTemplateId = this.configService.get(
+      'mailer.templates.recoverAccountEmail',
+    );
+
+    return mailer.send(user.email, recoverAccountTemplateId, {
+      email,
+      recovery_url: url,
+    });
+  }
+
+  async updateCredentials(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+      salt: string;
+      privateKey?: string;
+    },
+    withReset = false,
+  ): Promise<void> {
+    const { mnemonic, password, salt } = newCredentials;
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (withReset) {
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+      });
+    }
+
+    // TODO: Replace with updating the private key once AFS is ready.
+    // Requires to send the private key encrypted with the user's password
+    await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async resetUser(
+    user: User,
+    options: {
+      deleteFiles: boolean;
+      deleteFolders: boolean;
+      deleteShares: boolean;
+    },
+  ): Promise<void> {
+    if (options.deleteShares) {
+      await this.shareUseCases.deleteByUser(user);
+    }
+
+    if (options.deleteFolders) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const folders = await this.folderUseCases.getFolders(
+          user.id,
+          { parentId: user.rootFolderId, removed: false },
+          opts,
+        );
+
+        await this.folderUseCases.deleteByUser(user, folders);
+
+        offset += folders.length;
+
+        done = folders.length < limit || folders.length === 0;
+      } while (!done);
+    }
+
+    if (options.deleteFiles) {
+      let done = false;
+      const limit = 50;
+      let offset = 0;
+
+      do {
+        const opts = { limit, offset };
+        const files = await this.fileUseCases.getFilesNotDeleted(
+          user.id,
+          {
+            folderId: user.rootFolderId,
+          },
+          opts,
+        );
+
+        await this.fileUseCases.deleteByUser(user, files);
+
+        offset += files.length;
+
+        done = files.length < limit || files.length === 0;
+      } while (!done);
+    }
+  }
+
+  async updatePassword(
+    user: User,
+    updatePasswordDto: UpdatePasswordDto,
+  ): Promise<void> {
+    const { newPassword, newSalt, mnemonic, privateKey } = updatePasswordDto;
+
+    await this.userRepository.updateById(user.id, {
+      password: newPassword,
+      hKey: Buffer.from(newSalt),
+      mnemonic,
+    });
+
+    await this.keyServerRepository.findUserKeysOrCreate(user.id, {
+      userId: user.id,
+      privateKey: privateKey,
+      encryptVersion: updatePasswordDto.encryptVersion,
+    });
+
+    await this.keyServerRepository.update(user.id, {
+      privateKey,
+    });
+  }
+
+  async getAvatarUrl(avatarKey: string) {
+    if (!avatarKey) return null;
+
+    return this.avatarService.getDownloadUrl(avatarKey);
   }
 }

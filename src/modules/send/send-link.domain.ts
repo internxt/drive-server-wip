@@ -79,12 +79,6 @@ export class SendLink implements SendLinkAttributes {
   clearItems() {
     this.items = [];
   }
-  removeItem(item: SendLinkItem) {
-    const indexItem = this.items.findIndex((it) => it.id === item.id);
-    if (indexItem > -1) {
-      this.items.slice(indexItem, 1);
-    }
-  }
 
   get size() {
     return this.items.reduce(

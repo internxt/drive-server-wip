@@ -10,11 +10,14 @@ export class ShareLinkListener {
     private http: HttpClient,
     @Inject(ConfigService)
     private configService: ConfigService,
-  ) { }
+  ) {}
 
   @OnEvent('share.created')
   async handleShareLinkCreated(event: ShareLinkCreatedEvent) {
-    Logger.log(`event ${event.name} for user ${event.user.uuid} handled, share id ${event.share.id}`, 'ShareLinkListener');
+    Logger.log(
+      `event ${event.name} for user ${event.user.uuid} handled, share id ${event.share.id}`,
+      'ShareLinkListener',
+    );
     const apiDriveURL: string = this.configService.get('apis.drive.url');
 
     const eventData = {
@@ -29,7 +32,8 @@ export class ShareLinkListener {
       });
     if (res && res.status !== 200) {
       Logger.warn(
-        `Post to drive apply referral service failed with status ${res.status
+        `Post to drive apply referral service failed with status ${
+          res.status
         }. Data: ${JSON.stringify(eventData, null, 2)}`,
       );
     }

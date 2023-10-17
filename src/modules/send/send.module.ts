@@ -3,7 +3,6 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
-import { FileModel } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
 import { FolderModel } from '../folder/folder.model';
 import { UserModule } from '../user/user.module';
@@ -15,6 +14,7 @@ import {
 } from './send-link.repository';
 import { SendController } from './send.controller';
 import { SendUseCases } from './send.usecase';
+import { FileModel } from '../file/file.model';
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { SendUseCases } from './send.usecase';
       FolderModel,
     ]),
     forwardRef(() => UserModule),
-    FileModule,
+    forwardRef(() => FileModule),
     FolderModule,
     NotificationModule,
     CryptoModule,

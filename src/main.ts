@@ -2,13 +2,11 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
 import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
-// import { WinstonLogger } from './lib/winston-logger';
 import {
   DocumentBuilder,
   SwaggerCustomOptions,
@@ -42,6 +40,9 @@ async function bootstrap() {
     // logger: WinstonLogger.getLogger(),
   });
 
+  const enableTrustProxy = process.env.NODE_ENV === 'production';
+
+  app.set('trust proxy', enableTrustProxy);
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
 
@@ -73,5 +74,6 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document, customOptions);
   await app.listen(APP_PORT);
   logger.log(`Application listening on port: ${APP_PORT}`);
+  logger.log(`Trusting proxy enabled: ${enableTrustProxy ? 'yes' : 'no'}`);
 }
 bootstrap();
