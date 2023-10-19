@@ -176,6 +176,22 @@ export class SequelizeSharingRepository implements SharingRepository {
     return raw ? SharingRole.build(raw) : null;
   }
 
+  async findOneByOwnerOrSharedWithItem(
+    userId: User['uuid'],
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+  ): Promise<Sharing> {
+    const raw = await this.sharings.findOne({
+      where: {
+        itemId,
+        itemType,
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      },
+    });
+
+    return raw ? Sharing.build(raw) : null;
+  }
+
   private async findSharingRoles(
     where: Partial<SharingRole>,
   ): Promise<SharingRole[]> {

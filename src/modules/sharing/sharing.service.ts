@@ -1828,4 +1828,31 @@ export class SharingService {
       { type: type },
     );
   }
+
+  async getSharingType(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+  ): Promise<Sharing> {
+    const [publicSharing, privateSharing] = await Promise.all([
+      this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        '00000000-0000-0000-0000-000000000000',
+        itemId,
+        itemType,
+      ),
+      this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        user.uuid,
+        itemId,
+        itemType,
+      ),
+    ]);
+
+    const sharedItem = publicSharing || privateSharing;
+
+    if (!sharedItem) {
+      throw new NotFoundException('Item is not being shared');
+    }
+
+    return sharedItem;
+  }
 }
