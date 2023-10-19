@@ -1799,4 +1799,33 @@ export class SharingService {
         });
     }
   }
+
+  async changeSharingType(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    type: Sharing['type'],
+  ): Promise<void> {
+    let item: File | Folder;
+
+    if (itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(itemId);
+    } else if (itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(itemId);
+    }
+    const isUserOwner = item.isOwnedBy(user);
+
+    if (!isUserOwner) {
+      throw new ForbiddenException();
+    }
+
+    await this.sharingRepository.updateSharing(
+      {
+        itemId,
+        itemType,
+        ownerId: user.uuid,
+      },
+      { type: type },
+    );
+  }
 }

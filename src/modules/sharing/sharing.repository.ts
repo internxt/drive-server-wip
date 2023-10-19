@@ -89,6 +89,9 @@ export class SequelizeSharingRepository implements SharingRepository {
     return this.findSharingsWithRoles({
       itemId: item.uuid,
       itemType: (item as any).fileId ? 'file' : 'folder',
+      sharedWith: {
+        [Op.not]: '00000000-0000-0000-0000-000000000000',
+      },
     });
   }
 
@@ -117,6 +120,13 @@ export class SequelizeSharingRepository implements SharingRepository {
     update: Partial<Omit<SharingRole, 'id'>>,
   ): Promise<void> {
     await this.sharingRoles.update(update, { where: { id: sharingRoleId } });
+  }
+
+  async updateSharing(
+    where: Partial<Sharing>,
+    update: Partial<Omit<Sharing, 'id'>>,
+  ): Promise<void> {
+    await this.sharings.update(update, { where });
   }
 
   async updateSharingRoleBy(
