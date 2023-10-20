@@ -1807,14 +1807,19 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    if (type === SharingType.Private) {
-      await this.sharingRepository.deleteSharingsBy({
+    const oldSharingType =
+      type === SharingType.Private ? SharingType.Public : SharingType.Private;
+
+    await this.sharingRepository.updateSharing(
+      {
         itemId,
         itemType,
         sharedWith: '00000000-0000-0000-0000-000000000000',
+        type: oldSharingType,
         ownerId: user.uuid,
-      });
-    }
+      },
+      { type },
+    );
   }
 
   async getSharingType(
@@ -1827,11 +1832,13 @@ export class SharingService {
         '00000000-0000-0000-0000-000000000000',
         itemId,
         itemType,
+        SharingType.Public,
       ),
       this.sharingRepository.findOneByOwnerOrSharedWithItem(
         user.uuid,
         itemId,
         itemType,
+        SharingType.Private,
       ),
     ]);
 
