@@ -1052,12 +1052,6 @@ export class SharingService {
       throw new BadRequestException('Limit for sharing an item reach');
     }
 
-    await this.removeItemFromBeingShared(
-      createInviteDto.itemType,
-      createInviteDto.itemId,
-      SharingType.Public,
-    );
-
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
     if (createInviteDto.notifyUser) {
@@ -1121,12 +1115,6 @@ export class SharingService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-
-    await this.removeItemFromBeingShared(
-      dto.itemType,
-      dto.itemId,
-      SharingType.Private,
-    );
 
     const sharing = await this.sharingRepository.findOneSharingBy({
       itemId: dto.itemId,
@@ -1819,14 +1807,14 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    await this.sharingRepository.updateSharing(
-      {
+    if (type === SharingType.Private) {
+      await this.sharingRepository.deleteSharingsBy({
         itemId,
         itemType,
+        sharedWith: '00000000-0000-0000-0000-000000000000',
         ownerId: user.uuid,
-      },
-      { type: type },
-    );
+      });
+    }
   }
 
   async getSharingType(
