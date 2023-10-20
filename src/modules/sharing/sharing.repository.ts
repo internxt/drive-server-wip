@@ -309,14 +309,8 @@ export class SequelizeSharingRepository implements SharingRepository {
           'encryptionKey',
         ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-        [sequelize.literal(`"SharingModel"."type"`), 'sharingType'],
       ],
-      group: [
-        'folder.id',
-        'folder->user.id',
-        'SharingModel.item_id',
-        'sharingType',
-      ],
+      group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
       include: [
         {
           model: FolderModel,
@@ -368,14 +362,8 @@ export class SequelizeSharingRepository implements SharingRepository {
           'encryptionKey',
         ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-        [sequelize.literal(`"SharingModel"."type"`), 'sharingType'],
       ],
-      group: [
-        'file.id',
-        'file->user.id',
-        'SharingModel.item_id',
-        'sharingType',
-      ],
+      group: ['file.id', 'file->user.id', 'SharingModel.item_id'],
       include: [
         {
           model: FileModel,
