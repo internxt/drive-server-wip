@@ -14,6 +14,7 @@ import {
   SharingInvite,
   SharingRole,
   SharingRoleAttributes,
+  SharingType,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
@@ -180,12 +181,14 @@ export class SequelizeSharingRepository implements SharingRepository {
     userId: User['uuid'],
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
+    type?: SharingType,
   ): Promise<Sharing> {
     const raw = await this.sharings.findOne({
       where: {
         itemId,
         itemType,
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        type,
       },
     });
 
