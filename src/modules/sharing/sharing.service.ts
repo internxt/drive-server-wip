@@ -1102,10 +1102,6 @@ export class SharingService {
       throw new BadRequestException('Wrong item type');
     }
 
-    if (!item.isOwnedBy(user)) {
-      throw new ForbiddenException();
-    }
-
     const newSharing = Sharing.build({
       ...dto,
       id: v4(),
@@ -1121,6 +1117,10 @@ export class SharingService {
       itemType: dto.itemType,
       type: SharingType.Public,
     });
+
+    if (!item.isOwnedBy(user) && !sharing) {
+      throw new ForbiddenException();
+    }
 
     if (sharing) {
       return sharing;
