@@ -267,9 +267,13 @@ export class SharingService {
 
     if (!item.plainName) {
       if (sharing.itemType === 'file') {
-        item.plainName = this.fileUsecases.decrypFileName(item as File);
+        item.plainName = this.fileUsecases.decrypFileName(
+          item as File,
+        ).plainName;
       } else {
-        item.plainName = this.folderUsecases.decryptFolderName(item as Folder);
+        item.plainName = this.folderUsecases.decryptFolderName(
+          item as Folder,
+        ).plainName;
       }
     }
 
