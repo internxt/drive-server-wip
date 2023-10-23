@@ -90,10 +90,13 @@ export class FileController {
       return file;
     } catch (error) {
       const err = error as Error;
+      const { email, uuid } = user;
       Logger.error(
-        `[SHARING/REPLACE] Error while replacing file ${user.uuid}, STACK: ${
-          err.stack || 'No stack trace'
-        }`,
+        `[SHARING/REPLACE] Error while replacing file. CONTEXT:${JSON.stringify(
+          {
+            user: { email, uuid },
+          },
+        )}}, STACK: ${err.stack || 'No stack trace'}`,
       );
 
       throw error;
