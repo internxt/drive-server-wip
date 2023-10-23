@@ -78,14 +78,18 @@ export class FileController {
     }
   }
 
-  @Put('/:fileId')
+  @Put('/:uuid')
   async replaceFile(
     @UserDecorator() user: User,
-    @Param('fileId') fileId: File['fileId'],
+    @Param('uuid') fileUuid: File['uuid'],
     @Body() fileData: ReplaceFileDto,
   ) {
     try {
-      const file = await this.fileUseCases.replaceFile(user, fileId, fileData);
+      const file = await this.fileUseCases.replaceFile(
+        user,
+        fileUuid,
+        fileData,
+      );
 
       return file;
     } catch (error) {
