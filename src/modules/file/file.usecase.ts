@@ -23,6 +23,7 @@ import {
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { ReplaceFileDto } from './dto/replace-file.dto';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -290,6 +291,24 @@ export class FileUseCases {
    */
   async deleteByUser(user: User, files: File[]): Promise<void> {
     await this.fileRepository.deleteFilesByUser(user, files);
+  }
+
+  async replaceFile(
+    user: User,
+    fileId: File['fileId'],
+    newFileData: ReplaceFileDto,
+  ): Promise<File> {
+    const updated = await this.fileRepository.updateByFieldIdAndUserId(
+      fileId,
+      user.id,
+      {
+        fileId: newFileData.fileId,
+        size: newFileData.size,
+      },
+    );
+    await this.network.deleteFile(user, updated.bucket, fileId);
+
+    return updated;
   }
 
   decrypFileName(file: File): any {

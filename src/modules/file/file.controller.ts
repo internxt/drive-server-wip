@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Logger,
   NotFoundException,
   Param,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -16,6 +18,7 @@ import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
 import { File } from './file.domain';
 import { validate } from 'uuid';
+import { ReplaceFileDto } from './dto/replace-file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -72,6 +75,28 @@ export class FileController {
           user: { email, uuid },
         })} STACK: ${err.stack || 'NO STACK'}`,
       );
+    }
+  }
+
+  @Put('/:fileId')
+  async replaceFile(
+    @UserDecorator() user: User,
+    @Param('fileId') fileId: File['fileId'],
+    @Body() fileData: ReplaceFileDto,
+  ) {
+    try {
+      const file = await this.fileUseCases.replaceFile(user, fileId, fileData);
+
+      return file;
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[SHARING/REPLACE] Error while replacing file ${user.uuid}, STACK: ${
+          err.stack || 'No stack trace'
+        }`,
+      );
+
+      throw error;
     }
   }
 
