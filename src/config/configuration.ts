@@ -47,6 +47,10 @@ export default () => ({
     },
     storage: {
       url: process.env.STORAGE_API_URL,
+      auth: {
+        username: process.env.GATEWAY_USER,
+        password: process.env.GATEWAY_PASSWORD,
+      },
     },
     drive: {
       url: process.env.DRIVE_API_URL,
