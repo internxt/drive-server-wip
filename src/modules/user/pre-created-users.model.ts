@@ -50,5 +50,8 @@ export class PreCreatedUserModel extends Model {
   mnemonic: string;
 
   @Column
+  expirationAt: Date;
+
+  @Column
   hKey: Buffer;
 }

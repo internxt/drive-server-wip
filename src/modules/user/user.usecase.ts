@@ -113,6 +113,10 @@ export class UserUseCases {
     return this.userRepository.findByUsername(email);
   }
 
+  findPreCreatedByEmail(email: User['email']): Promise<User | null> {
+    return this.preCreatedUserRepository.findByUsername(email);
+  }
+
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
     return this.userRepository.findByUuids(uuids);
   }
@@ -413,6 +417,9 @@ export class UserUseCases {
 
     const userSalt = this.cryptoService.decryptText(salt);
 
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 2);
+
     const user = await this.preCreatedUserRepository.create({
       email,
       uuid: v4(),
@@ -424,6 +431,7 @@ export class UserUseCases {
       privateKey: newUser.privateKey,
       revocationKey: newUser.revocationKey,
       encryptVersion: null,
+      expirationAt,
     });
 
     return {
