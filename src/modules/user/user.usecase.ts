@@ -40,6 +40,8 @@ import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { PreCreateUserDto } from './dto/pre-create-user.dto';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -90,6 +92,7 @@ type NewUser = Pick<
 export class UserUseCases {
   constructor(
     private userRepository: SequelizeUserRepository,
+    private preCreatedUserRepository: SequelizePreCreatedUsersRepository,
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
@@ -383,6 +386,51 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  async preCreateUser(newUser: PreCreateUserDto) {
+    const { email, password, salt } = newUser;
+
+    const maybeExistentUser = await this.userRepository.findByUsername(email);
+    const userAlreadyExists = !!maybeExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
+    const existentPreCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+
+    if (existentPreCreatedUser) {
+      return {
+        ...existentPreCreatedUser.toJSON(),
+        password: existentPreCreatedUser.password.toString(),
+        mnemonic: existentPreCreatedUser.mnemonic.toString(),
+      };
+    }
+
+    const userPass = this.cryptoService.decryptText(password);
+
+    const userSalt = this.cryptoService.decryptText(salt);
+
+    const user = await this.preCreatedUserRepository.create({
+      email,
+      uuid: v4(),
+      password: userPass,
+      hKey: userSalt,
+      username: email,
+      mnemonic: newUser.mnemonic,
+      publicKey: newUser.publicKey,
+      privateKey: newUser.privateKey,
+      revocationKey: newUser.revocationKey,
+      encryptVersion: null,
+    });
+
+    return {
+      ...user.toJSON(),
+      password: user.password.toString(),
+      mnemonic: user.mnemonic.toString(),
+    };
   }
 
   getNewTokenPayload(userData: any) {
