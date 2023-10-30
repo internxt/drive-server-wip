@@ -402,7 +402,8 @@ export class UserUseCases {
       throw new UserAlreadyRegisteredError(newUser.email);
     }
 
-    const existentPreCreatedUser =
+    // TODO: uncomment or just delete if we are going to create a new entry every time
+    /*     const existentPreCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
 
     if (existentPreCreatedUser) {
@@ -411,7 +412,7 @@ export class UserUseCases {
         password: existentPreCreatedUser.password.toString(),
         mnemonic: existentPreCreatedUser.mnemonic.toString(),
       };
-    }
+    } */
 
     const userPass = this.cryptoService.decryptText(password);
 
