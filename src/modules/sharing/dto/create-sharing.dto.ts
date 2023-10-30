@@ -36,4 +36,10 @@ export class CreateSharingDto {
     description: 'Encrypted code',
   })
   encryptedCode: Sharing['encryptedCode'];
+
+  @ApiProperty({
+    example: false,
+    description: 'Maintain previous sharings',
+  })
+  persistPreviousSharing: boolean;
 }
