@@ -52,6 +52,7 @@ export interface SharingInviteAttributes
   id: string;
   type: 'SELF' | 'OWNER';
   roleId: RoleAttributes['id'];
+  expirationAt?: Date;
 }
 
 export class Sharing implements SharingAttributes {
@@ -208,6 +209,7 @@ export class SharingInvite implements SharingInviteAttributes {
   roleId: string;
   createdAt: Date;
   updatedAt: Date;
+  expirationAt: Date;
 
   constructor(attributes: SharingInviteAttributes) {
     this.id = attributes.id;
@@ -220,6 +222,7 @@ export class SharingInvite implements SharingInviteAttributes {
     this.roleId = attributes.roleId;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
+    this.expirationAt = attributes.expirationAt;
   }
 
   static build(sharingInvite: SharingInviteAttributes): SharingInvite {

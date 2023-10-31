@@ -31,7 +31,7 @@ module.exports = {
         type: Sequelize.BLOB('medium'),
       },
       h_key: {
-        type: Sequelize.STRING,
+        type: Sequelize.BLOB('medium'),
         allowNull: false,
       },
       public_key: {
@@ -54,10 +54,6 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
-      },
-      expiration_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
       },
       updated_at: {
         type: Sequelize.DATE,

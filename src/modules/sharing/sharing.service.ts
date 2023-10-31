@@ -1006,13 +1006,18 @@ export class SharingService {
       }
     }
 
-    const userJoining = await this.usersUsecases.findByEmail(
-      createInviteDto.sharedWith,
-    );
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.usersUsecases.findByEmail(createInviteDto.sharedWith),
+      this.usersUsecases.findPreCreatedByEmail(createInviteDto.sharedWith),
+    ]);
+
+    const userJoining = existentUser ?? preCreatedUser;
 
     if (!userJoining) {
       throw new NotFoundException('Invited user not found');
     }
+
+    const isUserPreCreated = !existentUser;
 
     const [invitation, sharing] = await Promise.all([
       this.sharingRepository.getInviteByItemAndUser(
@@ -1049,12 +1054,16 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 2);
+
     const invite = SharingInvite.build({
       id: v4(),
       ...createInviteDto,
       sharedWith: userJoining.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
+      expirationAt: isUserPreCreated ? expirationAt : null,
     });
 
     const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
@@ -1079,7 +1088,8 @@ export class SharingService {
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    if (createInviteDto.notifyUser) {
+    // TODO: check this logic, I only set the !isUserPreCreated check to check de invitations logic;
+    if (createInviteDto.notifyUser && !isUserPreCreated) {
       const authToken = Sign(
         this.usersUsecases.getNewTokenPayload(userJoining),
         this.configService.get('secrets.jwt'),

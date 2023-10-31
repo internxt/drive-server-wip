@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 
 import { User } from './user.domain';
-import { UserModel } from './user.model';
 import { PreCreatedUserModel } from './pre-created-users.model';
+import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 
 @Injectable()
 export class SequelizePreCreatedUsersRepository {
@@ -17,13 +17,17 @@ export class SequelizePreCreatedUsersRepository {
     return user;
   }
 
-  async create(user: any): Promise<any> {
+  async create(
+    user: Omit<PreCreatedUserAttributes, 'id'>,
+  ): Promise<PreCreatedUserModel> {
     const dbUser = await this.modelUser.create(user);
 
     return dbUser;
   }
 
-  async findByUsername(username: string): Promise<any | null> {
+  async findByUsername(
+    username: PreCreatedUserAttributes['username'],
+  ): Promise<PreCreatedUserModel | null> {
     const user = await this.modelUser.findOne({
       where: {
         username,
@@ -32,10 +36,9 @@ export class SequelizePreCreatedUsersRepository {
     return user;
   }
 
-  toDomain(model: UserModel): User {
+  toDomain(model: PreCreatedUserModel): User {
     return User.build({
       ...model.toJSON(),
     });
   }
 }
-export { UserModel };

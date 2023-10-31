@@ -8,13 +8,17 @@ import {
   AllowNull,
   Unique,
 } from 'sequelize-typescript';
+import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'pre_created_users',
 })
-export class PreCreatedUserModel extends Model {
+export class PreCreatedUserModel
+  extends Model
+  implements PreCreatedUserAttributes
+{
   @PrimaryKey
   @AutoIncrement
   @Column
@@ -48,9 +52,6 @@ export class PreCreatedUserModel extends Model {
 
   @Column
   mnemonic: string;
-
-  @Column
-  expirationAt: Date;
 
   @Column
   hKey: Buffer;

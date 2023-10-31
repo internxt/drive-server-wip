@@ -104,4 +104,7 @@ export default () => ({
       password: process.env.AUTH_BASIC_PASSWORD,
     },
   },
+  users: {
+    preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
+  },
 });

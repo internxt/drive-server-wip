@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
+import { generateMnemonic } from 'bip39';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
@@ -42,6 +43,10 @@ import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
+import { generateNewKeys } from '../../lib/openpgp';
+import { aes } from '@internxt/lib';
+import { PreCreatedUserModel } from './pre-created-users.model';
+import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -113,7 +118,9 @@ export class UserUseCases {
     return this.userRepository.findByUsername(email);
   }
 
-  findPreCreatedByEmail(email: User['email']): Promise<User | null> {
+  findPreCreatedByEmail(
+    email: PreCreatedUserAttributes['email'],
+  ): Promise<PreCreatedUserModel | null> {
     return this.preCreatedUserRepository.findByUsername(email);
   }
 
@@ -393,52 +400,56 @@ export class UserUseCases {
   }
 
   async preCreateUser(newUser: PreCreateUserDto) {
-    const { email, password, salt } = newUser;
+    const { email } = newUser;
 
-    const maybeExistentUser = await this.userRepository.findByUsername(email);
-    const userAlreadyExists = !!maybeExistentUser;
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.userRepository.findByUsername(email),
+      this.preCreatedUserRepository.findByUsername(email),
+    ]);
 
-    if (userAlreadyExists) {
+    if (existentUser) {
       throw new UserAlreadyRegisteredError(newUser.email);
     }
 
-    // TODO: uncomment or just delete if we are going to create a new entry every time
-    /*     const existentPreCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
-
-    if (existentPreCreatedUser) {
+    if (preCreatedUser) {
       return {
-        ...existentPreCreatedUser.toJSON(),
-        password: existentPreCreatedUser.password.toString(),
-        mnemonic: existentPreCreatedUser.mnemonic.toString(),
+        ...preCreatedUser.toJSON(),
+        password: preCreatedUser.password.toString(),
       };
-    } */
+    }
 
-    const userPass = this.cryptoService.decryptText(password);
+    const defaultPass = this.configService.get('users.preCreatedPassword');
+    const hashObj = this.cryptoService.passToHash(defaultPass);
 
-    const userSalt = this.cryptoService.decryptText(salt);
+    const mnemonic = generateMnemonic(256);
+    const encMnemonic = this.cryptoService.encryptTextWithKey(
+      mnemonic,
+      defaultPass,
+    );
 
-    const expirationAt = new Date();
-    expirationAt.setDate(expirationAt.getDate() + 2);
+    const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
+      await generateNewKeys();
+    const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
+      iv: this.configService.get('secrets.magicIv'),
+      salt: this.configService.get('secrets.magicSalt'),
+    });
 
     const user = await this.preCreatedUserRepository.create({
       email,
       uuid: v4(),
-      password: userPass,
-      hKey: userSalt,
+      password: hashObj.hash,
+      hKey: Buffer.from(hashObj.salt),
       username: email,
-      mnemonic: newUser.mnemonic,
-      publicKey: newUser.publicKey,
-      privateKey: newUser.privateKey,
-      revocationKey: newUser.revocationKey,
+      mnemonic: encMnemonic,
+      publicKey: publicKeyArmored,
+      privateKey: encPrivateKey,
+      revocationKey: revocationCertificate,
       encryptVersion: null,
-      expirationAt,
     });
 
     return {
       ...user.toJSON(),
       password: user.password.toString(),
-      mnemonic: user.mnemonic.toString(),
     };
   }
 
