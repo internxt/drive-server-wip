@@ -334,6 +334,18 @@ export class FolderController {
     }
   }
 
+  @Get('/:uuid/ancestors')
+  async getFolderAncestors(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: Folder['uuid'],
+  ) {
+    if (!validate(folderUuid)) {
+      throw new BadRequestException('Invalid UUID provided');
+    }
+
+    return this.folderUseCases.getFolderAncestors(user, folderUuid);
+  }
+
   @Get('/:id/metadata')
   async getFolderById(
     @UserDecorator() user: User,
