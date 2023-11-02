@@ -1088,7 +1088,6 @@ export class SharingService {
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    // TODO: check this logic, I only set the !isUserPreCreated check to check de invitations logic;
     if (createInviteDto.notifyUser && !isUserPreCreated) {
       const authToken = Sign(
         this.usersUsecases.getNewTokenPayload(userJoining),

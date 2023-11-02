@@ -139,7 +139,7 @@ export class UserController {
     }
   }
 
-  //@UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard)
   @Throttle(5, 3600)
   @Post('/pre-create')
   @HttpCode(201)
