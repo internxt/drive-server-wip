@@ -12,7 +12,7 @@ export class SequelizePreCreatedUsersRepository {
     private modelUser: typeof PreCreatedUserModel,
   ) {}
 
-  async findById(id: number): Promise<any | null> {
+  async findById(id: number): Promise<PreCreatedUserModel | null> {
     const user = await this.modelUser.findByPk(id);
     return user;
   }
