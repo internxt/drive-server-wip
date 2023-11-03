@@ -1113,6 +1113,24 @@ export class SharingService {
         });
     }
 
+    if (isUserPreCreated) {
+      new MailerService(this.configService)
+        .sendInvitationToSharingGuestEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            signUpUrl: `${this.configService.get('clients.drive.web')}/new${
+              createdInvite.id
+            }?invitation=${createdInvite.id}`,
+            message: createInviteDto.notificationMessage || '',
+          },
+        )
+        .catch(() => {
+          // no op
+        });
+    }
+
     return createdInvite;
   }
 

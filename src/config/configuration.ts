@@ -85,6 +85,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
       invitationToSharingReceived:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
+      invitationToSharingGuestReceived:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_GUEST_RECEIVED || '',
       removedFromSharing:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
       updatedSharingRole:
