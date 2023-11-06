@@ -509,6 +509,13 @@ export class FolderUseCases {
     }
   }
 
+  getFolderAncestors(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    return this.folderRepository.getFolderAncestors(user, folderUuid);
+  }
+
   decryptFolderName(folder: Folder): any {
     const decryptedName = this.cryptoService.decryptName(
       folder.name,
