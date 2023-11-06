@@ -21,6 +21,8 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
 import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 import { SharingModule } from './modules/sharing/sharing.module';
+import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
+import { PlanModule } from './modules/plan/plan.module';
 
 @Module({
   imports: [
@@ -102,6 +104,8 @@ import { SharingModule } from './modules/sharing/sharing.module';
     ThumbnailModule,
     FuzzySearchModule,
     SharingModule,
+    AppSumoModule,
+    PlanModule,
   ],
   controllers: [],
   providers: [],

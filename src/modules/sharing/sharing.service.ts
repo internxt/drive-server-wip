@@ -17,7 +17,7 @@ import {
   SharingRole,
   SharingType,
 } from './sharing.domain';
-import { User } from '../user/user.domain';
+import { ReferralKey, User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FileUseCases } from '../file/file.usecase';
@@ -46,6 +46,8 @@ import { Sign } from '../../middlewares/passport';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
+import { BridgeService } from 'src/externals/bridge/bridge.service';
+import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -191,6 +193,7 @@ export class SharingService {
     private readonly folderUsecases: FolderUseCases,
     private readonly usersUsecases: UserUseCases,
     private readonly configService: ConfigService,
+    private readonly userReferralsRepository: SequelizeUserReferralsRepository,
   ) {}
 
   async isItemBeingSharedAboveTheLimit(
@@ -1158,7 +1161,16 @@ export class SharingService {
       return sharing;
     }
 
-    return this.sharingRepository.createSharing(newSharing);
+    const sharingCreated = await this.sharingRepository.createSharing(
+      newSharing,
+    );
+
+    await this.userReferralsRepository.applyUserReferral(
+      user.id,
+      ReferralKey.ShareFile,
+    );
+
+    return sharingCreated;
   }
 
   private async removeItemFromBeingShared(
