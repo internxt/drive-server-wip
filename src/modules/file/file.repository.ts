@@ -108,7 +108,7 @@ export class SequelizeFileRepository implements FileRepository {
       },
     });
 
-    return this.toDomain(file);
+    return file ? this.toDomain(file) : null;
   }
 
   async findAllCursorWhereUpdatedAfter(
@@ -320,6 +320,19 @@ export class SequelizeFileRepository implements FileRepository {
         fileId: {
           [Op.in]: fileIds,
         },
+      },
+    });
+  }
+
+  async updateByUuidAndUserId(
+    uuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ): Promise<void> {
+    await this.fileModel.update(update, {
+      where: {
+        userId,
+        uuid,
       },
     });
   }
