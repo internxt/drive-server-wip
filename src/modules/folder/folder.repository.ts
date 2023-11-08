@@ -13,6 +13,19 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 
+function mapSnakeCaseToCamelCase(data) {
+  const camelCasedObject = {};
+  for (const key in data) {
+    if (data.hasOwnProperty(key)) {
+      const camelCaseKey = key.replace(/_([a-z])/g, (match, letter) =>
+        letter.toUpperCase(),
+      );
+      camelCasedObject[camelCaseKey] = data[key];
+    }
+  }
+  return camelCasedObject;
+}
+
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
 export interface FolderRepository {
@@ -288,6 +301,25 @@ export class SequelizeFolderRepository implements FolderRepository {
         id: { [Op.eq]: folderId },
       },
     });
+  }
+
+  async getFolderAncestors(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    const [rawFolders] = await this.folderModel.sequelize.query(
+      'SELECT * FROM get_folder_ancestors(:folder_id, :user_id)',
+      {
+        replacements: { folder_id: folderUuid, user_id: user.id },
+      },
+    );
+
+    const camelCasedFolders = rawFolders.map(mapSnakeCaseToCamelCase);
+    const folders = this.folderModel
+      .bulkBuild(camelCasedFolders as any)
+      .map((folder) => this.toDomain(folder));
+
+    return folders;
   }
 
   async clearOrphansFolders(
