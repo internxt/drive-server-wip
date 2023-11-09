@@ -13,6 +13,13 @@ import { FileModule } from '../file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
 import { SharingRolesModel } from './models/sharing-roles.model';
+import {
+  SequelizeUserReferralsRepository,
+  UserReferralModel,
+} from '../user/user-referrals.repository';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { PaymentsService } from '../../externals/payments/payments.service';
+import { AppSumoModule } from '../app-sumo/app-sumo.module';
 
 @Module({
   imports: [
@@ -22,12 +29,20 @@ import { SharingRolesModel } from './models/sharing-roles.model';
       SharingRolesModel,
       SharingModel,
       SharingInviteModel,
+      UserReferralModel,
     ]),
     forwardRef(() => FileModule),
     FolderModule,
     UserModule,
+    BridgeModule,
+    AppSumoModule,
   ],
   controllers: [SharingController],
-  providers: [SharingService, SequelizeSharingRepository],
+  providers: [
+    SharingService,
+    SequelizeSharingRepository,
+    SequelizeUserReferralsRepository,
+    PaymentsService,
+  ],
 })
 export class SharingModule {}

@@ -47,6 +47,8 @@ import API_LIMITS from '../../lib/http/limits';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
+import { ChangeSharingType } from './dto/change-sharing-type.dto';
+
 @ApiTags('Sharing')
 @Controller('sharings')
 export class SharingController {
@@ -83,6 +85,36 @@ export class SharingController {
       throw new BadRequestException('Invalid item type');
     }
     return this.sharingService.getInvites(user, itemType, itemId);
+  }
+
+  @Put('/:itemType/:itemId/type')
+  changeSharingType(
+    @UserDecorator() user: User,
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Param('itemId') itemId: Sharing['itemId'],
+    @Body() dto: ChangeSharingType,
+  ) {
+    if (itemType !== 'file' && itemType !== 'folder') {
+      throw new BadRequestException('Invalid item type');
+    }
+    return this.sharingService.changeSharingType(
+      user,
+      itemId,
+      itemType,
+      dto.sharingType,
+    );
+  }
+
+  @Get('/:itemType/:itemId/type')
+  getSharingType(
+    @UserDecorator() user: User,
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Param('itemId') itemId: Sharing['itemId'],
+  ) {
+    if (itemType !== 'file' && itemType !== 'folder') {
+      throw new BadRequestException('Invalid item type');
+    }
+    return this.sharingService.getSharingType(user, itemId, itemType);
   }
 
   @Get('/invites')
