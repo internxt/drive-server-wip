@@ -14,6 +14,7 @@ import {
   SharingInvite,
   SharingRole,
   SharingRoleAttributes,
+  SharingType,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
@@ -89,6 +90,9 @@ export class SequelizeSharingRepository implements SharingRepository {
     return this.findSharingsWithRoles({
       itemId: item.uuid,
       itemType: (item as any).fileId ? 'file' : 'folder',
+      sharedWith: {
+        [Op.not]: '00000000-0000-0000-0000-000000000000',
+      },
     });
   }
 
@@ -117,6 +121,13 @@ export class SequelizeSharingRepository implements SharingRepository {
     update: Partial<Omit<SharingRole, 'id'>>,
   ): Promise<void> {
     await this.sharingRoles.update(update, { where: { id: sharingRoleId } });
+  }
+
+  async updateSharing(
+    where: Partial<Sharing>,
+    update: Partial<Omit<Sharing, 'id'>>,
+  ): Promise<void> {
+    await this.sharings.update(update, { where });
   }
 
   async updateSharingRoleBy(
@@ -164,6 +175,24 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return raw ? SharingRole.build(raw) : null;
+  }
+
+  async findOneByOwnerOrSharedWithItem(
+    userId: User['uuid'],
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    type?: SharingType,
+  ): Promise<Sharing> {
+    const raw = await this.sharings.findOne({
+      where: {
+        itemId,
+        itemType,
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        type,
+      },
+    });
+
+    return raw ? Sharing.build(raw) : null;
   }
 
   private async findSharingRoles(
