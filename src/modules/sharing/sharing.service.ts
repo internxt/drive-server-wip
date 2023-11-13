@@ -6,7 +6,7 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
-import { v4 } from 'uuid';
+import { v4, validate as validateUuid } from 'uuid';
 
 import {
   Item,
@@ -1114,6 +1114,8 @@ export class SharingService {
     }
 
     if (isUserPreCreated) {
+      const encodedUserEmail = encodeURIComponent(userJoining.email);
+
       new MailerService(this.configService)
         .sendInvitationToSharingGuestEmail(
           user.email,
@@ -1122,7 +1124,7 @@ export class SharingService {
           {
             signUpUrl: `${this.configService.get('clients.drive.web')}/new${
               createdInvite.id
-            }?invitation=${createdInvite.id}`,
+            }?invitation=${createdInvite.id}&email=${encodedUserEmail}`,
             message: createInviteDto.notificationMessage || '',
           },
         )
@@ -1857,6 +1859,29 @@ export class SharingService {
           // no op
         });
     }
+  }
+
+  async validateInvite(inviteId: string): Promise<{ uuid: string }> {
+    if (!validateUuid(inviteId)) {
+      throw new BadRequestException('id is not in uuid format');
+    }
+    const sharingInvite = await this.sharingRepository.getInviteById(inviteId);
+
+    if (!sharingInvite.expirationAt) {
+      throw new BadRequestException(
+        'We were not able to validate this invitation',
+      );
+    }
+    const now = new Date();
+
+    if (now > sharingInvite.expirationAt) {
+      await this.sharingRepository.deleteInvite(sharingInvite);
+      throw new NotFoundException('Invitation expired');
+    }
+
+    return {
+      uuid: inviteId,
+    };
   }
 
   async changeSharingType(

@@ -13,6 +13,7 @@ import {
   Logger,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -48,6 +49,7 @@ import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -178,6 +180,18 @@ export class SharingController {
     @Body() createInviteDto: CreateInviteDto,
   ) {
     return this.sharingService.createInvite(user, createInviteDto);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Get('/invites/:id/validate')
+  @Public()
+  @ApiParam({
+    name: 'id',
+    description: 'Id of the invite to validate',
+    type: String,
+  })
+  async validateInvite(@Param('id') id: SharingInvite['id']) {
+    return this.sharingService.validateInvite(id);
   }
 
   @Post('/invites/:id/accept')
