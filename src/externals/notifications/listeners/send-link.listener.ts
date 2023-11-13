@@ -30,7 +30,7 @@ export class SendLinkListener {
       totalFiles,
     } = event.payload.sendLink;
 
-    if (!sender || !receivers) return;
+    return;
 
     const itemsToMail: { name: string; size: string }[] = items
       .filter((item) => {
