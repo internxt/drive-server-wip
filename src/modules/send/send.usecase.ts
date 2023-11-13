@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { SequelizeSendRepository } from './send-link.repository';
@@ -14,6 +15,7 @@ import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import getEnv from '../../config/configuration';
 import { SendLinkItemDto } from './dto/create-send-link.dto';
+import { CaptchaGuard } from '../auth/captcha.guard';
 
 @Injectable()
 export class SendUseCases {
@@ -41,6 +43,7 @@ export class SendUseCases {
     return this.sendRepository.findById(id);
   }
 
+  @UseGuards(CaptchaGuard)
   async createSendLinks(
     user: User | null,
     items: SendLinkItemDto[],
