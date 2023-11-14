@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 
-import { User } from './user.domain';
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { PreCreatedUser } from './pre-created-user.domain';
 
 @Injectable()
 export class SequelizePreCreatedUsersRepository {
@@ -12,32 +12,32 @@ export class SequelizePreCreatedUsersRepository {
     private modelUser: typeof PreCreatedUserModel,
   ) {}
 
-  async findById(id: number): Promise<PreCreatedUserModel | null> {
+  async findById(id: number): Promise<PreCreatedUser | null> {
     const user = await this.modelUser.findByPk(id);
-    return user;
+    return user ? this.toDomain(user) : null;
   }
 
   async create(
     user: Omit<PreCreatedUserAttributes, 'id'>,
-  ): Promise<PreCreatedUserModel> {
+  ): Promise<PreCreatedUser> {
     const dbUser = await this.modelUser.create(user);
 
-    return dbUser;
+    return this.toDomain(dbUser);
   }
 
   async findByUsername(
     username: PreCreatedUserAttributes['username'],
-  ): Promise<PreCreatedUserModel | null> {
+  ): Promise<PreCreatedUser | null> {
     const user = await this.modelUser.findOne({
       where: {
         username,
       },
     });
-    return user;
+    return user ? this.toDomain(user) : null;
   }
 
-  toDomain(model: PreCreatedUserModel): User {
-    return User.build({
+  toDomain(model: PreCreatedUserModel): PreCreatedUser {
+    return PreCreatedUser.build({
       ...model.toJSON(),
     });
   }
