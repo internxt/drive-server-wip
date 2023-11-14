@@ -39,6 +39,7 @@ export default () => ({
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
+    captcha: process.env.RECAPTCHA_V3,
   },
   apis: {
     notifications: {
@@ -57,6 +58,10 @@ export default () => ({
     },
     share: {
       url: process.env.SHARE_DOMAINS,
+    },
+    captcha: {
+      url: process.env.RECAPTCHA_V3_ENDPOINT,
+      threshold: process.env.RECAPTCHA_V3_SCORE_THRESHOLD,
     },
   },
   clients: {
