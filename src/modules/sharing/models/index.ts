@@ -17,7 +17,7 @@ import {
 import { UserModel } from '../../user/user.model';
 import { FolderModel } from '../../folder/folder.model';
 import { FileModel } from '../../../modules/file/file.model';
-import { PreCreatedUserModel } from 'src/modules/user/pre-created-users.model';
+import { PreCreatedUserModel } from '../../../modules/user/pre-created-users.model';
 
 @Table({
   underscored: true,
@@ -168,7 +168,7 @@ export class SharingInviteModel
     targetKey: 'uuid',
     as: 'preCreatedUser',
   })
-  sharedWithPreCreatedUser: UserModel;
+  sharedWithPreCreatedUser: PreCreatedUserModel;
 
   @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];

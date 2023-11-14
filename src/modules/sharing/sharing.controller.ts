@@ -14,6 +14,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -190,8 +191,32 @@ export class SharingController {
     description: 'Id of the invite to validate',
     type: String,
   })
-  async validateInvite(@Param('id') id: SharingInvite['id']) {
-    return this.sharingService.validateInvite(id);
+  validateInvite(
+    @Param('id') id: SharingInvite['id'],
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      return this.sharingService.validateInvite(id);
+    } catch (error) {
+      let errorMessage = error.message;
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      } else {
+        Logger.error(
+          `[SHARING/VALIDATEINVITE] Error while trying to validate invitation ${id}, message: ${
+            error.message
+          }, ${error.stack || 'No stack trace'}`,
+        );
+
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+      return { error: errorMessage };
+    }
   }
 
   @Post('/invites/:id/accept')

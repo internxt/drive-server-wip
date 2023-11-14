@@ -45,8 +45,8 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { generateNewKeys } from '../../lib/openpgp';
 import { aes } from '@internxt/lib';
-import { PreCreatedUserModel } from './pre-created-users.model';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { PreCreatedUser } from './pre-created-user.domain';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -120,7 +120,7 @@ export class UserUseCases {
 
   findPreCreatedByEmail(
     email: PreCreatedUserAttributes['email'],
-  ): Promise<PreCreatedUserModel | null> {
+  ): Promise<PreCreatedUser | null> {
     return this.preCreatedUserRepository.findByUsername(email);
   }
 
@@ -414,6 +414,7 @@ export class UserUseCases {
     if (preCreatedUser) {
       return {
         ...preCreatedUser.toJSON(),
+        publicKey: preCreatedUser.publicKey.toString(),
         password: preCreatedUser.password.toString(),
       };
     }
@@ -449,6 +450,7 @@ export class UserUseCases {
 
     return {
       ...user.toJSON(),
+      publicKey: user.publicKey.toString(),
       password: user.password.toString(),
     };
   }

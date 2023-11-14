@@ -1867,7 +1867,7 @@ export class SharingService {
     }
     const sharingInvite = await this.sharingRepository.getInviteById(inviteId);
 
-    if (!sharingInvite.expirationAt) {
+    if (!sharingInvite?.expirationAt) {
       throw new BadRequestException(
         'We were not able to validate this invitation',
       );

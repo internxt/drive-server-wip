@@ -494,7 +494,7 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
     });
 
-    return SharingInvite.build(raw);
+    return raw ? SharingInvite.build(raw) : null;
   }
 
   async getInviteByItemAndUser(
