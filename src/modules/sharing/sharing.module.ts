@@ -32,10 +32,10 @@ import { AppSumoModule } from '../app-sumo/app-sumo.module';
       UserReferralModel,
     ]),
     forwardRef(() => FileModule),
-    FolderModule,
-    UserModule,
+    forwardRef(() => FolderModule),
     BridgeModule,
     AppSumoModule,
+    forwardRef(() => UserModule),
   ],
   controllers: [SharingController],
   providers: [
@@ -44,5 +44,6 @@ import { AppSumoModule } from '../app-sumo/app-sumo.module';
     SequelizeUserReferralsRepository,
     PaymentsService,
   ],
+  exports: [SharingService, SequelizeSharingRepository],
 })
 export class SharingModule {}

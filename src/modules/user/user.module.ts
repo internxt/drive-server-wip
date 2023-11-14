@@ -37,6 +37,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { PlanModule } from '../plan/plan.module';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreatedUserModel } from './pre-created-users.model';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { PreCreatedUserModel } from './pre-created-users.model';
     BridgeModule,
     AppSumoModule,
     PlanModule,
+    forwardRef(() => SharingModule),
   ],
   controllers: [UserController],
   providers: [

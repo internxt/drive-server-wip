@@ -25,6 +25,12 @@ export class SequelizePreCreatedUsersRepository {
     return this.toDomain(dbUser);
   }
 
+  async deleteByUuid(uuid: PreCreatedUserAttributes['uuid']): Promise<void> {
+    await this.modelUser.destroy({
+      where: { uuid },
+    });
+  }
+
   async findByUsername(
     username: PreCreatedUserAttributes['username'],
   ): Promise<PreCreatedUser | null> {
