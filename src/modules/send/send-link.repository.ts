@@ -17,6 +17,7 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
+import { Op } from 'sequelize';
 
 @Table({
   underscored: true,
@@ -153,6 +154,19 @@ export class SequelizeSendRepository implements SendRepository {
     }
     sendLinkModel.set(this.toModel(sendLink));
     await sendLinkModel.save();
+  }
+
+  countBySendersToday(): Promise<number> {
+    return this.sendLinkModel.count({
+      where: {
+        sender: {
+          [Op.not]: null,
+        },
+        created_at: {
+          [Op.gt]: new Date(new Date().getTime() - 24 * 60 * 60 * 1000), // Subtracting 1 day from the current date
+        },
+      },
+    });
   }
 
   private toDomain(model: SendLinkModel): SendLink {
