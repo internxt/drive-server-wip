@@ -47,6 +47,7 @@ import { generateNewKeys } from '../../lib/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -101,6 +102,7 @@ export class UserUseCases {
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private sharingRepository: SequelizeSharingRepository,
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private shareUseCases: ShareUseCases,
@@ -294,7 +296,10 @@ export class UserUseCases {
   async createUser(newUser: NewUser) {
     const { email, password, salt } = newUser;
 
-    const maybeExistentUser = await this.userRepository.findByUsername(email);
+    const [maybeExistentUser, maybePreCreatedUser] = await Promise.all([
+      this.userRepository.findByUsername(email),
+      this.preCreatedUserRepository.findByUsername(email),
+    ]);
     const userAlreadyExists = !!maybeExistentUser;
 
     if (userAlreadyExists) {
@@ -369,6 +374,10 @@ export class UserUseCases {
         notifySignUpError(err);
       }
 
+      if (maybePreCreatedUser) {
+        await this.removePreCreatedUser(maybePreCreatedUser.uuid, user.uuid);
+      }
+
       const newTokenPayload = this.getNewTokenPayload(user);
 
       return {
@@ -397,6 +406,14 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  async removePreCreatedUser(preCreatedUserUuid: string, userUuid: string) {
+    await this.sharingRepository.updateAllUserSharedWith(preCreatedUserUuid, {
+      expirationAt: null,
+      sharedWith: userUuid,
+    });
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUserUuid);
   }
 
   async preCreateUser(newUser: PreCreateUserDto) {

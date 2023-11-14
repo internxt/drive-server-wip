@@ -24,6 +24,7 @@ import sequelize, { Op, WhereOptions } from 'sequelize';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
 import { File, FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
+import { PreCreatedUserAttributes } from '../user/pre-created-users.attributes';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -467,6 +468,17 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return invitesWithInviteds.map((i) => i.toJSON<GetInviteDto>());
+  }
+
+  async updateAllUserSharedWith(
+    userUuid: PreCreatedUserAttributes['uuid'],
+    update: Partial<SharingInvite>,
+  ): Promise<void> {
+    await this.sharingInvites.update(update, {
+      where: {
+        sharedWith: userUuid,
+      },
+    });
   }
 
   async getInvitesByItem(

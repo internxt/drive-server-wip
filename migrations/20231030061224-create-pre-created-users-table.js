@@ -12,7 +12,7 @@ module.exports = {
         autoIncrement: true,
       },
       uuid: {
-        type: Sequelize.UUID,
+        type: Sequelize.STRING(36),
         allowNull: false,
       },
       username: {
