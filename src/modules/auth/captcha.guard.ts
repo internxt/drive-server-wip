@@ -10,12 +10,13 @@ export class CaptchaGuard implements CanActivate {
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest();
-    const captchaToken = request.body.captchaToken;
+    const captchaToken = request.headers['x-internxt-captcha'];
+    const ip = request.ips.length ? request.ips[0] : request.ip;
 
     if (!captchaToken) {
       return false;
     }
 
-    return this.captchaService.verifyCaptcha(captchaToken);
+    return this.captchaService.verifyCaptcha(captchaToken, ip);
   }
 }

@@ -61,6 +61,7 @@ export default () => ({
     },
     captcha: {
       url: process.env.RECAPTCHA_V3_ENDPOINT,
+      threshold: process.env.RECAPTCHA_V3_SCORE_THRESHOLD,
     },
   },
   clients: {

@@ -15,6 +15,7 @@ import {
 import { SendController } from './send.controller';
 import { SendUseCases } from './send.usecase';
 import { FileModel } from '../file/file.model';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
   imports: [
@@ -32,6 +33,6 @@ import { FileModel } from '../file/file.model';
     CryptoModule,
   ],
   controllers: [SendController],
-  providers: [SequelizeSendRepository, SendUseCases],
+  providers: [SequelizeSendRepository, SendUseCases, CaptchaService],
 })
 export class SendModule {}
