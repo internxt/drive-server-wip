@@ -481,6 +481,24 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async getInvitesBySharedwith(
+    userUuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<SharingInvite[]> {
+    const invites = await this.sharingInvites.findAll({
+      where: {
+        sharedWith: userUuid,
+      },
+    });
+
+    return invites.map((i) => i.toJSON<SharingInvite>());
+  }
+
+  async bulkUpdate(invites: Partial<SharingInvite>[]): Promise<void> {
+    await this.sharingInvites.bulkCreate(invites, {
+      updateOnDuplicate: ['sharedWith', 'encryptionKey'],
+    });
+  }
+
   async getInvitesByItem(
     itemId: string,
     itemType: 'file' | 'folder',
