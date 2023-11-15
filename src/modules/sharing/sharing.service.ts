@@ -6,7 +6,7 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
-import { v4 } from 'uuid';
+import { v4, validate as validateUuid } from 'uuid';
 
 import {
   Item,
@@ -1006,13 +1006,18 @@ export class SharingService {
       }
     }
 
-    const userJoining = await this.usersUsecases.findByEmail(
-      createInviteDto.sharedWith,
-    );
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.usersUsecases.findByEmail(createInviteDto.sharedWith),
+      this.usersUsecases.findPreCreatedByEmail(createInviteDto.sharedWith),
+    ]);
+
+    const userJoining = existentUser ?? preCreatedUser;
 
     if (!userJoining) {
       throw new NotFoundException('Invited user not found');
     }
+
+    const isUserPreCreated = !existentUser;
 
     const [invitation, sharing] = await Promise.all([
       this.sharingRepository.getInviteByItemAndUser(
@@ -1049,12 +1054,16 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 2);
+
     const invite = SharingInvite.build({
       id: v4(),
       ...createInviteDto,
       sharedWith: userJoining.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
+      expirationAt: isUserPreCreated ? expirationAt : null,
     });
 
     const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
@@ -1079,7 +1088,7 @@ export class SharingService {
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    if (createInviteDto.notifyUser) {
+    if (createInviteDto.notifyUser && !isUserPreCreated) {
       const authToken = Sign(
         this.usersUsecases.getNewTokenPayload(userJoining),
         this.configService.get('secrets.jwt'),
@@ -1096,6 +1105,26 @@ export class SharingService {
             declineUrl: `${this.configService.get(
               'clients.drive.web',
             )}/sharings/${createdInvite.id}/decline?token=${authToken}`,
+            message: createInviteDto.notificationMessage || '',
+          },
+        )
+        .catch(() => {
+          // no op
+        });
+    }
+
+    if (isUserPreCreated) {
+      const encodedUserEmail = encodeURIComponent(userJoining.email);
+
+      new MailerService(this.configService)
+        .sendInvitationToSharingGuestEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            signUpUrl: `${this.configService.get('clients.drive.web')}/new${
+              createdInvite.id
+            }?invitation=${createdInvite.id}&email=${encodedUserEmail}`,
             message: createInviteDto.notificationMessage || '',
           },
         )
@@ -1832,6 +1861,29 @@ export class SharingService {
           // no op
         });
     }
+  }
+
+  async validateInvite(inviteId: string): Promise<{ uuid: string }> {
+    if (!validateUuid(inviteId)) {
+      throw new BadRequestException('id is not in uuid format');
+    }
+    const sharingInvite = await this.sharingRepository.getInviteById(inviteId);
+
+    if (!sharingInvite?.expirationAt) {
+      throw new BadRequestException(
+        'We were not able to validate this invitation',
+      );
+    }
+    const now = new Date();
+
+    if (now > sharingInvite.expirationAt) {
+      await this.sharingRepository.deleteInvite(sharingInvite);
+      throw new NotFoundException('Invitation expired');
+    }
+
+    return {
+      uuid: inviteId,
+    };
   }
 
   async changeSharingType(

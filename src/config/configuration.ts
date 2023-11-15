@@ -85,6 +85,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
       invitationToSharingReceived:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
+      invitationToSharingGuestReceived:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_GUEST_RECEIVED || '',
       removedFromSharing:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
       updatedSharingRole:
@@ -103,5 +105,8 @@ export default () => ({
       username: process.env.AUTH_BASIC_USERNAME,
       password: process.env.AUTH_BASIC_PASSWORD,
     },
+  },
+  users: {
+    preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
   },
 });

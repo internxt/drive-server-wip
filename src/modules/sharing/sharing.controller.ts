@@ -13,6 +13,8 @@ import {
   Logger,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -48,6 +50,7 @@ import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -178,6 +181,42 @@ export class SharingController {
     @Body() createInviteDto: CreateInviteDto,
   ) {
     return this.sharingService.createInvite(user, createInviteDto);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Get('/invites/:id/validate')
+  @Public()
+  @ApiParam({
+    name: 'id',
+    description: 'Id of the invite to validate',
+    type: String,
+  })
+  validateInvite(
+    @Param('id') id: SharingInvite['id'],
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      return this.sharingService.validateInvite(id);
+    } catch (error) {
+      let errorMessage = error.message;
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      } else {
+        Logger.error(
+          `[SHARING/VALIDATEINVITE] Error while trying to validate invitation ${id}, message: ${
+            error.message
+          }, ${error.stack || 'No stack trace'}`,
+        );
+
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+      return { error: errorMessage };
+    }
   }
 
   @Post('/invites/:id/accept')

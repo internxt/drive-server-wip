@@ -35,11 +35,15 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { PlanModule } from '../plan/plan.module';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { PreCreatedUserModel } from './pre-created-users.model';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([
       UserModel,
+      PreCreatedUserModel,
       ReferralModel,
       UserReferralModel,
       FriendInvitationModel,
@@ -55,10 +59,12 @@ import { PlanModule } from '../plan/plan.module';
     BridgeModule,
     AppSumoModule,
     PlanModule,
+    forwardRef(() => SharingModule),
   ],
   controllers: [UserController],
   providers: [
     SequelizeUserRepository,
+    SequelizePreCreatedUsersRepository,
     SequelizeSharedWorkspaceRepository,
     SequelizeReferralRepository,
     SequelizeKeyServerRepository,
