@@ -153,6 +153,46 @@ export class FolderController {
     return { result: files };
   }
 
+  @Get(':id/file')
+  async checkFileExistence(
+    @UserDecorator() user: User,
+    @Param('id') folderId: number,
+    @Query('name') name: string,
+    @Query('type') type: string,
+  ) {
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
+    if (folderId < 1 || !isNumber(folderId)) {
+      throw new BadRequestWrongFolderIdException();
+    }
+
+    if (!name || !type) {
+      throw new BadRequestException();
+    }
+
+    const files = await this.fileUseCases.getFiles(
+      user.id,
+      {
+        folderId,
+        status: FileStatus.EXISTS,
+        plainName: name,
+        type,
+      },
+      {
+        limit: 1,
+        offset: 0,
+      },
+    );
+
+    const singleFile = files[0];
+
+    if (!singleFile) {
+      throw new NotFoundException();
+    }
+
+    return singleFile;
+  }
+
   @Get(':id/folders')
   async getFolderFolders(
     @UserDecorator() user: User,
