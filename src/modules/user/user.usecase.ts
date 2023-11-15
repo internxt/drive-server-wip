@@ -43,7 +43,11 @@ import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
-import { generateNewKeys } from '../../lib/openpgp';
+import {
+  decryptMessageWithPrivateKey,
+  encryptMessageWithPublicKey,
+  generateNewKeys,
+} from '../../lib/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
@@ -296,10 +300,7 @@ export class UserUseCases {
   async createUser(newUser: NewUser) {
     const { email, password, salt } = newUser;
 
-    const [maybeExistentUser, maybePreCreatedUser] = await Promise.all([
-      this.userRepository.findByUsername(email),
-      this.preCreatedUserRepository.findByUsername(email),
-    ]);
+    const maybeExistentUser = await this.userRepository.findByUsername(email);
     const userAlreadyExists = !!maybeExistentUser;
 
     if (userAlreadyExists) {
@@ -374,10 +375,6 @@ export class UserUseCases {
         notifySignUpError(err);
       }
 
-      if (maybePreCreatedUser) {
-        await this.removePreCreatedUser(maybePreCreatedUser.uuid, user.uuid);
-      }
-
       const newTokenPayload = this.getNewTokenPayload(user);
 
       return {
@@ -408,12 +405,51 @@ export class UserUseCases {
     }
   }
 
-  async removePreCreatedUser(preCreatedUserUuid: string, userUuid: string) {
-    await this.sharingRepository.updateAllUserSharedWith(preCreatedUserUuid, {
-      expirationAt: null,
-      sharedWith: userUuid,
-    });
-    await this.preCreatedUserRepository.deleteByUuid(preCreatedUserUuid);
+  async replacePreCreatedUser(
+    email: string,
+    newUserUuid: string,
+    newPublicKey: string,
+  ) {
+    const preCreatedUser = await this.preCreatedUserRepository.findByUsername(
+      email,
+    );
+
+    if (!preCreatedUser) {
+      return;
+    }
+
+    const defaultPass = this.configService.get('users.preCreatedPassword');
+    const { privateKey: encPrivateKey } = preCreatedUser;
+    const privateKey = aes.decrypt(encPrivateKey, defaultPass);
+
+    const invites = await this.sharingRepository.getInvitesBySharedwith(
+      preCreatedUser.uuid,
+    );
+
+    for (const invite of invites) {
+      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
+        encryptedMessage: Buffer.from(invite.encryptionKey, 'base64').toString(
+          'binary',
+        ),
+        privateKeyInBase64: privateKey,
+      });
+
+      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
+        message: decryptedEncryptionKey.toString(),
+        publicKeyInBase64: newPublicKey,
+      });
+
+      invite.encryptionKey = Buffer.from(
+        newEncryptedEncryptionKey.toString(),
+        'binary',
+      ).toString('base64');
+
+      invite.sharedWith = newUserUuid;
+    }
+
+    await this.sharingRepository.bulkUpdate(invites);
+
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }
 
   async preCreateUser(newUser: PreCreateUserDto) {
@@ -447,6 +483,7 @@ export class UserUseCases {
 
     const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
       await generateNewKeys();
+
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
       salt: this.configService.get('secrets.magicSalt'),
