@@ -1207,10 +1207,12 @@ export class SharingService {
     itemId: Sharing['itemId'],
     type: Sharing['type'],
   ) {
-    await this.sharingRepository.deleteInvitesBy({
-      itemId,
-      itemType,
-    });
+    if (type === SharingType.Private) {
+      await this.sharingRepository.deleteInvitesBy({
+        itemId,
+        itemType,
+      });
+    }
 
     await this.sharingRepository.deleteSharingsBy({
       itemId,
