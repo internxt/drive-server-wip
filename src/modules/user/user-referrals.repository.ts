@@ -217,8 +217,8 @@ export class SequelizeUserReferralsRepository
   ) {
     if (type === 'storage') {
       if (
-        this.config.get('apis.storage.username') &&
-        this.config.get('apis.storage.password')
+        this.config.get('apis.storage.auth.username') &&
+        this.config.get('apis.storage.auth.password')
       ) {
         await this.bridgeService.addStorage(uuid, credit);
       } else {
