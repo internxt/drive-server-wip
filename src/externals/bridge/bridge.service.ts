@@ -7,10 +7,15 @@ import { UserAttributes } from '../../modules/user/user.attributes';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
 
-export function signToken(duration: string, secret: string) {
+export function signToken(
+  duration: string,
+  secret: string,
+  isDevelopment?: boolean,
+) {
   return sign({}, Buffer.from(secret, 'base64').toString('utf8'), {
     algorithm: 'RS256',
     expiresIn: duration,
+    ...(isDevelopment ? { allowInsecureKeySizes: true } : null),
   });
 }
 
@@ -77,7 +82,11 @@ export class BridgeService {
     const bcryptId = this.cryptoService.hashBcrypt(networkUserId);
     const networkPassword = this.cryptoService.hashSha256(bcryptId);
 
-    const jwt = signToken('5m', this.configService.get('secrets.gateway'));
+    const jwt = signToken(
+      '5m',
+      this.configService.get('secrets.gateway'),
+      this.configService.get('isDevelopment'),
+    );
 
     const response = await this.httpClient.post(
       `${this.networkUrl}/v2/gateway/users`,
