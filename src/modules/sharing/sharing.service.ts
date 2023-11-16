@@ -1194,10 +1194,11 @@ export class SharingService {
       newSharing,
     );
 
-    await this.userReferralsRepository.applyUserReferral(
-      user.id,
-      ReferralKey.ShareFile,
-    );
+    this.userReferralsRepository
+      .applyUserReferral(user.id, ReferralKey.ShareFile)
+      .catch((err) => {
+        // no op
+      });
 
     return sharingCreated;
   }
