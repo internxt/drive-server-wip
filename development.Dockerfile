@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:iron-slim
 
 WORKDIR /usr/app
 
