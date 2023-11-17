@@ -13,10 +13,10 @@ export class PaymentsService {
     configService: ConfigService,
   ) {
     const stripeTest = new Stripe(process.env.STRIPE_SK_TEST, {
-      apiVersion: '2020-08-27',
+      apiVersion: '2023-10-16',
     });
     const stripeProduction = new Stripe(process.env.STRIPE_SK, {
-      apiVersion: '2020-08-27',
+      apiVersion: '2023-10-16',
     });
     this.provider = configService.get('isProduction')
       ? stripeProduction

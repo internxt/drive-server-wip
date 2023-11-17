@@ -85,10 +85,18 @@ import { PlanModule } from './modules/plan/plan.module';
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    ThrottlerModule.forRoot({
-      ttl: 60,
-      limit: 5,
-    }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60,
+        limit: 5,
+      },
+      {
+        name: 'long',
+        ttl: 3600,
+        limit: 5,
+      },
+    ]),
     NotificationModule,
     FileModule,
     FolderModule,
