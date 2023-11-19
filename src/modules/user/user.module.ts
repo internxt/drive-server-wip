@@ -38,6 +38,7 @@ import { PlanModule } from '../plan/plan.module';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { SharingModule } from '../sharing/sharing.module';
+import { SharingService } from '../sharing/sharing.service';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { SharingModule } from '../sharing/sharing.module';
     BridgeService,
     PaymentsService,
     AppSumoUseCase,
+    SharingService,
   ],
   exports: [
     UserUseCases,

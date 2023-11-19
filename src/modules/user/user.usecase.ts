@@ -390,7 +390,7 @@ export class UserUseCases {
           uuid: userUuid,
           userId: networkPass,
           hasReferralsProgram: !hasBeenSubscribed,
-        },
+        } as unknown as User,
         uuid: userUuid,
       };
     } catch (err) {
