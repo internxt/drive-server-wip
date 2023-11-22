@@ -39,6 +39,7 @@ export default () => ({
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
+    captcha: process.env.RECAPTCHA_V3,
   },
   apis: {
     notifications: {
@@ -47,12 +48,20 @@ export default () => ({
     },
     storage: {
       url: process.env.STORAGE_API_URL,
+      auth: {
+        username: process.env.GATEWAY_USER,
+        password: process.env.GATEWAY_PASSWORD,
+      },
     },
     drive: {
       url: process.env.DRIVE_API_URL,
     },
     share: {
       url: process.env.SHARE_DOMAINS,
+    },
+    captcha: {
+      url: process.env.RECAPTCHA_V3_ENDPOINT,
+      threshold: process.env.RECAPTCHA_V3_SCORE_THRESHOLD,
     },
   },
   clients: {
@@ -76,6 +85,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
       invitationToSharingReceived:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
+      invitationToSharingGuestReceived:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_GUEST_RECEIVED || '',
       removedFromSharing:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
       updatedSharingRole:
@@ -94,5 +105,8 @@ export default () => ({
       username: process.env.AUTH_BASIC_USERNAME,
       password: process.env.AUTH_BASIC_PASSWORD,
     },
+  },
+  users: {
+    preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
   },
 });

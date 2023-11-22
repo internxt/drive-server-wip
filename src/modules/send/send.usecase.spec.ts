@@ -62,7 +62,9 @@ describe('Send Use Cases', () => {
         },
         {
           provide: getModelToken(SendLinkModel),
-          useValue: jest.fn(),
+          useValue: {
+            count: jest.fn(),
+          },
         },
         {
           provide: getModelToken(SendLinkItemModel),
@@ -164,6 +166,8 @@ describe('Send Use Cases', () => {
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
     jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
     const sendLink = await service.createSendLinks(
       null,
       [],
@@ -192,6 +196,8 @@ describe('Send Use Cases', () => {
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
     jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
     const sendLink = await service.createSendLinks(
       userMock,
       [],

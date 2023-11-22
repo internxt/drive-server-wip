@@ -14,6 +14,7 @@ import {
   SharingInvite,
   SharingRole,
   SharingRoleAttributes,
+  SharingType,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
@@ -23,6 +24,7 @@ import sequelize, { Op, WhereOptions } from 'sequelize';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
 import { File, FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
+import { PreCreatedUserAttributes } from '../user/pre-created-users.attributes';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -89,6 +91,9 @@ export class SequelizeSharingRepository implements SharingRepository {
     return this.findSharingsWithRoles({
       itemId: item.uuid,
       itemType: (item as any).fileId ? 'file' : 'folder',
+      sharedWith: {
+        [Op.not]: '00000000-0000-0000-0000-000000000000',
+      },
     });
   }
 
@@ -117,6 +122,13 @@ export class SequelizeSharingRepository implements SharingRepository {
     update: Partial<Omit<SharingRole, 'id'>>,
   ): Promise<void> {
     await this.sharingRoles.update(update, { where: { id: sharingRoleId } });
+  }
+
+  async updateSharing(
+    where: Partial<Sharing>,
+    update: Partial<Omit<Sharing, 'id'>>,
+  ): Promise<void> {
+    await this.sharings.update(update, { where });
   }
 
   async updateSharingRoleBy(
@@ -164,6 +176,24 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return raw ? SharingRole.build(raw) : null;
+  }
+
+  async findOneByOwnerOrSharedWithItem(
+    userId: User['uuid'],
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    type?: SharingType,
+  ): Promise<Sharing> {
+    const raw = await this.sharings.findOne({
+      where: {
+        itemId,
+        itemType,
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        type,
+      },
+    });
+
+    return raw ? Sharing.build(raw) : null;
   }
 
   private async findSharingRoles(
@@ -440,6 +470,35 @@ export class SequelizeSharingRepository implements SharingRepository {
     return invitesWithInviteds.map((i) => i.toJSON<GetInviteDto>());
   }
 
+  async updateAllUserSharedWith(
+    userUuid: PreCreatedUserAttributes['uuid'],
+    update: Partial<SharingInvite>,
+  ): Promise<void> {
+    await this.sharingInvites.update(update, {
+      where: {
+        sharedWith: userUuid,
+      },
+    });
+  }
+
+  async getInvitesBySharedwith(
+    userUuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<SharingInvite[]> {
+    const invites = await this.sharingInvites.findAll({
+      where: {
+        sharedWith: userUuid,
+      },
+    });
+
+    return invites.map((i) => i.toJSON<SharingInvite>());
+  }
+
+  async bulkUpdate(invites: Partial<SharingInvite>[]): Promise<void> {
+    await this.sharingInvites.bulkCreate(invites, {
+      updateOnDuplicate: ['sharedWith', 'encryptionKey'],
+    });
+  }
+
   async getInvitesByItem(
     itemId: string,
     itemType: 'file' | 'folder',
@@ -465,7 +524,7 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
     });
 
-    return SharingInvite.build(raw);
+    return raw ? SharingInvite.build(raw) : null;
   }
 
   async getInviteByItemAndUser(

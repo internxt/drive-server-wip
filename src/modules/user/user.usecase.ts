@@ -1,12 +1,8 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
+import { generateMnemonic } from 'bip39';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
@@ -40,6 +36,17 @@ import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { PreCreateUserDto } from './dto/pre-create-user.dto';
+import {
+  decryptMessageWithPrivateKey,
+  encryptMessageWithPublicKey,
+  generateNewKeys,
+} from '../../lib/openpgp';
+import { aes } from '@internxt/lib';
+import { PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { PreCreatedUser } from './pre-created-user.domain';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -90,9 +97,11 @@ type NewUser = Pick<
 export class UserUseCases {
   constructor(
     private userRepository: SequelizeUserRepository,
+    private preCreatedUserRepository: SequelizePreCreatedUsersRepository,
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private sharingRepository: SequelizeSharingRepository,
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private shareUseCases: ShareUseCases,
@@ -108,6 +117,12 @@ export class UserUseCases {
 
   findByEmail(email: User['email']): Promise<User | null> {
     return this.userRepository.findByUsername(email);
+  }
+
+  findPreCreatedByEmail(
+    email: PreCreatedUserAttributes['email'],
+  ): Promise<PreCreatedUser | null> {
+    return this.preCreatedUserRepository.findByUsername(email);
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -383,6 +398,109 @@ export class UserUseCases {
 
       throw err;
     }
+  }
+
+  async replacePreCreatedUser(
+    email: string,
+    newUserUuid: string,
+    newPublicKey: string,
+  ) {
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+
+    if (!preCreatedUser) {
+      return;
+    }
+
+    const defaultPass = this.configService.get('users.preCreatedPassword');
+    const { privateKey: encPrivateKey } = preCreatedUser;
+    const privateKey = aes.decrypt(encPrivateKey, defaultPass);
+
+    const invites = await this.sharingRepository.getInvitesBySharedwith(
+      preCreatedUser.uuid,
+    );
+
+    for (const invite of invites) {
+      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
+        encryptedMessage: Buffer.from(invite.encryptionKey, 'base64').toString(
+          'binary',
+        ),
+        privateKeyInBase64: privateKey,
+      });
+
+      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
+        message: decryptedEncryptionKey.toString(),
+        publicKeyInBase64: newPublicKey,
+      });
+
+      invite.encryptionKey = Buffer.from(
+        newEncryptedEncryptionKey.toString(),
+        'binary',
+      ).toString('base64');
+
+      invite.sharedWith = newUserUuid;
+    }
+
+    await this.sharingRepository.bulkUpdate(invites);
+
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+  }
+
+  async preCreateUser(newUser: PreCreateUserDto) {
+    const { email } = newUser;
+
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.userRepository.findByUsername(email),
+      this.preCreatedUserRepository.findByUsername(email),
+    ]);
+
+    if (existentUser) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
+    if (preCreatedUser) {
+      return {
+        ...preCreatedUser.toJSON(),
+        publicKey: preCreatedUser.publicKey.toString(),
+        password: preCreatedUser.password.toString(),
+      };
+    }
+
+    const defaultPass = this.configService.get('users.preCreatedPassword');
+    const hashObj = this.cryptoService.passToHash(defaultPass);
+
+    const mnemonic = generateMnemonic(256);
+    const encMnemonic = this.cryptoService.encryptTextWithKey(
+      mnemonic,
+      defaultPass,
+    );
+
+    const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
+      await generateNewKeys();
+
+    const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
+      iv: this.configService.get('secrets.magicIv'),
+      salt: this.configService.get('secrets.magicSalt'),
+    });
+
+    const user = await this.preCreatedUserRepository.create({
+      email,
+      uuid: v4(),
+      password: hashObj.hash,
+      hKey: Buffer.from(hashObj.salt),
+      username: email,
+      mnemonic: encMnemonic,
+      publicKey: publicKeyArmored,
+      privateKey: encPrivateKey,
+      revocationKey: revocationCertificate,
+      encryptVersion: null,
+    });
+
+    return {
+      ...user.toJSON(),
+      publicKey: user.publicKey.toString(),
+      password: user.password.toString(),
+    };
   }
 
   getNewTokenPayload(userData: any) {

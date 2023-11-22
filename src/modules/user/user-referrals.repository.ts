@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   AllowNull,
@@ -11,9 +11,24 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { ReferralModel } from './referrals.repository';
-import { UserReferralAttributes } from './user.domain';
+import {
+  ReferralModel,
+  SequelizeReferralRepository,
+} from './referrals.repository';
+import { ReferralAttributes, UserReferralAttributes } from './user.domain';
 import { UserModel } from './user.model';
+import { BridgeService } from '../../externals/bridge/bridge.service';
+import { ConfigService } from '@nestjs/config';
+import { SequelizeUserRepository } from './user.repository';
+import { UserAttributes } from './user.attributes';
+import { PaymentsService } from '../../externals/payments/payments.service';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { AppSumoModel } from '../app-sumo/app-sumo.model';
+import { AppSumoNotFoundException } from '../app-sumo/exception/app-sumo-not-found.exception';
+import { Constans } from '../../lib/contants';
+import { ReferralsNotAvailableException } from './exception/referrals-not-available.exception';
+import { UserNotFoundException } from './exception/user-not-found.exception';
+import { ReferralNotFoundException } from './exception/referral-not-found.exception';
 
 @Table({
   underscored: true,
@@ -65,9 +80,17 @@ export interface UserReferralsRepository {
 export class SequelizeUserReferralsRepository
   implements UserReferralsRepository
 {
+  private readonly logger = new Logger(SequelizeUserReferralsRepository.name);
+
   constructor(
     @InjectModel(UserReferralModel)
     private model: typeof UserReferralModel,
+    private readonly bridgeService: BridgeService,
+    private readonly config: ConfigService,
+    private readonly referralsRepository: SequelizeReferralRepository,
+    private readonly userRepository: SequelizeUserRepository,
+    private readonly paymentsService: PaymentsService,
+    private readonly appSumoUseCase: AppSumoUseCase,
   ) {}
 
   findOneWhere(
@@ -97,5 +120,117 @@ export class SequelizeUserReferralsRepository
     await this.model.update(update, {
       where: { id },
     });
+  }
+
+  async applyUserReferral(
+    userId: UserAttributes['id'],
+    referralKey: ReferralAttributes['key'],
+    referred?: string,
+  ) {
+    const referral = await this.referralsRepository.findOne({
+      key: referralKey,
+    });
+
+    if (!referral) {
+      throw new ReferralNotFoundException();
+    }
+
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    const userReferral = await this.model.findOne({
+      where: {
+        userId,
+        referralId: referral.id,
+        applied: false,
+      },
+    });
+
+    if (!userReferral) {
+      return;
+    }
+
+    const userHasReferralsProgram = await this.hasReferralsProgram(
+      userId,
+      user.email,
+      user.bridgeUser,
+      user.userId,
+    );
+
+    if (!userHasReferralsProgram) {
+      throw new ReferralsNotAvailableException();
+    }
+
+    await this.updateReferralById(userReferral.id, {
+      referred,
+      applied: true,
+    });
+
+    await this.redeemUserReferral(
+      user.uuid,
+      userId,
+      referral.type,
+      referral.credit,
+    );
+  }
+
+  async hasReferralsProgram(
+    userId: number,
+    userEmail: string,
+    networkUser: string,
+    networkPassword: string,
+  ) {
+    let appSumo: AppSumoModel | null;
+
+    try {
+      appSumo = await this.appSumoUseCase.getByUserId(userId);
+    } catch (error) {
+      if (error instanceof AppSumoNotFoundException) {
+        this.logger.log(error.message);
+      }
+    }
+
+    const maxSpaceBytes = await this.bridgeService.getLimit(
+      networkUser,
+      networkPassword,
+    );
+
+    const subscriptionPlans =
+      await this.paymentsService.hasSubscriptions(userEmail);
+
+    return (
+      !appSumo &&
+      maxSpaceBytes > Constans.MAX_FREE_PLAN_BYTES &&
+      !subscriptionPlans
+    );
+  }
+
+  async redeemUserReferral(
+    uuid: string,
+    userId: number,
+    type: string,
+    credit: number,
+  ) {
+    if (type === 'storage') {
+      if (
+        this.config.get('apis.storage.auth.username') &&
+        this.config.get('apis.storage.auth.password')
+      ) {
+        await this.bridgeService.addStorage(uuid, credit);
+      } else {
+        this.logger.warn(
+          '(usersReferralsService.redeemUserReferral) GATEWAY_USER\
+           || GATEWAY_PASS not found. Skipping storage increasing',
+        );
+      }
+    }
+
+    this.logger.log(
+      `(usersReferralsService.redeemUserReferral)\
+       The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
+    );
   }
 }

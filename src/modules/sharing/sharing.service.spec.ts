@@ -14,6 +14,7 @@ import { SequelizeSharingRepository } from './sharing.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
+import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 
 describe('Sharing Use Cases', () => {
   let sharingService: SharingService;
@@ -21,6 +22,7 @@ describe('Sharing Use Cases', () => {
   let folderUseCases: DeepMocked<FolderUseCases>;
   let fileUsecases: DeepMocked<FileUseCases>;
   let usersUsecases: DeepMocked<UserUseCases>;
+  let userReferralsRepository: DeepMocked<SequelizeUserReferralsRepository>;
   let config: DeepMocked<ConfigService>;
 
   beforeEach(async () => {
@@ -28,6 +30,7 @@ describe('Sharing Use Cases', () => {
     folderUseCases = createMock<FolderUseCases>();
     fileUsecases = createMock<FileUseCases>();
     usersUsecases = createMock<UserUseCases>();
+    userReferralsRepository = createMock<SequelizeUserReferralsRepository>();
     config = createMock<ConfigService>();
 
     sharingService = new SharingService(
@@ -36,6 +39,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases,
       usersUsecases,
       config,
+      userReferralsRepository,
     );
   });
 

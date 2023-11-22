@@ -107,17 +107,21 @@ export class SendUseCases {
     }
 
     await this.sendRepository.createSendLinkWithItems(sendLink);
+    const count = await this.sendRepository.countBySendersToday();
+    const DAILY_LIMIT = 1000;
 
-    const sendLinkCreatedEvent = new SendLinkCreatedEvent({
-      sendLink: {
-        ...sendLink,
-        plainCode,
-        size: totalSize,
-        totalFiles: totalFiles,
-      },
-    });
+    if (count < DAILY_LIMIT) {
+      const sendLinkCreatedEvent = new SendLinkCreatedEvent({
+        sendLink: {
+          ...sendLink,
+          plainCode,
+          size: totalSize,
+          totalFiles: totalFiles,
+        },
+      });
 
-    this.notificationService.add(sendLinkCreatedEvent);
+      this.notificationService.add(sendLinkCreatedEvent);
+    }
 
     return sendLink;
   }

@@ -211,6 +211,7 @@ export class FolderUseCases {
       folders.map((folder) => {
         return {
           userId: user.id,
+          plainName: folder.name,
           name: this.cryptoService.encryptName(
             folder.name,
             folder.parentFolderId,
@@ -497,15 +498,21 @@ export class FolderUseCases {
   }
 
   async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {
-    let remainingFolders = await this.folderRepository.clearOrphansFolders(
-      userId,
-    );
+    let remainingFolders =
+      await this.folderRepository.clearOrphansFolders(userId);
 
     if (remainingFolders > 0) {
       remainingFolders += await this.deleteOrphansFolders(userId);
     } else {
       return remainingFolders;
     }
+  }
+
+  getFolderAncestors(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    return this.folderRepository.getFolderAncestors(user, folderUuid);
   }
 
   decryptFolderName(folder: Folder): any {
