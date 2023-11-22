@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
 import { UserModel } from './user.model';
@@ -11,7 +12,6 @@ import {
   SequelizeUserReferralsRepository,
   UserReferralModel,
 } from './user-referrals.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -32,11 +32,18 @@ import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.m
 import { ShareModule } from '../share/share.module';
 import { KeyServerModel } from '../keyserver/key-server.model';
 import { AvatarService } from '../../externals/avatar/avatar.service';
+import { AppSumoModule } from '../app-sumo/app-sumo.module';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { PlanModule } from '../plan/plan.module';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { PreCreatedUserModel } from './pre-created-users.model';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([
       UserModel,
+      PreCreatedUserModel,
       ReferralModel,
       UserReferralModel,
       FriendInvitationModel,
@@ -49,10 +56,15 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
     KeyServerModule,
     CryptoModule,
     forwardRef(() => ShareModule),
+    BridgeModule,
+    AppSumoModule,
+    PlanModule,
+    forwardRef(() => SharingModule),
   ],
   controllers: [UserController],
   providers: [
     SequelizeUserRepository,
+    SequelizePreCreatedUsersRepository,
     SequelizeSharedWorkspaceRepository,
     SequelizeReferralRepository,
     SequelizeKeyServerRepository,
@@ -64,7 +76,15 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
     PaymentsService,
     NewsletterService,
     AvatarService,
+    BridgeService,
+    PaymentsService,
+    AppSumoUseCase,
   ],
-  exports: [UserUseCases, SequelizeUserRepository],
+  exports: [
+    UserUseCases,
+    SequelizeUserRepository,
+    SequelizeUserReferralsRepository,
+    SequelizeReferralRepository,
+  ],
 })
 export class UserModule {}

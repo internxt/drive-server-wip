@@ -13,6 +13,13 @@ type SendInvitationToSharingContext = {
   decline_url: string;
 };
 
+type SendInvitationToSharingGuestContext = {
+  notification_message: string;
+  item_name: string;
+  sender_email: string;
+  signup_url: string;
+};
+
 type RemovedFromSharingContext = {
   item_name: string;
 };
@@ -81,6 +88,30 @@ export class MailerService {
     await this.send(
       invitedUserEmail,
       this.configService.get('mailer.templates.invitationToSharingReceived'),
+      context,
+    );
+  }
+
+  async sendInvitationToSharingGuestEmail(
+    ownerOfTheItemEmail: User['email'],
+    invitedUserEmail: User['email'],
+    itemName: File['plainName'] | Folder['plainName'],
+    mailInfo: {
+      signUpUrl: string;
+      message: string;
+    },
+  ): Promise<void> {
+    const context: SendInvitationToSharingGuestContext = {
+      sender_email: ownerOfTheItemEmail,
+      item_name: itemName,
+      signup_url: mailInfo.signUpUrl,
+      notification_message: mailInfo.message,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get(
+        'mailer.templates.invitationToSharingGuestReceived',
+      ),
       context,
     );
   }

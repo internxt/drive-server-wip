@@ -1,4 +1,5 @@
-FROM node:16
+FROM node:iron-slim
+LABEL author="internxt"
 
 WORKDIR /usr/app
 

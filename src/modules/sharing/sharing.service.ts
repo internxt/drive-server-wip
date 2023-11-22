@@ -6,7 +6,7 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
-import { v4 } from 'uuid';
+import { v4, validate as validateUuid } from 'uuid';
 
 import {
   Item,
@@ -17,7 +17,7 @@ import {
   SharingRole,
   SharingType,
 } from './sharing.domain';
-import { User } from '../user/user.domain';
+import { ReferralKey, User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FileUseCases } from '../file/file.usecase';
@@ -46,6 +46,8 @@ import { Sign } from '../../middlewares/passport';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
+import { BridgeService } from 'src/externals/bridge/bridge.service';
+import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -191,6 +193,7 @@ export class SharingService {
     private readonly folderUsecases: FolderUseCases,
     private readonly usersUsecases: UserUseCases,
     private readonly configService: ConfigService,
+    private readonly userReferralsRepository: SequelizeUserReferralsRepository,
   ) {}
 
   async isItemBeingSharedAboveTheLimit(
@@ -262,6 +265,18 @@ export class SharingService {
       item = await this.folderUsecases.getByUuid(sharing.itemId);
       if ((item as Folder).isRemoved()) {
         throw new NotFoundException();
+      }
+    }
+
+    if (!item.plainName) {
+      if (sharing.itemType === 'file') {
+        item.plainName = this.fileUsecases.decrypFileName(
+          item as File,
+        ).plainName;
+      } else {
+        item.plainName = this.folderUsecases.decryptFolderName(
+          item as Folder,
+        ).plainName;
       }
     }
 
@@ -991,13 +1006,18 @@ export class SharingService {
       }
     }
 
-    const userJoining = await this.usersUsecases.findByEmail(
-      createInviteDto.sharedWith,
-    );
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.usersUsecases.findByEmail(createInviteDto.sharedWith),
+      this.usersUsecases.findPreCreatedByEmail(createInviteDto.sharedWith),
+    ]);
+
+    const userJoining = existentUser ?? preCreatedUser;
 
     if (!userJoining) {
       throw new NotFoundException('Invited user not found');
     }
+
+    const isUserPreCreated = !existentUser;
 
     const [invitation, sharing] = await Promise.all([
       this.sharingRepository.getInviteByItemAndUser(
@@ -1034,12 +1054,16 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 2);
+
     const invite = SharingInvite.build({
       id: v4(),
       ...createInviteDto,
       sharedWith: userJoining.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
+      expirationAt: isUserPreCreated ? expirationAt : null,
     });
 
     const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
@@ -1052,15 +1076,19 @@ export class SharingService {
       throw new BadRequestException('Limit for sharing an item reach');
     }
 
-    await this.removeItemFromBeingShared(
-      createInviteDto.itemType,
-      createInviteDto.itemId,
-      SharingType.Public,
-    );
+    const shouldRemoveOtherSharings = !createInviteDto.persistPreviousSharing;
+
+    if (shouldRemoveOtherSharings) {
+      await this.removeItemFromBeingShared(
+        createInviteDto.itemType,
+        createInviteDto.itemId,
+        SharingType.Public,
+      );
+    }
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    if (createInviteDto.notifyUser) {
+    if (createInviteDto.notifyUser && !isUserPreCreated) {
       const authToken = Sign(
         this.usersUsecases.getNewTokenPayload(userJoining),
         this.configService.get('secrets.jwt'),
@@ -1077,6 +1105,26 @@ export class SharingService {
             declineUrl: `${this.configService.get(
               'clients.drive.web',
             )}/sharings/${createdInvite.id}/decline?token=${authToken}`,
+            message: createInviteDto.notificationMessage || '',
+          },
+        )
+        .catch(() => {
+          // no op
+        });
+    }
+
+    if (isUserPreCreated) {
+      const encodedUserEmail = encodeURIComponent(userJoining.email);
+
+      new MailerService(this.configService)
+        .sendInvitationToSharingGuestEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            signUpUrl: `${this.configService.get('clients.drive.web')}/new${
+              createdInvite.id
+            }?invitation=${createdInvite.id}&email=${encodedUserEmail}`,
             message: createInviteDto.notificationMessage || '',
           },
         )
@@ -1108,10 +1156,6 @@ export class SharingService {
       throw new BadRequestException('Wrong item type');
     }
 
-    if (!item.isOwnedBy(user)) {
-      throw new ForbiddenException();
-    }
-
     const newSharing = Sharing.build({
       ...dto,
       id: v4(),
@@ -1122,11 +1166,15 @@ export class SharingService {
       updatedAt: new Date(),
     });
 
-    await this.removeItemFromBeingShared(
-      dto.itemType,
-      dto.itemId,
-      SharingType.Private,
-    );
+    const shouldRemoveOtherSharings = !dto.persistPreviousSharing;
+
+    if (shouldRemoveOtherSharings) {
+      await this.removeItemFromBeingShared(
+        dto.itemType,
+        dto.itemId,
+        SharingType.Private,
+      );
+    }
 
     const sharing = await this.sharingRepository.findOneSharingBy({
       itemId: dto.itemId,
@@ -1134,11 +1182,25 @@ export class SharingService {
       type: SharingType.Public,
     });
 
+    if (!item.isOwnedBy(user) && !sharing) {
+      throw new ForbiddenException();
+    }
+
     if (sharing) {
       return sharing;
     }
 
-    return this.sharingRepository.createSharing(newSharing);
+    const sharingCreated = await this.sharingRepository.createSharing(
+      newSharing,
+    );
+
+    this.userReferralsRepository
+      .applyUserReferral(user.id, ReferralKey.ShareFile)
+      .catch((err) => {
+        // no op
+      });
+
+    return sharingCreated;
   }
 
   private async removeItemFromBeingShared(
@@ -1146,10 +1208,12 @@ export class SharingService {
     itemId: Sharing['itemId'],
     type: Sharing['type'],
   ) {
-    await this.sharingRepository.deleteInvitesBy({
-      itemId,
-      itemType,
-    });
+    if (type === SharingType.Private) {
+      await this.sharingRepository.deleteInvitesBy({
+        itemId,
+        itemType,
+      });
+    }
 
     await this.sharingRepository.deleteSharingsBy({
       itemId,
@@ -1798,5 +1862,88 @@ export class SharingService {
           // no op
         });
     }
+  }
+
+  async validateInvite(inviteId: string): Promise<{ uuid: string }> {
+    if (!validateUuid(inviteId)) {
+      throw new BadRequestException('id is not in uuid format');
+    }
+    const sharingInvite = await this.sharingRepository.getInviteById(inviteId);
+
+    if (!sharingInvite?.expirationAt) {
+      throw new BadRequestException(
+        'We were not able to validate this invitation',
+      );
+    }
+    const now = new Date();
+
+    if (now > sharingInvite.expirationAt) {
+      await this.sharingRepository.deleteInvite(sharingInvite);
+      throw new NotFoundException('Invitation expired');
+    }
+
+    return {
+      uuid: inviteId,
+    };
+  }
+
+  async changeSharingType(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    type: Sharing['type'],
+  ): Promise<void> {
+    let item: File | Folder;
+
+    if (itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(itemId);
+    } else if (itemType === 'folder') {
+      item = await this.folderUsecases.getByUuid(itemId);
+    }
+    const isUserOwner = item.isOwnedBy(user);
+
+    if (!isUserOwner) {
+      throw new ForbiddenException();
+    }
+
+    const changeSharingToPrivate = type === SharingType.Private;
+
+    if (changeSharingToPrivate) {
+      await this.sharingRepository.deleteSharingsBy({
+        itemId,
+        itemType,
+        type: SharingType.Public,
+        ownerId: user.uuid,
+      });
+    }
+  }
+
+  async getSharingType(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+  ): Promise<Sharing> {
+    const [publicSharing, privateSharing] = await Promise.all([
+      this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        '00000000-0000-0000-0000-000000000000',
+        itemId,
+        itemType,
+        SharingType.Public,
+      ),
+      this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        user.uuid,
+        itemId,
+        itemType,
+        SharingType.Private,
+      ),
+    ]);
+
+    const sharedItem = publicSharing || privateSharing;
+
+    if (!sharedItem) {
+      throw new NotFoundException('Item is not being shared');
+    }
+
+    return sharedItem;
   }
 }

@@ -1,6 +1,6 @@
 # Drive Server WIP
 
-[![node](https://img.shields.io/badge/node-16-brightgreen)](https://nodejs.org/download/release/latest-fermium/)
+[![node](https://img.shields.io/badge/node-20-iron)](https://nodejs.org/download/release/latest-iron/)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)

@@ -21,6 +21,8 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
 import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 import { SharingModule } from './modules/sharing/sharing.module';
+import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
+import { PlanModule } from './modules/plan/plan.module';
 
 @Module({
   imports: [
@@ -83,10 +85,18 @@ import { SharingModule } from './modules/sharing/sharing.module';
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    ThrottlerModule.forRoot({
-      ttl: 60,
-      limit: 5,
-    }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60,
+        limit: 5,
+      },
+      {
+        name: 'long',
+        ttl: 3600,
+        limit: 5,
+      },
+    ]),
     NotificationModule,
     FileModule,
     FolderModule,
@@ -102,6 +112,8 @@ import { SharingModule } from './modules/sharing/sharing.module';
     ThumbnailModule,
     FuzzySearchModule,
     SharingModule,
+    AppSumoModule,
+    PlanModule,
   ],
   controllers: [],
   providers: [],

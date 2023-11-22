@@ -65,4 +65,10 @@ export class CreateInviteDto {
     description: 'Message to send into the notification for the invited user',
   })
   notificationMessage?: string;
+
+  @ApiProperty({
+    example: false,
+    description: 'Maintain previous sharings',
+  })
+  persistPreviousSharing: boolean;
 }

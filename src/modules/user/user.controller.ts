@@ -53,6 +53,7 @@ import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { Throttle } from '@nestjs/throttler';
+import { PreCreateUserDto } from './dto/pre-create-user.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -65,7 +66,12 @@ export class UserController {
   ) {}
 
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 3600)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
@@ -84,6 +90,12 @@ export class UserController {
       const keys = await this.keyServerUseCases.addKeysToUser(
         response.user.id,
         createUserDto,
+      );
+
+      await this.userUseCases.replacePreCreatedUser(
+        response.user.email,
+        response.user.uuid,
+        keys.publicKey,
       );
 
       this.notificationsService.add(
@@ -125,6 +137,48 @@ export class UserController {
       } else {
         new Logger().error(
           `[AUTH/REGISTER] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @Post('/pre-create')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Pre create a user',
+  })
+  @ApiOkResponse({ description: 'Pre creates a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  async preCreateUser(
+    @Body() createUserDto: PreCreateUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const user = await this.userUseCases.preCreateUser(createUserDto);
+
+      return {
+        user: {
+          email: user.email,
+          uuid: user.uuid,
+        },
+        publicKey: user.publicKey,
+      };
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof UserAlreadyRegisteredError) {
+        res.status(HttpStatus.CONFLICT);
+      } else {
+        new Logger().error(
+          `[AUTH/PREREGISTER] ERROR: ${
             (err as Error).message
           }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
             (err as Error).stack
