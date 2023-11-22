@@ -410,9 +410,8 @@ export class UserUseCases {
     newUserUuid: string,
     newPublicKey: string,
   ) {
-    const preCreatedUser = await this.preCreatedUserRepository.findByUsername(
-      email,
-    );
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
 
     if (!preCreatedUser) {
       return;

@@ -498,9 +498,8 @@ export class FolderUseCases {
   }
 
   async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {
-    let remainingFolders = await this.folderRepository.clearOrphansFolders(
-      userId,
-    );
+    let remainingFolders =
+      await this.folderRepository.clearOrphansFolders(userId);
 
     if (remainingFolders > 0) {
       remainingFolders += await this.deleteOrphansFolders(userId);
