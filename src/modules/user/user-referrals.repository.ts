@@ -198,9 +198,8 @@ export class SequelizeUserReferralsRepository
       networkPassword,
     );
 
-    const subscriptionPlans = await this.paymentsService.hasSubscriptions(
-      userEmail,
-    );
+    const subscriptionPlans =
+      await this.paymentsService.hasSubscriptions(userEmail);
 
     return (
       !appSumo &&
