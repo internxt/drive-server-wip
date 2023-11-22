@@ -1190,9 +1190,8 @@ export class SharingService {
       return sharing;
     }
 
-    const sharingCreated = await this.sharingRepository.createSharing(
-      newSharing,
-    );
+    const sharingCreated =
+      await this.sharingRepository.createSharing(newSharing);
 
     this.userReferralsRepository
       .applyUserReferral(user.id, ReferralKey.ShareFile)
@@ -1424,9 +1423,8 @@ export class SharingService {
     requester: User,
     sharingRoleId: SharingRole['id'],
   ): Promise<void> {
-    const sharingRole = await this.sharingRepository.findSharingRole(
-      sharingRoleId,
-    );
+    const sharingRole =
+      await this.sharingRepository.findSharingRole(sharingRoleId);
     if (!sharingRole) {
       throw new NotFoundException('Sharing role not found');
     }

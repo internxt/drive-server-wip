@@ -255,7 +255,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: typeof foldersStatuses[number],
+    @Query('status') status: (typeof foldersStatuses)[number],
     @Query('updatedAt') updatedAt?: string,
   ) {
     if (!status) {
