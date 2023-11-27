@@ -133,20 +133,32 @@ export class BridgeService {
   }
 
   async addStorage(uuid: UserAttributes['uuid'], bytes: number): Promise<void> {
-    const url = this.configService.get('apis.storage.url');
-    const username = this.configService.get('apis.storage.username');
-    const password = this.configService.get('apis.storage.password');
+    try {
+      const url = this.configService.get('apis.storage.url');
+      const username = this.configService.get('apis.storage.auth.username');
+      const password = this.configService.get('apis.storage.auth.password');
 
-    const params = {
-      headers: { 'Content-Type': 'application/json' },
-      auth: { username, password },
-    };
+      const params = {
+        headers: { 'Content-Type': 'application/json' },
+        auth: { username, password },
+      };
 
-    await this.httpClient.put(
-      `${url}/gateway/increment-storage-by-uuid`,
-      { uuid, bytes },
-      params,
-    );
+      await this.httpClient.put(
+        `${url}/gateway/increment-storage-by-uuid`,
+        { uuid, bytes },
+        params,
+      );
+    } catch (e) {
+      Logger.error(`
+      BridgeService/addStorage: 
+      
+      Params: 
+        uuid: ${uuid}
+        bytes: ${bytes}
+   
+      AddStorage Error: ${e.toString()}
+      `);
+    }
   }
 
   async getLimit(
