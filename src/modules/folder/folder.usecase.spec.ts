@@ -133,7 +133,13 @@ describe('FolderUseCases', () => {
         removed: false,
         removedAt: null,
       });
-      jest.spyOn(folderRepository, 'findById').mockResolvedValue(mockFolder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockResolvedValueOnce('a descrypt name' as never);
+
       const findDeletedFolders: FolderOptions['deleted'] = false;
       const result = await service.getFolder(folderId, {
         deleted: findDeletedFolders,
@@ -466,7 +472,7 @@ describe('FolderUseCases', () => {
       };
       delete expectedResult.parentId;
 
-      expect(result).toStrictEqual(expectedResult);
+      expect(result).toStrictEqual({ ...expectedResult, sharings: undefined });
     });
 
     it('fails when the folder name is not encrypted', () => {
