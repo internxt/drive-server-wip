@@ -4,7 +4,7 @@ import { UserModel } from '../user/user.model';
 
 export const itemTypes = ['file', 'folder'] as const;
 
-export type ItemType = (typeof itemTypes)[number];
+export type ItemType = typeof itemTypes[number];
 
 export interface LookUpAttributes {
   id: string;
