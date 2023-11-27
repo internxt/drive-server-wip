@@ -5,7 +5,7 @@ import { CryptoService } from '../crypto/crypto.service';
 import { HttpClientModule } from '../http/http.module';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
-import { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { AxiosResponse } from 'axios';
 import { CryptoModule } from '../crypto/crypto.module';
 
 describe('Bridge Service', () => {
@@ -63,7 +63,7 @@ describe('Bridge Service', () => {
         data: null,
         status: 200,
         headers: {},
-        config: {} as InternalAxiosRequestConfig,
+        config: {},
         statusText: 'OK',
       };
       jest.spyOn(configService, 'get').mockReturnValue(testUrl);

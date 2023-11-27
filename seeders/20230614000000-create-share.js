@@ -1,6 +1,7 @@
 'use strict';
 
 const { v4 } = require('uuid');
+const { Op } = require('sequelize');
 
 module.exports = {
   async up(queryInterface, Sequelize) {
@@ -13,17 +14,9 @@ module.exports = {
       },
     );
 
-    const folders = await queryInterface.sequelize.query(
-      'SELECT * FROM folders WHERE user_id IN (:usersIds)',
-      {
-        replacements: { usersIds: [users[0].id, users[1].id] },
-        type: Sequelize.QueryTypes.SELECT,
-      },
-    );
-
     const shareOne = {
       id: 1,
-      folder_id: folders[0].id,
+      folder_id: 1,
       user_id: users[0].id,
       bucket: 'bucketOne',
       file_token: v4(),
@@ -45,6 +38,6 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    await queryInterface.bulkDelete('shares', { id: 1 }, {});
+    await queryInterface.bulkDelete('shares', null, {});
   },
 };

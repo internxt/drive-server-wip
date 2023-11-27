@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -405,8 +410,9 @@ export class UserUseCases {
     newUserUuid: string,
     newPublicKey: string,
   ) {
-    const preCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
+    const preCreatedUser = await this.preCreatedUserRepository.findByUsername(
+      email,
+    );
 
     if (!preCreatedUser) {
       return;
