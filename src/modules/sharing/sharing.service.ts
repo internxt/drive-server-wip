@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
@@ -1197,7 +1198,10 @@ export class SharingService {
     this.userReferralsRepository
       .applyUserReferral(user.id, ReferralKey.ShareFile)
       .catch((err) => {
-        // no op
+        Logger.error(
+          'userReferralsRepository.applyUserReferral: share-file',
+          JSON.stringify(err),
+        );
       });
 
     return sharingCreated;

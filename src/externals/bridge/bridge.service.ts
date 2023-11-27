@@ -148,7 +148,7 @@ export class BridgeService {
         { uuid, bytes },
         params,
       );
-    } catch (e) {
+    } catch (error) {
       Logger.error(`
       BridgeService/addStorage: 
       
@@ -156,7 +156,7 @@ export class BridgeService {
         uuid: ${uuid}
         bytes: ${bytes}
    
-      AddStorage Error: ${e.toString()}
+      AddStorage Error: ${JSON.stringify(error)}
       `);
     }
   }
