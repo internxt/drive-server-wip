@@ -16,8 +16,8 @@ import {
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
 import { FolderModel } from '../../folder/folder.model';
+import { FileModel } from '../../../modules/file/file.model';
 import { PreCreatedUserModel } from '../../../modules/user/pre-created-users.model';
-import { FileModel } from '../../file/file.model';
 
 @Table({
   underscored: true,

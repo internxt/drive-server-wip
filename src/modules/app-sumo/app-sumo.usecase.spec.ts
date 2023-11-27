@@ -49,20 +49,17 @@ describe('AppSumoUseCase', () => {
 
   it('should not set appSumo.planId to "unlimited" when a plan is found', async () => {
     const userId = 1;
-    planRepository.getOneBy.mockRejectedValueOnce(new PlanNotFoundException());
-    try {
-      await useCase.getByUserId(userId);
-    } catch (error) {
-      expect(error).toBeInstanceOf(PlanNotFoundException);
-    }
+    planRepository.getOneBy.mockRejectedValueOnce(PlanNotFoundException);
+
+    const result = await useCase.getByUserId(userId);
+
+    expect(result.planId).not.toEqual('unlimited');
   });
 
   it('should log an error message and rethrow when PlanNotFoundException is caught', async () => {
     const userId = 1;
 
-    planRepository.getOneBy.mockRejectedValueOnce(
-      new PlanNotFoundException('Plan not found'),
-    );
+    planRepository.getOneBy.mockRejectedValueOnce(PlanNotFoundException);
 
     const errorLogSpy = jest.spyOn(useCase['logger'], 'log');
 

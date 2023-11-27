@@ -439,7 +439,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           [Op.not]: null,
         },
       },
-      order: process.env.NODE_ENV === 'test' ? null : additionalOrders,
+      order: additionalOrders,
       limit,
       offset,
     });

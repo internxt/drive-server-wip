@@ -487,15 +487,15 @@ describe('FileUseCases', () => {
         folderId,
       });
 
-      delete fileAttributes['user'];
+      const { user, ...expectedFiles } = fileAttributes;
 
       const result = service.decrypFileName(file);
 
       expect(result).toStrictEqual({
-        ...fileAttributes,
+        ...expectedFiles,
+        name: fileAttributes['name'],
         shares: undefined,
         thumbnails: undefined,
-        sharings: undefined,
         folderId,
       });
     });

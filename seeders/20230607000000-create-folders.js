@@ -3,14 +3,7 @@
 const { v4 } = require('uuid');
 const { Op, Sequelize } = require('sequelize');
 
-const foldersNames = [
-  'FolderOne',
-  'FolderTwo',
-  'FolderFather',
-  'RemovedFolder',
-  'DeletedFolder',
-  'NormalFolder',
-];
+let folderOneUUID, folderTwoUUID;
 
 module.exports = {
   async up(queryInterface) {
@@ -29,18 +22,14 @@ module.exports = {
     const existingFolders = await queryInterface.sequelize.query(
       `SELECT * FROM folders WHERE name IN (:names)`,
       {
-        replacements: {
-          names: foldersNames,
-        },
+        replacements: { names: ['FolderOne', 'FolderTwo'] },
         type: Sequelize.QueryTypes.SELECT,
       },
     );
 
-    if (existingFolders.length === foldersNames.length) {
+    if (existingFolders.length > 0) {
       console.log(
-        `Folders with the names ${foldersNames.join(
-          ',',
-        )} already exist. Skipping creation.`,
+        'Folders with the names "FolderOne" and/or "FolderTwo" already exist. Skipping creation.',
       );
       return;
     }
@@ -59,6 +48,8 @@ module.exports = {
       updated_at: new Date(),
     };
 
+    folderOneUUID = folderOne.uuid;
+
     const folderTwo = {
       parent_id: null,
       name: 'FolderTwo',
@@ -73,118 +64,18 @@ module.exports = {
       updated_at: new Date(),
     };
 
-    const folderFather = createFolderObject(
-      'FolderFather',
-      'bucketFather',
-      users[0].id,
-      null,
-    );
+    folderTwoUUID = folderTwo.uuid;
 
-    await queryInterface.bulkInsert('folders', [folderFather]);
-
-    const fatherFolderSaved = await queryInterface.sequelize.query(
-      `SELECT * FROM folders WHERE uuid = :uuid`,
-      {
-        replacements: { uuid: folderFather.uuid },
-        type: Sequelize.QueryTypes.SELECT,
-      },
-    );
-
-    const deletedFolder = createDeletedFolderObject(
-      'DeletedFolder',
-      'bucketThree',
-      users[0].id,
-      fatherFolderSaved[0].id,
-      fatherFolderSaved[0].uuid,
-    );
-
-    const removedFolder = createRemovedFolderObject(
-      'RemovedFolder',
-      'bucketFour',
-      users[0].id,
-      fatherFolderSaved[0].id,
-      fatherFolderSaved[0].uuid,
-    );
-
-    const normalFolder = createFolderObject(
-      'NormalFolder',
-      'bucketFive',
-      users[0].id,
-      fatherFolderSaved[0].id,
-      fatherFolderSaved[0].uuid,
-    );
-
-    await queryInterface.bulkInsert('folders', [
-      folderOne,
-      folderTwo,
-      removedFolder,
-      deletedFolder,
-      normalFolder,
-    ]);
+    await queryInterface.bulkInsert('folders', [folderOne, folderTwo]);
   },
 
-  async down(queryInterface) {
+  async down(queryInterface, Sequelize) {
     await queryInterface.bulkDelete(
       'folders',
       {
-        name: {
-          [Op.in]: foldersNames,
-        },
+        uuid: { [Op.in]: [folderOneUUID, folderTwoUUID] },
       },
       {},
     );
   },
 };
-
-function createFolderObject(name, bucket, userId, parentId, parentUUID) {
-  return {
-    parent_id: parentId || null,
-    parent_uuid: parentUUID || null,
-    name,
-    bucket,
-    user_id: userId,
-    uuid: v4(),
-    plain_name: name,
-    encrypt_version: '1.0',
-    deleted: false,
-    removed: false,
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
-}
-
-function createDeletedFolderObject(name, bucket, userId, parentId, parentUUID) {
-  return {
-    parent_id: parentId,
-    parent_uuid: parentUUID,
-    name,
-    bucket,
-    user_id: userId,
-    uuid: v4(),
-    plain_name: name,
-    encrypt_version: '1.0',
-    deleted: true,
-    removed: false,
-    deleted_at: new Date(),
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
-}
-
-function createRemovedFolderObject(name, bucket, userId, parentId, parentUUID) {
-  return {
-    parent_id: parentId,
-    parent_uuid: parentUUID,
-    name,
-    bucket,
-    user_id: userId,
-    uuid: v4(),
-    plain_name: name,
-    encrypt_version: '1.0',
-    deleted: false,
-    removed: true,
-    removed_at: new Date(),
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
-}
