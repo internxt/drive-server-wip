@@ -1,9 +1,9 @@
 'use strict';
 
-const { Sequelize, Op } = require('sequelize');
+const { v4 } = require('uuid');
+const { Op, Sequelize } = require('sequelize');
 
-const uuid = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
-const uuid2 = 'd290f1ee-6c54-4b01-90e6-d701748f0852';
+let sharingFolderOneId, sharingFolderTwoId;
 
 module.exports = {
   async up(queryInterface) {
@@ -31,7 +31,7 @@ module.exports = {
     const folderTwo = folders.find((f) => f.name === 'FolderTwo');
 
     const sharingFolderOne = {
-      id: uuid,
+      id: v4(),
       folder_id: folderOne.uuid,
       owner_id: users[0].uuid,
       shared_with: users[1].uuid,
@@ -40,8 +40,10 @@ module.exports = {
       updated_at: new Date(),
     };
 
+    sharingFolderOneId = sharingFolderOne.id;
+
     const sharingFolderTwo = {
-      id: uuid2,
+      id: v4(),
       folder_id: folderTwo.uuid,
       owner_id: users[1].uuid,
       shared_with: users[0].uuid,
@@ -49,6 +51,8 @@ module.exports = {
       created_at: new Date(),
       updated_at: new Date(),
     };
+
+    sharingFolderTwoId = sharingFolderTwo.id;
 
     await queryInterface.bulkInsert('private_sharing_folder', [
       sharingFolderOne,
@@ -60,9 +64,7 @@ module.exports = {
     await queryInterface.bulkDelete(
       'private_sharing_folder',
       {
-        id: {
-          [Op.in]: [uuid, uuid2],
-        },
+        id: { [Op.in]: [sharingFolderOneId, sharingFolderTwoId] },
       },
       {},
     );

@@ -1,17 +1,33 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Keys, KeyServer } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
 import { KeyServerUseCases } from './key-server.usecase';
 
 describe('Key Server Use Cases', () => {
   let service: KeyServerUseCases;
-  let keyServerRepository: DeepMocked<SequelizeKeyServerRepository>;
+  let keyServerRepository: SequelizeKeyServerRepository;
 
   beforeEach(async () => {
-    keyServerRepository = createMock<SequelizeKeyServerRepository>();
-    keyServerRepository.findUserKeysOrCreate.mockResolvedValue({} as any);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        KeyServerUseCases,
+        SequelizeKeyServerRepository,
+        {
+          provide: SequelizeKeyServerRepository,
+          useValue: {
+            findUserKeysOrCreate: () => {
+              return {};
+            },
+          },
+        },
+      ],
+    }).compile();
 
-    service = new KeyServerUseCases(keyServerRepository);
+    service = module.get<KeyServerUseCases>(KeyServerUseCases);
+
+    keyServerRepository = module.get<SequelizeKeyServerRepository>(
+      SequelizeKeyServerRepository,
+    );
   });
 
   it('is be defined', () => {
