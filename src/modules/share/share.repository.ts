@@ -133,6 +133,12 @@ export class SequelizeShareRepository implements ShareRepository {
   constructor(
     @InjectModel(ShareModel)
     private shareModel: typeof ShareModel,
+    @InjectModel(FileModel)
+    private fileModel: typeof FileModel,
+    @InjectModel(FolderModel)
+    private folderModel: typeof FolderModel,
+    @InjectModel(UserModel)
+    private userModel: typeof UserModel,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -144,16 +150,16 @@ export class SequelizeShareRepository implements ShareRepository {
   async findById(id: ShareAttributes['id']) {
     const share = await this.shareModel.findByPk(id, {
       include: [
-        UserModel,
+        this.userModel,
         {
-          model: FileModel,
+          model: this.fileModel,
           where: {
             deleted: false,
           },
           required: false,
         },
         {
-          model: FolderModel,
+          model: this.folderModel,
           where: {
             deleted: false,
           },
@@ -171,9 +177,9 @@ export class SequelizeShareRepository implements ShareRepository {
     const share = await this.shareModel.findOne({
       where: { fileId, userId },
       include: [
-        UserModel,
+        this.userModel,
         {
-          model: FileModel,
+          model: this.fileModel,
           where: {
             deleted: false,
           },
@@ -190,9 +196,9 @@ export class SequelizeShareRepository implements ShareRepository {
     const share = await this.shareModel.findOne({
       where: { folderId, userId },
       include: [
-        UserModel,
+        this.userModel,
         {
-          model: FolderModel,
+          model: this.folderModel,
           where: {
             deleted: false,
           },
@@ -261,16 +267,16 @@ export class SequelizeShareRepository implements ShareRepository {
         },
       },
       include: [
-        UserModel,
+        this.userModel,
         {
-          model: FileModel,
+          model: this.fileModel,
           where: {
             deleted: false,
           },
           required: false,
         },
         {
-          model: FolderModel,
+          model: this.folderModel,
           where: {
             deleted: false,
           },
