@@ -10,9 +10,12 @@ module.exports = {
       throw new Error('No roles found');
     }
 
-    const existingPermissions = await queryInterface.sequelize.query(`SELECT * FROM permissions`, {
-      type: queryInterface.sequelize.QueryTypes.SELECT,
-    });
+    const existingPermissions = await queryInterface.sequelize.query(
+      `SELECT * FROM permissions`,
+      {
+        type: queryInterface.sequelize.QueryTypes.SELECT,
+      },
+    );
 
     if (existingPermissions.length === 0) {
       const permissions = [];
