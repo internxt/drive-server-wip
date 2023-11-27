@@ -11,6 +11,7 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
+import { UserReferralNotFoundException } from './exception/user-referral-not-found.exception';
 import {
   ReferralModel,
   SequelizeReferralRepository,
@@ -150,7 +151,7 @@ export class SequelizeUserReferralsRepository
     });
 
     if (!userReferral) {
-      return;
+      throw new UserReferralNotFoundException();
     }
 
     const userHasReferralsProgram = await this.hasReferralsProgram(
@@ -193,20 +194,14 @@ export class SequelizeUserReferralsRepository
       }
     }
 
-    const maxSpaceBytes = await this.bridgeService.getLimit(
-      networkUser,
-      networkPassword,
-    );
+    const [hasSubscriptions, maxSpaceBytes] = await Promise.all([
+      this.paymentsService.hasSubscriptions(userEmail),
+      this.bridgeService.getLimit(networkUser, networkPassword),
+    ]);
 
-    const subscriptionPlans = await this.paymentsService.hasSubscriptions(
-      userEmail,
-    );
+    const isLifetime = maxSpaceBytes > Constans.MAX_FREE_PLAN_BYTES;
 
-    return (
-      !appSumo &&
-      maxSpaceBytes > Constans.MAX_FREE_PLAN_BYTES &&
-      !subscriptionPlans
-    );
+    return !appSumo && !(isLifetime || hasSubscriptions);
   }
 
   async redeemUserReferral(
