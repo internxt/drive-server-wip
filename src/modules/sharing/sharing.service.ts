@@ -1526,7 +1526,6 @@ export class SharingService {
             this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
               .plainName,
           sharingId: folderWithSharedInfo.id,
-          sharingType: folderWithSharedInfo.type,
           encryptionKey: folderWithSharedInfo.encryptionKey,
           dateShared: folderWithSharedInfo.createdAt,
           sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
@@ -1553,7 +1552,6 @@ export class SharingService {
             fileWithSharedInfo.file.plainName ||
             this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
           sharingId: fileWithSharedInfo.id,
-          sharingType: fileWithSharedInfo.type,
           encryptionKey: fileWithSharedInfo.encryptionKey,
           dateShared: fileWithSharedInfo.createdAt,
           sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
@@ -1606,7 +1604,6 @@ export class SharingService {
             fileWithSharedInfo.file.plainName ||
             this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
           sharingId: fileWithSharedInfo.id,
-          sharingType: fileWithSharedInfo.type,
           encryptionKey: fileWithSharedInfo.encryptionKey,
           dateShared: fileWithSharedInfo.createdAt,
           sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
