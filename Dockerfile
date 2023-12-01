@@ -1,4 +1,4 @@
-FROM node:iron-slim
+FROM node:20.10-alpine
 LABEL author="internxt"
 
 WORKDIR /usr/app
