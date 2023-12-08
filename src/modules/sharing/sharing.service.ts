@@ -1116,22 +1116,31 @@ export class SharingService {
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
-
-      new MailerService(this.configService)
-        .sendInvitationToSharingGuestEmail(
+      try {
+        await new MailerService(
+          this.configService,
+        ).sendInvitationToSharingGuestEmail(
           user.email,
           userJoining.email,
           item.plainName,
           {
-            signUpUrl: `${this.configService.get('clients.drive.web')}/new${
+            signUpUrl: `${this.configService.get(
+              'clients.drive.web',
+            )}/shared-guest?invitation=${
               createdInvite.id
-            }?invitation=${createdInvite.id}&email=${encodedUserEmail}`,
+            }&email=${encodedUserEmail}`,
             message: createInviteDto.notificationMessage || '',
           },
-        )
-        .catch(() => {
-          // no op
-        });
+        );
+      } catch (error) {
+        Logger.error(
+          `[SHARING/GUESTUSEREMAIL] Error sending email pre created userId: ${
+            userJoining.uuid
+          }, error: ${JSON.stringify(error)}`,
+        );
+        await this.sharingRepository.deleteInvite(createdInvite);
+        throw error;
+      }
     }
 
     return createdInvite;
@@ -1191,9 +1200,8 @@ export class SharingService {
       return sharing;
     }
 
-    const sharingCreated = await this.sharingRepository.createSharing(
-      newSharing,
-    );
+    const sharingCreated =
+      await this.sharingRepository.createSharing(newSharing);
 
     this.userReferralsRepository
       .applyUserReferral(user.id, ReferralKey.ShareFile)
@@ -1428,9 +1436,8 @@ export class SharingService {
     requester: User,
     sharingRoleId: SharingRole['id'],
   ): Promise<void> {
-    const sharingRole = await this.sharingRepository.findSharingRole(
-      sharingRoleId,
-    );
+    const sharingRole =
+      await this.sharingRepository.findSharingRole(sharingRoleId);
     if (!sharingRole) {
       throw new NotFoundException('Sharing role not found');
     }
