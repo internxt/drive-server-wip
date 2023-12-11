@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -52,6 +47,7 @@ import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { Sequelize } from 'sequelize-typescript';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -117,7 +113,8 @@ export class UserUseCases {
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
-    private avatarService: AvatarService,
+    private readonly avatarService: AvatarService,
+    private readonly sequelize: Sequelize,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -251,7 +248,7 @@ export class UserUseCases {
       bucketId,
     );
 
-    const [_, [familyFolder, personalFolder]] = await Promise.all([
+    const [, [familyFolder, personalFolder]] = await Promise.all([
       // Relate the root folder to the user
       this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
       this.folderUseCases.createFolders(user, [
@@ -807,5 +804,33 @@ export class UserUseCases {
     if (!avatarKey) return null;
 
     return this.avatarService.getDownloadUrl(avatarKey);
+  }
+
+  async changeUserEmailById(userId: number, newEmail: string) {
+    await this.sequelize.transaction(async (transaction) => {
+      const user = await this.userRepository.findById(userId);
+
+      if (!user) {
+        throw new UserNotFoundError();
+      }
+
+      const { uuid, email } = user;
+
+      await this.networkService.updateUserEmail(uuid, newEmail);
+      await this.userRepository.updateById(
+        user.id,
+        {
+          email: newEmail,
+          username: newEmail,
+          bridgeUser: newEmail,
+        },
+        transaction,
+      );
+      await this.sharedWorkspaceRepository.updateGuestEmail(
+        email,
+        newEmail,
+        transaction,
+      );
+    });
   }
 }
