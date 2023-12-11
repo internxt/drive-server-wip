@@ -1,3 +1,5 @@
+import * as process from 'process';
+
 export default () => ({
   environment: process.env.NODE_ENV,
   isDevelopment: process.env.NODE_ENV === 'development',
@@ -91,6 +93,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
       updatedSharingRole:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_ROLE_UPDATED || '',
+      updateUserEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_UPDATE_USER_EMAIL || '',
     },
   },
   newsletter: {

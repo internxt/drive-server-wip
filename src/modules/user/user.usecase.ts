@@ -47,7 +47,7 @@ import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
-import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -114,7 +114,6 @@ export class UserUseCases {
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
-    private readonly sequelize: Sequelize,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -806,31 +805,38 @@ export class UserUseCases {
     return this.avatarService.getDownloadUrl(avatarKey);
   }
 
-  async changeUserEmailById(userId: number, newEmail: string) {
-    await this.sequelize.transaction(async (transaction) => {
-      const user = await this.userRepository.findById(userId);
+  async changeUserEmailById(
+    userId: number,
+    newEmail: string,
+    transaction: Transaction,
+  ) {
+    const user = await this.userRepository.findById(userId);
 
-      if (!user) {
-        throw new UserNotFoundError();
-      }
+    if (!user) {
+      throw new UserNotFoundError();
+    }
 
-      const { uuid, email } = user;
+    const { uuid, email } = user;
 
-      await this.networkService.updateUserEmail(uuid, newEmail);
-      await this.userRepository.updateById(
-        user.id,
-        {
-          email: newEmail,
-          username: newEmail,
-          bridgeUser: newEmail,
-        },
-        transaction,
-      );
-      await this.sharedWorkspaceRepository.updateGuestEmail(
-        email,
-        newEmail,
-        transaction,
-      );
-    });
+    await this.networkService.updateUserEmail(uuid, newEmail);
+    await this.userRepository.updateById(
+      user.id,
+      {
+        email: newEmail,
+        username: newEmail,
+        bridgeUser: newEmail,
+      },
+      transaction,
+    );
+    await this.sharedWorkspaceRepository.updateGuestEmail(
+      email,
+      newEmail,
+      transaction,
+    );
+
+    return {
+      oldEmail: user.email,
+      newEmail: newEmail,
+    };
   }
 }

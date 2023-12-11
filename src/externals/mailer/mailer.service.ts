@@ -147,4 +147,21 @@ export class MailerService {
       context,
     );
   }
+
+  async sendUpdateUserEmailVerification(
+    newEmail: string,
+    encryptedAttemptId: string,
+  ) {
+    const webUrl = this.configService.get('clients.drive.web');
+
+    const verificationUrl = `${webUrl}/change-email/${encryptedAttemptId}?n=${newEmail}`;
+
+    await this.send(
+      newEmail,
+      this.configService.get('mailer.templates.updateUserEmail'),
+      {
+        verification_url: verificationUrl,
+      },
+    );
+  }
 }
