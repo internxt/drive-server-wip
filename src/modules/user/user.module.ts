@@ -39,6 +39,7 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { SharingService } from '../sharing/sharing.service';
+import { AttemptChangeEmailModule } from './attempt-change-email/attempt-change-email.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { SharingService } from '../sharing/sharing.service';
     AppSumoModule,
     PlanModule,
     forwardRef(() => SharingModule),
+    AttemptChangeEmailModule,
   ],
   controllers: [UserController],
   providers: [
