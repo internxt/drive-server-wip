@@ -11,7 +11,7 @@ import {
   createMessage,
 } from 'openpgp';
 
-export async function generateNewKeys(): Promise<{
+export async function generateNewKeys(date?: Date): Promise<{
   privateKeyArmored: string;
   publicKeyArmored: string;
   revocationCertificate: string;
@@ -19,6 +19,7 @@ export async function generateNewKeys(): Promise<{
   const { privateKey, publicKey, revocationCertificate } = await generateKey({
     userIDs: [{ email: 'inxt@inxt.com' }],
     curve: 'ed25519',
+    date,
   });
 
   return {
