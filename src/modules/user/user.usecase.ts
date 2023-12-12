@@ -480,10 +480,11 @@ export class UserUseCases {
       defaultPass,
     );
 
-    const creationDateWithTolerance = new Date(Date.now() - 1000);
+    const keysCreationDate = new Date();
+    keysCreationDate.setHours(keysCreationDate.getHours() - 1);
 
     const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
-      await generateNewKeys(creationDateWithTolerance);
+      await generateNewKeys(keysCreationDate);
 
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
