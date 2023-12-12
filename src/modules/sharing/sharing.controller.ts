@@ -15,6 +15,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   NotFoundException,
+  Headers,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -35,7 +36,7 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
-import { Item, Sharing, SharingInvite, SharingRole } from './sharing.domain';
+import { Sharing, SharingInvite, SharingRole } from './sharing.domain';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { Folder } from '../folder/folder.domain';
@@ -51,6 +52,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -71,11 +73,68 @@ export class SharingController {
   async getPublicSharing(
     @Param('sharingId') sharingId: Sharing['id'],
     @Query('code') code: string,
+    @Headers('x-share-password') password: string | null,
   ) {
     if (!code) {
       throw new BadRequestException('Code is required');
     }
-    return this.sharingService.getPublicSharingById(sharingId, code);
+    return this.sharingService.getPublicSharingById(sharingId, code, password);
+  }
+
+  @Get('/:sharingId/item')
+  @Public()
+  @ApiOperation({
+    summary: 'Get sharing item info',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get sharing item info' })
+  async getPublicSharingItemInfo(@Param('sharingId') sharingId: Sharing['id']) {
+    return this.sharingService.getPublicSharingItemInfo(sharingId);
+  }
+
+  @Post('/:sharingId/password')
+  @ApiOperation({
+    summary: 'Set password for public sharing',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Sets/edit password for public sharings' })
+  async setPublicSharingPassword(
+    @UserDecorator() user: User,
+    @Param('sharingId') sharingId: Sharing['id'],
+    @Body() sharingPasswordDto: SetSharingPasswordDto,
+  ) {
+    const { code, password } = sharingPasswordDto;
+    return this.sharingService.setSharingPassword(
+      user,
+      sharingId,
+      code,
+      password,
+    );
+  }
+
+  @Delete('/:sharingId/password')
+  @ApiOperation({
+    summary: 'Remove password from public sharing',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Remove ' })
+  async removePublicSharingPassword(
+    @UserDecorator() user: User,
+    @Param('sharingId') sharingId: Sharing['id'],
+  ) {
+    return this.sharingService.removeSharingPassword(user, sharingId);
   }
 
   @Get('/:itemType/:itemId/invites')

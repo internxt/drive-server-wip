@@ -21,6 +21,7 @@ export interface SharingAttributes {
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
   encryptedCode?: string;
+  encryptedPassword?: string;
   encryptionKey: string;
   encryptionAlgorithm: string;
   type: SharingType;
@@ -66,6 +67,7 @@ export class Sharing implements SharingAttributes {
   createdAt: Date;
   updatedAt: Date;
   encryptedCode?: string;
+  encryptedPassword?: string;
   type: SharingType;
 
   folder?: Folder;
@@ -87,6 +89,7 @@ export class Sharing implements SharingAttributes {
     this.encryptionKey = attributes.encryptionKey;
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
     this.encryptedCode = attributes.encryptedCode;
+    this.encryptedPassword = attributes.encryptedPassword;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
 
@@ -109,6 +112,10 @@ export class Sharing implements SharingAttributes {
 
   isPublic(): boolean {
     return this.type === SharingType.Public;
+  }
+
+  isProtected(): boolean {
+    return this.encryptedPassword !== null;
   }
 }
 
