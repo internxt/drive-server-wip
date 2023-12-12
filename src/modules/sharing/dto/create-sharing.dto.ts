@@ -38,6 +38,12 @@ export class CreateSharingDto {
   encryptedCode: Sharing['encryptedCode'];
 
   @ApiProperty({
+    example: 'encrypted_password',
+    description: 'Encrypted password',
+  })
+  encryptedPassword: Sharing['encryptedPassword'];
+
+  @ApiProperty({
     example: false,
     description: 'Maintain previous sharings',
   })
