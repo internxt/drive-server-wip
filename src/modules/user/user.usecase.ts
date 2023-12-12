@@ -410,9 +410,8 @@ export class UserUseCases {
     newUserUuid: string,
     newPublicKey: string,
   ) {
-    const preCreatedUser = await this.preCreatedUserRepository.findByUsername(
-      email,
-    );
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
 
     if (!preCreatedUser) {
       return;
@@ -481,8 +480,10 @@ export class UserUseCases {
       defaultPass,
     );
 
+    const creationDateWithTolerance = new Date(Date.now() - 1000);
+
     const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
-      await generateNewKeys();
+      await generateNewKeys(creationDateWithTolerance);
 
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
