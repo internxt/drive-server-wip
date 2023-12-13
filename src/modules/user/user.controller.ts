@@ -195,12 +195,6 @@ export class UserController {
         keys.publicKey,
       );
 
-      await this.sharingService.acceptInvite(
-        userCreated.user,
-        invitationId,
-        {},
-      );
-
       this.notificationsService.add(
         new SignUpSuccessEvent(userCreated.user as unknown as User, req),
       );
@@ -213,6 +207,18 @@ export class UserController {
         .catch((err) => {
           new Logger().error(
             `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
+              (err as Error).message
+            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+              (err as Error).stack
+            }`,
+          );
+        });
+
+      await this.sharingService
+        .acceptInvite(userCreated.user, invitationId, {})
+        .catch((err) => {
+          new Logger().error(
+            `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
               (err as Error).message
             }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
               (err as Error).stack
