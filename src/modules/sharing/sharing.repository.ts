@@ -480,9 +480,20 @@ export class SequelizeSharingRepository implements SharingRepository {
   }
 
   async bulkUpdate(invites: Partial<SharingInvite>[]): Promise<void> {
-    await this.sharingInvites.bulkCreate(invites, {
-      updateOnDuplicate: ['sharedWith', 'encryptionKey'],
-    });
+    const updatePromises = invites.map((invite) =>
+      this.sharingInvites.update(
+        {
+          sharedWith: invite.sharedWith,
+          encryptionKey: invite.encryptionKey,
+        },
+        {
+          where: {
+            id: invite.id,
+          },
+        },
+      ),
+    );
+    await Promise.all(updatePromises);
   }
 
   async getInvitesByItem(
