@@ -376,6 +376,10 @@ export class SharingService {
       id,
     });
 
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
     if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
       throw new ForbiddenException();
     }
