@@ -249,7 +249,7 @@ export class SharingService {
     if (sharing.isProtected()) {
       const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
       if (decryptedPassword !== plainPassword) {
-        throw new ForbiddenException();
+        throw new ForbiddenException('Incorrect Password');
       }
     }
 
@@ -348,8 +348,7 @@ export class SharingService {
   async setSharingPassword(
     user: User,
     id: Sharing['id'],
-    code: string,
-    password: string,
+    encryptedPassword: string,
   ): Promise<Sharing> {
     const sharing = await this.sharingRepository.findOneSharing({
       id,
@@ -363,7 +362,6 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    const encryptedPassword = aes.encrypt(password, code);
     sharing.encryptedPassword = encryptedPassword;
 
     await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);

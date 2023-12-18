@@ -111,12 +111,11 @@ export class SharingController {
     @Param('sharingId') sharingId: Sharing['id'],
     @Body() sharingPasswordDto: SetSharingPasswordDto,
   ) {
-    const { code, password } = sharingPasswordDto;
+    const { encryptedPassword } = sharingPasswordDto;
     return this.sharingService.setSharingPassword(
       user,
       sharingId,
-      code,
-      password,
+      encryptedPassword,
     );
   }
 

@@ -3,16 +3,9 @@ import { IsNotEmpty } from 'class-validator';
 
 export class SetSharingPasswordDto {
   @ApiProperty({
-    example: 'codeexample',
-    description: 'Code generate client side',
-  })
-  @IsNotEmpty()
-  code: string;
-
-  @ApiProperty({
     example: 'thisIsAPassword',
-    description: 'password',
+    description: 'password encrypted with code generated client side',
   })
   @IsNotEmpty()
-  password: string;
+  encryptedPassword: string;
 }
