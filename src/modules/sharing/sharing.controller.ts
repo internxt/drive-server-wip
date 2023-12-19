@@ -81,7 +81,7 @@ export class SharingController {
     return this.sharingService.getPublicSharingById(sharingId, code, password);
   }
 
-  @Get('/:sharingId/item')
+  @Get('/public/:sharingId/item')
   @Public()
   @ApiOperation({
     summary: 'Get sharing item info',
