@@ -133,12 +133,6 @@ export class SequelizeShareRepository implements ShareRepository {
   constructor(
     @InjectModel(ShareModel)
     private shareModel: typeof ShareModel,
-    /*     @InjectModel(FileModel)
-    private fileModel: typeof FileModel,
-    @InjectModel(FolderModel)
-    private folderModel: typeof FolderModel,
-    @InjectModel(UserModel)
-    private userModel: typeof UserModel, */
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
