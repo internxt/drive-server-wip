@@ -41,8 +41,6 @@ module.exports = {
       updated_at: new Date(),
     };
 
-    sharingFolderOneId = sharingFolderOne.id;
-
     const sharingFolderTwo = {
       id: uuid2,
       folder_id: folderTwo.uuid,
