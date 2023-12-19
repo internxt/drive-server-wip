@@ -5,7 +5,7 @@ export enum AttemptChangeEmailStatus {
 
 export interface AttemptChangeEmailAttributes {
   id: number;
-  userId: number;
+  userUuid: string;
   newEmail: string;
   status: AttemptChangeEmailStatus;
   expiresAt: Date;
