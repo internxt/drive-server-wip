@@ -1,7 +1,6 @@
 'use strict';
 
-const { v4 } = require('uuid');
-const { Op, Sequelize } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 
 const uuid = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
 const uuid2 = 'd290f1ee-6c54-4b01-90e6-d701748f0852';
@@ -61,7 +60,9 @@ module.exports = {
     await queryInterface.bulkDelete(
       'private_sharing_folder',
       {
-        id: { [Op.in]: [sharingFolderOneId, sharingFolderTwoId] },
+        id: {
+          [Op.in]: [uuid, uuid2],
+        },
       },
       {},
     );

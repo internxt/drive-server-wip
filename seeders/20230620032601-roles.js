@@ -1,7 +1,4 @@
-const { Op } = require('sequelize');
-
-const uuid = 'd290f1ee-6c54-4b01-90e6-d801748f0851';
-const uuid2 = 'd290f1ee-6c54-4b01-90e6-d801748f0852';
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
   up: async (queryInterface) => {
@@ -9,33 +6,37 @@ module.exports = {
       type: queryInterface.sequelize.QueryTypes.SELECT,
     });
 
-    if (roles.length === 0) {
-      await queryInterface.bulkInsert('roles', [
-        {
-          id: uuid,
-          name: 'role_1',
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-        {
-          id: uuid2,
-          name: 'role_2',
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-      ]);
+    if (!roles || roles.length === 0) {
+      throw new Error('No roles found');
+    }
+
+    const existingPermissions = await queryInterface.sequelize.query(
+      `SELECT * FROM permissions`,
+      {
+        type: queryInterface.sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    if (existingPermissions.length === 0) {
+      const permissions = [];
+      for (let i = 0; i < roles.length; i++) {
+        const roleId = roles[i].id;
+
+        for (let j = 0; j < 3; j++) {
+          permissions.push({
+            id: uuidv4(),
+            role_id: roleId,
+            name: `Permission${j + 1}`,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
+      }
+      await queryInterface.bulkInsert('permissions', permissions, {});
     }
   },
 
   down: async (queryInterface) => {
-    await queryInterface.bulkDelete(
-      'roles',
-      {
-        id: {
-          [Op.in]: [uuid, uuid2],
-        },
-      },
-      {},
-    );
+    await queryInterface.bulkDelete('permissions', null, {});
   },
 };

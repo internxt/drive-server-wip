@@ -29,7 +29,9 @@ module.exports = {
     const existingFolders = await queryInterface.sequelize.query(
       `SELECT * FROM folders WHERE name IN (:names)`,
       {
-        replacements: { names: foldersNames },
+        replacements: {
+          names: foldersNames,
+        },
         type: Sequelize.QueryTypes.SELECT,
       },
     );
@@ -125,7 +127,9 @@ module.exports = {
     await queryInterface.bulkDelete(
       'folders',
       {
-        uuid: { [Op.in]: foldersNames },
+        name: {
+          [Op.in]: foldersNames,
+        },
       },
       {},
     );

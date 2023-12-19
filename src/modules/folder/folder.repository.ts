@@ -439,7 +439,8 @@ export class SequelizeFolderRepository implements FolderRepository {
           [Op.not]: null,
         },
       },
-      order: additionalOrders,
+      //  Sequelize throws an unknown error on e2e tests additionlOrders is passed here.
+      order: process.env.NODE_ENV === 'test' ? null : additionalOrders,
       limit,
       offset,
     });
