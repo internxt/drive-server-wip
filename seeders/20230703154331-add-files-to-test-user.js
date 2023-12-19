@@ -89,7 +89,7 @@ function generateFakeDataArray(count, folderId, folderUuid, userId) {
   return fakeDataArray;
 }
 module.exports = {
-  async up(queryInterface, Sequelize) {
+  async up(queryInterface) {
     const result = await queryInterface.sequelize.query(
       `SELECT id, uuid FROM users WHERE uuid = '87204d6b-c4a7-4f38-bd99-f7f47964a643'`,
     );
@@ -111,7 +111,7 @@ module.exports = {
     await queryInterface.bulkInsert('files', data);
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     const data = await queryInterface.sequelize.query(
       `SELECT id, uuid FROM users WHERE uuid = '87204d6b-c4a7-4f38-bd99-f7f47964a643' LIMIT 1`,
     );
