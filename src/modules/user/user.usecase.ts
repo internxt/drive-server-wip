@@ -556,7 +556,6 @@ export class UserUseCases {
   }
 
   async sendWelcomeVerifyEmailEmail(email, { userUuid }) {
-    const mailer = new MailerService(this.configService);
     const secret = this.configService.get('secrets.jwt');
     const verificationToken = this.cryptoService.encrypt(
       userUuid,
@@ -570,7 +569,7 @@ export class UserUseCases {
       'mailer.templates.welcomeVerifyEmail',
     );
 
-    return mailer.send(email, verifyAccountTemplateId, {
+    return this.mailerService.send(email, verifyAccountTemplateId, {
       verification_url: url,
       email_support: 'mailto:hello@internxt.com',
     });
@@ -660,7 +659,6 @@ export class UserUseCases {
   }
 
   async sendAccountRecoveryEmail(email: User['email']) {
-    const mailer = new MailerService(this.configService);
     const secret = this.configService.get('secrets.jwt');
 
     const user = await this.userRepository.findByEmail(email);
@@ -685,7 +683,7 @@ export class UserUseCases {
       'mailer.templates.recoverAccountEmail',
     );
 
-    return mailer.send(user.email, recoverAccountTemplateId, {
+    return this.mailerService.send(user.email, recoverAccountTemplateId, {
       email,
       recovery_url: url,
     });
