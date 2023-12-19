@@ -11,9 +11,10 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
-      user_id: {
-        type: Sequelize.INTEGER,
+      user_uuid: {
+        type: Sequelize.STRING(36),
         allowNull: false,
+        references: { model: 'users', key: 'uuid' },
       },
       new_email: {
         type: Sequelize.STRING,

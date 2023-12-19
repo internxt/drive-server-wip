@@ -28,8 +28,8 @@ export class AttemptChangeEmailModel
   @Column(DataType.INTEGER)
   id: AttemptChangeEmailAttributes['id'];
 
-  @Column(DataType.INTEGER)
-  userId: AttemptChangeEmailAttributes['userId'];
+  @Column(DataType.UUID)
+  userUuid: AttemptChangeEmailAttributes['userUuid'];
 
   @Column(DataType.STRING)
   newEmail: AttemptChangeEmailAttributes['newEmail'];

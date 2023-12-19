@@ -39,7 +39,9 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { SharingService } from '../sharing/sharing.service';
-import { AttemptChangeEmailModule } from './attempt-change-email/attempt-change-email.module';
+import { AttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { AttemptChangeEmailModel } from './attempt-change-email.model';
+import { MailerService } from 'src/externals/mailer/mailer.service';
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { AttemptChangeEmailModule } from './attempt-change-email/attempt-change-
       UserReferralModel,
       FriendInvitationModel,
       KeyServerModel,
+      AttemptChangeEmailModel,
     ]),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
@@ -62,7 +65,6 @@ import { AttemptChangeEmailModule } from './attempt-change-email/attempt-change-
     AppSumoModule,
     PlanModule,
     forwardRef(() => SharingModule),
-    AttemptChangeEmailModule,
   ],
   controllers: [UserController],
   providers: [
@@ -83,6 +85,8 @@ import { AttemptChangeEmailModule } from './attempt-change-email/attempt-change-
     PaymentsService,
     AppSumoUseCase,
     SharingService,
+    AttemptChangeEmailRepository,
+    MailerService,
   ],
   exports: [
     UserUseCases,
