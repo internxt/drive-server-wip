@@ -9,6 +9,7 @@ import {
 import { v4 } from 'uuid';
 
 import {
+  newFile,
   newFolder,
   newSharing,
   newSharingRole,
@@ -22,6 +23,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingType } from './sharing.domain';
+import { FileStatus } from '../file/file.domain';
 
 describe('Sharing Use Cases', () => {
   let sharingService: SharingService;
@@ -365,6 +367,112 @@ describe('Sharing Use Cases', () => {
       await expect(
         sharingService.getPublicSharingById(sharing.id, null, null),
       ).rejects.toThrow(PasswordNeededError);
+    });
+  });
+
+  describe('Access to public shared item info', () => {
+    const owner = newUser();
+    const otherUser = publicUser();
+    const folder = newFolder({ owner });
+    const file = newFile({ owner });
+
+    it('Access to public shared folder into', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+
+      const publicSharing = await sharingService.getPublicSharingItemInfo(
+        sharing.id,
+      );
+
+      expect(publicSharing).toStrictEqual({
+        plainName: folder.plainName,
+        size: folder.size,
+        type: folder.type,
+      });
+    });
+
+    it('Access to public shared file into', async () => {
+      const sharing = newSharing({
+        owner,
+        item: file,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      fileUsecases.getByUuid.mockResolvedValue(file);
+
+      const publicSharing = await sharingService.getPublicSharingItemInfo(
+        sharing.id,
+      );
+
+      expect(publicSharing).toStrictEqual({
+        plainName: file.plainName,
+        size: file.size,
+        type: file.type,
+      });
+    });
+
+    it('Access to deteled file or folder into', async () => {
+      const deletedFile = newFile({
+        owner,
+        attributes: { status: FileStatus.DELETED },
+      });
+      const sharing = newSharing({
+        owner,
+        item: deletedFile,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      fileUsecases.getByUuid.mockResolvedValue(deletedFile);
+
+      await expect(
+        sharingService.getPublicSharingItemInfo(sharing.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('Access to deteled folder into', async () => {
+      const deletedFolder = newFolder({
+        owner,
+        attributes: { removed: true },
+      });
+      const sharing = newSharing({
+        owner,
+        item: deletedFolder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      folderUseCases.getByUuid.mockResolvedValue(deletedFolder);
+
+      await expect(
+        sharingService.getPublicSharingItemInfo(sharing.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('Sharing mode is not public', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Private,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.getPublicSharingItemInfo(sharing.id),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });
