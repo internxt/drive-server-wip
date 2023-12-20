@@ -249,7 +249,7 @@ export class SharingService {
     if (sharing.isProtected()) {
       const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
       if (decryptedPassword !== plainPassword) {
-        throw new ForbiddenException('Incorrect Password');
+        throw new ForbiddenException();
       }
     }
 
@@ -359,7 +359,7 @@ export class SharingService {
     }
 
     if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
-      throw new ForbiddenException();
+      throw new BadRequestException();
     }
 
     sharing.encryptedPassword = encryptedPassword;
@@ -379,7 +379,7 @@ export class SharingService {
     }
 
     if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
-      throw new ForbiddenException();
+      throw new BadRequestException();
     }
 
     sharing.encryptedPassword = null;

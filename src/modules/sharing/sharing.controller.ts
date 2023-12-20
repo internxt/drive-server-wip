@@ -16,6 +16,7 @@ import {
   UseGuards,
   NotFoundException,
   Headers,
+  Patch,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -96,7 +97,7 @@ export class SharingController {
     return this.sharingService.getPublicSharingItemInfo(sharingId);
   }
 
-  @Post('/:sharingId/password')
+  @Patch('/:sharingId/password')
   @ApiOperation({
     summary: 'Set password for public sharing',
   })
