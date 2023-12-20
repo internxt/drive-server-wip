@@ -293,7 +293,7 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
-        sharingService.setSharingPassword(owner, '', ''),
+        sharingService.removeSharingPassword(owner, ''),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -368,6 +368,14 @@ describe('Sharing Use Cases', () => {
         sharingService.getPublicSharingById(sharing.id, null, null),
       ).rejects.toThrow(PasswordNeededError);
     });
+
+    it('Should throw if sharing was not found', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(sharingService.getPublicSharingItemInfo('')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 
   describe('Access to public shared item info', () => {
@@ -376,7 +384,7 @@ describe('Sharing Use Cases', () => {
     const folder = newFolder({ owner });
     const file = newFile({ owner });
 
-    it('Access to public shared folder into', async () => {
+    it('Should give access to public shared folder info', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -398,7 +406,7 @@ describe('Sharing Use Cases', () => {
       });
     });
 
-    it('Access to public shared file into', async () => {
+    it('Should give access to public shared file info', async () => {
       const sharing = newSharing({
         owner,
         item: file,
@@ -420,7 +428,7 @@ describe('Sharing Use Cases', () => {
       });
     });
 
-    it('Access to deteled file or folder into', async () => {
+    it('Should throw error if tries to access to deleted folder', async () => {
       const deletedFile = newFile({
         owner,
         attributes: { status: FileStatus.DELETED },
@@ -440,7 +448,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('Access to deteled folder into', async () => {
+    it('Should throw error if tries to access to deleted file', async () => {
       const deletedFolder = newFolder({
         owner,
         attributes: { removed: true },
@@ -460,7 +468,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('Sharing mode is not public', async () => {
+    it('Should throw if sharing mode is not public', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -473,6 +481,14 @@ describe('Sharing Use Cases', () => {
       await expect(
         sharingService.getPublicSharingItemInfo(sharing.id),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('Should throw if sharing was not found', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(sharingService.getPublicSharingItemInfo('')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
