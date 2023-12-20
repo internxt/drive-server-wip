@@ -1,33 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Keys, KeyServer } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
 import { KeyServerUseCases } from './key-server.usecase';
 
 describe('Key Server Use Cases', () => {
   let service: KeyServerUseCases;
-  let keyServerRepository: SequelizeKeyServerRepository;
+  let keyServerRepository: DeepMocked<SequelizeKeyServerRepository>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        KeyServerUseCases,
-        SequelizeKeyServerRepository,
-        {
-          provide: SequelizeKeyServerRepository,
-          useValue: {
-            findUserKeysOrCreate: () => {
-              return {};
-            },
-          },
-        },
-      ],
-    }).compile();
+    keyServerRepository = createMock<SequelizeKeyServerRepository>();
+    keyServerRepository.findUserKeysOrCreate.mockResolvedValue({} as any);
 
-    service = module.get<KeyServerUseCases>(KeyServerUseCases);
-
-    keyServerRepository = module.get<SequelizeKeyServerRepository>(
-      SequelizeKeyServerRepository,
-    );
+    service = new KeyServerUseCases(keyServerRepository);
   });
 
   it('is be defined', () => {
@@ -59,7 +43,7 @@ describe('Key Server Use Cases', () => {
 
       await service.addKeysToUser(userId, keys);
 
-      expect(keyServerRepository.findUserKeysOrCreate).toBeCalledTimes(1);
+      expect(keyServerRepository.findUserKeysOrCreate).toHaveBeenCalledTimes(1);
       expect(keyServerRepository.findUserKeysOrCreate).toHaveBeenCalledWith(
         userId,
         {
@@ -102,7 +86,9 @@ describe('Key Server Use Cases', () => {
 
         await service.addKeysToUser(userId, keys);
 
-        expect(keyServerRepository.findUserKeysOrCreate).toBeCalledTimes(0);
+        expect(keyServerRepository.findUserKeysOrCreate).toHaveBeenCalledTimes(
+          0,
+        );
       },
     );
   });
