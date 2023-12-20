@@ -99,18 +99,52 @@ export const newUser = (): User => {
   });
 };
 
+export const publicUser = (): User => {
+  return User.build({
+    id: randomDataGenerator.natural(),
+    userId: '',
+    name: 'Internxt',
+    lastname: 'Internxt',
+    uuid: '00000000-0000-0000-0000-000000000000',
+    email: 'Internxt@internxt.com',
+    username: 'Internxt@internxt.com',
+    bridgeUser: 'Internxt@internxt.com',
+    password: '',
+    mnemonic: '',
+    referrer: v4(),
+    referralCode: v4(),
+    credit: 0,
+    hKey: Buffer.from(''),
+    rootFolderId: randomDataGenerator.natural(),
+    errorLoginCount: 0,
+    isEmailActivitySended: 0,
+    lastResend: randomDataGenerator.date(),
+    syncDate: randomDataGenerator.date(),
+    welcomePack: false,
+    registerCompleted: false,
+    secret_2FA: '',
+    backupsBucket: '',
+    sharedWorkspace: false,
+    tempKey: '',
+    avatar: v4(),
+  });
+};
+
 export const newSharing = (bindTo?: {
   owner?: User;
   sharedWith?: User;
   item?: File | Folder;
+  sharingType?: SharingType;
+  encryptedPassword?: string;
 }): Sharing => {
   return Sharing.build({
-    type: SharingType.Private,
+    type: bindTo.sharingType ? bindTo.sharingType : SharingType.Private,
     id: v4(),
     itemId: bindTo?.item?.uuid || v4(),
     itemType: (bindTo?.item instanceof File ? 'file' : 'folder') || 'folder',
     ownerId: bindTo?.owner?.uuid || v4(),
     sharedWith: bindTo?.sharedWith?.uuid || v4(),
+    encryptedPassword: bindTo.encryptedPassword || null,
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
     encryptionAlgorithm: 'test',
