@@ -3,8 +3,11 @@ import { Chance } from 'chance';
 
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
-import { PrivateSharingFolder } from '../src/modules/private-share-folder/private-sharing-folder.domain';
-import { Sharing, SharingRole } from '../src/modules/sharing/sharing.domain';
+import {
+  Sharing,
+  SharingRole,
+  SharingType,
+} from '../src/modules/sharing/sharing.domain';
 import { File } from '../src/modules/file/file.domain';
 
 export const constants = {
@@ -96,29 +99,13 @@ export const newUser = (): User => {
   });
 };
 
-export const newPrivateSharingFolder = (bindTo?: {
-  owner?: User;
-  sharedWith?: User;
-  folder?: Folder;
-}): PrivateSharingFolder => {
-  return PrivateSharingFolder.build({
-    id: v4(),
-    folderId: bindTo?.folder?.uuid || v4(),
-    ownerId: bindTo?.owner?.uuid || v4(),
-    sharedWith: bindTo?.sharedWith?.uuid || v4(),
-    createdAt: randomDataGenerator.date(),
-    encryptionKey: randomDataGenerator.string({
-      length: 32,
-    }),
-  });
-};
-
 export const newSharing = (bindTo?: {
   owner?: User;
   sharedWith?: User;
   item?: File | Folder;
 }): Sharing => {
   return Sharing.build({
+    type: SharingType.Private,
     id: v4(),
     itemId: bindTo?.item?.uuid || v4(),
     itemType: (bindTo?.item instanceof File ? 'file' : 'folder') || 'folder',
