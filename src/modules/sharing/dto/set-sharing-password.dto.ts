@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsBase64, IsNotEmpty } from 'class-validator';
 
 export class SetSharingPasswordDto {
   @ApiProperty({
@@ -7,5 +7,6 @@ export class SetSharingPasswordDto {
     description: 'password encrypted with code generated client side',
   })
   @IsNotEmpty()
+  @IsBase64()
   encryptedPassword: string;
 }
