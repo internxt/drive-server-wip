@@ -113,16 +113,6 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         return { ...base };
       }
     });
-
-    return result.map((raw: any) => ({
-      id: raw.id,
-      itemId: raw.item_id,
-      itemType: raw.item_type,
-      userId: raw.user_id,
-      name: raw.name,
-      rank: raw.rank,
-      similarity: raw.similarity,
-    }));
   }
 
   async instert(entry: LookUp): Promise<void> {
