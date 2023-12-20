@@ -1,3 +1,4 @@
+import { FileStatus } from '../src/modules/file/file.domain';
 import * as fixtures from './fixtures';
 
 describe('Testing fixtures tests', () => {
@@ -112,6 +113,95 @@ describe('Testing fixtures tests', () => {
       expect(folder.deletedAt).toBe(settableAttributes.deletedAt);
       expect(folder.removed).toBe(settableAttributes.removed);
       expect(folder.removedAt).toBe(settableAttributes.removedAt);
+    });
+  });
+
+  describe("Files's fixture", () => {
+    it('When it generates a file, then the identifier should be random', () => {
+      const file = fixtures.newFile();
+      const otherFile = fixtures.newFile();
+
+      expect(file.id).toBeGreaterThan(0);
+      expect(file.id).not.toBe(otherFile.id);
+    });
+
+    it('When it generates a file, then the uuid should be random', () => {
+      const file = fixtures.newFile();
+      const otherFile = fixtures.newFile();
+
+      expect(file.uuid).not.toBe(otherFile.uuid);
+    });
+
+    it('When it generates a file with owner, then the userId should be the owner id', () => {
+      const owner = fixtures.newUser();
+      const file = fixtures.newFile({ owner });
+
+      expect(file.userId).toBe(owner.id);
+    });
+
+    it('When it generates a file without owner, then the userId should be random', () => {
+      const file = fixtures.newFile();
+      const otherFile = fixtures.newFile();
+
+      expect(file.userId).not.toEqual(otherFile.userId);
+    });
+
+    it('When it generates a file, then the createdAt should be equal or less than updatedAt', () => {
+      const file = fixtures.newFile();
+
+      expect(file.createdAt.getTime()).toBeLessThanOrEqual(
+        file.updatedAt.getTime(),
+      );
+    });
+
+    it(`When it generates a file, then the bucket length is ${fixtures.constants.BUCKET_ID_LENGTH}`, () => {
+      const file = fixtures.newFile();
+
+      expect(file.bucket.length).toBe(fixtures.constants.BUCKET_ID_LENGTH);
+    });
+
+    it('When it generates a file, then the bucket should be random', () => {
+      const file = fixtures.newFile();
+      const otherFile = fixtures.newFile();
+
+      expect(file.bucket).not.toBe(otherFile.bucket);
+    });
+
+    it('When it generates a file, then the plainName should be random', () => {
+      const file = fixtures.newFile();
+      const otherFile = fixtures.newFile();
+
+      expect(file.plainName).not.toBe(otherFile.plainName);
+    });
+
+    it('When it generates a file and settable attributes are provided, then those attributes are set', () => {
+      const settableAttributes: fixtures.FilesSettableAttributes = {
+        deleted: true,
+        deletedAt: new Date(),
+        removed: true,
+        removedAt: new Date(),
+        status: FileStatus.DELETED,
+      };
+      const file = fixtures.newFile({
+        attributes: settableAttributes,
+      });
+
+      expect(file.deleted).toBe(settableAttributes.deleted);
+      expect(file.deletedAt).toBe(settableAttributes.deletedAt);
+      expect(file.removed).toBe(settableAttributes.removed);
+      expect(file.removed).toBe(settableAttributes.removed);
+      expect(file.status).toBe(settableAttributes.status);
+    });
+
+    it('When it generates a file and a folder is provided, then that folder should be set', () => {
+      const folder = fixtures.newFolder();
+      const file = fixtures.newFile({
+        folder,
+      });
+
+      expect(file.folder).toEqual(folder);
+      expect(file.folderId).toEqual(folder.id);
+      expect(file.folderUuid).toEqual(folder.uuid);
     });
   });
 });
