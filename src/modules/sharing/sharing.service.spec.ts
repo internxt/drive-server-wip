@@ -169,7 +169,7 @@ describe('Sharing Use Cases', () => {
     const encryptedPassword =
       'jeH++sl4x/RmjambJlUs0Y5ugKWdb8ZcwDGS4bhM7emeibsxWXaKtoA673iVY6wbk/pk+WRXQH/qlAi91j+ReQ3Cn9odACF9DoRU81g2dXDJV679MRjbttUMFRo/vWS2PUaKjmm8JQ==';
 
-    it('Owner successfully adds password protection to their sharings, it works', async () => {
+    it('When owner adds password to a public sharing, then it works', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -193,7 +193,7 @@ describe('Sharing Use Cases', () => {
       expect(sharingUpdated.encryptedPassword).toBe(encryptedPassword);
     });
 
-    it('Not owner user tries to set password', async () => {
+    it('When not owner tries to add a password to a public sharing, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -208,7 +208,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('Owner tries to set password for a private sharing, not successful', async () => {
+    it('When owner tries to set a password for a private sharing, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -223,7 +223,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('User tries to add a password to a non existing sharing, not successful', async () => {
+    it('When owner tries to add a password to a non existing sharing, then it fails', async () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
@@ -237,7 +237,7 @@ describe('Sharing Use Cases', () => {
     const otherUser = publicUser();
     const folder = newFolder({ owner });
 
-    it('Owner successfully removes password protection to their sharings', async () => {
+    it('When owner tries to remove a password from a public sharing, then it works', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -259,7 +259,7 @@ describe('Sharing Use Cases', () => {
       expect(sharingUpdated.encryptedPassword).toBe(null);
     });
 
-    it('Not owner user tries to remove password', async () => {
+    it('When not owner user tries to remove the password, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -274,7 +274,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('Owner tries to remove password for a private sharing, not successful', async () => {
+    it('When owner user tries to remove password from a private sharing, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -289,7 +289,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('User tries to remove a password to a non existing sharing, not successful', async () => {
+    it('When user tries to remove a password to a non existing sharing, then it fails', async () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
@@ -308,7 +308,7 @@ describe('Sharing Use Cases', () => {
     const encryptedPassword =
       'jeH++sl4x/RmjambJlUs0Y5ugKWdb8ZcwDGS4bhM7emeibsxWXaKtoA673iVY6wbk/pk+WRXQH/qlAi91j+ReQ3Cn9odACF9DoRU81g2dXDJV679MRjbttUMFRo/vWS2PUaKjmm8JQ==';
 
-    it('Users get access to password protected sharing with correct password', async () => {
+    it('When user gets access to password protected sharing with correct password, then it works', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -330,7 +330,7 @@ describe('Sharing Use Cases', () => {
       expect(publicSharing).toStrictEqual({ ...sharing, item: folder });
     });
 
-    it('Users get access to password protected with incorrect password', async () => {
+    it('When user tries to access to password protected with incorrect password, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -352,7 +352,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('User tries to access to a password protected sharing without any password', async () => {
+    it('When user tries to access to a password protected sharing without any password, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -369,7 +369,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(PasswordNeededError);
     });
 
-    it('Should throw if sharing was not found', async () => {
+    it('When user tries to access to a non existing sharing, then it fails', async () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(sharingService.getPublicSharingItemInfo('')).rejects.toThrow(
@@ -384,7 +384,7 @@ describe('Sharing Use Cases', () => {
     const folder = newFolder({ owner });
     const file = newFile({ owner });
 
-    it('Should give access to public shared folder info', async () => {
+    it('When user tries to access to public shared folder info, then it works', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -406,7 +406,7 @@ describe('Sharing Use Cases', () => {
       });
     });
 
-    it('Should give access to public shared file info', async () => {
+    it('When user tries access to public shared file info, then it works', async () => {
       const sharing = newSharing({
         owner,
         item: file,
@@ -428,7 +428,7 @@ describe('Sharing Use Cases', () => {
       });
     });
 
-    it('Should throw error if tries to access to deleted folder', async () => {
+    it('When user tries to access to a public shared file that was deleted, then it fails', async () => {
       const deletedFile = newFile({
         owner,
         attributes: { status: FileStatus.DELETED },
@@ -448,7 +448,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('Should throw error if tries to access to deleted file', async () => {
+    it('When user tries to access to a public shared folder that was deleted, then it fails', async () => {
       const deletedFolder = newFolder({
         owner,
         attributes: { removed: true },
@@ -468,7 +468,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('Should throw if sharing mode is not public', async () => {
+    it('When user tries to access to a sharing that is not public, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -483,7 +483,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('Should throw if sharing was not found', async () => {
+    it('When user tries to access to a non existing sharing, then it fails', async () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(sharingService.getPublicSharingItemInfo('')).rejects.toThrow(
