@@ -39,7 +39,7 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { SharingService } from '../sharing/sharing.service';
-import { AttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
 
@@ -74,6 +74,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
     SequelizeReferralRepository,
     SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
+    SequelizeAttemptChangeEmailRepository,
     UserUseCases,
     CryptoService,
     BridgeService,
@@ -85,7 +86,6 @@ import { MailerService } from '../../externals/mailer/mailer.service';
     PaymentsService,
     AppSumoUseCase,
     SharingService,
-    AttemptChangeEmailRepository,
     MailerService,
   ],
   exports: [
@@ -93,6 +93,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
     SequelizeUserRepository,
     SequelizeUserReferralsRepository,
     SequelizeReferralRepository,
+    SequelizeAttemptChangeEmailRepository,
   ],
 })
 export class UserModule {}

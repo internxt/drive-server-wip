@@ -52,7 +52,7 @@ import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
-import { AttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
@@ -110,6 +110,7 @@ export class UserUseCases {
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
     private sharingRepository: SequelizeSharingRepository,
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
@@ -122,7 +123,6 @@ export class UserUseCases {
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
-    private readonly attemptChangeEmailRepository: AttemptChangeEmailRepository,
     private readonly mailerService: MailerService,
   ) {}
 
