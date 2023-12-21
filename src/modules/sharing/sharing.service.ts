@@ -5,7 +5,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { v4, validate as validateUuid } from 'uuid';
 
@@ -47,7 +46,6 @@ import { Sign } from '../../middlewares/passport';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
-import { BridgeService } from 'src/externals/bridge/bridge.service';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 
 export class InvalidOwnerError extends Error {
@@ -162,6 +160,13 @@ export class SharedFolderRemovedError extends Error {
   }
 }
 
+export class PasswordNeededError extends ForbiddenException {
+  constructor() {
+    super('Password Needed for protected sharings');
+    Object.setPrototypeOf(this, PasswordNeededError.prototype);
+  }
+}
+
 type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
@@ -185,6 +190,8 @@ type PublicSharingInfo = Pick<
   | 'updatedAt'
   | 'type'
 > & { item: Item; itemToken: string };
+
+type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
 @Injectable()
 export class SharingService {
@@ -224,6 +231,7 @@ export class SharingService {
   async getPublicSharingById(
     id: Sharing['id'],
     code: string,
+    plainPassword?: string,
   ): Promise<PublicSharingInfo> {
     const sharing = await this.sharingRepository.findOneSharing({
       id,
@@ -232,6 +240,17 @@ export class SharingService {
 
     if (!sharing.isPublic()) {
       throw new ForbiddenException();
+    }
+
+    if (sharing.isProtected() && !plainPassword) {
+      throw new PasswordNeededError();
+    }
+
+    if (sharing.isProtected()) {
+      const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
+      if (decryptedPassword !== plainPassword) {
+        throw new ForbiddenException();
+      }
     }
 
     const response: Partial<PublicSharingInfo> = { ...sharing };
@@ -284,6 +303,89 @@ export class SharingService {
     response['item'] = item;
 
     return response as PublicSharingInfo;
+  }
+
+  async getPublicSharingItemInfo(id: Sharing['id']): Promise<SharingItemInfo> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic()) {
+      throw new ForbiddenException();
+    }
+
+    let item: Item;
+    if (sharing.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(sharing.itemId);
+      if (item.isDeleted()) {
+        throw new NotFoundException();
+      }
+    } else {
+      item = await this.folderUsecases.getByUuid(sharing.itemId);
+      if (item.isRemoved()) {
+        throw new NotFoundException();
+      }
+    }
+
+    if (!item.plainName) {
+      if (item instanceof File) {
+        item.plainName = this.fileUsecases.decrypFileName(item).plainName;
+      } else {
+        item.plainName = this.folderUsecases.decryptFolderName(item).plainName;
+      }
+    }
+    return {
+      plainName: item.plainName,
+      type: item.type,
+      size: item.size,
+    };
+  }
+
+  async setSharingPassword(
+    user: User,
+    id: Sharing['id'],
+    encryptedPassword: string,
+  ): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
+      throw new BadRequestException();
+    }
+
+    sharing.encryptedPassword = encryptedPassword;
+
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  async removeSharingPassword(user: User, id: Sharing['id']): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
+      throw new BadRequestException();
+    }
+
+    sharing.encryptedPassword = null;
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
   }
 
   async getInvites(

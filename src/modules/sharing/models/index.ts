@@ -122,6 +122,9 @@ export class SharingModel extends Model implements SharingAttributes {
   @Column(DataType.STRING)
   encryptionKey: SharingAttributes['encryptionKey'];
 
+  @Column({ type: DataType.STRING, allowNull: true, defaultValue: null })
+  encryptedPassword: SharingAttributes['encryptedPassword'];
+
   @AllowNull(false)
   @Column(DataType.ENUM('public', 'private'))
   type: SharingAttributes['type'];
