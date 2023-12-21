@@ -1,5 +1,3 @@
-import * as process from 'process';
-
 export default () => ({
   environment: process.env.NODE_ENV,
   isDevelopment: process.env.NODE_ENV === 'development',
