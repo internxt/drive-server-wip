@@ -544,10 +544,8 @@ export class UserController {
   @UseFilters(new HttpExceptionFilter())
   @HttpCode(201)
   @Post('/attempt-change-email/:encryptedAttemptChangeEmailId/accept')
-  async acceptAttemptChangeEmail(
-    @Param('encryptedAttemptChangeEmailId') id: string,
-  ) {
-    return await this.userUseCases.acceptAttemptChangeEmail(id);
+  acceptAttemptChangeEmail(@Param('encryptedAttemptChangeEmailId') id: string) {
+    return this.userUseCases.acceptAttemptChangeEmail(id);
   }
 
   @UseFilters(new HttpExceptionFilter())
