@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
@@ -849,6 +854,21 @@ export class UserUseCases {
   }
 
   async createAttemptChangeEmail(user: User, newEmail: string): Promise<void> {
+    const maybeAlreadyExistentUser =
+      await this.userRepository.findByUsername(newEmail);
+
+    const userAlreadyExists = !!maybeAlreadyExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newEmail);
+    }
+
+    const isTheSameEmail = user.email === newEmail;
+
+    if (isTheSameEmail) {
+      throw new BadRequestException('Requested the change to the same email');
+    }
+
     const attempt = await this.attemptChangeEmailRepository.create({
       userUuid: user.uuid,
       newEmail,
