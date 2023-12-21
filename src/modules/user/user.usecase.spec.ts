@@ -22,6 +22,8 @@ import { File, FileAttributes } from '../file/file.domain';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 describe('User use cases', () => {
   let userUseCases: UserUseCases;
@@ -287,6 +289,14 @@ const createTestingModule = (): Promise<TestingModule> => {
       {
         provide: AvatarService,
         useValue: createMock<AvatarService>(),
+      },
+      {
+        provide: SequelizeAttemptChangeEmailRepository,
+        useValue: createMock<SequelizeAttemptChangeEmailRepository>(),
+      },
+      {
+        provide: MailerService,
+        useValue: createMock<MailerService>(),
       },
       UserUseCases,
     ],
