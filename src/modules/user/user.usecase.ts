@@ -815,6 +815,15 @@ export class UserUseCases {
       throw new UserNotFoundError();
     }
 
+    const maybeAlreadyExistentUser =
+      await this.userRepository.findByUsername(newEmail);
+
+    const userAlreadyExists = !!maybeAlreadyExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newEmail);
+    }
+
     const { uuid, email } = user;
 
     await this.userRepository.updateById(user.id, {
