@@ -6,7 +6,7 @@ import {
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
-import { BaseHttpException } from 'src/common/base-http.exception';
+import { BaseHttpException } from '../../common/base-http.exception';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {

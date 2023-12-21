@@ -11,7 +11,7 @@ import {
   AttemptChangeEmailAttributes,
   AttemptChangeEmailStatus,
 } from './attempt-change-email.attributes';
-import { Time } from 'src/lib/time';
+import { Time } from '../../lib/time';
 import { Sequelize } from 'sequelize';
 
 @Table({

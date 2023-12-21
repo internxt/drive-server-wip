@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { BaseHttpException } from 'src/common/base-http.exception';
+import { BaseHttpException } from '../../../common/base-http.exception';
 
 export class BridgeException extends BaseHttpException {
   constructor(

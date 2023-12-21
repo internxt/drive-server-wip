@@ -58,7 +58,7 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
-import { HttpExceptionFilter } from 'src/lib/http/http-exception.filter';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('User')
 @Controller('users')
