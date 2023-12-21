@@ -5,7 +5,7 @@ import { AttemptChangeEmailStatus } from './attempt-change-email.attributes';
 import { Transaction } from 'sequelize';
 
 @Injectable()
-export class AttemptChangeEmailRepository {
+export class SequelizeAttemptChangeEmailRepository {
   constructor(
     @InjectModel(AttemptChangeEmailModel)
     private readonly model: typeof AttemptChangeEmailModel,
