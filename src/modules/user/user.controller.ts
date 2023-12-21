@@ -57,7 +57,7 @@ import { Throttle } from '@nestjs/throttler';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { SharingService } from '../sharing/sharing.service';
-import { CreateAttemptChangeEmail } from './dto/create-attempt-change-email.dto';
+import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { HttpExceptionFilter } from 'src/lib/http/http-exception.filter';
 
 @ApiTags('User')
@@ -536,7 +536,7 @@ export class UserController {
   @Post('/attempt-change-email')
   async createAttemptChangeEmail(
     @UserDecorator() user: User,
-    @Body() body: CreateAttemptChangeEmail,
+    @Body() body: CreateAttemptChangeEmailDto,
   ) {
     await this.userUseCases.createAttemptChangeEmail(user, body.newEmail);
   }
