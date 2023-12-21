@@ -41,7 +41,7 @@ import { SharingModule } from '../sharing/sharing.module';
 import { SharingService } from '../sharing/sharing.service';
 import { AttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
-import { MailerService } from 'src/externals/mailer/mailer.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 @Module({
   imports: [
