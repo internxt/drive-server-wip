@@ -831,21 +831,22 @@ export class UserUseCases {
 
     const { uuid, email } = user;
 
-    await this.userRepository.updateById(user.id, {
-      email: newEmail,
-      username: newEmail,
-      bridgeUser: newEmail,
-    });
-    await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+    await this.networkService.updateUserEmail(uuid, newEmail);
 
-    this.networkService.updateUserEmail(uuid, newEmail).catch(async () => {
+    try {
       await this.userRepository.updateById(user.id, {
-        email,
-        username: email,
-        bridgeUser: email,
+        email: newEmail,
+        username: newEmail,
+        bridgeUser: newEmail,
       });
-      await this.sharedWorkspaceRepository.updateGuestEmail(newEmail, email);
-    });
+      await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+    } catch (error) {
+      Logger.error(`[CHANGE-EMAIL/ERROR]: ${JSON.stringify(error)}.`);
+
+      await this.networkService.updateUserEmail(uuid, email);
+
+      throw error;
+    }
 
     return {
       oldEmail: user.email,
