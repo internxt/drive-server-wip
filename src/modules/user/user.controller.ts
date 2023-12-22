@@ -98,11 +98,13 @@ export class UserController {
         createUserDto,
       );
 
-      await this.userUseCases.replacePreCreatedUser(
-        response.user.email,
-        response.user.uuid,
-        keys.publicKey,
-      );
+      if (req.headers['internxt-client'] !== 'drive-mobile') {
+        await this.userUseCases.replacePreCreatedUser(
+          response.user.email,
+          response.user.uuid,
+          keys.publicKey,
+        );
+      }
 
       this.notificationsService.add(
         new SignUpSuccessEvent(response.user as unknown as User, req),
