@@ -18,6 +18,7 @@ import {
   Query,
   UnauthorizedException,
   BadRequestException,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -56,6 +57,8 @@ import { Throttle } from '@nestjs/throttler';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { SharingService } from '../sharing/sharing.service';
+import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('User')
 @Controller('users')
@@ -525,5 +528,32 @@ export class UserController {
     return {
       publicKey: await this.keyServerUseCases.getPublicKey(user.id),
     };
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @HttpCode(201)
+  @UseGuards(ThrottlerGuard)
+  @Post('/attempt-change-email')
+  async createAttemptChangeEmail(
+    @UserDecorator() user: User,
+    @Body() body: CreateAttemptChangeEmailDto,
+  ) {
+    await this.userUseCases.createAttemptChangeEmail(user, body.newEmail);
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @HttpCode(201)
+  @Post('/attempt-change-email/:encryptedAttemptChangeEmailId/accept')
+  acceptAttemptChangeEmail(@Param('encryptedAttemptChangeEmailId') id: string) {
+    return this.userUseCases.acceptAttemptChangeEmail(id);
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @HttpCode(200)
+  @Get('/attempt-change-email/:encryptedAttemptChangeEmailId/verify-expiration')
+  async verifyAttemptChangeEmail(
+    @Param('encryptedAttemptChangeEmailId') id: string,
+  ) {
+    return await this.userUseCases.isAttemptChangeEmailExpired(id);
   }
 }

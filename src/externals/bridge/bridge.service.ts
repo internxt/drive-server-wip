@@ -1,4 +1,4 @@
-import { Logger, Inject, Injectable } from '@nestjs/common';
+import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
@@ -6,6 +6,10 @@ import { User } from '../../modules/user/user.domain';
 import { UserAttributes } from '../../modules/user/user.attributes';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
+import { AxiosError } from 'axios';
+import { BridgeUserNotFoundException } from './exception/bridge-user-not-found.exception';
+import { BridgeException } from './exception/bridge.exception';
+import { BridgeUserEmailAlreadyInUseException } from './exception/bridge-user-email-already-in-use.exception';
 
 export function signToken(
   duration: string,
@@ -27,6 +31,17 @@ export class BridgeService {
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {}
+
+  static handleUpdateUserEmailError(error: AxiosError) {
+    switch (error.response.status) {
+      case HttpStatus.CONFLICT:
+        throw new BridgeUserEmailAlreadyInUseException();
+      case HttpStatus.NOT_FOUND:
+        throw new BridgeUserNotFoundException();
+      default:
+        throw new BridgeException('Error updating user email');
+    }
+  }
 
   private authorizationHeaders(user: string, password: string | number) {
     const hashedPassword = this.cryptoService.hashSha256(password.toString());
@@ -180,5 +195,34 @@ export class BridgeService {
         },
       })
       .then<number>((response) => response.data.maxSpaceBytes);
+  }
+
+  async updateUserEmail(userUUID: string, newEmail: string): Promise<any> {
+    try {
+      const jwt = signToken(
+        '5m',
+        this.configService.get('secrets.gateway'),
+        this.configService.get('isDevelopment'),
+      );
+
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
+      };
+
+      await this.httpClient.patch(
+        `${this.networkUrl}/v2/gateway/users/${userUUID}`,
+        { email: newEmail },
+        params,
+      );
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        BridgeService.handleUpdateUserEmailError(error);
+      }
+
+      throw error;
+    }
   }
 }

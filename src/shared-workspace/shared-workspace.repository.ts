@@ -13,6 +13,7 @@ import {
 } from 'sequelize-typescript';
 import { UserAttributes } from '../modules/user/user.attributes';
 import { UserModel } from '../modules/user/user.model';
+import { Transaction } from 'sequelize';
 
 interface FriendInvitationAttributes {
   id: number;
@@ -66,6 +67,24 @@ export class SequelizeSharedWorkspaceRepository
     @InjectModel(FriendInvitationModel)
     private model: typeof FriendInvitationModel,
   ) {}
+
+  async updateGuestEmail(
+    oldGuestEmail: string,
+    newGuestEmail: string,
+    t?: Transaction,
+  ) {
+    await this.model.update(
+      {
+        guestEmail: newGuestEmail,
+      },
+      {
+        where: {
+          guestEmail: oldGuestEmail,
+        },
+        transaction: t,
+      },
+    );
+  }
 
   async updateByHostAndGuest(
     host: FriendInvitationAttributes['host'],
