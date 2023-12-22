@@ -101,7 +101,7 @@ export class UserController {
       await this.userUseCases.replacePreCreatedUser(
         response.user.email,
         response.user.uuid,
-        keys.publicKey,
+        keys?.publicKey,
       );
 
       this.notificationsService.add(

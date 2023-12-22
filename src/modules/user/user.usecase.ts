@@ -414,7 +414,7 @@ export class UserUseCases {
   async replacePreCreatedUser(
     email: string,
     newUserUuid: string,
-    newPublicKey: string,
+    newPublicKey?: string,
   ) {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);

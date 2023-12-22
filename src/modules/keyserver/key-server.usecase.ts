@@ -7,9 +7,12 @@ import { SequelizeKeyServerRepository } from './key-server.repository';
 export class KeyServerUseCases {
   constructor(private repository: SequelizeKeyServerRepository) {}
 
-  async addKeysToUser(userId: UserAttributes['id'], keys: Keys): Promise<Keys> {
+  async addKeysToUser(
+    userId: UserAttributes['id'],
+    keys: Keys,
+  ): Promise<Keys | null> {
     if (!keys.privateKey || !keys.publicKey || !keys.revocationKey) {
-      return;
+      return null;
     }
 
     const [{ publicKey, privateKey, revocationKey }] =
