@@ -39,13 +39,8 @@ describe('Folder module', () => {
   let userTestRerpository: UserTestRepository;
 
   beforeAll(async () => {
-    jest.resetModules();
-
     folderTestRepository = new FolderTestRepository(sequelizeTest);
     userTestRerpository = new UserTestRepository(sequelizeTest);
-
-    await sequelizeTest.authenticate();
-    await sequelizeTest.sync();
     user = await userTestRerpository.getPrincipalUser();
     userToken = userTestRerpository.generateToken(user, getEnv().secrets.jwt);
 
@@ -211,7 +206,6 @@ describe('Folder module', () => {
   });
 
   describe('Delete /folders - Delete Folders', () => {
-    // TODO: fix this test in the pipeline, in local it runs fine
     it.skip('should delete all orphan folders', async () => {
       const uuid = v4();
 
