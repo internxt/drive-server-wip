@@ -1,8 +1,8 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
@@ -52,6 +52,10 @@ import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
+import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
+import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -106,6 +110,7 @@ export class UserUseCases {
     private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private referralsRepository: SequelizeReferralRepository,
     private userReferralsRepository: SequelizeUserReferralsRepository,
+    private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
     private sharingRepository: SequelizeSharingRepository,
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
@@ -117,7 +122,8 @@ export class UserUseCases {
     private readonly paymentsService: PaymentsService,
     private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
-    private avatarService: AvatarService,
+    private readonly avatarService: AvatarService,
+    private readonly mailerService: MailerService,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -251,7 +257,7 @@ export class UserUseCases {
       bucketId,
     );
 
-    const [_, [familyFolder, personalFolder]] = await Promise.all([
+    const [, [familyFolder, personalFolder]] = await Promise.all([
       // Relate the root folder to the user
       this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
       this.folderUseCases.createFolders(user, [
@@ -555,7 +561,6 @@ export class UserUseCases {
   }
 
   async sendWelcomeVerifyEmailEmail(email, { userUuid }) {
-    const mailer = new MailerService(this.configService);
     const secret = this.configService.get('secrets.jwt');
     const verificationToken = this.cryptoService.encrypt(
       userUuid,
@@ -569,7 +574,7 @@ export class UserUseCases {
       'mailer.templates.welcomeVerifyEmail',
     );
 
-    return mailer.send(email, verifyAccountTemplateId, {
+    return this.mailerService.send(email, verifyAccountTemplateId, {
       verification_url: url,
       email_support: 'mailto:hello@internxt.com',
     });
@@ -659,7 +664,6 @@ export class UserUseCases {
   }
 
   async sendAccountRecoveryEmail(email: User['email']) {
-    const mailer = new MailerService(this.configService);
     const secret = this.configService.get('secrets.jwt');
 
     const user = await this.userRepository.findByEmail(email);
@@ -684,7 +688,7 @@ export class UserUseCases {
       'mailer.templates.recoverAccountEmail',
     );
 
-    return mailer.send(user.email, recoverAccountTemplateId, {
+    return this.mailerService.send(user.email, recoverAccountTemplateId, {
       email,
       recovery_url: url,
     });
@@ -807,5 +811,125 @@ export class UserUseCases {
     if (!avatarKey) return null;
 
     return this.avatarService.getDownloadUrl(avatarKey);
+  }
+
+  async changeUserEmailById(userUuid: string, newEmail: string) {
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      throw new UserNotFoundError();
+    }
+
+    const maybeAlreadyExistentUser =
+      await this.userRepository.findByUsername(newEmail);
+
+    const userAlreadyExists = !!maybeAlreadyExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newEmail);
+    }
+
+    const { uuid, email } = user;
+
+    await this.networkService.updateUserEmail(uuid, newEmail);
+
+    try {
+      await this.userRepository.updateById(user.id, {
+        email: newEmail,
+        username: newEmail,
+        bridgeUser: newEmail,
+      });
+      await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+    } catch (error) {
+      Logger.error(`[CHANGE-EMAIL/ERROR]: ${JSON.stringify(error)}.`);
+
+      await this.networkService.updateUserEmail(uuid, email);
+
+      throw error;
+    }
+
+    return {
+      oldEmail: user.email,
+      newEmail: newEmail,
+    };
+  }
+
+  async createAttemptChangeEmail(user: User, newEmail: string): Promise<void> {
+    const maybeAlreadyExistentUser =
+      await this.userRepository.findByUsername(newEmail);
+
+    const userAlreadyExists = !!maybeAlreadyExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newEmail);
+    }
+
+    const isTheSameEmail = user.email === newEmail;
+
+    if (isTheSameEmail) {
+      throw new BadRequestException('Requested the change to the same email');
+    }
+
+    const attempt = await this.attemptChangeEmailRepository.create({
+      userUuid: user.uuid,
+      newEmail,
+    });
+
+    const encryptedId = this.cryptoService.encryptText(attempt.id.toString());
+
+    await this.mailerService.sendUpdateUserEmailVerification(
+      newEmail,
+      encryptedId,
+    );
+  }
+
+  async isAttemptChangeEmailExpired(encryptedId: string) {
+    const attemptChangeEmailId = parseInt(
+      this.cryptoService.decryptText(encryptedId),
+    );
+
+    const attemptChangeEmail =
+      await this.attemptChangeEmailRepository.getOneById(attemptChangeEmailId);
+
+    if (!attemptChangeEmail) {
+      throw new AttemptChangeEmailNotFoundException();
+    }
+
+    if (attemptChangeEmail.isVerified) {
+      throw new AttemptChangeEmailAlreadyVerifiedException();
+    }
+
+    return { isExpired: attemptChangeEmail.isExpired };
+  }
+
+  async acceptAttemptChangeEmail(encryptedId: string) {
+    const attemptChangeEmailId = parseInt(
+      this.cryptoService.decryptText(encryptedId),
+    );
+
+    const attemptChangeEmail =
+      await this.attemptChangeEmailRepository.getOneById(attemptChangeEmailId);
+
+    if (!attemptChangeEmail) {
+      throw new AttemptChangeEmailNotFoundException();
+    }
+
+    if (attemptChangeEmail.isExpired) {
+      throw new AttemptChangeEmailHasExpiredException();
+    }
+
+    if (attemptChangeEmail.isVerified) {
+      throw new AttemptChangeEmailAlreadyVerifiedException();
+    }
+
+    const emails = await this.changeUserEmailById(
+      attemptChangeEmail.userUuid,
+      attemptChangeEmail.newEmail,
+    );
+    await this.attemptChangeEmailRepository.acceptAttemptChangeEmail(
+      attemptChangeEmailId,
+    );
+
+    return emails;
   }
 }

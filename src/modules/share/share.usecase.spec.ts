@@ -65,6 +65,9 @@ import { AppSumoModel } from '../app-sumo/app-sumo.model';
 import { SequelizeAppSumoRepository } from '../app-sumo/app-sumo.repository';
 import { SequelizePlanRepository } from '../plan/plan.repository';
 import { PlanModel } from '../plan/plan.model';
+import { SequelizeAttemptChangeEmailRepository } from '../user/attempt-change-email.repository';
+import { createMock } from '@golevelup/ts-jest';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -320,6 +323,14 @@ describe('Share Use Cases', () => {
         {
           provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
+        },
+        {
+          provide: SequelizeAttemptChangeEmailRepository,
+          useValue: createMock<SequelizeAttemptChangeEmailRepository>(),
+        },
+        {
+          provide: MailerService,
+          useValue: createMock<MailerService>(),
         },
       ],
     }).compile();
