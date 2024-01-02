@@ -26,4 +26,5 @@ export interface UserAttributes {
   sharedWorkspace: boolean;
   tempKey: string;
   avatar: string;
+  unblockToken?: string;
 }

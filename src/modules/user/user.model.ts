@@ -119,4 +119,8 @@ export class UserModel extends Model implements UserAttributes {
   @AllowNull
   @Column
   avatar: string;
+
+  @AllowNull
+  @Column
+  unblockToken: string;
 }
