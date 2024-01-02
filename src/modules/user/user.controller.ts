@@ -487,18 +487,19 @@ export class UserController {
       throw new ForbiddenException();
     }
 
+    const tokenPayload = decodedContent?.payload;
+
     if (
-      !decodedContent.payload ||
-      !decodedContent.payload.action ||
-      !decodedContent.payload.uuid ||
-      !decodedContent.payload.email ||
-      decodedContent.payload.action !== AccountTokenAction.Unblock ||
-      !validate(decodedContent.payload.uuid)
+      !tokenPayload.action ||
+      !tokenPayload.uuid ||
+      !tokenPayload.email ||
+      tokenPayload.action !== AccountTokenAction.Unblock ||
+      !validate(tokenPayload.uuid)
     ) {
       throw new ForbiddenException();
     }
 
-    const { uuid, email } = decodedContent.payload;
+    const { uuid, email } = tokenPayload;
 
     try {
       await this.userUseCases.unblockAccount(uuid, token);
