@@ -5,7 +5,7 @@ import { UserUseCases } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { User } from './user.domain';
+import { AccountTokenAction, User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { SequelizeReferralRepository } from './referrals.repository';
@@ -24,12 +24,30 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { SignWithCustomDuration } from '../../middlewares/passport';
+
+jest.mock('../../middlewares/passport', () => {
+  const originalModule = jest.requireActual('../../middlewares/passport');
+  return {
+    __esModule: true,
+    ...originalModule,
+    SignWithCustomDuration: jest.fn((payload, secret, expiresIn) => 'anyToken'),
+  };
+});
 
 describe('User use cases', () => {
   let userUseCases: UserUseCases;
   let shareUseCases: ShareUseCases;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
+  let mailerService: MailerService;
+  let userRepository: SequelizeUserRepository;
+  let configService: ConfigService;
 
   const user = User.build({
     id: 1,
@@ -67,6 +85,11 @@ describe('User use cases', () => {
     folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);
     fileUseCases = moduleRef.get<FileUseCases>(FileUseCases);
     userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
+    mailerService = moduleRef.get<MailerService>(MailerService);
+    configService = moduleRef.get<ConfigService>(ConfigService);
+    userRepository = moduleRef.get<SequelizeUserRepository>(
+      SequelizeUserRepository,
+    );
   });
 
   describe('Resetting a user', () => {
@@ -213,6 +236,89 @@ describe('User use cases', () => {
           expect(deleteFoldersSpy).not.toBeCalled();
           expect(deleteFilesSpy).toBeCalledWith(user, files);
         });
+      });
+    });
+  });
+
+  describe('Request account unblock', () => {
+    it('When user does not exist, then fail', async () => {
+      const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
+      const email = 'email@test.com';
+      userFindByEmailSpy.mockReturnValueOnce(null);
+
+      await expect(userUseCases.sendAccountUnblockEmail(email)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When user user exists, then add unblockToken and send email', async () => {
+      const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
+      const userUpdateSpy = jest.spyOn(userRepository, 'updateByUuid');
+      const emailSendSpy = jest.spyOn(mailerService, 'send');
+      const configServiceGetSpy = jest.spyOn(configService, 'get');
+      const email = 'email@test.com';
+      userFindByEmailSpy.mockResolvedValueOnce(user);
+      userUpdateSpy.mockResolvedValueOnce(null);
+      emailSendSpy.mockResolvedValueOnce(null);
+      configServiceGetSpy.mockReturnValue('secret');
+
+      await userUseCases.sendAccountUnblockEmail(email);
+
+      expect(SignWithCustomDuration).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            email: user.email,
+            action: AccountTokenAction.Unblock,
+          },
+        },
+        'secret',
+        '48h',
+      );
+      expect(userUpdateSpy).toHaveBeenCalledWith(user.uuid, {
+        unblockToken: 'anyToken',
+      });
+    });
+  });
+
+  describe('Unblock user account', () => {
+    it('When user does not exist, then fail', async () => {
+      const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+      userFindByUuidSpy.mockReturnValueOnce(null);
+
+      await expect(userUseCases.unblockAccount(user.uuid)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When token is not the last one requested, then fail', async () => {
+      const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+      const unblockUser = User.build({
+        ...user,
+        unblockToken: 'lastToken',
+      });
+
+      userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
+
+      await expect(
+        userUseCases.unblockAccount(unblockUser.uuid, 'notLastToken'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user found and tokens are equal, then user unblockToken and errorLoginCount are reset', async () => {
+      const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+      const userUpdateByUuidSpy = jest.spyOn(userRepository, 'updateByUuid');
+      const unblockUser = User.build({
+        ...user,
+        unblockToken: 'lastToken',
+      });
+
+      userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
+      await userUseCases.unblockAccount(unblockUser.uuid, 'lastToken');
+
+      expect(userUpdateByUuidSpy).toHaveBeenCalledWith(unblockUser.uuid, {
+        errorLoginCount: 0,
+        unblockToken: null,
       });
     });
   });

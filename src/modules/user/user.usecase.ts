@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -11,6 +12,7 @@ import { generateMnemonic } from 'bip39';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
+  AccountTokenAction,
   ReferralAttributes,
   ReferralKey,
   User,
@@ -691,6 +693,60 @@ export class UserUseCases {
     return this.mailerService.send(user.email, recoverAccountTemplateId, {
       email,
       recovery_url: url,
+    });
+  }
+
+  async sendAccountUnblockEmail(email: User['email']): Promise<void> {
+    const secret = this.configService.get('secrets.jwt');
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException();
+    }
+
+    const unblockAccountToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+      },
+      secret,
+      '48h',
+    );
+
+    await this.userRepository.updateByUuid(user.uuid, {
+      unblockToken: unblockAccountToken,
+    });
+
+    const driveWebUrl = this.configService.get('clients.drive.web');
+    const unblockAccountTemplateId = this.configService.get(
+      'mailer.templates.unblockAccountEmail',
+    );
+
+    const url = `${driveWebUrl}/unblock-account/${unblockAccountToken}`;
+
+    await this.mailerService.send(user.email, unblockAccountTemplateId, {
+      email,
+      unblock_url: url,
+    });
+  }
+
+  async unblockAccount(userUuid: User['uuid'], token?: string): Promise<void> {
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      throw new BadRequestException();
+    }
+
+    if (token && user?.unblockToken !== token) {
+      throw new ForbiddenException();
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      errorLoginCount: 0,
+      unblockToken: null,
     });
   }
 
