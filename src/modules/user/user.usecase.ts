@@ -58,6 +58,8 @@ import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.re
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
+import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
+import { UserNotFoundException } from './exception/user-not-found.exception';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -873,7 +875,7 @@ export class UserUseCases {
     const user = await this.userRepository.findByUuid(userUuid);
 
     if (!user) {
-      throw new UserNotFoundError();
+      throw new UserNotFoundException();
     }
 
     const maybeAlreadyExistentUser =
@@ -882,7 +884,7 @@ export class UserUseCases {
     const userAlreadyExists = !!maybeAlreadyExistentUser;
 
     if (userAlreadyExists) {
-      throw new UserAlreadyRegisteredError(newEmail);
+      throw new UserEmailAlreadyInUseException(newEmail);
     }
 
     const { uuid, email } = user;
@@ -917,7 +919,7 @@ export class UserUseCases {
     const userAlreadyExists = !!maybeAlreadyExistentUser;
 
     if (userAlreadyExists) {
-      throw new UserAlreadyRegisteredError(newEmail);
+      throw new UserEmailAlreadyInUseException(newEmail);
     }
 
     const isTheSameEmail = user.email === newEmail;
