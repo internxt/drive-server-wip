@@ -12,12 +12,15 @@ import {
   SwaggerCustomOptions,
   SwaggerModule,
 } from '@nestjs/swagger';
+import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerMiddleware } from './middlewares/requests-logger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AuthGuard } from './modules/auth/auth.guard';
 
-const APP_PORT = process.env.PORT || 3000;
+const config = configuration();
+const APP_PORT = config.port || 3000;
+
 async function bootstrap() {
   const logger = new Logger();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -41,7 +44,7 @@ async function bootstrap() {
     // logger: WinstonLogger.getLogger(),
   });
 
-  const enableTrustProxy = process.env.NODE_ENV === 'production';
+  const enableTrustProxy = config.isProduction;
 
   app.set('trust proxy', enableTrustProxy);
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
@@ -50,7 +53,10 @@ async function bootstrap() {
   app.use(helmet());
   app.use(apiMetrics());
 
-  app.use(RequestLoggerMiddleware);
+  if (!config.isProduction) {
+    app.use(RequestLoggerMiddleware);
+  }
+
   app.setGlobalPrefix('api');
   app.disable('x-powered-by');
   app.enableShutdownHooks();
