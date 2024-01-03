@@ -4,6 +4,7 @@ dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
+import * as process from 'process';
 import { AppModule } from './app.module';
 import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
@@ -12,12 +13,15 @@ import {
   SwaggerCustomOptions,
   SwaggerModule,
 } from '@nestjs/swagger';
+import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerMiddleware } from './middlewares/requests-logger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AuthGuard } from './modules/auth/auth.guard';
 
-const APP_PORT = process.env.PORT || 3000;
+const config = configuration();
+const APP_PORT = config.port || 3000;
+
 async function bootstrap() {
   const logger = new Logger();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -50,7 +54,10 @@ async function bootstrap() {
   app.use(helmet());
   app.use(apiMetrics());
 
-  app.use(RequestLoggerMiddleware);
+  if (!config.isProduction) {
+    app.use(RequestLoggerMiddleware);
+  }
+
   app.setGlobalPrefix('api');
   app.disable('x-powered-by');
   app.enableShutdownHooks();
