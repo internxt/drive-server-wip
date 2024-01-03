@@ -11,10 +11,10 @@ import {
   BadRequestOutOfRangeLimitException,
 } from './folder.controller';
 import getEnv from '../../config/configuration';
-import { sequelizeTest } from '../../../test/__e2e__/sequelize';
-import { UserTestRepository } from '../../../test/__e2e__/repositories/users-test.repository';
-import { FolderTestRepository } from '../../../test/__e2e__/repositories/folders-test.repository';
-import { v4 } from 'uuid';
+import { generateAuthToken } from '../../../test/__e2e__/utils/generateAuthToken';
+import { users } from '../../../seeders/20230308180046-test-users';
+import { User } from '../user/user.domain';
+import { SequelizeFolderRepository } from './folder.repository';
 
 const wrongFolderIdException = new BadRequestWrongFolderIdException();
 const wrongOffsetOrLimitException = new BadRequestWrongOffsetOrLimitException();
@@ -27,44 +27,65 @@ const invalidLimit = 51;
 const validLimit = 1;
 const validOffset = 0;
 
+const user = new User({
+  id: 1,
+  email: '',
+  password: '',
+  name: '',
+  lastname: '',
+  username: '',
+  bridgeUser: '',
+  mnemonic: '',
+  rootFolderId: 1,
+  hKey: Buffer.from(''),
+  userId: '',
+  secret_2FA: '',
+  errorLoginCount: 0,
+  isEmailActivitySended: 0,
+  referralCode: '',
+  referrer: '',
+  syncDate: new Date(),
+  uuid: users.testUser,
+  lastResend: new Date(),
+  credit: 0,
+  welcomePack: false,
+  registerCompleted: false,
+  backupsBucket: '',
+  sharedWorkspace: false,
+  tempKey: '',
+  avatar: '',
+});
+
 describe('Folder module', () => {
   let app: INestApplication;
   let updatedAfter: string;
-  let user: any;
   let userToken: string;
   let folders: any[];
   let existentFolderId: number;
   let existentFolderUUID: string;
-  let folderTestRepository: FolderTestRepository;
-  let userTestRerpository: UserTestRepository;
 
   beforeAll(async () => {
-    folderTestRepository = new FolderTestRepository(sequelizeTest);
-    userTestRerpository = new UserTestRepository(sequelizeTest);
-    user = await userTestRerpository.getPrincipalUser();
-    userToken = userTestRerpository.generateToken(user, getEnv().secrets.jwt);
-
-    folders = await folderTestRepository.getFoldersByUserId(user.id);
-    existentFolderId = folders[0].id;
-    existentFolderUUID = folders[0].uuid;
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe());
     app.useGlobalInterceptors(new TransformInterceptor());
+    await app.init();
 
     const date = new Date();
     date.setFullYear(date.getFullYear() - 1);
     updatedAfter = date.toISOString();
+    existentFolderId = 1;
+    userToken = generateAuthToken(user, getEnv().secrets.jwt);
 
-    await app.init();
+    const folderRepositoriy = moduleFixture.get(SequelizeFolderRepository);
+    folders = await folderRepositoriy.findAll({ userId: user.id });
+    existentFolderUUID = folders[0].uuid;
   });
 
   afterAll(async () => {
     await app.close();
-    await sequelizeTest.close();
   });
 
   describe('GET /folders - Get Folders', () => {
@@ -206,21 +227,6 @@ describe('Folder module', () => {
   });
 
   describe('Delete /folders - Delete Folders', () => {
-    it.skip('should delete all orphan folders', async () => {
-      const uuid = v4();
-
-      await folderTestRepository.createOrphan(uuid, user.id);
-
-      await request(app.getHttpServer())
-        .delete(`/folders?status=orphan`)
-        .set('Authorization', 'Bearer ' + userToken)
-        .expect(HttpStatus.OK);
-
-      const folder = await folderTestRepository.getBy('uuid', uuid);
-
-      expect(folder).toBeUndefined();
-    });
-
     describe('Exceptions', () => {
       it('should be a not implemented exception', async () => {
         const response = await request(app.getHttpServer())
