@@ -21,6 +21,7 @@ import {
 import { Response } from 'express';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -70,6 +71,10 @@ export class SharingController {
     description: 'Id of the sharing',
     type: String,
   })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+  })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
     @Param('sharingId') sharingId: Sharing['id'],
@@ -79,7 +84,12 @@ export class SharingController {
     if (!code) {
       throw new BadRequestException('Code is required');
     }
-    return this.sharingService.getPublicSharingById(sharingId, code, password);
+    const decodedPassword = password ? decodeURIComponent(password) : null;
+    return this.sharingService.getPublicSharingById(
+      sharingId,
+      code,
+      decodedPassword,
+    );
   }
 
   @Get('/public/:sharingId/item')
