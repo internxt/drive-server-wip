@@ -437,10 +437,7 @@ export class UserController {
     summary: 'Request account unblock',
   })
   @Public()
-  async requestAccountUnblock(
-    @Body() body: RequestAccountUnblock,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async requestAccountUnblock(@Body() body: RequestAccountUnblock) {
     try {
       return await this.userUseCases.sendAccountUnblockEmail(body.email);
     } catch (err) {
