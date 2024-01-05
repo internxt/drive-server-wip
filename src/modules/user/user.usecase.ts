@@ -932,6 +932,16 @@ export class UserUseCases {
       attemptChangeEmailId,
     );
 
-    return emails;
+    const user = await this.userRepository.findByEmail(emails.newEmail);
+    const newTokenPayload = this.getNewTokenPayload(user);
+
+    return {
+      ...emails,
+      newAuthentication: {
+        token: SignEmail(user.email, this.configService.get('secrets.jwt')),
+        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        user,
+      },
+    };
   }
 }
