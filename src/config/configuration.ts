@@ -50,7 +50,7 @@ export default () => ({
       url: process.env.STORAGE_API_URL,
       auth: {
         username: process.env.GATEWAY_USER,
-        password: process.env.GATEWAY_PASSWORD,
+        password: process.env.GATEWAY_PASS,
       },
     },
     drive: {
@@ -85,10 +85,14 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
       invitationToSharingReceived:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
+      invitationToSharingGuestReceived:
+        process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_GUEST_RECEIVED || '',
       removedFromSharing:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_USER_REMOVED || '',
       updatedSharingRole:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_ROLE_UPDATED || '',
+      updateUserEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_UPDATE_USER_EMAIL || '',
     },
   },
   newsletter: {
@@ -103,5 +107,8 @@ export default () => ({
       username: process.env.AUTH_BASIC_USERNAME,
       password: process.env.AUTH_BASIC_PASSWORD,
     },
+  },
+  users: {
+    preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
   },
 });

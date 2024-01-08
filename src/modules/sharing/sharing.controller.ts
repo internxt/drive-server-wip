@@ -13,10 +13,15 @@ import {
   Logger,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
+  NotFoundException,
+  Headers,
+  Patch,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -33,7 +38,7 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
-import { Item, Sharing, SharingInvite, SharingRole } from './sharing.domain';
+import { Sharing, SharingInvite, SharingRole } from './sharing.domain';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { Folder } from '../folder/folder.domain';
@@ -48,6 +53,8 @@ import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
+import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -64,15 +71,80 @@ export class SharingController {
     description: 'Id of the sharing',
     type: String,
   })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+  })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
     @Param('sharingId') sharingId: Sharing['id'],
     @Query('code') code: string,
+    @Headers('x-share-password') password: string | null,
   ) {
     if (!code) {
       throw new BadRequestException('Code is required');
     }
-    return this.sharingService.getPublicSharingById(sharingId, code);
+    const decodedPassword = password ? decodeURIComponent(password) : null;
+    return this.sharingService.getPublicSharingById(
+      sharingId,
+      code,
+      decodedPassword,
+    );
+  }
+
+  @Get('/public/:sharingId/item')
+  @Public()
+  @ApiOperation({
+    summary: 'Get sharing item info',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Get sharing item info' })
+  async getPublicSharingItemInfo(@Param('sharingId') sharingId: Sharing['id']) {
+    return this.sharingService.getPublicSharingItemInfo(sharingId);
+  }
+
+  @Patch('/:sharingId/password')
+  @ApiOperation({
+    summary: 'Set password for public sharing',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Sets/edit password for public sharings' })
+  async setPublicSharingPassword(
+    @UserDecorator() user: User,
+    @Param('sharingId') sharingId: Sharing['id'],
+    @Body() sharingPasswordDto: SetSharingPasswordDto,
+  ) {
+    const { encryptedPassword } = sharingPasswordDto;
+    return this.sharingService.setSharingPassword(
+      user,
+      sharingId,
+      encryptedPassword,
+    );
+  }
+
+  @Delete('/:sharingId/password')
+  @ApiOperation({
+    summary: 'Remove password from public sharing',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Remove ' })
+  async removePublicSharingPassword(
+    @UserDecorator() user: User,
+    @Param('sharingId') sharingId: Sharing['id'],
+  ) {
+    return this.sharingService.removeSharingPassword(user, sharingId);
   }
 
   @Get('/:itemType/:itemId/invites')
@@ -178,6 +250,42 @@ export class SharingController {
     @Body() createInviteDto: CreateInviteDto,
   ) {
     return this.sharingService.createInvite(user, createInviteDto);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Get('/invites/:id/validate')
+  @Public()
+  @ApiParam({
+    name: 'id',
+    description: 'Id of the invite to validate',
+    type: String,
+  })
+  validateInvite(
+    @Param('id') id: SharingInvite['id'],
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      return this.sharingService.validateInvite(id);
+    } catch (error) {
+      let errorMessage = error.message;
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      } else {
+        Logger.error(
+          `[SHARING/VALIDATEINVITE] Error while trying to validate invitation ${id}, message: ${
+            error.message
+          }, ${error.stack || 'No stack trace'}`,
+        );
+
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+      return { error: errorMessage };
+    }
   }
 
   @Post('/invites/:id/accept')

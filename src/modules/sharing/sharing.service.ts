@@ -3,10 +3,10 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
-import { v4 } from 'uuid';
+import { v4, validate as validateUuid } from 'uuid';
 
 import {
   Item,
@@ -46,7 +46,6 @@ import { Sign } from '../../middlewares/passport';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
-import { BridgeService } from 'src/externals/bridge/bridge.service';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 
 export class InvalidOwnerError extends Error {
@@ -161,6 +160,13 @@ export class SharedFolderRemovedError extends Error {
   }
 }
 
+export class PasswordNeededError extends ForbiddenException {
+  constructor() {
+    super('Password Needed for protected sharings');
+    Object.setPrototypeOf(this, PasswordNeededError.prototype);
+  }
+}
+
 type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
@@ -184,6 +190,8 @@ type PublicSharingInfo = Pick<
   | 'updatedAt'
   | 'type'
 > & { item: Item; itemToken: string };
+
+type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
 @Injectable()
 export class SharingService {
@@ -223,6 +231,7 @@ export class SharingService {
   async getPublicSharingById(
     id: Sharing['id'],
     code: string,
+    plainPassword?: string,
   ): Promise<PublicSharingInfo> {
     const sharing = await this.sharingRepository.findOneSharing({
       id,
@@ -231,6 +240,17 @@ export class SharingService {
 
     if (!sharing.isPublic()) {
       throw new ForbiddenException();
+    }
+
+    if (sharing.isProtected() && !plainPassword) {
+      throw new PasswordNeededError();
+    }
+
+    if (sharing.isProtected()) {
+      const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
+      if (decryptedPassword !== plainPassword) {
+        throw new ForbiddenException();
+      }
     }
 
     const response: Partial<PublicSharingInfo> = { ...sharing };
@@ -283,6 +303,89 @@ export class SharingService {
     response['item'] = item;
 
     return response as PublicSharingInfo;
+  }
+
+  async getPublicSharingItemInfo(id: Sharing['id']): Promise<SharingItemInfo> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic()) {
+      throw new ForbiddenException();
+    }
+
+    let item: Item;
+    if (sharing.itemType === 'file') {
+      item = await this.fileUsecases.getByUuid(sharing.itemId);
+      if (item.isDeleted()) {
+        throw new NotFoundException();
+      }
+    } else {
+      item = await this.folderUsecases.getByUuid(sharing.itemId);
+      if (item.isRemoved()) {
+        throw new NotFoundException();
+      }
+    }
+
+    if (!item.plainName) {
+      if (item instanceof File) {
+        item.plainName = this.fileUsecases.decrypFileName(item).plainName;
+      } else {
+        item.plainName = this.folderUsecases.decryptFolderName(item).plainName;
+      }
+    }
+    return {
+      plainName: item.plainName,
+      type: item.type,
+      size: item.size,
+    };
+  }
+
+  async setSharingPassword(
+    user: User,
+    id: Sharing['id'],
+    encryptedPassword: string,
+  ): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
+      throw new BadRequestException();
+    }
+
+    sharing.encryptedPassword = encryptedPassword;
+
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  async removeSharingPassword(user: User, id: Sharing['id']): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
+      throw new BadRequestException();
+    }
+
+    sharing.encryptedPassword = null;
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
   }
 
   async getInvites(
@@ -1006,13 +1109,18 @@ export class SharingService {
       }
     }
 
-    const userJoining = await this.usersUsecases.findByEmail(
-      createInviteDto.sharedWith,
-    );
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.usersUsecases.findByEmail(createInviteDto.sharedWith),
+      this.usersUsecases.findPreCreatedByEmail(createInviteDto.sharedWith),
+    ]);
+
+    const userJoining = existentUser ?? preCreatedUser;
 
     if (!userJoining) {
       throw new NotFoundException('Invited user not found');
     }
+
+    const isUserPreCreated = !existentUser;
 
     const [invitation, sharing] = await Promise.all([
       this.sharingRepository.getInviteByItemAndUser(
@@ -1049,12 +1157,16 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    const expirationAt = new Date();
+    expirationAt.setDate(expirationAt.getDate() + 2);
+
     const invite = SharingInvite.build({
       id: v4(),
       ...createInviteDto,
       sharedWith: userJoining.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
+      expirationAt: isUserPreCreated ? expirationAt : null,
     });
 
     const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
@@ -1079,7 +1191,7 @@ export class SharingService {
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    if (createInviteDto.notifyUser) {
+    if (createInviteDto.notifyUser && !isUserPreCreated) {
       const authToken = Sign(
         this.usersUsecases.getNewTokenPayload(userJoining),
         this.configService.get('secrets.jwt'),
@@ -1102,6 +1214,35 @@ export class SharingService {
         .catch(() => {
           // no op
         });
+    }
+
+    if (isUserPreCreated) {
+      const encodedUserEmail = encodeURIComponent(userJoining.email);
+      try {
+        await new MailerService(
+          this.configService,
+        ).sendInvitationToSharingGuestEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            signUpUrl: `${this.configService.get(
+              'clients.drive.web',
+            )}/shared-guest?invitation=${
+              createdInvite.id
+            }&email=${encodedUserEmail}`,
+            message: createInviteDto.notificationMessage || '',
+          },
+        );
+      } catch (error) {
+        Logger.error(
+          `[SHARING/GUESTUSEREMAIL] Error sending email pre created userId: ${
+            userJoining.uuid
+          }, error: ${JSON.stringify(error)}`,
+        );
+        await this.sharingRepository.deleteInvite(createdInvite);
+        throw error;
+      }
     }
 
     return createdInvite;
@@ -1161,14 +1302,17 @@ export class SharingService {
       return sharing;
     }
 
-    const sharingCreated = await this.sharingRepository.createSharing(
-      newSharing,
-    );
+    const sharingCreated =
+      await this.sharingRepository.createSharing(newSharing);
 
-    await this.userReferralsRepository.applyUserReferral(
-      user.id,
-      ReferralKey.ShareFile,
-    );
+    this.userReferralsRepository
+      .applyUserReferral(user.id, ReferralKey.ShareFile)
+      .catch((err) => {
+        Logger.error(
+          'userReferralsRepository.applyUserReferral: share-file',
+          JSON.stringify(err),
+        );
+      });
 
     return sharingCreated;
   }
@@ -1178,10 +1322,12 @@ export class SharingService {
     itemId: Sharing['itemId'],
     type: Sharing['type'],
   ) {
-    await this.sharingRepository.deleteInvitesBy({
-      itemId,
-      itemType,
-    });
+    if (type === SharingType.Private) {
+      await this.sharingRepository.deleteInvitesBy({
+        itemId,
+        itemType,
+      });
+    }
 
     await this.sharingRepository.deleteSharingsBy({
       itemId,
@@ -1392,9 +1538,8 @@ export class SharingService {
     requester: User,
     sharingRoleId: SharingRole['id'],
   ): Promise<void> {
-    const sharingRole = await this.sharingRepository.findSharingRole(
-      sharingRoleId,
-    );
+    const sharingRole =
+      await this.sharingRepository.findSharingRole(sharingRoleId);
     if (!sharingRole) {
       throw new NotFoundException('Sharing role not found');
     }
@@ -1490,7 +1635,6 @@ export class SharingService {
             this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
               .plainName,
           sharingId: folderWithSharedInfo.id,
-          sharingType: folderWithSharedInfo.type,
           encryptionKey: folderWithSharedInfo.encryptionKey,
           dateShared: folderWithSharedInfo.createdAt,
           sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
@@ -1517,7 +1661,6 @@ export class SharingService {
             fileWithSharedInfo.file.plainName ||
             this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
           sharingId: fileWithSharedInfo.id,
-          sharingType: fileWithSharedInfo.type,
           encryptionKey: fileWithSharedInfo.encryptionKey,
           dateShared: fileWithSharedInfo.createdAt,
           sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
@@ -1830,6 +1973,29 @@ export class SharingService {
           // no op
         });
     }
+  }
+
+  async validateInvite(inviteId: string): Promise<{ uuid: string }> {
+    if (!validateUuid(inviteId)) {
+      throw new BadRequestException('id is not in uuid format');
+    }
+    const sharingInvite = await this.sharingRepository.getInviteById(inviteId);
+
+    if (!sharingInvite?.expirationAt) {
+      throw new BadRequestException(
+        'We were not able to validate this invitation',
+      );
+    }
+    const now = new Date();
+
+    if (now > sharingInvite.expirationAt) {
+      await this.sharingRepository.deleteInvite(sharingInvite);
+      throw new NotFoundException('Invitation expired');
+    }
+
+    return {
+      uuid: inviteId,
+    };
   }
 
   async changeSharingType(

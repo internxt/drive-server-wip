@@ -50,6 +50,24 @@ import { FileModel } from '../file/file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
+import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
+import { PreCreatedUserModel } from '../user/pre-created-users.model';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import {
+  PermissionModel,
+  RoleModel,
+  SharingInviteModel,
+  SharingModel,
+} from '../sharing/models';
+import { SharingRolesModel } from '../sharing/models/sharing-roles.model';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { AppSumoModel } from '../app-sumo/app-sumo.model';
+import { SequelizeAppSumoRepository } from '../app-sumo/app-sumo.repository';
+import { SequelizePlanRepository } from '../plan/plan.repository';
+import { PlanModel } from '../plan/plan.model';
+import { SequelizeAttemptChangeEmailRepository } from '../user/attempt-change-email.repository';
+import { createMock } from '@golevelup/ts-jest';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -211,6 +229,11 @@ describe('Share Use Cases', () => {
         FolderUseCases,
         UserUseCases,
         FileUseCases,
+        SequelizePreCreatedUsersRepository,
+        SequelizeSharingRepository,
+        SequelizeAppSumoRepository,
+        AppSumoUseCase,
+        SequelizePlanRepository,
         SequelizeShareRepository,
         SequelizeFileRepository,
         SequelizeFolderRepository,
@@ -256,6 +279,38 @@ describe('Share Use Cases', () => {
           useValue: jest.fn(),
         },
         {
+          provide: getModelToken(PreCreatedUserModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(SharingModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(PermissionModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(RoleModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(SharingRolesModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(SharingInviteModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(AppSumoModel),
+          useValue: jest.fn(),
+        },
+        {
+          provide: getModelToken(PlanModel),
+          useValue: jest.fn(),
+        },
+        {
           provide: getModelToken(ReferralModel),
           useValue: jest.fn(),
         },
@@ -270,6 +325,14 @@ describe('Share Use Cases', () => {
         {
           provide: getModelToken(ThumbnailModel),
           useValue: jest.fn(),
+        },
+        {
+          provide: SequelizeAttemptChangeEmailRepository,
+          useValue: createMock<SequelizeAttemptChangeEmailRepository>(),
+        },
+        {
+          provide: MailerService,
+          useValue: createMock<MailerService>(),
         },
       ],
     }).compile();

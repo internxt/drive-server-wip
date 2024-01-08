@@ -18,6 +18,7 @@ import {
   Query,
   UnauthorizedException,
   BadRequestException,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -53,6 +54,11 @@ import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { Throttle } from '@nestjs/throttler';
+import { PreCreateUserDto } from './dto/pre-create-user.dto';
+import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('User')
 @Controller('users')
@@ -62,10 +68,16 @@ export class UserController {
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
+    private readonly sharingService: SharingService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 3600)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
   @Post('/')
   @HttpCode(201)
   @ApiOperation({
@@ -85,6 +97,14 @@ export class UserController {
         response.user.id,
         createUserDto,
       );
+
+      if (req.headers['internxt-client'] !== 'drive-mobile') {
+        await this.userUseCases.replacePreCreatedUser(
+          response.user.email,
+          response.user.uuid,
+          keys.publicKey,
+        );
+      }
 
       this.notificationsService.add(
         new SignUpSuccessEvent(response.user as unknown as User, req),
@@ -125,6 +145,157 @@ export class UserController {
       } else {
         new Logger().error(
           `[AUTH/REGISTER] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/pre-created-users/register')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Register Pre Created User',
+  })
+  @ApiOkResponse({ description: 'Creates Pre Created User' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async registerPreCreatedUser(
+    @Body() { invitationId, ...createUserDto }: RegisterPreCreatedUserDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const preCreatedUser = await this.userUseCases.findPreCreatedByEmail(
+        createUserDto.email,
+      );
+
+      if (!preCreatedUser) {
+        throw new NotFoundException('PRE_CREATED_USER_NOT_FOUND');
+      }
+
+      const userCreated = await this.userUseCases.createUser(createUserDto);
+
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        userCreated.user.id,
+        createUserDto,
+      );
+
+      await this.userUseCases.replacePreCreatedUser(
+        userCreated.user.email,
+        userCreated.user.uuid,
+        keys.publicKey,
+      );
+
+      this.notificationsService.add(
+        new SignUpSuccessEvent(userCreated.user as unknown as User, req),
+      );
+
+      // TODO: Move to EventBus
+      this.userUseCases
+        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
+          userUuid: userCreated.uuid,
+        })
+        .catch((err) => {
+          new Logger().error(
+            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
+              (err as Error).message
+            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+              (err as Error).stack
+            }`,
+          );
+        });
+
+      await this.sharingService
+        .acceptInvite(userCreated.user, invitationId, {})
+        .catch((err) => {
+          new Logger().error(
+            `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
+              (err as Error).message
+            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+              (err as Error).stack
+            }`,
+          );
+        });
+
+      return {
+        ...userCreated,
+        user: {
+          ...userCreated.user,
+          root_folder_id: userCreated.user.rootFolderId,
+          ...keys,
+        },
+        token: userCreated.token,
+        uuid: userCreated.uuid,
+      };
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof InvalidReferralCodeError) {
+        res.status(HttpStatus.BAD_REQUEST);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        res.status(HttpStatus.CONFLICT);
+      } else if (err instanceof NotFoundException) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/REGISTER-PRE-CREATED-USER] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify({
+            ...createUserDto,
+            invitationId,
+          })}, STACK: ${(err as Error).stack}`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @Post('/pre-create')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Pre create a user',
+  })
+  @ApiOkResponse({ description: 'Pre creates a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  async preCreateUser(
+    @Body() createUserDto: PreCreateUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const user = await this.userUseCases.preCreateUser(createUserDto);
+
+      return {
+        user: {
+          email: user.email,
+          uuid: user.uuid,
+        },
+        publicKey: user.publicKey,
+      };
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof UserAlreadyRegisteredError) {
+        res.status(HttpStatus.CONFLICT);
+      } else {
+        new Logger().error(
+          `[AUTH/PREREGISTER] ERROR: ${
             (err as Error).message
           }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
             (err as Error).stack
@@ -359,5 +530,32 @@ export class UserController {
     return {
       publicKey: await this.keyServerUseCases.getPublicKey(user.id),
     };
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @HttpCode(201)
+  @UseGuards(ThrottlerGuard)
+  @Post('/attempt-change-email')
+  async createAttemptChangeEmail(
+    @UserDecorator() user: User,
+    @Body() body: CreateAttemptChangeEmailDto,
+  ) {
+    await this.userUseCases.createAttemptChangeEmail(user, body.newEmail);
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @HttpCode(201)
+  @Post('/attempt-change-email/:encryptedAttemptChangeEmailId/accept')
+  acceptAttemptChangeEmail(@Param('encryptedAttemptChangeEmailId') id: string) {
+    return this.userUseCases.acceptAttemptChangeEmail(id);
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @HttpCode(200)
+  @Get('/attempt-change-email/:encryptedAttemptChangeEmailId/verify-expiration')
+  async verifyAttemptChangeEmail(
+    @Param('encryptedAttemptChangeEmailId') id: string,
+  ) {
+    return await this.userUseCases.isAttemptChangeEmailExpired(id);
   }
 }

@@ -13,6 +13,13 @@ type SendInvitationToSharingContext = {
   decline_url: string;
 };
 
+type SendInvitationToSharingGuestContext = {
+  notification_message: string;
+  item_name: string;
+  sender_email: string;
+  signup_url: string;
+};
+
 type RemovedFromSharingContext = {
   item_name: string;
 };
@@ -85,6 +92,30 @@ export class MailerService {
     );
   }
 
+  async sendInvitationToSharingGuestEmail(
+    ownerOfTheItemEmail: User['email'],
+    invitedUserEmail: User['email'],
+    itemName: File['plainName'] | Folder['plainName'],
+    mailInfo: {
+      signUpUrl: string;
+      message: string;
+    },
+  ): Promise<void> {
+    const context: SendInvitationToSharingGuestContext = {
+      sender_email: ownerOfTheItemEmail,
+      item_name: itemName,
+      signup_url: mailInfo.signUpUrl,
+      notification_message: mailInfo.message,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get(
+        'mailer.templates.invitationToSharingGuestReceived',
+      ),
+      context,
+    );
+  }
+
   async sendRemovedFromSharingEmail(
     userRemovedFromSharingEmail: User['email'],
     itemName: File['plainName'] | Folder['plainName'],
@@ -114,6 +145,23 @@ export class MailerService {
       userUpdatedSharingRoleEmail,
       this.configService.get('mailer.templates.updatedSharingRole'),
       context,
+    );
+  }
+
+  async sendUpdateUserEmailVerification(
+    newEmail: string,
+    encryptedAttemptId: string,
+  ) {
+    const webUrl = this.configService.get('clients.drive.web');
+
+    const verificationUrl = `${webUrl}/change-email/${encryptedAttemptId}?n=${newEmail}`;
+
+    await this.send(
+      newEmail,
+      this.configService.get('mailer.templates.updateUserEmail'),
+      {
+        verification_url: verificationUrl,
+      },
     );
   }
 }

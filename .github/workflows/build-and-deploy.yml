@@ -42,10 +42,10 @@ jobs:
         with: # defaults to latest kubectl binary version
           config: ${{ secrets.KUBE_CONFIG_DATA }}
           version: v1.22.2
-          command: set image --record deployment/drive-server-wip drive-server-wip=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }}
+          command: set image --record deployment/drive-server-wip drive-server-wip=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }} -n drive
       - name: Verify drive-server deployment
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA }}
           version: v1.22.2 # specify kubectl binary version explicitly
-          command: rollout status deployment/drive-server-wip
+          command: rollout status deployment/drive-server-wip -n drive

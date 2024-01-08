@@ -16,8 +16,6 @@ import {
   SequelizeSendRepository,
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';
-import { FileModel } from '../file/file.model';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases, notificationService, sendRepository;
@@ -65,7 +63,9 @@ describe('Send Use Cases', () => {
         },
         {
           provide: getModelToken(SendLinkModel),
-          useValue: jest.fn(),
+          useValue: {
+            count: jest.fn(),
+          },
         },
         {
           provide: getModelToken(SendLinkItemModel),
@@ -167,6 +167,8 @@ describe('Send Use Cases', () => {
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
     jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
     const sendLink = await service.createSendLinks(
       null,
       [],
@@ -180,7 +182,6 @@ describe('Send Use Cases', () => {
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
-    expect(sendRepository.findById).toHaveBeenCalledTimes(1);
     expect(sendLink).toMatchObject({
       user: null,
       code: 'code',
@@ -196,6 +197,8 @@ describe('Send Use Cases', () => {
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
     jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
     const sendLink = await service.createSendLinks(
       userMock,
       [],
@@ -209,7 +212,6 @@ describe('Send Use Cases', () => {
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
-    expect(sendRepository.findById).toHaveBeenCalledTimes(1);
     expect(sendLink).toMatchObject({
       user: userMock,
       code: 'code',

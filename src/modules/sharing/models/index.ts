@@ -17,6 +17,7 @@ import {
 import { UserModel } from '../../user/user.model';
 import { FolderModel } from '../../folder/folder.model';
 import { FileModel } from '../../../modules/file/file.model';
+import { PreCreatedUserModel } from '../../../modules/user/pre-created-users.model';
 
 @Table({
   underscored: true,
@@ -121,6 +122,9 @@ export class SharingModel extends Model implements SharingAttributes {
   @Column(DataType.STRING)
   encryptionKey: SharingAttributes['encryptionKey'];
 
+  @Column({ type: DataType.STRING, allowNull: true, defaultValue: null })
+  encryptedPassword: SharingAttributes['encryptedPassword'];
+
   @AllowNull(false)
   @Column(DataType.ENUM('public', 'private'))
   type: SharingAttributes['type'];
@@ -162,6 +166,13 @@ export class SharingInviteModel
   })
   sharedWithUser: UserModel;
 
+  @BelongsTo(() => PreCreatedUserModel, {
+    foreignKey: 'sharedWith',
+    targetKey: 'uuid',
+    as: 'preCreatedUser',
+  })
+  sharedWithPreCreatedUser: PreCreatedUserModel;
+
   @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];
 
@@ -177,6 +188,10 @@ export class SharingInviteModel
 
   @Column
   createdAt: Date;
+
+  @AllowNull
+  @Column
+  expirationAt?: Date;
 
   @Column
   updatedAt: Date;

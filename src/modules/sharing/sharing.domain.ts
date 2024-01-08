@@ -21,6 +21,7 @@ export interface SharingAttributes {
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
   encryptedCode?: string;
+  encryptedPassword?: string;
   encryptionKey: string;
   encryptionAlgorithm: string;
   type: SharingType;
@@ -52,6 +53,7 @@ export interface SharingInviteAttributes
   id: string;
   type: 'SELF' | 'OWNER';
   roleId: RoleAttributes['id'];
+  expirationAt?: Date;
 }
 
 export class Sharing implements SharingAttributes {
@@ -65,6 +67,7 @@ export class Sharing implements SharingAttributes {
   createdAt: Date;
   updatedAt: Date;
   encryptedCode?: string;
+  encryptedPassword?: string;
   type: SharingType;
 
   folder?: Folder;
@@ -86,6 +89,7 @@ export class Sharing implements SharingAttributes {
     this.encryptionKey = attributes.encryptionKey;
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
     this.encryptedCode = attributes.encryptedCode;
+    this.encryptedPassword = attributes.encryptedPassword;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
 
@@ -108,6 +112,10 @@ export class Sharing implements SharingAttributes {
 
   isPublic(): boolean {
     return this.type === SharingType.Public;
+  }
+
+  isProtected(): boolean {
+    return this.encryptedPassword !== null;
   }
 }
 
@@ -208,6 +216,7 @@ export class SharingInvite implements SharingInviteAttributes {
   roleId: string;
   createdAt: Date;
   updatedAt: Date;
+  expirationAt: Date;
 
   constructor(attributes: SharingInviteAttributes) {
     this.id = attributes.id;
@@ -220,6 +229,7 @@ export class SharingInvite implements SharingInviteAttributes {
     this.roleId = attributes.roleId;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
+    this.expirationAt = attributes.expirationAt;
   }
 
   static build(sharingInvite: SharingInviteAttributes): SharingInvite {

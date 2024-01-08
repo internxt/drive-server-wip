@@ -1,6 +1,6 @@
 # Drive Server WIP
 
-[![node](https://img.shields.io/badge/node-16-brightgreen)](https://nodejs.org/download/release/latest-fermium/)
+[![node](https://img.shields.io/badge/node-20-iron)](https://nodejs.org/download/release/latest-iron/)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
@@ -43,7 +43,6 @@ Drive server WIP is the new API to Drive based on NestJS and following Clean Arc
 
 ## How to Install
 
-- You need Node.js v15 or greater to run this project
 - Create a `.npmrc` file from the `.npmrc.template` example provided in the repo.
 - Replace `TOKEN` with your own [Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token) with `read:packages` permission **ONLY**
 - Use `yarn` to install project dependencies.
