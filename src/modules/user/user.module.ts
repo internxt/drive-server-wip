@@ -35,15 +35,24 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { PlanModule } from '../plan/plan.module';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { PreCreatedUserModel } from './pre-created-users.model';
+import { SharingModule } from '../sharing/sharing.module';
+import { SharingService } from '../sharing/sharing.service';
+import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { AttemptChangeEmailModel } from './attempt-change-email.model';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([
       UserModel,
+      PreCreatedUserModel,
       ReferralModel,
       UserReferralModel,
       FriendInvitationModel,
       KeyServerModel,
+      AttemptChangeEmailModel,
     ]),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
@@ -55,14 +64,17 @@ import { PlanModule } from '../plan/plan.module';
     BridgeModule,
     AppSumoModule,
     PlanModule,
+    forwardRef(() => SharingModule),
   ],
   controllers: [UserController],
   providers: [
     SequelizeUserRepository,
+    SequelizePreCreatedUsersRepository,
     SequelizeSharedWorkspaceRepository,
     SequelizeReferralRepository,
     SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
+    SequelizeAttemptChangeEmailRepository,
     UserUseCases,
     CryptoService,
     BridgeService,
@@ -73,12 +85,15 @@ import { PlanModule } from '../plan/plan.module';
     BridgeService,
     PaymentsService,
     AppSumoUseCase,
+    SharingService,
+    MailerService,
   ],
   exports: [
     UserUseCases,
     SequelizeUserRepository,
     SequelizeUserReferralsRepository,
     SequelizeReferralRepository,
+    SequelizeAttemptChangeEmailRepository,
   ],
 })
 export class UserModule {}

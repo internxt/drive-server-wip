@@ -1,4 +1,4 @@
-import { Sharing } from 'src/modules/sharing/sharing.domain';
+import { Sharing } from '../../../modules/sharing/sharing.domain';
 import { FolderDto } from '../../folder/dto/folder.dto';
 import { Share } from '../../share/share.domain';
 import { Thumbnail } from '../../thumbnail/thumbnail.domain';
