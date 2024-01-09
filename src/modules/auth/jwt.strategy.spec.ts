@@ -17,7 +17,7 @@ describe('Jwt strategy', () => {
     strategy = moduleRef.get<JwtStrategy>(JwtStrategy);
   });
 
-  it('When token is old, then fail', async () => {
+  it('When token is old version, then fail', async () => {
     await expect(strategy.validate({ email: 'test@test.com' })).rejects.toThrow(
       new UnauthorizedException('Old token version detected'),
     );
@@ -31,12 +31,12 @@ describe('Jwt strategy', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('When token iat is older than lastPasswordChangedAt , then fail', async () => {
+  it('When token iat is less than lastPasswordChangedAt , then fail', async () => {
     const user = newUser();
-    const greaterDate = new Date();
+    const tokenIat = getTokenDefaultIat();
+    const greaterDate = new Date(tokenIat * 1000);
     greaterDate.setMinutes(greaterDate.getMinutes() + 1);
     user.lastPasswordChangedAt = greaterDate;
-    const tokenIat = getTokenDefaultIat();
 
     jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
@@ -45,10 +45,10 @@ describe('Jwt strategy', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('When user has lastPasswordChangedAt older than token iat, then return user', async () => {
-    const tokenIat = getTokenDefaultIat();
+  it('When user iat is greater than lastPasswordChangedAt, then return user', async () => {
     const user = newUser();
-    const olderDate = new Date();
+    const tokenIat = getTokenDefaultIat();
+    const olderDate = new Date(tokenIat * 1000);
     olderDate.setMinutes(olderDate.getMinutes() - 1);
     user.lastPasswordChangedAt = olderDate;
 
@@ -71,16 +71,16 @@ describe('Jwt strategy', () => {
     ).resolves.toBe(user);
   });
 
-  it('When user  is guest on shared workspace, then return owner', async () => {
+  it('When user is guest on shared workspace and token is valid, then return owner', async () => {
     const guestUser = newUser();
     const owner = newUser();
-    const anyUuid = 'testUuid';
     guestUser.bridgeUser = owner.username;
-    const olderDate = new Date();
-    olderDate.setMinutes(olderDate.getMinutes() - 1);
-    guestUser.lastPasswordChangedAt = olderDate;
+    const anyUuid = 'testUuid';
 
     const tokenIat = getTokenDefaultIat();
+    const olderDate = new Date(tokenIat * 1000);
+    olderDate.setMinutes(olderDate.getMinutes() - 1);
+    guestUser.lastPasswordChangedAt = olderDate;
 
     const getUserSpy = jest
       .spyOn(userUseCases, 'getUser')
