@@ -60,6 +60,7 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
+import { getTokenDefaultIat } from '../../lib/jwt';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -535,6 +536,7 @@ export class UserUseCases {
           pass: userData.userId,
         },
       },
+      iat: getTokenDefaultIat(),
     };
   }
 
@@ -988,6 +990,16 @@ export class UserUseCases {
       attemptChangeEmailId,
     );
 
-    return emails;
+    const user = await this.userRepository.findByEmail(emails.newEmail);
+    const newTokenPayload = this.getNewTokenPayload(user);
+
+    return {
+      ...emails,
+      newAuthentication: {
+        token: SignEmail(user.email, this.configService.get('secrets.jwt')),
+        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        user,
+      },
+    };
   }
 }
