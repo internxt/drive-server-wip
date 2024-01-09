@@ -26,5 +26,5 @@ export interface UserAttributes {
   sharedWorkspace: boolean;
   tempKey: string;
   avatar: string;
-  lastPasswordChangedAt: Date;
+  lastPasswordChangedAt?: Date;
 }
