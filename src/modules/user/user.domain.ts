@@ -26,6 +26,7 @@ export class User implements UserAttributes {
   sharedWorkspace: boolean;
   tempKey: string;
   avatar: string;
+  lastPasswordChangedAt: Date;
   constructor({
     id,
     userId,
@@ -53,6 +54,7 @@ export class User implements UserAttributes {
     sharedWorkspace,
     tempKey,
     avatar,
+    lastPasswordChangedAt,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -80,6 +82,7 @@ export class User implements UserAttributes {
     this.sharedWorkspace = sharedWorkspace;
     this.tempKey = tempKey;
     this.avatar = avatar;
+    this.lastPasswordChangedAt = lastPasswordChangedAt;
   }
 
   static build(user: UserAttributes): User {
@@ -113,6 +116,7 @@ export class User implements UserAttributes {
       backupsBucket: this.backupsBucket,
       sharedWorkspace: this.sharedWorkspace,
       avatar: this.avatar,
+      lastPasswordChangedAt: this.lastPasswordChangedAt,
     };
   }
 }
