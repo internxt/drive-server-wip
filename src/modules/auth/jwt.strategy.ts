@@ -37,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
       if (!payload.payload || !payload.payload.uuid) {
         throw new UnauthorizedException('Old token version detected');
       }
-      const { uuid } = payload.payload;
+      const { uuid, iat } = payload.payload;
       const user = await this.userUseCases.getUser(uuid);
       if (!user) {
         throw new UnauthorizedException();
@@ -48,10 +48,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
 
       const tokenOlderThanLastPasswordChangedAt =
         user.lastPasswordChangedAt &&
-        !isTokenIatGreaterThanDate(
-          new Date(user.lastPasswordChangedAt),
-          payload.iat,
-        );
+        !isTokenIatGreaterThanDate(new Date(user.lastPasswordChangedAt), iat);
 
       if (
         !userWithoutLastPasswordChangedAt &&

@@ -533,8 +533,8 @@ export class UserUseCases {
           user: userData.bridgeUser,
           pass: userData.userId,
         },
+        iat: getTokenDefaultIat(),
       },
-      iat: getTokenDefaultIat(),
     };
   }
 

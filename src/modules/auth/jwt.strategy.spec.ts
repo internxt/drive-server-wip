@@ -41,7 +41,7 @@ describe('Jwt strategy', () => {
     jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
     await expect(
-      strategy.validate({ payload: { uuid: 'anyUuid' }, iat: tokenIat }),
+      strategy.validate({ payload: { uuid: 'anyUuid', iat: tokenIat } }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -55,7 +55,7 @@ describe('Jwt strategy', () => {
     jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
     await expect(
-      strategy.validate({ payload: { uuid: 'anyUuid' }, iat: tokenIat }),
+      strategy.validate({ payload: { uuid: 'anyUuid', iat: tokenIat } }),
     ).resolves.toBe(user);
   });
 
@@ -67,7 +67,7 @@ describe('Jwt strategy', () => {
     jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
     await expect(
-      strategy.validate({ payload: { uuid: 'anyUuid' }, iat: tokenIat }),
+      strategy.validate({ payload: { uuid: 'anyUui', iat: tokenIat } }),
     ).resolves.toBe(user);
   });
 
@@ -91,7 +91,7 @@ describe('Jwt strategy', () => {
       .mockResolvedValue(owner);
 
     await expect(
-      strategy.validate({ payload: { uuid: anyUuid }, iat: tokenIat }),
+      strategy.validate({ payload: { uuid: anyUuid, iat: tokenIat } }),
     ).resolves.toBe(owner);
 
     expect(getUserSpy).toHaveBeenCalledWith(anyUuid);
