@@ -122,5 +122,5 @@ export class UserModel extends Model implements UserAttributes {
 
   @AllowNull
   @Column
-  unblockToken: string;
+  lastPasswordChangedAt: Date;
 }
