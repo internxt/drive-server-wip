@@ -60,7 +60,7 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { getTokenDefaultIat } from '../../lib/jwt';
+import { getTokenDefaultIat, isTokenIatGreaterThanDate } from '../../lib/jwt';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -715,13 +715,14 @@ export class UserUseCases {
           email: user.email,
           action: AccountTokenAction.Unblock,
         },
+        iat: getTokenDefaultIat(),
       },
       secret,
       '48h',
     );
 
     await this.userRepository.updateByUuid(user.uuid, {
-      unblockToken: unblockAccountToken,
+      lastPasswordChangedAt: new Date(),
     });
 
     const driveWebUrl = this.configService.get('clients.drive.web');
@@ -737,20 +738,29 @@ export class UserUseCases {
     });
   }
 
-  async unblockAccount(userUuid: User['uuid'], token?: string): Promise<void> {
+  async unblockAccount(
+    userUuid: User['uuid'],
+    tokenIat?: number,
+  ): Promise<void> {
     const user = await this.userRepository.findByUuid(userUuid);
 
     if (!user) {
       throw new BadRequestException();
     }
 
-    if (token && user?.unblockToken !== token) {
+    if (
+      tokenIat &&
+      !isTokenIatGreaterThanDate(
+        new Date(user?.lastPasswordChangedAt),
+        tokenIat,
+      )
+    ) {
       throw new ForbiddenException();
     }
 
     await this.userRepository.updateByUuid(userUuid, {
       errorLoginCount: 0,
-      unblockToken: null,
+      lastPasswordChangedAt: null,
     });
   }
 

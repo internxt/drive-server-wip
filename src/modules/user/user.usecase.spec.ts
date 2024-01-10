@@ -30,6 +30,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SignWithCustomDuration } from '../../middlewares/passport';
+import { getTokenDefaultIat } from '../../lib/jwt';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -241,85 +242,101 @@ describe('User use cases', () => {
     });
   });
 
-  describe('Request account unblock', () => {
-    it('When user does not exist, then fail', async () => {
-      const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
-      const email = 'email@test.com';
-      userFindByEmailSpy.mockReturnValueOnce(null);
+  describe('Unblocking user account', () => {
+    describe('Request Account unblock', () => {
+      const fixedSystemCurrentDate = new Date('2020-02-19');
 
-      await expect(userUseCases.sendAccountUnblockEmail(email)).rejects.toThrow(
-        NotFoundException,
-      );
-    });
+      beforeAll(async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(fixedSystemCurrentDate);
+      });
 
-    it('When user user exists, then add unblockToken and send email', async () => {
-      const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
-      const userUpdateSpy = jest.spyOn(userRepository, 'updateByUuid');
-      const emailSendSpy = jest.spyOn(mailerService, 'send');
-      const configServiceGetSpy = jest.spyOn(configService, 'get');
-      const email = 'email@test.com';
-      userFindByEmailSpy.mockResolvedValueOnce(user);
-      userUpdateSpy.mockResolvedValueOnce(null);
-      emailSendSpy.mockResolvedValueOnce(null);
-      configServiceGetSpy.mockReturnValue('secret');
+      afterAll(async () => {
+        jest.useRealTimers();
+      });
 
-      await userUseCases.sendAccountUnblockEmail(email);
+      it('When user does not exist, then fail', async () => {
+        const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
+        const email = 'email@test.com';
+        userFindByEmailSpy.mockReturnValueOnce(null);
 
-      expect(SignWithCustomDuration).toHaveBeenCalledWith(
-        {
-          payload: {
-            uuid: user.uuid,
-            email: user.email,
-            action: AccountTokenAction.Unblock,
+        await expect(
+          userUseCases.sendAccountUnblockEmail(email),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When user user exists, then user lastPasswordChangedAt is updated', async () => {
+        const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
+        const userUpdateSpy = jest.spyOn(userRepository, 'updateByUuid');
+        const configServiceGetSpy = jest.spyOn(configService, 'get');
+        const email = 'email@test.com';
+        userFindByEmailSpy.mockResolvedValueOnce(user);
+        configServiceGetSpy.mockReturnValue('secret');
+
+        await userUseCases.sendAccountUnblockEmail(email);
+
+        expect(SignWithCustomDuration).toHaveBeenCalledWith(
+          {
+            payload: {
+              uuid: user.uuid,
+              email: user.email,
+              action: AccountTokenAction.Unblock,
+            },
+            iat: getTokenDefaultIat(),
           },
-        },
-        'secret',
-        '48h',
-      );
-      expect(userUpdateSpy).toHaveBeenCalledWith(user.uuid, {
-        unblockToken: 'anyToken',
+          'secret',
+          '48h',
+        );
+        expect(userUpdateSpy).toHaveBeenCalledWith(user.uuid, {
+          lastPasswordChangedAt: fixedSystemCurrentDate,
+        });
       });
     });
-  });
 
-  describe('Unblock user account', () => {
-    it('When user does not exist, then fail', async () => {
-      const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-      userFindByUuidSpy.mockReturnValueOnce(null);
+    describe('Unblock account', () => {
+      it('When user does not exist, then fail', async () => {
+        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+        userFindByUuidSpy.mockReturnValueOnce(null);
 
-      await expect(userUseCases.unblockAccount(user.uuid)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('When token is not the last one requested, then fail', async () => {
-      const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-      const unblockUser = User.build({
-        ...user,
-        unblockToken: 'lastToken',
+        await expect(userUseCases.unblockAccount(user.uuid)).rejects.toThrow(
+          BadRequestException,
+        );
       });
 
-      userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
+      it('When token is older than lastPasswordChangedAt, then fail', async () => {
+        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+        const olderIat = getTokenDefaultIat();
+        const recentDate = new Date(olderIat * 1000);
+        recentDate.setMilliseconds(recentDate.getMilliseconds() + 1);
+        const unblockUser = User.build({
+          ...user,
+          lastPasswordChangedAt: recentDate,
+        });
 
-      await expect(
-        userUseCases.unblockAccount(unblockUser.uuid, 'notLastToken'),
-      ).rejects.toThrow(ForbiddenException);
-    });
+        userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
 
-    it('When user found and tokens are equal, then user unblockToken and errorLoginCount are reset', async () => {
-      const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-      const userUpdateByUuidSpy = jest.spyOn(userRepository, 'updateByUuid');
-      const unblockUser = User.build({
-        ...user,
-        unblockToken: 'lastToken',
+        await expect(
+          userUseCases.unblockAccount(unblockUser.uuid, olderIat),
+        ).rejects.toThrow(ForbiddenException);
       });
 
-      userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
-      await userUseCases.unblockAccount(unblockUser.uuid, 'lastToken');
+      it('When token is greater than lastPasswordChangedAt, then update user', async () => {
+        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+        const tokenIat = getTokenDefaultIat();
+        const olderDate = new Date(tokenIat * 1000);
+        olderDate.setMilliseconds(olderDate.getMilliseconds() - 1);
+        const unblockUser = User.build({
+          ...user,
+          lastPasswordChangedAt: olderDate,
+        });
+        userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
 
-      expect(userUpdateByUuidSpy).toHaveBeenCalledWith(unblockUser.uuid, {
-        errorLoginCount: 0,
-        unblockToken: null,
+        await userUseCases.unblockAccount(unblockUser.uuid, tokenIat);
+
+        expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
+          errorLoginCount: 0,
+          lastPasswordChangedAt: null,
+        });
       });
     });
   });

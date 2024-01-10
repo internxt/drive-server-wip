@@ -50,7 +50,7 @@ import {
   RequestRecoverAccountDto,
   ResetAccountDto,
 } from './dto/recover-account.dto';
-import { verifyToken } from '../../lib/jwt';
+import { verifyToken, verifyWithDefaultSecret } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -468,25 +468,26 @@ export class UserController {
   async accountUnblock(@Query('token') token: string) {
     let decodedContent: {
       payload: { uuid: string; action: string; email: string };
+      iat: number;
     };
-
     try {
-      const decoded = verifyToken(token, getEnv().secrets.jwt);
-
+      const decoded = verifyWithDefaultSecret(token);
       if (typeof decoded === 'string') {
         throw new ForbiddenException();
       }
-
       decodedContent = decoded as {
         payload: { uuid: string; action: string; email: string };
+        iat: number;
       };
     } catch (err) {
       throw new ForbiddenException();
     }
 
     const tokenPayload = decodedContent?.payload;
+    const tokenIat = decodedContent.iat;
 
     if (
+      !tokenIat ||
       !tokenPayload.action ||
       !tokenPayload.uuid ||
       !tokenPayload.email ||
@@ -499,7 +500,7 @@ export class UserController {
     const { uuid, email } = tokenPayload;
 
     try {
-      await this.userUseCases.unblockAccount(uuid, token);
+      await this.userUseCases.unblockAccount(uuid, tokenIat);
     } catch (err) {
       if (
         err instanceof ForbiddenException ||
