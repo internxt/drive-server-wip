@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsEmail } from 'class-validator';
 
 export class RequestAccountUnblock {
   @ApiProperty({
@@ -7,5 +7,6 @@ export class RequestAccountUnblock {
     description: 'User email',
   })
   @IsNotEmpty()
+  @IsEmail()
   email: string;
 }
