@@ -38,7 +38,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `
         UNHANDLE ERROR: 
         
-        ${JSON.stringify(exception)}
+        ${JSON.stringify(exception.message ?? exception)}
         `,
       );
 
