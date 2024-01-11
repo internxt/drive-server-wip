@@ -934,7 +934,16 @@ export class UserUseCases {
       attemptChangeEmailId,
     );
 
-    const user = await this.userRepository.findByEmail(emails.newEmail);
+    const user = await this.userRepository.findByUuid(
+      attemptChangeEmail.userUuid,
+    );
+
+    if (user.email !== emails.newEmail) {
+      user.email = emails.newEmail;
+      user.username = emails.newEmail;
+      user.bridgeUser = emails.newEmail;
+    }
+
     const newTokenPayload = this.getNewTokenPayload(user);
 
     return {
