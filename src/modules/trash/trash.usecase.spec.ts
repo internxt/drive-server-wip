@@ -2,10 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TrashUseCases } from './trash.usecase';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { File, FileAttributes } from '../file/file.domain';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { getModelToken } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
@@ -18,7 +16,7 @@ import {
   ShareModel,
 } from '../share/share.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { CryptoModule } from '../..//externals/crypto/crypto.module';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotFoundException } from '@nestjs/common';
 import { FileModel } from '../file/file.model';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
