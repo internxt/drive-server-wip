@@ -305,7 +305,7 @@ describe('User use cases', () => {
         const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
         const olderIat = getTokenDefaultIat();
         const recentDate = new Date(olderIat * 1000);
-        recentDate.setMilliseconds(recentDate.getMilliseconds() + 1);
+        recentDate.setSeconds(recentDate.getSeconds() + 1);
         const unblockUser = User.build({
           ...user,
           lastPasswordChangedAt: recentDate,

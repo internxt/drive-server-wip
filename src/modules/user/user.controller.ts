@@ -465,7 +465,7 @@ export class UserController {
     summary: 'Resets user error login counter to unblock account',
   })
   @Public()
-  async accountUnblock(@Query('token') token: string) {
+  async accountUnblock(@Body('token') token: string) {
     let decodedContent: {
       payload: { uuid: string; action: string; email: string };
       iat: number;

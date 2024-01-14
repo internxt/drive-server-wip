@@ -708,6 +708,12 @@ export class UserUseCases {
       throw new NotFoundException();
     }
 
+    const defaultIat = getTokenDefaultIat();
+
+    await this.userRepository.updateByUuid(user.uuid, {
+      lastPasswordChangedAt: new Date(defaultIat * 1000),
+    });
+
     const unblockAccountToken = SignWithCustomDuration(
       {
         payload: {
@@ -715,15 +721,11 @@ export class UserUseCases {
           email: user.email,
           action: AccountTokenAction.Unblock,
         },
-        iat: getTokenDefaultIat(),
+        iat: defaultIat,
       },
       secret,
       '48h',
     );
-
-    await this.userRepository.updateByUuid(user.uuid, {
-      lastPasswordChangedAt: new Date(),
-    });
 
     const driveWebUrl = this.configService.get('clients.drive.web');
     const unblockAccountTemplateId = this.configService.get(
