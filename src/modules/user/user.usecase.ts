@@ -730,7 +730,7 @@ export class UserUseCases {
       'mailer.templates.unblockAccountEmail',
     );
 
-    const url = `${driveWebUrl}/unblock-account/${unblockAccountToken}`;
+    const url = `${driveWebUrl}/blocked-account/${unblockAccountToken}`;
 
     await this.mailerService.send(user.email, unblockAccountTemplateId, {
       email,
