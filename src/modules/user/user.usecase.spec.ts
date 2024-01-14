@@ -46,7 +46,6 @@ describe('User use cases', () => {
   let shareUseCases: ShareUseCases;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
-  let mailerService: MailerService;
   let userRepository: SequelizeUserRepository;
   let configService: ConfigService;
 
@@ -87,7 +86,6 @@ describe('User use cases', () => {
     folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);
     fileUseCases = moduleRef.get<FileUseCases>(FileUseCases);
     userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
-    mailerService = moduleRef.get<MailerService>(MailerService);
     configService = moduleRef.get<ConfigService>(ConfigService);
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
