@@ -903,15 +903,29 @@ export class UserUseCases {
 
     const { uuid, email } = user;
 
-    await this.networkService.updateUserEmail(uuid, newEmail);
-
     try {
-      await this.userRepository.updateById(user.id, {
+      const payload = {
         email: newEmail,
         username: newEmail,
-        bridgeUser: newEmail,
-      });
-      await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+      };
+
+      const isGuestOnSharedWorkspace = user.isGuestOnSharedWorkspace();
+
+      if (!isGuestOnSharedWorkspace) {
+        await this.networkService.updateUserEmail(uuid, newEmail);
+        payload['bridgeUser'] = newEmail;
+      } else {
+        await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+      }
+
+      if (user.sharedWorkspace) {
+        await this.userRepository.updateBy(
+          { bridgeUser: email },
+          { bridgeUser: newEmail },
+        );
+      }
+
+      await this.userRepository.updateByUuid(user.uuid, payload);
     } catch (error) {
       Logger.error(`[CHANGE-EMAIL/ERROR]: ${JSON.stringify(error)}.`);
 
@@ -1002,7 +1016,15 @@ export class UserUseCases {
       attemptChangeEmailId,
     );
 
-    const user = await this.userRepository.findByEmail(emails.newEmail);
+    const user = await this.userRepository.findByUuid(
+      attemptChangeEmail.userUuid,
+    );
+
+    if (user.email !== emails.newEmail) {
+      user.email = emails.newEmail;
+      user.username = emails.newEmail;
+    }
+
     const newTokenPayload = this.getNewTokenPayload(user);
 
     return {

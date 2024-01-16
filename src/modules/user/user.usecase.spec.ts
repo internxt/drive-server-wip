@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
+import { AttemptChangeEmailModel } from './attempt-change-email.model';
+import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
 import { UserUseCases } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
@@ -31,6 +33,10 @@ import {
 } from '@nestjs/common';
 import { SignWithCustomDuration } from '../../middlewares/passport';
 import { getTokenDefaultIat } from '../../lib/jwt';
+import { UserNotFoundException } from './exception/user-not-found.exception';
+import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
+import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
+import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -38,6 +44,8 @@ jest.mock('../../middlewares/passport', () => {
     __esModule: true,
     ...originalModule,
     SignWithCustomDuration: jest.fn((payload, secret, expiresIn) => 'anyToken'),
+    Sign: jest.fn(() => 'newToken'),
+    SignEmail: jest.fn(() => 'token'),
   };
 });
 
@@ -47,6 +55,10 @@ describe('User use cases', () => {
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let userRepository: SequelizeUserRepository;
+  let bridgeService: BridgeService;
+  let sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository;
+  let cryptoService: CryptoService;
+  let attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository;
   let configService: ConfigService;
 
   const user = User.build({
@@ -90,6 +102,20 @@ describe('User use cases', () => {
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
+    bridgeService = moduleRef.get<BridgeService>(BridgeService);
+    userRepository = moduleRef.get<SequelizeUserRepository>(
+      SequelizeUserRepository,
+    );
+    sharedWorkspaceRepository =
+      moduleRef.get<SequelizeSharedWorkspaceRepository>(
+        SequelizeSharedWorkspaceRepository,
+      );
+    cryptoService = moduleRef.get<CryptoService>(CryptoService);
+    attemptChangeEmailRepository =
+      moduleRef.get<SequelizeAttemptChangeEmailRepository>(
+        SequelizeAttemptChangeEmailRepository,
+      );
+    configService = moduleRef.get<ConfigService>(ConfigService);
   });
 
   describe('Resetting a user', () => {
@@ -336,6 +362,223 @@ describe('User use cases', () => {
           lastPasswordChangedAt: null,
         });
       });
+    });
+  });
+
+  describe('changeUserEmailById', () => {
+    it('When changing the user email successfully, Then it should return the old and new email details', async () => {
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+
+      const result = await userUseCases.changeUserEmailById(
+        user.uuid,
+        'newemail@example.com',
+      );
+
+      expect(result).toEqual({
+        oldEmail: user.email,
+        newEmail: 'newemail@example.com',
+      });
+    });
+
+    it('When the user is a guest on a shared workspace, Then it should not call bridgeService.updateUserEmail', async () => {
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(
+        User.build({
+          ...user,
+          bridgeUser: 'bridgeUser@inxt.com',
+        }),
+      );
+
+      await userUseCases.changeUserEmailById(user.uuid, 'newemail@example.com');
+
+      expect(bridgeService.updateUserEmail).not.toHaveBeenCalled();
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
+        email: 'newemail@example.com',
+        username: 'newemail@example.com',
+      });
+    });
+
+    it('When the user is a guest on a shared workspace, Then it should call sharedWorkspaceRepository.updateGuestEmail', async () => {
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(
+        User.build({
+          ...user,
+          bridgeUser: 'bridgeUser@inxt.com',
+        }),
+      );
+
+      await userUseCases.changeUserEmailById(user.uuid, 'newemail@example.com');
+
+      expect(sharedWorkspaceRepository.updateGuestEmail).toHaveBeenCalledWith(
+        user.email,
+        'newemail@example.com',
+      );
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
+        email: 'newemail@example.com',
+        username: 'newemail@example.com',
+      });
+    });
+
+    it('When the user is not a guest on a shared workspace, Then it should update the bridgeUser property', async () => {
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(
+        User.build({
+          ...user,
+          bridgeUser: user.email,
+        }),
+      );
+
+      await userUseCases.changeUserEmailById(user.uuid, 'newemail@example.com');
+
+      expect(bridgeService.updateUserEmail).toHaveBeenCalledWith(
+        user.uuid,
+        'newemail@example.com',
+      );
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
+        email: 'newemail@example.com',
+        username: 'newemail@example.com',
+        bridgeUser: 'newemail@example.com',
+      });
+    });
+
+    it('When an exception is thrown, Then it should call bridgeService.updateUserEmail', async () => {
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+
+      try {
+        await userUseCases.changeUserEmailById(
+          user.uuid,
+          'newuseremail@inxt.com',
+        );
+      } catch (e) {
+        expect(bridgeService.updateUserEmail).toHaveBeenCalledWith(
+          user.uuid,
+          user.email,
+        );
+      }
+    });
+
+    it('When the user is not found, Then it should throw UserNotFoundException', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(undefined);
+
+      await expect(
+        userUseCases.changeUserEmailById(
+          'nonexistentuuid',
+          'newemail@example.com',
+        ),
+      ).rejects.toThrow(UserNotFoundException);
+    });
+
+    it('When the user email is already in use, Then it should throw UserEmailAlreadyInUseException', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+
+      await expect(
+        userUseCases.changeUserEmailById(
+          'nonexistentuuid',
+          'newemail@example.com',
+        ),
+      ).rejects.toThrow(UserEmailAlreadyInUseException);
+    });
+  });
+
+  describe('acceptAttemptChangeEmail', () => {
+    it('When accepting an attempt, Then it should return new email details with a new token', async () => {
+      const encryptedId = 'encryptedId';
+      const decryptedId = '1';
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(decryptedId);
+
+      const attemptChangeEmail = {
+        id: 1,
+        userUuid: user.uuid,
+        newEmail: 'newemail@example.com',
+        isExpiresAt: false,
+        isVerified: false,
+      };
+
+      jest
+        .spyOn(attemptChangeEmailRepository, 'getOneById')
+        .mockResolvedValue(attemptChangeEmail as any);
+      jest
+        .spyOn(attemptChangeEmailRepository, 'acceptAttemptChangeEmail')
+        .mockResolvedValue(undefined);
+
+      jest.spyOn(userUseCases, 'changeUserEmailById').mockResolvedValue({
+        oldEmail: user.email,
+        newEmail: 'newemail@example.com',
+      });
+
+      jest.spyOn(userUseCases, 'getNewTokenPayload').mockReturnValue({} as any);
+      jest.spyOn(configService, 'get').mockReturnValue('a-secret-key');
+
+      const result = await userUseCases.acceptAttemptChangeEmail(encryptedId);
+
+      expect(result).toEqual({
+        oldEmail: user.email,
+        newEmail: 'newemail@example.com',
+        newAuthentication: {
+          token: 'token',
+          newToken: 'newToken',
+          user,
+        },
+      });
+    });
+
+    it('When the attempt is not found, Then it should throw AttemptChangeEmailNotFoundException', async () => {
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('1');
+      jest
+        .spyOn(attemptChangeEmailRepository, 'getOneById')
+        .mockResolvedValue(undefined);
+
+      await expect(
+        userUseCases.acceptAttemptChangeEmail('encryptedId'),
+      ).rejects.toThrow(AttemptChangeEmailNotFoundException);
+    });
+
+    it('When the attempt is expired, Then it should throw AttemptChangeEmailHasExpiredException', async () => {
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('1');
+      jest.spyOn(attemptChangeEmailRepository, 'getOneById').mockResolvedValue(
+        createMock<AttemptChangeEmailModel>({
+          isExpired: true,
+        }),
+      );
+
+      await expect(
+        userUseCases.acceptAttemptChangeEmail('encryptedId'),
+      ).rejects.toThrow(AttemptChangeEmailHasExpiredException);
+    });
+
+    it('When the attempt is already verified, Then it should throw AttemptChangeEmailAlreadyVerifiedException', async () => {
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('1');
+      jest.spyOn(attemptChangeEmailRepository, 'getOneById').mockResolvedValue(
+        createMock<AttemptChangeEmailModel>({
+          isExpired: false,
+          isVerified: true,
+        }),
+      );
+
+      await expect(
+        userUseCases.acceptAttemptChangeEmail('encryptedId'),
+      ).rejects.toThrow(AttemptChangeEmailAlreadyVerifiedException);
+    });
+
+    it('When changeUserEmailById fails, Then it should throw an error', async () => {
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('1');
+      jest.spyOn(attemptChangeEmailRepository, 'getOneById').mockResolvedValue(
+        createMock<AttemptChangeEmailModel>({
+          isExpired: false,
+          isVerified: false,
+        }),
+      );
+
+      jest
+        .spyOn(userUseCases, 'changeUserEmailById')
+        .mockRejectedValue(new Error('Change email failed'));
+
+      await expect(
+        userUseCases.acceptAttemptChangeEmail('encryptedId'),
+      ).rejects.toThrowError('Change email failed');
     });
   });
 });
