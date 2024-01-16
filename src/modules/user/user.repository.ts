@@ -23,6 +23,11 @@ export interface UserRepository {
   ): Promise<void>;
   toDomain(model: UserModel): User;
   toModel(domain: User): Partial<UserAttributes>;
+  updateBy(
+    where: Partial<UserAttributes>,
+    update: Partial<UserAttributes>,
+    transaction?: Transaction,
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -103,6 +108,14 @@ export class SequelizeUserRepository implements UserRepository {
     transaction?: Transaction,
   ): Promise<void> {
     await this.modelUser.update(update, { where: { id }, transaction });
+  }
+
+  async updateBy(
+    where: Partial<UserAttributes>,
+    update: Partial<UserAttributes>,
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.modelUser.update(update, { where, transaction });
   }
 
   async updateByUuid(uuid: User['uuid'], update: Partial<User>): Promise<void> {
