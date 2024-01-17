@@ -38,6 +38,7 @@ import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
   KeyServerNotFoundError,
+  MailLimitReachedException,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
@@ -439,9 +440,12 @@ export class UserController {
   @Public()
   async requestAccountUnblock(@Body() body: RequestAccountUnblock) {
     try {
-      return await this.userUseCases.sendAccountUnblockEmail(body.email);
+      const response = await this.userUseCases.sendAccountUnblockEmail(
+        body.email,
+      );
+      return response;
     } catch (err) {
-      if (err instanceof NotFoundException) {
+      if (err instanceof NotFoundException || MailLimitReachedException) {
         throw err;
       }
 

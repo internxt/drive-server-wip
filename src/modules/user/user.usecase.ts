@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -61,6 +63,8 @@ import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { getTokenDefaultIat, isTokenIatGreaterThanDate } from '../../lib/jwt';
+import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/mail-limit.repository';
+import { MailTypes } from '../../externals/mailer/mailTypes';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -98,6 +102,12 @@ export class UserNotFoundError extends Error {
   }
 }
 
+export class MailLimitReachedException extends HttpException {
+  constructor() {
+    super('Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
+
 type NewUser = Pick<
   UserAttributes,
   'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
@@ -129,6 +139,7 @@ export class UserUseCases {
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
     private readonly mailerService: MailerService,
+    private readonly mailLimitRepository: SequelizeMailLimitRepository,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -705,7 +716,19 @@ export class UserUseCases {
     const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
-      throw new NotFoundException();
+      return;
+    }
+
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      { userId: user.id, mailType: MailTypes.UnblockAccount },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 5,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException();
     }
 
     const defaultIat = getTokenDefaultIat();
@@ -728,16 +751,16 @@ export class UserUseCases {
     );
 
     const driveWebUrl = this.configService.get('clients.drive.web');
-    const unblockAccountTemplateId = this.configService.get(
-      'mailer.templates.unblockAccountEmail',
-    );
-
     const url = `${driveWebUrl}/blocked-account/${unblockAccountToken}`;
+    await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
 
-    await this.mailerService.send(user.email, unblockAccountTemplateId, {
-      email,
-      unblock_url: url,
-    });
+    mailLimit.increaseAttemptsCountIfToday();
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.UnblockAccount,
+      mailLimit,
+    );
   }
 
   async unblockAccount(
@@ -762,7 +785,6 @@ export class UserUseCases {
 
     await this.userRepository.updateByUuid(userUuid, {
       errorLoginCount: 0,
-      lastPasswordChangedAt: null,
     });
   }
 
