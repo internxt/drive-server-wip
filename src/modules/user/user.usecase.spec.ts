@@ -275,8 +275,8 @@ describe('User use cases', () => {
       const mailLimit = newMailLimit({
         userId: user.id,
         mailType: MailTypes.UnblockAccount,
-        limit: 5,
-        attemps: 0,
+        attemptsLimit: 5,
+        attemptsCount: 0,
       });
 
       beforeAll(async () => {

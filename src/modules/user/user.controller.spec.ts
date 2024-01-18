@@ -1,9 +1,7 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
-  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
-  NotFoundException,
 } from '@nestjs/common';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
@@ -56,7 +54,7 @@ describe('User Controller', () => {
   });
 
   describe('POST /unblock-account', () => {
-    it('When an unhandled error is returned, then returns 500', async () => {
+    it('When an unhandled error is returned, then error 500 is shown', async () => {
       userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(new Error());
       await expect(
         userController.requestAccountUnblock({ email: '' }),
