@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
@@ -6,26 +7,15 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { getModelToken } from '@nestjs/sequelize';
 import { File, FileAttributes, FileStatus } from './file.domain';
 import { User } from '../user/user.domain';
 import { ShareUseCases } from '../share/share.usecase';
-import { FolderUseCases } from '../folder/folder.usecase';
-import {
-  SequelizeShareRepository,
-  ShareModel,
-} from '../share/share.repository';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
+
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
-import { FileModel } from './file.model';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
@@ -69,37 +59,10 @@ describe('FileUseCases', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [BridgeModule, CryptoModule],
-      providers: [
-        FileUseCases,
-        SequelizeFileRepository,
-        {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        ShareUseCases,
-        SequelizeShareRepository,
-        {
-          provide: getModelToken(ShareModel),
-          useValue: jest.fn(),
-        },
-        FolderUseCases,
-        SequelizeFolderRepository,
-        {
-          provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        SequelizeUserRepository,
-        {
-          provide: getModelToken(UserModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(ThumbnailModel),
-          useValue: jest.fn(),
-        },
-        CryptoService,
-      ],
-    }).compile();
+      providers: [FileUseCases, CryptoService],
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<FileUseCases>(FileUseCases);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

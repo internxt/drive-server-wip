@@ -16,6 +16,7 @@ import {
   SequelizeSendRepository,
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';
+import { createMock } from '@golevelup/ts-jest';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases, notificationService, sendRepository;
@@ -80,7 +81,9 @@ describe('Send Use Cases', () => {
           useValue: jest.fn(),
         },
       ],
-    }).compile();
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<SendUseCases>(SendUseCases);
     notificationService = module.get<NotificationService>(NotificationService);

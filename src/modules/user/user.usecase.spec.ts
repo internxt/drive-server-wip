@@ -10,22 +10,12 @@ import { FileUseCases } from '../file/file.usecase';
 import { User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
-import { SequelizeReferralRepository } from './referrals.repository';
-import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { NotificationService } from '../../externals/notifications/notification.service';
-import { PaymentsService } from '../../externals/payments/payments.service';
-import { NewsletterService } from '../../externals/newsletter';
 import { ConfigService } from '@nestjs/config';
-import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { File, FileAttributes } from '../file/file.domain';
-import { AvatarService } from '../../externals/avatar/avatar.service';
-import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
-import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
-import { MailerService } from '../../externals/mailer/mailer.service';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
@@ -470,84 +460,8 @@ describe('User use cases', () => {
 const createTestingModule = (): Promise<TestingModule> => {
   return Test.createTestingModule({
     controllers: [],
-    providers: [
-      {
-        provide: SequelizeUserRepository,
-        useValue: createMock<SequelizeUserRepository>(),
-      },
-      {
-        provide: SequelizeSharedWorkspaceRepository,
-        useValue: createMock<SequelizeSharedWorkspaceRepository>(),
-      },
-      {
-        provide: SequelizePreCreatedUsersRepository,
-        useValue: createMock<SequelizePreCreatedUsersRepository>(),
-      },
-      {
-        provide: SequelizeSharingRepository,
-        useValue: createMock<SequelizeSharingRepository>(),
-      },
-      {
-        provide: SequelizeReferralRepository,
-        useValue: createMock<SequelizeReferralRepository>(),
-      },
-      {
-        provide: SequelizeUserReferralsRepository,
-        useValue: createMock<SequelizeUserReferralsRepository>(),
-      },
-      {
-        provide: FileUseCases,
-        useValue: createMock<FileUseCases>(),
-      },
-      {
-        provide: FolderUseCases,
-        useValue: createMock<FolderUseCases>(),
-      },
-      {
-        provide: ShareUseCases,
-        useValue: createMock<ShareUseCases>(),
-      },
-      {
-        provide: ConfigService,
-        useValue: createMock<ConfigService>(),
-      },
-      {
-        provide: CryptoService,
-        useValue: createMock<CryptoService>(),
-      },
-      {
-        provide: BridgeService,
-        useValue: createMock<BridgeService>(),
-      },
-      {
-        provide: NotificationService,
-        useValue: createMock<NotificationService>(),
-      },
-      {
-        provide: PaymentsService,
-        useValue: createMock<PaymentsService>(),
-      },
-      {
-        provide: NewsletterService,
-        useValue: createMock<NewsletterService>(),
-      },
-      {
-        provide: SequelizeKeyServerRepository,
-        useValue: createMock<SequelizeKeyServerRepository>(),
-      },
-      {
-        provide: AvatarService,
-        useValue: createMock<AvatarService>(),
-      },
-      {
-        provide: SequelizeAttemptChangeEmailRepository,
-        useValue: createMock<SequelizeAttemptChangeEmailRepository>(),
-      },
-      {
-        provide: MailerService,
-        useValue: createMock<MailerService>(),
-      },
-      UserUseCases,
-    ],
-  }).compile();
+    providers: [UserUseCases],
+  })
+    .useMocker(() => createMock())
+    .compile();
 };
