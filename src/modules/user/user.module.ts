@@ -98,6 +98,7 @@ import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/
     SequelizeUserReferralsRepository,
     SequelizeReferralRepository,
     SequelizeAttemptChangeEmailRepository,
+    SequelizeMailLimitRepository,
   ],
 })
 export class UserModule {}

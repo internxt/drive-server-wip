@@ -755,7 +755,6 @@ export class UserUseCases {
     await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
 
     mailLimit.increaseAttemptsCountIfToday();
-
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
       MailTypes.UnblockAccount,

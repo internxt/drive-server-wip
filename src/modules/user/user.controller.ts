@@ -20,6 +20,7 @@ import {
   BadRequestException,
   UseFilters,
   InternalServerErrorException,
+  HttpException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -38,7 +39,6 @@ import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
   KeyServerNotFoundError,
-  MailLimitReachedException,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
@@ -445,7 +445,7 @@ export class UserController {
       );
       return response;
     } catch (err) {
-      if (err instanceof NotFoundException || MailLimitReachedException) {
+      if (err instanceof HttpException) {
         throw err;
       }
 
