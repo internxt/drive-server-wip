@@ -42,8 +42,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { MailLimitModel } from '../../externals/mailer/mail-limit/mail-limit.model';
-import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/mail-limit.repository';
+import { SecurityModule } from '../security/security.module';
 
 @Module({
   imports: [
@@ -55,7 +54,6 @@ import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/
       FriendInvitationModel,
       KeyServerModel,
       AttemptChangeEmailModel,
-      MailLimitModel,
     ]),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
@@ -68,6 +66,7 @@ import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/
     AppSumoModule,
     PlanModule,
     forwardRef(() => SharingModule),
+    SecurityModule,
   ],
   controllers: [UserController],
   providers: [
@@ -78,7 +77,6 @@ import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/
     SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
     SequelizeAttemptChangeEmailRepository,
-    SequelizeMailLimitRepository,
     UserUseCases,
     CryptoService,
     BridgeService,
@@ -98,7 +96,6 @@ import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/
     SequelizeUserReferralsRepository,
     SequelizeReferralRepository,
     SequelizeAttemptChangeEmailRepository,
-    SequelizeMailLimitRepository,
   ],
 })
 export class UserModule {}
