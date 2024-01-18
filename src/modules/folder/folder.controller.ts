@@ -9,6 +9,7 @@ import {
   NotImplementedException,
   Param,
   Query,
+  UseFilters,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
@@ -19,6 +20,7 @@ import { Folder, SortableFolderAttributes } from './folder.domain';
 import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { validate } from 'uuid';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -255,7 +257,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: typeof foldersStatuses[number],
+    @Query('status') status: (typeof foldersStatuses)[number],
     @Query('updatedAt') updatedAt?: string,
   ) {
     if (!status) {
@@ -417,5 +419,13 @@ export class FolderController {
         }`,
       });
     }
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @Get(':uuid/size')
+  async getFolderSize(@Param('uuid') folderUuid: Folder['uuid']) {
+    const size = await this.folderUseCases.getFolderSizeByUuid(folderUuid);
+
+    return { size };
   }
 }
