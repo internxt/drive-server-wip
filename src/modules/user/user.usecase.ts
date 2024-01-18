@@ -754,7 +754,7 @@ export class UserUseCases {
     const url = `${driveWebUrl}/blocked-account/${unblockAccountToken}`;
     await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
 
-    mailLimit.increaseAttemptsCountIfToday();
+    mailLimit.increaseTodayAttemps();
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
       MailTypes.UnblockAccount,

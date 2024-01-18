@@ -297,7 +297,7 @@ describe('User use cases', () => {
         ).resolves.toBeUndefined();
       });
 
-      it('When user user exists, then user lastPasswordChangedAt is updated', async () => {
+      it('When user exists, then user lastPasswordChangedAt is updated', async () => {
         const userUpdateSpy = jest.spyOn(userRepository, 'updateByUuid');
         jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
         jest.spyOn(configService, 'get').mockReturnValue('secret');

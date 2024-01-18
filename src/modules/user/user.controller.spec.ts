@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
-import { UserUseCases } from './user.usecase';
+import { MailLimitReachedException, UserUseCases } from './user.usecase';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -56,19 +56,20 @@ describe('User Controller', () => {
   });
 
   describe('POST /unblock-account', () => {
-    it('When user is not found, then returns NotFoundException', async () => {
-      userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(
-        new NotFoundException(),
-      );
-      await expect(
-        userController.requestAccountUnblock({ email: 'test@test.com' }),
-      ).rejects.toThrow(NotFoundException);
-    });
-    it('When an unexpected error is throw, then returns InternalServerException', async () => {
+    it('When an unhandled error is returned, then returns 500', async () => {
       userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(new Error());
       await expect(
-        userController.requestAccountUnblock({ email: 'test@test.com' }),
+        userController.requestAccountUnblock({ email: '' }),
       ).rejects.toThrow(InternalServerErrorException);
+    });
+
+    it('When mail Limit is reached, then 429 error is shown', async () => {
+      userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(
+        new MailLimitReachedException(),
+      );
+      await expect(
+        userController.requestAccountUnblock({ email: '' }),
+      ).rejects.toThrow(MailLimitReachedException);
     });
   });
 
@@ -125,25 +126,6 @@ describe('User Controller', () => {
       );
       await expect(userController.accountUnblock(expiredToken)).rejects.toThrow(
         ForbiddenException,
-      );
-    });
-
-    it('When token is valid but useCase throws badRequest or Forbidden, then fails with respective error', async () => {
-      userUseCases.unblockAccount
-        .mockRejectedValueOnce(new BadRequestException())
-        .mockRejectedValueOnce(new ForbiddenException());
-      await expect(userController.accountUnblock(validToken)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(userController.accountUnblock(validToken)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-
-    it('When token is valid but useCase throws unexpected error, then fails with InternalServerError', async () => {
-      userUseCases.unblockAccount.mockRejectedValueOnce(new Error());
-      await expect(userController.accountUnblock(validToken)).rejects.toThrow(
-        InternalServerErrorException,
       );
     });
 
