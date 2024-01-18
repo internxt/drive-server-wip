@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 import { FolderUseCases } from './folder.usecase';
 import {
   SequelizeFolderRepository,
@@ -8,26 +9,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { getModelToken } from '@nestjs/sequelize';
 import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
-import { FileUseCases } from '../file/file.usecase';
-import { SequelizeFileRepository } from '../file/file.repository';
-import {
-  SequelizeShareRepository,
-  ShareModel,
-} from '../share/share.repository';
-import { ShareUseCases } from '../share/share.usecase';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { FolderModel } from './folder.model';
-import { FileModel } from '../file/file.model';
-import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
-import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { newFolder } from '../../../test/fixtures';
+import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 
 const folderId = 4;
 const userId = 1;
@@ -39,37 +27,10 @@ describe('FolderUseCases', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [BridgeModule, CryptoModule],
-      providers: [
-        FolderUseCases,
-        FileUseCases,
-        SequelizeFileRepository,
-        SequelizeFolderRepository,
-        {
-          provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        ShareUseCases,
-        SequelizeShareRepository,
-        SequelizeThumbnailRepository,
-        {
-          provide: getModelToken(ShareModel),
-          useValue: jest.fn(),
-        },
-        SequelizeUserRepository,
-        {
-          provide: getModelToken(ThumbnailModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(UserModel),
-          useValue: jest.fn(),
-        },
-      ],
-    }).compile();
+      providers: [FolderUseCases],
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<FolderUseCases>(FolderUseCases);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
