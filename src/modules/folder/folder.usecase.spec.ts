@@ -14,6 +14,8 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
+import { newFolder } from '../../../test/fixtures';
+import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 
 const folderId = 4;
 const userId = 1;
@@ -451,6 +453,36 @@ describe('FolderUseCases', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe('Unable to decrypt folder name');
       }
+    });
+  });
+
+  describe('get folder size', () => {
+    const folder = newFolder();
+
+    it('When the folder size is requested to be calculated, then it works', async () => {
+      const mockSize = 123456789;
+
+      jest
+        .spyOn(folderRepository, 'calculateFolderSize')
+        .mockResolvedValueOnce(mockSize);
+
+      const result = await service.getFolderSizeByUuid(folder.uuid);
+
+      expect(result).toBe(mockSize);
+      expect(folderRepository.calculateFolderSize).toHaveBeenCalledTimes(1);
+      expect(folderRepository.calculateFolderSize).toHaveBeenCalledWith(
+        folder.uuid,
+      );
+    });
+
+    it('When the folder size times out, then throw an exception', async () => {
+      jest
+        .spyOn(folderRepository, 'calculateFolderSize')
+        .mockRejectedValueOnce(new CalculateFolderSizeTimeoutException());
+
+      await expect(service.getFolderSizeByUuid(folder.uuid)).rejects.toThrow(
+        CalculateFolderSizeTimeoutException,
+      );
     });
   });
 });

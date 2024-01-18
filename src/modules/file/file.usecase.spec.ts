@@ -10,7 +10,6 @@ import {
 import { File, FileAttributes, FileStatus } from './file.domain';
 import { User } from '../user/user.domain';
 import { ShareUseCases } from '../share/share.usecase';
-
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
