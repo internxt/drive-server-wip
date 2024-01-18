@@ -210,18 +210,18 @@ export const newSharingRole = (bindTo?: {
 };
 
 export const newMailLimit = (bindTo?: {
-  userId: number;
+  userId?: number;
   mailType?: MailTypes;
-  attemps?: number;
-  limit?: number;
+  attemptsCount?: number;
+  attemptsLimit?: number;
   lastMailSent?: Date;
 }): MailLimit => {
   return MailLimit.build({
-    id: randomDataGenerator.integer(),
-    userId: bindTo?.userId,
-    mailType: bindTo?.mailType,
-    attemptsCount: bindTo?.attemps ?? 0,
-    attemptsLimit: bindTo?.limit ?? 5,
+    id: randomDataGenerator.natural({ min: 1 }),
+    userId: bindTo?.userId ?? randomDataGenerator.natural({ min: 1 }),
+    mailType: bindTo?.mailType ?? MailTypes.UnblockAccount,
+    attemptsCount: bindTo?.attemptsCount ?? 0,
+    attemptsLimit: bindTo?.attemptsLimit ?? 5,
     lastMailSent: bindTo?.lastMailSent ?? new Date(),
   });
 };
