@@ -15,10 +15,8 @@ import {
   SequelizeShareRepository,
   ShareModel,
 } from '../share/share.repository';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';

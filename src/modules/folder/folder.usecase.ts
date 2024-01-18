@@ -16,6 +16,7 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -26,6 +27,7 @@ export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
+    private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -498,9 +500,8 @@ export class FolderUseCases {
   }
 
   async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {
-    let remainingFolders = await this.folderRepository.clearOrphansFolders(
-      userId,
-    );
+    let remainingFolders =
+      await this.folderRepository.clearOrphansFolders(userId);
 
     if (remainingFolders > 0) {
       remainingFolders += await this.deleteOrphansFolders(userId);
@@ -535,5 +536,9 @@ export class FolderUseCases {
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
     await this.folderRepository.deleteByUser(user, folders);
+  }
+
+  getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
+    return this.folderRepository.calculateFolderSize(folderUuid);
   }
 }
