@@ -10,7 +10,7 @@ import {
   ForeignKey,
   BelongsTo,
 } from 'sequelize-typescript';
-import { MailTypes } from '../mailTypes';
+import { MailTypes } from './mailTypes';
 import { UserModel } from '../../../modules/user/user.model';
 
 export interface MailLimitModelAttributes {

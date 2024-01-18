@@ -33,9 +33,9 @@ import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
-import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/mail-limit.repository';
 import { newMailLimit } from '../../../test/fixtures';
-import { MailTypes } from '../../externals/mailer/mailTypes';
+import { MailTypes } from '../security/mail-limit/mailTypes';
+import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');

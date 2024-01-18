@@ -68,7 +68,7 @@ import { PlanModel } from '../plan/plan.model';
 import { SequelizeAttemptChangeEmailRepository } from '../user/attempt-change-email.repository';
 import { createMock } from '@golevelup/ts-jest';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/mail-limit.repository';
+import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;

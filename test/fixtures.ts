@@ -9,8 +9,8 @@ import {
   SharingType,
 } from '../src/modules/sharing/sharing.domain';
 import { File, FileStatus } from '../src/modules/file/file.domain';
-import { MailTypes } from '../src/externals/mailer/mailTypes';
-import { MailLimit } from '../src/externals/mailer/mail-limit/mail-limit.domain';
+import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
+import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,

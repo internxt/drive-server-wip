@@ -63,8 +63,8 @@ import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { getTokenDefaultIat, isTokenIatGreaterThanDate } from '../../lib/jwt';
-import { SequelizeMailLimitRepository } from '../../externals/mailer/mail-limit/mail-limit.repository';
-import { MailTypes } from '../../externals/mailer/mailTypes';
+import { MailTypes } from '../security/mail-limit/mailTypes';
+import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
