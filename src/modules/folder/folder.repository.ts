@@ -6,12 +6,12 @@ import { v4 } from 'uuid';
 import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 
-import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
+import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -59,6 +59,7 @@ export interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
+  calculateFolderSize(folderUuid: string): Promise<number>;
 }
 
 @Injectable()
@@ -66,8 +67,6 @@ export class SequelizeFolderRepository implements FolderRepository {
   constructor(
     @InjectModel(FolderModel)
     private folderModel: typeof FolderModel,
-    @InjectModel(UserModel)
-    private userModel: typeof UserModel,
   ) {}
 
   async findAllCursor(
@@ -447,6 +446,62 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
+  async calculateFolderSize(folderUuid: string): Promise<number> {
+    try {
+      const calculateSizeQuery = `
+      WITH RECURSIVE folder_recursive AS (
+        SELECT 
+            fl1.uuid,
+            fl1.parent_uuid,
+            f1.size AS filesize,
+            1 AS row_num,
+            fl1.user_id as owner_id
+        FROM folders fl1
+        LEFT JOIN files f1 ON f1.folder_uuid = fl1.uuid
+        WHERE fl1.uuid = :folderUuid
+        AND fl1.removed = FALSE 
+        AND fl1.deleted = FALSE
+        AND f1.status != 'DELETED'
+        
+        UNION ALL
+        
+        SELECT 
+            fl2.uuid,
+            fl2.parent_uuid,
+            f2.size AS filesize,
+            fr.row_num + 1,
+            fr.owner_id
+        FROM folders fl2
+        INNER JOIN files f2 ON f2.folder_uuid = fl2.uuid
+        INNER JOIN folder_recursive fr ON fr.uuid = fl2.parent_uuid
+        WHERE fr.row_num < 100000
+        AND fl2.user_id = fr.owner_id
+        AND fl2.removed = FALSE 
+        AND fl2.deleted = FALSE
+        AND f2.status != 'DELETED'
+    ) 
+    SELECT COALESCE(SUM(filesize), 0) AS totalsize FROM folder_recursive;
+      `;
+
+      const [[{ totalsize }]]: any = await FolderModel.sequelize.query(
+        calculateSizeQuery,
+        {
+          replacements: {
+            folderUuid,
+          },
+        },
+      );
+
+      return +totalsize;
+    } catch (error) {
+      if (error.original?.code === '57014') {
+        throw new CalculateFolderSizeTimeoutException();
+      }
+
+      throw error;
+    }
+  }
+
   private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),
@@ -459,4 +514,3 @@ export class SequelizeFolderRepository implements FolderRepository {
     return domain.toJSON();
   }
 }
-export { FolderModel };
