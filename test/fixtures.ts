@@ -9,6 +9,8 @@ import {
   SharingType,
 } from '../src/modules/sharing/sharing.domain';
 import { File, FileStatus } from '../src/modules/file/file.domain';
+import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
+import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -204,5 +206,22 @@ export const newSharingRole = (bindTo?: {
     roleId: bindTo?.roleId,
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
+  });
+};
+
+export const newMailLimit = (bindTo?: {
+  userId?: number;
+  mailType?: MailTypes;
+  attemptsCount?: number;
+  attemptsLimit?: number;
+  lastMailSent?: Date;
+}): MailLimit => {
+  return MailLimit.build({
+    id: randomDataGenerator.natural({ min: 1 }),
+    userId: bindTo?.userId ?? randomDataGenerator.natural({ min: 1 }),
+    mailType: bindTo?.mailType ?? MailTypes.UnblockAccount,
+    attemptsCount: bindTo?.attemptsCount ?? 0,
+    attemptsLimit: bindTo?.attemptsLimit ?? 5,
+    lastMailSent: bindTo?.lastMailSent ?? new Date(),
   });
 };

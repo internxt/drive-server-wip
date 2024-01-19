@@ -204,4 +204,33 @@ describe('Testing fixtures tests', () => {
       expect(file.folderUuid).toEqual(folder.uuid);
     });
   });
+
+  describe('Mail Limits fixture', () => {
+    it('When it generates a new mail limit, then the identifier should be random', () => {
+      const mailLimit = fixtures.newMailLimit();
+      const otherMailLimit = fixtures.newMailLimit();
+
+      expect(mailLimit.id).toBeGreaterThan(0);
+      expect(otherMailLimit.id).not.toBe(mailLimit.id);
+    });
+
+    it('When it generates a new mail limit and a date is provided, then that date should be set', () => {
+      const date = new Date();
+      const mailLimit = fixtures.newMailLimit({ lastMailSent: date });
+
+      expect(mailLimit.lastMailSent).toEqual(date);
+    });
+
+    it('When it generates a new mail limit and attemps count are provided, then those attemps should be set', () => {
+      const mailLimit = fixtures.newMailLimit({ attemptsCount: 5 });
+
+      expect(mailLimit.attemptsCount).toEqual(5);
+    });
+
+    it('When it generates a new mail limit and attempts limits are provided, then those limits should be set', () => {
+      const mailLimit = fixtures.newMailLimit({ attemptsLimit: 5 });
+
+      expect(mailLimit.attemptsLimit).toEqual(5);
+    });
+  });
 });
