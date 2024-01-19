@@ -36,10 +36,10 @@ export class MailLimit implements MailLimitModelAttributes {
     );
   }
 
-  increaseTodayAttemps() {
+  increaseTodayAttemps(customSentDate?: Date) {
     this.attemptsCount = Time.isToday(this.lastMailSent)
       ? this.attemptsCount + 1
       : 1;
-    this.lastMailSent = new Date();
+    this.lastMailSent = customSentDate ?? new Date();
   }
 }

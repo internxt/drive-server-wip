@@ -23,6 +23,16 @@ export class SequelizeMailLimitRepository {
     return [mailLimit ? this.toDomain(mailLimit) : null, wasCreated];
   }
 
+  async findByUserIdAndMailType(
+    userId: MailLimitModelAttributes['userId'],
+    mailType: MailTypes,
+  ): Promise<MailLimit> {
+    const mailLimit = await this.mailLimitModel.findOne({
+      where: { userId, mailType },
+    });
+    return mailLimit ? this.toDomain(mailLimit) : null;
+  }
+
   async updateByUserIdAndMailType(
     userId: MailLimitModelAttributes['userId'],
     mailType: MailTypes,
