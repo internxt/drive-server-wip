@@ -42,6 +42,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { SecurityModule } from '../security/security.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
     AppSumoModule,
     PlanModule,
     forwardRef(() => SharingModule),
+    SecurityModule,
   ],
   controllers: [UserController],
   providers: [

@@ -148,3 +148,8 @@ export interface UserReferralAttributes {
   applied: boolean;
   startDate: Date;
 }
+
+export enum AccountTokenAction {
+  Unblock = 'unblock-account',
+  Recover = 'recover-account',
+}

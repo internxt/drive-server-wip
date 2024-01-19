@@ -93,6 +93,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_ROLE_UPDATED || '',
       updateUserEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_UPDATE_USER_EMAIL || '',
+      unblockAccountEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_UNBLOCK_ACCOUNT || '',
     },
   },
   newsletter: {

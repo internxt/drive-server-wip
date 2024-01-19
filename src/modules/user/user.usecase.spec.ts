@@ -3,11 +3,11 @@ import { createMock } from '@golevelup/ts-jest';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
-import { UserUseCases } from './user.usecase';
+import { MailLimitReachedException, UserUseCases } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { User } from './user.domain';
+import { AccountTokenAction, User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -16,27 +16,40 @@ import { ConfigService } from '@nestjs/config';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { SignWithCustomDuration } from '../../middlewares/passport';
+import { getTokenDefaultIat } from '../../lib/jwt';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
+import { newMailLimit } from '../../../test/fixtures';
+import { MailTypes } from '../security/mail-limit/mailTypes';
+import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 
-jest.mock('../../middlewares/passport', () => ({
-  Sign: jest.fn(() => 'newToken'),
-  SignEmail: jest.fn(() => 'token'),
-}));
+jest.mock('../../middlewares/passport', () => {
+  const originalModule = jest.requireActual('../../middlewares/passport');
+  return {
+    __esModule: true,
+    ...originalModule,
+    SignWithCustomDuration: jest.fn((payload, secret, expiresIn) => 'anyToken'),
+    Sign: jest.fn(() => 'newToken'),
+    SignEmail: jest.fn(() => 'token'),
+  };
+});
 
 describe('User use cases', () => {
   let userUseCases: UserUseCases;
   let shareUseCases: ShareUseCases;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
-  let bridgeService: BridgeService;
   let userRepository: SequelizeUserRepository;
+  let bridgeService: BridgeService;
   let sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository;
   let cryptoService: CryptoService;
   let attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository;
   let configService: ConfigService;
+  let mailLimitRepository: SequelizeMailLimitRepository;
 
   const user = User.build({
     id: 1,
@@ -75,6 +88,10 @@ describe('User use cases', () => {
     folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);
     fileUseCases = moduleRef.get<FileUseCases>(FileUseCases);
     userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
+    configService = moduleRef.get<ConfigService>(ConfigService);
+    userRepository = moduleRef.get<SequelizeUserRepository>(
+      SequelizeUserRepository,
+    );
     bridgeService = moduleRef.get<BridgeService>(BridgeService);
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
@@ -89,6 +106,9 @@ describe('User use cases', () => {
         SequelizeAttemptChangeEmailRepository,
       );
     configService = moduleRef.get<ConfigService>(ConfigService);
+    mailLimitRepository = moduleRef.get<SequelizeMailLimitRepository>(
+      SequelizeMailLimitRepository,
+    );
   });
 
   describe('Resetting a user', () => {
@@ -235,6 +255,124 @@ describe('User use cases', () => {
           expect(deleteFoldersSpy).not.toBeCalled();
           expect(deleteFilesSpy).toBeCalledWith(user, files);
         });
+      });
+    });
+  });
+
+  describe('Unblocking user account', () => {
+    describe('Request Account unblock', () => {
+      const fixedSystemCurrentDate = new Date('2020-02-19');
+
+      beforeAll(async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(fixedSystemCurrentDate);
+      });
+
+      afterAll(async () => {
+        jest.useRealTimers();
+      });
+
+      it('When user does not exist, then do nothing', async () => {
+        const userFindByEmailSpy = jest.spyOn(userRepository, 'findByEmail');
+        userFindByEmailSpy.mockReturnValueOnce(null);
+
+        await expect(
+          userUseCases.sendAccountUnblockEmail(user.email),
+        ).resolves.toBeUndefined();
+      });
+
+      it('When user reached mails limit, then fail', async () => {
+        const limit = newMailLimit({
+          userId: user.id,
+          attemptsCount: 5,
+          attemptsLimit: 5,
+        });
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
+        jest
+          .spyOn(mailLimitRepository, 'findOrCreate')
+          .mockResolvedValueOnce([limit, false]);
+
+        await expect(
+          userUseCases.sendAccountUnblockEmail(user.email),
+        ).rejects.toBeInstanceOf(MailLimitReachedException);
+      });
+
+      it('When user exists and email is sent, then mailLimit is updated', async () => {
+        const limit = newMailLimit({ userId: user.id });
+        jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
+        jest.spyOn(configService, 'get').mockReturnValue('secret');
+        jest
+          .spyOn(mailLimitRepository, 'findOrCreate')
+          .mockResolvedValueOnce([limit, false]);
+
+        await userUseCases.sendAccountUnblockEmail(user.email);
+
+        expect(SignWithCustomDuration).toHaveBeenCalledWith(
+          {
+            payload: {
+              uuid: user.uuid,
+              email: user.email,
+              action: AccountTokenAction.Unblock,
+            },
+            iat: getTokenDefaultIat(),
+          },
+          'secret',
+          '48h',
+        );
+        expect(
+          mailLimitRepository.updateByUserIdAndMailType,
+        ).toHaveBeenCalledWith(user.id, MailTypes.UnblockAccount, limit);
+      });
+    });
+
+    describe('Unblock account', () => {
+      it('When user does not exist, then fail', async () => {
+        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+        userFindByUuidSpy.mockReturnValueOnce(null);
+
+        await expect(userUseCases.unblockAccount(user.uuid, 0)).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('When token was issued before lastMailSent date, then fail', async () => {
+        const tokenIat = getTokenDefaultIat();
+        const futureDate = new Date(tokenIat * 1000);
+        futureDate.setSeconds(futureDate.getSeconds() + 1);
+        const mailLimit = newMailLimit({ lastMailSent: futureDate });
+
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
+        jest
+          .spyOn(mailLimitRepository, 'findByUserIdAndMailType')
+          .mockResolvedValueOnce(mailLimit);
+
+        await expect(
+          userUseCases.unblockAccount(user.uuid, tokenIat),
+        ).rejects.toThrow(ForbiddenException);
+      });
+
+      it('When token was issued before user lastPasswordChanged date, then fail', async () => {
+        const tokenIat = getTokenDefaultIat();
+        const futureDate = new Date(tokenIat * 1000);
+        futureDate.setSeconds(futureDate.getSeconds() + 1);
+        const mailLimit = newMailLimit({
+          lastMailSent: new Date(tokenIat * 1000),
+        });
+        const userWithPasswordChanged = new User({
+          ...user,
+          lastPasswordChangedAt: futureDate,
+        });
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(userWithPasswordChanged);
+        jest
+          .spyOn(mailLimitRepository, 'findByUserIdAndMailType')
+          .mockResolvedValueOnce(mailLimit);
+
+        await expect(
+          userUseCases.unblockAccount(user.uuid, tokenIat),
+        ).rejects.toThrow(ForbiddenException);
       });
     });
   });

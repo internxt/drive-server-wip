@@ -31,4 +31,17 @@ export class Time {
   public static resumeTime(): void {
     Time.freeze = null;
   }
+
+  public static isToday = (date: Date) => {
+    const todayDate = new Date();
+    return (
+      date.getDate() === todayDate.getDate() &&
+      date.getMonth() === todayDate.getMonth() &&
+      date.getFullYear() === todayDate.getFullYear()
+    );
+  };
+
+  public static convertTimestampToDate = (timestamp: number) => {
+    return new Date(timestamp * 1000);
+  };
 }

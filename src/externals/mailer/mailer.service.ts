@@ -164,4 +164,16 @@ export class MailerService {
       },
     );
   }
+
+  async sendAutoAccountUnblockEmail(email: User['email'], url: string) {
+    const context = {
+      email,
+      unblock_url: url,
+    };
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.unblockAccountEmail'),
+      context,
+    );
+  }
 }
