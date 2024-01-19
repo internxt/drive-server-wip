@@ -34,15 +34,14 @@ export class Time {
 
   public static isToday = (date: Date) => {
     const todayDate = new Date();
-
-    if (
+    return (
       date.getDate() === todayDate.getDate() &&
       date.getMonth() === todayDate.getMonth() &&
       date.getFullYear() === todayDate.getFullYear()
-    ) {
-      return true;
-    } else {
-      return false;
-    }
+    );
+  };
+
+  public static convertTimestampToDate = (timestamp: number) => {
+    return new Date(timestamp * 1000);
   };
 }

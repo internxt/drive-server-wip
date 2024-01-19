@@ -47,5 +47,5 @@ export function getTokenDefaultIat() {
 }
 
 export function isTokenIatGreaterThanDate(date: Date, iat: number) {
-  return Math.floor(date.getTime() / 1000) <= iat;
+  return Math.floor(date.getTime() / 1000) < iat;
 }

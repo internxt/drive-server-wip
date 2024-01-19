@@ -3,7 +3,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
-import { UserUseCases } from './user.usecase';
+import { MailLimitReachedException, UserUseCases } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
@@ -262,12 +262,6 @@ describe('User use cases', () => {
   describe('Unblocking user account', () => {
     describe('Request Account unblock', () => {
       const fixedSystemCurrentDate = new Date('2020-02-19');
-      const mailLimit = newMailLimit({
-        userId: user.id,
-        mailType: MailTypes.UnblockAccount,
-        attemptsLimit: 5,
-        attemptsCount: 0,
-      });
 
       beforeAll(async () => {
         jest.useFakeTimers();
@@ -287,13 +281,30 @@ describe('User use cases', () => {
         ).resolves.toBeUndefined();
       });
 
-      it('When user exists, then user lastPasswordChangedAt is updated', async () => {
-        const userUpdateSpy = jest.spyOn(userRepository, 'updateByUuid');
+      it('When user reached mails limit, then fail', async () => {
+        const limit = newMailLimit({
+          userId: user.id,
+          attemptsCount: 5,
+          attemptsLimit: 5,
+        });
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
+        jest
+          .spyOn(mailLimitRepository, 'findOrCreate')
+          .mockResolvedValueOnce([limit, false]);
+
+        await expect(
+          userUseCases.sendAccountUnblockEmail(user.email),
+        ).rejects.toBeInstanceOf(MailLimitReachedException);
+      });
+
+      it('When user exists and email is sent, then mailLimit is updated', async () => {
+        const limit = newMailLimit({ userId: user.id });
+        jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
         jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
         jest.spyOn(configService, 'get').mockReturnValue('secret');
         jest
           .spyOn(mailLimitRepository, 'findOrCreate')
-          .mockResolvedValueOnce([mailLimit, false]);
+          .mockResolvedValueOnce([limit, false]);
 
         await userUseCases.sendAccountUnblockEmail(user.email);
 
@@ -309,9 +320,9 @@ describe('User use cases', () => {
           'secret',
           '48h',
         );
-        expect(userUpdateSpy).toHaveBeenCalledWith(user.uuid, {
-          lastPasswordChangedAt: fixedSystemCurrentDate,
-        });
+        expect(
+          mailLimitRepository.updateByUserIdAndMailType,
+        ).toHaveBeenCalledWith(user.id, MailTypes.UnblockAccount, limit);
       });
     });
 
@@ -320,44 +331,48 @@ describe('User use cases', () => {
         const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
         userFindByUuidSpy.mockReturnValueOnce(null);
 
-        await expect(userUseCases.unblockAccount(user.uuid)).rejects.toThrow(
+        await expect(userUseCases.unblockAccount(user.uuid, 0)).rejects.toThrow(
           BadRequestException,
         );
       });
 
-      it('When token iat is previous to lastPasswordChangedAt, then fail', async () => {
-        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-        const olderIat = getTokenDefaultIat();
-        const recentDate = new Date(olderIat * 1000);
-        recentDate.setSeconds(recentDate.getSeconds() + 1);
-        const unblockUser = User.build({
-          ...user,
-          lastPasswordChangedAt: recentDate,
-        });
+      it('When token was issued before lastMailSent date, then fail', async () => {
+        const tokenIat = getTokenDefaultIat();
+        const futureDate = new Date(tokenIat * 1000);
+        futureDate.setSeconds(futureDate.getSeconds() + 1);
+        const mailLimit = newMailLimit({ lastMailSent: futureDate });
 
-        userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
+        jest
+          .spyOn(mailLimitRepository, 'findByUserIdAndMailType')
+          .mockResolvedValueOnce(mailLimit);
 
         await expect(
-          userUseCases.unblockAccount(unblockUser.uuid, olderIat),
+          userUseCases.unblockAccount(user.uuid, tokenIat),
         ).rejects.toThrow(ForbiddenException);
       });
 
-      it('When token iat is greater than lastPasswordChangedAt, then update user', async () => {
-        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
+      it('When token was issued before user lastPasswordChanged date, then fail', async () => {
         const tokenIat = getTokenDefaultIat();
-        const olderDate = new Date(tokenIat * 1000);
-        olderDate.setMilliseconds(olderDate.getMilliseconds() - 1);
-        const unblockUser = User.build({
+        const futureDate = new Date(tokenIat * 1000);
+        futureDate.setSeconds(futureDate.getSeconds() + 1);
+        const mailLimit = newMailLimit({
+          lastMailSent: new Date(tokenIat * 1000),
+        });
+        const userWithPasswordChanged = new User({
           ...user,
-          lastPasswordChangedAt: olderDate,
+          lastPasswordChangedAt: futureDate,
         });
-        userFindByUuidSpy.mockResolvedValueOnce(unblockUser);
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(userWithPasswordChanged);
+        jest
+          .spyOn(mailLimitRepository, 'findByUserIdAndMailType')
+          .mockResolvedValueOnce(mailLimit);
 
-        await userUseCases.unblockAccount(unblockUser.uuid, tokenIat);
-
-        expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
-          errorLoginCount: 0,
-        });
+        await expect(
+          userUseCases.unblockAccount(user.uuid, tokenIat),
+        ).rejects.toThrow(ForbiddenException);
       });
     });
   });

@@ -62,9 +62,10 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { getTokenDefaultIat, isTokenIatGreaterThanDate } from '../../lib/jwt';
+import { getTokenDefaultIat } from '../../lib/jwt';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
+import { Time } from '../../lib/time';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -732,11 +733,6 @@ export class UserUseCases {
     }
 
     const defaultIat = getTokenDefaultIat();
-
-    await this.userRepository.updateByUuid(user.uuid, {
-      lastPasswordChangedAt: new Date(defaultIat * 1000),
-    });
-
     const unblockAccountToken = SignWithCustomDuration(
       {
         payload: {
@@ -754,7 +750,9 @@ export class UserUseCases {
     const url = `${driveWebUrl}/blocked-account/${unblockAccountToken}`;
     await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
 
-    mailLimit.increaseTodayAttemps();
+    const lastMailSentDate = Time.convertTimestampToDate(defaultIat);
+    mailLimit.increaseTodayAttemps(lastMailSentDate);
+
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
       MailTypes.UnblockAccount,
@@ -764,7 +762,7 @@ export class UserUseCases {
 
   async unblockAccount(
     userUuid: User['uuid'],
-    tokenIat?: number,
+    tokenIat: number,
   ): Promise<void> {
     const user = await this.userRepository.findByUuid(userUuid);
 
@@ -772,18 +770,23 @@ export class UserUseCases {
       throw new BadRequestException();
     }
 
+    const mailLimit = await this.mailLimitRepository.findByUserIdAndMailType(
+      user.id,
+      MailTypes.UnblockAccount,
+    );
+
+    const tokenIssuedAtDate = Time.convertTimestampToDate(tokenIat);
+
     if (
-      tokenIat &&
-      !isTokenIatGreaterThanDate(
-        new Date(user?.lastPasswordChangedAt),
-        tokenIat,
-      )
+      mailLimit.lastMailSent > tokenIssuedAtDate ||
+      user.lastPasswordChangedAt > tokenIssuedAtDate
     ) {
       throw new ForbiddenException();
     }
 
     await this.userRepository.updateByUuid(userUuid, {
       errorLoginCount: 0,
+      lastPasswordChangedAt: new Date(),
     });
   }
 

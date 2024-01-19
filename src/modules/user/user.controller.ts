@@ -483,7 +483,7 @@ export class UserController {
         payload: { uuid: string; action: string; email: string };
         iat: number;
       };
-    } catch (err) {
+    } catch {
       throw new ForbiddenException();
     }
 
