@@ -17,6 +17,7 @@ import {
   NotFoundException,
   Headers,
   Patch,
+  UseFilters,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -55,6 +56,8 @@ import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
+import { UuidDto } from '../../common/uuid.dto';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -1025,5 +1028,15 @@ export class SharingController {
     );
 
     return { message: 'User removed from shared folder' };
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @UseGuards(ThrottlerGuard)
+  @Public()
+  @Get('public/:id/folder/size')
+  async getPublicSharingFolderSize(@Param() param: UuidDto) {
+    const size = await this.sharingService.getPublicSharingFolderSize(param.id);
+
+    return { size };
   }
 }

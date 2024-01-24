@@ -47,6 +47,7 @@ import { CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
+import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -2056,5 +2057,21 @@ export class SharingService {
     }
 
     return sharedItem;
+  }
+
+  async getPublicSharingFolderSize(
+    id: SharingAttributes['id'],
+  ): Promise<number> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+      type: SharingType.Public,
+      itemType: 'folder',
+    });
+
+    if (!sharing) {
+      throw new SharingNotFoundException();
+    }
+
+    return this.folderUsecases.getFolderSizeByUuid(sharing.itemId);
   }
 }
