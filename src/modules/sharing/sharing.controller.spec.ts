@@ -13,7 +13,7 @@ describe('SharingController', () => {
   beforeEach(async () => {
     sharingService = createMock<SharingService>();
     controller = new SharingController(sharingService);
-    sharing = newSharing()
+    sharing = newSharing({})
   });
 
   describe('get public sharing folder size', () => {
