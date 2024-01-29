@@ -168,6 +168,47 @@ export class UserController {
       limit: 5,
     },
   })
+  @Get('/user-subscription')
+  @HttpCode(201)
+  @ApiOperation({
+    summary:
+      'Check if the user exists or not and if the user does not have a subscription',
+  })
+  @ApiOkResponse({
+    description: 'Check if the user exists or has subscription',
+  })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async UserExistsAndHasSubscription(
+    @Body() email: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = await this.userUseCases.getUserByUsername(email);
+    if (!user) {
+      return res.status(200).json({ message: 'User allowed' });
+    }
+
+    const userHasSubscriptions =
+      await this.userUseCases.hasUserBeenSubscribedAnyTime(
+        email,
+        email,
+        user.password,
+      );
+
+    if (userHasSubscriptions) {
+      return res.status(404).json({ message: 'User not allowed' });
+    } else {
+      return res.status(200).json({ message: 'User allowed' });
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
   @Post('/pre-created-users/register')
   @HttpCode(201)
   @ApiOperation({
