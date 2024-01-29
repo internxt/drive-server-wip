@@ -28,7 +28,6 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -169,41 +168,56 @@ export class UserController {
       limit: 5,
     },
   })
-  @Get('/user-exists')
+  @Get('/user/:email')
   @HttpCode(201)
   @ApiOperation({
     summary:
-      'Check if the user exists or not and if the user does not have a subscription',
+      'Get the user data by email and check if the user has subscription',
   })
   @ApiOkResponse({
-    description: 'Check if the user exists or has subscription',
+    description: 'Get the user data by email',
   })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
-  @ApiQuery({
+  @ApiParam({
     name: 'email',
     type: String,
   })
-  async UserExistsOrHasSubscription(
-    @Query('email') email: string,
+  async getUserByEmail(
+    @Param('email') email: User['email'],
     @Res({ passthrough: true }) res: Response,
   ) {
-    console.log('email', email);
-    const user = await this.userUseCases.getUserByUsername(email);
-    if (!user) {
-      return res.status(200).json({ message: 'User allowed' });
-    }
+    try {
+      const user = await this.userUseCases.getUserByUsername(email);
+      if (!user) {
+        throw new NotFoundException('PRE_CREATED_USER_NOT_FOUND');
+      }
 
-    const userHasSubscriptions =
-      await this.userUseCases.hasUserBeenSubscribedAnyTime(
-        email,
-        email,
-        user.password,
-      );
+      const userHasSubscriptions =
+        await this.userUseCases.hasUserBeenSubscribedAnyTime(
+          email,
+          email,
+          user.password,
+        );
 
-    if (userHasSubscriptions) {
-      return res.status(404).json({ message: 'User not allowed' });
-    } else {
-      return res.status(200).json({ message: 'User allowed' });
+      return res
+        .status(200)
+        .json({ user: user, hasSubscriptions: userHasSubscriptions });
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof NotFoundException) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/GET-USER-BY-EMAIL] ERROR: ${(err as Error).message}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
     }
   }
 
