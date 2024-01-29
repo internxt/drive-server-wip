@@ -168,7 +168,7 @@ export class UserController {
       limit: 5,
     },
   })
-  @Get('/user-subscription')
+  @Get('/user-exists')
   @HttpCode(201)
   @ApiOperation({
     summary:
@@ -179,7 +179,7 @@ export class UserController {
   })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   @Public()
-  async UserExistsAndHasSubscription(
+  async UserExistsOrHasSubscription(
     @Body() email: string,
     @Res({ passthrough: true }) res: Response,
   ) {
