@@ -28,6 +28,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -178,11 +179,15 @@ export class UserController {
     description: 'Check if the user exists or has subscription',
   })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
-  @Public()
+  @ApiQuery({
+    name: 'email',
+    type: String,
+  })
   async UserExistsOrHasSubscription(
-    @Body() email: string,
+    @Query('email') email: string,
     @Res({ passthrough: true }) res: Response,
   ) {
+    console.log('email', email);
     const user = await this.userUseCases.getUserByUsername(email);
     if (!user) {
       return res.status(200).json({ message: 'User allowed' });
