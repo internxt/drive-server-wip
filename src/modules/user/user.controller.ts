@@ -189,7 +189,7 @@ export class UserController {
     try {
       const user = await this.userUseCases.getUserByUsername(email);
       if (!user) {
-        throw new NotFoundException('PRE_CREATED_USER_NOT_FOUND');
+        throw new NotFoundException();
       }
 
       const userHasSubscriptions =
