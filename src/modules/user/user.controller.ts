@@ -194,9 +194,9 @@ export class UserController {
 
       const userHasSubscriptions =
         await this.userUseCases.hasUserBeenSubscribedAnyTime(
-          email,
-          email,
-          user.password,
+          user.email,
+          user.bridgeUser,
+          user.userId,
         );
 
       return res
