@@ -18,7 +18,7 @@ export class LimitCheckService {
   ) {}
 
   private checkFunctions: {
-    [K in LimitLabels]: (params: {
+    [K in LimitLabels]?: (params: {
       limit: Limit;
       data: LimitTypeMapping[K];
       user: User;
