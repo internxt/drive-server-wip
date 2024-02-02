@@ -17,7 +17,11 @@ export class Limit {
     return new Limit(limit);
   }
 
-  isLimitBooleanAndEnabled() {
-    return this.type === LimitTypes.Boolean && this.value !== 0;
+  isLimitBoolean() {
+    return this.type === LimitTypes.Boolean;
+  }
+
+  isFeatureEnabled() {
+    return this.isLimitBoolean() && this.value === 1;
   }
 }
