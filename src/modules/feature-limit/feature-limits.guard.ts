@@ -68,8 +68,8 @@ export class FeatureLimit implements CanActivate {
       return false;
     }
 
-    if (limit.isLimitBooleanAndEnabled()) {
-      return true;
+    if (limit.isLimitBoolean()) {
+      return limit.isFeatureEnabled();
     }
 
     const isLimitExceeded =
