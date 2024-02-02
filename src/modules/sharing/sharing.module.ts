@@ -20,6 +20,7 @@ import {
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AppSumoModule } from '../app-sumo/app-sumo.module';
     BridgeModule,
     AppSumoModule,
     forwardRef(() => UserModule),
+    forwardRef(() => FeatureLimitModule),
   ],
   controllers: [SharingController],
   providers: [
@@ -44,6 +46,6 @@ import { AppSumoModule } from '../app-sumo/app-sumo.module';
     SequelizeUserReferralsRepository,
     PaymentsService,
   ],
-  exports: [SharingService, SequelizeSharingRepository],
+  exports: [SharingService, SequelizeSharingRepository, SequelizeModule],
 })
 export class SharingModule {}
