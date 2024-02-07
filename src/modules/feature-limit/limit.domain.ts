@@ -5,7 +5,7 @@ export class Limit {
   id: string;
   label: LimitLabels;
   type: string;
-  value: number;
+  value: string;
   constructor({ id, label, type, value }: LimitAttributes) {
     this.id = id;
     this.label = label;
@@ -22,6 +22,12 @@ export class Limit {
   }
 
   isFeatureEnabled() {
-    return this.isLimitBoolean() && this.value === 1;
+    return this.isLimitBoolean() && Boolean(this.value);
+  }
+
+  isLimitExceeded(currentCount: number) {
+    return (
+      this.type === LimitTypes.counter && currentCount >= Number(this.value)
+    );
   }
 }

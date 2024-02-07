@@ -123,4 +123,8 @@ export class UserModel extends Model implements UserAttributes {
   @AllowNull
   @Column
   lastPasswordChangedAt: Date;
+
+  @AllowNull
+  @Column
+  tierId: string;
 }

@@ -16,11 +16,6 @@ export class SequelizeFeatureLimitsRepository {
     private tierLimitmodel: typeof TierLimitsModel,
   ) {}
 
-  async findById(id: string) {
-    const tier = await this.tierModel.findByPk(id);
-    return tier;
-  }
-
   async findLimitByLabelAndTier(
     tierId: string,
     label: string,

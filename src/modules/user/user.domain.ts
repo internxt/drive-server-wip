@@ -27,6 +27,7 @@ export class User implements UserAttributes {
   tempKey: string;
   avatar: string;
   lastPasswordChangedAt: Date;
+  tierId: string;
   constructor({
     id,
     userId,
@@ -55,6 +56,7 @@ export class User implements UserAttributes {
     tempKey,
     avatar,
     lastPasswordChangedAt,
+    tierId,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -83,6 +85,7 @@ export class User implements UserAttributes {
     this.tempKey = tempKey;
     this.avatar = avatar;
     this.lastPasswordChangedAt = lastPasswordChangedAt;
+    this.tierId = tierId;
   }
 
   static build(user: UserAttributes): User {
