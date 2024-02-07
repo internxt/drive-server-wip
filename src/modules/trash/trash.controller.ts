@@ -12,6 +12,7 @@ import {
   Res,
   Logger,
   HttpStatus,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -38,6 +39,7 @@ import { File, FileStatus } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -182,6 +184,7 @@ export class TrashController {
     }
   }
 
+  @UseFilters(new HttpExceptionFilter())
   @Delete('/all')
   @HttpCode(200)
   @ApiOperation({
@@ -191,6 +194,7 @@ export class TrashController {
     await this.trashUseCases.emptyTrash(user);
   }
 
+  @UseFilters(new HttpExceptionFilter())
   @Delete('/all/request')
   requestEmptyTrash(user: User) {
     this.trashUseCases.emptyTrash(user);
