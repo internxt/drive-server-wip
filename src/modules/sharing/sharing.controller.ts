@@ -599,6 +599,11 @@ export class SharingController {
   }
 
   @Post('/')
+  @ApplyLimit({
+    limitLabel: LimitLabels.MaxSharedItems,
+    dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
+  })
+  @UseGuards(FeatureLimit)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,

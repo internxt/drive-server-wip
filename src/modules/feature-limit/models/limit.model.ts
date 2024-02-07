@@ -34,8 +34,8 @@ export class Limitmodel extends Model implements LimitAttributes {
   type: LimitTypes;
 
   @AllowNull(false)
-  @Column(DataType.NUMBER)
-  value: number;
+  @Column(DataType.STRING)
+  value: string;
 
   @BelongsToMany(() => TierModel, {
     through: () => TierLimitsModel,

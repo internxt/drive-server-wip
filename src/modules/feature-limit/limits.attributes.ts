@@ -5,7 +5,7 @@ export interface LimitAttributes {
   id: string;
   label: LimitLabels;
   type: LimitTypes;
-  value: number;
+  value: string;
 }
 
 export interface MaxInviteesPerItemAttribute {
@@ -15,6 +15,8 @@ export interface MaxInviteesPerItemAttribute {
 
 export interface MaxSharedItemsAttribute {
   user: User;
+  itemId: string;
+  isPublicSharing: boolean;
 }
 
 export interface LimitTypeMapping {

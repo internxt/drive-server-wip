@@ -9,6 +9,7 @@ interface DataSource {
 export interface ApplyLimitMetadata {
   limitLabel: LimitLabels;
   dataSources?: DataSource[];
+  context?: object;
 }
 
 export const FEATURE_LIMIT_KEY = 'feature-limit';

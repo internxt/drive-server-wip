@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { LimitLabels } from './limits.enum';
 import { User } from '../user/user.domain';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
@@ -8,10 +8,12 @@ import { Limit } from './limit.domain';
 import {
   LimitTypeMapping,
   MaxInviteesPerItemAttribute,
+  MaxSharedItemsAttribute,
 } from './limits.attributes';
+import { PaymentRequiredException } from './exceptions/payment-required.exception';
 
 @Injectable()
-export class LimitCheckService {
+export class FeatureLimitUsecases {
   constructor(
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
     private readonly sharingRepository: SequelizeSharingRepository,
@@ -47,15 +49,28 @@ export class LimitCheckService {
   async isMaxSharedItemsLimitExceeded({
     limit,
     user,
+    data,
   }: {
     limit: Limit;
     user: User;
+    data: MaxSharedItemsAttribute;
   }) {
-    const sharingsNumber =
+    const alreadySharedItem = await this.sharingRepository.findOneSharingBy({
+      itemId: data.itemId,
+    });
+
+    if (alreadySharedItem) {
+      return false;
+    }
+
+    const sharingsCount =
       await this.sharingRepository.getSharedItemsNumberByUser(user.uuid);
-    const limitExceeded = sharingsNumber >= limit.value;
+    const limitExceeded = limit.isLimitExceeded(sharingsCount);
+
     if (limitExceeded) {
-      throw new BadRequestException('You reached the limit of shared items');
+      throw new PaymentRequiredException(
+        'You have reached the limit of shared items',
+      );
     }
     return false;
   }
@@ -83,19 +98,16 @@ export class LimitCheckService {
 
     const count = sharingsCountForThisItem + invitesCountForThisItem;
 
-    const limitExceeded = count >= limit.value;
+    const limitExceeded = limit.isLimitExceeded(count);
     if (limitExceeded) {
-      throw new BadRequestException(
-        'You reached the limit of invitations for this item',
+      throw new PaymentRequiredException(
+        'You have reached the limit of invitations for this item',
       );
     }
     return false;
   }
 
   async getLimitByLabelAndTier(label: string, tierId: string) {
-    return this.limitsRepository.findLimitByLabelAndTier(
-      'dfd536ca-7284-47ff-800f-957a80d98084',
-      label,
-    );
+    return this.limitsRepository.findLimitByLabelAndTier(tierId, label);
   }
 }

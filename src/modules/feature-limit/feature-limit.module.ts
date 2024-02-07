@@ -3,7 +3,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { TierModel } from './models/tier.model';
 import { Limitmodel } from './models/limit.model';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
-import { LimitCheckService } from './limit-check.service';
+import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { FeatureLimit } from './feature-limits.guard';
 import { TierLimitsModel } from './models/tier-limits.model';
 import { SharingModule } from '../sharing/sharing.module';
@@ -20,9 +20,9 @@ import { SharingModule } from '../sharing/sharing.module';
   ],
   providers: [
     SequelizeFeatureLimitsRepository,
-    LimitCheckService,
+    FeatureLimitUsecases,
     FeatureLimit,
   ],
-  exports: [FeatureLimit, LimitCheckService],
+  exports: [FeatureLimit, FeatureLimitUsecases],
 })
 export class FeatureLimitModule {}

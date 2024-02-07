@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { LimitLabels } from './limits.enum';
-import { LimitCheckService } from './limit-check.service';
+import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { LimitTypeMapping } from './limits.attributes';
 import {
   ApplyLimitMetadata,
@@ -18,7 +18,7 @@ import {
 export class FeatureLimit implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly limitsCheckService: LimitCheckService,
+    private readonly featureLimitsUseCases: FeatureLimitUsecases,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -32,7 +32,7 @@ export class FeatureLimit implements CanActivate {
 
     if (!metadata) {
       new Logger().error(
-        `Missing metada for feature limit guard! url: ${request.url} handler: ${handler.name}`,
+        `Missing metadata for feature limit guard! url: ${request.url} handler: ${handler.name}`,
       );
       return false;
     }
@@ -57,15 +57,16 @@ export class FeatureLimit implements CanActivate {
       }
     }
 
-    const limit = await this.limitsCheckService.getLimitByLabelAndTier(
+    const limit = await this.featureLimitsUseCases.getLimitByLabelAndTier(
       limitLabel,
-      // TODO: Replace with uÏser.tier_id
-      'dfd536ca-7284-47ff-800f-957a80d98084',
+      user.tierId,
     );
 
     if (!limit) {
-      new Logger().error(`Limit configuration not found for ${limitLabel}`);
-      return false;
+      new Logger().error(
+        `[FEATURE_LIMIT]: Limit configuration not found for limit: ${limitLabel} tier: ${user.tierId}`,
+      );
+      return true;
     }
 
     if (limit.isLimitBoolean()) {
@@ -73,7 +74,7 @@ export class FeatureLimit implements CanActivate {
     }
 
     const isLimitExceeded =
-      await this.limitsCheckService.checkLimit<LimitLabels>(
+      await this.featureLimitsUseCases.checkLimit<LimitLabels>(
         user,
         limit,
         extractedData,
