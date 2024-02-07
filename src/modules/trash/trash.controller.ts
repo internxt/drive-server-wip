@@ -13,6 +13,7 @@ import {
   Logger,
   HttpStatus,
   UseFilters,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -191,13 +192,33 @@ export class TrashController {
     summary: "Deletes all items from user's trash",
   })
   async clearTrash(@UserDecorator() user: User) {
-    await this.trashUseCases.emptyTrash(user);
+    try {
+      await this.trashUseCases.emptyTrash(user);
+    } catch (error) {
+      new Logger().error(
+        `[TRASH/EMPTY_TRASH] ERROR: ${
+          (error as Error).message
+        } USER: ${JSON.stringify(user)} STACK: ${(error as Error).stack}`,
+      );
+
+      throw new InternalServerErrorException();
+    }
   }
 
   @UseFilters(new HttpExceptionFilter())
   @Delete('/all/request')
   requestEmptyTrash(user: User) {
-    this.trashUseCases.emptyTrash(user);
+    try {
+      this.trashUseCases.emptyTrash(user);
+    } catch (error) {
+      new Logger().error(
+        `[TRASH/REQUEST_EMPTY_TRASH] ERROR: ${
+          (error as Error).message
+        } USER: ${JSON.stringify(user)} STACK: ${(error as Error).stack}`,
+      );
+
+      throw new InternalServerErrorException();
+    }
   }
 
   @Delete('/')
