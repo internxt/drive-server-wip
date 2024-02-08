@@ -45,18 +45,31 @@ jobs:
     environment:
       name: develop
     steps:
+      - name: Get the command arguments
+        id: vars
+        run: |
+          repository=${{ github.event.repository.name }}
+          pr=${{ github.event.number }}
+          if [[ -z "$repository" ]]; then echo "error-message=Repository argument not found" >> $GITHUB_OUTPUT; exit 1; fi
+          if [[ -z "$pr" ]]; then echo "error-message=PR argument not found" >> $GITHUB_OUTPUT; exit 1; fi
+         
+          echo "repository=$repository" >> $GITHUB_OUTPUT
+          echo "pr=$pr" >> $GITHUB_OUTPUT
+          echo "namespace=preview-$repository" >> $GITHUB_OUTPUT
+          echo "app=$repository-preview-$pr" >> $GITHUB_OUTPUT
+          echo "ingress=$repository-svc-ingress-$pr" >> $GITHUB_OUTPUT
       - name: Verify PR deployment
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA_PREVIEW }}
           version: v1.22.2 # specify kubectl binary version explicitly
-          command: get apps ${{ github.event.repository.name }}-preview-${{ github.event.number }} -n argocd -o jsonpath='{.status.health.status}' 2>&1 > deploy.status; status=$(cat deploy.status); echo "Received status $status"; if [[ $status = 'Healthy' ]]; then exit 0; fi; echo "Non Healthy status recieved. Waiting 30s to retry..."; for i in {1..10}; do sleep 30; status=$(kubectl get apps ${{ github.event.repository.name }}-preview-${{ github.event.number }} -n argocd -o jsonpath='{.status.health.status}'); if [[ $status = 'Healthy' ]]; then echo "Healthy status received"; exit 0; else echo "Last status $status. Waiting 30s after attempt $i" ;fi; done; echo Failed to get Healthy status after 10 retries; echo $status > deploy.status; exit 1;
+          command: get apps ${{ steps.vars.outputs.app }} -n argocd -o jsonpath='{.status.health.status}' 2>&1 | tee deploy.status; status=$(cat deploy.status); echo "Received status $status"; if [[ "$status" = 'Healthy' ]]; then exit 0; fi; echo "Non Healthy status recieved. Waiting 30s to retry..."; for i in 1 2 3 4 5 6 7 8 9 10; do sleep 30; status=$(kubectl get apps ${{ steps.vars.outputs.app }} -n argocd -o jsonpath='{.status.health.status}' 2>&1); if [[ "$status" = 'Healthy' ]]; then echo "Healthy status received"; exit 0; else echo "Waiting 30s after attempt $i. Last status $status"; fi; done; echo "Failed to get Healthy status after 10 retries"; echo $status > deploy.status; exit 1;
       - name: Get Ingress Info
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA_PREVIEW }}
           version: v1.22.2 # specify kubectl binary version explicitly
-          command: get ingress ${{ github.event.repository.name }}-svc-ingress-${{ github.event.number }} -n preview-${{ github.event.repository.name }} -o jsonpath='http://{.status.loadBalancer.ingress[0].ip}{.spec.rules[0].http.paths[0].path}' > deploy.info
+          command: get ingress ${{ steps.vars.outputs.ingress }} -n ${{ steps.vars.outputs.namespace }} -o jsonpath='http://{.status.loadBalancer.ingress[0].ip}{.spec.rules[0].http.paths[0].path}' > deploy.info
       - name: Get web url
         id: info
         run: |
