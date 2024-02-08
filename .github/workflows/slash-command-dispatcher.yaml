@@ -1,0 +1,45 @@
+name: Slash Command Dispatch
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  check_non_labeled_pr:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.issue.labels.*.name, 'deployed') }}
+    steps:
+      - name: Add reaction
+        uses: peter-evans/create-or-update-comment@v4
+        id: comment
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          body: |
+            
+            > [!WARNING]
+            > Wait for the Preview Environment to be deployed
+            > **You can use Slash Command once this PR is labeled with the `deployed` tag**
+          reactions: confused
+  slash_command_dispatch:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'deployed')
+    steps:
+      - name: Slash Command Dispatch
+        id: scd
+        uses: peter-evans/slash-command-dispatch@v4
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          commands: update-preview,check-preview
+          repository: internxt/environments
+          issue-type: pull-request
+          allow-edits: false
+          reactions: false
+      - name: Edit comment with error message
+        if: steps.scd.outputs.error-message
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          body: |
+            
+            > [!CAUTION]
+            > Couldn't dispatch your command due to error:
+            > **${{ steps.scd.outputs.error-message }}**
+  
