@@ -86,7 +86,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         id: comment_error
         with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          token: ${{ secrets.PAT }}
           repository: ${{ github.event.repository.full_name }}
           issue-number: ${{ github.event.number }}
           comment-id: preview-deployment-status
@@ -98,7 +98,7 @@ jobs:
       - name: Comment success message
         uses: peter-evans/create-or-update-comment@v4
         with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          token: ${{ secrets.PAT }}
           repository: ${{ github.event.repository.full_name }}
           issue-number: ${{ github.event.number }}
           comment-id: preview-deployment-status
