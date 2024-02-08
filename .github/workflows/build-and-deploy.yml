@@ -29,7 +29,7 @@ jobs:
           context: ./
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }},${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:latest
   deploy:
     needs: build
     runs-on: ubuntu-latest
