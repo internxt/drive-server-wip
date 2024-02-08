@@ -3,71 +3,23 @@ import {
   UnauthorizedException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CryptoModule } from '../../externals/crypto/crypto.module';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { File, FileStatus } from '../file/file.domain';
 import {
   FileRepository,
   SequelizeFileRepository,
 } from '../file/file.repository';
-import { FileUseCases } from '../file/file.usecase';
 import { Folder } from '../folder/folder.domain';
 import {
-  FolderModel,
   FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
 import { User } from '../user/user.domain';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
-import { UserUseCases } from '../user/user.usecase';
 import { Share, ShareAttributes } from './share.domain';
-import { SequelizeShareRepository, ShareModel } from './share.repository';
+import { SequelizeShareRepository } from './share.repository';
 import { ShareUseCases } from './share.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import {
-  FriendInvitationModel,
-  SequelizeSharedWorkspaceRepository,
-} from '../../shared-workspace/shared-workspace.repository';
-import {
-  ReferralModel,
-  SequelizeReferralRepository,
-} from '../user/referrals.repository';
-import {
-  SequelizeUserReferralsRepository,
-  UserReferralModel,
-} from '../user/user-referrals.repository';
-import { PaymentsService } from '../../externals/payments/payments.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { NotificationService } from '../../externals/notifications/notification.service';
-import { NewsletterService } from '../../externals/newsletter';
-import { HttpClient } from '../../externals/http/http.service';
-import { HttpModule } from '@nestjs/axios';
-import { FileModel } from '../file/file.model';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
-import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { AvatarService } from '../../externals/avatar/avatar.service';
-import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
-import { PreCreatedUserModel } from '../user/pre-created-users.model';
-import { SequelizeSharingRepository } from '../sharing/sharing.repository';
-import {
-  PermissionModel,
-  RoleModel,
-  SharingInviteModel,
-  SharingModel,
-} from '../sharing/models';
-import { SharingRolesModel } from '../sharing/models/sharing-roles.model';
-import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
-import { AppSumoModel } from '../app-sumo/app-sumo.model';
-import { SequelizeAppSumoRepository } from '../app-sumo/app-sumo.repository';
-import { SequelizePlanRepository } from '../plan/plan.repository';
-import { PlanModel } from '../plan/plan.model';
-import { SequelizeAttemptChangeEmailRepository } from '../user/attempt-change-email.repository';
 import { createMock } from '@golevelup/ts-jest';
-import { MailerService } from '../../externals/mailer/mailer.service';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -104,6 +56,7 @@ describe('Share Use Cases', () => {
     hKey: undefined,
     secret_2FA: '',
     tempKey: '',
+    lastPasswordChangedAt: new Date(),
   });
   const userMock = User.build({
     id: 2,
@@ -132,6 +85,7 @@ describe('Share Use Cases', () => {
     hKey: undefined,
     secret_2FA: '',
     tempKey: '',
+    lastPasswordChangedAt: new Date(),
   });
   const mockFolder = Folder.build({
     id: 1,
@@ -221,119 +175,10 @@ describe('Share Use Cases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule, HttpModule],
-      providers: [
-        ShareUseCases,
-        FolderUseCases,
-        UserUseCases,
-        FileUseCases,
-        SequelizePreCreatedUsersRepository,
-        SequelizeSharingRepository,
-        SequelizeAppSumoRepository,
-        AppSumoUseCase,
-        SequelizePlanRepository,
-        SequelizeShareRepository,
-        SequelizeFileRepository,
-        SequelizeFolderRepository,
-        SequelizeUserRepository,
-        SequelizeSharedWorkspaceRepository,
-        SequelizeReferralRepository,
-        SequelizeUserReferralsRepository,
-        SequelizeKeyServerRepository,
-        PaymentsService,
-        EventEmitter2,
-        NotificationService,
-        ConfigService,
-        NewsletterService,
-        AvatarService,
-        {
-          provide: HttpClient,
-          useValue: {
-            post: jest.fn().mockResolvedValue({}),
-          },
-        },
-        {
-          provide: SequelizeKeyServerRepository,
-          useValue: {
-            findUserKeysOrCreate: () => {
-              return {};
-            },
-          },
-        },
-        {
-          provide: getModelToken(ShareModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(UserModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(PreCreatedUserModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(SharingModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(PermissionModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(RoleModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(SharingRolesModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(SharingInviteModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(AppSumoModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(PlanModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(ReferralModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(UserReferralModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(FriendInvitationModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(ThumbnailModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: SequelizeAttemptChangeEmailRepository,
-          useValue: createMock<SequelizeAttemptChangeEmailRepository>(),
-        },
-        {
-          provide: MailerService,
-          useValue: createMock<MailerService>(),
-        },
-      ],
-    }).compile();
+      providers: [ShareUseCases],
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<ShareUseCases>(ShareUseCases);
     shareRepository = module.get<SequelizeShareRepository>(

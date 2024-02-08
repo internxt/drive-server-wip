@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 import { FolderUseCases } from './folder.usecase';
 import {
   SequelizeFolderRepository,
@@ -8,24 +9,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { getModelToken } from '@nestjs/sequelize';
 import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
-import { FileUseCases } from '../file/file.usecase';
-import { SequelizeFileRepository } from '../file/file.repository';
-import {
-  SequelizeShareRepository,
-  ShareModel,
-} from '../share/share.repository';
-import { ShareUseCases } from '../share/share.usecase';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { FolderModel } from './folder.model';
-import { FileModel } from '../file/file.model';
-import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { newFolder } from '../../../test/fixtures';
+import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 
 const folderId = 4;
 const userId = 1;
@@ -37,37 +27,10 @@ describe('FolderUseCases', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [BridgeModule, CryptoModule],
-      providers: [
-        FolderUseCases,
-        FileUseCases,
-        SequelizeFileRepository,
-        SequelizeFolderRepository,
-        {
-          provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        ShareUseCases,
-        SequelizeShareRepository,
-        SequelizeThumbnailRepository,
-        {
-          provide: getModelToken(ShareModel),
-          useValue: jest.fn(),
-        },
-        SequelizeUserRepository,
-        {
-          provide: getModelToken(ThumbnailModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(UserModel),
-          useValue: jest.fn(),
-        },
-      ],
-    }).compile();
+      providers: [FolderUseCases],
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<FolderUseCases>(FolderUseCases);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
@@ -244,6 +207,7 @@ describe('FolderUseCases', () => {
         hKey: undefined,
         secret_2FA: '',
         tempKey: '',
+        lastPasswordChangedAt: new Date(),
       });
       const folderId = 2713105696;
       const folder = Folder.build({
@@ -302,6 +266,7 @@ describe('FolderUseCases', () => {
         hKey: undefined,
         secret_2FA: '',
         tempKey: '',
+        lastPasswordChangedAt: new Date(),
       });
       const folderId = 2713105696;
       const folder = Folder.build({
@@ -365,6 +330,7 @@ describe('FolderUseCases', () => {
         hKey: undefined,
         secret_2FA: '',
         tempKey: '',
+        lastPasswordChangedAt: new Date(),
       });
       const folderId = 2713105696;
       const folder = Folder.build({
@@ -487,6 +453,36 @@ describe('FolderUseCases', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe('Unable to decrypt folder name');
       }
+    });
+  });
+
+  describe('get folder size', () => {
+    const folder = newFolder();
+
+    it('When the folder size is requested to be calculated, then it works', async () => {
+      const mockSize = 123456789;
+
+      jest
+        .spyOn(folderRepository, 'calculateFolderSize')
+        .mockResolvedValueOnce(mockSize);
+
+      const result = await service.getFolderSizeByUuid(folder.uuid);
+
+      expect(result).toBe(mockSize);
+      expect(folderRepository.calculateFolderSize).toHaveBeenCalledTimes(1);
+      expect(folderRepository.calculateFolderSize).toHaveBeenCalledWith(
+        folder.uuid,
+      );
+    });
+
+    it('When the folder size times out, then throw an exception', async () => {
+      jest
+        .spyOn(folderRepository, 'calculateFolderSize')
+        .mockRejectedValueOnce(new CalculateFolderSizeTimeoutException());
+
+      await expect(service.getFolderSizeByUuid(folder.uuid)).rejects.toThrow(
+        CalculateFolderSizeTimeoutException,
+      );
     });
   });
 });

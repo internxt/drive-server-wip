@@ -1,5 +1,8 @@
 import {
   BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -11,6 +14,7 @@ import { generateMnemonic } from 'bip39';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
+  AccountTokenAction,
   ReferralAttributes,
   ReferralKey,
   User,
@@ -56,6 +60,12 @@ import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.re
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
+import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
+import { UserNotFoundException } from './exception/user-not-found.exception';
+import { getTokenDefaultIat } from '../../lib/jwt';
+import { MailTypes } from '../security/mail-limit/mailTypes';
+import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
+import { Time } from '../../lib/time';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -93,6 +103,12 @@ export class UserNotFoundError extends Error {
   }
 }
 
+export class MailLimitReachedException extends HttpException {
+  constructor() {
+    super('Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
+
 type NewUser = Pick<
   UserAttributes,
   'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
@@ -124,6 +140,7 @@ export class UserUseCases {
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
     private readonly mailerService: MailerService,
+    private readonly mailLimitRepository: SequelizeMailLimitRepository,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -531,6 +548,7 @@ export class UserUseCases {
           pass: userData.userId,
         },
       },
+      iat: getTokenDefaultIat(),
     };
   }
 
@@ -694,6 +712,84 @@ export class UserUseCases {
     });
   }
 
+  async sendAccountUnblockEmail(email: User['email']): Promise<void> {
+    const secret = this.configService.get('secrets.jwt');
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      return;
+    }
+
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      { userId: user.id, mailType: MailTypes.UnblockAccount },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 5,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException();
+    }
+
+    const defaultIat = getTokenDefaultIat();
+    const unblockAccountToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+        iat: defaultIat,
+      },
+      secret,
+      '48h',
+    );
+
+    const driveWebUrl = this.configService.get('clients.drive.web');
+    const url = `${driveWebUrl}/blocked-account/${unblockAccountToken}`;
+    await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
+
+    const lastMailSentDate = Time.convertTimestampToDate(defaultIat);
+    mailLimit.increaseTodayAttemps(lastMailSentDate);
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.UnblockAccount,
+      mailLimit,
+    );
+  }
+
+  async unblockAccount(
+    userUuid: User['uuid'],
+    tokenIat: number,
+  ): Promise<void> {
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      throw new BadRequestException();
+    }
+
+    const mailLimit = await this.mailLimitRepository.findByUserIdAndMailType(
+      user.id,
+      MailTypes.UnblockAccount,
+    );
+
+    const tokenIssuedAtDate = Time.convertTimestampToDate(tokenIat);
+
+    if (
+      mailLimit.lastMailSent > tokenIssuedAtDate ||
+      user.lastPasswordChangedAt > tokenIssuedAtDate
+    ) {
+      throw new ForbiddenException();
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      errorLoginCount: 0,
+      lastPasswordChangedAt: new Date(),
+    });
+  }
+
   async updateCredentials(
     userUuid: User['uuid'],
     newCredentials: {
@@ -817,7 +913,7 @@ export class UserUseCases {
     const user = await this.userRepository.findByUuid(userUuid);
 
     if (!user) {
-      throw new UserNotFoundError();
+      throw new UserNotFoundException();
     }
 
     const maybeAlreadyExistentUser =
@@ -826,20 +922,34 @@ export class UserUseCases {
     const userAlreadyExists = !!maybeAlreadyExistentUser;
 
     if (userAlreadyExists) {
-      throw new UserAlreadyRegisteredError(newEmail);
+      throw new UserEmailAlreadyInUseException(newEmail);
     }
 
     const { uuid, email } = user;
 
-    await this.networkService.updateUserEmail(uuid, newEmail);
-
     try {
-      await this.userRepository.updateById(user.id, {
+      const payload = {
         email: newEmail,
         username: newEmail,
-        bridgeUser: newEmail,
-      });
-      await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+      };
+
+      const isGuestOnSharedWorkspace = user.isGuestOnSharedWorkspace();
+
+      if (!isGuestOnSharedWorkspace) {
+        await this.networkService.updateUserEmail(uuid, newEmail);
+        payload['bridgeUser'] = newEmail;
+      } else {
+        await this.sharedWorkspaceRepository.updateGuestEmail(email, newEmail);
+      }
+
+      if (user.sharedWorkspace) {
+        await this.userRepository.updateBy(
+          { bridgeUser: email },
+          { bridgeUser: newEmail },
+        );
+      }
+
+      await this.userRepository.updateByUuid(user.uuid, payload);
     } catch (error) {
       Logger.error(`[CHANGE-EMAIL/ERROR]: ${JSON.stringify(error)}.`);
 
@@ -861,7 +971,7 @@ export class UserUseCases {
     const userAlreadyExists = !!maybeAlreadyExistentUser;
 
     if (userAlreadyExists) {
-      throw new UserAlreadyRegisteredError(newEmail);
+      throw new UserEmailAlreadyInUseException(newEmail);
     }
 
     const isTheSameEmail = user.email === newEmail;
@@ -930,6 +1040,24 @@ export class UserUseCases {
       attemptChangeEmailId,
     );
 
-    return emails;
+    const user = await this.userRepository.findByUuid(
+      attemptChangeEmail.userUuid,
+    );
+
+    if (user.email !== emails.newEmail) {
+      user.email = emails.newEmail;
+      user.username = emails.newEmail;
+    }
+
+    const newTokenPayload = this.getNewTokenPayload(user);
+
+    return {
+      ...emails,
+      newAuthentication: {
+        token: SignEmail(user.email, this.configService.get('secrets.jwt')),
+        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        user,
+      },
+    };
   }
 }

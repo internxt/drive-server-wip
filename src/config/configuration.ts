@@ -50,7 +50,7 @@ export default () => ({
       url: process.env.STORAGE_API_URL,
       auth: {
         username: process.env.GATEWAY_USER,
-        password: process.env.GATEWAY_PASSWORD,
+        password: process.env.GATEWAY_PASS,
       },
     },
     drive: {
@@ -93,6 +93,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_ROLE_UPDATED || '',
       updateUserEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_UPDATE_USER_EMAIL || '',
+      unblockAccountEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_UNBLOCK_ACCOUNT || '',
     },
   },
   newsletter: {
