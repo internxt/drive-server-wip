@@ -42,8 +42,6 @@ jobs:
   check_deployment:
     needs: add_preview_label
     runs-on: ubuntu-latest
-    environment:
-      name: develop
     steps:
       - name: Get the command arguments
         id: vars
