@@ -39,11 +39,45 @@ jobs:
       with:
         labels: |
           preview
+  dispatch_update_deployment:
+    needs: add_preview_label
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'deployed') }}
+    steps:
+      - name: Dispatch Update Preview Repository Command
+        uses: myrotvorets/trigger-repository-dispatch-action@1.0.0
+        with:
+          token: ${{ secrets.PAT }}
+          repo: internxt/environments
+          type: update-preview-command
+          payload: |
+            { 
+              "github": { 
+                "payload": { 
+                  "repository": {
+                    "name": "${{ github.event.repository.name }}",
+                    "full_name": "${{ github.event.repository.full_name }}"
+                  },
+                  "issue": {
+                    "number": ${{ github.event.number }},
+                    "labels": ${{ toJSON(github.event.pull_request.labels) }}
+                  },
+                  "slash_command": {
+                    "args": {
+                      "named": {
+                        "deployment": "${{ github.event.repository.name }}",
+                        "tag": "preview-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}"
+                      }
+                    }
+                  }
+                } 
+              } 
+            }
   dispatch_check_deployment:
     needs: add_preview_label
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch Repository Command
+      - name: Dispatch Check Preview Repository Command
         uses: myrotvorets/trigger-repository-dispatch-action@1.0.0
         with:
           token: ${{ secrets.PAT }}
