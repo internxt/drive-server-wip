@@ -13,6 +13,7 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           commands: update-preview,check-preview
+          permission: write
           repository: internxt/environments
           issue-type: pull-request
           allow-edits: false
