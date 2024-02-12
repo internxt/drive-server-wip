@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { LimitLabels } from './limits.enum';
 import { User } from '../user/user.domain';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
@@ -19,34 +23,68 @@ export class FeatureLimitUsecases {
     private readonly sharingRepository: SequelizeSharingRepository,
   ) {}
 
-  private checkFunctions: {
+  private limitCheckFunctions: {
     [K in LimitLabels]?: (params: {
       limit: Limit;
       data: LimitTypeMapping[K];
       user: User;
     }) => Promise<boolean>;
   } = {
-    [LimitLabels.MaxSharedItems]: this.isMaxSharedItemsLimitExceeded.bind(this),
+    [LimitLabels.MaxSharedItems]: this.checkMaxSharedItemsLimit.bind(this),
     [LimitLabels.MaxSharedItemInvites]:
-      this.isMaxInviteesPerItemsLimitExceeded.bind(this),
+      this.checkMaxInviteesPerItemLimit.bind(this),
   };
 
-  checkLimit<T extends keyof LimitTypeMapping>(
+  async enforceLimit<T extends keyof LimitTypeMapping>(
+    limitLabel: LimitLabels,
+    user: User,
+    data: LimitTypeMapping[T],
+  ): Promise<boolean> {
+    const limit = await this.limitsRepository.findLimitByLabelAndTier(
+      user.tierId,
+      limitLabel,
+    );
+
+    if (!limit) {
+      new Logger().error(
+        `[FEATURE_LIMIT]: Limit not found for label: ${limitLabel}, tierId: ${user.tierId} user: ${user.email}`,
+      );
+      throw new InternalServerErrorException();
+    }
+
+    if (limit.isBooleanLimit()) {
+      if (limit.shouldLimitBeEnforced()) {
+        throw new PaymentRequiredException(
+          `Feature not available for ${limitLabel} `,
+        );
+      }
+      return false;
+    }
+
+    const isLimitSurprassed = await this.checkCounterLimit(user, limit, data);
+    if (isLimitSurprassed) {
+      throw new PaymentRequiredException(`Limit exceeded for ${limitLabel} `);
+    }
+    return false;
+  }
+
+  async checkCounterLimit<T extends keyof LimitTypeMapping>(
     user: User,
     limit: Limit,
     data: LimitTypeMapping[T],
   ) {
-    const checkFunction = this.checkFunctions[limit.label as LimitLabels];
+    const checkFunction = this.limitCheckFunctions[limit.label as LimitLabels];
+
     if (!checkFunction) {
       new Logger().error(
-        `Check function not defined for label: ${limit.label}.`,
+        `[FEATURE-LIMIT] Check counter function not defined for label: ${limit.label}.`,
       );
-      return false;
+      throw new InternalServerErrorException();
     }
     return checkFunction({ limit, data, user });
   }
 
-  async isMaxSharedItemsLimitExceeded({
+  async checkMaxSharedItemsLimit({
     limit,
     user,
     data,
@@ -55,34 +93,32 @@ export class FeatureLimitUsecases {
     user: User;
     data: MaxSharedItemsAttribute;
   }) {
+    const limitContext = { bypassLimit: false, currentCount: 0 };
     const alreadySharedItem = await this.sharingRepository.findOneSharingBy({
       itemId: data.itemId,
     });
 
     if (alreadySharedItem) {
-      return false;
+      limitContext.bypassLimit = true;
+    } else {
+      const sharingsCount =
+        await this.sharingRepository.getSharedItemsNumberByUser(user.uuid);
+      limitContext.currentCount = sharingsCount;
     }
 
-    const sharingsCount =
-      await this.sharingRepository.getSharedItemsNumberByUser(user.uuid);
-    const limitExceeded = limit.isLimitExceeded(sharingsCount);
-
-    if (limitExceeded) {
-      throw new PaymentRequiredException(
-        'You have reached the limit of shared items',
-      );
-    }
-    return false;
+    return limit.shouldLimitBeEnforced(limitContext);
   }
 
-  async isMaxInviteesPerItemsLimitExceeded({
+  async checkMaxInviteesPerItemLimit({
     limit,
     data,
   }: {
     limit: Limit;
     data: MaxInviteesPerItemAttribute;
   }) {
+    const limitContext = { currentCount: 0 };
     const { itemId, itemType } = data;
+
     const [sharingsCountForThisItem, invitesCountForThisItem] =
       await Promise.all([
         this.sharingRepository.getSharingsCountBy({
@@ -96,15 +132,10 @@ export class FeatureLimitUsecases {
         }),
       ]);
 
-    const count = sharingsCountForThisItem + invitesCountForThisItem;
+    limitContext.currentCount =
+      sharingsCountForThisItem + invitesCountForThisItem;
 
-    const limitExceeded = limit.isLimitExceeded(count);
-    if (limitExceeded) {
-      throw new PaymentRequiredException(
-        'You have reached the limit of invitations for this item',
-      );
-    }
-    return false;
+    return limit.shouldLimitBeEnforced(limitContext);
   }
 
   async getLimitByLabelAndTier(label: string, tierId: string) {

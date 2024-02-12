@@ -6,5 +6,5 @@ export enum LimitLabels {
 
 export enum LimitTypes {
   Boolean = 'boolean',
-  counter = 'counter',
+  Counter = 'counter',
 }

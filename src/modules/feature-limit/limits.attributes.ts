@@ -8,6 +8,11 @@ export interface LimitAttributes {
   value: string;
 }
 
+export interface ShouldLimitBeEnforcedContext {
+  bypassLimit?: boolean;
+  currentCount?: number;
+}
+
 export interface MaxInviteesPerItemAttribute {
   itemId: string;
   itemType: 'folder' | 'file';

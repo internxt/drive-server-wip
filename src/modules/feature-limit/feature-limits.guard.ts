@@ -32,9 +32,9 @@ export class FeatureLimit implements CanActivate {
 
     if (!metadata) {
       new Logger().error(
-        `Missing metadata for feature limit guard! url: ${request.url} handler: ${handler.name}`,
+        `[FEATURE_LIMIT]: Missing metadata for feature limit guard! url: ${request.url} handler: ${handler.name}`,
       );
-      return false;
+      throw new BadRequestException(`Missing Metadata`);
     }
 
     const { limitLabel, dataSources } = metadata;
@@ -43,43 +43,45 @@ export class FeatureLimit implements CanActivate {
       return true;
     }
 
-    const extractedData = {} as LimitTypeMapping[typeof limitLabel];
-    if (dataSources) {
-      for (const { sourceKey, fieldName } of dataSources) {
-        const value = request[sourceKey][fieldName];
-        if (value === undefined || value === null) {
-          new Logger().error(
-            `[FEATURE_LIMIT]: Missing required field! url: ${request.url} handler: ${handler.name} field: ${fieldName}`,
-          );
-          throw new BadRequestException(`Missing required field: ${fieldName}`);
-        }
-        extractedData[fieldName] = value;
-      }
-    }
-
-    const limit = await this.featureLimitsUseCases.getLimitByLabelAndTier(
+    const extractedData = this.extractDataFromRequest(
+      request,
+      dataSources,
       limitLabel,
-      user.tierId,
     );
 
-    if (!limit) {
-      new Logger().error(
-        `[FEATURE_LIMIT]: Limit configuration not found for limit: ${limitLabel} tier: ${user.tierId}`,
-      );
-      return true;
-    }
-
-    if (limit.isLimitBoolean()) {
-      return limit.isFeatureEnabled();
-    }
-
-    const isLimitExceeded =
-      await this.featureLimitsUseCases.checkLimit<LimitLabels>(
+    const enforceLimit =
+      await this.featureLimitsUseCases.enforceLimit<LimitLabels>(
+        limitLabel,
         user,
-        limit,
         extractedData,
       );
 
-    return !isLimitExceeded;
+    const shouldActionBeAllowed = !enforceLimit;
+
+    return shouldActionBeAllowed;
+  }
+
+  extractDataFromRequest(
+    request: any,
+    dataSources: ApplyLimitMetadata['dataSources'],
+    limitLabel: LimitLabels,
+  ) {
+    const extractedData = {} as LimitTypeMapping[typeof limitLabel];
+
+    for (const { sourceKey, fieldName } of dataSources) {
+      const value = request[sourceKey][fieldName];
+      const isValueUndefined = value === undefined || value === null;
+
+      if (isValueUndefined) {
+        new Logger().error(
+          `[FEATURE_LIMIT]: Missing required field for feature limit! limit: ${limitLabel} field: ${fieldName}`,
+        );
+        throw new BadRequestException(`Missing required field: ${fieldName}`);
+      }
+
+      extractedData[fieldName] = value;
+    }
+
+    return extractedData;
   }
 }

@@ -1,11 +1,16 @@
-import { LimitAttributes } from './limits.attributes';
+import {
+  LimitAttributes,
+  ShouldLimitBeEnforcedContext,
+} from './limits.attributes';
 import { LimitTypes, LimitLabels } from './limits.enum';
 
 export class Limit {
-  id: string;
-  label: LimitLabels;
-  type: string;
-  value: string;
+  readonly id: string;
+  readonly label: LimitLabels;
+  readonly type: string;
+  readonly value: string;
+  readonly isBypassable: boolean;
+
   constructor({ id, label, type, value }: LimitAttributes) {
     this.id = id;
     this.label = label;
@@ -13,21 +18,35 @@ export class Limit {
     this.value = value;
   }
 
-  static build(limit: LimitAttributes): Limit {
-    return new Limit(limit);
+  static build(limitAttributes: LimitAttributes): Limit {
+    return new Limit(limitAttributes);
   }
 
-  isLimitBoolean() {
+  isBooleanLimit() {
     return this.type === LimitTypes.Boolean;
   }
 
-  isFeatureEnabled() {
-    return this.isLimitBoolean() && Boolean(this.value);
+  private isFeatureEnabled() {
+    return this.isBooleanLimit() && Boolean(this.value);
   }
 
-  isLimitExceeded(currentCount: number) {
+  private isCounterLimitExceeded(currentCount: number) {
     return (
-      this.type === LimitTypes.counter && currentCount >= Number(this.value)
+      this.type === LimitTypes.Counter && currentCount >= Number(this.value)
     );
+  }
+
+  shouldLimitBeEnforced(context: ShouldLimitBeEnforcedContext = {}): boolean {
+    const { bypassLimit, currentCount } = context;
+
+    if (bypassLimit) {
+      return false;
+    }
+
+    if (this.isBooleanLimit()) {
+      return !this.isFeatureEnabled();
+    }
+
+    return this.isCounterLimitExceeded(currentCount);
   }
 }

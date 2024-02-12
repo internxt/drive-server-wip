@@ -4,8 +4,8 @@ import {
   Table,
   PrimaryKey,
   DataType,
-  AllowNull,
   BelongsToMany,
+  AllowNull,
 } from 'sequelize-typescript';
 import { LimitTypes, LimitLabels } from '../limits.enum';
 import { TierModel } from './tier.model';
