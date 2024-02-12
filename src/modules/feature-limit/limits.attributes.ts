@@ -29,13 +29,3 @@ export interface LimitTypeMapping {
   [LimitLabels.MaxSharedItems]: MaxSharedItemsAttribute;
   [key: string]: any;
 }
-
-type ExtractDataType<T> = T extends keyof LimitTypeMapping
-  ? LimitTypeMapping[T]
-  : never;
-
-export type CheckFunction<T extends LimitLabels> = (
-  value: number,
-  user: User,
-  data: ExtractDataType<T>,
-) => Promise<boolean>;

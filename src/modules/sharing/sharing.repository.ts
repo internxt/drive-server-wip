@@ -551,13 +551,13 @@ export class SequelizeSharingRepository implements SharingRepository {
   }
 
   async getSharedItemsNumberByUser(userUuid: string): Promise<number> {
-    const sharingsNumber = await this.sharings.count({
+    const sharingsCount = await this.sharings.count({
       where: { ownerId: userUuid },
       distinct: true,
       col: 'itemId',
     });
 
-    return sharingsNumber;
+    return sharingsCount;
   }
 
   async createSharing(sharing: Omit<Sharing, 'id'>): Promise<Sharing> {

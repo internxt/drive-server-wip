@@ -8,11 +8,11 @@ import {
 import { Reflector } from '@nestjs/core';
 import { LimitLabels } from './limits.enum';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
-import { LimitTypeMapping } from './limits.attributes';
 import {
   ApplyLimitMetadata,
   FEATURE_LIMIT_KEY,
 } from './decorators/apply-limit.decorator';
+import { PaymentRequiredException } from './exceptions/payment-required.exception';
 
 @Injectable()
 export class FeatureLimit implements CanActivate {
@@ -37,36 +37,37 @@ export class FeatureLimit implements CanActivate {
       throw new BadRequestException(`Missing Metadata`);
     }
 
-    const { limitLabel, dataSources } = metadata;
+    const { limitLabels, dataSources } = metadata;
 
-    if (!limitLabel) {
+    if (!limitLabels) {
       return true;
     }
 
-    const extractedData = this.extractDataFromRequest(
-      request,
-      dataSources,
-      limitLabel,
+    const extractedData = this.extractDataFromRequest(request, dataSources);
+
+    await Promise.all(
+      limitLabels.map(async (limitLabel) => {
+        const shouldLimitBeEnforced =
+          await this.featureLimitsUseCases.enforceLimit<LimitLabels>(
+            limitLabel,
+            user,
+            extractedData,
+          );
+
+        if (shouldLimitBeEnforced) {
+          throw new PaymentRequiredException();
+        }
+      }),
     );
 
-    const enforceLimit =
-      await this.featureLimitsUseCases.enforceLimit<LimitLabels>(
-        limitLabel,
-        user,
-        extractedData,
-      );
-
-    const shouldActionBeAllowed = !enforceLimit;
-
-    return shouldActionBeAllowed;
+    return true;
   }
 
   extractDataFromRequest(
     request: any,
     dataSources: ApplyLimitMetadata['dataSources'],
-    limitLabel: LimitLabels,
   ) {
-    const extractedData = {} as LimitTypeMapping[typeof limitLabel];
+    const extractedData = {};
 
     for (const { sourceKey, fieldName } of dataSources) {
       const value = request[sourceKey][fieldName];
@@ -74,7 +75,7 @@ export class FeatureLimit implements CanActivate {
 
       if (isValueUndefined) {
         new Logger().error(
-          `[FEATURE_LIMIT]: Missing required field for feature limit! limit: ${limitLabel} field: ${fieldName}`,
+          `[FEATURE_LIMIT]: Missing required field for feature limit! field: ${fieldName}`,
         );
         throw new BadRequestException(`Missing required field: ${fieldName}`);
       }

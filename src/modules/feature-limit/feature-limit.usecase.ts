@@ -132,8 +132,9 @@ export class FeatureLimitUsecases {
         }),
       ]);
 
+    // Add 1 to include owner in the limit count.
     limitContext.currentCount =
-      sharingsCountForThisItem + invitesCountForThisItem;
+      sharingsCountForThisItem + invitesCountForThisItem + 1;
 
     return limit.shouldLimitBeEnforced(limitContext);
   }

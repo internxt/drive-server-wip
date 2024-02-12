@@ -7,7 +7,7 @@ interface DataSource {
 }
 
 export interface ApplyLimitMetadata {
-  limitLabel: LimitLabels;
+  limitLabels: LimitLabels[];
   dataSources?: DataSource[];
   context?: object;
 }
