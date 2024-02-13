@@ -1,4 +1,4 @@
-name: Deploy PR Preview
+name: Clean Up PR Preview
 on:
   pull_request:
     types: [closed]
