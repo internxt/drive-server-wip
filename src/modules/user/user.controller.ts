@@ -168,6 +168,66 @@ export class UserController {
       limit: 5,
     },
   })
+  @Get('/user/:email')
+  @HttpCode(201)
+  @ApiOperation({
+    summary:
+      'Get the user data by email and check if the user has subscription',
+  })
+  @ApiOkResponse({
+    description: 'Get the user data by email',
+  })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getUserByEmail(
+    @Param('email') email: User['email'],
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const user = await this.userUseCases.getUserByUsername(email);
+      if (!user) {
+        throw new NotFoundException();
+      }
+
+      const userHasSubscriptions =
+        await this.userUseCases.hasUserBeenSubscribedAnyTime(
+          user.email,
+          user.bridgeUser,
+          user.userId,
+        );
+
+      return res
+        .status(200)
+        .json({ user: user, hasSubscriptions: userHasSubscriptions });
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof NotFoundException) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/GET-USER-BY-EMAIL] ERROR: ${(err as Error).message}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
   @Post('/pre-created-users/register')
   @HttpCode(201)
   @ApiOperation({
