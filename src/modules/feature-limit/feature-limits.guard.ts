@@ -13,6 +13,7 @@ import {
   FEATURE_LIMIT_KEY,
 } from './decorators/apply-limit.decorator';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
+import { LimitTypeMapping } from './limits.attributes';
 
 @Injectable()
 export class FeatureLimit implements CanActivate {
@@ -51,7 +52,7 @@ export class FeatureLimit implements CanActivate {
           await this.featureLimitsUseCases.enforceLimit<LimitLabels>(
             limitLabel,
             user,
-            extractedData,
+            extractedData as LimitTypeMapping[typeof limitLabel],
           );
 
         if (shouldLimitBeEnforced) {
