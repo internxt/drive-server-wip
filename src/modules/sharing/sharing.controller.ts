@@ -17,10 +17,12 @@ import {
   NotFoundException,
   Headers,
   Patch,
+  UseFilters,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -54,6 +56,8 @@ import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
+import { UuidDto } from '../../common/uuid.dto';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -70,6 +74,10 @@ export class SharingController {
     description: 'Id of the sharing',
     type: String,
   })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+  })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
     @Param('sharingId') sharingId: Sharing['id'],
@@ -79,7 +87,12 @@ export class SharingController {
     if (!code) {
       throw new BadRequestException('Code is required');
     }
-    return this.sharingService.getPublicSharingById(sharingId, code, password);
+    const decodedPassword = password ? decodeURIComponent(password) : null;
+    return this.sharingService.getPublicSharingById(
+      sharingId,
+      code,
+      decodedPassword,
+    );
   }
 
   @Get('/public/:sharingId/item')
@@ -1015,5 +1028,15 @@ export class SharingController {
     );
 
     return { message: 'User removed from shared folder' };
+  }
+
+  @UseFilters(new HttpExceptionFilter())
+  @UseGuards(ThrottlerGuard)
+  @Public()
+  @Get('public/:id/folder/size')
+  async getPublicSharingFolderSize(@Param() param: UuidDto) {
+    const size = await this.sharingService.getPublicSharingFolderSize(param.id);
+
+    return { size };
   }
 }

@@ -1,27 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+import { createMock } from '@golevelup/ts-jest';
+
 import { TrashUseCases } from './trash.usecase';
-import { SequelizeFileRepository } from '../file/file.repository';
 import { File, FileAttributes } from '../file/file.domain';
-import {
-  FolderModel,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
-import { getModelToken } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
-import { SequelizeUserRepository, UserModel } from '../user/user.repository';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { ShareUseCases } from '../share/share.usecase';
-import {
-  SequelizeShareRepository,
-  ShareModel,
-} from '../share/share.repository';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { CryptoModule } from '../..//externals/crypto/crypto.module';
-import { NotFoundException } from '@nestjs/common';
-import { FileModel } from '../file/file.model';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -54,42 +40,15 @@ describe('Trash Use Cases', () => {
     hKey: undefined,
     secret_2FA: '',
     tempKey: '',
+    lastPasswordChangedAt: new Date(),
   });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule],
-      providers: [
-        TrashUseCases,
-        FileUseCases,
-        SequelizeFileRepository,
-        {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        FolderUseCases,
-        SequelizeFolderRepository,
-        {
-          provide: getModelToken(FolderModel),
-          useValue: jest.fn(),
-        },
-        ShareUseCases,
-        SequelizeShareRepository,
-        {
-          provide: getModelToken(ShareModel),
-          useValue: jest.fn(),
-        },
-        SequelizeUserRepository,
-        {
-          provide: getModelToken(UserModel),
-          useValue: jest.fn(),
-        },
-        {
-          provide: getModelToken(ThumbnailModel),
-          useValue: jest.fn(),
-        },
-      ],
-    }).compile();
+      providers: [TrashUseCases],
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<TrashUseCases>(TrashUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);

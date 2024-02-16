@@ -24,6 +24,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingType } from './sharing.domain';
 import { FileStatus } from '../file/file.domain';
+import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 
 describe('Sharing Use Cases', () => {
   let sharingService: SharingService;
@@ -489,6 +490,40 @@ describe('Sharing Use Cases', () => {
       await expect(sharingService.getPublicSharingItemInfo('')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('get sharing folder size', () => {
+    const owner = newUser();
+    const otherUser = publicUser();
+    const folder = newFolder({ owner });
+
+    it('When user tries to get sharing folder size with a public folder, then it works', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      const expectedSize = 100;
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      folderUseCases.getFolderSizeByUuid.mockResolvedValue(expectedSize);
+
+      const publicSharingSize = await sharingService.getPublicSharingFolderSize(
+        sharing.id,
+      );
+
+      expect(publicSharingSize).toStrictEqual(expectedSize);
+    });
+
+    it('When user tries to get sharing folder size and folder is not found, then it fails', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getPublicSharingFolderSize(''),
+      ).rejects.toThrow(SharingNotFoundException);
     });
   });
 });

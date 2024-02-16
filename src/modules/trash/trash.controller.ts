@@ -12,6 +12,8 @@ import {
   Res,
   Logger,
   HttpStatus,
+  UseFilters,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -38,6 +40,7 @@ import { File, FileStatus } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
+import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -182,18 +185,40 @@ export class TrashController {
     }
   }
 
+  @UseFilters(new HttpExceptionFilter())
   @Delete('/all')
   @HttpCode(200)
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
   async clearTrash(@UserDecorator() user: User) {
-    await this.trashUseCases.emptyTrash(user);
+    try {
+      await this.trashUseCases.emptyTrash(user);
+    } catch (error) {
+      new Logger().error(
+        `[TRASH/EMPTY_TRASH] ERROR: ${
+          (error as Error).message
+        } USER: ${JSON.stringify(user)} STACK: ${(error as Error).stack}`,
+      );
+
+      throw new InternalServerErrorException();
+    }
   }
 
+  @UseFilters(new HttpExceptionFilter())
   @Delete('/all/request')
   requestEmptyTrash(user: User) {
-    this.trashUseCases.emptyTrash(user);
+    try {
+      this.trashUseCases.emptyTrash(user);
+    } catch (error) {
+      new Logger().error(
+        `[TRASH/REQUEST_EMPTY_TRASH] ERROR: ${
+          (error as Error).message
+        } USER: ${JSON.stringify(user)} STACK: ${(error as Error).stack}`,
+      );
+
+      throw new InternalServerErrorException();
+    }
   }
 
   @Delete('/')

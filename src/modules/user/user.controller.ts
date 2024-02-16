@@ -19,6 +19,8 @@ import {
   UnauthorizedException,
   BadRequestException,
   UseFilters,
+  InternalServerErrorException,
+  HttpException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -33,7 +35,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { Response, Request } from 'express';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { User } from './user.domain';
+import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
   KeyServerNotFoundError,
@@ -49,7 +51,7 @@ import {
   RequestRecoverAccountDto,
   ResetAccountDto,
 } from './dto/recover-account.dto';
-import { verifyToken } from '../../lib/jwt';
+import { verifyToken, verifyWithDefaultSecret } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -59,6 +61,7 @@ import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import { RequestAccountUnblock } from './dto/account-unblock.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -147,6 +150,66 @@ export class UserController {
           `[AUTH/REGISTER] ERROR: ${
             (err as Error).message
           }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal Server Error';
+      }
+
+      return { error: errorMessage };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Get('/user/:email')
+  @HttpCode(201)
+  @ApiOperation({
+    summary:
+      'Get the user data by email and check if the user has subscription',
+  })
+  @ApiOkResponse({
+    description: 'Get the user data by email',
+  })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getUserByEmail(
+    @Param('email') email: User['email'],
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const user = await this.userUseCases.getUserByUsername(email);
+      if (!user) {
+        throw new NotFoundException();
+      }
+
+      const userHasSubscriptions =
+        await this.userUseCases.hasUserBeenSubscribedAnyTime(
+          user.email,
+          user.bridgeUser,
+          user.userId,
+        );
+
+      return res
+        .status(200)
+        .json({ user: user, hasSubscriptions: userHasSubscriptions });
+    } catch (err) {
+      let errorMessage = err.message;
+
+      if (err instanceof NotFoundException) {
+        res.status(HttpStatus.NOT_FOUND);
+      } else {
+        new Logger().error(
+          `[AUTH/GET-USER-BY-EMAIL] ERROR: ${(err as Error).message}, STACK: ${
             (err as Error).stack
           }`,
         );
@@ -425,6 +488,100 @@ export class UserController {
       res.status(HttpStatus.INTERNAL_SERVER_ERROR);
 
       return { error: 'Internal Server Error' };
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/unblock-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Request account unblock',
+  })
+  @Public()
+  async requestAccountUnblock(@Body() body: RequestAccountUnblock) {
+    try {
+      const response = await this.userUseCases.sendAccountUnblockEmail(
+        body.email,
+      );
+      return response;
+    } catch (err) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
+
+      new Logger().error(
+        `[USERS/UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { email: body.email },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+
+      throw new InternalServerErrorException();
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Put('/unblock-account')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Resets user error login counter to unblock account',
+  })
+  @Public()
+  async accountUnblock(@Body('token') token: string) {
+    let decodedContent: {
+      payload: { uuid: string; action: string; email: string };
+      iat: number;
+    };
+    try {
+      const decoded = verifyWithDefaultSecret(token);
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException();
+      }
+      decodedContent = decoded as {
+        payload: { uuid: string; action: string; email: string };
+        iat: number;
+      };
+    } catch {
+      throw new ForbiddenException();
+    }
+
+    const tokenPayload = decodedContent?.payload;
+    const tokenIat = decodedContent.iat;
+
+    if (
+      !tokenIat ||
+      !tokenPayload.action ||
+      !tokenPayload.uuid ||
+      !tokenPayload.email ||
+      tokenPayload.action !== AccountTokenAction.Unblock ||
+      !validate(tokenPayload.uuid)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    const { uuid, email } = tokenPayload;
+
+    try {
+      await this.userUseCases.unblockAccount(uuid, tokenIat);
+    } catch (err) {
+      if (
+        err instanceof ForbiddenException ||
+        err instanceof BadRequestException
+      ) {
+        throw err;
+      }
+
+      new Logger().error(
+        `[USERS/UNBLOCK_ACCOUNT] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          user: { email, uuid },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+
+      throw new InternalServerErrorException();
     }
   }
 
