@@ -2,19 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { TierModel } from './models/tier.model';
 import { Limitmodel } from './models/limit.model';
-import { TierLimitsModel } from './models/tier-limits.model';
 import { Limit } from './limit.domain';
 import { PaidPlansModel } from './models/paid-plans.model';
+import { Tier } from './tier.domain';
+import { PLAN_FREE_TIER_ID } from './limits.enum';
 
 @Injectable()
 export class SequelizeFeatureLimitsRepository {
   constructor(
-    @InjectModel(TierModel)
-    private tierModel: typeof TierModel,
     @InjectModel(Limitmodel)
     private limitModel: typeof Limitmodel,
-    @InjectModel(TierLimitsModel)
-    private tierLimitmodel: typeof TierLimitsModel,
     @InjectModel(PaidPlansModel)
     private paidPlansModel: typeof PaidPlansModel,
   ) {}
@@ -42,5 +39,18 @@ export class SequelizeFeatureLimitsRepository {
 
   async findAllPlansTiersMap(): Promise<PaidPlansModel[]> {
     return this.paidPlansModel.findAll();
+  }
+
+  async getTierByPlanId(planId: string): Promise<Tier | null> {
+    const planTier = await this.paidPlansModel.findOne({
+      where: { planId },
+      include: [TierModel],
+    });
+
+    return planTier?.tier ? Tier.build(planTier?.tier) : null;
+  }
+
+  async getFreeTier(): Promise<Tier | null> {
+    return this.getTierByPlanId(PLAN_FREE_TIER_ID);
   }
 }

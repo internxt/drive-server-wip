@@ -13,6 +13,7 @@ export class PaymentsService {
   constructor(
     @Inject(ConfigService)
     private configService: ConfigService,
+    @Inject(HttpClient)
     private httpClient: HttpClient,
   ) {
     const stripeTest = new Stripe(process.env.STRIPE_SK_TEST, {
