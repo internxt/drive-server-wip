@@ -26,6 +26,7 @@ export class PaidPlansModel extends Model {
   planId: string;
 
   @ForeignKey(() => TierModel)
+  @AllowNull(false)
   @Column(DataType.UUIDV4)
   tierId: string;
 

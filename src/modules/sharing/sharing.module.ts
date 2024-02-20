@@ -21,6 +21,7 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { HttpClientModule } from 'src/externals/http/http.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     AppSumoModule,
     forwardRef(() => UserModule),
     forwardRef(() => FeatureLimitModule),
+    HttpClientModule,
   ],
   controllers: [SharingController],
   providers: [

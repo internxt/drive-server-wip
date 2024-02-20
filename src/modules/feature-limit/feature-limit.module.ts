@@ -13,6 +13,7 @@ import { FeatureLimitsController } from './feature-limit.controller';
 import { HttpClientModule } from 'src/externals/http/http.module';
 import { ConfigModule } from '@nestjs/config';
 import { PaidPlansModel } from './models/paid-plans.model';
+import { PaymentsService } from 'src/externals/payments/payments.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PaidPlansModel } from './models/paid-plans.model';
     FeatureLimit,
     FeatureLimitsMigrationService,
     ConfigModule,
+    PaymentsService,
   ],
   controllers: [FeatureLimitsController],
   exports: [FeatureLimit, FeatureLimitUsecases],

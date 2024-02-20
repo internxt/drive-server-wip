@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
-import { HttpClient } from 'src/externals/http/http.service';
-import { Sign } from 'src/middlewares/passport';
-import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { User } from '../user/user.domain';
+import { PaymentsService } from 'src/externals/payments/payments.service';
 
 const FREE_TIER_ID = 'free';
 
@@ -20,8 +18,7 @@ export class FeatureLimitsMigrationService {
   constructor(
     private userRepository: SequelizeUserRepository,
     private tiersRepository: SequelizeFeatureLimitsRepository,
-    private httpClient: HttpClient,
-    private readonly configService: ConfigService,
+    private paymentsService: PaymentsService,
   ) {}
 
   async asignTiersToUsers() {
@@ -84,23 +81,11 @@ export class FeatureLimitsMigrationService {
   }
 
   private async getUserSubscription(user: User, retries = 0) {
-    const jwt = Sign(
-      { payload: { uuid: user.uuid } },
-      this.configService.get('secrets.jwt'),
-    );
-
-    const params = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${jwt}`,
-      },
-    };
     try {
-      const res = await this.httpClient.get(
-        `${this.configService.get('apis.payments.url')}/subscriptions`,
-        params,
+      const subscription = await this.paymentsService.getCurrentSubscription(
+        user.uuid,
       );
-      return res.data;
+      return subscription;
     } catch (error) {
       if (error instanceof AxiosError) {
         if (error.response && error.response.status === 404) {
