@@ -93,6 +93,15 @@ export class SequelizeUserRepository implements UserRepository {
     return users.map((user) => this.toDomain(user));
   }
 
+  async findAllByWithPagination(
+    where: any,
+    limit = 20,
+    offset = 0,
+  ): Promise<Array<User> | []> {
+    const users = await this.modelUser.findAll({ where, limit, offset });
+    return users.map((user) => this.toDomain(user));
+  }
+
   async findByUsername(username: string): Promise<User | null> {
     const user = await this.modelUser.findOne({
       where: {
