@@ -5,7 +5,7 @@ import { AxiosError } from 'axios';
 import { User } from '../user/user.domain';
 import { PaymentsService } from 'src/externals/payments/payments.service';
 
-const FREE_TIER_ID = 'free';
+const FREE_TIER_ID = 'free_000000';
 
 @Injectable()
 export class FeatureLimitsMigrationService {
@@ -119,7 +119,7 @@ export class FeatureLimitsMigrationService {
 
     if (!this.planIdTierIdMap.get(FREE_TIER_ID)) {
       Logger.error(
-        `[FEATURE_LIMIT_MIGRATION/NO_FREE]: No free tier mapped found, please add a tier for free users`,
+        `[FEATURE_LIMIT_MIGRATION/NO_FREE]: No free tier mapped found, please add a tier for free users to your DB`,
       );
       throw Error(
         'There is no free tier mapped, please add a tier for free users',
