@@ -4,8 +4,7 @@ import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { AxiosError } from 'axios';
 import { User } from '../user/user.domain';
 import { PaymentsService } from 'src/externals/payments/payments.service';
-
-const FREE_TIER_ID = 'free_000000';
+import { PLAN_FREE_TIER_ID } from './limits.enum';
 
 @Injectable()
 export class FeatureLimitsMigrationService {
@@ -55,7 +54,7 @@ export class FeatureLimitsMigrationService {
   private async assignTier(user: User) {
     try {
       const subscription = await this.getUserSubscription(user);
-      let tierId = this.planIdTierIdMap.get(FREE_TIER_ID);
+      let tierId = this.planIdTierIdMap.get(PLAN_FREE_TIER_ID);
 
       if (subscription?.priceId) {
         if (this.planIdTierIdMap.has(subscription.priceId)) {
@@ -117,7 +116,7 @@ export class FeatureLimitsMigrationService {
       this.planIdTierIdMap.set(tier.planId, tier.tierId);
     });
 
-    if (!this.planIdTierIdMap.get(FREE_TIER_ID)) {
+    if (!this.planIdTierIdMap.get(PLAN_FREE_TIER_ID)) {
       Logger.error(
         `[FEATURE_LIMIT_MIGRATION/NO_FREE]: No free tier mapped found, please add a tier for free users to your DB`,
       );
