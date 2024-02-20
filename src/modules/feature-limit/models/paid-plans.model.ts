@@ -7,6 +7,7 @@ import {
   AllowNull,
   AutoIncrement,
   ForeignKey,
+  BelongsTo,
 } from 'sequelize-typescript';
 import { TierModel } from './tier.model';
 
@@ -29,6 +30,13 @@ export class PaidPlansModel extends Model {
   @AllowNull(false)
   @Column(DataType.UUIDV4)
   tierId: string;
+
+  @BelongsTo(() => TierModel, {
+    foreignKey: 'tier_id',
+    targetKey: 'id',
+    as: 'tier',
+  })
+  tier: TierModel;
 
   @Column
   createdAt: Date;

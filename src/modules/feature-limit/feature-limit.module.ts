@@ -35,6 +35,10 @@ import { PaymentsService } from 'src/externals/payments/payments.service';
     ConfigModule,
     PaymentsService,
   ],
-  exports: [FeatureLimit, FeatureLimitUsecases],
+  exports: [
+    FeatureLimit,
+    FeatureLimitUsecases,
+    SequelizeFeatureLimitsRepository,
+  ],
 })
 export class FeatureLimitModule {}
