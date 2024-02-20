@@ -97,7 +97,7 @@ export class SequelizeUserRepository implements UserRepository {
     where: any,
     limit = 20,
     offset = 0,
-  ): Promise<Array<User> | []> {
+  ): Promise<User[]> {
     const users = await this.modelUser.findAll({ where, limit, offset });
     return users.map((user) => this.toDomain(user));
   }
