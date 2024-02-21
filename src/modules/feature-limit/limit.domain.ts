@@ -27,7 +27,7 @@ export class Limit {
   }
 
   private isFeatureEnabled() {
-    return this.isBooleanLimit() && Boolean(this.value);
+    return this.isBooleanLimit() && this.value === 'true';
   }
 
   private isCounterLimitExceeded(currentCount: number) {
