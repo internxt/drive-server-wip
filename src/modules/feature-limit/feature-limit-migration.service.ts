@@ -22,20 +22,18 @@ export class FeatureLimitsMigrationService {
 
   async asignTiersToUsers() {
     const limit = 20;
-    let offset = 0;
     let processed = 0;
+    let resultsCount = 0;
+
     await this.loadTiers();
 
-    while (true) {
+    while (resultsCount % limit === 0) {
       const users = await this.userRepository.findAllByWithPagination(
         { tierId: null },
         limit,
-        offset,
       );
 
-      if (users.length === 0) {
-        break;
-      }
+      resultsCount = users.length;
 
       for (const user of users) {
         await this.assignTier(user);
@@ -43,10 +41,7 @@ export class FeatureLimitsMigrationService {
       }
 
       processed += users.length;
-      Logger.log(
-        `[FEATURE_LIMIT_MIGRATION]: Processed : ${processed}, current offset: ${offset} `,
-      );
-      offset += limit;
+      Logger.log(`[FEATURE_LIMIT_MIGRATION]: Processed : ${processed}`);
     }
     Logger.log('[FEATURE_LIMIT_MIGRATION]: Tiers applied successfuly.');
   }
@@ -89,7 +84,9 @@ export class FeatureLimitsMigrationService {
       if (error instanceof AxiosError) {
         if (error.response && error.response.status === 404) {
           return;
-        } else if (error.response && error.response.status === 429) {
+        }
+
+        if (error.response && error.response.status === 429) {
           if (retries < this.maxRetries) {
             Logger.warn(
               `[FEATURE_LIMIT_MIGRATION/PAYMENTS_REQUEST]: Throttling detected, waiting for 1 minute for payments API throttling retry number: ${
