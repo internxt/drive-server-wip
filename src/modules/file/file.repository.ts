@@ -380,6 +380,9 @@ export class SequelizeFileRepository implements FileRepository {
           fileId: {
             [Op.in]: fileIds,
           },
+          status: {
+            [Op.not]: FileStatus.DELETED,
+          },
         },
       },
     );
