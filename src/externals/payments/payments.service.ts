@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 
 import { UserAttributes } from '../../modules/user/user.attributes';
 import { HttpClient } from '../http/http.service';
-import { Sign } from 'src/middlewares/passport';
+import { Sign } from '../../middlewares/passport';
 
 @Injectable()
 export class PaymentsService {
