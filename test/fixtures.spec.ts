@@ -1,3 +1,7 @@
+import {
+  LimitLabels,
+  LimitTypes,
+} from '../src/modules/feature-limit/limits.enum';
 import { FileStatus } from '../src/modules/file/file.domain';
 import * as fixtures from './fixtures';
 
@@ -231,6 +235,36 @@ describe('Testing fixtures tests', () => {
       const mailLimit = fixtures.newMailLimit({ attemptsLimit: 5 });
 
       expect(mailLimit.attemptsLimit).toEqual(5);
+    });
+  });
+
+  describe('Feature limit fixture', () => {
+    it('When it generates a new limit, then the identifier should be random', () => {
+      const limit = fixtures.newFeatureLimit();
+      const otherLimit = fixtures.newFeatureLimit();
+
+      expect(limit.id).toBeTruthy();
+      expect(otherLimit.id).not.toBe(limit.id);
+    });
+
+    it('When it generates a limit and a label is provided, then that label should be set', () => {
+      const limit = fixtures.newFeatureLimit({
+        label: 'anyLabel' as LimitLabels,
+        type: LimitTypes.Boolean,
+        value: '0',
+      });
+
+      expect(limit.label).toEqual('anyLabel');
+    });
+
+    it('When it generates a limit and a type and value are provided, then that those fields should be set', () => {
+      const limit = fixtures.newFeatureLimit({
+        type: LimitTypes.Boolean,
+        value: '0',
+      });
+
+      expect(limit.type).toEqual(LimitTypes.Boolean);
+      expect(limit.value).toEqual('0');
     });
   });
 });

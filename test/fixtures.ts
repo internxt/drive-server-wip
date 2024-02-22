@@ -239,8 +239,8 @@ export const newFeatureLimit = (bindTo?: {
 }): Limit => {
   return Limit.build({
     id: bindTo?.id ?? v4(),
-    type: bindTo.type,
-    value: bindTo.value,
+    type: bindTo?.type ?? LimitTypes.Counter,
+    value: bindTo?.value ?? '2',
     label: bindTo?.label ?? ('' as LimitLabels),
   });
 };
