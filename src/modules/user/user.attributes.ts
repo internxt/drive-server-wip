@@ -27,4 +27,5 @@ export interface UserAttributes {
   tempKey: string;
   avatar: string;
   lastPasswordChangedAt?: Date;
+  tierId?: string;
 }
