@@ -29,7 +29,6 @@ export class TierModel extends Model implements TierAttributes {
   @Column(DataType.STRING)
   label: string;
 
-  @AllowNull(false)
   @Column(DataType.STRING)
   context: string;
 
