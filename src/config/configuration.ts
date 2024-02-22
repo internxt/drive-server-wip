@@ -63,6 +63,9 @@ export default () => ({
       url: process.env.RECAPTCHA_V3_ENDPOINT,
       threshold: process.env.RECAPTCHA_V3_SCORE_THRESHOLD,
     },
+    payments: {
+      url: process.env.PAYMENTS_API_URL,
+    },
   },
   clients: {
     drive: {

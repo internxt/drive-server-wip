@@ -66,6 +66,7 @@ import { getTokenDefaultIat } from '../../lib/jwt';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -141,6 +142,7 @@ export class UserUseCases {
     private readonly avatarService: AvatarService,
     private readonly mailerService: MailerService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
+    private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -356,6 +358,8 @@ export class UserUseCases {
       return false;
     });
 
+    const freeTier = await this.featureLimitRepository.getFreeTier();
+
     const user = await this.userRepository.create({
       email,
       name: newUser.name,
@@ -372,6 +376,7 @@ export class UserUseCases {
       username: email,
       bridgeUser: email,
       mnemonic: newUser.mnemonic,
+      tierId: freeTier?.id,
     });
 
     try {

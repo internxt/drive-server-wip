@@ -11,6 +11,11 @@ import {
 import { File, FileStatus } from '../src/modules/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
 import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
+import {
+  LimitLabels,
+  LimitTypes,
+} from '../src/modules/feature-limit/limits.enum';
+import { Limit } from '../src/modules/feature-limit/limit.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -223,5 +228,19 @@ export const newMailLimit = (bindTo?: {
     attemptsCount: bindTo?.attemptsCount ?? 0,
     attemptsLimit: bindTo?.attemptsLimit ?? 5,
     lastMailSent: bindTo?.lastMailSent ?? new Date(),
+  });
+};
+
+export const newFeatureLimit = (bindTo?: {
+  id?: string;
+  type: LimitTypes;
+  label?: LimitLabels;
+  value: string;
+}): Limit => {
+  return Limit.build({
+    id: bindTo?.id ?? v4(),
+    type: bindTo?.type ?? LimitTypes.Counter,
+    value: bindTo?.value ?? '2',
+    label: bindTo?.label ?? ('' as LimitLabels),
   });
 };

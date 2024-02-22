@@ -43,6 +43,7 @@ import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.re
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { SecurityModule } from '../security/security.module';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { SecurityModule } from '../security/security.module';
     PlanModule,
     forwardRef(() => SharingModule),
     SecurityModule,
+    forwardRef(() => FeatureLimitModule),
   ],
   controllers: [UserController],
   providers: [
