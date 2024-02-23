@@ -9,6 +9,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { v4 } from 'uuid';
 import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
@@ -46,6 +47,7 @@ describe('FolderUseCases', () => {
       const mockFolder = Folder.build({
         id: 1,
         parentId: null,
+        parentUuid: null,
         name: 'name',
         bucket: 'bucket',
         userId: 1,
@@ -81,6 +83,7 @@ describe('FolderUseCases', () => {
       const mockFolder = Folder.build({
         id: 1,
         parentId: null,
+        parentUuid: null,
         name: 'name',
         bucket: 'bucket',
         userId: 1,
@@ -143,6 +146,7 @@ describe('FolderUseCases', () => {
         Folder.build({
           id: 4,
           parentId: 1,
+          parentUuid: v4(),
           name: nameEncrypted,
           bucket: 'bucket',
           userId: 1,
@@ -213,6 +217,7 @@ describe('FolderUseCases', () => {
       const folder = Folder.build({
         id: folderId,
         parentId: 3388762609,
+        parentUuid: v4(),
         name: 'name',
         bucket: 'bucket',
         userId: 1,
@@ -272,6 +277,7 @@ describe('FolderUseCases', () => {
       const folder = Folder.build({
         id: folderId,
         parentId: 3388762609,
+        parentUuid: v4(),
         name: 'name',
         bucket: 'bucket',
         userId: 1,
@@ -336,6 +342,7 @@ describe('FolderUseCases', () => {
       const folder = Folder.build({
         id: folderId,
         parentId: null,
+        parentUuid: null,
         name: 'name',
         bucket: 'bucket',
         userId: 1,
@@ -401,6 +408,7 @@ describe('FolderUseCases', () => {
     const folderAtributes: FolderAttributes = {
       id: 1,
       parentId: null,
+      parentUuid: null,
       parent: null,
       name: 'name',
       bucket: 'bucket',
@@ -437,6 +445,7 @@ describe('FolderUseCases', () => {
         size: 0,
       };
       delete expectedResult.parentId;
+      delete expectedResult.parentUuid;
 
       expect(result).toStrictEqual({ ...expectedResult, sharings: undefined });
     });

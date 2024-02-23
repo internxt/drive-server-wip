@@ -54,6 +54,7 @@ export const newFolder = (params?: NewFolderParams): Folder => {
       length: 20,
     }),
     parentId: randomDataGenerator.natural({ min: 1 }),
+    parentUuid: v4(),
     userId: randomDataGenerator.natural({ min: 1 }),
     createdAt: randomCreatedAt,
     updatedAt: new Date(

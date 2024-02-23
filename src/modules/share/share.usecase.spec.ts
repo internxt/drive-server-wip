@@ -90,6 +90,7 @@ describe('Share Use Cases', () => {
   const mockFolder = Folder.build({
     id: 1,
     parentId: null,
+    parentUuid: null,
     name: 'name',
     bucket: 'bucket',
     userId: 1,
