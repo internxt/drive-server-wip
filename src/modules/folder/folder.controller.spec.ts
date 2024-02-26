@@ -135,5 +135,133 @@ describe('FolderController', () => {
 
       expect(result).toEqual({ folders: mappedSubfolders });
     });
+
+    it('When get folder subfiles are requested by invalid params, then it should throw an error', async () => {
+      try {
+        await folderController.getFolderContentFiles(
+          userMocked,
+          'invalidUUID',
+          50,
+          0,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual('Invalid UUID provided');
+      }
+
+      try {
+        await folderController.getFolderContentFiles(
+          userMocked,
+          folder.uuid,
+          0,
+          0,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual(
+          'Limit should be between 1 and 50',
+        );
+      }
+
+      try {
+        await folderController.getFolderContentFiles(
+          userMocked,
+          folder.uuid,
+          51,
+          0,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual(
+          'Limit should be between 1 and 50',
+        );
+      }
+
+      try {
+        await folderController.getFolderContentFiles(
+          userMocked,
+          folder.uuid,
+          50,
+          -1,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual(
+          'Offset should be higher than 0',
+        );
+      }
+    });
+
+    it('When get folder subfolders are requested by invalid folder uuid, then it should throw an error', async () => {
+      try {
+        await folderController.getFolderContentFolders(
+          userMocked,
+          'invalidUUID',
+          50,
+          0,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual('Invalid UUID provided');
+      }
+
+      try {
+        await folderController.getFolderContentFolders(
+          userMocked,
+          folder.uuid,
+          0,
+          0,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual(
+          'Limit should be between 1 and 50',
+        );
+      }
+
+      try {
+        await folderController.getFolderContentFolders(
+          userMocked,
+          folder.uuid,
+          51,
+          0,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual(
+          'Limit should be between 1 and 50',
+        );
+      }
+
+      try {
+        await folderController.getFolderContentFolders(
+          userMocked,
+          folder.uuid,
+          50,
+          -1,
+          'id',
+          'ASC',
+        );
+        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
+      } catch (err) {
+        expect((err as Error).message).toEqual(
+          'Offset should be higher than 0',
+        );
+      }
+    });
   });
 });
