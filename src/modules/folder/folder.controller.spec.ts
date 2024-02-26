@@ -1,6 +1,5 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { v4 } from 'uuid';
 import { newFile, newFolder } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderController } from './folder.controller';
