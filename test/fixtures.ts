@@ -34,12 +34,12 @@ export type FilesSettableAttributes = Pick<
 >;
 
 type NewFolderParams = {
-  attributes?: Partial<FolderSettableAttributes>;
+  attributes?: Partial<Folder>;
   owner?: User;
 };
 
 type NewFilesParams = {
-  attributes?: Partial<FilesSettableAttributes>;
+  attributes?: Partial<File>;
   owner?: User;
   folder?: Folder;
 };
