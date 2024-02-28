@@ -25,19 +25,18 @@ const PublicSharingUser = {
 module.exports = {
   async up(queryInterface) {
     const existingUsers = await queryInterface.sequelize.query(
-      'SELECT email FROM users WHERE email = :email',
+      'SELECT email FROM users WHERE email = :email OR uuid = :uuid',
       {
-        replacements: { email: PublicSharingUser.email },
+        replacements: {
+          email: PublicSharingUser.email,
+          uuid: PublicSharingUser.uuid,
+        },
         type: queryInterface.sequelize.QueryTypes.SELECT,
       },
     );
 
-    const newUsers = [PublicSharingUser].filter(
-      (user) => !existingUsers.find((u) => u.email === user.email),
-    );
-
-    if (newUsers.length > 0) {
-      await queryInterface.bulkInsert('users', newUsers, { returning: true });
+    if (existingUsers.length === 0) {
+      await queryInterface.bulkInsert('users', [PublicSharingUser]);
     }
   },
 

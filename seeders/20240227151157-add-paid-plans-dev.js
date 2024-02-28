@@ -11,6 +11,15 @@ module.exports = {
     ];
 
     for (let plan of plans) {
+      const planAlreadyMapped = await queryInterface.sequelize.query(
+        `SELECT id FROM paid_plans WHERE plan_id = '${plan.planId}' LIMIT 1`,
+        { type: Sequelize.QueryTypes.SELECT },
+      );
+
+      if (planAlreadyMapped.length > 0) {
+        continue;
+      }
+
       const tiers = await queryInterface.sequelize.query(
         `SELECT id FROM tiers WHERE label = '${plan.name}' LIMIT 1`,
         { type: Sequelize.QueryTypes.SELECT },
