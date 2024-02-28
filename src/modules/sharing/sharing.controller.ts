@@ -248,14 +248,14 @@ export class SharingController {
   }
 
   @Post('/invites/send')
-  /*   @ApplyLimit({
+  @ApplyLimit({
     limitLabels: [LimitLabels.MaxSharedItemInvites, LimitLabels.MaxSharedItems],
     dataSources: [
       { sourceKey: 'body', fieldName: 'itemId' },
       { sourceKey: 'body', fieldName: 'itemType' },
     ],
   })
-  @UseGuards(FeatureLimit) */
+  @UseGuards(FeatureLimit)
   createInvite(
     @UserDecorator() user: User,
     @Body() createInviteDto: CreateInviteDto,
@@ -599,11 +599,11 @@ export class SharingController {
   }
 
   @Post('/')
-  /*   @ApplyLimit({
+  @ApplyLimit({
     limitLabels: [LimitLabels.MaxSharedItems],
     dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
   })
-  @UseGuards(FeatureLimit) */
+  @UseGuards(FeatureLimit)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,
