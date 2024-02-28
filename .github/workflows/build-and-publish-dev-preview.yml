@@ -42,7 +42,9 @@ jobs:
           type: update-preview-image-command
           payload: |
             { 
-              "image": "${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip",
-              "newImage": "${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-dev",
-              "newTag": "${{ github.sha }}"
+              "image": { 
+                "name": "${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip",
+                "newName": "${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-dev",
+                "newTag": "${{ github.sha }}"
+              }
             }
