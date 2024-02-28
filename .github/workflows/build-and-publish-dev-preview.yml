@@ -30,3 +30,19 @@ jobs:
           file: ./development.Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-dev:${{ github.sha }}
+  dispatch_update_preview_image:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Update Preview Image Command
+        uses: myrotvorets/trigger-repository-dispatch-action@1.0.0
+        with:
+          token: ${{ secrets.PAT }}
+          repo: internxt/environments
+          type: update-preview-image-command
+          payload: |
+            { 
+              "image": "${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip",
+              "newImage": "${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-dev",
+              "newTag": "${{ github.sha }}"
+            }
