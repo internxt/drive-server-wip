@@ -34,12 +34,12 @@ export type FilesSettableAttributes = Pick<
 >;
 
 type NewFolderParams = {
-  attributes?: Partial<FolderSettableAttributes>;
+  attributes?: Partial<Folder>;
   owner?: User;
 };
 
 type NewFilesParams = {
-  attributes?: Partial<FilesSettableAttributes>;
+  attributes?: Partial<File>;
   owner?: User;
   folder?: Folder;
 };
@@ -54,6 +54,7 @@ export const newFolder = (params?: NewFolderParams): Folder => {
       length: 20,
     }),
     parentId: randomDataGenerator.natural({ min: 1 }),
+    parentUuid: v4(),
     userId: randomDataGenerator.natural({ min: 1 }),
     createdAt: randomCreatedAt,
     updatedAt: new Date(
