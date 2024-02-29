@@ -16,6 +16,7 @@ export interface FolderOptions {
 export class Folder implements FolderAttributes {
   id: number;
   parentId: number | null;
+  parentUuid: string | null;
   parent: Folder;
   type: string;
   name: string;
@@ -38,6 +39,7 @@ export class Folder implements FolderAttributes {
     id,
     uuid,
     parentId,
+    parentUuid,
     parent,
     name,
     bucket,
@@ -56,6 +58,7 @@ export class Folder implements FolderAttributes {
     this.type = 'folder';
     this.id = id;
     this.parentId = parentId;
+    this.parentUuid = parentUuid;
     this.name = name;
     this.setParent(parent);
     this.bucket = bucket;
