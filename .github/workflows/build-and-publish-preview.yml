@@ -27,7 +27,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./
-          file: ./development.Dockerfile
+          file: ./infrastructure/preview.Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-dev:${{ github.sha }}
   dispatch_update_preview_image:
