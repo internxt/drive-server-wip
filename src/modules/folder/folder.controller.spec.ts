@@ -1,8 +1,13 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { newFile, newFolder } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
-import { FolderController } from './folder.controller';
+import {
+  BadRequestInvalidOffsetException,
+  BadRequestOutOfRangeLimitException,
+  FolderController,
+} from './folder.controller';
 import { Folder } from './folder.domain';
 import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
@@ -136,132 +141,96 @@ describe('FolderController', () => {
       expect(result).toEqual({ folders: mappedSubfolders });
     });
 
-    it('When get folder subfiles are requested by invalid params, then it should throw an error', async () => {
-      try {
-        await folderController.getFolderContentFiles(
+    it('When get folder subfiles are requested by invalid params, then it should throw an error', () => {
+      expect(
+        folderController.getFolderContentFiles(
           userMocked,
           'invalidUUID',
           50,
           0,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual('Invalid UUID provided');
-      }
+        ),
+      ).rejects.toThrow(BadRequestException);
 
-      try {
-        await folderController.getFolderContentFiles(
+      expect(
+        folderController.getFolderContentFiles(
           userMocked,
           folder.uuid,
           0,
           0,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual(
-          'Limit should be between 1 and 50',
-        );
-      }
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
 
-      try {
-        await folderController.getFolderContentFiles(
+      expect(
+        folderController.getFolderContentFiles(
           userMocked,
           folder.uuid,
           51,
           0,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual(
-          'Limit should be between 1 and 50',
-        );
-      }
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
 
-      try {
-        await folderController.getFolderContentFiles(
+      expect(
+        folderController.getFolderContentFiles(
           userMocked,
           folder.uuid,
           50,
           -1,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFiles should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual(
-          'Offset should be higher than 0',
-        );
-      }
+        ),
+      ).rejects.toThrow(BadRequestInvalidOffsetException);
     });
 
     it('When get folder subfolders are requested by invalid folder uuid, then it should throw an error', async () => {
-      try {
-        await folderController.getFolderContentFolders(
+      expect(
+        folderController.getFolderContentFolders(
           userMocked,
           'invalidUUID',
           50,
           0,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual('Invalid UUID provided');
-      }
+        ),
+      ).rejects.toThrow(BadRequestException);
 
-      try {
-        await folderController.getFolderContentFolders(
+      expect(
+        folderController.getFolderContentFolders(
           userMocked,
           folder.uuid,
           0,
           0,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual(
-          'Limit should be between 1 and 50',
-        );
-      }
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
 
-      try {
-        await folderController.getFolderContentFolders(
+      expect(
+        folderController.getFolderContentFolders(
           userMocked,
           folder.uuid,
           51,
           0,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual(
-          'Limit should be between 1 and 50',
-        );
-      }
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
 
-      try {
-        await folderController.getFolderContentFolders(
+      expect(
+        folderController.getFolderContentFolders(
           userMocked,
           folder.uuid,
           50,
           -1,
           'id',
           'ASC',
-        );
-        expect(true).toBeFalsy; // getFolderContentFolders should throw an error
-      } catch (err) {
-        expect((err as Error).message).toEqual(
-          'Offset should be higher than 0',
-        );
-      }
+        ),
+      ).rejects.toThrow(BadRequestInvalidOffsetException);
     });
   });
 });
