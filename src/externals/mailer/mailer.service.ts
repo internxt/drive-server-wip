@@ -35,7 +35,6 @@ export class MailerService {
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {
-    console.log({ MAILGUND_KEY: this.configService.get('mailer.apiKey') });
     sendgrid.setApiKey(this.configService.get('mailer.apiKey'));
   }
 
