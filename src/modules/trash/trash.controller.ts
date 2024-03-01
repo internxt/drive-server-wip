@@ -41,6 +41,7 @@ import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -51,6 +52,7 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
+    private featureLimitsUseCases: FeatureLimitUsecases,
   ) {}
 
   @Get('/paginated')
@@ -78,20 +80,34 @@ export class TrashController {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
+    const storageDaysLimit =
+      await this.featureLimitsUseCases.getTierMaxTrashStorageDays(user.tierId);
+    const storageDays = storageDaysLimit?.getLimitValue();
+    const maxStorageDate = new Date();
+
+    if (typeof storageDays === 'number') {
+      maxStorageDate.setDate(maxStorageDate.getDate() - storageDays);
+    }
+
     try {
       let result: File[] | Folder[];
 
       if (type === 'files') {
         result = await this.fileUseCases.getFiles(
           user.id,
-          { status: FileStatus.TRASHED },
-          { limit, offset },
+          {
+            status: FileStatus.TRASHED,
+          },
+          { limit, offset, updatedAfter: maxStorageDate },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
-          { deleted: true, removed: false },
-          { limit, offset },
+          {
+            deleted: true,
+            removed: false,
+          },
+          { limit, offset, updatedAfter: maxStorageDate },
         );
       }
 
