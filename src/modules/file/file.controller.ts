@@ -112,7 +112,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: typeof filesStatuses[number],
+    @Query('status') status: (typeof filesStatuses)[number],
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
