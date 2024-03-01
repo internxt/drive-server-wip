@@ -416,6 +416,33 @@ export class SequelizeFileRepository implements FileRepository {
     );
   }
 
+  async updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        // Remove this after status is the main field
+        deleted: true,
+        deletedAt: new Date(),
+        //
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          uuid: {
+            [Op.in]: fileUuids,
+          },
+          status: {
+            [Op.not]: FileStatus.DELETED,
+          },
+        },
+      },
+    );
+  }
+
   async deleteFilesByUser(user: User, files: File[]): Promise<void> {
     await this.fileModel.update(
       {

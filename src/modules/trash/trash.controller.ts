@@ -137,19 +137,30 @@ export class TrashController {
 
     try {
       const fileIds: string[] = [];
+      const fileUuids: string[] = [];
       const folderIds: number[] = [];
+      const folderUuids: string[] = [];
+
       for (const item of moveItemsDto.items) {
         if (item.type === 'file') {
-          fileIds.push(item.id);
+          if (item.id) {
+            fileIds.push(item.id);
+          } else {
+            fileUuids.push(item.uuid);
+          }
         } else if (item.type === 'folder') {
-          folderIds.push(parseInt(item.id));
+          if (item.id) {
+            folderIds.push(parseInt(item.id));
+          } else {
+            folderUuids.push(item.uuid);
+          }
         } else {
           throw new BadRequestException(`type ${item.type} invalid`);
         }
       }
       await Promise.all([
-        this.fileUseCases.moveFilesToTrash(user, fileIds),
-        this.folderUseCases.moveFoldersToTrash(user, folderIds),
+        this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids),
+        this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
       ]);
 
       this.userUseCases
