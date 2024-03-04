@@ -42,6 +42,7 @@ import { v4 } from 'uuid';
 import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
+import { Cron } from '@nestjs/schedule';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -309,5 +310,10 @@ export class TrashController {
     }
 
     await this.trashUseCases.deleteItems(user, [], [folders[0]]);
+  }
+
+  @Cron('*/5 * * * *', { name: 'deleteExpiredFiles' })
+  async removeExpiredItems() {
+    await this.trashUseCases.removeExpiredFiles();
   }
 }
