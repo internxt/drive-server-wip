@@ -81,8 +81,14 @@ export class TrashController {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
+    let userTierId = user.tierId;
+    if (userTierId) {
+      const freeTier = await this.featureLimitsUseCases.getFreeTier();
+      userTierId = freeTier.id;
+    }
+
     const storageDaysLimit =
-      await this.featureLimitsUseCases.getTierMaxTrashStorageDays(user.tierId);
+      await this.featureLimitsUseCases.getTierMaxTrashStorageDays(userTierId);
     const storageDays = storageDaysLimit?.getLimitValue();
     const maxStorageDate = new Date();
 
