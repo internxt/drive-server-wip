@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
-import { FindOptions, Op, Sequelize } from 'sequelize';
+import { FindOptions, Op } from 'sequelize';
 
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
@@ -10,10 +10,6 @@ import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
-import { UserModel } from '../user/user.model';
-import { TierModel } from '../feature-limit/models/tier.model';
-import { Limitmodel } from '../feature-limit/models/limit.model';
-import { LimitLabels } from '../feature-limit/limits.enum';
 
 export interface FileRepository {
   deleteByFileId(fileId: any): Promise<any>;
@@ -363,52 +359,6 @@ export class SequelizeFileRepository implements FileRepository {
     const { count } = await this.fileModel.findAndCountAll({ where });
 
     return count;
-  }
-
-  async getTrashedExpiredFiles(limit?: number) {
-    const files = await this.fileModel.findAll({
-      attributes: ['status', 'plainName', 'updatedAt', 'fileId', 'uuid'],
-      replacements: { limitLabel: LimitLabels.MaxTrashStorageDays },
-      where: {
-        status: 'TRASHED',
-        updatedAt: {
-          [Op.lt]: Sequelize.literal(`now() - (SELECT value :: integer
-      FROM
-          limits
-          JOIN tiers_limits ON limits.id = tiers_limits.limit_id
-          JOIN tiers ON tiers_limits.tier_id = tiers.id
-      WHERE
-          tiers.id = "user"."tier_id" AND limits.label = :limitLabel) * INTERVAL '1 day'`),
-        },
-      },
-      include: {
-        model: UserModel,
-        attributes: ['uuid', 'id', 'tierId'],
-      },
-      limit,
-    });
-    return files;
-  }
-
-  async deleteTrashedFilesById(fileIds: File['fileId'][]): Promise<void> {
-    await this.fileModel.update(
-      {
-        removed: true,
-        removedAt: new Date(),
-        status: FileStatus.DELETED,
-        updatedAt: new Date(),
-      },
-      {
-        where: {
-          fileId: {
-            [Op.in]: fileIds,
-          },
-          status: {
-            [Op.eq]: FileStatus.TRASHED,
-          },
-        },
-      },
-    );
   }
 
   async updateFilesStatusToTrashed(

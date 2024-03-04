@@ -2,7 +2,7 @@ import { SharingController } from './sharing.controller';
 import { SharingService } from './sharing.service';
 import { UuidDto } from '../../common/uuid.dto';
 import { createMock } from '@golevelup/ts-jest';
-import { Sharing } from './sharing.domain';
+import { Sharing } from './sharing.domain'
 import { newSharing } from '../../../test/fixtures';
 
 describe('SharingController', () => {
@@ -13,7 +13,7 @@ describe('SharingController', () => {
   beforeEach(async () => {
     sharingService = createMock<SharingService>();
     controller = new SharingController(sharingService);
-    sharing = newSharing({});
+    sharing = newSharing({})
   });
 
   describe('get public sharing folder size', () => {

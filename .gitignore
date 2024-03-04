@@ -36,6 +36,5 @@ lerna-debug.log*
 
 .npmrc
 
-.env
 .env.development
 .env.production

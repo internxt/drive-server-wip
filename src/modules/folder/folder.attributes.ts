@@ -3,7 +3,6 @@ import { Sharing } from '../sharing/sharing.domain';
 export interface FolderAttributes {
   id: number;
   parentId: number;
-  parentUuid?: string;
   parent?: any;
   name: string;
   bucket: string;

@@ -1,7 +1,6 @@
 export enum LimitLabels {
   MaxSharedItems = 'max-shared-items',
   MaxSharedItemInvites = 'max-shared-invites',
-  MaxTrashStorageDays = 'max-trash-storage-days',
 }
 
 export enum LimitTypes {

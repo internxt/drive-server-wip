@@ -16,20 +16,11 @@ import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import {
-  Folder,
-  FolderAttributes,
-  SortableFolderAttributes,
-} from './folder.domain';
-import {
-  FileAttributes,
-  FileStatus,
-  SortableFileAttributes,
-} from '../file/file.domain';
+import { Folder, SortableFolderAttributes } from './folder.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import { isNumber } from '../../lib/validators';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -121,47 +112,6 @@ export class FolderController {
     }
   }
 
-  @Get('/content/:uuid/files')
-  async getFolderContentFiles(
-    @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('sort') sort?: SortableFileAttributes,
-    @Query('order') order?: 'ASC' | 'DESC',
-  ): Promise<{ files: FileAttributes[] }> {
-    if (!validate(folderUuid)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
-    const files = await this.fileUseCases.getFiles(
-      user.id,
-      {
-        folderUuid,
-        status: FileStatus.EXISTS,
-      },
-      {
-        limit,
-        offset,
-        sort: sort && order && [[sort, order]],
-      },
-    );
-
-    return { files };
-  }
-
   @Get(':id/files')
   async getFolderFiles(
     @UserDecorator() user: User,
@@ -171,6 +121,8 @@ export class FolderController {
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
   ) {
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -210,6 +162,8 @@ export class FolderController {
     @Query('name') name: string,
     @Query('type') type: string,
   ) {
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -241,61 +195,6 @@ export class FolderController {
     return singleFile;
   }
 
-  @Get('/content/:uuid/folders')
-  async getFolderContentFolders(
-    @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('sort') sort?: SortableFolderAttributes,
-    @Query('order') order?: 'ASC' | 'DESC',
-  ): Promise<{ folders: (FolderAttributes & { status: FileStatus })[] }> {
-    if (!validate(folderUuid)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
-    const folders = await this.folderUseCases.getFolders(
-      user.id,
-      {
-        parentUuid: folderUuid,
-        deleted: false,
-      },
-      {
-        limit,
-        offset,
-        sort: sort && order && [[sort, order]],
-      },
-    );
-
-    return {
-      folders: folders.map((f) => {
-        let folderStatus: FileStatus;
-
-        if (f.removed) {
-          folderStatus = FileStatus.DELETED;
-        } else if (f.deleted) {
-          folderStatus = FileStatus.TRASHED;
-        } else {
-          folderStatus = FileStatus.EXISTS;
-        }
-
-        return { ...f, status: folderStatus };
-      }),
-    };
-  }
-
   @Get(':id/folders')
   async getFolderFolders(
     @UserDecorator() user: User,
@@ -305,6 +204,8 @@ export class FolderController {
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
   ) {
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
+
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -371,6 +272,8 @@ export class FolderController {
     if (!knownStatus) {
       throw new BadRequestException(`Unknown status "${status.toString()}"`);
     }
+
+    const isNumber = (n) => !Number.isNaN(parseInt(n.toString()));
 
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestWrongOffsetOrLimitException();

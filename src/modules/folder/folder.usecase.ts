@@ -17,7 +17,6 @@ import {
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
-import { Op } from 'sequelize';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -411,22 +410,13 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: {
-      limit: number;
-      offset: number;
-      sort?: SortParams;
-      updatedAfter?: Date;
-    } = {
+    options: { limit: number; offset: number; sort?: SortParams } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<Folder[]> {
-    const updatedAfterCondition = options.updatedAfter
-      ? { updatedAt: { [Op.gte]: options.updatedAfter } }
-      : null;
-
     const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
-      { ...where, userId, ...updatedAfterCondition },
+      { ...where, userId },
       options.limit,
       options.offset,
       options.sort,

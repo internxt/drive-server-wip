@@ -1,11 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { File, FileStatus } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { SequelizeFileRepository } from '../file/file.repository';
-import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 @Injectable()
 export class TrashUseCases {
@@ -15,8 +13,6 @@ export class TrashUseCases {
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
-    private filesRepository: SequelizeFileRepository,
-    private foldersRepository: SequelizeFolderRepository,
   ) {}
 
   /**
@@ -77,57 +73,6 @@ export class TrashUseCases {
         user,
         folders.slice(i, i + itemsDeletionChunkSize),
       );
-    }
-  }
-
-  async deteleTrashedExpiredFiles() {
-    const limit = 1000;
-    let hasMore = true;
-
-    while (hasMore) {
-      const files = await this.filesRepository.getTrashedExpiredFiles(limit);
-      await this.filesRepository.deleteTrashedFilesById(
-        files.map((file) => file.fileId),
-      );
-      hasMore = files.length === limit;
-    }
-  }
-
-  async deleteTrashedExpiredFolders() {
-    const limit = 1000;
-    let hasMore = true;
-
-    while (hasMore) {
-      const folders =
-        await this.foldersRepository.getTrashedExpiredFolders(limit);
-      await this.foldersRepository.deleteByIds(folders.map((f) => f.id));
-      hasMore = folders.length === limit;
-    }
-  }
-
-  async removeExpiredItems() {
-    const startTime = new Date();
-    try {
-      Logger.log(
-        `[TRASH/REMOVE-EXPIRED-ITEMS]: Cron job started at ${startTime.toISOString()}.`,
-      );
-
-      await this.deleteTrashedExpiredFolders();
-      await this.deteleTrashedExpiredFiles();
-
-      const endTime = new Date();
-      const duration = endTime.getTime() - startTime.getTime();
-      Logger.log(
-        `[TRASH/REMOVE-EXPIRED-ITEMS]: Cron job completed successfully. Started at: ${startTime.toISOString()}, finished at: ${endTime.toISOString()}, total duration: ${duration} ms.`,
-      );
-    } catch (err) {
-      const errorTime = new Date();
-      Logger.error(
-        `[TRASH/REMOVE-EXPIRED-ITEMS]: Error encountered. Started at: ${startTime.toISOString()}, error occurred at: ${errorTime.toISOString()}, error details: ${
-          err.message
-        }, stack trace: ${err.stack}`,
-      );
-      throw err;
     }
   }
 }

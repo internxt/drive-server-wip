@@ -14,7 +14,6 @@ import {
 
 import { FolderModel } from '../folder/folder.model';
 import { UserAttributes } from './user.attributes';
-import { TierModel } from '../feature-limit/models/tier.model';
 
 @Table({
   underscored: true,
@@ -126,10 +125,6 @@ export class UserModel extends Model implements UserAttributes {
   lastPasswordChangedAt: Date;
 
   @AllowNull
-  @ForeignKey(() => TierModel)
   @Column
   tierId: string;
-
-  @BelongsTo(() => TierModel, 'tierId')
-  tier: TierModel;
 }

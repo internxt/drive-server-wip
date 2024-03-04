@@ -41,8 +41,6 @@ import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
-import { Cron } from '@nestjs/schedule';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -53,7 +51,6 @@ export class TrashController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
     private trashUseCases: TrashUseCases,
-    private featureLimitsUseCases: FeatureLimitUsecases,
   ) {}
 
   @Get('/paginated')
@@ -81,39 +78,20 @@ export class TrashController {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
-    let userTierId = user.tierId;
-    if (!userTierId) {
-      const freeTier = await this.featureLimitsUseCases.getFreeTier();
-      userTierId = freeTier.id;
-    }
-
-    const storageDaysLimit =
-      await this.featureLimitsUseCases.getTierMaxTrashStorageDays(userTierId);
-    const storageDays = storageDaysLimit?.getLimitValue();
-    const maxStorageDate = new Date();
-    if (typeof storageDays === 'number') {
-      maxStorageDate.setDate(maxStorageDate.getDate() - storageDays);
-    }
-
     try {
       let result: File[] | Folder[];
 
       if (type === 'files') {
         result = await this.fileUseCases.getFiles(
           user.id,
-          {
-            status: FileStatus.TRASHED,
-          },
-          { limit, offset, updatedAfter: maxStorageDate },
+          { status: FileStatus.TRASHED },
+          { limit, offset },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
-          {
-            deleted: true,
-            removed: false,
-          },
-          { limit, offset, updatedAfter: maxStorageDate },
+          { deleted: true, removed: false },
+          { limit, offset },
         );
       }
 
@@ -315,10 +293,5 @@ export class TrashController {
     }
 
     await this.trashUseCases.deleteItems(user, [], [folders[0]]);
-  }
-
-  @Cron('*/5 * * * *', { name: 'deleteExpiredItems' })
-  async removeExpiredItems() {
-    await this.trashUseCases.removeExpiredItems();
   }
 }

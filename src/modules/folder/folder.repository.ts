@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Sequelize } from 'sequelize';
+import { FindOptions, Op } from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
@@ -12,8 +12,6 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
-import { UserModel } from '../user/user.model';
-import { LimitLabels } from '../feature-limit/limits.enum';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -423,24 +421,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
-  async deleteByIds(folderIds: Folder['id'][]): Promise<void> {
-    await this.folderModel.update(
-      {
-        removed: true,
-        removedAt: new Date(),
-        deleted: true,
-        deletedAt: new Date(),
-      },
-      {
-        where: {
-          id: {
-            [Op.in]: folderIds,
-          },
-        },
-      },
-    );
-  }
-
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
     updatedAfter: Date,
@@ -464,39 +444,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map((folder) => this.toDomain(folder));
-  }
-
-  async getTrashedExpiredFolders(limit?: number) {
-    const folders = await this.folderModel.findAll({
-      replacements: { limitLabel: LimitLabels.MaxTrashStorageDays },
-      attributes: [
-        'deleted',
-        'plainName',
-        'updatedAt',
-        'id',
-        'uuid',
-        'deletedAt',
-      ],
-      where: {
-        deleted: true,
-        removed: false,
-        deletedAt: {
-          [Op.lt]: Sequelize.literal(`now() - (SELECT value :: integer
-      FROM
-          limits
-          JOIN tiers_limits ON limits.id = tiers_limits.limit_id
-          JOIN tiers ON tiers_limits.tier_id = tiers.id
-      WHERE
-          tiers.id = "user"."tier_id" AND limits.label = :limitLabel) * INTERVAL '1 day'`),
-        },
-      },
-      include: {
-        model: UserModel,
-        attributes: ['uuid', 'id', 'tierId'],
-      },
-      limit,
-    });
-    return folders;
   }
 
   async calculateFolderSize(folderUuid: string): Promise<number> {
