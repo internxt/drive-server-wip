@@ -149,4 +149,8 @@ export class FeatureLimitUsecases {
       LimitLabels.MaxTrashStorageDays,
     );
   }
+
+  async getFreeTier() {
+    return this.limitsRepository.getFreeTier();
+  }
 }
