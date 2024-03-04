@@ -113,7 +113,7 @@ export class TrashController {
             deleted: true,
             removed: false,
           },
-          { limit, offset, updatedAfter: maxStorageDate },
+          { limit, offset, deletedAfter: maxStorageDate },
         );
       }
 

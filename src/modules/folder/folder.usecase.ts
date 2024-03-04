@@ -415,18 +415,18 @@ export class FolderUseCases {
       limit: number;
       offset: number;
       sort?: SortParams;
-      updatedAfter?: Date;
+      deletedAfter?: Date;
     } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<Folder[]> {
-    const updatedAfterCondition = options.updatedAfter
-      ? { updatedAt: { [Op.gte]: options.updatedAfter } }
+    const deletedAfter = options.deletedAfter
+      ? { deletedAt: { [Op.gte]: options.deletedAfter } }
       : null;
 
     const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
-      { ...where, userId, ...updatedAfterCondition },
+      { ...where, userId, ...deletedAfter },
       options.limit,
       options.offset,
       options.sort,
