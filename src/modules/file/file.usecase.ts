@@ -25,6 +25,7 @@ import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
+import { Op } from 'sequelize';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -177,15 +178,20 @@ export class FileUseCases {
       offset: number;
       sort?: SortParams;
       withoutThumbnails?: boolean;
+      updatedAfter?: Date;
     } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<File[]> {
     let filesWithMaybePlainName;
+    const updatedAfterCondition = options.updatedAfter
+      ? { updatedAt: { [Op.gte]: options.updatedAfter } }
+      : null;
+
     if (options?.withoutThumbnails)
       filesWithMaybePlainName = await this.fileRepository.findAllCursor(
-        { ...where, userId },
+        { ...where, userId, ...updatedAfterCondition },
         options.limit,
         options.offset,
         options.sort,
@@ -193,7 +199,7 @@ export class FileUseCases {
     else
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnails(
-          { ...where, userId },
+          { ...where, userId, ...updatedAfterCondition },
           options.limit,
           options.offset,
           options.sort,

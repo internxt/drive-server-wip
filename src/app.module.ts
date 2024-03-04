@@ -23,6 +23,7 @@ import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 import { SharingModule } from './modules/sharing/sharing.module';
 import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { PlanModule } from './modules/plan/plan.module';
         limit: 5,
       },
     ]),
+    ScheduleModule.forRoot(),
     NotificationModule,
     FileModule,
     FolderModule,
