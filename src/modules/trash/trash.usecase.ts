@@ -105,7 +105,7 @@ export class TrashUseCases {
     }
   }
 
-  async removeExpiredFiles() {
+  async removeExpiredItems() {
     const startTime = new Date();
     try {
       Logger.log(

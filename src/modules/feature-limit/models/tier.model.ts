@@ -10,7 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { Limitmodel } from './limit.model';
 import { TierLimitsModel } from './tier-limits.model';
-import { UserModel } from 'src/modules/user/user.model';
+import { UserModel } from '../../../modules/user/user.model';
 
 export interface TierAttributes {
   id: string;
