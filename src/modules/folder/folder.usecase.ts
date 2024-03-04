@@ -551,4 +551,16 @@ export class FolderUseCases {
   getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
     return this.folderRepository.calculateFolderSize(folderUuid);
   }
+
+  async deleteTrashedExpiredFolders() {
+    const limit = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const folders =
+        await this.folderRepository.getTrashedExpiredFolders(limit);
+      await this.folderRepository.deleteByIds(folders.map((f) => f.id));
+      hasMore = folders.length === limit;
+    }
+  }
 }

@@ -381,4 +381,17 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
     });
   }
+
+  async deleteTrashedExpiredFiles() {
+    const limit = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const files = await this.fileRepository.getTrashedExpiredFiles(limit);
+      await this.fileRepository.deleteTrashedFilesById(
+        files.map((file) => file.fileId),
+      );
+      hasMore = files.length === limit;
+    }
+  }
 }

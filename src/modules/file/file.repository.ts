@@ -49,6 +49,8 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  getTrashedExpiredFiles(): Promise<FileModel[]>;
+  deleteTrashedFilesById(fileIds: File['fileId'][]): Promise<void>;
 }
 
 @Injectable()

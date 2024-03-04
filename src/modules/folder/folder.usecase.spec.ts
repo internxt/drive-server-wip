@@ -494,4 +494,32 @@ describe('FolderUseCases', () => {
       );
     });
   });
+
+  describe('Delete Trashed Expired Folders', () => {
+    it('When there are no more folders to fetch, then should stop', async () => {
+      jest
+        .spyOn(folderRepository, 'getTrashedExpiredFolders')
+        .mockResolvedValue([]);
+
+      await service.deleteTrashedExpiredFolders();
+
+      expect(folderRepository.getTrashedExpiredFolders).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it('When there are expired files, then it should delete them', async () => {
+      const folderIds = [{ id: 1 }, { id: 2 }] as any;
+      jest
+        .spyOn(folderRepository, 'getTrashedExpiredFolders')
+        .mockResolvedValue(folderIds);
+      jest.spyOn(folderRepository, 'deleteByIds');
+
+      await service.deleteTrashedExpiredFolders();
+
+      expect(folderRepository.deleteByIds).toHaveBeenCalledWith(
+        folderIds.map((f) => f.id),
+      );
+    });
+  });
 });

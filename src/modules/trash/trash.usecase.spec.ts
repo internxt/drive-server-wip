@@ -319,4 +319,22 @@ describe('Trash Use Cases', () => {
       );
     });
   });
+
+  describe('Delete Trashed Expired Files', () => {
+    it('Should throw if any function throws', async () => {
+      const error = Error('random error');
+      jest.spyOn(fileUseCases, 'deleteTrashedExpiredFiles');
+      jest
+        .spyOn(folderUseCases, 'deleteTrashedExpiredFolders')
+        .mockImplementationOnce(() => Promise.reject(error));
+
+      try {
+        await service.removeExpiredItems();
+      } catch (err) {
+        expect(err).toBeDefined();
+      }
+
+      expect(fileUseCases.deleteTrashedExpiredFiles).not.toHaveBeenCalled();
+    });
+  });
 });
