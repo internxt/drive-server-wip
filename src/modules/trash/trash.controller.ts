@@ -82,7 +82,7 @@ export class TrashController {
     }
 
     let userTierId = user.tierId;
-    if (userTierId) {
+    if (!userTierId) {
       const freeTier = await this.featureLimitsUseCases.getFreeTier();
       userTierId = freeTier.id;
     }
@@ -91,7 +91,6 @@ export class TrashController {
       await this.featureLimitsUseCases.getTierMaxTrashStorageDays(userTierId);
     const storageDays = storageDaysLimit?.getLimitValue();
     const maxStorageDate = new Date();
-
     if (typeof storageDays === 'number') {
       maxStorageDate.setDate(maxStorageDate.getDate() - storageDays);
     }
