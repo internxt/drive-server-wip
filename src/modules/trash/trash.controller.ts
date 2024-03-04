@@ -312,8 +312,8 @@ export class TrashController {
     await this.trashUseCases.deleteItems(user, [], [folders[0]]);
   }
 
-  @Cron('*/5 * * * *', { name: 'deleteExpiredFiles' })
+  @Cron('*/5 * * * *', { name: 'deleteExpiredItems' })
   async removeExpiredItems() {
-    await this.trashUseCases.removeExpiredFiles();
+    await this.trashUseCases.removeExpiredItems();
   }
 }
