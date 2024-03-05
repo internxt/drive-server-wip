@@ -1,6 +1,7 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  ConflictException,
   ForbiddenException,
   forwardRef,
   Inject,
@@ -25,6 +26,7 @@ import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
+import { MoveFileDto } from './dto/move-file.dto';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -318,6 +320,71 @@ export class FileUseCases {
       ...file.toJSON(),
       fileId,
       size,
+    };
+  }
+
+  async moveFile(
+    user: User,
+    fileUuid: File['fileId'],
+    newFileData: MoveFileDto,
+  ): Promise<FileDto> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id);
+    if (!file) {
+      throw new NotFoundException(`File ${fileUuid} not found`);
+    }
+
+    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
+      newFileData.destinationUuid,
+      user,
+    );
+    if (!destinationFolder) {
+      throw new NotFoundException(
+        `Folder ${newFileData.destinationUuid} not found`,
+      );
+    }
+
+    const originalPlainName = this.cryptoService.decryptName(
+      file.name,
+      file.folderId,
+    );
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      originalPlainName,
+      destinationFolder.id,
+    );
+
+    const exists = await this.fileRepository.findByNameAndFolderUuid(
+      destinationEncryptedName,
+      file.type,
+      destinationFolder.uuid,
+      FileStatus.EXISTS,
+    );
+    if (exists) {
+      if (exists.uuid === file.uuid) {
+        throw new ConflictException(
+          `File ${fileUuid} was already moved to that location`,
+        );
+      }
+      throw new ConflictException(
+        'A file with the same name already exists in destination folder',
+      );
+    }
+
+    const updateData = {
+      folderId: destinationFolder.id,
+      folderUuid: destinationFolder.uuid,
+      name: destinationEncryptedName,
+      status: FileStatus.EXISTS,
+    };
+
+    await this.fileRepository.updateByUuidAndUserId(
+      fileUuid,
+      user.id,
+      updateData,
+    );
+
+    return {
+      ...file.toJSON(),
+      ...updateData,
     };
   }
 

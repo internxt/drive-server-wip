@@ -111,6 +111,23 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
+  async findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        name: { [Op.eq]: name },
+        type: { [Op.eq]: type },
+        folderUuid: { [Op.eq]: folderUuid },
+        status: { [Op.eq]: status },
+      },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
   async findAllCursorWhereUpdatedAfter(
     where: Partial<FileAttributes>,
     updatedAtAfter: Date,
