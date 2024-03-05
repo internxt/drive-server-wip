@@ -3,64 +3,78 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { AxiosError } from 'axios';
 import { User } from '../user/user.domain';
-import { PaymentsService } from 'src/externals/payments/payments.service';
 import { PLAN_FREE_TIER_ID } from './limits.enum';
+import { UserAttributes } from '../user/user.attributes';
+import { ConfigService } from '@nestjs/config';
+import { HttpClient } from '../../externals/http/http.service';
+import { Sign } from '../../middlewares/passport';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class FeatureLimitsMigrationService {
-  private readonly delayBetweenUsers = 10;
-  private readonly maxRetries = 3;
-  private readonly paymentsAPIThrottlingDelay = 60000;
+  private readonly maxRetries = 3; // Max retries allowed to the Payments API before fail.
+  private readonly paymentsAPIThrottlingDelay = 1000; // How much time should wait the retry request to payments.
 
   private planIdTierIdMap: Map<string, string>; // PlanId/tierId mapping
 
   constructor(
     private userRepository: SequelizeUserRepository,
     private tiersRepository: SequelizeFeatureLimitsRepository,
-    private paymentsService: PaymentsService,
+    private configService: ConfigService,
+    private httpClient: HttpClient,
   ) {}
 
-  async asignTiersToUsers() {
-    const limit = 20;
+  async startScript() {
+    const limit = 20; // Remember we are tied to Stripe's rate limit, we can not process more than 100 requets per second, so we should aim to a lower limit.
     let processed = 0;
-    let resultsCount = 0;
+    let lastId = 0;
+    let hasMore = true;
 
-    await this.loadTiers();
+    await this.preLoadTiersMap();
 
-    while (resultsCount % limit === 0) {
-      const users = await this.userRepository.findAllByWithPagination(
-        { tierId: null },
+    while (hasMore) {
+      const users = await this.userRepository.findAllCursorById(
+        {},
+        lastId,
         limit,
+        [['id', 'ASC']],
       );
 
-      resultsCount = users.length;
-
       for (const user of users) {
-        await this.assignTier(user);
-        await this.delay(this.delayBetweenUsers); // Delay between requests to prevent Stripe Throttling
+        await this.assignTierToUser(user);
       }
 
-      processed += users.length;
-      Logger.log(`[FEATURE_LIMIT_MIGRATION]: Processed : ${processed}`);
+      const resultLength = users.length;
+
+      if (resultLength > 0) {
+        lastId = users[resultLength - 1].id;
+      }
+      if (resultLength < limit) {
+        hasMore = false;
+      }
+      processed += resultLength;
     }
+
+    Logger.log(`[FEATURE_LIMIT_MIGRATION]: Processed : ${processed} users.`);
     Logger.log('[FEATURE_LIMIT_MIGRATION]: Tiers applied successfuly.');
   }
 
-  private async assignTier(user: User) {
+  private async assignTierToUser(user: User) {
     try {
-      const subscription = await this.getUserSubscription(user);
+      const subscription = await this.getUserSubscriptionWithRetry(user);
       let tierId = this.planIdTierIdMap.get(PLAN_FREE_TIER_ID);
 
-      if (subscription?.priceId) {
-        if (this.planIdTierIdMap.has(subscription.priceId)) {
-          tierId = this.planIdTierIdMap.get(subscription.priceId);
+      if (subscription?.planId) {
+        if (this.planIdTierIdMap.has(subscription.planId)) {
+          tierId = this.planIdTierIdMap.get(subscription.planId);
         } else {
           Logger.error(
-            `[FEATURE_LIMIT_MIGRATION/NOT_MAPPED_TIER]: tier priceId ${subscription?.priceId}  has not mapped tier, applying free tier to user userUuid: ${user.uuid} email: ${user.email}`,
+            `[FEATURE_LIMIT_MIGRATION/NOT_MAPPED_TIER]: tier planId ${subscription?.planId}  has not mapped tier, applying free tier to user userUuid: ${user.uuid} email: ${user.email}`,
           );
         }
       }
 
+      // The only one update action
       await this.userRepository.updateBy(
         { uuid: user.uuid },
         {
@@ -74,11 +88,9 @@ export class FeatureLimitsMigrationService {
     }
   }
 
-  private async getUserSubscription(user: User, retries = 0) {
+  private async getUserSubscriptionWithRetry(user: User, retries = 0) {
     try {
-      const subscription = await this.paymentsService.getCurrentSubscription(
-        user.uuid,
-      );
+      const subscription = await this.getCurrentSubscription(user.uuid);
       return subscription;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -94,7 +106,7 @@ export class FeatureLimitsMigrationService {
               }`,
             );
             await this.delay(this.paymentsAPIThrottlingDelay);
-            return this.getUserSubscription(user, retries + 1);
+            return this.getUserSubscriptionWithRetry(user, retries + 1);
           }
         }
       }
@@ -105,7 +117,27 @@ export class FeatureLimitsMigrationService {
     }
   }
 
-  private async loadTiers() {
+  async getCurrentSubscription(uuid: UserAttributes['uuid']) {
+    const jwt = Sign(
+      { payload: { uuid } },
+      this.configService.get('secrets.jwt'),
+    );
+
+    const params = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwt}`,
+      },
+    };
+
+    const res = await this.httpClient.get(
+      `${this.configService.get('apis.payments.url')}/get-user-subscription`,
+      params,
+    );
+    return res.data;
+  }
+
+  private async preLoadTiersMap() {
     this.planIdTierIdMap = new Map();
 
     const tiers = await this.tiersRepository.findAllPlansTiersMap();
