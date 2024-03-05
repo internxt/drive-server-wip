@@ -6,7 +6,6 @@ import {
   Logger,
   NotFoundException,
   Param,
-  Post,
   Put,
   Query,
 } from '@nestjs/common';
@@ -20,7 +19,6 @@ import API_LIMITS from '../../lib/http/limits';
 import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
-import { MoveFileDto } from './dto/move-file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -178,26 +176,24 @@ export class FileController {
     });
   }
 
-  @Post('move/:uuid')
+  @Put('move/:fileUuid/to/:folderUuid')
   async moveFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
-    @Body() fileData: MoveFileDto,
+    @Param('fileUuid') fileUuid: File['uuid'],
+    @Param('folderUuid') folderUuid: File['folderUuid'],
   ) {
     try {
-      const file = await this.fileUseCases.moveFile(user, fileUuid, fileData);
-
+      const file = await this.fileUseCases.moveFile(user, fileUuid, folderUuid);
       return file;
     } catch (error) {
       const err = error as Error;
       const { email, uuid } = user;
       Logger.error(error);
       Logger.error(
-        `[SHARING/REPLACE] Error while moving file. CONTEXT:${JSON.stringify({
+        `[FILE/MOVE] Error while moving file. CONTEXT:${JSON.stringify({
           user: { email, uuid },
         })}}, STACK: ${err.stack || 'No stack trace'}`,
       );
-
       throw error;
     }
   }

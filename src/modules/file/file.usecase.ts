@@ -26,7 +26,6 @@ import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
-import { MoveFileDto } from './dto/move-file.dto';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -326,7 +325,7 @@ export class FileUseCases {
   async moveFile(
     user: User,
     fileUuid: File['fileId'],
-    newFileData: MoveFileDto,
+    destinationUuid: File['folderUuid'],
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
     if (!file) {
@@ -334,13 +333,11 @@ export class FileUseCases {
     }
 
     const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
-      newFileData.destinationUuid,
+      destinationUuid,
       user,
     );
     if (!destinationFolder) {
-      throw new NotFoundException(
-        `Folder ${newFileData.destinationUuid} not found`,
-      );
+      throw new NotFoundException(`Folder ${destinationUuid} not found`);
     }
 
     const originalPlainName = this.cryptoService.decryptName(
@@ -369,7 +366,7 @@ export class FileUseCases {
       );
     }
 
-    const updateData = {
+    const updateData: Partial<File> = {
       folderId: destinationFolder.id,
       folderUuid: destinationFolder.uuid,
       name: destinationEncryptedName,
