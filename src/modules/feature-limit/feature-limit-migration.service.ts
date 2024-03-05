@@ -53,9 +53,11 @@ export class FeatureLimitsMigrationService {
         hasMore = false;
       }
       processed += resultLength;
+      Logger.log(
+        `[FEATURE_LIMIT_MIGRATION]: Total processed users: ${processed}, lastId: ${lastId} `,
+      );
     }
 
-    Logger.log(`[FEATURE_LIMIT_MIGRATION]: Processed : ${processed} users.`);
     Logger.log('[FEATURE_LIMIT_MIGRATION]: Tiers applied successfuly.');
   }
 
