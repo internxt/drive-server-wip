@@ -161,6 +161,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folder ? this.toDomain(folder) : null;
   }
 
+  async findByNameAndParentUuid(
+    name: FolderAttributes['name'],
+    parentUuid: FolderAttributes['parentUuid'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder> {
+    const folder = await this.folderModel.findOne({
+      where: {
+        name: { [Op.eq]: name },
+        parentUuid: { [Op.eq]: parentUuid },
+        deleted: { [Op.eq]: deleted },
+      },
+    });
+    return folder ? this.toDomain(folder) : null;
+  }
+
   async findAllNotDeleted(
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,

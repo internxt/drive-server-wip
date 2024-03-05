@@ -8,6 +8,7 @@ import {
   NotFoundException,
   NotImplementedException,
   Param,
+  Put,
   Query,
   UseFilters,
 } from '@nestjs/common';
@@ -524,5 +525,30 @@ export class FolderController {
     const size = await this.folderUseCases.getFolderSizeByUuid(folderUuid);
 
     return { size };
+  }
+
+  @Put('move/:folderUuid/to/:destinationUuid')
+  async moveFile(
+    @UserDecorator() user: User,
+    @Param('folderUuid') folderUuid: Folder['uuid'],
+    @Param('destinationUuid') destinationUuid: Folder['uuid'],
+  ) {
+    try {
+      const folder = await this.folderUseCases.moveFolder(
+        user,
+        folderUuid,
+        destinationUuid,
+      );
+      return folder;
+    } catch (error) {
+      const err = error as Error;
+      const { email, uuid } = user;
+      Logger.error(
+        `[FOLDER/MOVE] Error while moving folder. CONTEXT:${JSON.stringify({
+          user: { email, uuid },
+        })}}, STACK: ${err.stack || 'No stack trace'}`,
+      );
+      throw error;
+    }
   }
 }

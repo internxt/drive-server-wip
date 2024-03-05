@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -17,6 +18,7 @@ import {
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { FolderDto } from './dto/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -515,6 +517,64 @@ export class FolderUseCases {
     folderUuid: Folder['uuid'],
   ): Promise<Folder[]> {
     return this.folderRepository.getFolderAncestors(user, folderUuid);
+  }
+
+  async moveFolder(
+    user: User,
+    folderUuid: Folder['uuid'],
+    destinationUuid: Folder['uuid'],
+  ): Promise<FolderDto> {
+    const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+    if (!folder) {
+      throw new NotFoundException(`Folder ${folderUuid} not found`);
+    }
+
+    const destinationFolder = await this.getFolderByUuidAndUser(
+      destinationUuid,
+      user,
+    );
+    if (!destinationFolder) {
+      throw new NotFoundException(`Folder ${destinationUuid} not found`);
+    }
+
+    const originalPlainName = this.cryptoService.decryptName(
+      folder.name,
+      folder.parentId,
+    );
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      originalPlainName,
+      destinationFolder.id,
+    );
+
+    const exists = await this.folderRepository.findByNameAndParentUuid(
+      destinationEncryptedName,
+      destinationFolder.uuid,
+      false,
+    );
+    if (exists) {
+      if (exists.uuid === folder.uuid) {
+        throw new ConflictException(
+          `Folder ${folderUuid} was already moved to that location`,
+        );
+      }
+      throw new ConflictException(
+        'A folder with the same name already exists in destination folder',
+      );
+    }
+
+    const updateData: Partial<Folder> = {
+      parentId: destinationFolder.id,
+      parentUuid: destinationFolder.uuid,
+      name: destinationEncryptedName,
+      deleted: false,
+      deletedAt: null,
+    };
+
+    const updatedFolder = await this.folderRepository.updateByFolderId(
+      folder.id,
+      updateData,
+    );
+    return updatedFolder;
   }
 
   decryptFolderName(folder: Folder): any {
