@@ -17,6 +17,7 @@ import {
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { Op } from 'sequelize';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -410,13 +411,22 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      deletedAfter?: Date;
+    } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<Folder[]> {
+    const deletedAfter = options.deletedAfter
+      ? { deletedAt: { [Op.gte]: options.deletedAfter } }
+      : null;
+
     const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
-      { ...where, userId },
+      { ...where, userId, ...deletedAfter },
       options.limit,
       options.offset,
       options.sort,
@@ -540,5 +550,17 @@ export class FolderUseCases {
 
   getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
     return this.folderRepository.calculateFolderSize(folderUuid);
+  }
+
+  async deleteTrashedExpiredFolders() {
+    const limit = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const folders =
+        await this.folderRepository.getTrashedExpiredFolders(limit);
+      await this.folderRepository.deleteByIds(folders.map((f) => f.id));
+      hasMore = folders.length === limit;
+    }
   }
 }

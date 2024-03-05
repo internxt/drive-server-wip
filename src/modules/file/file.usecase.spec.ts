@@ -480,4 +480,30 @@ describe('FileUseCases', () => {
       }
     });
   });
+
+  describe('Delete Trashed Expired Files', () => {
+    it('When there are no more files to fetch, then should stop', async () => {
+      jest
+        .spyOn(fileRepository, 'getTrashedExpiredFiles')
+        .mockResolvedValue([]);
+
+      await service.deleteTrashedExpiredFiles();
+
+      expect(fileRepository.getTrashedExpiredFiles).toHaveBeenCalledTimes(1);
+    });
+
+    it('When there are expired files, then it should delete them', async () => {
+      const fileIds = [{ fileId: 1 }, { fileId: 2 }] as any;
+      jest
+        .spyOn(fileRepository, 'getTrashedExpiredFiles')
+        .mockResolvedValue(fileIds);
+      jest.spyOn(fileRepository, 'deleteTrashedFilesById');
+
+      await service.deleteTrashedExpiredFiles();
+
+      expect(fileRepository.deleteTrashedFilesById).toHaveBeenCalledWith(
+        fileIds.map((f) => f.fileId),
+      );
+    });
+  });
 });

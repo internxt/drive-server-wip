@@ -26,6 +26,14 @@ export class Limit {
     return this.type === LimitTypes.Boolean;
   }
 
+  getLimitValue() {
+    if (this.isBooleanLimit()) {
+      return this.value === 'true';
+    }
+
+    return Number(this.value);
+  }
+
   private isFeatureEnabled() {
     return this.isBooleanLimit() && this.value === 'true';
   }

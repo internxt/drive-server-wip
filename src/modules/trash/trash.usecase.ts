@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
 import { File, FileStatus } from '../file/file.domain';
@@ -73,6 +73,32 @@ export class TrashUseCases {
         user,
         folders.slice(i, i + itemsDeletionChunkSize),
       );
+    }
+  }
+
+  async removeExpiredItems() {
+    const startTime = new Date();
+    try {
+      Logger.log(
+        `[TRASH/REMOVE-EXPIRED-ITEMS]: Cron job started at ${startTime.toISOString()}.`,
+      );
+
+      await this.folderUseCases.deleteTrashedExpiredFolders();
+      await this.fileUseCases.deleteTrashedExpiredFiles();
+
+      const endTime = new Date();
+      const duration = endTime.getTime() - startTime.getTime();
+      Logger.log(
+        `[TRASH/REMOVE-EXPIRED-ITEMS]: Cron job completed successfully. Started at: ${startTime.toISOString()}, finished at: ${endTime.toISOString()}, total duration: ${duration} ms.`,
+      );
+    } catch (err) {
+      const errorTime = new Date();
+      Logger.error(
+        `[TRASH/REMOVE-EXPIRED-ITEMS]: Error encountered. Started at: ${startTime.toISOString()}, error occurred at: ${errorTime.toISOString()}, error details: ${
+          err.message
+        }, stack trace: ${err.stack}`,
+      );
+      throw err;
     }
   }
 }

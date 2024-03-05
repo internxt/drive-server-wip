@@ -9,6 +9,7 @@ import { TrashUseCases } from './trash.usecase';
 import { ShareModule } from '../share/share.module';
 import { ShareModel } from '../share/share.repository';
 import { FileModel } from '../file/file.model';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { FileModel } from '../file/file.model';
     NotificationModule,
     UserModule,
     ShareModule,
+    FeatureLimitModule,
   ],
   controllers: [TrashController],
   providers: [Logger, TrashUseCases],
