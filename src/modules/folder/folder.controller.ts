@@ -528,11 +528,14 @@ export class FolderController {
   }
 
   @Put('move/:folderUuid/to/:destinationUuid')
-  async moveFile(
+  async moveFolder(
     @UserDecorator() user: User,
     @Param('folderUuid') folderUuid: Folder['uuid'],
     @Param('destinationUuid') destinationUuid: Folder['uuid'],
   ) {
+    if (!validate(folderUuid) || !validate(destinationUuid)) {
+      throw new BadRequestException('Invalid UUID provided');
+    }
     try {
       const folder = await this.folderUseCases.moveFolder(
         user,

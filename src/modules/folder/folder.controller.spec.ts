@@ -1,6 +1,7 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { v4 } from 'uuid';
 import { newFile, newFolder } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import {
@@ -231,6 +232,38 @@ describe('FolderController', () => {
           'ASC',
         ),
       ).rejects.toThrow(BadRequestInvalidOffsetException);
+    });
+  });
+
+  describe('move folder', () => {
+    it('When folder is moved, then the folder is returned with its updated properties', async () => {
+      const destinationFolder = newFolder();
+      const expectedFolder = {
+        ...folder,
+        parentUuid: destinationFolder.uuid,
+        parentId: destinationFolder.parentId,
+      };
+
+      jest
+        .spyOn(folderUseCases, 'moveFolder')
+        .mockResolvedValue(expectedFolder);
+
+      const result = await folderController.moveFolder(
+        userMocked,
+        folder.uuid,
+        destinationFolder.uuid,
+      );
+      expect(result).toEqual(expectedFolder);
+    });
+
+    it('When get folder subfiles are requested by invalid params, then it should throw an error', () => {
+      expect(
+        folderController.moveFolder(userMocked, 'invaliduuid', v4()),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(
+        folderController.moveFolder(userMocked, v4(), 'invaliduuid'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
