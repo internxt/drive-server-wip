@@ -585,7 +585,7 @@ describe('FolderUseCases', () => {
       );
     });
 
-    it('When move folder is called with non-existent folder, then it should throw a not found error', () => {
+    it('When folder is moved from/to a non-existent folder, then it should throw a not found error', () => {
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
       expect(
         service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
@@ -596,6 +596,50 @@ describe('FolderUseCases', () => {
       expect(
         service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder is moved to a folder that has been already moved to, then it should throw a conflict error', () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(folder.plainName);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(folder.name);
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(folder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(
+        `Folder ${folder.uuid} was already moved to that location`,
+      );
+    });
+
+    it('When folder is moved to a folder that has already a folder with the same name, then it should throw a conflict error', () => {
+      const conflictFolder = {
+        ...folder,
+        uuid: v4(),
+      } as Folder;
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(folder.plainName);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(folder.name);
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(conflictFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(
+        'A folder with the same name already exists in destination folder',
+      );
     });
   });
 });

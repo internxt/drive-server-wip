@@ -525,17 +525,11 @@ export class FolderUseCases {
     destinationUuid: Folder['uuid'],
   ): Promise<FolderDto> {
     const folder = await this.getFolderByUuidAndUser(folderUuid, user);
-    if (!folder) {
-      throw new NotFoundException(`Folder ${folderUuid} not found`);
-    }
 
     const destinationFolder = await this.getFolderByUuidAndUser(
       destinationUuid,
       user,
     );
-    if (!destinationFolder) {
-      throw new NotFoundException(`Folder ${destinationUuid} not found`);
-    }
 
     const originalPlainName = this.cryptoService.decryptName(
       folder.name,
