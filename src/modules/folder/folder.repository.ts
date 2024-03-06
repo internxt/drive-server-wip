@@ -43,6 +43,11 @@ export interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findByNameAndParentUuid(
+    name: FolderAttributes['name'],
+    parentUuid: FolderAttributes['parentUuid'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder | null>;
   findInTree(
     folderTreeRootId: FolderAttributes['parentId'],
     folderId: FolderAttributes['id'],
