@@ -13,14 +13,22 @@ import { ShareUseCases } from '../share/share.usecase';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { CryptoModule } from '../../externals/crypto/crypto.module';
+import {
+  FolderRepository,
+  SequelizeFolderRepository,
+} from '../folder/folder.repository';
+import { newFile, newFolder } from '../../../test/fixtures';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { v4 } from 'uuid';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
 describe('FileUseCases', () => {
   let service: FileUseCases;
+  let folderUseCases: FolderUseCases;
   let fileRepository: FileRepository;
+  let folderRepository: FolderRepository;
   let shareUseCases: ShareUseCases;
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
@@ -57,16 +65,16 @@ describe('FileUseCases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule],
-      providers: [FileUseCases, CryptoService],
+      imports: [BridgeModule],
+      providers: [FileUseCases, FolderUseCases],
     })
       .useMocker(() => createMock())
       .compile();
 
     service = module.get<FileUseCases>(FileUseCases);
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //@ts-ignore
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
+    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     shareUseCases = module.get<ShareUseCases>(ShareUseCases);
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
