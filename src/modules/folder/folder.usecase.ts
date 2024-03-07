@@ -17,7 +17,6 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
-import { SequelizeFileRepository } from '../file/file.repository';
 import { FolderDto } from './dto/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
@@ -29,7 +28,6 @@ export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
-    private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
   ) {}
 
