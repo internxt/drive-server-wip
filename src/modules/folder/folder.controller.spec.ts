@@ -238,11 +238,13 @@ describe('FolderController', () => {
   describe('move folder', () => {
     it('When move folder is requested with valid params, then the folder is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
-      const expectedFolder = {
-        ...folder,
-        parentUuid: destinationFolder.uuid,
-        parentId: destinationFolder.parentId,
-      };
+      const expectedFolder = newFolder({
+        attributes: {
+          ...folder,
+          parentUuid: destinationFolder.uuid,
+          parentId: destinationFolder.parentId,
+        },
+      });
 
       jest
         .spyOn(folderUseCases, 'moveFolder')

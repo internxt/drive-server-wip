@@ -537,12 +537,14 @@ describe('FolderUseCases', () => {
     });
 
     it('When folder is moved, then the folder is returned with its updated properties', async () => {
-      const expectedFolder = {
-        ...folder,
-        name: 'newencrypted-' + folder.name,
-        parentUuid: destinationFolder.uuid,
-        parentId: destinationFolder.parentId,
-      } as Folder;
+      const expectedFolder = newFolder({
+        attributes: {
+          ...folder,
+          name: 'newencrypted-' + folder.name,
+          parentUuid: destinationFolder.uuid,
+          parentId: destinationFolder.parentId,
+        },
+      });
 
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
       jest
@@ -619,10 +621,12 @@ describe('FolderUseCases', () => {
     });
 
     it('When folder is moved to a folder that has already a folder with the same name, then it should throw a conflict error', () => {
-      const conflictFolder = {
-        ...folder,
-        uuid: v4(),
-      } as Folder;
+      const conflictFolder = newFolder({
+        attributes: {
+          ...folder,
+          uuid: v4(),
+        },
+      });
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
       jest
         .spyOn(folderRepository, 'findByUuid')

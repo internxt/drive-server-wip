@@ -17,7 +17,6 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
-import { FolderDto } from './dto/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -521,7 +520,7 @@ export class FolderUseCases {
     user: User,
     folderUuid: Folder['uuid'],
     destinationUuid: Folder['uuid'],
-  ): Promise<FolderDto> {
+  ): Promise<Folder> {
     const folder = await this.getFolderByUuidAndUser(folderUuid, user);
 
     const destinationFolder = await this.getFolderByUuidAndUser(
