@@ -40,6 +40,10 @@ export class FeatureLimitUsecases {
     user: User,
     data: LimitTypeMapping[T],
   ): Promise<boolean> {
+    if (!user.tierId) {
+      return false;
+    }
+
     const limit = await this.limitsRepository.findLimitByLabelAndTier(
       user.tierId,
       limitLabel,
