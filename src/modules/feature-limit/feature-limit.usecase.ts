@@ -40,6 +40,10 @@ export class FeatureLimitUsecases {
     user: User,
     data: LimitTypeMapping[T],
   ): Promise<boolean> {
+    if (!user.tierId) {
+      return false;
+    }
+
     const limit = await this.limitsRepository.findLimitByLabelAndTier(
       user.tierId,
       limitLabel,
@@ -141,16 +145,5 @@ export class FeatureLimitUsecases {
 
   async getLimitByLabelAndTier(label: string, tierId: string) {
     return this.limitsRepository.findLimitByLabelAndTier(tierId, label);
-  }
-
-  async getTierMaxTrashStorageDays(tierId: string) {
-    return this.limitsRepository.findLimitByLabelAndTier(
-      tierId,
-      LimitLabels.MaxTrashStorageDays,
-    );
-  }
-
-  async getFreeTier() {
-    return this.limitsRepository.getFreeTier();
   }
 }
