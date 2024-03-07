@@ -33,11 +33,22 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
+  findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<File>;
+  updateByUuidAndUserId(
+    uuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ): Promise<void>;
   updateManyByFieldIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
@@ -99,7 +110,7 @@ export class SequelizeFileRepository implements FileRepository {
     fileUuid: string,
     userId: number,
     where: FindOptions<FileAttributes> = {},
-  ): Promise<File> {
+  ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         uuid: fileUuid,
@@ -116,7 +127,7 @@ export class SequelizeFileRepository implements FileRepository {
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
-  ): Promise<File> {
+  ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         name: { [Op.eq]: name },
