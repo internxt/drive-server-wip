@@ -11,9 +11,28 @@ module.exports = {
     ];
 
     for (let plan of plans) {
+      const planAlreadyMapped = await queryInterface.sequelize.query(
+        `SELECT id FROM paid_plans WHERE plan_id = :planId LIMIT 1`,
+        {
+          replacements: {
+            planId: plan.planId,
+          },
+          type: Sequelize.QueryTypes.SELECT,
+        },
+      );
+
+      if (planAlreadyMapped.length > 0) {
+        continue;
+      }
+
       const tiers = await queryInterface.sequelize.query(
-        `SELECT id FROM tiers WHERE label = '${plan.name}' LIMIT 1`,
-        { type: Sequelize.QueryTypes.SELECT },
+        `SELECT id FROM tiers WHERE label = :label LIMIT 1`,
+        {
+          replacements: {
+            label: plan.name,
+          },
+          type: Sequelize.QueryTypes.SELECT,
+        },
       );
 
       if (tiers.length > 0) {
