@@ -182,19 +182,10 @@ export class FileController {
     @Param('fileUuid') fileUuid: File['uuid'],
     @Param('folderUuid') folderUuid: File['folderUuid'],
   ) {
-    try {
-      const file = await this.fileUseCases.moveFile(user, fileUuid, folderUuid);
-      return file;
-    } catch (error) {
-      const err = error as Error;
-      const { email, uuid } = user;
-      Logger.error(error);
-      Logger.error(
-        `[FILE/MOVE] Error while moving file. CONTEXT:${JSON.stringify({
-          user: { email, uuid },
-        })}}, STACK: ${err.stack || 'No stack trace'}`,
-      );
-      throw error;
+    if (!validate(fileUuid) || !validate(folderUuid)) {
+      throw new BadRequestException('Invalid UUID provided');
     }
+    const file = await this.fileUseCases.moveFile(user, fileUuid, folderUuid);
+    return file;
   }
 }

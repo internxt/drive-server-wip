@@ -236,7 +236,7 @@ describe('FolderController', () => {
   });
 
   describe('move folder', () => {
-    it('When folder is moved, then the folder is returned with its updated properties', async () => {
+    it('When move folder is requested with valid params, then the folder is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
       const expectedFolder = {
         ...folder,
@@ -256,7 +256,7 @@ describe('FolderController', () => {
       expect(result).toEqual(expectedFolder);
     });
 
-    it('When get folder subfiles are requested by invalid params, then it should throw an error', () => {
+    it('When move folder is requested with invalid params, then it should throw an error', () => {
       expect(
         folderController.moveFolder(userMocked, 'invaliduuid', v4()),
       ).rejects.toThrow(BadRequestException);

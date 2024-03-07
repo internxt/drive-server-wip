@@ -571,7 +571,7 @@ describe('FolderUseCases', () => {
         destinationFolder.uuid,
       );
 
-      expect(result).toBe(expectedFolder);
+      expect(result).toEqual(expectedFolder);
       expect(folderRepository.updateByFolderId).toHaveBeenCalledTimes(1);
       expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
         folder.id,

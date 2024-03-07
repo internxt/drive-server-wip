@@ -536,22 +536,11 @@ export class FolderController {
     if (!validate(folderUuid) || !validate(destinationUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
-    try {
-      const folder = await this.folderUseCases.moveFolder(
-        user,
-        folderUuid,
-        destinationUuid,
-      );
-      return folder;
-    } catch (error) {
-      const err = error as Error;
-      const { email, uuid } = user;
-      Logger.error(
-        `[FOLDER/MOVE] Error while moving folder. CONTEXT:${JSON.stringify({
-          user: { email, uuid },
-        })}}, STACK: ${err.stack || 'No stack trace'}`,
-      );
-      throw error;
-    }
+    const folder = await this.folderUseCases.moveFolder(
+      user,
+      folderUuid,
+      destinationUuid,
+    );
+    return folder;
   }
 }
