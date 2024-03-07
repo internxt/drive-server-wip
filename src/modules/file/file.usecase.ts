@@ -326,7 +326,7 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     destinationUuid: File['folderUuid'],
-  ): Promise<FileDto> {
+  ): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
     if (!file) {
       throw new NotFoundException(`File ${fileUuid} not found`);
@@ -379,10 +379,7 @@ export class FileUseCases {
       updateData,
     );
 
-    return {
-      ...file.toJSON(),
-      ...updateData,
-    };
+    return Object.assign(file, updateData);
   }
 
   decrypFileName(file: File): any {
