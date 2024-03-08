@@ -71,21 +71,23 @@ describe('FileController', () => {
 
       jest.spyOn(fileUseCases, 'moveFile').mockResolvedValue(expectedFile);
 
-      const result = await fileController.moveFile(
-        userMocked,
-        file.uuid,
-        destinationFolder.uuid,
-      );
+      const result = await fileController.moveFile(userMocked, file.uuid, {
+        destinationFolder: destinationFolder.uuid,
+      });
       expect(result).toEqual(expectedFile);
     });
 
     it('When move file is requested with invalid params, then it should throw an error', () => {
       expect(
-        fileController.moveFile(userMocked, 'invaliduuid', v4()),
+        fileController.moveFile(userMocked, 'invaliduuid', {
+          destinationFolder: v4(),
+        }),
       ).rejects.toThrow(BadRequestException);
 
       expect(
-        fileController.moveFile(userMocked, v4(), 'invaliduuid'),
+        fileController.moveFile(userMocked, v4(), {
+          destinationFolder: 'invaliduuid',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
   });

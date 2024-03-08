@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Delete,
   ForbiddenException,
@@ -8,7 +9,7 @@ import {
   NotFoundException,
   NotImplementedException,
   Param,
-  Put,
+  Patch,
   Query,
   UseFilters,
 } from '@nestjs/common';
@@ -31,6 +32,7 @@ import logger from '../../externals/logger';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
+import { MoveFolderDto } from './dto/move-folder.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -527,19 +529,19 @@ export class FolderController {
     return { size };
   }
 
-  @Put('move/:folderUuid/to/:destinationUuid')
+  @Patch('/:uuid/move')
   async moveFolder(
     @UserDecorator() user: User,
     @Param('folderUuid') folderUuid: Folder['uuid'],
-    @Param('destinationUuid') destinationUuid: Folder['uuid'],
+    @Body() moveFolderData: MoveFolderDto,
   ) {
-    if (!validate(folderUuid) || !validate(destinationUuid)) {
+    if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
     }
     const folder = await this.folderUseCases.moveFolder(
       user,
       folderUuid,
-      destinationUuid,
+      moveFolderData.destinationFolder,
     );
     return folder;
   }

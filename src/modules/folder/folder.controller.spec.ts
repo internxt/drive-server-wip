@@ -253,18 +253,22 @@ describe('FolderController', () => {
       const result = await folderController.moveFolder(
         userMocked,
         folder.uuid,
-        destinationFolder.uuid,
+        { destinationFolder: destinationFolder.uuid },
       );
       expect(result).toEqual(expectedFolder);
     });
 
     it('When move folder is requested with invalid params, then it should throw an error', () => {
       expect(
-        folderController.moveFolder(userMocked, 'invaliduuid', v4()),
+        folderController.moveFolder(userMocked, 'invaliduuid', {
+          destinationFolder: v4(),
+        }),
       ).rejects.toThrow(BadRequestException);
 
       expect(
-        folderController.moveFolder(userMocked, v4(), 'invaliduuid'),
+        folderController.moveFolder(userMocked, v4(), {
+          destinationFolder: 'invaliduuid',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
   });
