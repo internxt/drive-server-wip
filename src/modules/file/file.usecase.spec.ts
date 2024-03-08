@@ -547,11 +547,38 @@ describe('FileUseCases', () => {
       );
     });
 
+    it('When file is moved but it is removed, then an error is thrown', () => {
+      const mockFile = newFile({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
+
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File ${file.uuid} can not be moved`);
+    });
+
+    it('When file is moved but the destination folder is removed, then an error is thrown', () => {
+      const mockDestinationFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValueOnce(mockDestinationFolder);
+
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
+    });
+
     it('When a non existent file is moved to a folder, then it should throw a not found error', () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(null);
       expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
-      ).rejects.toThrow(`File ${file.uuid} not found`);
+      ).rejects.toThrow(`File ${file.uuid} can not be moved`);
     });
 
     it('When a file is moved to a non existent folder, then it should throw a not found error', () => {
@@ -561,7 +588,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(null);
       expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
-      ).rejects.toThrow(`Folder ${destinationFolder.uuid} not found`);
+      ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
     });
 
     it('When file is moved to a folder that has been already moved to, then it should throw a conflict error', () => {

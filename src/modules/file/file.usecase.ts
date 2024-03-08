@@ -7,6 +7,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -328,16 +329,20 @@ export class FileUseCases {
     destinationUuid: File['folderUuid'],
   ): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
-    if (!file) {
-      throw new NotFoundException(`File ${fileUuid} not found`);
+    if (!file || file.removed === true || file.status === FileStatus.DELETED) {
+      throw new UnprocessableEntityException(
+        `File ${fileUuid} can not be moved`,
+      );
     }
 
     const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
       destinationUuid,
       user,
     );
-    if (!destinationFolder) {
-      throw new NotFoundException(`Folder ${destinationUuid} not found`);
+    if (!destinationFolder || destinationFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `File can not be moved to ${destinationUuid}`,
+      );
     }
 
     const originalPlainName = this.cryptoService.decryptName(
