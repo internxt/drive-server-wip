@@ -529,7 +529,7 @@ export class FolderController {
     return { size };
   }
 
-  @Patch('/:uuid/move')
+  @Patch('/:uuid')
   async moveFolder(
     @UserDecorator() user: User,
     @Param('folderUuid') folderUuid: Folder['uuid'],

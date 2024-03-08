@@ -178,7 +178,7 @@ export class FileController {
     });
   }
 
-  @Patch('/:uuid/move')
+  @Patch('/:uuid')
   async moveFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
