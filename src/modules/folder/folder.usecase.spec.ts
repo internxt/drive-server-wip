@@ -545,8 +545,14 @@ describe('FolderUseCases', () => {
           parentId: destinationFolder.parentId,
         },
       });
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: false },
+      });
 
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockParentFolder);
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
@@ -585,6 +591,74 @@ describe('FolderUseCases', () => {
           deletedAt: null,
         },
       );
+    });
+
+    it('When folder is moved but it is removed, then an error is thrown', () => {
+      const mockFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(mockFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`Folder ${folder.uuid} can not be moved`);
+    });
+
+    it('When folder is moved but its parent folder is removed, then an error is thrown', () => {
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockParentFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`Folder ${folder.uuid} can not be moved`);
+    });
+
+    it('When folder is moved but the destination folder is removed, then an error is thrown', () => {
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: false },
+      });
+      const mockDestinationFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockParentFolder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(mockDestinationFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`Folder can not be moved to ${destinationFolder.uuid}`);
+    });
+
+    it('When root folder is moved, then an error is thrown', () => {
+      const mockFolder = newFolder({
+        attributes: {
+          userId: userMocked.id,
+          isRootFolder: () => true,
+          isRoot: () => true,
+        },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(mockFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow('The root folder can not be moved');
     });
 
     it('When folder is moved from/to a non-existent folder, then it should throw a not found error', () => {

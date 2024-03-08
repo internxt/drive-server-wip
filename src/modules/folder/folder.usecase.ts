@@ -522,11 +522,33 @@ export class FolderUseCases {
     destinationUuid: Folder['uuid'],
   ): Promise<Folder> {
     const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+    if (folder.isRootFolder()) {
+      throw new UnprocessableEntityException(
+        'The root folder can not be moved',
+      );
+    }
+    if (folder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder ${folderUuid} can not be moved`,
+      );
+    }
+
+    const parentFolder = await this.folderRepository.findById(folder.parentId);
+    if (parentFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder ${folderUuid} can not be moved`,
+      );
+    }
 
     const destinationFolder = await this.getFolderByUuidAndUser(
       destinationUuid,
       user,
     );
+    if (destinationFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder can not be moved to ${destinationUuid}`,
+      );
+    }
 
     const originalPlainName = this.cryptoService.decryptName(
       folder.name,
