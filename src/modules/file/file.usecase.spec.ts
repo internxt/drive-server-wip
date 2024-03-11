@@ -89,61 +89,45 @@ describe('FileUseCases', () => {
   });
 
   describe('move file to trash', () => {
-    it.skip('calls moveFilesToTrash and return file', async () => {
-      const mockFile = File.build({
-        id: 1,
-        fileId: '',
-        name: '',
-        type: '',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
-        deleted: false,
-        deletedAt: new Date(),
-        userId: 1,
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '',
-        folderUuid: '',
-        removed: false,
-        removedAt: undefined,
-        plainName: '',
-        status: FileStatus.EXISTS,
-      });
-      jest
-        .spyOn(fileRepository, 'updateByFieldIdAndUserId')
-        .mockResolvedValue(mockFile);
-      const result = await service.moveFilesToTrash(userMocked, [fileId]);
-      expect(result).toEqual(mockFile);
+    const mockFile = File.build({
+      id: 1,
+      fileId: '',
+      name: '',
+      type: '',
+      size: null,
+      bucket: '',
+      folderId: 4,
+      encryptVersion: '',
+      deleted: false,
+      deletedAt: new Date(),
+      userId: 1,
+      modificationTime: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      uuid: '723274e5-ca2a-4e61-bf17-d9fba3b8d430',
+      folderUuid: '',
+      removed: false,
+      removedAt: undefined,
+      plainName: '',
+      status: FileStatus.EXISTS,
     });
 
-    it.skip('throws an error if the file is not found', async () => {
-      jest
-        .spyOn(fileRepository, 'updateByFieldIdAndUserId')
-        .mockRejectedValue(new NotFoundException());
-      expect(service.moveFilesToTrash(userMocked, [fileId])).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('move multiple files to trash', () => {
-    it.skip('calls moveFilesToTrash', async () => {
+    it('When you try to trash files with id and uuid, then functions are called with respective values', async () => {
       const fileIds = [fileId];
-      jest
-        .spyOn(fileRepository, 'updateManyByFieldIdAndUserId')
-        .mockImplementation(() => {
-          return new Promise((resolve) => {
-            resolve();
-          });
-        });
-      const result = await service.moveFilesToTrash(userMocked, fileIds);
-      expect(result).toEqual(undefined);
-      expect(fileRepository.updateManyByFieldIdAndUserId).toHaveBeenCalledTimes(
+      const fileUuids = [mockFile.uuid];
+      jest.spyOn(fileRepository, 'updateFilesStatusToTrashed');
+      jest.spyOn(fileRepository, 'updateFilesStatusToTrashedByUuid');
+      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+      expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledTimes(
         1,
       );
+      expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledWith(
+        userMocked,
+        fileIds,
+      );
+      expect(
+        fileRepository.updateFilesStatusToTrashedByUuid,
+      ).toHaveBeenCalledWith(userMocked, fileUuids);
     });
   });
 

@@ -298,7 +298,9 @@ export class FolderUseCases {
     const [foldersById, driveRootFolder, foldersByUuid] = await Promise.all([
       this.getFoldersByIds(user, folderIds),
       this.getFolder(user.rootFolderId),
-      this.folderRepository.findUserFoldersByUuid(user, folderUuids),
+      folderUuids.length > 0
+        ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
+        : Promise.resolve<Folder[]>([]),
     ]);
 
     const folders = foldersById.concat(foldersByUuid);

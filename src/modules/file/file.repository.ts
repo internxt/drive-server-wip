@@ -56,6 +56,14 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  updateFilesStatusToTrashed(
+    user: User,
+    fileIds: File['fileId'][],
+  ): Promise<void>;
+  updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -422,10 +430,8 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<void> {
     await this.fileModel.update(
       {
-        // Remove this after status is the main field
         deleted: true,
         deletedAt: new Date(),
-        //
         status: FileStatus.TRASHED,
         updatedAt: new Date(),
       },
