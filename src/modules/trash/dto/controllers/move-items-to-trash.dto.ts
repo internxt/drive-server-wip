@@ -29,7 +29,7 @@ export class ItemToTrash {
 
   @ValidateIf((item) => (!item.id && !item.uuid) || (item.id && item.uuid))
   @IsDefined({ message: 'Provide either item id or uuid, and not both' })
-  protected readonly combinedCheck: undefined;
+  readonly AreUuidAndIdDefined?: boolean;
 
   @IsEnum(ItemType)
   @ApiProperty({

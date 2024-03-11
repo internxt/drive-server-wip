@@ -11,7 +11,7 @@ describe('MoveItemsToTrashDto', () => {
     const dto = plainToInstance(MoveItemsToTrashDto, {
       items: [
         { id: '1', type: ItemType.FILE },
-        { uuid: 'uuid-2', type: ItemType.FOLDER },
+        { uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b', type: ItemType.FOLDER },
       ],
     });
 
@@ -35,7 +35,7 @@ describe('MoveItemsToTrashDto', () => {
     it('When both id and uuid are provided in one item, then should fail', async () => {
       const item = plainToInstance(ItemToTrash, {
         id: '1',
-        uuid: 'uuid-1',
+        uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
         type: ItemType.FILE,
       });
       const errors = await validate(item);
@@ -54,7 +54,7 @@ describe('MoveItemsToTrashDto', () => {
       );
       const onlyUuidErrors = await validate(
         plainToInstance(ItemToTrash, {
-          uuid: 'uuid-1',
+          uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
           type: ItemType.FILE,
         }),
       );
