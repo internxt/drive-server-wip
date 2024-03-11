@@ -65,6 +65,10 @@ export interface FolderRepository {
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
+  findUserFoldersByUuid(
+    user: User,
+    uuids: FolderAttributes['uuid'][],
+  ): Promise<Folder[]>;
 }
 
 @Injectable()
