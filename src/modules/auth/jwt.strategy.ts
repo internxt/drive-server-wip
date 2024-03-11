@@ -9,7 +9,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
-import { isTokenIatGreaterThanDate } from '../../lib/jwt';
+import { Time } from '../../lib/time';
 
 export interface JwtPayload {
   email: string;
@@ -46,16 +46,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
       const userWithoutLastPasswordChangedAt =
         user.lastPasswordChangedAt === null;
 
-      const tokenOlderThanLastPasswordChangedAt =
+      const tokenIssuedBeforeLastPasswordChange =
         user.lastPasswordChangedAt &&
-        !isTokenIatGreaterThanDate(
-          new Date(user.lastPasswordChangedAt),
-          payload.iat,
-        );
+        user.lastPasswordChangedAt > Time.convertTimestampToDate(payload.iat);
 
       if (
         !userWithoutLastPasswordChangedAt &&
-        tokenOlderThanLastPasswordChangedAt
+        tokenIssuedBeforeLastPasswordChange
       ) {
         throw new UnauthorizedException();
       }
