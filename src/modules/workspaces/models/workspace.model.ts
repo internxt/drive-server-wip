@@ -10,13 +10,14 @@ import {
 import { UserModel } from '../../user/user.model';
 import { TeamModel } from './team.model';
 import { WorkspaceUserModel } from './workspace-users.model';
+import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'workspaces',
 })
-export class WorkspaceModel extends Model {
+export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
