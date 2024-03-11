@@ -14,7 +14,7 @@ import { TeamAttributes } from '../attributes/team.attributes';
 @Table({
   underscored: true,
   timestamps: true,
-  tableName: 'teams',
+  tableName: 'workspace_teams',
 })
 export class TeamModel extends Model implements TeamAttributes {
   @PrimaryKey
