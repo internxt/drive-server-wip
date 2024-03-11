@@ -9,13 +9,17 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceModel } from './workspace.model';
+import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'workspace_users',
 })
-export class WorkspaceUserModel extends Model {
+export class WorkspaceUserModel
+  extends Model
+  implements WorkspaceUserAttributes
+{
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)

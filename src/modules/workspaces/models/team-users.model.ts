@@ -9,13 +9,14 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { TeamModel } from './team.model';
+import { TeamUserAttributes } from '../attributes/team-users.attributes';
 
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'teams_users',
 })
-export class TeamUserModel extends Model {
+export class TeamUserModel extends Model implements TeamUserAttributes {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
