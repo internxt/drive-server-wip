@@ -21,7 +21,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { MoveItemsToTrashDto } from './dto/controllers/move-items-to-trash.dto';
+import {
+  ItemType,
+  MoveItemsToTrashDto,
+} from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
@@ -124,7 +127,6 @@ export class TrashController {
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
-    @Res({ passthrough: true }) res: Response,
   ) {
     if (moveItemsDto.items.length === 0) {
       logger('error', {
@@ -142,20 +144,23 @@ export class TrashController {
       const folderUuids: string[] = [];
 
       for (const item of moveItemsDto.items) {
-        if (item.type === 'file') {
-          if (item.id) {
-            fileIds.push(item.id);
-          } else {
-            fileUuids.push(item.uuid);
-          }
-        } else if (item.type === 'folder') {
-          if (item.id) {
-            folderIds.push(parseInt(item.id));
-          } else {
-            folderUuids.push(item.uuid);
-          }
-        } else {
-          throw new BadRequestException(`type ${item.type} invalid`);
+        switch (item.type) {
+          case ItemType.FILE:
+            if (item.id) {
+              fileIds.push(item.id);
+            } else {
+              fileUuids.push(item.uuid);
+            }
+            break;
+          case ItemType.FOLDER:
+            if (item.id) {
+              folderIds.push(parseInt(item.id, 10));
+            } else {
+              folderUuids.push(item.uuid);
+            }
+            break;
+          default:
+            throw new BadRequestException(`type ${item.type} invalid`);
         }
       }
       await Promise.all([
@@ -190,9 +195,13 @@ export class TrashController {
           user: { email, uuid },
         })}, STACK: ${(err as Error).stack}`,
       );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
 
-      return { error: 'Internal Server Error' };
+      throw new InternalServerErrorException({
+        error: 'Internal Server Error',
+      });
     }
   }
 

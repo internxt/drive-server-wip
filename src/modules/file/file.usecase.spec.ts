@@ -4,7 +4,6 @@ import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
   ForbiddenException,
-  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { File, FileAttributes, FileStatus } from './file.domain';
