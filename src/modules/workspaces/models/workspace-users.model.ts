@@ -6,6 +6,7 @@ import {
   PrimaryKey,
   ForeignKey,
   Default,
+  BelongsTo,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceModel } from './workspace.model';
@@ -21,13 +22,19 @@ export class WorkspaceUserModel
   implements WorkspaceUserAttributes
 {
   @PrimaryKey
-  @Default(DataType.UUIDV4)
-  @Column(DataType.UUID)
+  @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
   memberId: string;
+
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'memberId',
+    targetKey: 'uuid',
+    as: 'member',
+  })
+  member: UserModel;
 
   @Column(DataType.STRING)
   key: string;
@@ -35,6 +42,13 @@ export class WorkspaceUserModel
   @ForeignKey(() => WorkspaceModel)
   @Column(DataType.UUID)
   workspaceId: string;
+
+  @BelongsTo(() => WorkspaceModel, {
+    foreignKey: 'workspaceId',
+    targetKey: 'id',
+    as: 'workspace',
+  })
+  workspace: WorkspaceModel;
 
   @Column(DataType.DOUBLE)
   spaceLimit: number;
