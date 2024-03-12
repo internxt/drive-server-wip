@@ -23,6 +23,7 @@ import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 import { SharingModule } from './modules/sharing/sharing.module';
 import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -114,6 +115,7 @@ import { PlanModule } from './modules/plan/plan.module';
     SharingModule,
     AppSumoModule,
     PlanModule,
+    WorkspacesModule,
   ],
   controllers: [],
   providers: [],
