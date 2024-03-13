@@ -14,11 +14,20 @@ import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { isUUID } from 'class-validator';
+import { CreateWorkSpaceDto } from './dto/create-workspace.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
+
+  @Post('/')
+  async createWorkspace(
+    @Body() createWorkspaceDto: CreateWorkSpaceDto,
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.createWorkspace(user, createWorkspaceDto);
+  }
 
   @Post('/:workspaceId/teams')
   async createTeam(

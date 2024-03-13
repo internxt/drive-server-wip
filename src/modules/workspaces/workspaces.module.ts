@@ -13,34 +13,29 @@ import { WorkspaceItemUserModel } from './models/workspace-items-users.model';
 import { TeamModel } from './models/team.model';
 import { TeamUserModel } from './models/team-users.model';
 import { WorkspaceUserModel } from './models/workspace-users.model';
-import { SequelizeTeamsRepository } from './repositories/teams.repository';
 import { WorkspacesUsecases } from './workspaces.usecase';
-import { SequelizeWorkspacesRepository } from './repositories/workspaces.repository';
+import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
+import { SequelizeTeamRepository } from './repositories/team.repository';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([
-      FileModel,
-      ShareModel,
       WorkspaceModel,
       WorkspaceItemUserModel,
       TeamModel,
       TeamUserModel,
       WorkspaceUserModel,
     ]),
-    forwardRef(() => FileModule),
-    forwardRef(() => ShareModule),
-    FolderModule,
-    NotificationModule,
     UserModule,
-    ShareModule,
+    BridgeModule,
   ],
   controllers: [WorkspacesController],
   providers: [
     Logger,
     WorkspacesUsecases,
-    SequelizeTeamsRepository,
-    SequelizeWorkspacesRepository,
+    SequelizeTeamRepository,
+    SequelizeWorkspaceRepository,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],
 })
