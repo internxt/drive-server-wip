@@ -10,7 +10,7 @@ import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Sequelize } from 'sequelize';
 
 @Injectable()
-export class SequelizeTeamsRepository {
+export class SequelizeTeamRepository {
   constructor(
     @InjectModel(TeamModel)
     private teamModel: typeof TeamModel,

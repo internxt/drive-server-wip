@@ -1,11 +1,11 @@
-import { WorkspaceAttributes } from './attributes/workspace.attributes';
+import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 
 export class Workspace implements WorkspaceAttributes {
   id: string;
   ownerId: string;
-  address: string;
+  address?: string;
   name: string;
-  description: string;
+  description?: string;
   defaultTeamId: string;
   workspaceUserId: string;
   createdAt: Date;
