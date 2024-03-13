@@ -3,7 +3,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { AxiosError } from 'axios';
 import { User } from '../user/user.domain';
-import { PaymentsService } from 'src/externals/payments/payments.service';
+import { PaymentsService } from '../../externals/payments/payments.service';
 import { PLAN_FREE_TIER_ID } from './limits.enum';
 
 @Injectable()
