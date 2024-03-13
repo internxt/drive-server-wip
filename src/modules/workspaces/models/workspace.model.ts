@@ -5,7 +5,7 @@ import {
   DataType,
   PrimaryKey,
   ForeignKey,
-  Default,
+  BelongsTo,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { TeamModel } from './team.model';
@@ -19,13 +19,19 @@ import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 })
 export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @PrimaryKey
-  @Default(DataType.UUIDV4)
-  @Column(DataType.UUID)
+  @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
   ownerId: string;
+
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'ownerId',
+    targetKey: 'uuid',
+    as: 'owner',
+  })
+  owner: UserModel;
 
   @Column(DataType.STRING)
   address: string;
@@ -39,6 +45,13 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @ForeignKey(() => TeamModel)
   @Column(DataType.UUID)
   defaultTeamId: string;
+
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'defaultTeamId',
+    targetKey: 'id',
+    as: 'defaultTeam',
+  })
+  defaultTeam: TeamModel;
 
   @ForeignKey(() => WorkspaceUserModel)
   @Column(DataType.UUID)

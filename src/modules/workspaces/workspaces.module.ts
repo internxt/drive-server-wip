@@ -8,10 +8,26 @@ import { ShareModule } from '../share/share.module';
 import { ShareModel } from '../share/share.repository';
 import { FileModel } from '../file/file.model';
 import { WorkspacesController } from './workspaces.controller';
+import { WorkspaceModel } from './models/workspace.model';
+import { WorkspaceItemUserModel } from './models/workspace-items-users.model';
+import { TeamModel } from './models/team.model';
+import { TeamUserModel } from './models/team-users.model';
+import { WorkspaceUserModel } from './models/workspace-users.model';
+import { SequelizeTeamsRepository } from './repositories/teams.repository';
+import { WorkspacesUsecases } from './workspaces.usecase';
+import { SequelizeWorkspacesRepository } from './repositories/workspaces.repository';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FileModel, ShareModel]),
+    SequelizeModule.forFeature([
+      FileModel,
+      ShareModel,
+      WorkspaceModel,
+      WorkspaceItemUserModel,
+      TeamModel,
+      TeamUserModel,
+      WorkspaceUserModel,
+    ]),
     forwardRef(() => FileModule),
     forwardRef(() => ShareModule),
     FolderModule,
@@ -20,6 +36,12 @@ import { WorkspacesController } from './workspaces.controller';
     ShareModule,
   ],
   controllers: [WorkspacesController],
-  providers: [Logger],
+  providers: [
+    Logger,
+    WorkspacesUsecases,
+    SequelizeTeamsRepository,
+    SequelizeWorkspacesRepository,
+  ],
+  exports: [WorkspacesUsecases, SequelizeModule],
 })
 export class WorkspacesModule {}
