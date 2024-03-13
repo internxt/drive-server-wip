@@ -532,7 +532,7 @@ export class FolderController {
   @Patch('/:uuid')
   async moveFolder(
     @UserDecorator() user: User,
-    @Param('folderUuid') folderUuid: Folder['uuid'],
+    @Param('uuid') folderUuid: Folder['uuid'],
     @Body() moveFolderData: MoveFolderDto,
   ) {
     if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
