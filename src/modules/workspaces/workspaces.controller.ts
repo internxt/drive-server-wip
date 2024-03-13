@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotImplementedException,
   Param,
@@ -15,6 +16,9 @@ import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { isUUID } from 'class-validator';
+import { EditTeamDto } from './dto/edit-team-data.dto';
+import { UserAttributes } from '../user/user.attributes';
+import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -65,8 +69,44 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
-  @Get('/:workspaceId/teams/:teamId/members')
-  async getTeamMembers() {
+  @Get('/teams/:teamId/members')
+  async getTeamMembers(
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.getTeamMembers(teamId);
+  }
+
+  @Patch('/teams/:teamId')
+  async editTeam(
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Body() editTeamBody: EditTeamDto,
+  ) {
+    return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
+  }
+
+  @Post('/teams/:teamId/invite')
+  async inviteUser(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
     throw new NotImplementedException();
+  }
+
+  @Delete('/teams/:teamId')
+  async deleteTeam(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
+    throw new NotImplementedException();
+  }
+
+  @Delete('/teams/:teamId/user/:userUuid')
+  async removeUserFromTeam(
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+  ) {
+    throw new NotImplementedException();
+  }
+
+  @Patch('/teams/:teamId/manager')
+  async changeTeamManager(
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Body('managerId') managerId: UserAttributes['uuid'],
+  ) {
+    return this.workspaceUseCases.changeTeamManager(teamId, managerId);
   }
 }

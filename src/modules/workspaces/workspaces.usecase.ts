@@ -11,6 +11,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserAttributes } from '../user/user.attributes';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
+import { EditTeamDto } from './dto/edit-team-data.dto';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -128,5 +129,19 @@ export class WorkspacesUsecases {
       );
 
     return teamsWithMemberCount;
+  }
+
+  async getTeamMembers(teamId: Team['id']) {
+    const members = await this.teamsRepository.getTeamMembers(teamId);
+
+    return members;
+  }
+
+  async editTeamData(teamId: Team['id'], editTeamDto: EditTeamDto) {
+    await this.teamsRepository.updateById(teamId, editTeamDto);
+  }
+
+  async changeTeamManager(teamId: Team['id'], managerId: User['uuid']) {
+    await this.teamsRepository.updateById(teamId, { managerId });
   }
 }
