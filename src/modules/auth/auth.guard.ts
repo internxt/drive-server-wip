@@ -10,12 +10,15 @@ export class AuthGuard extends PassportAuthGuard([JwtStrategy.id]) {
   }
 
   canActivate(context: ExecutionContext) {
-    const isPublic = this.reflector.get<boolean>(
-      'isPublic',
-      context.getHandler(),
+    const handlerContext = context.getHandler();
+
+    const isPublic = this.reflector.get<boolean>('isPublic', handlerContext);
+    const disableGlobalAuth = this.reflector.get<boolean>(
+      'disableGlobalAuth',
+      handlerContext,
     );
 
-    if (isPublic) {
+    if (isPublic || disableGlobalAuth) {
       return true;
     }
 

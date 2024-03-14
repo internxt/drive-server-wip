@@ -12,11 +12,13 @@ module.exports = {
       },
       workspace_id: {
         type: Sequelize.UUID,
-        allowNull: false,
+        allowNull: true,
         references: {
           model: 'workspaces',
           key: 'id',
         },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
       },
       manager_id: {
         type: Sequelize.STRING(36),

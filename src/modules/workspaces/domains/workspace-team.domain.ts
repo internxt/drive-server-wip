@@ -4,7 +4,7 @@ export class WorkspaceTeam implements WorkspaceTeamAttributes {
   id: string;
   workspaceId: string;
   managerId: string;
-  name: string;
+  name?: string;
   createdAt: Date;
   updatedAt: Date;
 

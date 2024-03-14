@@ -17,6 +17,7 @@ module.exports = {
           model: 'workspace_teams',
           key: 'id',
         },
+        onDelete: 'CASCADE',
       },
       member_id: {
         type: Sequelize.STRING(36),

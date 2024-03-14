@@ -56,8 +56,7 @@ export class WorkspacesUsecases {
 
     const newDefaultTeam = WorkspaceTeam.build({
       id: v4(),
-      workspaceId: workspaceId,
-      name: '',
+      workspaceId: null,
       managerId: owner.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -74,9 +73,9 @@ export class WorkspacesUsecases {
       updatedAt: new Date(),
     });
 
-    await this.workspaceRepository.create(newWorkspace);
-
     await this.teamRepository.createTeam(newDefaultTeam);
+    await this.workspaceRepository.create(newWorkspace);
+    await this.teamRepository.updateById(newDefaultTeam.id, { workspaceId });
 
     return {
       workspace: newWorkspace,
