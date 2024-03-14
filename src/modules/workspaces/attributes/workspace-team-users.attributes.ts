@@ -1,4 +1,4 @@
-export interface TeamUserAttributes {
+export interface WorkspaceTeamUserAttributes {
   id: string;
   teamId: string;
   memberId: string;

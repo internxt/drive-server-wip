@@ -1,6 +1,6 @@
 'use strict';
 
-const tableName = 'workspace_teams';
+const tableName = 'workspace_teams_users';
 
 module.exports = {
   async up(queryInterface, Sequelize) {
@@ -10,15 +10,15 @@ module.exports = {
         primaryKey: true,
         defaultValue: Sequelize.UUIDV4,
       },
-      workspace_id: {
+      team_id: {
         type: Sequelize.UUID,
         allowNull: false,
         references: {
-          model: 'workspaces',
+          model: 'workspace_teams',
           key: 'id',
         },
       },
-      manager_id: {
+      member_id: {
         type: Sequelize.STRING(36),
         allowNull: false,
         references: {
@@ -26,12 +26,16 @@ module.exports = {
           key: 'uuid',
         },
       },
-      name: {
-        type: Sequelize.STRING,
+      created_at: {
+        type: Sequelize.DATE,
         allowNull: false,
+        defaultValue: Sequelize.NOW,
       },
-      created_at: Sequelize.DATE,
-      updated_at: Sequelize.DATE,
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.NOW,
+      },
     });
   },
 

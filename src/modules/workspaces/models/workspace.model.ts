@@ -8,9 +8,9 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
-import { TeamModel } from './team.model';
 import { WorkspaceUserModel } from './workspace-users.model';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
+import { WorkspaceTeamModel } from './workspace-team.model';
 
 @Table({
   underscored: true,
@@ -45,7 +45,7 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @Column(DataType.BOOLEAN)
   setupCompleted: boolean;
 
-  @ForeignKey(() => TeamModel)
+  @ForeignKey(() => WorkspaceTeamModel)
   @Column(DataType.UUID)
   defaultTeamId: string;
 
@@ -54,7 +54,7 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
     targetKey: 'id',
     as: 'defaultTeam',
   })
-  defaultTeam: TeamModel;
+  defaultTeam: WorkspaceTeamModel;
 
   @ForeignKey(() => WorkspaceUserModel)
   @Column(DataType.UUID)

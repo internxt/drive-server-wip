@@ -2,20 +2,20 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
-import { Team } from './domains/team.domain';
 import { v4 } from 'uuid';
-import { SequelizeTeamRepository } from './repositories/team.repository';
+import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { CreateWorkSpaceDto } from './dto/create-workspace.dto';
 import { Workspace } from './domains/workspaces.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserAttributes } from '../user/user.attributes';
+import { WorkspaceTeam } from './domains/workspace-team.domain';
 
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
-    private readonly teamRepository: SequelizeTeamRepository,
+    private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
@@ -54,7 +54,7 @@ export class WorkspacesUsecases {
 
     const workspaceId = v4();
 
-    const newDefaultTeam = Team.build({
+    const newDefaultTeam = WorkspaceTeam.build({
       id: v4(),
       workspaceId: workspaceId,
       name: '',
@@ -101,7 +101,7 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Not valid workspace');
     }
 
-    const newTeam = Team.build({
+    const newTeam = WorkspaceTeam.build({
       id: v4(),
       workspaceId: workspaceId,
       name: createTeamDto.name,

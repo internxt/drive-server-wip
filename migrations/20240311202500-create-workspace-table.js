@@ -35,8 +35,16 @@ module.exports = {
           key: 'uuid',
         },
       },
-      created_at: Sequelize.DATE,
-      updated_at: Sequelize.DATE,
+      created_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.NOW,
+      },
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.NOW,
+      },
     });
   },
 

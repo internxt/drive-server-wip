@@ -1,6 +1,6 @@
-import { TeamAttributes } from '../attributes/team.attributes';
+import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
 
-export class Team implements TeamAttributes {
+export class WorkspaceTeam implements WorkspaceTeamAttributes {
   id: string;
   workspaceId: string;
   managerId: string;
@@ -15,7 +15,7 @@ export class Team implements TeamAttributes {
     name,
     createdAt,
     updatedAt,
-  }: TeamAttributes) {
+  }: WorkspaceTeamAttributes) {
     this.id = id;
     this.workspaceId = workspaceId;
     this.managerId = managerId;
@@ -24,8 +24,8 @@ export class Team implements TeamAttributes {
     this.updatedAt = updatedAt;
   }
 
-  static build(teamAttributes: TeamAttributes): Team {
-    return new Team(teamAttributes);
+  static build(teamAttributes: WorkspaceTeamAttributes): WorkspaceTeam {
+    return new WorkspaceTeam(teamAttributes);
   }
 
   toJSON() {
