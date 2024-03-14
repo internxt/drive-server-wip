@@ -6,6 +6,7 @@ export interface WorkspaceAttributes {
   description?: string;
   defaultTeamId: string;
   workspaceUserId: string;
+  setupCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

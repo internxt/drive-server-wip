@@ -42,6 +42,9 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @Column(DataType.STRING)
   description: string;
 
+  @Column(DataType.BOOLEAN)
+  setupCompleted: boolean;
+
   @ForeignKey(() => TeamModel)
   @Column(DataType.UUID)
   defaultTeamId: string;

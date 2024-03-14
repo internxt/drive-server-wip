@@ -8,6 +8,7 @@ export class Workspace implements WorkspaceAttributes {
   description?: string;
   defaultTeamId: string;
   workspaceUserId: string;
+  setupCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 
@@ -19,6 +20,7 @@ export class Workspace implements WorkspaceAttributes {
     description,
     defaultTeamId,
     workspaceUserId,
+    setupCompleted,
     createdAt,
     updatedAt,
   }: WorkspaceAttributes) {
@@ -29,6 +31,7 @@ export class Workspace implements WorkspaceAttributes {
     this.description = description;
     this.defaultTeamId = defaultTeamId;
     this.workspaceUserId = workspaceUserId;
+    this.setupCompleted = setupCompleted;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }

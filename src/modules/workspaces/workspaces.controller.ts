@@ -5,31 +5,36 @@ import {
   Get,
   NotImplementedException,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { isUUID } from 'class-validator';
-import { CreateWorkSpaceDto } from './dto/create-workspace.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
-  @Post('/')
-  async createWorkspace(
-    @Body() createWorkspaceDto: CreateWorkSpaceDto,
-    @UserDecorator() user: User,
+  @Patch('/:workspaceId')
+  async setupWorkspace(
+    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
   ) {
-    return this.workspaceUseCases.createWorkspace(user, createWorkspaceDto);
+    throw new NotImplementedException();
   }
 
   @Post('/:workspaceId/teams')
+  @ApiOperation({
+    summary: 'Creates a team in a workspace',
+  })
+  @ApiOkResponse({
+    description: 'Created team',
+  })
   async createTeam(
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @Body() createTeamBody: CreateTeamDto,
@@ -43,6 +48,12 @@ export class WorkspacesController {
   }
 
   @Get('/:workspaceId/teams')
+  @ApiOperation({
+    summary: 'Gets workspace teams',
+  })
+  @ApiOkResponse({
+    description: 'Teams in the workspace along with members quantity',
+  })
   async getWorkspaceTeams(
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
@@ -55,10 +66,7 @@ export class WorkspacesController {
   }
 
   @Get('/:workspaceId/teams/:teamId/members')
-  async getTeamMembers(
-    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
-    @UserDecorator() user: User,
-  ) {
+  async getTeamMembers() {
     throw new NotImplementedException();
   }
 }

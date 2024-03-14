@@ -21,6 +21,10 @@ module.exports = {
       address: Sequelize.STRING,
       name: Sequelize.STRING,
       description: Sequelize.STRING,
+      setup_completed: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+      },
       default_team_id: {
         type: Sequelize.UUID,
       },

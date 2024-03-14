@@ -10,6 +10,7 @@ import { CreateWorkSpaceDto } from './dto/create-workspace.dto';
 import { Workspace } from './domains/workspaces.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { UserAttributes } from '../user/user.attributes';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -20,54 +21,70 @@ export class WorkspacesUsecases {
     private userRepository: SequelizeUserRepository,
   ) {}
 
-  async createWorkspace(user: User, createWorkSpaceDto: CreateWorkSpaceDto) {
-    const newWorkspaceId = v4();
+  async initiateWorkspace(
+    ownerId: UserAttributes['uuid'],
+    maxSpaceBytes: number,
+  ) {
+    const owner = await this.userRepository.findByUuid(ownerId);
 
-    const whatEmailShouldIUse = user.email + 'test';
+    if (!owner) {
+      throw new BadRequestException();
+    }
 
-    const { userId: networkPass, uuid: userUuid } =
-      await this.networkService.createUser(whatEmailShouldIUse);
+    const workspaceUserId = v4();
+    const workspaceEmail = `${workspaceUserId}-workspace@internxt.com`;
+
+    const { userId: networkUserId, uuid: _userUuid } =
+      await this.networkService.createUser(workspaceEmail);
+    await this.networkService.setStorage(workspaceEmail, maxSpaceBytes);
 
     const workspaceUser = await this.userRepository.create({
-      email: whatEmailShouldIUse,
-      password: user.password,
-      hKey: user.hKey,
+      email: workspaceEmail,
+      name: '',
+      lastname: '',
+      password: owner.password,
+      hKey: owner.hKey,
       referralCode: v4(),
-      uuid: userUuid,
-      userId: networkPass,
-      welcomePack: true,
-      registerCompleted: true,
-      username: whatEmailShouldIUse,
-      bridgeUser: whatEmailShouldIUse,
-      mnemonic: user.mnemonic,
+      uuid: workspaceUserId,
+      userId: networkUserId,
+      username: workspaceEmail,
+      bridgeUser: workspaceEmail,
+      mnemonic: owner.mnemonic,
     });
 
-    const bucket = await this.networkService.createBucket(
-      whatEmailShouldIUse,
-      networkPass,
-    );
-    const [rootFolder] = await this.createInitialFolders(user, bucket.id);
+    const workspaceId = v4();
 
-    const defaultTeam = Team.build({
+    const newDefaultTeam = Team.build({
       id: v4(),
-      workspaceId: newWorkspaceId,
-      name: createWorkSpaceDto.name,
-      managerId: user.uuid,
+      workspaceId: workspaceId,
+      name: '',
+      managerId: owner.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    const workspace = Workspace.build({
-      id: v4(),
-      ownerId: user.uuid,
-      name: createWorkSpaceDto.name,
-      defaultTeamId: defaultTeam.id,
-      workspaceUserId: '',
+    const newWorkspace = Workspace.build({
+      id: workspaceId,
+      ownerId: owner.uuid,
+      name: '',
+      defaultTeamId: newDefaultTeam.id,
+      workspaceUserId: workspaceUser.uuid,
+      setupCompleted: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    return this.teamRepository.createTeam(newTeam);
+    await this.workspaceRepository.create(newWorkspace);
+
+    await this.teamRepository.createTeam(newDefaultTeam);
+
+    return {
+      workspace: newWorkspace,
+    };
+  }
+
+  async setupWorkspace(user: User, createWorkSpaceDto: CreateWorkSpaceDto) {
+    //return this.teamRepository.createTeam(newTeam);
   }
 
   async createTeam(
