@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
-import { Sequelize } from 'sequelize';
+import { Sequelize, Transaction } from 'sequelize';
 import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
@@ -18,10 +18,21 @@ export class SequelizeWorkspaceTeamRepository {
     private teamUserModel: typeof WorkspaceTeamUserModel,
   ) {}
 
-  async createTeam(team: Omit<WorkspaceTeam, 'id'>): Promise<WorkspaceTeam> {
-    const raw = await this.teamModel.create(team);
+  async createTeam(
+    team: Omit<WorkspaceTeam, 'id'>,
+    transaction?: Transaction,
+  ): Promise<WorkspaceTeam> {
+    const raw = await this.teamModel.create(team, { transaction });
 
     return this.toDomain(raw);
+  }
+
+  async updateById(
+    id: WorkspaceAttributes['id'],
+    update: Partial<WorkspaceTeam>,
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.teamModel.update(update, { where: { id }, transaction });
   }
 
   async getTeamMembers(teamId: WorkspaceTeamAttributes['id']) {
