@@ -1,7 +1,6 @@
 import {
   Table,
   PrimaryKey,
-  Default,
   DataType,
   Column,
   ForeignKey,
@@ -9,20 +8,23 @@ import {
   Model,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
-import { TeamModel } from './team.model';
-import { TeamUserAttributes } from '../attributes/team-users.attributes';
+import { WorkspaceTeamModel } from './workspace-team.model';
+import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
 
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'teams_users',
 })
-export class TeamUserModel extends Model implements TeamUserAttributes {
+export class WorkspaceTeamUserModel
+  extends Model
+  implements WorkspaceTeamUserAttributes
+{
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
 
-  @ForeignKey(() => TeamModel)
+  @ForeignKey(() => WorkspaceTeamModel)
   @Column(DataType.UUID)
   teamId: string;
 
@@ -30,11 +32,11 @@ export class TeamUserModel extends Model implements TeamUserAttributes {
   @Column(DataType.UUID)
   memberId: string;
 
-  @BelongsTo(() => TeamModel, {
+  @BelongsTo(() => WorkspaceTeamModel, {
     foreignKey: 'teamId',
     targetKey: 'id',
   })
-  team: TeamModel;
+  team: WorkspaceTeamModel;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'memberId',

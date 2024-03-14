@@ -1,30 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { TeamModel } from '../models/team.model';
-import { TeamUserModel } from '../models/team-users.model';
-import { Team } from '../domains/team.domain';
-import { TeamAttributes } from '../attributes/team.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Sequelize } from 'sequelize';
+import { WorkspaceTeamModel } from '../models/workspace-team.model';
+import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
+import { WorkspaceTeam } from '../domains/workspace-team.domain';
+import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
 
 @Injectable()
-export class SequelizeTeamRepository {
+export class SequelizeWorkspaceTeamRepository {
   constructor(
-    @InjectModel(TeamModel)
-    private teamModel: typeof TeamModel,
-    @InjectModel(TeamUserModel)
-    private teamUserModel: typeof TeamUserModel,
+    @InjectModel(WorkspaceTeamModel)
+    private teamModel: typeof WorkspaceTeamModel,
+    @InjectModel(WorkspaceTeamUserModel)
+    private teamUserModel: typeof WorkspaceTeamUserModel,
   ) {}
 
-  async createTeam(team: Omit<Team, 'id'>): Promise<Team> {
+  async createTeam(team: Omit<WorkspaceTeam, 'id'>): Promise<WorkspaceTeam> {
     const raw = await this.teamModel.create(team);
 
-    return Team.build(raw);
+    return this.toDomain(raw);
   }
 
-  async getTeamMembers(teamId: TeamAttributes['id']) {
+  async getTeamMembers(teamId: WorkspaceTeamAttributes['id']) {
     const result = await this.teamUserModel.findAll({
       where: { id: teamId },
       include: { model: UserModel, as: 'member' },
@@ -33,7 +33,9 @@ export class SequelizeTeamRepository {
     return result.map((teamUser) => User.build({ ...teamUser.member }));
   }
 
-  async getTeamById(teamId: TeamAttributes['id']): Promise<Team | null> {
+  async getTeamById(
+    teamId: WorkspaceTeamAttributes['id'],
+  ): Promise<WorkspaceTeam | null> {
     const raw = await this.teamModel.findOne({ where: { id: teamId } });
 
     return raw ? this.toDomain(raw) : null;
@@ -41,12 +43,12 @@ export class SequelizeTeamRepository {
 
   async getTeamsAndMembersCountByWorkspace(
     workspaceId: WorkspaceAttributes['id'],
-  ): Promise<{ team: Team; membersCount: number }[]> {
+  ): Promise<{ team: WorkspaceTeam; membersCount: number }[]> {
     const teams = await this.teamModel.findAll({
       where: { workspaceId },
       include: [
         {
-          model: TeamUserModel,
+          model: WorkspaceTeamUserModel,
           attributes: [],
         },
       ],
@@ -67,8 +69,8 @@ export class SequelizeTeamRepository {
     }));
   }
 
-  toDomain(model: TeamModel): Team {
-    return Team.build({
+  toDomain(model: WorkspaceTeamModel): WorkspaceTeam {
+    return WorkspaceTeam.build({
       ...model.toJSON(),
     });
   }

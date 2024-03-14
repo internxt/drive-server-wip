@@ -6,20 +6,22 @@ import {
   PrimaryKey,
   ForeignKey,
   BelongsTo,
-  BelongsToMany,
   HasMany,
 } from 'sequelize-typescript';
 import { WorkspaceModel } from './workspace.model';
 import { UserModel } from '../../user/user.model';
-import { TeamAttributes } from '../attributes/team.attributes';
-import { TeamUserModel } from './team-users.model';
+import { WorkspaceTeamUserModel } from './workspace-team-users.model';
+import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
 
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'workspace_teams',
 })
-export class TeamModel extends Model implements TeamAttributes {
+export class WorkspaceTeamModel
+  extends Model
+  implements WorkspaceTeamAttributes
+{
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
@@ -49,8 +51,8 @@ export class TeamModel extends Model implements TeamAttributes {
   })
   workspace: WorkspaceModel;
 
-  @HasMany(() => TeamUserModel, 'teamId')
-  teamUsers: TeamUserModel[];
+  @HasMany(() => WorkspaceTeamUserModel, 'teamId')
+  teamUsers: WorkspaceTeamUserModel[];
 
   @Column
   createdAt: Date;

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional } from 'class-validator';
-import { Team } from '../domains/team.domain';
+import { WorkspaceTeam } from '../domains/workspace-team.domain';
 
 export class CreateTeamDto {
   @ApiProperty({
@@ -8,12 +8,12 @@ export class CreateTeamDto {
     description: 'Name of the team to be created',
   })
   @IsNotEmpty()
-  name: Team['name'];
+  name: WorkspaceTeam['name'];
 
   @ApiProperty({
     example: 'e54c5cc0-3a12-4537-9646-251ec0f0dbe4',
     description: 'Uuid of the user to assign as manager',
   })
   @IsOptional()
-  managerId: Team['name'];
+  managerId: WorkspaceTeam['name'];
 }

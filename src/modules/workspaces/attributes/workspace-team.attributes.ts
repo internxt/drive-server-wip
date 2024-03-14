@@ -1,4 +1,4 @@
-export interface TeamAttributes {
+export interface WorkspaceTeamAttributes {
   id: string;
   workspaceId: string;
   managerId: string;
