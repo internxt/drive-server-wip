@@ -24,6 +24,7 @@ import { SharingModule } from './modules/sharing/sharing.module';
 import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { GatewayModule } from './modules/gateway/gateway.module';
 
 @Module({
   imports: [
@@ -116,6 +117,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
     AppSumoModule,
     PlanModule,
     WorkspacesModule,
+    GatewayModule,
   ],
   controllers: [],
   providers: [],
