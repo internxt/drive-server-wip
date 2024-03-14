@@ -455,7 +455,16 @@ export class FolderController {
         throw new NotFoundException();
       }
 
-      return folder;
+      let folderStatus: FileStatus;
+      if (folder.removed) {
+        folderStatus = FileStatus.DELETED;
+      } else if (folder.deleted) {
+        folderStatus = FileStatus.TRASHED;
+      } else {
+        folderStatus = FileStatus.EXISTS;
+      }
+
+      return { ...folder, status: folderStatus };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
