@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -16,7 +17,6 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
-import { SequelizeFileRepository } from '../file/file.repository';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -27,7 +27,6 @@ export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
-    private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -515,6 +514,80 @@ export class FolderUseCases {
     folderUuid: Folder['uuid'],
   ): Promise<Folder[]> {
     return this.folderRepository.getFolderAncestors(user, folderUuid);
+  }
+
+  async moveFolder(
+    user: User,
+    folderUuid: Folder['uuid'],
+    destinationUuid: Folder['uuid'],
+  ): Promise<Folder> {
+    const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+    if (folder.isRootFolder()) {
+      throw new UnprocessableEntityException(
+        'The root folder can not be moved',
+      );
+    }
+    if (folder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder ${folderUuid} can not be moved`,
+      );
+    }
+
+    const parentFolder = await this.folderRepository.findById(folder.parentId);
+    if (parentFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder ${folderUuid} can not be moved`,
+      );
+    }
+
+    const destinationFolder = await this.getFolderByUuidAndUser(
+      destinationUuid,
+      user,
+    );
+    if (destinationFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder can not be moved to ${destinationUuid}`,
+      );
+    }
+
+    const originalPlainName = this.cryptoService.decryptName(
+      folder.name,
+      folder.parentId,
+    );
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      originalPlainName,
+      destinationFolder.id,
+    );
+
+    const exists = await this.folderRepository.findByNameAndParentUuid(
+      destinationEncryptedName,
+      destinationFolder.uuid,
+      false,
+    );
+    if (exists) {
+      if (exists.uuid === folder.uuid) {
+        throw new ConflictException(
+          `Folder ${folderUuid} was already moved to that location`,
+        );
+      }
+      throw new ConflictException(
+        'A folder with the same name already exists in destination folder',
+      );
+    }
+
+    const updateData: Partial<Folder> = {
+      parentId: destinationFolder.id,
+      parentUuid: destinationFolder.uuid,
+      name: destinationEncryptedName,
+      deleted: false,
+      deletedAt: null,
+    };
+
+    const updatedFolder = await this.folderRepository.updateByFolderId(
+      folder.id,
+      updateData,
+    );
+    return updatedFolder;
   }
 
   decryptFolderName(folder: Folder): any {

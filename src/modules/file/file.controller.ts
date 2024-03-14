@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   Param,
+  Patch,
   Put,
   Query,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import API_LIMITS from '../../lib/http/limits';
 import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
+import { MoveFileDto } from './dto/move-file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -174,5 +176,22 @@ export class FileController {
 
       return f;
     });
+  }
+
+  @Patch('/:uuid')
+  async moveFile(
+    @UserDecorator() user: User,
+    @Param('uuid') fileUuid: File['uuid'],
+    @Body() moveFileData: MoveFileDto,
+  ) {
+    if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
+      throw new BadRequestException('Invalid UUID provided');
+    }
+    const file = await this.fileUseCases.moveFile(
+      user,
+      fileUuid,
+      moveFileData.destinationFolder,
+    );
+    return file;
   }
 }

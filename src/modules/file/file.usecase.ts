@@ -1,11 +1,13 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  ConflictException,
   ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -319,6 +321,70 @@ export class FileUseCases {
       fileId,
       size,
     };
+  }
+
+  async moveFile(
+    user: User,
+    fileUuid: File['fileId'],
+    destinationUuid: File['folderUuid'],
+  ): Promise<File> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id);
+    if (!file || file.removed === true || file.status === FileStatus.DELETED) {
+      throw new UnprocessableEntityException(
+        `File ${fileUuid} can not be moved`,
+      );
+    }
+
+    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
+      destinationUuid,
+      user,
+    );
+    if (!destinationFolder || destinationFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `File can not be moved to ${destinationUuid}`,
+      );
+    }
+
+    const originalPlainName = this.cryptoService.decryptName(
+      file.name,
+      file.folderId,
+    );
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      originalPlainName,
+      destinationFolder.id,
+    );
+
+    const exists = await this.fileRepository.findByNameAndFolderUuid(
+      destinationEncryptedName,
+      file.type,
+      destinationFolder.uuid,
+      FileStatus.EXISTS,
+    );
+    if (exists) {
+      if (exists.uuid === file.uuid) {
+        throw new ConflictException(
+          `File ${fileUuid} was already moved to that location`,
+        );
+      }
+      throw new ConflictException(
+        'A file with the same name already exists in destination folder',
+      );
+    }
+
+    const updateData: Partial<File> = {
+      folderId: destinationFolder.id,
+      folderUuid: destinationFolder.uuid,
+      name: destinationEncryptedName,
+      status: FileStatus.EXISTS,
+    };
+
+    await this.fileRepository.updateByUuidAndUserId(
+      fileUuid,
+      user.id,
+      updateData,
+    );
+
+    return Object.assign(file, updateData);
   }
 
   decrypFileName(file: File): any {

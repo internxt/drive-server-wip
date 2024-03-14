@@ -19,11 +19,40 @@ import { newFolder } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 
 const folderId = 4;
-const userId = 1;
 describe('FolderUseCases', () => {
   let service: FolderUseCases;
   let folderRepository: FolderRepository;
   let cryptoService: CryptoService;
+
+  const userMocked = User.build({
+    id: 1,
+    userId: 'userId',
+    name: 'User Owner',
+    lastname: 'Lastname',
+    email: 'fake@internxt.com',
+    username: 'fake',
+    bridgeUser: null,
+    rootFolderId: 1,
+    errorLoginCount: 0,
+    isEmailActivitySended: 1,
+    referralCode: null,
+    referrer: null,
+    syncDate: new Date(),
+    uuid: v4(),
+    lastResend: new Date(),
+    credit: null,
+    welcomePack: true,
+    registerCompleted: true,
+    backupsBucket: 'bucket',
+    sharedWorkspace: true,
+    avatar: 'avatar',
+    password: '',
+    mnemonic: '',
+    hKey: undefined,
+    secret_2FA: '',
+    tempKey: '',
+    lastPasswordChangedAt: new Date(),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -132,11 +161,14 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findAllByParentIdAndUserId')
         .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(folderId, userId);
+      const result = await service.getChildrenFoldersToUser(
+        folderId,
+        userMocked.id,
+      );
       expect(result).toEqual(mockFolders);
       expect(
         folderRepository.findAllByParentIdAndUserId,
-      ).toHaveBeenNthCalledWith(1, folderId, userId, false);
+      ).toHaveBeenNthCalledWith(1, folderId, userMocked.id, false);
     });
 
     it('calls getChildrenFoldersToUser and return folders', async () => {
@@ -164,7 +196,10 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findAllByParentIdAndUserId')
         .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(folderId, userId);
+      const result = await service.getChildrenFoldersToUser(
+        folderId,
+        userMocked.id,
+      );
       expect(result).toMatchObject([
         {
           id: 4,
@@ -178,7 +213,7 @@ describe('FolderUseCases', () => {
       ]);
       expect(
         folderRepository.findAllByParentIdAndUserId,
-      ).toHaveBeenNthCalledWith(1, folderId, userId, false);
+      ).toHaveBeenNthCalledWith(1, folderId, userMocked.id, false);
     });
   });
 
@@ -491,6 +526,197 @@ describe('FolderUseCases', () => {
 
       await expect(service.getFolderSizeByUuid(folder.uuid)).rejects.toThrow(
         CalculateFolderSizeTimeoutException,
+      );
+    });
+  });
+
+  describe('move folder', () => {
+    const folder = newFolder({ attributes: { userId: userMocked.id } });
+    const destinationFolder = newFolder({
+      attributes: { userId: userMocked.id },
+    });
+
+    it('When folder is moved, then the folder is returned with its updated properties', async () => {
+      const expectedFolder = newFolder({
+        attributes: {
+          ...folder,
+          name: 'newencrypted-' + folder.name,
+          parentUuid: destinationFolder.uuid,
+          parentId: destinationFolder.parentId,
+        },
+      });
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: false },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockParentFolder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(folder.plainName);
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(expectedFolder.name);
+
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(folderRepository, 'updateByFolderId')
+        .mockResolvedValueOnce(expectedFolder);
+
+      const result = await service.moveFolder(
+        userMocked,
+        folder.uuid,
+        destinationFolder.uuid,
+      );
+
+      expect(result).toEqual(expectedFolder);
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledTimes(1);
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
+        folder.id,
+        {
+          parentId: destinationFolder.id,
+          parentUuid: destinationFolder.uuid,
+          name: expectedFolder.name,
+          deleted: false,
+          deletedAt: null,
+        },
+      );
+    });
+
+    it('When folder is moved but it is removed, then an error is thrown', () => {
+      const mockFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(mockFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`Folder ${folder.uuid} can not be moved`);
+    });
+
+    it('When folder is moved but its parent folder is removed, then an error is thrown', () => {
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockParentFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`Folder ${folder.uuid} can not be moved`);
+    });
+
+    it('When folder is moved but the destination folder is removed, then an error is thrown', () => {
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: false },
+      });
+      const mockDestinationFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findById')
+        .mockResolvedValueOnce(mockParentFolder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(mockDestinationFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`Folder can not be moved to ${destinationFolder.uuid}`);
+    });
+
+    it('When root folder is moved, then an error is thrown', () => {
+      const mockFolder = newFolder({
+        attributes: {
+          userId: userMocked.id,
+          isRootFolder: () => true,
+          isRoot: () => true,
+        },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(mockFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow('The root folder can not be moved');
+    });
+
+    it('When folder is moved from/to a non-existent folder, then it should throw a not found error', () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(NotFoundException);
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder is moved to a folder that has been already moved to, then it should throw a conflict error', () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(folder.plainName);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(folder.name);
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(folder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(
+        `Folder ${folder.uuid} was already moved to that location`,
+      );
+    });
+
+    it('When folder is moved to a folder that has already a folder with the same name, then it should throw a conflict error', () => {
+      const conflictFolder = newFolder({
+        attributes: {
+          ...folder,
+          uuid: v4(),
+        },
+      });
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(folder.plainName);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(folder.name);
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(conflictFolder);
+
+      expect(
+        service.moveFolder(userMocked, folder.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(
+        'A folder with the same name already exists in destination folder',
       );
     });
   });
