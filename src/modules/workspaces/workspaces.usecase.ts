@@ -129,4 +129,16 @@ export class WorkspacesUsecases {
 
     return teamsWithMemberCount;
   }
+
+  async findUserInWorkspace(userUuid: string, workspaceId: string) {
+    return this.workspaceRepository.findWorkspaceAndUser(userUuid, workspaceId);
+  }
+
+  async findById(workspaceId: string) {
+    return this.workspaceRepository.findById(workspaceId);
+  }
+
+  async findUserInTeam(userUuid: string, teamId: string) {
+    return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
+  }
 }
