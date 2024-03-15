@@ -6,7 +6,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { UserModule } from '../user/user.module';
 import { UserUseCases } from '../user/user.usecase';
 import { BasicStrategy } from './basic.strategy';
-import { RS256JwtStrategy } from './rs256jwt.strategy';
+import { GatewayRS256JwtStrategy } from './gateway-rs256jwt.strategy';
 
 @Module({
   imports: [
@@ -26,8 +26,8 @@ import { RS256JwtStrategy } from './rs256jwt.strategy';
       },
     }),
   ],
-  providers: [JwtStrategy, BasicStrategy, RS256JwtStrategy],
+  providers: [JwtStrategy, BasicStrategy, GatewayRS256JwtStrategy],
   controllers: [],
-  exports: [JwtStrategy, BasicStrategy, RS256JwtStrategy, PassportModule],
+  exports: [JwtStrategy, BasicStrategy, PassportModule],
 })
 export class AuthModule {}
