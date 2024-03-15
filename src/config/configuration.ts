@@ -39,6 +39,7 @@ export default () => ({
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
+    driveGateway: process.env.DRIVE_GATEWAY_PUBLIC_SECRET,
     captcha: process.env.RECAPTCHA_V3,
   },
   apis: {
