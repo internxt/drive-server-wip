@@ -182,6 +182,13 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     };
   }
 
+  async addUserToWorkspace(
+    workspaceUser: Omit<WorkspaceUser, 'id'>,
+  ): Promise<WorkspaceUser> {
+    const user = await this.modelWorkspaceUser.create(workspaceUser);
+    return this.workspaceUserToDomain(user);
+  }
+
   async findAllByWithPagination(
     where: any,
     limit = 20,

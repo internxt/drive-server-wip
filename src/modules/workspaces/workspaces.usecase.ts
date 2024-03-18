@@ -10,13 +10,11 @@ import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import { v4 } from 'uuid';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
-import { CreateWorkSpaceDto } from './dto/create-workspace.dto';
 import { Workspace } from './domains/workspaces.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserAttributes } from '../user/user.attributes';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
-import { WorkspaceUser } from './domains/workspace-user.domain';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { WorkspaceInvite } from './domains/workspace-invite.domain';
@@ -27,6 +25,8 @@ import { Sign } from '../../middlewares/passport';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
+import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
+import { WorkspaceUser } from './domains/workspace-user.domain';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -101,8 +101,44 @@ export class WorkspacesUsecases {
     };
   }
 
-  async setupWorkspace(user: User, createWorkSpaceDto: CreateWorkSpaceDto) {
-    //return this.teamRepository.createTeam(newTeam);
+  async setupWorkspace(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+    setupWorkspaceDto: SetupWorkspaceDto,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+    if (!workspace) {
+      throw new BadRequestException();
+    }
+
+    const workspaceUser = WorkspaceUser.build({
+      id: v4(),
+      workspaceId: workspaceId,
+      memberId: user.uuid,
+      spaceLimit: BigInt(0),
+      driveUsage: BigInt(0),
+      backupsUsage: BigInt(0),
+      key: setupWorkspaceDto.encryptedMnemonic,
+      deactivated: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+    await this.teamRepository.addUserToTeam(workspace.defaultTeamId, user.uuid);
+
+    await this.workspaceRepository.updateBy(
+      {
+        ownerId: user.uuid,
+        id: workspaceId,
+      },
+      {
+        name: setupWorkspaceDto.name,
+        setupCompleted: true,
+        address: setupWorkspaceDto.address,
+        description: setupWorkspaceDto.description,
+      },
+    );
   }
 
   async inviteUserToWorkspace(
