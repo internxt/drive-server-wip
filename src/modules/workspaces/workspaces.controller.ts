@@ -15,17 +15,24 @@ import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { isUUID } from 'class-validator';
+import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
-  @Patch('/:workspaceId')
+  @Patch('/:workspaceId/setup')
   async setupWorkspace(
+    @UserDecorator() user: User,
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Body() setupWorkspaceDto: SetupWorkspaceDto,
   ) {
-    throw new NotImplementedException();
+    return this.workspaceUseCases.setupWorkspace(
+      user,
+      workspaceId,
+      setupWorkspaceDto,
+    );
   }
 
   @Post('/:workspaceId/teams')

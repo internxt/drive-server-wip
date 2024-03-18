@@ -8,6 +8,7 @@ import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
+import { UserAttributes } from '../../user/user.attributes';
 
 @Injectable()
 export class SequelizeWorkspaceTeamRepository {
@@ -52,6 +53,18 @@ export class SequelizeWorkspaceTeamRepository {
     return raw ? this.toDomain(raw) : null;
   }
 
+  async addUserToTeam(
+    teamId: WorkspaceTeamAttributes['id'],
+    userUuid: UserAttributes['uuid'],
+  ): Promise<any | null> {
+    const teamUser = await this.teamUserModel.create({
+      teamId,
+      memberId: userUuid,
+    });
+
+    return this.teamUserToDomain(teamUser);
+  }
+
   async getTeamsAndMembersCountByWorkspace(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<{ team: WorkspaceTeam; membersCount: number }[]> {
@@ -84,5 +97,9 @@ export class SequelizeWorkspaceTeamRepository {
     return WorkspaceTeam.build({
       ...model.toJSON(),
     });
+  }
+
+  teamUserToDomain(model: WorkspaceTeamUserModel): any {
+    return { ...model.toJSON() };
   }
 }
