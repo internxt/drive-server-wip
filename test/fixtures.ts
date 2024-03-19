@@ -18,6 +18,7 @@ import {
 import { Limit } from '../src/modules/feature-limit/limit.domain';
 import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
+import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -306,4 +307,37 @@ export const newWorkspaceTeam = (params?: {
     });
 
   return team;
+};
+
+export const newWorkspaceUser = (params?: {
+  workspaceId?: string;
+  memberId?: string;
+  attributes?: Partial<WorkspaceUser>;
+}): WorkspaceUser => {
+  const randomCreatedAt = randomDataGenerator.date();
+  const spaceLimit = randomDataGenerator.natural({ min: 1, max: 1073741824 });
+
+  const workspaceUser = WorkspaceUser.build({
+    id: v4(),
+    memberId: params?.memberId || v4(),
+    key: randomDataGenerator.string({ length: 32 }),
+    workspaceId: params?.workspaceId || v4(),
+    spaceLimit: BigInt(spaceLimit),
+    driveUsage: BigInt(
+      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
+    ),
+    backupsUsage: BigInt(
+      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
+    ),
+    deactivated: randomDataGenerator.bool(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspaceUser[key] = params.attributes[key];
+    });
+
+  return workspaceUser;
 };
