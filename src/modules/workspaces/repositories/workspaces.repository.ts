@@ -4,9 +4,11 @@ import { FindOrCreateOptions, Transaction } from 'sequelize/types';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Workspace } from '../domains/workspaces.domain';
 import { WorkspaceModel } from '../models/workspace.model';
+import { WorkspaceUserModel } from '../models/workspace-users.model';
+import { WorkspaceUser } from '../domains/workspace-user.domain';
 
 export interface WorkspaceRepository {
-  findById(id: number): Promise<Workspace | null>;
+  findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
   findByOwner(ownerId: Workspace['ownerId']): Promise<Workspace[]>;
   createTransaction(): Promise<Transaction>;
   findOrCreate(opts: FindOrCreateOptions): Promise<[Workspace | null, boolean]>;
@@ -35,8 +37,10 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
   constructor(
     @InjectModel(WorkspaceModel)
     private modelWorkspace: typeof WorkspaceModel,
+    @InjectModel(WorkspaceUserModel)
+    private modelWorkspaceUser: typeof WorkspaceUserModel,
   ) {}
-  async findById(id: number): Promise<Workspace | null> {
+  async findById(id: WorkspaceAttributes['id']): Promise<Workspace | null> {
     const workspace = await this.modelWorkspace.findByPk(id);
     return workspace ? this.toDomain(workspace) : null;
   }
@@ -75,6 +79,30 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return workspaces.map((workspace) => this.toDomain(workspace));
   }
 
+  async findWorkspaceAndUser(
+    userUuid: string,
+    workspaceId: string,
+  ): Promise<{
+    workspace: Workspace | null;
+    workspaceUser: WorkspaceUser | null;
+  }> {
+    const workspace = await this.modelWorkspace.findOne({
+      where: { id: workspaceId },
+      include: {
+        model: WorkspaceUserModel,
+        where: { memberId: userUuid },
+        required: false,
+      },
+    });
+
+    return {
+      workspace: workspace ? this.toDomain(workspace) : null,
+      workspaceUser: workspace?.workspaceUsers?.[0]
+        ? this.workspaceUserToDomain(workspace.workspaceUsers[0])
+        : null,
+    };
+  }
+
   async findAllByWithPagination(
     where: any,
     limit = 20,
@@ -110,8 +138,14 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     });
   }
 
+  workspaceUserToDomain(model: WorkspaceUserModel): WorkspaceUser {
+    return WorkspaceUser.build({
+      ...model?.toJSON(),
+    });
+  }
+
   toModel(domain: Workspace): Partial<WorkspaceAttributes> {
-    return domain.toJSON();
+    return domain?.toJSON();
   }
 }
 export { WorkspaceModel };

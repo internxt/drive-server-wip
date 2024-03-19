@@ -1,3 +1,4 @@
+import { User } from '../../user/user.domain';
 import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
 
 export class WorkspaceTeam implements WorkspaceTeamAttributes {
@@ -22,6 +23,10 @@ export class WorkspaceTeam implements WorkspaceTeamAttributes {
     this.name = name;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+  }
+
+  isUserManager(user: User) {
+    return user.uuid === this.managerId;
   }
 
   static build(teamAttributes: WorkspaceTeamAttributes): WorkspaceTeam {
