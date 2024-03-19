@@ -16,6 +16,8 @@ import {
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { Limit } from '../src/modules/feature-limit/limit.domain';
+import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
+import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -244,4 +246,64 @@ export const newFeatureLimit = (bindTo?: {
     value: bindTo?.value ?? '2',
     label: bindTo?.label ?? ('' as LimitLabels),
   });
+};
+
+export const newWorkspace = (params?: {
+  attributes?: Partial<Workspace>;
+  owner?: User;
+}): Workspace => {
+  const randomCreatedAt = randomDataGenerator.date();
+
+  const workspace = Workspace.build({
+    id: v4(),
+    ownerId: params?.owner?.uuid || v4(),
+    address: randomDataGenerator.address(),
+    name: randomDataGenerator.company(),
+    description: randomDataGenerator.sentence(),
+    defaultTeamId: v4(),
+    workspaceUserId: v4(),
+    setupCompleted: randomDataGenerator.bool(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspace[key] = params.attributes[key];
+    });
+
+  return workspace;
+};
+
+export const newWorkspaceTeam = (params?: {
+  attributes?: Partial<WorkspaceTeam>;
+  workspaceId?: string;
+  manager?: User;
+}): WorkspaceTeam => {
+  const randomCreatedAt = randomDataGenerator.date();
+  const manager = params?.manager || newUser();
+
+  const team = WorkspaceTeam.build({
+    id: v4(),
+    workspaceId: params?.workspaceId || v4(),
+    managerId: manager.uuid,
+    name: randomDataGenerator.word(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      team[key] = params.attributes[key];
+    });
+
+  return team;
 };

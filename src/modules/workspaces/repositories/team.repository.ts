@@ -49,7 +49,10 @@ export class SequelizeWorkspaceTeamRepository {
   async getTeamUserAndTeamByTeamId(
     userUuid: UserAttributes['uuid'],
     teamId: WorkspaceTeamAttributes['id'],
-  ) {
+  ): Promise<{
+    team: WorkspaceTeam | null;
+    teamUser: WorkspaceTeamUser | null;
+  }> {
     const team = await this.teamModel.findOne({
       where: { id: teamId },
       include: {
@@ -58,9 +61,10 @@ export class SequelizeWorkspaceTeamRepository {
         where: { memberId: userUuid },
       },
     });
+
     return {
       team: team ? this.toDomain(team) : null,
-      teamUser: team.teamUsers[0]
+      teamUser: team?.teamUsers?.[0]
         ? this.teamUserToDomain(team.teamUsers[0])
         : null,
     };

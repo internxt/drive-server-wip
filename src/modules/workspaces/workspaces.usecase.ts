@@ -11,6 +11,8 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserAttributes } from '../user/user.attributes';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
+import { WorkspaceUser } from './domains/workspace-user.domain';
+import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -130,15 +132,27 @@ export class WorkspacesUsecases {
     return teamsWithMemberCount;
   }
 
-  async findUserInWorkspace(userUuid: string, workspaceId: string) {
+  findUserInWorkspace(
+    userUuid: string,
+    workspaceId: string,
+  ): Promise<{
+    workspace: Workspace | null;
+    workspaceUser: WorkspaceUser | null;
+  }> {
     return this.workspaceRepository.findWorkspaceAndUser(userUuid, workspaceId);
   }
 
-  async findById(workspaceId: string) {
+  findById(workspaceId: string): Promise<Workspace | null> {
     return this.workspaceRepository.findById(workspaceId);
   }
 
-  async findUserInTeam(userUuid: string, teamId: string) {
+  findUserInTeam(
+    userUuid: string,
+    teamId: string,
+  ): Promise<{
+    team: WorkspaceTeam | null;
+    teamUser: WorkspaceTeamUser | null;
+  }> {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
   }
 }

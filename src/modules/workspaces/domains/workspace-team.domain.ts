@@ -25,8 +25,8 @@ export class WorkspaceTeam implements WorkspaceTeamAttributes {
     this.updatedAt = updatedAt;
   }
 
-  isUserManager(userUuid: User['uuid']) {
-    return userUuid === this.managerId;
+  isUserManager(user: User) {
+    return user.uuid === this.managerId;
   }
 
   static build(teamAttributes: WorkspaceTeamAttributes): WorkspaceTeam {

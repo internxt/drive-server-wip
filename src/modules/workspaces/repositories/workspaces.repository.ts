@@ -82,21 +82,22 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
   async findWorkspaceAndUser(
     userUuid: string,
     workspaceId: string,
-  ): Promise<{ workspace: Workspace; workspaceUser: WorkspaceUser } | null> {
+  ): Promise<{
+    workspace: Workspace | null;
+    workspaceUser: WorkspaceUser | null;
+  }> {
     const workspace = await this.modelWorkspace.findOne({
       where: { id: workspaceId },
       include: {
-        required: false,
         model: WorkspaceUserModel,
-        where: {
-          memberId: userUuid,
-        },
+        where: { memberId: userUuid },
+        required: false,
       },
     });
 
     return {
       workspace: workspace ? this.toDomain(workspace) : null,
-      workspaceUser: workspace?.workspaceUsers
+      workspaceUser: workspace?.workspaceUsers?.[0]
         ? this.workspaceUserToDomain(workspace.workspaceUsers[0])
         : null,
     };

@@ -76,7 +76,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
-  @Get('/teams/:teamId/members')
+  @Get('/:workspaceId/teams/:teamId/members')
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getTeamMembers() {

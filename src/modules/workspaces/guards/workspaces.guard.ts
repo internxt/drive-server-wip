@@ -15,6 +15,7 @@ import {
   WorkspaceContextIdFieldName,
   WorkspaceRole,
 } from './workspace-required-access.decorator';
+import { User } from '../../user/user.domain';
 
 @Injectable()
 export class WorkspaceGuard implements CanActivate {
@@ -36,7 +37,12 @@ export class WorkspaceGuard implements CanActivate {
     const { requiredRole, accessContext, idSource } = accessOptions;
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+
+    if (!request.user) {
+      return false;
+    }
+
+    const user = User.build({ ...request.user });
 
     const id = this.getIdFromRequest(
       request,
@@ -45,56 +51,66 @@ export class WorkspaceGuard implements CanActivate {
     );
 
     if (accessContext === AccessContext.WORKSPACE) {
-      return this.checkUserWorkspaceRole(user.uuid, id, requiredRole);
+      return this.verifyWorkspaceAccessByRole(user, id, requiredRole);
     } else if (accessContext === AccessContext.TEAM) {
-      return this.checkUserTeamRole(user.uuid, id, requiredRole);
+      return this.verifyTeamAccessByRole(user, id, requiredRole);
     }
 
     return false;
   }
 
-  private async checkUserWorkspaceRole(
-    userUuid: string,
+  private async verifyWorkspaceAccessByRole(
+    user: User,
     workspaceId: string,
     role: WorkspaceRole,
   ) {
     const { workspace, workspaceUser } =
-      await this.workspaceUseCases.findUserInWorkspace(userUuid, workspaceId);
+      await this.workspaceUseCases.findUserInWorkspace(user.uuid, workspaceId);
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
 
-    if (
-      !workspaceUser ||
-      !(role === WorkspaceRole.OWNER && workspace.isUserOwner(userUuid))
-    ) {
+    const isUserNotInWorkspace = !workspaceUser;
+    const isRequiredOwnerRoleAndUserIsNotOwner =
+      role === WorkspaceRole.OWNER && !workspace.isUserOwner(user);
+
+    if (isUserNotInWorkspace || isRequiredOwnerRoleAndUserIsNotOwner) {
       Logger.log(
-        `[WORKSPACES/GUARD]: user has no requiered access to workspace. id: ${workspaceId} userUuid: ${userUuid} `,
+        `[WORKSPACES/GUARD]: user has no requiered access to workspace. id: ${workspaceId} userUuid: ${user.uuid} `,
       );
       throw new ForbiddenException('You have no access to this workspace');
     }
 
-    return !!workspaceUser;
+    return true;
   }
 
-  private async checkUserTeamRole(
-    userUuid: string,
+  private async verifyTeamAccessByRole(
+    user: User,
     teamId: string,
     role: WorkspaceRole,
   ) {
     const { team, teamUser } = await this.workspaceUseCases.findUserInTeam(
-      userUuid,
+      user.uuid,
       teamId,
     );
 
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
     const workspace = await this.workspaceUseCases.findById(team.workspaceId);
-    if (workspace.isUserOwner(userUuid)) {
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
       return true;
     }
 
     if (teamUser && role === WorkspaceRole.MANAGER) {
-      return team.isUserManager(userUuid);
+      return team.isUserManager(user);
     }
 
     if (teamUser && role === WorkspaceRole.MEMBER) {
