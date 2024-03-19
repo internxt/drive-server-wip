@@ -11,6 +11,7 @@ import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { WorkspaceTeamModel } from './models/workspace-team.model';
 import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
+import { WorkspaceGuard } from './guards/workspaces.guard';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
     WorkspacesUsecases,
     SequelizeWorkspaceTeamRepository,
     SequelizeWorkspaceRepository,
+    WorkspaceGuard,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],
 })
