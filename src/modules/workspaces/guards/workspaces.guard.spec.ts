@@ -15,6 +15,7 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceTeam,
+  newWorkspaceUser,
 } from '../../../../test/fixtures';
 import { WorkspaceUser } from '../domains/workspace-user.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
@@ -125,7 +126,7 @@ describe('WorkspaceGuard', () => {
     });
 
     it('When user is member and required role is member, then grant access', async () => {
-      const workspaceMember = newUser();
+      const workspaceMember = newWorkspaceUser();
       const workspace = newWorkspace();
 
       jest.spyOn(reflector, 'get').mockReturnValue({
@@ -135,7 +136,7 @@ describe('WorkspaceGuard', () => {
       });
       workspaceUseCases.findUserInWorkspace.mockResolvedValue({
         workspace,
-        workspaceUser: {} as WorkspaceUser,
+        workspaceUser: workspaceMember,
       });
       const context = createMockExecutionContext(workspaceMember, {
         params: { workspaceId: workspace.id },
@@ -193,7 +194,7 @@ describe('WorkspaceGuard', () => {
       );
     });
 
-    it('Access Granted for Team Member', async () => {
+    it('When user is team member, then grant access', async () => {
       const user = newUser();
       const workspace = newWorkspace({ owner: user });
       const team = newWorkspaceTeam({

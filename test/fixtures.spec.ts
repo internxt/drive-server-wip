@@ -346,4 +346,47 @@ describe('Testing fixtures tests', () => {
       expect(typeof team.name).toBe('string');
     });
   });
+
+  describe("WorkspaceUser's fixture", () => {
+    it('When it generates a workspace user, then the identifier should be random', () => {
+      const user = fixtures.newWorkspaceUser();
+      const otherUser = fixtures.newWorkspaceUser();
+      expect(user.id).toBeTruthy();
+      expect(user.id).not.toBe(otherUser.id);
+    });
+
+    it('When it generates a workspace user, then the workspaceId should be random', () => {
+      const user = fixtures.newWorkspaceUser();
+      const otherUser = fixtures.newWorkspaceUser();
+      expect(user.workspaceId).toBeTruthy();
+      expect(user.workspaceId).not.toBe(otherUser.workspaceId);
+    });
+
+    it('When it generates a workspace user with a specified memberId, then the memberId should match', () => {
+      const memberId = 'anyId';
+      const user = fixtures.newWorkspaceUser({ memberId });
+      expect(user.memberId).toBe(memberId);
+    });
+
+    it('When it generates a workspace user, then driveUsage and backupsUsage should not exceed spaceLimit', () => {
+      const user = fixtures.newWorkspaceUser();
+      expect(Number(user.driveUsage)).toBeLessThanOrEqual(
+        BigInt(user.spaceLimit),
+      );
+      expect(BigInt(user.backupsUsage)).toBeLessThanOrEqual(
+        BigInt(user.spaceLimit),
+      );
+    });
+
+    it('When it generates a workspace user with custom attributes, then those attributes are set correctly', () => {
+      const customAttributes = {
+        deactivated: true,
+        spaceLimit: BigInt(500),
+      };
+      const user = fixtures.newWorkspaceUser({ attributes: customAttributes });
+
+      expect(user.deactivated).toBe(customAttributes.deactivated);
+      expect(user.spaceLimit).toBe(customAttributes.spaceLimit);
+    });
+  });
 });

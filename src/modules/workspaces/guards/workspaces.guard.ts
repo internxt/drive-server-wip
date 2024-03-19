@@ -1,4 +1,3 @@
-// flexible-access.guard.ts
 import {
   CanActivate,
   ExecutionContext,
