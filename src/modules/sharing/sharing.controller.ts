@@ -58,6 +58,9 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import { LimitLabels } from '../feature-limit/limits.enum';
+import { ApplyLimit } from '../feature-limit/decorators/apply-limit.decorator';
+import { FeatureLimit } from '../feature-limit/feature-limits.guard';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -248,14 +251,14 @@ export class SharingController {
   }
 
   @Post('/invites/send')
-  /*   @ApplyLimit({
+  @ApplyLimit({
     limitLabels: [LimitLabels.MaxSharedItemInvites, LimitLabels.MaxSharedItems],
     dataSources: [
       { sourceKey: 'body', fieldName: 'itemId' },
       { sourceKey: 'body', fieldName: 'itemType' },
     ],
   })
-  @UseGuards(FeatureLimit) */
+  @UseGuards(FeatureLimit)
   createInvite(
     @UserDecorator() user: User,
     @Body() createInviteDto: CreateInviteDto,
@@ -599,11 +602,11 @@ export class SharingController {
   }
 
   @Post('/')
-  /*   @ApplyLimit({
+  @ApplyLimit({
     limitLabels: [LimitLabels.MaxSharedItems],
     dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
   })
-  @UseGuards(FeatureLimit) */
+  @UseGuards(FeatureLimit)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,
