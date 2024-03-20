@@ -12,6 +12,7 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { WorkspaceTeamModel } from './models/workspace-team.model';
 import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
 import { WorkspaceGuard } from './guards/workspaces.guard';
+import { WorkspaceInviteModel } from './models/workspace-invite.model';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WorkspaceGuard } from './guards/workspaces.guard';
       WorkspaceTeamModel,
       WorkspaceTeamUserModel,
       WorkspaceUserModel,
+      WorkspaceInviteModel,
     ]),
     UserModule,
     BridgeModule,
