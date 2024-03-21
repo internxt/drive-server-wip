@@ -19,6 +19,8 @@ import { Limit } from '../src/modules/feature-limit/limit.domain';
 import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
+import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
+import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -340,4 +342,32 @@ export const newWorkspaceUser = (params?: {
     });
 
   return workspaceUser;
+};
+
+export const newWorkspaceInvite = (params?: {
+  workspaceId?: string;
+  invitedUser?: string;
+  attributes?: Partial<WorkspaceInvite>;
+}): WorkspaceInvite => {
+  const defaultCreatedAt = new Date(randomDataGenerator.date({ year: 2024 }));
+
+  const workspaceInvite = WorkspaceInvite.build({
+    id: v4(),
+    workspaceId: params?.workspaceId || v4(),
+    invitedUser: params?.invitedUser || randomDataGenerator.email(),
+    encryptionAlgorithm: 'AES-256',
+    encryptionKey: randomDataGenerator.string({ length: 32 }),
+    spaceLimit: BigInt(
+      randomDataGenerator.natural({ min: 1024, max: 1048576 }),
+    ),
+    createdAt: defaultCreatedAt,
+    updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspaceInvite[key] = params.attributes[key];
+    });
+
+  return workspaceInvite;
 };

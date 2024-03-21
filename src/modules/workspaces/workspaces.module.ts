@@ -13,6 +13,7 @@ import { WorkspaceTeamModel } from './models/workspace-team.model';
 import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
 import { WorkspaceGuard } from './guards/workspaces.guard';
 import { WorkspaceInviteModel } from './models/workspace-invite.model';
+import { MailerModule } from '../../externals/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { WorkspaceInviteModel } from './models/workspace-invite.model';
     ]),
     UserModule,
     BridgeModule,
+    MailerModule,
   ],
   controllers: [WorkspacesController],
   providers: [

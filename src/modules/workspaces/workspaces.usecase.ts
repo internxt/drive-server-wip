@@ -34,6 +34,7 @@ export class WorkspacesUsecases {
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
     private configService: ConfigService,
+    private mailerService: MailerService,
   ) {}
 
   async initiateWorkspace(
@@ -140,7 +141,6 @@ export class WorkspacesUsecases {
       invitedUser: userJoining.uuid,
       workspaceId,
     });
-
     if (invitation) {
       throw new BadRequestException('User is already invited to workspace');
     }
@@ -157,23 +157,10 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const [
-      spaceLimit,
-      totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
-    ] = await Promise.all([
-      this.networkService.getLimit(
-        workspaceUser.bridgeUser,
-        workspaceUser.userId,
-      ),
-      this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
-      this.workspaceRepository.getSpaceLimitInInvitations(workspaceId),
-    ]);
-
-    const spaceLeft =
-      BigInt(spaceLimit) -
-      totalSpaceLimitAssigned -
-      totalSpaceAssignedInInvitations;
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(
+      workspace,
+      workspaceUser,
+    );
 
     if (createInviteDto.spaceLimit > spaceLeft) {
       throw new BadRequestException(
@@ -198,9 +185,7 @@ export class WorkspacesUsecases {
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
       try {
-        await new MailerService(
-          this.configService,
-        ).sendWorkspaceUserExternalInvitation(
+        await this.mailerService.sendWorkspaceUserExternalInvitation(
           inviterName,
           userJoining.email,
           workspace.name,
@@ -213,9 +198,7 @@ export class WorkspacesUsecases {
         );
       } catch (error) {
         Logger.error(
-          `[WORKSPACE/GUESTUSEREMAIL] Error sending email pre created userId: ${
-            userJoining.uuid
-          }, error: ${JSON.stringify(error)}`,
+          `[WORKSPACE/GUESTUSEREMAIL] Error sending email pre created userId: ${userJoining.uuid}, error: ${error.message}`,
         );
         throw error;
       }
@@ -225,7 +208,7 @@ export class WorkspacesUsecases {
           this.userUsecases.getNewTokenPayload(userJoining),
           this.configService.get('secrets.jwt'),
         );
-        await new MailerService(this.configService).sendWorkspaceUserInvitation(
+        await this.mailerService.sendWorkspaceUserInvitation(
           inviterName,
           userJoining.email,
           workspace.name,
@@ -241,14 +224,37 @@ export class WorkspacesUsecases {
         );
       } catch (error) {
         Logger.error(
-          `[WORKSPACE/USEREMAIL] Error sending email invitation to existent user userId: ${
-            userJoining.uuid
-          }, error: ${JSON.stringify(error)}`,
+          `[WORKSPACE/USEREMAIL] Error sending email invitation to existent user userId: ${userJoining.uuid}, error: ${error.message}`,
         );
       }
     }
 
     return newInvite.toJSON();
+  }
+
+  async getAssignableSpaceInWorkspace(
+    workspace: Workspace,
+    workpaceDefaultUser: User,
+  ): Promise<bigint> {
+    const [
+      spaceLimit,
+      totalSpaceLimitAssigned,
+      totalSpaceAssignedInInvitations,
+    ] = await Promise.all([
+      this.networkService.getLimit(
+        workpaceDefaultUser.bridgeUser,
+        workpaceDefaultUser.userId,
+      ),
+      this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
+      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+    ]);
+
+    const spaceLeft =
+      BigInt(spaceLimit) -
+      totalSpaceLimitAssigned -
+      totalSpaceAssignedInInvitations;
+
+    return spaceLeft;
   }
 
   async isWorkspaceFull(workspaceId: Workspace['id']): Promise<boolean> {
