@@ -200,6 +200,7 @@ export class WorkspacesUsecases {
         Logger.error(
           `[WORKSPACE/GUESTUSEREMAIL] Error sending email pre created userId: ${userJoining.uuid}, error: ${error.message}`,
         );
+        await this.workspaceRepository.deleteWorkspaceInviteById(newInvite.id);
         throw error;
       }
     } else {
