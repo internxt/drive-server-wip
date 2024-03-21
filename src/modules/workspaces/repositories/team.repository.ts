@@ -52,6 +52,25 @@ export class SequelizeWorkspaceTeamRepository {
     return raw ? this.toDomain(raw) : null;
   }
 
+  async removeMemberFromTeam(
+    teamId: WorkspaceTeamAttributes['id'],
+    memberId: User['id'],
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.teamUserModel.destroy({
+      where: { teamId, memberId },
+      transaction,
+    });
+  }
+
+  async addMemberToTeam(
+    teamId: WorkspaceTeamAttributes['id'],
+    memberId: User['id'],
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.teamUserModel.create({ teamId, memberId }, { transaction });
+  }
+
   async getTeamsAndMembersCountByWorkspace(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<{ team: WorkspaceTeam; membersCount: number }[]> {
@@ -78,6 +97,13 @@ export class SequelizeWorkspaceTeamRepository {
       team: this.toDomain(team),
       membersCount: parseInt(team.dataValues?.membersCount),
     }));
+  }
+
+  async deleteTeamById(
+    teamId: WorkspaceTeamAttributes['id'],
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.teamModel.destroy({ where: { id: teamId }, transaction });
   }
 
   toDomain(model: WorkspaceTeamModel): WorkspaceTeam {

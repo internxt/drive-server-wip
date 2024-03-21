@@ -92,14 +92,15 @@ export class WorkspacesController {
 
   @Delete('/teams/:teamId')
   async deleteTeam(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
-    throw new NotImplementedException();
+    return this.workspaceUseCases.deleteTeam(teamId);
   }
 
   @Delete('/teams/:teamId/user/:userUuid')
   async removeUserFromTeam(
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Param('userUuid') memberId: UserAttributes['uuid'],
   ) {
-    throw new NotImplementedException();
+    return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
   @Patch('/teams/:teamId/manager')

@@ -131,17 +131,34 @@ export class WorkspacesUsecases {
     return teamsWithMemberCount;
   }
 
-  async getTeamMembers(teamId: Team['id']) {
-    const members = await this.teamsRepository.getTeamMembers(teamId);
-
+  async getTeamMembers(teamId: WorkspaceTeam['id']) {
+    const members = await this.teamRepository.getTeamMembers(teamId);
     return members;
   }
 
-  async editTeamData(teamId: Team['id'], editTeamDto: EditTeamDto) {
-    await this.teamsRepository.updateById(teamId, editTeamDto);
+  async editTeamData(teamId: WorkspaceTeam['id'], editTeamDto: EditTeamDto) {
+    await this.teamRepository.updateById(teamId, editTeamDto);
   }
 
-  async changeTeamManager(teamId: Team['id'], managerId: User['uuid']) {
-    await this.teamsRepository.updateById(teamId, { managerId });
+  async removeMemberFromTeam(
+    teamId: WorkspaceTeam['id'],
+    memberId: User['uuid'],
+  ) {
+    await this.teamRepository.removeMemberFromTeam(teamId, memberId);
+  }
+
+  async addMemberToTeam(teamId: WorkspaceTeam['id'], memberId: User['uuid']) {
+    await this.teamRepository.addMemberToTeam(teamId, memberId);
+  }
+
+  async changeTeamManager(
+    teamId: WorkspaceTeam['id'],
+    managerId: User['uuid'],
+  ) {
+    await this.teamRepository.updateById(teamId, { managerId });
+  }
+
+  async deleteTeam(teamId: WorkspaceTeam['id']) {
+    await this.teamRepository.deleteTeamById(teamId);
   }
 }
