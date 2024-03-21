@@ -106,6 +106,12 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return workspaceUser ? this.workspaceUserToDomain(workspaceUser) : null;
   }
 
+  async deleteWorkspaceInviteById(
+    inviteId: WorkspaceInviteAttributes['id'],
+  ): Promise<void> {
+    await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
+  }
+
   async getWorkspaceUsersCount(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number> {
