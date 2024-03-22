@@ -149,7 +149,12 @@ export class SequelizeFolderRepository implements FolderRepository {
 
   async findUserFoldersByUuid(user: User, uuids: FolderAttributes['uuid'][]) {
     const folders = await this.folderModel.findAll({
-      where: { uuid: { [Op.in]: uuids }, userId: user.id },
+      where: {
+        uuid: { [Op.in]: uuids },
+        userId: user.id,
+        deleted: false,
+        removed: false,
+      },
     });
     return folders.map((folder) => this.toDomain(folder));
   }
