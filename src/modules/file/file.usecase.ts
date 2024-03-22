@@ -248,8 +248,12 @@ export class FileUseCases {
   moveFilesToTrash(
     user: User,
     fileIds: FileAttributes['fileId'][],
-  ): Promise<void> {
-    return this.fileRepository.updateFilesStatusToTrashed(user, fileIds);
+    fileUuids: FileAttributes['uuid'][] = [],
+  ): Promise<[void, void]> {
+    return Promise.all([
+      this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
+      this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),
+    ]);
   }
 
   async getEncryptionKeyFileFromShare(

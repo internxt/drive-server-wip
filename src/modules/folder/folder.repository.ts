@@ -65,6 +65,10 @@ export interface FolderRepository {
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
+  findUserFoldersByUuid(
+    user: User,
+    uuids: FolderAttributes['uuid'][],
+  ): Promise<Folder[]>;
 }
 
 @Injectable()
@@ -139,6 +143,18 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findByUuids(uuids: FolderAttributes['uuid'][]): Promise<Folder[]> {
     const folders = await this.folderModel.findAll({
       where: { uuid: { [Op.in]: uuids } },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findUserFoldersByUuid(user: User, uuids: FolderAttributes['uuid'][]) {
+    const folders = await this.folderModel.findAll({
+      where: {
+        uuid: { [Op.in]: uuids },
+        userId: user.id,
+        deleted: false,
+        removed: false,
+      },
     });
     return folders.map((folder) => this.toDomain(folder));
   }

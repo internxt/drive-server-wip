@@ -15,10 +15,12 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { newFolder } from '../../../test/fixtures';
+import { newFolder, newUser } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 
 const folderId = 4;
+const user = newUser();
+
 describe('FolderUseCases', () => {
   let service: FolderUseCases;
   let folderRepository: FolderRepository;
@@ -104,6 +106,97 @@ describe('FolderUseCases', () => {
       expect(service.moveFolderToTrash(folderId)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('move multiple folders to trash', () => {
+    const rootFolderBucket = 'bucketRoot';
+    const mockFolder = Folder.build({
+      id: 1,
+      parentId: null,
+      parentUuid: null,
+      name: 'name',
+      bucket: rootFolderBucket,
+      userId: 1,
+      encryptVersion: '03-aes',
+      deleted: true,
+      deletedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      uuid: '2545feaf-4d6b-40d8-9bf8-550285268bd3',
+      plainName: '',
+      removed: false,
+      removedAt: null,
+    });
+
+    it('When uuid and id are passed and there is a backup and drive folder, then backups and drive folders should be updated', async () => {
+      const mockBackupFolder = Folder.build({
+        id: 1,
+        parentId: null,
+        parentUuid: null,
+        name: 'name',
+        bucket: 'bucketIdforBackup',
+        userId: 1,
+        encryptVersion: '03-aes',
+        deleted: true,
+        deletedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        uuid: '',
+        plainName: '',
+        removed: false,
+        removedAt: null,
+      });
+
+      jest
+        .spyOn(service, 'getFoldersByIds')
+        .mockResolvedValue([mockBackupFolder]);
+      jest
+        .spyOn(folderRepository, 'findUserFoldersByUuid')
+        .mockResolvedValue([mockFolder]);
+      jest.spyOn(service, 'getFolder').mockResolvedValue({
+        bucket: rootFolderBucket,
+      } as Folder);
+      jest.spyOn(folderRepository, 'updateManyByFolderId');
+
+      await service.moveFoldersToTrash(
+        user,
+        [mockBackupFolder.id],
+        [mockFolder.uuid],
+      );
+
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledTimes(2);
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [mockFolder.id],
+        {
+          deleted: true,
+          deletedAt: expect.any(Date),
+        },
+      );
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [mockBackupFolder.id],
+        {
+          deleted: true,
+          deletedAt: expect.any(Date),
+          removed: true,
+          removedAt: expect.any(Date),
+        },
+      );
+    });
+
+    it('When only ids are passed, then only folders by id should be searched', async () => {
+      jest.spyOn(service, 'getFoldersByIds').mockResolvedValue([mockFolder]);
+      jest.spyOn(service, 'getFolder').mockResolvedValue({
+        bucket: rootFolderBucket,
+      } as Folder);
+      jest.spyOn(folderRepository, 'findUserFoldersByUuid');
+      jest.spyOn(service, 'getFoldersByIds');
+
+      await service.moveFoldersToTrash(user, [mockFolder.id]);
+      expect(folderRepository.findUserFoldersByUuid).not.toHaveBeenCalled();
+      expect(service.getFoldersByIds).toHaveBeenCalledWith(user, [
+        mockFolder.id,
+      ]);
     });
   });
 

@@ -293,11 +293,17 @@ export class FolderUseCases {
   async moveFoldersToTrash(
     user: User,
     folderIds: FolderAttributes['id'][],
+    folderUuids: FolderAttributes['uuid'][] = [],
   ): Promise<void> {
-    const [folders, driveRootFolder] = await Promise.all([
+    const [foldersById, driveRootFolder, foldersByUuid] = await Promise.all([
       this.getFoldersByIds(user, folderIds),
       this.getFolder(user.rootFolderId),
+      folderUuids.length > 0
+        ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
+        : Promise.resolve<Folder[]>([]),
     ]);
+
+    const folders = foldersById.concat(foldersByUuid);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
     const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder));
