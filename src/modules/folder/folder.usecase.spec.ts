@@ -123,13 +123,13 @@ describe('FolderUseCases', () => {
       deletedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-      uuid: '',
+      uuid: '2545feaf-4d6b-40d8-9bf8-550285268bd3',
       plainName: '',
       removed: false,
       removedAt: null,
     });
 
-    it('When uuid and id are passed and there is a backup and drive folder, then should backups and drive folders should be updated', async () => {
+    it('When uuid and id are passed and there is a backup and drive folder, then backups and drive folders should be updated', async () => {
       const mockBackupFolder = Folder.build({
         id: 1,
         parentId: null,
@@ -164,7 +164,24 @@ describe('FolderUseCases', () => {
         [mockBackupFolder.id],
         [mockFolder.uuid],
       );
+
       expect(folderRepository.updateManyByFolderId).toHaveBeenCalledTimes(2);
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [mockFolder.id],
+        {
+          deleted: true,
+          deletedAt: expect.any(Date),
+        },
+      );
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [mockBackupFolder.id],
+        {
+          deleted: true,
+          deletedAt: expect.any(Date),
+          removed: true,
+          removedAt: expect.any(Date),
+        },
+      );
     });
 
     it('When only ids are passed, then only folders by id should be searched', async () => {
@@ -173,9 +190,13 @@ describe('FolderUseCases', () => {
         bucket: rootFolderBucket,
       } as Folder);
       jest.spyOn(folderRepository, 'findUserFoldersByUuid');
+      jest.spyOn(service, 'getFoldersByIds');
 
       await service.moveFoldersToTrash(user, [mockFolder.id]);
       expect(folderRepository.findUserFoldersByUuid).not.toHaveBeenCalled();
+      expect(service.getFoldersByIds).toHaveBeenCalledWith(user, [
+        mockFolder.id,
+      ]);
     });
   });
 

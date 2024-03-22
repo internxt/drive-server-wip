@@ -418,7 +418,6 @@ export class SequelizeFileRepository implements FileRepository {
           },
           status: {
             [Op.eq]: FileStatus.EXISTS,
-            [Op.not]: FileStatus.DELETED,
           },
         },
       },
