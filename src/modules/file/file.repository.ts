@@ -417,6 +417,7 @@ export class SequelizeFileRepository implements FileRepository {
             [Op.in]: fileIds,
           },
           status: {
+            [Op.eq]: FileStatus.EXISTS,
             [Op.not]: FileStatus.DELETED,
           },
         },
@@ -442,6 +443,7 @@ export class SequelizeFileRepository implements FileRepository {
             [Op.in]: fileUuids,
           },
           status: {
+            [Op.eq]: FileStatus.EXISTS,
             [Op.not]: FileStatus.DELETED,
           },
         },
