@@ -22,6 +22,7 @@ import {
   WorkspaceRequiredAccess,
   WorkspaceRole,
 } from './guards/workspace-required-access.decorator';
+import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -35,6 +36,21 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
   ) {
     throw new NotImplementedException();
+  }
+
+  @Post('/:workspaceId/members/invite')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async inviteUsersToWorkspace(
+    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Body() createInviteDto: CreateWorkspaceInviteDto,
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.inviteUserToWorkspace(
+      user,
+      workspaceId,
+      createInviteDto,
+    );
   }
 
   @Post('/:workspaceId/teams')

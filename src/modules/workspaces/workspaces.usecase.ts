@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { User } from '../user/user.domain';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
@@ -13,6 +18,12 @@ import { UserAttributes } from '../user/user.attributes';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { UserUseCases } from '../user/user.usecase';
+import { WorkspaceInvite } from './domains/workspace-invite.domain';
+import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
+import { Sign } from '../../middlewares/passport';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -21,6 +32,9 @@ export class WorkspacesUsecases {
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
+    private userUsecases: UserUseCases,
+    private configService: ConfigService,
+    private mailerService: MailerService,
   ) {}
 
   async initiateWorkspace(
@@ -86,6 +100,174 @@ export class WorkspacesUsecases {
 
   async setupWorkspace(user: User, createWorkSpaceDto: CreateWorkSpaceDto) {
     //return this.teamRepository.createTeam(newTeam);
+  }
+
+  async inviteUserToWorkspace(
+    user: User,
+    workspaceId: Workspace['id'],
+    createInviteDto: CreateWorkspaceInviteDto,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace does not exist');
+    }
+
+    const [existentUser, preCreatedUser] = await Promise.all([
+      this.userUsecases.findByEmail(createInviteDto.invitedUser),
+      this.userUsecases.findPreCreatedByEmail(createInviteDto.invitedUser),
+    ]);
+
+    const userJoining = existentUser ?? preCreatedUser;
+
+    if (!userJoining) {
+      throw new NotFoundException('Invited user not found');
+    }
+
+    const isUserPreCreated = !existentUser;
+
+    if (!isUserPreCreated) {
+      const isUserAlreadyInWorkspace =
+        await this.workspaceRepository.findWorkspaceUser({
+          workspaceId,
+          memberId: userJoining.uuid,
+        });
+      if (isUserAlreadyInWorkspace) {
+        throw new BadRequestException('User is already part of the workspace');
+      }
+    }
+
+    const invitation = await this.workspaceRepository.findInvite({
+      invitedUser: userJoining.uuid,
+      workspaceId,
+    });
+    if (invitation) {
+      throw new BadRequestException('User is already invited to workspace');
+    }
+
+    const isWorkspaceFull = await this.isWorkspaceFull(workspaceId);
+
+    if (isWorkspaceFull) {
+      throw new BadRequestException(
+        'You can not invite more users to this workspace',
+      );
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(
+      workspace,
+      workspaceUser,
+    );
+
+    if (createInviteDto.spaceLimit > spaceLeft) {
+      throw new BadRequestException(
+        'Space limit set for the invitation is superior to the space assignable in workspace',
+      );
+    }
+
+    const newInvite = WorkspaceInvite.build({
+      id: v4(),
+      workspaceId: workspaceId,
+      invitedUser: userJoining.uuid,
+      encryptionAlgorithm: createInviteDto.encryptionAlgorithm,
+      encryptionKey: createInviteDto.encryptionKey,
+      spaceLimit: BigInt(createInviteDto.spaceLimit),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await this.workspaceRepository.createInvite(newInvite);
+    const inviterName = `${user.name} ${user.lastname}`;
+
+    if (isUserPreCreated) {
+      const encodedUserEmail = encodeURIComponent(userJoining.email);
+      try {
+        await this.mailerService.sendWorkspaceUserExternalInvitation(
+          inviterName,
+          userJoining.email,
+          workspace.name,
+          `${this.configService.get(
+            'clients.drive.web',
+          )}/workspace-guest?invitation=${
+            newInvite.id
+          }&email=${encodedUserEmail}`,
+          { initials: user.name[0] + user.lastname[0], pictureUrl: null },
+        );
+      } catch (error) {
+        Logger.error(
+          `[WORKSPACE/GUESTUSEREMAIL] Error sending email pre created userId: ${userJoining.uuid}, error: ${error.message}`,
+        );
+        await this.workspaceRepository.deleteWorkspaceInviteById(newInvite.id);
+        throw error;
+      }
+    } else {
+      try {
+        const authToken = Sign(
+          this.userUsecases.getNewTokenPayload(userJoining),
+          this.configService.get('secrets.jwt'),
+        );
+        await this.mailerService.sendWorkspaceUserInvitation(
+          inviterName,
+          userJoining.email,
+          workspace.name,
+          {
+            acceptUrl: `${this.configService.get(
+              'clients.drive.web',
+            )}/workspaces/${newInvite.id}/accept?token=${authToken}`,
+            declineUrl: `${this.configService.get(
+              'clients.drive.web',
+            )}/workspaces/${newInvite.id}/decline?token=${authToken}`,
+          },
+          { initials: user.name[0] + user.lastname[0], pictureUrl: null },
+        );
+      } catch (error) {
+        Logger.error(
+          `[WORKSPACE/USEREMAIL] Error sending email invitation to existent user userId: ${userJoining.uuid}, error: ${error.message}`,
+        );
+      }
+    }
+
+    return newInvite.toJSON();
+  }
+
+  async getAssignableSpaceInWorkspace(
+    workspace: Workspace,
+    workpaceDefaultUser: User,
+  ): Promise<bigint> {
+    const [
+      spaceLimit,
+      totalSpaceLimitAssigned,
+      totalSpaceAssignedInInvitations,
+    ] = await Promise.all([
+      this.networkService.getLimit(
+        workpaceDefaultUser.bridgeUser,
+        workpaceDefaultUser.userId,
+      ),
+      this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
+      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+    ]);
+
+    const spaceLeft =
+      BigInt(spaceLimit) -
+      totalSpaceLimitAssigned -
+      totalSpaceAssignedInInvitations;
+
+    return spaceLeft;
+  }
+
+  async isWorkspaceFull(workspaceId: Workspace['id']): Promise<boolean> {
+    const [workspaceUsersCount, workspaceInvitationsCount] = await Promise.all([
+      this.workspaceRepository.getWorkspaceUsersCount(workspaceId),
+      this.workspaceRepository.getWorkspaceInvitationsCount(workspaceId),
+    ]);
+
+    const limit = 10; // Temporal limit
+    const count = workspaceUsersCount + workspaceInvitationsCount;
+
+    return count >= limit;
   }
 
   async createTeam(

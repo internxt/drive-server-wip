@@ -4,6 +4,7 @@ import sendgrid from '@sendgrid/mail';
 import { User } from '../../modules/user/user.domain';
 import { Folder } from '../../modules/folder/folder.domain';
 import { File } from '../../modules/file/file.domain';
+import { Workspace } from '../../modules/workspaces/domains/workspaces.domain';
 
 type SendInvitationToSharingContext = {
   notification_message: string;
@@ -112,6 +113,62 @@ export class MailerService {
       this.configService.get(
         'mailer.templates.invitationToSharingGuestReceived',
       ),
+      context,
+    );
+  }
+
+  async sendWorkspaceUserInvitation(
+    senderName: User['name'],
+    invitedUserEmail: User['email'],
+    workspaceName: Workspace['name'],
+    mailInfo: {
+      acceptUrl: string;
+      declineUrl: string;
+    },
+    avatar?: {
+      pictureUrl: string;
+      initials: string;
+    },
+  ): Promise<void> {
+    const context = {
+      sender_name: senderName,
+      workspace_name: workspaceName,
+      avatar: {
+        picture_url: avatar.pictureUrl,
+        initials: avatar.initials,
+      },
+      signup_url: mailInfo.acceptUrl,
+      decline_url: mailInfo.declineUrl,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get('mailer.templates.invitationToWorkspaceUser'),
+      context,
+    );
+  }
+
+  async sendWorkspaceUserExternalInvitation(
+    senderName: User['name'],
+    invitedUserEmail: User['email'],
+    workspaceName: Workspace['name'],
+    signUpUrl: string,
+    avatar?: {
+      pictureUrl: string;
+      initials: string;
+    },
+  ): Promise<void> {
+    const context = {
+      sender_name: senderName,
+      workspace_name: workspaceName,
+      avatar: {
+        picture_url: avatar.pictureUrl,
+        initials: avatar.initials,
+      },
+      signup_url: signUpUrl,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get('mailer.templates.invitationToWorkspaceGuestUser'),
       context,
     );
   }
