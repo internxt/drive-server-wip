@@ -56,6 +56,14 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  updateFilesStatusToTrashed(
+    user: User,
+    fileIds: File['fileId'][],
+  ): Promise<void>;
+  updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -409,7 +417,32 @@ export class SequelizeFileRepository implements FileRepository {
             [Op.in]: fileIds,
           },
           status: {
-            [Op.not]: FileStatus.DELETED,
+            [Op.eq]: FileStatus.EXISTS,
+          },
+        },
+      },
+    );
+  }
+
+  async updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        deleted: true,
+        deletedAt: new Date(),
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          uuid: {
+            [Op.in]: fileUuids,
+          },
+          status: {
+            [Op.eq]: FileStatus.EXISTS,
           },
         },
       },
