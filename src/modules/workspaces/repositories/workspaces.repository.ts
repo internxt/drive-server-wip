@@ -227,4 +227,3 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return domain?.toJSON();
   }
 }
-export { WorkspaceModel };

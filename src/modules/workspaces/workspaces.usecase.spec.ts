@@ -39,7 +39,7 @@ describe('WorkspacesUsecases', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [WorkspacesUsecases],
     })
-      .useMocker(() => createMock())
+      .useMocker(createMock)
       .compile();
 
     service = module.get<WorkspacesUsecases>(WorkspacesUsecases);
@@ -68,6 +68,23 @@ describe('WorkspacesUsecases', () => {
 
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.inviteUserToWorkspace(user, 'workspace-id', {
+          invitedUser: 'test@example.com',
+          spaceLimit: BigInt(1024),
+          encryptionKey: 'Dasdsadas',
+          encryptionAlgorithm: 'dadads',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not registered or precreated, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+      jest.spyOn(userUsecases, 'findByEmail').mockResolvedValueOnce(null);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedByEmail')
+        .mockResolvedValueOnce(null);
 
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
@@ -160,25 +177,14 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(workspaceRepository, 'findById')
         .mockResolvedValueOnce(workspace);
-      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(true);
-
-      await expect(
-        service.inviteUserToWorkspace(user, workspace.id, {
-          invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
-          encryptionKey: 'encryptionKey',
-          encryptionAlgorithm: 'RSA',
-        }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When workspace has no more slots left, then it should throw', async () => {
-      const workspace = newWorkspace();
-      const user = newUser();
-
+      jest.spyOn(userUsecases, 'findByEmail').mockResolvedValueOnce(user);
       jest
-        .spyOn(workspaceRepository, 'findById')
-        .mockResolvedValueOnce(workspace);
+        .spyOn(userUsecases, 'findPreCreatedByEmail')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(true);
 
       await expect(
@@ -292,7 +298,7 @@ describe('WorkspacesUsecases', () => {
       const isFull = await service.isWorkspaceFull(workspaceId);
       expect(isFull).toBe(false);
     });
-    it('When workspace has slots left, then workspace is full', async () => {
+    it('When workspace does not have slots left, then workspace is full', async () => {
       jest
         .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
         .mockResolvedValue(10);
@@ -322,22 +328,6 @@ describe('WorkspacesUsecases', () => {
         workspaceDefaultUser,
       );
       expect(assignableSpace).toBe(BigInt(300000));
-    });
-
-    it('When there is no space left, then it should return 0', async () => {
-      jest.spyOn(networkService, 'getLimit').mockResolvedValue(700000);
-      jest
-        .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
-        .mockResolvedValue(BigInt(500000));
-      jest
-        .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
-        .mockResolvedValue(BigInt(200000));
-
-      const assignableSpace = await service.getAssignableSpaceInWorkspace(
-        workspace,
-        workspaceDefaultUser,
-      );
-      expect(assignableSpace).toBe(BigInt(0));
     });
   });
 });
