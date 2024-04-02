@@ -85,14 +85,17 @@ export class WorkspacesController {
     return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
   }
 
-  @Post('/teams/:teamId/invite')
-  async inviteUser(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
-    throw new NotImplementedException();
-  }
-
   @Delete('/teams/:teamId')
   async deleteTeam(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
     return this.workspaceUseCases.deleteTeam(teamId);
+  }
+
+  @Post('/teams/:teamId/user/:userUuid')
+  async inviteUser(
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Param('userUuid') memberId: UserAttributes['uuid'],
+  ) {
+    return this.workspaceUseCases.addMemberToTeam(teamId, memberId);
   }
 
   @Delete('/teams/:teamId/user/:userUuid')

@@ -101,6 +101,15 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Not valid workspace');
     }
 
+    const teamsWithMemberCount =
+      await this.teamRepository.getTeamsAndMembersCountByWorkspace(
+        workspace.id,
+      );
+
+    if (teamsWithMemberCount.length >= 10) {
+      throw new BadRequestException('Maximum teams reached');
+    }
+
     const newTeam = WorkspaceTeam.build({
       id: v4(),
       workspaceId: workspaceId,
@@ -148,6 +157,12 @@ export class WorkspacesUsecases {
   }
 
   async addMemberToTeam(teamId: WorkspaceTeam['id'], memberId: User['uuid']) {
+    const members = await this.teamRepository.getTeamMembers(teamId);
+
+    if (members.length >= 20) {
+      throw new BadRequestException('Maximum members reached');
+    }
+
     await this.teamRepository.addMemberToTeam(teamId, memberId);
   }
 
@@ -156,6 +171,10 @@ export class WorkspacesUsecases {
     managerId: User['uuid'],
   ) {
     await this.teamRepository.updateById(teamId, { managerId });
+  }
+
+  async changeTeamName(teamId: WorkspaceTeam['id'], name: string) {
+    await this.teamRepository.updateById(teamId, { name });
   }
 
   async deleteTeam(teamId: WorkspaceTeam['id']) {

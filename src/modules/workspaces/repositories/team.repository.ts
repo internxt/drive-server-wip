@@ -54,7 +54,7 @@ export class SequelizeWorkspaceTeamRepository {
 
   async removeMemberFromTeam(
     teamId: WorkspaceTeamAttributes['id'],
-    memberId: User['id'],
+    memberId: User['uuid'],
     transaction?: Transaction,
   ): Promise<void> {
     await this.teamUserModel.destroy({
@@ -65,7 +65,7 @@ export class SequelizeWorkspaceTeamRepository {
 
   async addMemberToTeam(
     teamId: WorkspaceTeamAttributes['id'],
-    memberId: User['id'],
+    memberId: User['uuid'],
     transaction?: Transaction,
   ): Promise<void> {
     await this.teamUserModel.create({ teamId, memberId }, { transaction });
