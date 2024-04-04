@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { File, FileAttributes, FileStatus } from './file.domain';
 import { User } from '../user/user.domain';
-import { ShareUseCases } from '../share/share.usecase';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -19,6 +18,8 @@ import {
 import { newFile, newFolder } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
+import { SharingService } from '../sharing/sharing.service';
+import { SharingItemType } from '../sharing/sharing.domain';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -28,7 +29,7 @@ describe('FileUseCases', () => {
   let folderUseCases: FolderUseCases;
   let fileRepository: FileRepository;
   let folderRepository: FolderRepository;
-  let shareUseCases: ShareUseCases;
+  let sharingService: SharingService;
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
 
@@ -65,7 +66,7 @@ describe('FileUseCases', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [BridgeModule],
-      providers: [FileUseCases, FolderUseCases],
+      providers: [FileUseCases, FolderUseCases, SharingService],
     })
       .useMocker(() => createMock())
       .compile();
@@ -74,9 +75,9 @@ describe('FileUseCases', () => {
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
-    shareUseCases = module.get<ShareUseCases>(ShareUseCases);
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
+    sharingService = module.get<SharingService>(SharingService);
   });
 
   afterEach(() => {
@@ -127,6 +128,23 @@ describe('FileUseCases', () => {
       expect(
         fileRepository.updateFilesStatusToTrashedByUuid,
       ).toHaveBeenCalledWith(userMocked, fileUuids);
+    });
+
+    it('When you try to trash files, then it stops sharing those files', async () => {
+      const files = [newFile(), newFile(), newFile()];
+      const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
+      const fileIds = [fileId];
+
+      jest.spyOn(sharingService, 'bulkRemoveSharings');
+      jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce(files);
+
+      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+
+      expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
+        userMocked,
+        [...fileUuids, ...files.map((file) => file.uuid)],
+        SharingItemType.File,
+      );
     });
   });
 
@@ -241,17 +259,12 @@ describe('FileUseCases', () => {
         .mockImplementationOnce(() => Promise.resolve());
 
       jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      jest
         .spyOn(bridgeService, 'deleteFile')
         .mockImplementationOnce(() => Promise.resolve());
 
       await service.deleteFilePermanently(file, userMock);
 
       expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
-      expect(shareUseCases.deleteFileShare).toHaveBeenCalledTimes(1);
     });
 
     it.skip('should fail when the folder trying to delete has not been trashed', async () => {
@@ -295,14 +308,12 @@ describe('FileUseCases', () => {
         deleted: true,
       } as File;
 
-      jest.spyOn(shareUseCases, 'deleteFileShare');
       jest.spyOn(bridgeService, 'deleteFile');
       jest.spyOn(fileRepository, 'deleteByFileId');
 
       expect(service.deleteFilePermanently(file, userMock)).rejects.toThrow(
         new ForbiddenException(`You are not owner of this share`),
       );
-      expect(shareUseCases.deleteFileShare).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).not.toHaveBeenCalled();
       expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
     });
@@ -334,9 +345,6 @@ describe('FileUseCases', () => {
 
       const errorReason = new Error('reason');
 
-      jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.reject(errorReason));
       jest
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
@@ -384,9 +392,7 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
-      jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.resolve());
+
       jest
         .spyOn(bridgeService, 'deleteFile')
         .mockImplementationOnce(() => Promise.reject(errorReason));

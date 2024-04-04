@@ -1,10 +1,12 @@
 import {
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
+  forwardRef,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
@@ -17,6 +19,8 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
+import { SharingService } from '../sharing/sharing.service';
+import { SharingItemType } from '../sharing/sharing.domain';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -27,6 +31,8 @@ export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
+    @Inject(forwardRef(() => SharingService))
+    private sharingUsecases: SharingService,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -329,6 +335,11 @@ export class FolderUseCases {
             },
           )
         : Promise.resolve(),
+      this.sharingUsecases.bulkRemoveSharings(
+        user,
+        folders.map((folder) => folder.uuid),
+        SharingItemType.Folder,
+      ),
     ]);
   }
 

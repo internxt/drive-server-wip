@@ -64,6 +64,10 @@ export interface FileRepository {
     user: User,
     fileUuids: File['uuid'][],
   ): Promise<void>;
+  findByFileIds(
+    userId: User['id'],
+    fileIds: FileAttributes['fileId'][],
+  ): Promise<File[]>;
 }
 
 @Injectable()
@@ -86,6 +90,22 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findByFileIds(
+    userId: User['id'],
+    fileIds: FileAttributes['fileId'][],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        userId: userId,
+        fileId: {
+          [Op.in]: fileIds,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findById(

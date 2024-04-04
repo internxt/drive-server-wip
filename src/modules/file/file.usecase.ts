@@ -13,7 +13,6 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Share } from '../share/share.domain';
-import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import {
@@ -27,6 +26,8 @@ import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { SharingItemType } from '../sharing/sharing.domain';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -34,10 +35,10 @@ type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private fileRepository: SequelizeFileRepository,
-    @Inject(forwardRef(() => ShareUseCases))
-    private shareUseCases: ShareUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUsecases: FolderUseCases,
+    @Inject(forwardRef(() => SharingService))
+    private sharingUsecases: SharingService,
     private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
@@ -245,14 +246,22 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
-  moveFilesToTrash(
+  async moveFilesToTrash(
     user: User,
     fileIds: FileAttributes['fileId'][],
     fileUuids: FileAttributes['uuid'][] = [],
-  ): Promise<[void, void]> {
+  ): Promise<[void, void, void]> {
+    const files = await this.fileRepository.findByFileIds(user.id, fileIds);
+    const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
+
     return Promise.all([
       this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
       this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),
+      this.sharingUsecases.bulkRemoveSharings(
+        user,
+        allFileUuids,
+        SharingItemType.File,
+      ),
     ]);
   }
 
