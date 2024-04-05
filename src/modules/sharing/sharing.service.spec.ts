@@ -379,6 +379,26 @@ describe('Sharing Use Cases', () => {
     });
   });
 
+  describe('Bulk remove sharings', () => {
+    it('When function is called, then invitations and sharings are removed ', async () => {
+      const owner = newUser();
+      const itemIds = ['uuid1', 'uuid2'];
+      const itemType = 'file';
+
+      await sharingService.bulkRemoveSharings(owner, itemIds, itemType);
+
+      expect(sharingRepository.bulkDeleteInvites).toHaveBeenCalledWith(
+        itemIds,
+        itemType,
+      );
+      expect(sharingRepository.bulkDeleteSharings).toHaveBeenCalledWith(
+        owner.uuid,
+        itemIds,
+        itemType,
+      );
+    });
+  });
+
   describe('Access to public shared item info', () => {
     const owner = newUser();
     const otherUser = publicUser();

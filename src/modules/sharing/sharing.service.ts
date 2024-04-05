@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { v4, validate as validateUuid } from 'uuid';
 
@@ -198,7 +200,9 @@ type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 export class SharingService {
   constructor(
     private readonly sharingRepository: SequelizeSharingRepository,
+    @Inject(forwardRef(() => FileUseCases))
     private readonly fileUsecases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     private readonly usersUsecases: UserUseCases,
     private readonly configService: ConfigService,
@@ -1458,6 +1462,19 @@ export class SharingService {
       itemId,
       itemType,
     });
+  }
+
+  async bulkRemoveSharings(
+    user: User,
+    itemIds: Sharing['itemId'][],
+    itemType: Sharing['itemType'],
+  ) {
+    await this.sharingRepository.bulkDeleteInvites(itemIds, itemType);
+    await this.sharingRepository.bulkDeleteSharings(
+      user.uuid,
+      itemIds,
+      itemType,
+    );
   }
 
   async getRoles(): Promise<Role[]> {

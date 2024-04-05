@@ -17,6 +17,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
+import { SharingService } from '../sharing/sharing.service';
 
 const folderId = 4;
 const user = newUser();
@@ -25,6 +26,7 @@ describe('FolderUseCases', () => {
   let service: FolderUseCases;
   let folderRepository: FolderRepository;
   let cryptoService: CryptoService;
+  let sharingService: SharingService;
 
   const userMocked = User.build({
     id: 1,
@@ -67,6 +69,7 @@ describe('FolderUseCases', () => {
     service = module.get<FolderUseCases>(FolderUseCases);
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
     cryptoService = module.get<CryptoService>(CryptoService);
+    sharingService = module.get<SharingService>(SharingService);
   });
 
   it('should be defined', () => {
@@ -142,7 +145,7 @@ describe('FolderUseCases', () => {
         deletedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        uuid: '',
+        uuid: '656a3abb-36ab-47ee-8303-6e4198f2a32a',
         plainName: '',
         removed: false,
         removedAt: null,
@@ -181,6 +184,11 @@ describe('FolderUseCases', () => {
           removed: true,
           removedAt: expect.any(Date),
         },
+      );
+      expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
+        'folder',
       );
     });
 
