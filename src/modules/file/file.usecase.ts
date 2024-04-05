@@ -250,11 +250,11 @@ export class FileUseCases {
     user: User,
     fileIds: FileAttributes['fileId'][],
     fileUuids: FileAttributes['uuid'][] = [],
-  ): Promise<[void, void, void]> {
+  ): Promise<void> {
     const files = await this.fileRepository.findByFileIds(user.id, fileIds);
     const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
 
-    return Promise.all([
+    await Promise.all([
       this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
       this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),
       this.sharingUsecases.bulkRemoveSharings(
