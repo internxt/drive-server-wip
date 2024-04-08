@@ -164,6 +164,7 @@ export const newUser = (): User => {
     tempKey: '',
     avatar: v4(),
     lastPasswordChangedAt: new Date(),
+    tierId: v4(),
   });
 };
 
