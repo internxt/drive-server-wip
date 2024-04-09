@@ -23,6 +23,8 @@ import {
   WorkspaceRole,
 } from './guards/workspace-required-access.decorator';
 import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
+import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
+import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -97,5 +99,20 @@ export class WorkspacesController {
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getTeamMembers() {
     throw new NotImplementedException();
+  }
+
+  @Patch('/:workspaceId/teams/:teamId/members/role')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async changeMemberRole(
+    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Body() changeUserRoleBody: ChangeUserRoleDto,
+  ) {
+    return this.workspaceUseCases.changeUserRole(
+      workspaceId,
+      teamId,
+      changeUserRoleBody,
+    );
   }
 }

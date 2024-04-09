@@ -10,11 +10,15 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceInvite,
+  newWorkspaceTeam,
   newWorkspaceUser,
 } from '../../../test/fixtures';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PreCreatedUser } from '../user/pre-created-user.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
+import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
+import { WorkspaceRole } from './guards/workspace-required-access.decorator';
+import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -29,6 +33,7 @@ jest.mock('../../middlewares/passport', () => {
 describe('WorkspacesUsecases', () => {
   let service: WorkspacesUsecases;
   let workspaceRepository: SequelizeWorkspaceRepository;
+  let teamRepository: SequelizeWorkspaceTeamRepository;
   let userRepository: SequelizeUserRepository;
   let userUsecases: UserUseCases;
   let mailerService: MailerService;
@@ -45,6 +50,9 @@ describe('WorkspacesUsecases', () => {
     service = module.get<WorkspacesUsecases>(WorkspacesUsecases);
     workspaceRepository = module.get<SequelizeWorkspaceRepository>(
       SequelizeWorkspaceRepository,
+    );
+    teamRepository = module.get<SequelizeWorkspaceTeamRepository>(
+      SequelizeWorkspaceTeamRepository,
     );
     userRepository = module.get<SequelizeUserRepository>(
       SequelizeUserRepository,
@@ -308,6 +316,162 @@ describe('WorkspacesUsecases', () => {
 
       const isFull = await service.isWorkspaceFull(workspaceId);
       expect(isFull).toBe(true);
+    });
+  });
+
+  describe('changeUserRole', () => {
+    it('When team does not exist, then error is throw', async () => {
+      jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
+
+      await expect(
+        service.changeUserRole('workspaceId', 'teamId', {
+          userId: 'userId',
+          role: WorkspaceRole.MEMBER,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not part of team, then error is throw', async () => {
+      jest
+        .spyOn(teamRepository, 'getTeamById')
+        .mockResolvedValue(newWorkspaceTeam());
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(null);
+
+      await expect(
+        service.changeUserRole('workspaceId', 'teamId', {
+          userId: 'useriD',
+          role: WorkspaceRole.MEMBER,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user does not exist, then error is throw', async () => {
+      jest
+        .spyOn(teamRepository, 'getTeamById')
+        .mockResolvedValue(newWorkspaceTeam());
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
+        new WorkspaceTeamUser({
+          id: '',
+          teamId: '',
+          memberId: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.changeUserRole('workspaceId', 'teamId', {
+          userId: 'userId',
+          role: WorkspaceRole.MEMBER,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is member is updated to manager, then team manager is updated correctly', async () => {
+      const member = newUser();
+      const team = newWorkspaceTeam();
+
+      jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
+        new WorkspaceTeamUser({
+          id: '',
+          teamId: team.id,
+          memberId: member.uuid,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(member);
+
+      await service.changeUserRole('workspaceId', 'teamId', {
+        userId: 'userId',
+        role: WorkspaceRole.MANAGER,
+      });
+
+      expect(teamRepository.updateById).toHaveBeenCalledWith(team.id, {
+        managerId: member.uuid,
+      });
+    });
+
+    it('When user is manager is updated to member, then owner is assigned as manager', async () => {
+      const manager = newUser();
+      const workspaceOwner = newUser();
+      const team = newWorkspaceTeam({ manager: manager });
+      const workspace = newWorkspace({ owner: workspaceOwner });
+
+      jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
+        new WorkspaceTeamUser({
+          id: '',
+          teamId: team.id,
+          memberId: manager.uuid,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(manager);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+
+      await service.changeUserRole('workspaceId', 'teamId', {
+        userId: 'userId',
+        role: WorkspaceRole.MEMBER,
+      });
+
+      expect(teamRepository.updateById).toHaveBeenCalledWith(team.id, {
+        managerId: workspaceOwner.uuid,
+      });
+    });
+
+    it('When user is already manager and tries to update their role to manager, then it does nothing ', async () => {
+      const manager = newUser();
+      const workspaceOwner = newUser();
+      const team = newWorkspaceTeam({ manager: manager });
+      const workspace = newWorkspace({ owner: workspaceOwner });
+
+      jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
+        new WorkspaceTeamUser({
+          id: '',
+          teamId: team.id,
+          memberId: manager.uuid,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(manager);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+
+      await service.changeUserRole('workspaceId', 'teamId', {
+        userId: 'userId',
+        role: WorkspaceRole.MANAGER,
+      });
+
+      expect(teamRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it('When user is already member and tries to update their role to member, then it does nothing', async () => {
+      const member = newUser();
+      const team = newWorkspaceTeam();
+
+      jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
+        new WorkspaceTeamUser({
+          id: '',
+          teamId: team.id,
+          memberId: member.uuid,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(member);
+
+      await service.changeUserRole('workspaceId', 'teamId', {
+        userId: 'userId',
+        role: WorkspaceRole.MEMBER,
+      });
+
+      expect(teamRepository.updateById).not.toHaveBeenCalled();
     });
   });
 
