@@ -11,6 +11,9 @@ import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { WorkspaceTeamModel } from './models/workspace-team.model';
 import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
+import { WorkspaceGuard } from './guards/workspaces.guard';
+import { WorkspaceInviteModel } from './models/workspace-invite.model';
+import { MailerModule } from '../../externals/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -20,9 +23,11 @@ import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
       WorkspaceTeamModel,
       WorkspaceTeamUserModel,
       WorkspaceUserModel,
+      WorkspaceInviteModel,
     ]),
     UserModule,
     BridgeModule,
+    MailerModule,
   ],
   controllers: [WorkspacesController],
   providers: [
@@ -30,6 +35,7 @@ import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
     WorkspacesUsecases,
     SequelizeWorkspaceTeamRepository,
     SequelizeWorkspaceRepository,
+    WorkspaceGuard,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],
 })

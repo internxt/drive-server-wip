@@ -8,6 +8,8 @@ import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
+import { UserAttributes } from '../../user/user.attributes';
+import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 
 @Injectable()
 export class SequelizeWorkspaceTeamRepository {
@@ -42,6 +44,30 @@ export class SequelizeWorkspaceTeamRepository {
     });
 
     return result.map((teamUser) => User.build({ ...teamUser.member }));
+  }
+
+  async getTeamUserAndTeamByTeamId(
+    userUuid: UserAttributes['uuid'],
+    teamId: WorkspaceTeamAttributes['id'],
+  ): Promise<{
+    team: WorkspaceTeam | null;
+    teamUser: WorkspaceTeamUser | null;
+  }> {
+    const team = await this.teamModel.findOne({
+      where: { id: teamId },
+      include: {
+        required: false,
+        model: WorkspaceTeamUserModel,
+        where: { memberId: userUuid },
+      },
+    });
+
+    return {
+      team: team ? this.toDomain(team) : null,
+      teamUser: team?.teamUsers?.[0]
+        ? this.teamUserToDomain(team.teamUsers[0])
+        : null,
+    };
   }
 
   async getTeamById(
@@ -108,6 +134,12 @@ export class SequelizeWorkspaceTeamRepository {
 
   toDomain(model: WorkspaceTeamModel): WorkspaceTeam {
     return WorkspaceTeam.build({
+      ...model.toJSON(),
+    });
+  }
+
+  teamUserToDomain(model: WorkspaceTeamUserModel): WorkspaceTeamUser {
+    return WorkspaceTeamUser.build({
       ...model.toJSON(),
     });
   }

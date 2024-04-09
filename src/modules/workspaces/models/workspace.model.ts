@@ -6,6 +6,7 @@ import {
   PrimaryKey,
   ForeignKey,
   BelongsTo,
+  HasMany,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceUserModel } from './workspace-users.model';
@@ -59,6 +60,9 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @ForeignKey(() => WorkspaceUserModel)
   @Column(DataType.UUID)
   workspaceUserId: string;
+
+  @HasMany(() => WorkspaceUserModel)
+  workspaceUsers: WorkspaceUserModel[];
 
   @Column
   createdAt: Date;

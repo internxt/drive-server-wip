@@ -1,3 +1,4 @@
+import { User } from '../../user/user.domain';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 
 export class Workspace implements WorkspaceAttributes {
@@ -38,6 +39,10 @@ export class Workspace implements WorkspaceAttributes {
 
   static build(user: WorkspaceAttributes): Workspace {
     return new Workspace(user);
+  }
+
+  isUserOwner(user: User) {
+    return user.uuid === this.ownerId;
   }
 
   toJSON() {

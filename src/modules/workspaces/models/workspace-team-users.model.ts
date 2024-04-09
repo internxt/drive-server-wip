@@ -14,7 +14,7 @@ import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.
 @Table({
   underscored: true,
   timestamps: true,
-  tableName: 'teams_users',
+  tableName: 'workspace_teams_users',
 })
 export class WorkspaceTeamUserModel
   extends Model
