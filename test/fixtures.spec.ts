@@ -389,4 +389,41 @@ describe('Testing fixtures tests', () => {
       expect(user.spaceLimit).toBe(customAttributes.spaceLimit);
     });
   });
+
+  describe("WorkspaceInvite's fixture", () => {
+    it('When it generates a workspace invite, then the identifier should be random', () => {
+      const invite = fixtures.newWorkspaceInvite();
+      const otherInvite = fixtures.newWorkspaceInvite();
+      expect(invite.id).toBeTruthy();
+      expect(invite.id).not.toBe(otherInvite.id);
+    });
+
+    it('When it generates a workspace invite, then the workspaceId should be random', () => {
+      const invite = fixtures.newWorkspaceInvite();
+      const otherInvite = fixtures.newWorkspaceInvite();
+      expect(invite.workspaceId).toBeTruthy();
+      expect(invite.workspaceId).not.toBe(otherInvite.workspaceId);
+    });
+
+    it('When it generates a workspace invite with a specified invitedUser, then the invitedUser should match', () => {
+      const invitedUser = 'test@example.com';
+      const invite = fixtures.newWorkspaceInvite({ invitedUser });
+      expect(invite.invitedUser).toBe(invitedUser);
+    });
+
+    it('When it generates a workspace invite with custom attributes, then those attributes are set correctly', () => {
+      const customAttributes = {
+        encryptionAlgorithm: 'AES-256',
+        spaceLimit: BigInt(2048),
+      };
+      const invite = fixtures.newWorkspaceInvite({
+        attributes: customAttributes,
+      });
+
+      expect(invite.encryptionAlgorithm).toBe(
+        customAttributes.encryptionAlgorithm,
+      );
+      expect(invite.spaceLimit).toBe(customAttributes.spaceLimit);
+    });
+  });
 });
