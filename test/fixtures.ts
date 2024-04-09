@@ -16,6 +16,11 @@ import {
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { Limit } from '../src/modules/feature-limit/limit.domain';
+import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
+import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
+import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
+import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
+import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -244,4 +249,125 @@ export const newFeatureLimit = (bindTo?: {
     value: bindTo?.value ?? '2',
     label: bindTo?.label ?? ('' as LimitLabels),
   });
+};
+
+export const newWorkspace = (params?: {
+  attributes?: Partial<Workspace>;
+  owner?: User;
+}): Workspace => {
+  const randomCreatedAt = randomDataGenerator.date();
+
+  const workspace = Workspace.build({
+    id: v4(),
+    ownerId: params?.owner?.uuid || v4(),
+    address: randomDataGenerator.address(),
+    name: randomDataGenerator.company(),
+    description: randomDataGenerator.sentence(),
+    defaultTeamId: v4(),
+    workspaceUserId: v4(),
+    setupCompleted: randomDataGenerator.bool(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspace[key] = params.attributes[key];
+    });
+
+  return workspace;
+};
+
+export const newWorkspaceTeam = (params?: {
+  attributes?: Partial<WorkspaceTeam>;
+  workspaceId?: string;
+  manager?: User;
+}): WorkspaceTeam => {
+  const randomCreatedAt = randomDataGenerator.date();
+  const manager = params?.manager || newUser();
+
+  const team = WorkspaceTeam.build({
+    id: v4(),
+    workspaceId: params?.workspaceId || v4(),
+    managerId: manager.uuid,
+    name: randomDataGenerator.word(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      team[key] = params.attributes[key];
+    });
+
+  return team;
+};
+
+export const newWorkspaceUser = (params?: {
+  workspaceId?: string;
+  memberId?: string;
+  attributes?: Partial<WorkspaceUser>;
+}): WorkspaceUser => {
+  const randomCreatedAt = randomDataGenerator.date();
+  const spaceLimit = randomDataGenerator.natural({ min: 1, max: 1073741824 });
+
+  const workspaceUser = WorkspaceUser.build({
+    id: v4(),
+    memberId: params?.memberId || v4(),
+    key: randomDataGenerator.string({ length: 32 }),
+    workspaceId: params?.workspaceId || v4(),
+    spaceLimit: BigInt(spaceLimit),
+    driveUsage: BigInt(
+      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
+    ),
+    backupsUsage: BigInt(
+      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
+    ),
+    deactivated: randomDataGenerator.bool(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspaceUser[key] = params.attributes[key];
+    });
+
+  return workspaceUser;
+};
+
+export const newWorkspaceInvite = (params?: {
+  workspaceId?: string;
+  invitedUser?: string;
+  attributes?: Partial<WorkspaceInvite>;
+}): WorkspaceInvite => {
+  const defaultCreatedAt = new Date(randomDataGenerator.date({ year: 2024 }));
+
+  const workspaceInvite = WorkspaceInvite.build({
+    id: v4(),
+    workspaceId: params?.workspaceId || v4(),
+    invitedUser: params?.invitedUser || randomDataGenerator.email(),
+    encryptionAlgorithm: 'AES-256',
+    encryptionKey: randomDataGenerator.string({ length: 32 }),
+    spaceLimit: BigInt(
+      randomDataGenerator.natural({ min: 1024, max: 1048576 }),
+    ),
+    createdAt: defaultCreatedAt,
+    updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspaceInvite[key] = params.attributes[key];
+    });
+
+  return workspaceInvite;
 };

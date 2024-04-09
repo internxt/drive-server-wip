@@ -4,9 +4,15 @@ import { FindOrCreateOptions, Transaction } from 'sequelize/types';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Workspace } from '../domains/workspaces.domain';
 import { WorkspaceModel } from '../models/workspace.model';
+import { WorkspaceUserModel } from '../models/workspace-users.model';
+import { WorkspaceUser } from '../domains/workspace-user.domain';
+import { WorkspaceInviteModel } from '../models/workspace-invite.model';
+import { WorkspaceInvite } from '../domains/workspace-invite.domain';
+import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
+import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 
 export interface WorkspaceRepository {
-  findById(id: number): Promise<Workspace | null>;
+  findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
   findByOwner(ownerId: Workspace['ownerId']): Promise<Workspace[]>;
   createTransaction(): Promise<Transaction>;
   findOrCreate(opts: FindOrCreateOptions): Promise<[Workspace | null, boolean]>;
@@ -18,6 +24,9 @@ export interface WorkspaceRepository {
     offset?: number,
   ): Promise<Workspace[]>;
   findOne(where: Partial<WorkspaceAttributes>): Promise<Workspace | null>;
+  findInvite(
+    where: Partial<WorkspaceInviteAttributes>,
+  ): Promise<WorkspaceInvite | null>;
   updateById(
     id: WorkspaceAttributes['id'],
     update: Partial<WorkspaceAttributes>,
@@ -35,8 +44,12 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
   constructor(
     @InjectModel(WorkspaceModel)
     private modelWorkspace: typeof WorkspaceModel,
+    @InjectModel(WorkspaceUserModel)
+    private modelWorkspaceUser: typeof WorkspaceUserModel,
+    @InjectModel(WorkspaceInviteModel)
+    private modelWorkspaceInvite: typeof WorkspaceInviteModel,
   ) {}
-  async findById(id: number): Promise<Workspace | null> {
+  async findById(id: WorkspaceAttributes['id']): Promise<Workspace | null> {
     const workspace = await this.modelWorkspace.findByPk(id);
     return workspace ? this.toDomain(workspace) : null;
   }
@@ -65,6 +78,76 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return workspace ? this.toDomain(workspace) : null;
   }
 
+  async findInvite(
+    where: Partial<WorkspaceInviteAttributes>,
+  ): Promise<WorkspaceInvite | null> {
+    const invite = await this.modelWorkspaceInvite.findOne({ where });
+
+    return invite ? WorkspaceInvite.build(invite) : null;
+  }
+
+  async getWorkspaceInvitationsCount(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<number> {
+    const totalInvites = await this.modelWorkspaceInvite.count({
+      where: { workspaceId: workspaceId },
+    });
+
+    return totalInvites;
+  }
+
+  async findWorkspaceUser(
+    where: Partial<WorkspaceUserAttributes>,
+  ): Promise<WorkspaceUser> {
+    const workspaceUser = await this.modelWorkspaceUser.findOne({
+      where,
+    });
+
+    return workspaceUser ? this.workspaceUserToDomain(workspaceUser) : null;
+  }
+
+  async deleteWorkspaceInviteById(
+    inviteId: WorkspaceInviteAttributes['id'],
+  ): Promise<void> {
+    await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
+  }
+
+  async getWorkspaceUsersCount(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<number> {
+    const totalUsers = await this.modelWorkspaceUser.count({
+      where: { workspaceId: workspaceId },
+    });
+
+    return totalUsers;
+  }
+  async getSpaceLimitInInvitations(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<bigint> {
+    const totalSpaceLimit = await this.modelWorkspaceInvite.sum('spaceLimit', {
+      where: { workspaceId: workspaceId },
+    });
+
+    return BigInt(totalSpaceLimit || 0);
+  }
+
+  async getTotalSpaceLimitInWorkspaceUsers(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<bigint> {
+    const total = await this.modelWorkspaceUser.sum('spaceLimit', {
+      where: { workspaceId },
+    });
+    return BigInt(total);
+  }
+
+  async createInvite(
+    invite: Omit<WorkspaceInvite, 'id'>,
+  ): Promise<WorkspaceInvite | null> {
+    const raw = await this.modelWorkspaceInvite.create(invite);
+
+    return raw ? WorkspaceInvite.build(raw) : null;
+  }
+
   async create(workspace: any): Promise<Workspace> {
     const dbWorkspace = await this.modelWorkspace.create(workspace);
     return this.toDomain(dbWorkspace);
@@ -73,6 +156,30 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
   async findAllBy(where: any): Promise<Array<Workspace> | []> {
     const workspaces = await this.modelWorkspace.findAll({ where });
     return workspaces.map((workspace) => this.toDomain(workspace));
+  }
+
+  async findWorkspaceAndUser(
+    userUuid: string,
+    workspaceId: string,
+  ): Promise<{
+    workspace: Workspace | null;
+    workspaceUser: WorkspaceUser | null;
+  }> {
+    const workspace = await this.modelWorkspace.findOne({
+      where: { id: workspaceId },
+      include: {
+        model: WorkspaceUserModel,
+        where: { memberId: userUuid },
+        required: false,
+      },
+    });
+
+    return {
+      workspace: workspace ? this.toDomain(workspace) : null,
+      workspaceUser: workspace?.workspaceUsers?.[0]
+        ? this.workspaceUserToDomain(workspace.workspaceUsers[0])
+        : null,
+    };
   }
 
   async findAllByWithPagination(
@@ -110,8 +217,13 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     });
   }
 
+  workspaceUserToDomain(model: WorkspaceUserModel): WorkspaceUser {
+    return WorkspaceUser.build({
+      ...model?.toJSON(),
+    });
+  }
+
   toModel(domain: Workspace): Partial<WorkspaceAttributes> {
-    return domain.toJSON();
+    return domain?.toJSON();
   }
 }
-export { WorkspaceModel };
