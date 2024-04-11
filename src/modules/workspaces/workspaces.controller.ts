@@ -101,17 +101,23 @@ export class WorkspacesController {
     throw new NotImplementedException();
   }
 
-  @Patch('/:workspaceId/teams/:teamId/members/role')
+  @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async changeMemberRole(
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Param('memberId') userUuid: User['uuid'],
     @Body() changeUserRoleBody: ChangeUserRoleDto,
   ) {
+    if (!userUuid || !isUUID(userUuid)) {
+      throw new BadRequestException('Invalid User Uuid');
+    }
+
     return this.workspaceUseCases.changeUserRole(
       workspaceId,
       teamId,
+      userUuid,
       changeUserRoleBody,
     );
   }

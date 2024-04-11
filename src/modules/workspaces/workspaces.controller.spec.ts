@@ -18,17 +18,29 @@ describe('Workspace Controller', () => {
     expect(workspacesController).toBeDefined();
   });
 
-  describe('PATCH /:workspaceId/teams/:teamId/members/role', () => {
-    it('When there is an error while updating user role, then the error is returned', async () => {
+  describe('PATCH /:workspaceId/teams/:teamId/members/:memberId/role', () => {
+    it('When memberId is not a valid uuid, then it throws.', async () => {
       workspacesUsecases.changeUserRole.mockRejectedValueOnce(
         new BadRequestException(),
       );
       await expect(
-        workspacesController.changeMemberRole('', '', {
-          userId: '',
+        workspacesController.changeMemberRole('', '', 'notValidUuid', {
           role: WorkspaceRole.MEMBER,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When input is valid, then it works', async () => {
+      await expect(
+        workspacesController.changeMemberRole(
+          '',
+          '',
+          '9aa9399e-8697-41f7-88e3-df1d78794cb8',
+          {
+            role: WorkspaceRole.MEMBER,
+          },
+        ),
+      ).resolves.toBeTruthy();
     });
   });
 });

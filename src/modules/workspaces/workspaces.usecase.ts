@@ -334,13 +334,14 @@ export class WorkspacesUsecases {
   async changeUserRole(
     workspaceId: WorkspaceAttributes['id'],
     teamId: WorkspaceTeamAttributes['id'],
+    userUuid: User['uuid'],
     changeUserRoleDto: ChangeUserRoleDto,
   ): Promise<void> {
-    const { role, userId } = changeUserRoleDto;
+    const { role } = changeUserRoleDto;
 
     const [team, teamUser] = await Promise.all([
       this.teamRepository.getTeamById(teamId),
-      this.teamRepository.getTeamUser(userId, teamId),
+      this.teamRepository.getTeamUser(userUuid, teamId),
     ]);
 
     if (!team) {

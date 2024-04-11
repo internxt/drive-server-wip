@@ -320,32 +320,30 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('changeUserRole', () => {
-    it('When team does not exist, then error is throw', async () => {
+    it('When team does not exist, then error is thrown', async () => {
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
 
       await expect(
-        service.changeUserRole('workspaceId', 'teamId', {
-          userId: 'userId',
+        service.changeUserRole('workspaceId', 'teamId', 'userId', {
           role: WorkspaceRole.MEMBER,
         }),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When user is not part of team, then error is throw', async () => {
+    it('When user is not part of team, then error is thrown', async () => {
       jest
         .spyOn(teamRepository, 'getTeamById')
         .mockResolvedValue(newWorkspaceTeam());
       jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(null);
 
       await expect(
-        service.changeUserRole('workspaceId', 'teamId', {
-          userId: 'useriD',
+        service.changeUserRole('workspaceId', 'teamId', 'userId', {
           role: WorkspaceRole.MEMBER,
         }),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When user does not exist, then error is throw', async () => {
+    it('When user does not exist, then error is thrown', async () => {
       jest
         .spyOn(teamRepository, 'getTeamById')
         .mockResolvedValue(newWorkspaceTeam());
@@ -361,14 +359,13 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
 
       await expect(
-        service.changeUserRole('workspaceId', 'teamId', {
-          userId: 'userId',
+        service.changeUserRole('workspaceId', 'teamId', 'userId', {
           role: WorkspaceRole.MEMBER,
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When user is member is updated to manager, then team manager is updated correctly', async () => {
+    it('When a member of the team is upgrade to manager, then it works', async () => {
       const member = newUser();
       const team = newWorkspaceTeam();
 
@@ -384,8 +381,7 @@ describe('WorkspacesUsecases', () => {
       );
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(member);
 
-      await service.changeUserRole('workspaceId', 'teamId', {
-        userId: 'userId',
+      await service.changeUserRole('workspaceId', 'teamId', 'userId', {
         role: WorkspaceRole.MANAGER,
       });
 
@@ -394,7 +390,7 @@ describe('WorkspacesUsecases', () => {
       });
     });
 
-    it('When user is manager is updated to member, then owner is assigned as manager', async () => {
+    it('When a team manager role is changed to member, then the owner is assigned as manager', async () => {
       const manager = newUser();
       const workspaceOwner = newUser();
       const team = newWorkspaceTeam({ manager: manager });
@@ -413,8 +409,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(manager);
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
 
-      await service.changeUserRole('workspaceId', 'teamId', {
-        userId: 'userId',
+      await service.changeUserRole('workspaceId', 'teamId', 'userId', {
         role: WorkspaceRole.MEMBER,
       });
 
@@ -442,8 +437,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(manager);
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
 
-      await service.changeUserRole('workspaceId', 'teamId', {
-        userId: 'userId',
+      await service.changeUserRole('workspaceId', 'teamId', 'userId', {
         role: WorkspaceRole.MANAGER,
       });
 
@@ -466,8 +460,7 @@ describe('WorkspacesUsecases', () => {
       );
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(member);
 
-      await service.changeUserRole('workspaceId', 'teamId', {
-        userId: 'userId',
+      await service.changeUserRole('workspaceId', 'teamId', 'userId', {
         role: WorkspaceRole.MEMBER,
       });
 
