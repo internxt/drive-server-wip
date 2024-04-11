@@ -24,6 +24,9 @@ import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { Sign } from '../../middlewares/passport';
+import { ChangeUserRoleDto } from './dto/change-user-role.dto';
+import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
+import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -326,6 +329,56 @@ export class WorkspacesUsecases {
 
   findById(workspaceId: string): Promise<Workspace | null> {
     return this.workspaceRepository.findById(workspaceId);
+  }
+
+  async changeUserRole(
+    workspaceId: WorkspaceAttributes['id'],
+    teamId: WorkspaceTeamAttributes['id'],
+    userUuid: User['uuid'],
+    changeUserRoleDto: ChangeUserRoleDto,
+  ): Promise<void> {
+    const { role } = changeUserRoleDto;
+
+    const [team, teamUser] = await Promise.all([
+      this.teamRepository.getTeamById(teamId),
+      this.teamRepository.getTeamUser(userUuid, teamId),
+    ]);
+
+    if (!team) {
+      throw new NotFoundException('Team not found.');
+    }
+
+    if (!teamUser) {
+      throw new NotFoundException('User not part of the team.');
+    }
+
+    const user = await this.userRepository.findByUuid(teamUser.memberId);
+
+    if (!user) {
+      throw new BadRequestException();
+    }
+
+    const isUserAlreadyManager = team.isUserManager(user);
+
+    let newManagerId: UserAttributes['uuid'];
+
+    if (role === WorkspaceRole.MEMBER && isUserAlreadyManager) {
+      const workspaceOwner =
+        await this.workspaceRepository.findById(workspaceId);
+      newManagerId = workspaceOwner.ownerId;
+    }
+
+    if (role === WorkspaceRole.MANAGER && !isUserAlreadyManager) {
+      newManagerId = user.uuid;
+    }
+
+    if (!newManagerId) {
+      return;
+    }
+
+    await this.teamRepository.updateById(team.id, {
+      managerId: newManagerId,
+    });
   }
 
   findUserInTeam(
