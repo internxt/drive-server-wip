@@ -32,15 +32,18 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
-  @Patch('/:workspaceId')
+  @Patch('/:workspaceId/setup')
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  @Patch('/:workspaceId/setup')
   async setupWorkspace(
     @UserDecorator() user: User,
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @Body() setupWorkspaceDto: SetupWorkspaceDto,
   ) {
+    if (!workspaceId || !isUUID(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
     return this.workspaceUseCases.setupWorkspace(
       user,
       workspaceId,

@@ -106,9 +106,14 @@ export class WorkspacesUsecases {
     workspaceId: WorkspaceAttributes['id'],
     setupWorkspaceDto: SetupWorkspaceDto,
   ) {
-    const workspace = await this.workspaceRepository.findById(workspaceId);
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+      ownerId: user.uuid,
+      setupCompleted: false,
+    });
+
     if (!workspace) {
-      throw new BadRequestException();
+      throw new NotFoundException('There is no workspace to be setup');
     }
 
     const workspaceUser = WorkspaceUser.build({

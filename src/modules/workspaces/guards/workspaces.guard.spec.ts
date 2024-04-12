@@ -1,5 +1,6 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
+  BadRequestException,
   ExecutionContext,
   ForbiddenException,
   NotFoundException,
@@ -19,6 +20,7 @@ import {
 } from '../../../../test/fixtures';
 import { WorkspaceUser } from '../domains/workspace-user.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
+import { v4 } from 'uuid';
 
 describe('WorkspaceGuard', () => {
   let guard: WorkspaceGuard;
@@ -59,7 +61,25 @@ describe('WorkspaceGuard', () => {
   });
 
   describe('Workspace Permissions', () => {
-    it('When workspace is missing, then throw ', async () => {
+    it('When workspace id is not valid, then throw ', async () => {
+      const user = newUser();
+
+      jest.spyOn(reflector, 'get').mockReturnValue({
+        requiredRole: WorkspaceRole.MEMBER,
+        accessContext: AccessContext.WORKSPACE,
+        idSource: 'params',
+      });
+
+      const context = createMockExecutionContext(user, {
+        params: { workspaceId: 'noValidId' },
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When workspace is not found, then throw ', async () => {
       const user = newUser();
 
       jest.spyOn(reflector, 'get').mockReturnValue({
@@ -74,11 +94,65 @@ describe('WorkspaceGuard', () => {
       });
 
       const context = createMockExecutionContext(user, {
-        params: { workspaceId: 'nonexistent-workspace-id' },
+        params: { workspaceId: v4() },
       });
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('When user is owner of the workspace and it is not setup yet, then grant access', async () => {
+      const workspaceOwner = newUser();
+      const workspace = newWorkspace({
+        owner: workspaceOwner,
+        attributes: { setupCompleted: false },
+      });
+
+      jest.spyOn(reflector, 'get').mockReturnValue({
+        requiredRole: WorkspaceRole.OWNER,
+        accessContext: AccessContext.WORKSPACE,
+        idSource: 'params',
+      });
+
+      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: {} as WorkspaceUser,
+      });
+
+      const context = createMockExecutionContext(workspaceOwner, {
+        params: { workspaceId: workspace.id },
+      });
+
+      await expect(guard.canActivate(context)).resolves.toBeTruthy();
+    });
+
+    it('When user is not owner of the workspace and it is not setup yet, then deny access', async () => {
+      const workspaceOwner = newUser();
+      const notOwner = newUser();
+
+      const workspace = newWorkspace({
+        owner: workspaceOwner,
+        attributes: { setupCompleted: false },
+      });
+
+      jest.spyOn(reflector, 'get').mockReturnValue({
+        requiredRole: WorkspaceRole.OWNER,
+        accessContext: AccessContext.WORKSPACE,
+        idSource: 'params',
+      });
+
+      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: {} as WorkspaceUser,
+      });
+
+      const context = createMockExecutionContext(notOwner, {
+        params: { workspaceId: workspace.id },
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        ForbiddenException,
       );
     });
 
@@ -170,7 +244,26 @@ describe('WorkspaceGuard', () => {
   });
 
   describe('Team Permissions', () => {
-    it('When Team is not valid, then throw', async () => {
+    it('When Team id is invalid, then throw', async () => {
+      const user = newUser();
+      jest.spyOn(reflector, 'get').mockReturnValue({
+        requiredRole: WorkspaceRole.MANAGER,
+        accessContext: AccessContext.TEAM,
+        idSource: 'params',
+      });
+
+      const context = createMockExecutionContext(user, {
+        params: { teamId: 'invalidId' },
+        query: {},
+        body: {},
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When Team does not exist, then throw', async () => {
       const user = newUser();
       jest.spyOn(reflector, 'get').mockReturnValue({
         requiredRole: WorkspaceRole.MANAGER,
@@ -184,7 +277,7 @@ describe('WorkspaceGuard', () => {
       });
 
       const context = createMockExecutionContext(user, {
-        params: { teamId: 'anyid' },
+        params: { teamId: v4() },
         query: {},
         body: {},
       });

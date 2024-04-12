@@ -293,6 +293,83 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('setupWorkspace', () => {
+    const user = newUser();
+
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValueOnce(null);
+
+      await expect(
+        service.setupWorkspace(user, 'workspace-id', {
+          name: 'Test Workspace',
+          encryptedMnemonic: 'encryptedMnemonic',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace is setup, then it should add the owner as user to the workspace', async () => {
+      const workspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+
+      await service.setupWorkspace(user, 'workspace-id', {
+        name: 'Test Workspace',
+        encryptedMnemonic: 'encryptedMnemonic',
+      });
+
+      expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalled();
+    });
+
+    it('When workspace is setup, then it should add the owner user to the default team', async () => {
+      const workspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+
+      await service.setupWorkspace(user, 'workspace-id', {
+        name: 'Test Workspace',
+        encryptedMnemonic: 'encryptedMnemonic',
+      });
+
+      expect(teamRepository.addUserToTeam).toHaveBeenCalledWith(
+        workspace.defaultTeamId,
+        user.uuid,
+      );
+    });
+
+    it('When workspace is setup, then it should setup the workspace with defined data', async () => {
+      const workspace = newWorkspace();
+      const workspaceDatDto = {
+        name: 'Test Workspace',
+        description: 'Workspace description',
+        address: 'Workspace Address',
+        encryptedMnemonic: 'encryptedMnemonic',
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+
+      await service.setupWorkspace(user, workspace.id, workspaceDatDto);
+
+      expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
+        {
+          ownerId: user.uuid,
+          id: workspace.id,
+        },
+        {
+          name: workspaceDatDto.name,
+          setupCompleted: true,
+          address: workspaceDatDto.address,
+          description: workspaceDatDto.description,
+        },
+      );
+    });
+  });
+
   describe('isWorkspaceFull', () => {
     const workspaceId = 'workspace-id';
     it('When workspace has slots left, then workspace is not full', async () => {

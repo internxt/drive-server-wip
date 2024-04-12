@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
   WorkspaceRole,
 } from './workspace-required-access.decorator';
 import { User } from '../../user/user.domain';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class WorkspaceGuard implements CanActivate {
@@ -49,6 +51,12 @@ export class WorkspaceGuard implements CanActivate {
       WorkspaceContextIdFieldName[accessContext],
     );
 
+    if (!id || !isUUID(id)) {
+      throw new BadRequestException(
+        `${WorkspaceContextIdFieldName[accessContext]} should be a valid uuid!`,
+      );
+    }
+
     if (accessContext === AccessContext.WORKSPACE) {
       return this.verifyWorkspaceAccessByRole(user, id, requiredRole);
     } else if (accessContext === AccessContext.TEAM) {
@@ -73,8 +81,17 @@ export class WorkspaceGuard implements CanActivate {
     const isUserNotInWorkspace = !workspaceUser;
     const isRequiredOwnerRoleAndUserIsNotOwner =
       role === WorkspaceRole.OWNER && !workspace.isUserOwner(user);
+    const isWorkspaceNotSetup = !workspace.isWorkspaceReady();
 
-    if (isUserNotInWorkspace || isRequiredOwnerRoleAndUserIsNotOwner) {
+    if (isWorkspaceNotSetup && workspace.isUserOwner(user)) {
+      return true;
+    }
+
+    if (
+      isUserNotInWorkspace ||
+      isRequiredOwnerRoleAndUserIsNotOwner ||
+      isWorkspaceNotSetup
+    ) {
       Logger.log(
         `[WORKSPACES/GUARD]: user has no requiered access to workspace. id: ${workspaceId} userUuid: ${user.uuid} `,
       );

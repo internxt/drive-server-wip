@@ -3,6 +3,8 @@ import { BadRequestException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
+import { newUser } from '../../../test/fixtures';
+import { v4 } from 'uuid';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
@@ -40,6 +42,35 @@ describe('Workspace Controller', () => {
             role: WorkspaceRole.MEMBER,
           },
         ),
+      ).resolves.toBeTruthy();
+    });
+  });
+
+  describe('PATCH /:workspaceId/setup', () => {
+    const user = newUser();
+    const workspaceDatDto = {
+      name: 'Test Workspace',
+      description: 'Workspace description',
+      address: 'Workspace Address',
+      encryptedMnemonic: 'encryptedMnemonic',
+    };
+
+    it('When workspace id is not a valid uuid, then it throws.', async () => {
+      workspacesUsecases.changeUserRole.mockRejectedValueOnce(
+        new BadRequestException(),
+      );
+      await expect(
+        workspacesController.setupWorkspace(
+          user,
+          'notValidUuid',
+          workspaceDatDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When input is valid, then it works', async () => {
+      await expect(
+        workspacesController.setupWorkspace(user, v4(), workspaceDatDto),
       ).resolves.toBeTruthy();
     });
   });

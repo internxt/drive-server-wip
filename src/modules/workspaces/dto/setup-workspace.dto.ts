@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 import { Workspace } from '../domains/workspaces.domain';
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 
@@ -15,13 +15,15 @@ export class SetupWorkspaceDto {
     example: 'Address',
     description: 'Address of the workspace',
   })
-  address: Workspace['address'];
+  @IsOptional()
+  address?: Workspace['address'];
 
   @ApiProperty({
     example: 'My workspae',
     description: 'Workspace description',
   })
-  description: Workspace['description'];
+  @IsOptional()
+  description?: Workspace['description'];
 
   @ApiProperty({
     example: 'Encrypted key',
