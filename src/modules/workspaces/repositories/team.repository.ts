@@ -95,7 +95,7 @@ export class SequelizeWorkspaceTeamRepository {
   async addUserToTeam(
     teamId: WorkspaceTeamAttributes['id'],
     userUuid: UserAttributes['uuid'],
-  ): Promise<any | null> {
+  ): Promise<WorkspaceTeamUser | null> {
     const teamUser = await this.teamUserModel.create({
       teamId,
       memberId: userUuid,

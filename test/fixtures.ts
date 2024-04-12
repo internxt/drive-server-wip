@@ -265,7 +265,7 @@ export const newWorkspace = (params?: {
     description: randomDataGenerator.sentence(),
     defaultTeamId: v4(),
     workspaceUserId: v4(),
-    setupCompleted: randomDataGenerator.bool(),
+    setupCompleted: true,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({
