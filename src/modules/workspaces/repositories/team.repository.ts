@@ -20,6 +20,10 @@ export class SequelizeWorkspaceTeamRepository {
     private teamUserModel: typeof WorkspaceTeamUserModel,
   ) {}
 
+  createTransaction(): Promise<Transaction> {
+    return this.teamModel.sequelize.transaction();
+  }
+
   async createTeam(
     team: Omit<WorkspaceTeam, 'id'>,
     transaction?: Transaction,
