@@ -27,6 +27,7 @@ import {
   WorkspaceRole,
 } from './guards/workspace-required-access.decorator';
 import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
+import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -153,4 +154,24 @@ export class WorkspacesController {
   // async getTeamMembers() {
   //   throw new NotImplementedException();
   // }
+  @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async changeMemberRole(
+    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Param('memberId') userUuid: User['uuid'],
+    @Body() changeUserRoleBody: ChangeUserRoleDto,
+  ) {
+    if (!userUuid || !isUUID(userUuid)) {
+      throw new BadRequestException('Invalid User Uuid');
+    }
+
+    return this.workspaceUseCases.changeUserRole(
+      workspaceId,
+      teamId,
+      userUuid,
+      changeUserRoleBody,
+    );
+  }
 }

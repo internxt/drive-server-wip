@@ -74,6 +74,20 @@ export class SequelizeWorkspaceTeamRepository {
     };
   }
 
+  async getTeamUser(
+    userUuid: UserAttributes['uuid'],
+    teamId: WorkspaceTeamAttributes['id'],
+  ): Promise<WorkspaceTeamUser | null> {
+    const teamUser = await this.teamUserModel.findOne({
+      where: {
+        memberId: userUuid,
+        teamId,
+      },
+    });
+
+    return teamUser ? this.teamUserToDomain(teamUser) : null;
+  }
+
   async getTeamById(
     teamId: WorkspaceTeamAttributes['id'],
   ): Promise<WorkspaceTeam | null> {
