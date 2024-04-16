@@ -113,12 +113,12 @@ export class WorkspacesUsecases {
     });
 
     if (!workspace) {
-      throw new NotFoundException('There is no workspace to be setup');
+      throw new NotFoundException('Workspace not found');
     }
 
     const workspaceUser = WorkspaceUser.build({
       id: v4(),
-      workspaceId: workspaceId,
+      workspaceId: workspace.id,
       memberId: user.uuid,
       spaceLimit: BigInt(0),
       driveUsage: BigInt(0),
@@ -135,7 +135,7 @@ export class WorkspacesUsecases {
     await this.workspaceRepository.updateBy(
       {
         ownerId: user.uuid,
-        id: workspaceId,
+        id: workspace.id,
       },
       {
         name: setupWorkspaceDto.name,

@@ -308,35 +308,41 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When workspace is setup, then it should add the owner as user to the workspace', async () => {
-      const workspace = newWorkspace();
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
 
       jest
         .spyOn(workspaceRepository, 'findOne')
         .mockResolvedValueOnce(workspace);
 
-      await service.setupWorkspace(user, 'workspace-id', {
+      await service.setupWorkspace(owner, 'workspace-id', {
         name: 'Test Workspace',
         encryptedMnemonic: 'encryptedMnemonic',
       });
 
-      expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalled();
+      expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memberId: owner.uuid,
+        }),
+      );
     });
 
     it('When workspace is setup, then it should add the owner user to the default team', async () => {
-      const workspace = newWorkspace();
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
 
       jest
         .spyOn(workspaceRepository, 'findOne')
         .mockResolvedValueOnce(workspace);
 
-      await service.setupWorkspace(user, 'workspace-id', {
+      await service.setupWorkspace(owner, 'workspace-id', {
         name: 'Test Workspace',
         encryptedMnemonic: 'encryptedMnemonic',
       });
 
       expect(teamRepository.addUserToTeam).toHaveBeenCalledWith(
         workspace.defaultTeamId,
-        user.uuid,
+        owner.uuid,
       );
     });
 
