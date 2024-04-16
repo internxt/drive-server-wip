@@ -342,6 +342,46 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
+    const invite = await this.workspaceRepository.findInvite({
+      id: inviteId,
+      invitedUser: user.uuid,
+    });
+
+    if (!invite) {
+      throw new BadRequestException();
+    }
+
+    const workspace = await this.workspaceRepository.findOne({
+      id: invite.workspaceId,
+      setupCompleted: true,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('This invitation workspace is not valid');
+    }
+
+    const workspaceUser = WorkspaceUser.build({
+      id: v4(),
+      workspaceId: invite.workspaceId,
+      memberId: invite.invitedUser,
+      spaceLimit: invite.spaceLimit,
+      driveUsage: BigInt(0),
+      backupsUsage: BigInt(0),
+      key: invite.encryptionKey,
+      deactivated: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // TODO: uncomment this when setup workspace is finished (functions are added there)
+    //  await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+
+    //  await this.teamRepository.addUserToTeam(workspace.defaultTeamId, invite.invitedUser);
+
+    await this.workspaceRepository.deleteInvite(invite);
+  }
+
   async getAssignableSpaceInWorkspace(
     workspace: Workspace,
     workpaceDefaultUser: User,

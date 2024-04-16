@@ -608,6 +608,79 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('acceptWorkspaceInvite', () => {
+    const invitedUser = newUser();
+
+    it('When invite is not found, then fail', async () => {
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(null);
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invite does not point to a valid workspace, then fail', async () => {
+      const invite = newWorkspaceInvite({ invitedUser: invitedUser.uuid });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    /*     it('When invite is valid, then add user to workspace with respective space limit', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memberId: invite.invitedUser,
+          workspaceId: invite.id,
+          spaceLimit: invite.spaceLimit,
+        }),
+      );
+    }); */
+
+    /*     it('When invite is valid, then add user to default team', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(workspaceRepository.addUserToTeam).toHaveBeenCalledWith(
+        workspace.defaultTeamId,
+        invitedUser.uuid,
+      );
+    }); */
+
+    it('When invite is accepted, then it should be deleted aftewards', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(workspaceRepository.deleteInvite).toHaveBeenCalledWith(invite);
+    });
+  });
+
   describe('changeUserRole', () => {
     it('When team does not exist, then error is thrown', async () => {
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);

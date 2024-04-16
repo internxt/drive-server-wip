@@ -32,6 +32,7 @@ import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
+import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -187,5 +188,21 @@ export class WorkspacesController {
       userUuid,
       changeUserRoleBody,
     );
+  }
+
+  @Post('/invitations/accept')
+  @ApiOperation({
+    summary: 'Accepts invitation to workspace',
+  })
+  @ApiOkResponse({
+    description: 'Workspace invitation accepted',
+  })
+  async acceptWorkspaceInvitation(
+    @UserDecorator() user: User,
+    @Body() acceptInvitationDto: AcceptWorkspaceInviteDto,
+  ) {
+    const { inviteId } = acceptInvitationDto;
+
+    return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
   }
 }
