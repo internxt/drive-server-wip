@@ -367,6 +367,7 @@ export class WorkspacesUsecases {
   async deleteTeam(teamId: WorkspaceTeam['id']) {
     await this.teamRepository.deleteTeamById(teamId);
   }
+
   findUserInWorkspace(
     userUuid: string,
     workspaceId: string,

@@ -98,27 +98,56 @@ export class WorkspacesController {
   }
 
   @Get('/teams/:teamId/members')
-  async getTeamMembers(
-    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
-    @UserDecorator() user: User,
-  ) {
+  @ApiOperation({
+    summary: 'Gets team members',
+  })
+  @ApiOkResponse({
+    description: 'Members of the team',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async getTeamMembers(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
+    if (!teamId) {
+      throw new BadRequestException('Invalid team ID');
+    }
     return this.workspaceUseCases.getTeamMembers(teamId);
   }
 
   @Patch('/teams/:teamId')
+  @ApiOperation({
+    summary: 'Edits team data',
+  })
+  @ApiOkResponse({
+    description: 'Edited team data',
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async editTeam(
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
     @Body() editTeamBody: EditTeamDto,
   ) {
+    if (!teamId) {
+      throw new BadRequestException('Invalid team ID');
+    }
+    if (!editTeamBody) {
+      throw new BadRequestException('Invalid edit team data');
+    }
     return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
   }
 
   @Delete('/teams/:teamId')
+  @ApiOperation({
+    summary: 'Deletes a team in a workspace',
+  })
+  @ApiOkResponse({
+    description: 'Deleted team',
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async deleteTeam(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
+    if (!teamId) {
+      throw new BadRequestException('Invalid team ID');
+    }
     return this.workspaceUseCases.deleteTeam(teamId);
   }
 
@@ -129,31 +158,38 @@ export class WorkspacesController {
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
     @Param('userUuid') memberId: UserAttributes['uuid'],
   ) {
+    if (!memberId || !isUUID(memberId)) {
+      throw new BadRequestException('Invalid User Uuid');
+    }
     return this.workspaceUseCases.addMemberToTeam(teamId, memberId);
   }
 
   @Delete('/teams/:teamId/user/:userUuid')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async removeUserFromTeam(
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
     @Param('userUuid') memberId: UserAttributes['uuid'],
   ) {
+    if (!memberId || !isUUID(memberId)) {
+      throw new BadRequestException('Invalid User Uuid');
+    }
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
   @Patch('/teams/:teamId/manager')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async changeTeamManager(
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
     @Body('managerId') managerId: UserAttributes['uuid'],
   ) {
+    if (!managerId || !isUUID(managerId)) {
+      throw new BadRequestException('Invalid Manager Uuid');
+    }
     return this.workspaceUseCases.changeTeamManager(teamId, managerId);
   }
 
-  // @Get('/:workspaceId/teams/:teamId/members')
-  // @UseGuards(WorkspaceGuard)
-  // @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
-  // async getTeamMembers() {
-  //   throw new NotImplementedException();
-  // }
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)

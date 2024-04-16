@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
-import { Team } from '../domains/team.domain';
+import { WorkspaceTeam } from '../domains/workspace-team.domain';
 
 export class EditTeamDto {
   @ApiProperty({
@@ -9,5 +9,5 @@ export class EditTeamDto {
   })
   @IsNotEmpty()
   @IsString()
-  name: Team['name'];
+  name: WorkspaceTeam['name'];
 }
