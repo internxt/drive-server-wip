@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { UserModule } from '../user/user.module';
 import { WorkspacesController } from './workspaces.controller';
@@ -25,7 +25,7 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
       WorkspaceUserModel,
       WorkspaceInviteModel,
     ]),
-    UserModule,
+    forwardRef(() => UserModule),
     BridgeModule,
     MailerModule,
   ],
