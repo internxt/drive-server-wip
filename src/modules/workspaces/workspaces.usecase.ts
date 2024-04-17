@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -116,21 +117,59 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace not found');
     }
 
-    const workspaceUser = WorkspaceUser.build({
-      id: v4(),
-      workspaceId: workspace.id,
-      memberId: user.uuid,
-      spaceLimit: BigInt(0),
-      driveUsage: BigInt(0),
-      backupsUsage: BigInt(0),
-      key: setupWorkspaceDto.encryptedMnemonic,
-      deactivated: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    const [userAlreadyInWorkspace, userAlreadyInDefaultTeam] =
+      await Promise.all([
+        this.workspaceRepository.findWorkspaceUser({
+          workspaceId: workspace.id,
+          memberId: user.uuid,
+        }),
+        this.teamRepository.getTeamUser(user.uuid, workspace.defaultTeamId),
+      ]);
 
-    await this.workspaceRepository.addUserToWorkspace(workspaceUser);
-    await this.teamRepository.addUserToTeam(workspace.defaultTeamId, user.uuid);
+    try {
+      if (!userAlreadyInWorkspace) {
+        const workspaceUser = WorkspaceUser.build({
+          id: v4(),
+          workspaceId: workspace.id,
+          memberId: user.uuid,
+          spaceLimit: BigInt(0),
+          driveUsage: BigInt(0),
+          backupsUsage: BigInt(0),
+          key: setupWorkspaceDto.encryptedMnemonic,
+          deactivated: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+      }
+
+      if (!userAlreadyInDefaultTeam) {
+        await this.teamRepository.addUserToTeam(
+          workspace.defaultTeamId,
+          user.uuid,
+        );
+      }
+    } catch (error) {
+      let finalMessage =
+        'There was a problem setting this user in the workspace! ';
+      const rollbackError = await this.rollbackUserAddedToWorkspace(
+        user.uuid,
+        workspace,
+      );
+
+      finalMessage += rollbackError
+        ? rollbackError.message
+        : 'rollback applied successfully';
+
+      Logger.error(
+        `[WORKSPACE/SETUP]: error while setting workspace User! ${
+          (error as Error).message
+        }`,
+      );
+
+      throw new InternalServerErrorException(finalMessage);
+    }
 
     await this.workspaceRepository.updateBy(
       {
@@ -144,6 +183,32 @@ export class WorkspacesUsecases {
         description: setupWorkspaceDto.description,
       },
     );
+  }
+
+  async rollbackUserAddedToWorkspace(
+    userUuid: User['uuid'],
+    workspace: Workspace,
+  ): Promise<Error | null> {
+    try {
+      await this.workspaceRepository.deleteUserFromWorkspace(
+        userUuid,
+        workspace.id,
+      );
+
+      await this.teamRepository.deleteUserFromTeam(
+        userUuid,
+        workspace.defaultTeamId,
+      );
+
+      return null;
+    } catch (err) {
+      Logger.error(
+        `[WORKSPACE/ROLLBACK_USER_ADDED]User Added to workspace rollback failed user: ${userUuid} workspaceId: ${
+          workspace.id
+        } error: ${(err as Error).message}`,
+      );
+      return new Error('User added to workspace rollback failed');
+    }
   }
 
   async inviteUserToWorkspace(
