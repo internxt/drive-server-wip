@@ -104,6 +104,13 @@ export class SequelizeWorkspaceTeamRepository {
     return this.teamUserToDomain(teamUser);
   }
 
+  async deleteUserFromTeam(
+    memberId: WorkspaceTeamUser['memberId'],
+    teamId: WorkspaceTeam['id'],
+  ): Promise<void> {
+    await this.teamUserModel.destroy({ where: { memberId, teamId } });
+  }
+
   async getTeamsAndMembersCountByWorkspace(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<{ team: WorkspaceTeam; membersCount: number }[]> {
