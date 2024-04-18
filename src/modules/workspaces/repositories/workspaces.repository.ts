@@ -113,7 +113,9 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     await Promise.all(updatePromises);
   }
 
-  async deleteInvite(where: Partial<WorkspaceInviteAttributes>): Promise<void> {
+  async deleteInviteBy(
+    where: Partial<WorkspaceInviteAttributes>,
+  ): Promise<void> {
     await this.modelWorkspaceInvite.destroy({ where });
   }
 

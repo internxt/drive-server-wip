@@ -374,12 +374,42 @@ export class WorkspacesUsecases {
       updatedAt: new Date(),
     });
 
-    // TODO: uncomment this when setup workspace is finished (functions are added there)
-    //  await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+    const userAlreadyInWorkspace =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
 
-    //  await this.teamRepository.addUserToTeam(workspace.defaultTeamId, invite.invitedUser);
+    if (!userAlreadyInWorkspace) {
+      try {
+        await this.workspaceRepository.addUserToWorkspace(workspaceUser);
 
-    await this.workspaceRepository.deleteInvite(invite);
+        await this.teamRepository.addUserToTeam(
+          workspace.defaultTeamId,
+          user.uuid,
+        );
+      } catch (error) {
+        let finalMessage = 'There was a problem accepting this invite! ';
+        const rollbackError = await this.rollbackUserAddedToWorkspace(
+          user.uuid,
+          workspace,
+        );
+
+        finalMessage += rollbackError
+          ? rollbackError.message
+          : 'rollback applied successfully';
+
+        Logger.error(
+          `[WORKSPACE/ACEPT_INVITE]: Error while accepting user invitation! ${
+            (error as Error).message
+          }`,
+        );
+
+        throw new InternalServerErrorException(finalMessage);
+      }
+    }
+
+    await this.workspaceRepository.deleteInviteBy({ id: invite.id });
   }
 
   async getAssignableSpaceInWorkspace(
