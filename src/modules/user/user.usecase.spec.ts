@@ -270,7 +270,7 @@ describe('User use cases', () => {
   });
 
   describe('replacePreCreatedUserWorkspaceInvitations', () => {
-    it('When pre created user is replaced successfully, then update to new user uuid', async () => {
+    it('When pre created user is replaced successfully, then update invitations to new user uuid', async () => {
       const preCreatedUserUuid = 'pre-created-user-uuid';
       const newUserUuid = 'new-user-uuid';
       const privateKeyInBase64 = 'private-key';
