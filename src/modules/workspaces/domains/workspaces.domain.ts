@@ -45,6 +45,10 @@ export class Workspace implements WorkspaceAttributes {
     return user.uuid === this.ownerId;
   }
 
+  isWorkspaceReady() {
+    return this.setupCompleted === true;
+  }
+
   toJSON() {
     return {
       id: this.id,

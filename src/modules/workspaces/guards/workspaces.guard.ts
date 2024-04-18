@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
   WorkspaceRole,
 } from './workspace-required-access.decorator';
 import { User } from '../../user/user.domain';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class WorkspaceGuard implements CanActivate {
@@ -49,6 +51,12 @@ export class WorkspaceGuard implements CanActivate {
       WorkspaceContextIdFieldName[accessContext],
     );
 
+    if (!id || !isUUID(id)) {
+      throw new BadRequestException(
+        `${WorkspaceContextIdFieldName[accessContext]} should be a valid uuid!`,
+      );
+    }
+
     if (accessContext === AccessContext.WORKSPACE) {
       return this.verifyWorkspaceAccessByRole(user, id, requiredRole);
     } else if (accessContext === AccessContext.TEAM) {
@@ -70,15 +78,23 @@ export class WorkspaceGuard implements CanActivate {
       throw new NotFoundException('Workspace not found');
     }
 
-    const isUserNotInWorkspace = !workspaceUser;
-    const isRequiredOwnerRoleAndUserIsNotOwner =
+    const isUserPartOfWorkspace = workspaceUser || workspace.isUserOwner(user);
+    const isOwnerRoleRequiredButNotMet =
       role === WorkspaceRole.OWNER && !workspace.isUserOwner(user);
+    const isWorkspaceNotSetupAndUserNotOwner =
+      !workspace.isWorkspaceReady() && !workspace.isUserOwner(user);
 
-    if (isUserNotInWorkspace || isRequiredOwnerRoleAndUserIsNotOwner) {
+    if (
+      !isUserPartOfWorkspace ||
+      isOwnerRoleRequiredButNotMet ||
+      isWorkspaceNotSetupAndUserNotOwner
+    ) {
       Logger.log(
-        `[WORKSPACES/GUARD]: user has no requiered access to workspace. id: ${workspaceId} userUuid: ${user.uuid} `,
+        `[WORKSPACES/GUARD]: Access denied. ID: ${workspaceId}, User UUID: ${user.uuid}`,
       );
-      throw new ForbiddenException('You have no access to this workspace');
+      throw new ForbiddenException(
+        'You do not have the required access to this workspace.',
+      );
     }
 
     return true;

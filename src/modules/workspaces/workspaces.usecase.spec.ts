@@ -13,7 +13,11 @@ import {
   newWorkspaceTeam,
   newWorkspaceUser,
 } from '../../../test/fixtures';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PreCreatedUser } from '../user/pre-created-user.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
@@ -293,6 +297,171 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('setupWorkspace', () => {
+    const user = newUser();
+
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValueOnce(null);
+
+      await expect(
+        service.setupWorkspace(user, 'workspace-id', {
+          name: 'Test Workspace',
+          encryptedMnemonic: 'encryptedMnemonic',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace is being setup, then it should add the owner as user to the workspace', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+
+      await service.setupWorkspace(owner, 'workspace-id', {
+        name: 'Test Workspace',
+        encryptedMnemonic: 'encryptedMnemonic',
+      });
+
+      expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memberId: owner.uuid,
+        }),
+      );
+    });
+
+    it('When workspace is being setup and user exists in workspace, then it should skip that step', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: owner.uuid,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+
+      await service.setupWorkspace(owner, 'workspace-id', {
+        name: 'Test Workspace',
+        encryptedMnemonic: 'encryptedMnemonic',
+      });
+
+      expect(workspaceRepository.addUserToWorkspace).not.toHaveBeenCalled();
+    });
+
+    it('When workspace is being setup, then it should add the owner user to the default team', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValueOnce(null);
+
+      await service.setupWorkspace(owner, 'workspace-id', {
+        name: 'Test Workspace',
+        encryptedMnemonic: 'encryptedMnemonic',
+      });
+
+      expect(teamRepository.addUserToTeam).toHaveBeenCalledWith(
+        workspace.defaultTeamId,
+        owner.uuid,
+      );
+    });
+
+    it('When workspace is being setup and user exists in default team, then it should skip that step', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+      const workspaceTeamUser = new WorkspaceTeamUser({
+        id: '',
+        teamId: workspace.defaultTeamId,
+        memberId: owner.uuid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(teamRepository, 'getTeamUser')
+        .mockResolvedValueOnce(workspaceTeamUser);
+
+      await service.setupWorkspace(owner, 'workspace-id', {
+        name: 'Test Workspace',
+        encryptedMnemonic: 'encryptedMnemonic',
+      });
+
+      expect(teamRepository.addUserToTeam).not.toHaveBeenCalled();
+    });
+
+    it('When workspace is being setup and an error ocurrs while setting user, then it should rollback and throw', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(teamRepository, 'addUserToTeam')
+        .mockRejectedValueOnce(
+          new Error('Error happened while adding user to team!'),
+        );
+
+      const spyRollbackFunction = jest.spyOn(
+        service,
+        'rollbackUserAddedToWorkspace',
+      );
+
+      await expect(
+        service.setupWorkspace(owner, 'workspace-id', {
+          name: 'Test Workspace',
+          encryptedMnemonic: 'encryptedMnemonic',
+        }),
+      ).rejects.toThrow(InternalServerErrorException);
+      expect(spyRollbackFunction).toHaveBeenCalledWith(owner.uuid, workspace);
+    });
+
+    it('When workspace is setup, then it should setup the workspace with defined data', async () => {
+      const workspace = newWorkspace();
+      const workspaceDatDto = {
+        name: 'Test Workspace',
+        description: 'Workspace description',
+        address: 'Workspace Address',
+        encryptedMnemonic: 'encryptedMnemonic',
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+
+      await service.setupWorkspace(user, workspace.id, workspaceDatDto);
+
+      expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
+        {
+          ownerId: user.uuid,
+          id: workspace.id,
+        },
+        {
+          name: workspaceDatDto.name,
+          setupCompleted: true,
+          address: workspaceDatDto.address,
+          description: workspaceDatDto.description,
+        },
+      );
+    });
+  });
+
   describe('isWorkspaceFull', () => {
     const workspaceId = 'workspace-id';
     it('When workspace has slots left, then workspace is not full', async () => {
@@ -316,6 +485,41 @@ describe('WorkspacesUsecases', () => {
 
       const isFull = await service.isWorkspaceFull(workspaceId);
       expect(isFull).toBe(true);
+    });
+  });
+
+  describe('rollbackUserAddedToWorkspace', () => {
+    const owner = newUser();
+    const workspace = newWorkspace({ owner });
+
+    it('When rollback is successful, then error should not be returned', async () => {
+      const rollbackError = await service.rollbackUserAddedToWorkspace(
+        owner.uuid,
+        workspace,
+      );
+
+      expect(workspaceRepository.deleteUserFromWorkspace).toHaveBeenCalledWith(
+        owner.uuid,
+        workspace.id,
+      );
+      expect(teamRepository.deleteUserFromTeam).toHaveBeenCalledWith(
+        owner.uuid,
+        workspace.defaultTeamId,
+      );
+      expect(rollbackError).toBeNull();
+    });
+
+    it('When rollback is not successful, then error should be returned', async () => {
+      jest
+        .spyOn(workspaceRepository, 'deleteUserFromWorkspace')
+        .mockRejectedValueOnce(new Error());
+
+      const rollbackError = await service.rollbackUserAddedToWorkspace(
+        owner.uuid,
+        workspace,
+      );
+
+      expect(rollbackError).toBeInstanceOf(Error);
     });
   });
 

@@ -92,6 +92,25 @@ export class SequelizeWorkspaceTeamRepository {
     return raw ? this.toDomain(raw) : null;
   }
 
+  async addUserToTeam(
+    teamId: WorkspaceTeamAttributes['id'],
+    userUuid: UserAttributes['uuid'],
+  ): Promise<WorkspaceTeamUser | null> {
+    const teamUser = await this.teamUserModel.create({
+      teamId,
+      memberId: userUuid,
+    });
+
+    return this.teamUserToDomain(teamUser);
+  }
+
+  async deleteUserFromTeam(
+    memberId: WorkspaceTeamUser['memberId'],
+    teamId: WorkspaceTeam['id'],
+  ): Promise<void> {
+    await this.teamUserModel.destroy({ where: { memberId, teamId } });
+  }
+
   async getTeamsAndMembersCountByWorkspace(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<{ team: WorkspaceTeam; membersCount: number }[]> {

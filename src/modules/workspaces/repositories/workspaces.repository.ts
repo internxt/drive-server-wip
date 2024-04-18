@@ -112,6 +112,13 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
   }
 
+  async deleteUserFromWorkspace(
+    memberId: WorkspaceUser['memberId'],
+    workspaceId: WorkspaceUser['id'],
+  ): Promise<void> {
+    await this.modelWorkspaceUser.destroy({ where: { memberId, workspaceId } });
+  }
+
   async getWorkspaceUsersCount(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number> {
@@ -180,6 +187,13 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
         ? this.workspaceUserToDomain(workspace.workspaceUsers[0])
         : null,
     };
+  }
+
+  async addUserToWorkspace(
+    workspaceUser: Omit<WorkspaceUser, 'id'>,
+  ): Promise<WorkspaceUser> {
+    const user = await this.modelWorkspaceUser.create(workspaceUser);
+    return this.workspaceUserToDomain(user);
   }
 
   async findAllByWithPagination(

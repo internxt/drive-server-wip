@@ -25,19 +25,30 @@ import {
 import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
+import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
-  @Patch('/:workspaceId')
+  @Patch('/:workspaceId/setup')
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async setupWorkspace(
+    @UserDecorator() user: User,
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Body() setupWorkspaceDto: SetupWorkspaceDto,
   ) {
-    throw new NotImplementedException();
+    if (!workspaceId || !isUUID(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    return this.workspaceUseCases.setupWorkspace(
+      user,
+      workspaceId,
+      setupWorkspaceDto,
+    );
   }
 
   @Post('/:workspaceId/members/invite')
