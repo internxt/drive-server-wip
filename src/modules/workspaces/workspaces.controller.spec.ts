@@ -3,7 +3,11 @@ import { BadRequestException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
-import { newUser } from '../../../test/fixtures';
+import {
+  newUser,
+  newWorkspace,
+  newWorkspaceUser,
+} from '../../../test/fixtures';
 import { v4 } from 'uuid';
 
 describe('Workspace Controller', () => {
@@ -72,6 +76,44 @@ describe('Workspace Controller', () => {
       await expect(
         workspacesController.setupWorkspace(user, v4(), workspaceDatDto),
       ).resolves.toBeTruthy();
+    });
+  });
+
+  describe('GET /', () => {
+    it('When available workspaces are requested, then it should return workspaces and user data', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({
+        attributes: { setupCompleted: true },
+      });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+        attributes: { deactivated: false },
+      });
+
+      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce([
+        { workspace, workspaceUser },
+      ]);
+      await expect(
+        workspacesController.getAvailableWorkspaces(user),
+      ).resolves.toEqual([{ workspace, workspaceUser }]);
+    });
+  });
+
+  describe('GET /pending-setup', () => {
+    it('When workspaces ready to be setup are requested, then it should return workspaces data', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({
+        owner,
+        attributes: { setupCompleted: false },
+      });
+
+      workspacesUsecases.getWorkspacesPendingToBeSetup.mockResolvedValueOnce([
+        workspace,
+      ]);
+      await expect(
+        workspacesController.getUserWorkspacesToBeSetup(owner),
+      ).resolves.toEqual([workspace]);
     });
   });
 });

@@ -488,6 +488,89 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getAvailableWorkspaces', () => {
+    it('When trying to get user available workspaces, then workspaces that are already setup should be returned', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({
+        attributes: { setupCompleted: true },
+      });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+        attributes: { deactivated: false },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValue([{ workspaceUser, workspace }]);
+      const availablesWorkspaces = await service.getAvailableWorkspaces(user);
+
+      expect(availablesWorkspaces[0]).toEqual({
+        workspaceUser,
+        workspace,
+      });
+    });
+
+    it('When trying to get user available workspaces, then workspaces that are not setup should not be returned', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({
+        attributes: { setupCompleted: false },
+      });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+        attributes: { deactivated: false },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValue([{ workspaceUser, workspace }]);
+      const availablesWorkspaces = await service.getAvailableWorkspaces(user);
+
+      expect(availablesWorkspaces).toEqual([]);
+    });
+
+    it('When trying to get user available workspaces, workspaces that have this user deactivated should not be returned', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({
+        attributes: { setupCompleted: true },
+      });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+        attributes: { deactivated: true },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValue([{ workspaceUser, workspace }]);
+      const availablesWorkspaces = await service.getAvailableWorkspaces(user);
+
+      expect(availablesWorkspaces).toEqual([]);
+    });
+  });
+
+  describe('getWorkspacesPendingToBeSetup', () => {
+    it('When trying to get workspaces ready to be setup, then only workspaces that the user created should be retrieved', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({
+        owner,
+        attributes: { setupCompleted: false },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findAllBy')
+        .mockResolvedValue([workspace]);
+
+      await service.getWorkspacesPendingToBeSetup(owner);
+
+      expect(workspaceRepository.findAllBy).toHaveBeenCalledWith({
+        ownerId: owner.uuid,
+        setupCompleted: false,
+      });
+    });
+  });
+
   describe('rollbackUserAddedToWorkspace', () => {
     const owner = newUser();
     const workspace = newWorkspace({ owner });

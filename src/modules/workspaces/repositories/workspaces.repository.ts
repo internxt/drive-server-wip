@@ -144,7 +144,7 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     const total = await this.modelWorkspaceUser.sum('spaceLimit', {
       where: { workspaceId },
     });
-    return BigInt(total);
+    return BigInt(total ?? 0);
   }
 
   async createInvite(
@@ -160,7 +160,7 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return this.toDomain(dbWorkspace);
   }
 
-  async findAllBy(where: any): Promise<Array<Workspace> | []> {
+  async findAllBy(where: Partial<WorkspaceAttributes>): Promise<Workspace[]> {
     const workspaces = await this.modelWorkspace.findAll({ where });
     return workspaces.map((workspace) => this.toDomain(workspace));
   }
@@ -187,6 +187,21 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
         ? this.workspaceUserToDomain(workspace.workspaceUsers[0])
         : null,
     };
+  }
+
+  async findUserAvailableWorkspaces(userUuid: string) {
+    const userWorkspaces = await this.modelWorkspaceUser.findAll({
+      where: { memberId: userUuid },
+      include: {
+        model: WorkspaceModel,
+        required: true,
+      },
+    });
+
+    return userWorkspaces.map((userWorkspace) => ({
+      workspaceUser: this.workspaceUserToDomain(userWorkspace),
+      workspace: this.toDomain(userWorkspace.workspace),
+    }));
   }
 
   async addUserToWorkspace(
