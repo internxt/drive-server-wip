@@ -23,9 +23,15 @@ import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
-import { newMailLimit } from '../../../test/fixtures';
+import {
+  newMailLimit,
+  newUser,
+  newWorkspaceInvite,
+} from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
+import * as openpgpUtils from '../../lib/openpgp';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -50,6 +56,7 @@ describe('User use cases', () => {
   let attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository;
   let configService: ConfigService;
   let mailLimitRepository: SequelizeMailLimitRepository;
+  let workspaceRepository: SequelizeWorkspaceRepository;
 
   const user = User.build({
     id: 1,
@@ -108,6 +115,9 @@ describe('User use cases', () => {
     configService = moduleRef.get<ConfigService>(ConfigService);
     mailLimitRepository = moduleRef.get<SequelizeMailLimitRepository>(
       SequelizeMailLimitRepository,
+    );
+    workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
+      SequelizeWorkspaceRepository,
     );
   });
 
@@ -256,6 +266,68 @@ describe('User use cases', () => {
           expect(deleteFilesSpy).toBeCalledWith(user, files);
         });
       });
+    });
+  });
+
+  describe('replacePreCreatedUserWorkspaceInvitations', () => {
+    it('When pre created user is replaced successfully, then update invitations to new user uuid', async () => {
+      const preCreatedUserUuid = 'pre-created-user-uuid';
+      const newUserUuid = 'new-user-uuid';
+      const privateKeyInBase64 = 'private-key';
+      const decryptedEncryptionKey = 'decrypted-key';
+      const newEncryptedKey = 'new-encrypted-key';
+      const newPublicKey = 'public-key';
+      const invitedUser = newUser();
+      const invitations = [
+        newWorkspaceInvite({
+          invitedUser: invitedUser.uuid,
+        }),
+        newWorkspaceInvite({
+          invitedUser: invitedUser.uuid,
+        }),
+      ];
+
+      jest
+        .spyOn(openpgpUtils, 'decryptMessageWithPrivateKey')
+        .mockResolvedValue(decryptedEncryptionKey);
+      jest
+        .spyOn(openpgpUtils, 'encryptMessageWithPublicKey')
+        .mockResolvedValue(newEncryptedKey);
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValue(invitations);
+
+      await userUseCases.replacePreCreatedUserWorkspaceInvitations(
+        preCreatedUserUuid,
+        newUserUuid,
+        privateKeyInBase64,
+        newPublicKey,
+      );
+
+      expect(
+        workspaceRepository.bulkUpdateInvitesKeysAndUsers,
+      ).toHaveBeenCalledWith(
+        invitations.map(() =>
+          expect.objectContaining({
+            invitedUser: expect.stringContaining(newUserUuid),
+          }),
+        ),
+      );
+    });
+
+    it('When no pre created user does not have invitations, then should not update', async () => {
+      jest.spyOn(workspaceRepository, 'findInvitesBy').mockResolvedValue([]);
+
+      await userUseCases.replacePreCreatedUserWorkspaceInvitations(
+        'pre-created-user-uuid',
+        'new-user-uuid',
+        'private-key',
+        'new-public-key',
+      );
+
+      expect(
+        workspaceRepository.bulkUpdateInvitesKeysAndUsers,
+      ).not.toHaveBeenCalled();
     });
   });
 
