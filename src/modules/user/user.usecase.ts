@@ -3,9 +3,11 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
@@ -131,7 +133,9 @@ export class UserUseCases {
     private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
     private sharingRepository: SequelizeSharingRepository,
     private workspaceRepository: SequelizeWorkspaceRepository,
+    @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
     private shareUseCases: ShareUseCases,
     private configService: ConfigService,
@@ -139,7 +143,6 @@ export class UserUseCases {
     private networkService: BridgeService,
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
-    private readonly newsletterService: NewsletterService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
     private readonly mailerService: MailerService,

@@ -1,9 +1,12 @@
 import {
+  ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
+  forwardRef,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
@@ -16,7 +19,8 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
-import { SequelizeFileRepository } from '../file/file.repository';
+import { SharingService } from '../sharing/sharing.service';
+import { SharingItemType } from '../sharing/sharing.domain';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -27,7 +31,8 @@ export class FolderUseCases {
   constructor(
     private folderRepository: SequelizeFolderRepository,
     private userRepository: SequelizeUserRepository,
-    private readonly fileRepository: SequelizeFileRepository,
+    @Inject(forwardRef(() => SharingService))
+    private sharingUsecases: SharingService,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -294,11 +299,17 @@ export class FolderUseCases {
   async moveFoldersToTrash(
     user: User,
     folderIds: FolderAttributes['id'][],
+    folderUuids: FolderAttributes['uuid'][] = [],
   ): Promise<void> {
-    const [folders, driveRootFolder] = await Promise.all([
+    const [foldersById, driveRootFolder, foldersByUuid] = await Promise.all([
       this.getFoldersByIds(user, folderIds),
       this.getFolder(user.rootFolderId),
+      folderUuids.length > 0
+        ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
+        : Promise.resolve<Folder[]>([]),
     ]);
+
+    const folders = foldersById.concat(foldersByUuid);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
     const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder));
@@ -324,6 +335,11 @@ export class FolderUseCases {
             },
           )
         : Promise.resolve(),
+      this.sharingUsecases.bulkRemoveSharings(
+        user,
+        folders.map((folder) => folder.uuid),
+        SharingItemType.Folder,
+      ),
     ]);
   }
 
@@ -515,6 +531,80 @@ export class FolderUseCases {
     folderUuid: Folder['uuid'],
   ): Promise<Folder[]> {
     return this.folderRepository.getFolderAncestors(user, folderUuid);
+  }
+
+  async moveFolder(
+    user: User,
+    folderUuid: Folder['uuid'],
+    destinationUuid: Folder['uuid'],
+  ): Promise<Folder> {
+    const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+    if (folder.isRootFolder()) {
+      throw new UnprocessableEntityException(
+        'The root folder can not be moved',
+      );
+    }
+    if (folder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder ${folderUuid} can not be moved`,
+      );
+    }
+
+    const parentFolder = await this.folderRepository.findById(folder.parentId);
+    if (parentFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder ${folderUuid} can not be moved`,
+      );
+    }
+
+    const destinationFolder = await this.getFolderByUuidAndUser(
+      destinationUuid,
+      user,
+    );
+    if (destinationFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `Folder can not be moved to ${destinationUuid}`,
+      );
+    }
+
+    const originalPlainName = this.cryptoService.decryptName(
+      folder.name,
+      folder.parentId,
+    );
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      originalPlainName,
+      destinationFolder.id,
+    );
+
+    const exists = await this.folderRepository.findByNameAndParentUuid(
+      destinationEncryptedName,
+      destinationFolder.uuid,
+      false,
+    );
+    if (exists) {
+      if (exists.uuid === folder.uuid) {
+        throw new ConflictException(
+          `Folder ${folderUuid} was already moved to that location`,
+        );
+      }
+      throw new ConflictException(
+        'A folder with the same name already exists in destination folder',
+      );
+    }
+
+    const updateData: Partial<Folder> = {
+      parentId: destinationFolder.id,
+      parentUuid: destinationFolder.uuid,
+      name: destinationEncryptedName,
+      deleted: false,
+      deletedAt: null,
+    };
+
+    const updatedFolder = await this.folderRepository.updateByFolderId(
+      folder.id,
+      updateData,
+    );
+    return updatedFolder;
   }
 
   decryptFolderName(folder: Folder): any {
