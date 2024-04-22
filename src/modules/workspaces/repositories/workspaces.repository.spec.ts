@@ -12,6 +12,7 @@ import {
   newWorkspaceUser,
 } from '../../../../test/fixtures';
 import { Workspace } from '../domains/workspaces.domain';
+import { v4 } from 'uuid';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;
@@ -66,6 +67,32 @@ describe('SequelizeWorkspaceRepository', () => {
       jest.spyOn(workspaceInviteModel, 'count').mockResolvedValueOnce(5);
       const count = await repository.getWorkspaceInvitationsCount('1');
       expect(count).toEqual(5);
+    });
+  });
+
+  describe('bulkUpdateInvitesKeysAndUsers', () => {
+    it('When invites are being updated, then it should update each invite with the correct invitedUser and encryptionKey', async () => {
+      const invites = [newWorkspaceInvite(), newWorkspaceInvite()];
+
+      await repository.bulkUpdateInvitesKeysAndUsers(invites);
+
+      expect(workspaceInviteModel.update).toHaveBeenNthCalledWith(
+        1,
+        {
+          invitedUser: invites[0].invitedUser,
+          encryptionKey: invites[0].encryptionKey,
+        },
+        { where: { id: invites[0].id } },
+      );
+
+      expect(workspaceInviteModel.update).toHaveBeenNthCalledWith(
+        2,
+        {
+          invitedUser: invites[1].invitedUser,
+          encryptionKey: invites[1].encryptionKey,
+        },
+        { where: { id: invites[1].id } },
+      );
     });
   });
 
