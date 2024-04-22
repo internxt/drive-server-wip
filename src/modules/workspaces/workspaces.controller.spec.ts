@@ -115,21 +115,22 @@ describe('Workspace Controller', () => {
       await expect(
         workspacesController.getUserWorkspacesToBeSetup(owner),
       ).resolves.toEqual([workspace]);
-      describe('POST /invitations/accept', () => {
-        const user = newUser();
-        it('When workspace id is not a valid uuid, then it throws.', async () => {
-          const invite = newWorkspaceInvite({ invitedUser: user.uuid });
+    });
+  });
 
-          await workspacesController.acceptWorkspaceInvitation(user, {
-            inviteId: invite.id,
-          });
+  describe('POST /invitations/accept', () => {
+    const user = newUser();
+    it('When workspace id is not a valid uuid, then it throws.', async () => {
+      const invite = newWorkspaceInvite({ invitedUser: user.uuid });
 
-          expect(workspacesUsecases.acceptWorkspaceInvite).toHaveBeenCalledWith(
-            user,
-            invite.id,
-          );
-        });
+      await workspacesController.acceptWorkspaceInvitation(user, {
+        inviteId: invite.id,
       });
+
+      expect(workspacesUsecases.acceptWorkspaceInvite).toHaveBeenCalledWith(
+        user,
+        invite.id,
+      );
     });
   });
 });
