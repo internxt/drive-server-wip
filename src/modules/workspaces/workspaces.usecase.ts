@@ -405,6 +405,26 @@ export class WorkspacesUsecases {
     return this.teamRepository.createTeam(newTeam);
   }
 
+  async getAvailableWorkspaces(user: User) {
+    const availablesWorkspaces =
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+
+    return availablesWorkspaces.filter(
+      (workspaceData) =>
+        workspaceData.workspace.isWorkspaceReady() &&
+        !workspaceData.workspaceUser.deactivated,
+    );
+  }
+
+  async getWorkspacesPendingToBeSetup(user: User) {
+    const workspacesToBeSetup = await this.workspaceRepository.findAllBy({
+      ownerId: user.uuid,
+      setupCompleted: false,
+    });
+
+    return workspacesToBeSetup;
+  }
+
   async getWorkspaceTeams(user: User, workspaceId: WorkspaceAttributes['id']) {
     const workspace = await this.workspaceRepository.findOne({
       ownerId: user.uuid,

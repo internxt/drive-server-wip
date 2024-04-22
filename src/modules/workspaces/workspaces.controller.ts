@@ -38,6 +38,29 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
+  @Get('/')
+  @ApiOperation({
+    summary: 'Get available workspaces for the user',
+  })
+  @ApiOkResponse({
+    description: 'Available workspaces and workspaceUser',
+  })
+  async getAvailableWorkspaces(@UserDecorator() user: User) {
+    return this.workspaceUseCases.getAvailableWorkspaces(user);
+  }
+
+  @Get('/pending-setup')
+  @ApiOperation({
+    summary: 'Get owner workspaces ready to be setup',
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Workspaces pending to be setup',
+  })
+  async getUserWorkspacesToBeSetup(@UserDecorator() user: User) {
+    return this.workspaceUseCases.getWorkspacesPendingToBeSetup(user);
+  }
+
   @Patch('/:workspaceId/setup')
   @ApiOperation({
     summary: 'Set up workspace that has been initialized',
