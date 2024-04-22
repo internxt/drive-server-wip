@@ -76,16 +76,23 @@ describe('SequelizeWorkspaceRepository', () => {
 
       await repository.bulkUpdateInvitesKeysAndUsers(invites);
 
-      invites.forEach((invite, index) => {
-        expect(workspaceInviteModel.update).toHaveBeenNthCalledWith(
-          index + 1,
-          {
-            invitedUser: invite.invitedUser,
-            encryptionKey: invite.encryptionKey,
-          },
-          { where: { id: invite.id } },
-        );
-      });
+      expect(workspaceInviteModel.update).toHaveBeenNthCalledWith(
+        1,
+        {
+          invitedUser: invites[0].invitedUser,
+          encryptionKey: invites[0].encryptionKey,
+        },
+        { where: { id: invites[0].id } },
+      );
+
+      expect(workspaceInviteModel.update).toHaveBeenNthCalledWith(
+        2,
+        {
+          invitedUser: invites[1].invitedUser,
+          encryptionKey: invites[1].encryptionKey,
+        },
+        { where: { id: invites[1].id } },
+      );
     });
   });
 

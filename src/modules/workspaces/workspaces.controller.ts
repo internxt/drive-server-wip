@@ -191,6 +191,7 @@ export class WorkspacesController {
   }
 
   @Post('/invitations/accept')
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Accepts invitation to workspace',
   })

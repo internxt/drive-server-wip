@@ -659,6 +659,7 @@ describe('WorkspacesUsecases', () => {
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
+        attributes: { spaceLimit: BigInt(1000) },
       });
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
@@ -671,6 +672,7 @@ describe('WorkspacesUsecases', () => {
       expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
         expect.objectContaining({
           memberId: invite.invitedUser,
+          spaceLimit: invite.spaceLimit,
         }),
       );
     });
