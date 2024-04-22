@@ -53,6 +53,7 @@ export class WorkspacesController {
   @ApiOperation({
     summary: 'Get owner workspaces ready to be setup',
   })
+  @ApiBearerAuth()
   @ApiOkResponse({
     description: 'Workspaces pending to be setup',
   })

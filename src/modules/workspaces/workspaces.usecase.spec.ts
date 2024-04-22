@@ -553,21 +553,23 @@ describe('WorkspacesUsecases', () => {
   describe('getWorkspacesPendingToBeSetup', () => {
     it('When trying to get workspaces ready to be setup, then only workspaces that the user created should be retrieved', async () => {
       const owner = newUser();
-      const workspace = newWorkspace({
+      const setupWorkspace = newWorkspace({
         owner,
         attributes: { setupCompleted: false },
       });
 
       jest
         .spyOn(workspaceRepository, 'findAllBy')
-        .mockResolvedValue([workspace]);
+        .mockResolvedValue([setupWorkspace]);
 
-      await service.getWorkspacesPendingToBeSetup(owner);
+      const availableWorkspaces =
+        await service.getWorkspacesPendingToBeSetup(owner);
 
       expect(workspaceRepository.findAllBy).toHaveBeenCalledWith({
         ownerId: owner.uuid,
         setupCompleted: false,
       });
+      expect(availableWorkspaces).toEqual([setupWorkspace]);
     });
   });
 
