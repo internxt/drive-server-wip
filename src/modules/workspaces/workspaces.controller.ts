@@ -9,7 +9,13 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
@@ -33,6 +39,14 @@ export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
   @Patch('/:workspaceId/setup')
+  @ApiOperation({
+    summary: 'Set up workspace that has been initialized',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace setup',
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async setupWorkspace(
@@ -52,6 +66,14 @@ export class WorkspacesController {
   }
 
   @Post('/:workspaceId/members/invite')
+  @ApiOperation({
+    summary: 'Invite user to a workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User has been invited successfully',
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async inviteUsersToWorkspace(
@@ -70,9 +92,8 @@ export class WorkspacesController {
   @ApiOperation({
     summary: 'Creates a team in a workspace',
   })
-  @ApiOkResponse({
-    description: 'Created team',
-  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async createTeam(
@@ -91,6 +112,8 @@ export class WorkspacesController {
   @ApiOperation({
     summary: 'Gets workspace teams',
   })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Teams in the workspace along with members quantity',
   })
@@ -113,6 +136,16 @@ export class WorkspacesController {
   }
 
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
+  @ApiOperation({
+    summary: 'Changes the role of a member in the workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'teamId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Role changed',
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async changeMemberRole(

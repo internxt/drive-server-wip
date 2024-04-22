@@ -6,7 +6,7 @@ import { WorkspaceUserAttributes } from '../attributes/workspace-users.attribute
 export class SetupWorkspaceDto {
   @ApiProperty({
     example: 'My workspace',
-    description: 'Name of the team to be created',
+    description: 'Name of the workspace to be created',
   })
   @IsNotEmpty()
   name: Workspace['name'];
@@ -26,8 +26,8 @@ export class SetupWorkspaceDto {
   description?: Workspace['description'];
 
   @ApiProperty({
-    example: 'Encrypted key',
-    description: 'Owner mnemnonic encrypted with its public key',
+    example: 'Encrypted key in base64',
+    description: 'Owner mnemnonic encrypted with their public key in base64',
   })
   @IsNotEmpty()
   encryptedMnemonic: WorkspaceUserAttributes['key'];
