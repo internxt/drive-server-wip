@@ -342,6 +342,76 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
+    const invite = await this.workspaceRepository.findInvite({
+      id: inviteId,
+      invitedUser: user.uuid,
+    });
+
+    if (!invite) {
+      throw new BadRequestException();
+    }
+
+    const workspace = await this.workspaceRepository.findOne({
+      id: invite.workspaceId,
+      setupCompleted: true,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('This invitation workspace is not valid');
+    }
+
+    const workspaceUser = WorkspaceUser.build({
+      id: v4(),
+      workspaceId: invite.workspaceId,
+      memberId: invite.invitedUser,
+      spaceLimit: invite.spaceLimit,
+      driveUsage: BigInt(0),
+      backupsUsage: BigInt(0),
+      key: invite.encryptionKey,
+      deactivated: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const userAlreadyInWorkspace =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
+
+    if (!userAlreadyInWorkspace) {
+      try {
+        await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+
+        await this.teamRepository.addUserToTeam(
+          workspace.defaultTeamId,
+          user.uuid,
+        );
+      } catch (error) {
+        let finalMessage = 'There was a problem accepting this invite! ';
+        const rollbackError = await this.rollbackUserAddedToWorkspace(
+          user.uuid,
+          workspace,
+        );
+
+        finalMessage += rollbackError
+          ? rollbackError.message
+          : 'rollback applied successfully';
+
+        Logger.error(
+          `[WORKSPACE/ACEPT_INVITE]: Error while accepting user invitation! ${
+            (error as Error).message
+          }`,
+        );
+
+        throw new InternalServerErrorException(finalMessage);
+      }
+    }
+
+    await this.workspaceRepository.deleteInviteBy({ id: invite.id });
+  }
+
   async getAssignableSpaceInWorkspace(
     workspace: Workspace,
     workpaceDefaultUser: User,

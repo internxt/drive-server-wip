@@ -44,6 +44,8 @@ import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { SecurityModule } from '../security/security.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 
 @Module({
   imports: [
@@ -69,6 +71,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     forwardRef(() => SharingModule),
     SecurityModule,
     forwardRef(() => FeatureLimitModule),
+    forwardRef(() => WorkspacesModule),
   ],
   controllers: [UserController],
   providers: [
@@ -79,6 +82,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
     SequelizeAttemptChangeEmailRepository,
+    SequelizeWorkspaceRepository,
     UserUseCases,
     CryptoService,
     BridgeService,

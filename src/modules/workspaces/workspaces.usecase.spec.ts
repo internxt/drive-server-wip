@@ -608,6 +608,179 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('acceptWorkspaceInvite', () => {
+    const invitedUser = newUser();
+
+    it('When invite is not found, then fail', async () => {
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(null);
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invite does not point to a valid workspace, then fail', async () => {
+      const invite = newWorkspaceInvite({ invitedUser: invitedUser.uuid });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user has an invite but it is already in workspace, then it should skip adding a new user and delete the invite', async () => {
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: invitedUser.uuid,
+      });
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(workspaceRepository.addUserToWorkspace).not.toHaveBeenCalled();
+      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith({
+        id: invite.id,
+      });
+    });
+
+    it('When invite is valid, then add user to workspace with respective space limit', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+        attributes: { spaceLimit: BigInt(1000) },
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memberId: invite.invitedUser,
+          spaceLimit: invite.spaceLimit,
+        }),
+      );
+    });
+
+    it('When invite is valid, then add user to default team', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(teamRepository.addUserToTeam).toHaveBeenCalledWith(
+        workspace.defaultTeamId,
+        invitedUser.uuid,
+      );
+    });
+
+    it('When invite is valid and an error is thrown while setting user in team, then it should rollback and throw', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(teamRepository, 'addUserToTeam')
+        .mockRejectedValueOnce(
+          new Error('Error happened while adding user to team!'),
+        );
+
+      const spyRollbackFunction = jest.spyOn(
+        service,
+        'rollbackUserAddedToWorkspace',
+      );
+
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(InternalServerErrorException);
+      expect(spyRollbackFunction).toHaveBeenCalledWith(
+        invitedUser.uuid,
+        workspace,
+      );
+    });
+
+    it('When invite is valid and an error is thrown while setting user in workspace, then it should rollback and throw', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(workspaceRepository, 'addUserToWorkspace')
+        .mockRejectedValueOnce(
+          new Error('Error happened while adding user to workspace!'),
+        );
+
+      const spyRollbackFunction = jest.spyOn(
+        service,
+        'rollbackUserAddedToWorkspace',
+      );
+
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(InternalServerErrorException);
+      expect(spyRollbackFunction).toHaveBeenCalledWith(
+        invitedUser.uuid,
+        workspace,
+      );
+    });
+
+    it('When invite is accepted, then it should be deleted aftewards', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+
+      await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
+
+      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith({
+        id: invite.id,
+      });
+    });
+  });
+
   describe('changeUserRole', () => {
     it('When team does not exist, then error is thrown', async () => {
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);

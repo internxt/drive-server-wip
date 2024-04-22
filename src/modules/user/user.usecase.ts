@@ -67,6 +67,7 @@ import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -129,6 +130,7 @@ export class UserUseCases {
     private userReferralsRepository: SequelizeUserReferralsRepository,
     private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
     private sharingRepository: SequelizeSharingRepository,
+    private workspaceRepository: SequelizeWorkspaceRepository,
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private shareUseCases: ShareUseCases,
@@ -476,7 +478,57 @@ export class UserUseCases {
 
     await this.sharingRepository.bulkUpdate(invites);
 
+    await this.replacePreCreatedUserWorkspaceInvitations(
+      preCreatedUser.uuid,
+      newUserUuid,
+      privateKey,
+      newPublicKey,
+    );
+
     await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+  }
+
+  async replacePreCreatedUserWorkspaceInvitations(
+    preCreatedUserUuid: PreCreatedUserAttributes['uuid'],
+    newUserUuid: User['uuid'],
+    privateKeyInBase64: string,
+    newPublicKey: string,
+  ) {
+    const invitations = await this.workspaceRepository.findInvitesBy({
+      invitedUser: preCreatedUserUuid,
+    });
+
+    if (invitations.length === 0) {
+      return;
+    }
+
+    const invitationsUpdated = [...invitations];
+
+    for (const invitation of invitationsUpdated) {
+      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
+        encryptedMessage: Buffer.from(
+          invitation.encryptionKey,
+          'base64',
+        ).toString('binary'),
+        privateKeyInBase64,
+      });
+
+      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
+        message: decryptedEncryptionKey.toString(),
+        publicKeyInBase64: newPublicKey,
+      });
+
+      invitation.encryptionKey = Buffer.from(
+        newEncryptedEncryptionKey.toString(),
+        'binary',
+      ).toString('base64');
+
+      invitation.invitedUser = newUserUuid;
+    }
+
+    await this.workspaceRepository.bulkUpdateInvitesKeysAndUsers(
+      invitationsUpdated,
+    );
   }
 
   async preCreateUser(newUser: PreCreateUserDto) {
