@@ -1,5 +1,10 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { GatewayUseCases } from './gateway.usecase';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { DisableGlobalAuth } from '../auth/decorators/disable-global-auth.decorator';
@@ -15,6 +20,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Initiates a workspace',
   })
+  @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
   @ApiOkResponse({ description: 'Returns the workspace created' })
   async initializeWorkspace(
