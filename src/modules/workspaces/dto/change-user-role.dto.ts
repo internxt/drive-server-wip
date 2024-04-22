@@ -4,8 +4,11 @@ import { WorkspaceRole } from '../guards/workspace-required-access.decorator';
 
 export class ChangeUserRoleDto {
   @ApiProperty({
-    example: 'TEAM_MANAGER',
-    description: 'Role to be assigned to user',
+    example: 'MANAGER',
+    description: 'Role to be assigned to user in the team',
+    enum: Object.values(WorkspaceRole).filter(
+      (role) => role != WorkspaceRole.OWNER,
+    ),
   })
   @IsNotEmpty()
   role: Omit<WorkspaceRole, 'OWNER'>;

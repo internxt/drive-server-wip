@@ -19,7 +19,8 @@ module.exports = {
         },
       },
       key: {
-        type: Sequelize.BLOB('medium'),
+        type: Sequelize.STRING(800),
+        allowNull: false,
       },
       workspace_id: {
         type: Sequelize.UUID,

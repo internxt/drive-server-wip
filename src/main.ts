@@ -68,6 +68,7 @@ async function bootstrap() {
     .setDescription('Drive API')
     .setVersion('1.0')
     .addBearerAuth()
+    .addBearerAuth(undefined, 'gateway')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
