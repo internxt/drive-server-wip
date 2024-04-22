@@ -86,6 +86,39 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return invite ? WorkspaceInvite.build(invite) : null;
   }
 
+  async findInvitesBy(
+    where: Partial<WorkspaceInvite>,
+  ): Promise<WorkspaceInvite[]> {
+    const invites = await this.modelWorkspaceInvite.findAll({ where });
+
+    return invites.map((invite) => WorkspaceInvite.build(invite));
+  }
+
+  async bulkUpdateInvitesKeysAndUsers(
+    invites: Partial<WorkspaceInvite>[],
+  ): Promise<void> {
+    const updatePromises = invites.map((invite) =>
+      this.modelWorkspaceInvite.update(
+        {
+          invitedUser: invite.invitedUser,
+          encryptionKey: invite.encryptionKey,
+        },
+        {
+          where: {
+            id: invite.id,
+          },
+        },
+      ),
+    );
+    await Promise.all(updatePromises);
+  }
+
+  async deleteInviteBy(
+    where: Partial<WorkspaceInviteAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceInvite.destroy({ where });
+  }
+
   async getWorkspaceInvitationsCount(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number> {
