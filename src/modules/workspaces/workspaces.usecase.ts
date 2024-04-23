@@ -464,12 +464,10 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Not valid workspace');
     }
 
-    const teamsWithMemberCount =
-      await this.teamRepository.getTeamsAndMembersCountByWorkspace(
-        workspace.id,
-      );
+    const teamInWorkspaceCount =
+      await this.teamRepository.getTeamsInWorkspaceCount(workspace.id);
 
-    if (teamsWithMemberCount.length >= 10) {
+    if (teamInWorkspaceCount >= 10) {
       throw new BadRequestException('Maximum teams reached');
     }
 

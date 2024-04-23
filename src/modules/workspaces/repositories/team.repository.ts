@@ -162,6 +162,14 @@ export class SequelizeWorkspaceTeamRepository {
     }));
   }
 
+  async getTeamsInWorkspaceCount(workspaceId: WorkspaceAttributes['id']) {
+    const teamsCount = await this.teamModel.count({
+      where: { workspaceId },
+    });
+
+    return teamsCount;
+  }
+
   async deleteTeamById(
     teamId: WorkspaceTeamAttributes['id'],
     transaction?: Transaction,

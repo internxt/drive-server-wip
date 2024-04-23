@@ -949,4 +949,60 @@ describe('WorkspacesUsecases', () => {
       expect(assignableSpace).toBe(BigInt(300000));
     });
   });
+
+  describe('createTeam', () => {
+    it('When workspace is not found, then fail', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+      await expect(
+        service.createTeam(user, workspace.id, { name: 'test', managerId: '' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When maximum teams in a workspace is reached, then throw', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(teamRepository, 'getTeamsInWorkspaceCount')
+        .mockResolvedValue(10);
+
+      await expect(
+        service.createTeam(user, workspace.id, { name: 'test', managerId: '' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When maximum teams in a workspace is still not reached, then create workspace', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+      const createdTeam = newWorkspaceTeam({
+        workspaceId: workspace.id,
+        manager: user,
+      });
+      const teamInput = {
+        name: 'test',
+      };
+
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(teamRepository, 'getTeamsInWorkspaceCount')
+        .mockResolvedValue(5);
+      jest.spyOn(teamRepository, 'createTeam').mockResolvedValue(createdTeam);
+
+      const newTeam = await service.createTeam(user, workspace.id, teamInput);
+
+      expect(teamRepository.createTeam).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: workspace.id,
+          name: teamInput.name,
+          managerId: user.uuid,
+        }),
+      );
+
+      expect(newTeam).toEqual(createdTeam);
+    });
+  });
 });

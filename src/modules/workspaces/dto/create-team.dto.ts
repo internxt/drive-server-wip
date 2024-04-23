@@ -15,5 +15,5 @@ export class CreateTeamDto {
     description: 'Uuid of the user to assign as manager',
   })
   @IsOptional()
-  managerId: WorkspaceTeam['name'];
+  managerId?: WorkspaceTeam['name'];
 }
