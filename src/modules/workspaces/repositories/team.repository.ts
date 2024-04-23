@@ -55,7 +55,7 @@ export class SequelizeWorkspaceTeamRepository {
       where: { id: teamId },
     });
 
-    return membersCount;
+    return membersCount ?? 0;
   }
 
   async getTeamUserAndTeamByTeamId(
