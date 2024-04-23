@@ -529,6 +529,19 @@ export class WorkspacesUsecases {
   }
 
   async editTeamData(teamId: WorkspaceTeam['id'], editTeamDto: EditTeamDto) {
+    const [team, workspace] = await Promise.all([
+      this.teamRepository.getTeamById(teamId),
+      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
+    ]);
+
+    if (!team || !workspace) {
+      throw new BadRequestException('Invalid team');
+    }
+
+    if (workspace.isDefaultTeam(team)) {
+      throw new BadRequestException('This team can not be edited');
+    }
+
     await this.teamRepository.updateById(teamId, editTeamDto);
   }
 
@@ -536,17 +549,64 @@ export class WorkspacesUsecases {
     teamId: WorkspaceTeam['id'],
     memberId: User['uuid'],
   ) {
+    const [team, workspace] = await Promise.all([
+      this.teamRepository.getTeamById(teamId),
+      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
+    ]);
+
+    if (!team || !workspace) {
+      throw new BadRequestException('Invalid team');
+    }
+
+    if (workspace.isDefaultTeam(team)) {
+      throw new BadRequestException('This team can not be edited');
+    }
+
     await this.teamRepository.removeMemberFromTeam(teamId, memberId);
   }
 
   async addMemberToTeam(teamId: WorkspaceTeam['id'], memberId: User['uuid']) {
-    const members = await this.teamRepository.getTeamMembers(teamId);
+    const [team, workspace] = await Promise.all([
+      this.teamRepository.getTeamById(teamId),
+      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
+    ]);
 
-    if (members.length >= 20) {
+    if (!team || !workspace) {
+      throw new BadRequestException('Invalid team');
+    }
+
+    if (workspace.isDefaultTeam(team)) {
+      throw new BadRequestException('This team can not be edited');
+    }
+
+    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      memberId,
+    });
+
+    if (!workspaceUser) {
+      throw new BadRequestException(
+        'This user does not belong to the workspace!',
+      );
+    }
+
+    const userAlreadyInTeam = await this.teamRepository.getTeamUser(
+      memberId,
+      team.id,
+    );
+
+    if (userAlreadyInTeam) {
+      throw new BadRequestException('This user is already part of team!');
+    }
+
+    const membersCount = await this.teamRepository.getTeamMembersCount(teamId);
+
+    if (membersCount >= 20) {
       throw new BadRequestException('Maximum members reached');
     }
 
-    await this.teamRepository.addUserToTeam(teamId, memberId);
+    const newMember = await this.teamRepository.addUserToTeam(teamId, memberId);
+
+    return newMember;
   }
 
   async changeTeamManager(
@@ -561,6 +621,19 @@ export class WorkspacesUsecases {
   }
 
   async deleteTeam(teamId: WorkspaceTeam['id']) {
+    const [team, workspace] = await Promise.all([
+      this.teamRepository.getTeamById(teamId),
+      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
+    ]);
+
+    if (!team || !workspace) {
+      throw new BadRequestException('Invalid team');
+    }
+
+    if (workspace.isDefaultTeam(team)) {
+      throw new BadRequestException('This team can not be edited');
+    }
+
     await this.teamRepository.deleteTeamById(teamId);
   }
 
