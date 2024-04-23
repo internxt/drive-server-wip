@@ -21,6 +21,7 @@ import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
 import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
+import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -309,6 +310,33 @@ export const newWorkspaceTeam = (params?: {
     });
 
   return team;
+};
+
+export const newWorkspaceTeamUser = (params?: {
+  attributes?: Partial<WorkspaceTeamUser>;
+  teamId?: string;
+  memberId?: User['uuid'];
+}): WorkspaceTeamUser => {
+  const randomCreatedAt = randomDataGenerator.date();
+
+  const teamUser = WorkspaceTeamUser.build({
+    id: v4(),
+    teamId: params?.teamId || v4(),
+    memberId: params?.memberId || v4(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      teamUser[key] = params.attributes[key];
+    });
+
+  return teamUser;
 };
 
 export const newWorkspaceUser = (params?: {

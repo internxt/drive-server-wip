@@ -50,6 +50,14 @@ export class SequelizeWorkspaceTeamRepository {
     return result.map((teamUser) => User.build({ ...teamUser.member }));
   }
 
+  async getTeamMembersCount(teamId: WorkspaceTeamAttributes['id']) {
+    const membersCount = await this.teamUserModel.count({
+      where: { id: teamId },
+    });
+
+    return membersCount;
+  }
+
   async getTeamUserAndTeamByTeamId(
     userUuid: UserAttributes['uuid'],
     teamId: WorkspaceTeamAttributes['id'],
