@@ -1191,5 +1191,160 @@ describe('WorkspacesUsecases', () => {
         expect(newMember).toEqual(teamUser);
       });
     });
+
+    describe('removeMemberFromTeam', () => {
+      it('When team is not found, then it should throw', async () => {
+        const teamId = 'team-id';
+        const memberId = 'member-uuid';
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
+
+        await expect(
+          service.removeMemberFromTeam(teamId, memberId),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is not part of team, then it should throw', async () => {
+        const user = newUser();
+        const workspace = newWorkspace();
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+        jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(null);
+
+        await expect(
+          service.removeMemberFromTeam(team.id, user.uuid),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is the manager of the team, then owner of the workspace should be assigned as manager', async () => {
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({ owner: workspaceOwner });
+        const manager = newUser();
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+          manager: manager,
+        });
+        const teamUser = newWorkspaceTeamUser({
+          teamId: team.id,
+          memberId: manager.uuid,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+        jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(teamUser);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await service.removeMemberFromTeam(team.id, manager.uuid);
+
+        expect(teamRepository.updateById).toHaveBeenCalledWith(team.id, {
+          managerId: workspace.ownerId,
+        });
+      });
+
+      it('When user is being removed, then it should resolve', async () => {
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({ owner: workspaceOwner });
+        const member = newUser();
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+        const teamUser = newWorkspaceTeamUser({
+          teamId: team.id,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+        jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(teamUser);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await service.removeMemberFromTeam(team.id, member.uuid);
+
+        expect(teamRepository.removeMemberFromTeam).toHaveBeenCalledWith(
+          team.id,
+          member.uuid,
+        );
+      });
+    });
+
+    describe('changeTeamManager', () => {
+      it('When team is not found, then it should throw', async () => {
+        const teamId = 'team-id';
+        const memberId = 'member-uuid';
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
+
+        await expect(
+          service.changeTeamManager(teamId, memberId),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is not part of workspace, then it should throw', async () => {
+        const user = newUser();
+        const workspace = newWorkspace();
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(null);
+
+        await expect(
+          service.changeTeamManager(team.id, user.uuid),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is not part of team, then it should throw', async () => {
+        const user = newUser();
+        const workspace = newWorkspace();
+        const workspaceUser = newWorkspaceUser({ workspaceId: workspace.id });
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(null);
+
+        await expect(
+          service.changeTeamManager(team.id, user.uuid),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is being assigned succesfully, then it should resolve', async () => {
+        const user = newUser();
+        const workspace = newWorkspace();
+        const workspaceUser = newWorkspaceUser({ workspaceId: workspace.id });
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+        const teamUser = newWorkspaceTeamUser({
+          teamId: team.id,
+          memberId: user.uuid,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(teamUser);
+
+        await service.changeTeamManager(team.id, user.uuid);
+
+        expect(teamRepository.updateById).toHaveBeenCalledWith(team.id, {
+          managerId: user.uuid,
+        });
+      });
+    });
   });
 });

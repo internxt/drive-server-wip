@@ -532,12 +532,8 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team) {
+    if (!team || workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('Invalid team');
-    }
-
-    if (workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('This team can not be edited');
     }
 
     await this.teamRepository.updateById(teamId, editTeamDto);
@@ -552,12 +548,26 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team) {
+    if (!team || workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('Invalid team');
     }
 
-    if (workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('This team can not be edited');
+    const teamUser = await this.teamRepository.getTeamUser(memberId, team.id);
+
+    if (!teamUser) {
+      throw new BadRequestException('User is not part of team!');
+    }
+
+    const isUserManagerOfTeam = team.managerId === memberId;
+
+    if (isUserManagerOfTeam) {
+      const teamWorkspace = await this.workspaceRepository.findOne({
+        id: team.workspaceId,
+      });
+
+      await this.teamRepository.updateById(team.id, {
+        managerId: teamWorkspace.ownerId,
+      });
     }
 
     await this.teamRepository.removeMemberFromTeam(teamId, memberId);
@@ -569,21 +579,18 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team) {
+    if (!team || workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('Invalid team');
-    }
-
-    if (workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('This team can not be edited');
     }
 
     const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
       memberId,
+      deactivated: false,
     });
 
     if (!workspaceUser) {
       throw new BadRequestException(
-        'This user does not belong to the workspace!',
+        'This user is not valid member in the workspace',
       );
     }
 
@@ -611,7 +618,33 @@ export class WorkspacesUsecases {
     teamId: WorkspaceTeam['id'],
     managerId: User['uuid'],
   ) {
-    await this.teamRepository.updateById(teamId, { managerId });
+    const [team, workspace] = await Promise.all([
+      this.teamRepository.getTeamById(teamId),
+      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
+    ]);
+
+    if (!team || workspace?.isDefaultTeam(team)) {
+      throw new BadRequestException('Invalid team');
+    }
+
+    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      memberId: managerId,
+      deactivated: false,
+    });
+
+    if (!workspaceUser) {
+      throw new BadRequestException(
+        'The user you are trying to assign as manager is not a valid member in the workspace',
+      );
+    }
+
+    const teamUser = await this.teamRepository.getTeamUser(managerId, team.id);
+
+    if (!teamUser) {
+      throw new BadRequestException('User is not in the team');
+    }
+
+    await this.teamRepository.updateById(team.id, { managerId });
   }
 
   async deleteTeam(teamId: WorkspaceTeam['id']) {
@@ -620,12 +653,8 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team) {
+    if (!team || workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('Invalid team');
-    }
-
-    if (workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('This team can not be edited');
     }
 
     await this.teamRepository.deleteTeamById(teamId);
