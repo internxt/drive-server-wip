@@ -532,11 +532,11 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team || !workspace) {
+    if (!team) {
       throw new BadRequestException('Invalid team');
     }
 
-    if (workspace.isDefaultTeam(team)) {
+    if (workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('This team can not be edited');
     }
 
@@ -552,11 +552,11 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team || !workspace) {
+    if (!team) {
       throw new BadRequestException('Invalid team');
     }
 
-    if (workspace.isDefaultTeam(team)) {
+    if (workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('This team can not be edited');
     }
 
@@ -569,11 +569,11 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team || !workspace) {
+    if (!team) {
       throw new BadRequestException('Invalid team');
     }
 
-    if (workspace.isDefaultTeam(team)) {
+    if (workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('This team can not be edited');
     }
 
@@ -614,21 +614,17 @@ export class WorkspacesUsecases {
     await this.teamRepository.updateById(teamId, { managerId });
   }
 
-  async changeTeamName(teamId: WorkspaceTeam['id'], name: string) {
-    await this.teamRepository.updateById(teamId, { name });
-  }
-
   async deleteTeam(teamId: WorkspaceTeam['id']) {
     const [team, workspace] = await Promise.all([
       this.teamRepository.getTeamById(teamId),
       this.workspaceRepository.findOne({ defaultTeamId: teamId }),
     ]);
 
-    if (!team || !workspace) {
+    if (!team) {
       throw new BadRequestException('Invalid team');
     }
 
-    if (workspace.isDefaultTeam(team)) {
+    if (workspace?.isDefaultTeam(team)) {
       throw new BadRequestException('This team can not be edited');
     }
 
