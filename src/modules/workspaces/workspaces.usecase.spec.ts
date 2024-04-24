@@ -1346,5 +1346,45 @@ describe('WorkspacesUsecases', () => {
         });
       });
     });
+
+    describe('deleteTeam', () => {
+      it('When team is not found, then it should throw', async () => {
+        const teamId = 'team-id';
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
+
+        await expect(service.deleteTeam(teamId)).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('When team is default team, then it should throw', async () => {
+        const workspace = newWorkspace();
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+        workspace.defaultTeamId = team.id;
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await expect(service.deleteTeam(team.id)).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('When a team is deleted, then it should resolve', async () => {
+        const workspace = newWorkspace();
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
+
+        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await service.deleteTeam(team.id);
+        expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
+      });
+    });
   });
 });

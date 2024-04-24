@@ -185,12 +185,10 @@ export class WorkspacesController {
     @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
     @Body() editTeamBody: EditTeamDto,
   ) {
-    if (!teamId) {
+    if (!teamId || !isUUID(teamId)) {
       throw new BadRequestException('Invalid team ID');
     }
-    if (!editTeamBody) {
-      throw new BadRequestException('Invalid edit team data');
-    }
+
     return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
   }
 
@@ -205,7 +203,7 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async deleteTeam(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
-    if (!teamId) {
+    if (!teamId || !isUUID(teamId)) {
       throw new BadRequestException('Invalid team ID');
     }
     return this.workspaceUseCases.deleteTeam(teamId);
