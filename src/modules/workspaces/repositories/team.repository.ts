@@ -130,7 +130,7 @@ export class SequelizeWorkspaceTeamRepository {
           ],
         ],
       },
-      group: ['TeamModel.id'],
+      group: ['WorkspaceTeamModel.id'],
     });
 
     return teams.map((team) => ({
