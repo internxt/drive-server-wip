@@ -51,7 +51,7 @@ describe('SequelizeWorkspaceTeamRepository', () => {
 
       await repository.updateById(id, update);
 
-      expect(workspaceTeamModel.update).toBeCalledWith(update, {
+      expect(workspaceTeamModel.update).toHaveBeenCalledWith(update, {
         where: { id },
       });
     });
