@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { JwtHeader } from 'jsonwebtoken';
 import passport from 'passport';
 
 export const passportAuth = passport.authenticate('jwt', { session: false });
@@ -29,4 +29,12 @@ export function SignWithCustomDuration(
   expiresIn: string,
 ): string {
   return jwt.sign(payload, secret, { expiresIn });
+}
+
+export function SignWithRS256AndHeader(
+  payload: object,
+  secret: string,
+  header: JwtHeader,
+): string {
+  return jwt.sign(payload, secret, { algorithm: 'RS256', header });
 }
