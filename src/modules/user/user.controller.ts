@@ -51,7 +51,11 @@ import {
   RequestRecoverAccountDto,
   ResetAccountDto,
 } from './dto/recover-account.dto';
-import { verifyToken, verifyWithDefaultSecret } from '../../lib/jwt';
+import {
+  generateJitsiJWT,
+  verifyToken,
+  verifyWithDefaultSecret,
+} from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -714,5 +718,19 @@ export class UserController {
     @Param('encryptedAttemptChangeEmailId') id: string,
   ) {
     return await this.userUseCases.isAttemptChangeEmailExpired(id);
+  }
+
+  @Get('/jitsi')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get the user Jitsi token',
+  })
+  @ApiOkResponse({
+    description: 'Returns a new jitsi token related to the user',
+  })
+  getJitsiToken(@UserDecorator() user: User) {
+    //check user condition to return Jitsi token or 401 (condition not defined yet)
+    const token = generateJitsiJWT(user.uuid, user.name, user.email);
+    return { token };
   }
 }
