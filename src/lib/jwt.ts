@@ -1,5 +1,11 @@
 import { sign, SignOptions, verify } from 'jsonwebtoken';
 import getEnv from '../config/configuration';
+import { SignWithRS256AndHeader } from '../middlewares/passport';
+import {
+  getJitsiJWTHeader,
+  getJitsiJWTPayload,
+  getJitsiJWTSecret,
+} from './jitsi';
 
 export function generateJWT(
   payload: Record<string, unknown>,
@@ -48,4 +54,12 @@ export function getTokenDefaultIat() {
 
 export function isTokenIatGreaterThanDate(date: Date, iat: number) {
   return Math.floor(date.getTime() / 1000) < iat;
+}
+
+export function generateJitsiJWT(id: string, name: string, email: string) {
+  return SignWithRS256AndHeader(
+    getJitsiJWTPayload(id, name, email),
+    getJitsiJWTSecret(),
+    getJitsiJWTHeader(),
+  );
 }
