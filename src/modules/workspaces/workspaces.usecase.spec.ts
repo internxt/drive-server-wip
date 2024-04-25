@@ -984,7 +984,7 @@ describe('WorkspacesUsecases', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When maximum teams in a workspace is still not reached, then create workspace', async () => {
+      it('When maximum teams in a workspace is still not reached, then team is created succesfully', async () => {
         const user = newUser();
         const workspace = newWorkspace({ owner: user });
         const createdTeam = newWorkspaceTeam({
@@ -1066,7 +1066,7 @@ describe('WorkspacesUsecases', () => {
     });
 
     describe('editTeamData', () => {
-      it('When team is being updated, then it update the respective fields', async () => {
+      it('When the team is part of the workspace and is not the default team of the workspace, then the update is done', async () => {
         const user = newUser();
         const workspace = newWorkspace({ owner: user });
         const team = newWorkspaceTeam({
@@ -1089,7 +1089,7 @@ describe('WorkspacesUsecases', () => {
     });
 
     describe('addMemberToTeam', () => {
-      it('When team is not valid, then it should throw', async () => {
+      it('When team is not valid or is the default team of the workspace, then it should throw', async () => {
         const teamId = 'team-id';
         const memberId = 'member-uuid';
 
@@ -1206,7 +1206,7 @@ describe('WorkspacesUsecases', () => {
     });
 
     describe('removeMemberFromTeam', () => {
-      it('When team is not valid, then it should throw', async () => {
+      it('When team is not valid or is the default team of the workspace, then it should throw', async () => {
         const teamId = 'team-id';
         const memberId = 'member-uuid';
 
@@ -1289,11 +1289,13 @@ describe('WorkspacesUsecases', () => {
     });
 
     describe('changeTeamManager', () => {
-      it('When team is not found, then it should throw', async () => {
+      it('When team is not valid or is the default team of the workspace, then it should throw', async () => {
         const teamId = 'team-id';
         const memberId = 'member-uuid';
 
-        jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
+        jest
+          .spyOn(service, 'getAndValidateNonDefaultTeamWorkspace')
+          .mockRejectedValueOnce(new BadRequestException());
 
         await expect(
           service.changeTeamManager(teamId, memberId),
@@ -1366,7 +1368,7 @@ describe('WorkspacesUsecases', () => {
     });
 
     describe('deleteTeam', () => {
-      it('When team is not valid, then it should throw', async () => {
+      it('When team is not valid or is the default team of the workspace, then it should throw', async () => {
         const teamId = 'team-id';
 
         jest
