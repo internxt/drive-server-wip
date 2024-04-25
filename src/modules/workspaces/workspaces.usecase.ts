@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -527,14 +528,7 @@ export class WorkspacesUsecases {
   }
 
   async editTeamData(teamId: WorkspaceTeam['id'], editTeamDto: EditTeamDto) {
-    const [team, workspace] = await Promise.all([
-      this.teamRepository.getTeamById(teamId),
-      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
-    ]);
-
-    if (!team || workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('Invalid team');
-    }
+    await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     await this.teamRepository.updateById(teamId, editTeamDto);
   }
@@ -543,14 +537,7 @@ export class WorkspacesUsecases {
     teamId: WorkspaceTeam['id'],
     memberId: User['uuid'],
   ) {
-    const [team, workspace] = await Promise.all([
-      this.teamRepository.getTeamById(teamId),
-      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
-    ]);
-
-    if (!team || workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('Invalid team');
-    }
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     const teamUser = await this.teamRepository.getTeamUser(memberId, team.id);
 
@@ -574,14 +561,7 @@ export class WorkspacesUsecases {
   }
 
   async addMemberToTeam(teamId: WorkspaceTeam['id'], memberId: User['uuid']) {
-    const [team, workspace] = await Promise.all([
-      this.teamRepository.getTeamById(teamId),
-      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
-    ]);
-
-    if (!team || workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('Invalid team');
-    }
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
       memberId,
@@ -614,18 +594,33 @@ export class WorkspacesUsecases {
     return newMember;
   }
 
+  async getAndValidateNonDefaultTeamWorkspace(teamId: string) {
+    const team = await this.teamRepository.getTeamById(teamId);
+
+    if (!team) {
+      throw new BadRequestException('Team not found');
+    }
+
+    const workspace = await this.workspaceRepository.findOne({
+      id: team.workspaceId,
+    });
+
+    if (!workspace) {
+      throw new ForbiddenException('Not valid workspace found');
+    }
+
+    if (workspace.isDefaultTeam(team)) {
+      throw new BadRequestException('Invalid operation on default team');
+    }
+
+    return { team, workspace };
+  }
+
   async changeTeamManager(
     teamId: WorkspaceTeam['id'],
     managerId: User['uuid'],
   ) {
-    const [team, workspace] = await Promise.all([
-      this.teamRepository.getTeamById(teamId),
-      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
-    ]);
-
-    if (!team || workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('Invalid team');
-    }
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
       memberId: managerId,
@@ -648,14 +643,7 @@ export class WorkspacesUsecases {
   }
 
   async deleteTeam(teamId: WorkspaceTeam['id']) {
-    const [team, workspace] = await Promise.all([
-      this.teamRepository.getTeamById(teamId),
-      this.workspaceRepository.findOne({ defaultTeamId: teamId }),
-    ]);
-
-    if (!team || workspace?.isDefaultTeam(team)) {
-      throw new BadRequestException('Invalid team');
-    }
+    await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     await this.teamRepository.deleteTeamById(teamId);
   }

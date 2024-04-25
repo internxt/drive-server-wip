@@ -4,7 +4,6 @@ import {
   Controller,
   Delete,
   Get,
-  NotImplementedException,
   Param,
   Patch,
   Post,
@@ -36,6 +35,7 @@ import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
+import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -78,13 +78,10 @@ export class WorkspacesController {
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async setupWorkspace(
     @UserDecorator() user: User,
-    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
     @Body() setupWorkspaceDto: SetupWorkspaceDto,
   ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
     return this.workspaceUseCases.setupWorkspace(
       user,
       workspaceId,
@@ -104,7 +101,8 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async inviteUsersToWorkspace(
-    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
     @Body() createInviteDto: CreateWorkspaceInviteDto,
     @UserDecorator() user: User,
   ) {
@@ -124,14 +122,11 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async createTeam(
-    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
     @Body() createTeamBody: CreateTeamDto,
     @UserDecorator() user: User,
   ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
     return this.workspaceUseCases.createTeam(user, workspaceId, createTeamBody);
   }
 
@@ -145,7 +140,8 @@ export class WorkspacesController {
     description: 'Teams in the workspace along with its members quantity',
   })
   async getWorkspaceTeams(
-    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
   ) {
     if (!workspaceId || !isUUID(workspaceId)) {
@@ -164,7 +160,9 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
-  async getTeamMembers(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
+  async getTeamMembers(
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
+  ) {
     if (!teamId) {
       throw new BadRequestException('Invalid team ID');
     }
@@ -182,13 +180,9 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MANAGER)
   async editTeam(
-    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
     @Body() editTeamBody: EditTeamDto,
   ) {
-    if (!teamId || !isUUID(teamId)) {
-      throw new BadRequestException('Invalid team ID');
-    }
-
     return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
   }
 
@@ -202,10 +196,9 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async deleteTeam(@Param('teamId') teamId: WorkspaceTeamAttributes['id']) {
-    if (!teamId || !isUUID(teamId)) {
-      throw new BadRequestException('Invalid team ID');
-    }
+  async deleteTeam(
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
+  ) {
     return this.workspaceUseCases.deleteTeam(teamId);
   }
 
@@ -222,16 +215,9 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MANAGER)
   async addUserToTeam(
-    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
-    @Param('userUuid') memberId: UserAttributes['uuid'],
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
+    @Param('userUuid', ValidateUUIDPipe) memberId: UserAttributes['uuid'],
   ) {
-    if (!teamId || !isUUID(teamId)) {
-      throw new BadRequestException('Invalid team id');
-    }
-
-    if (!memberId || !isUUID(memberId)) {
-      throw new BadRequestException('Invalid User Uuid');
-    }
     const newTeamMember = await this.workspaceUseCases.addMemberToTeam(
       teamId,
       memberId,
@@ -253,16 +239,9 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MANAGER)
   async removeUserFromTeam(
-    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
-    @Param('userUuid') memberId: UserAttributes['uuid'],
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
+    @Param('userUuid', ValidateUUIDPipe) memberId: UserAttributes['uuid'],
   ) {
-    if (!teamId || !isUUID(teamId)) {
-      throw new BadRequestException('Invalid Team id');
-    }
-
-    if (!memberId || !isUUID(memberId)) {
-      throw new BadRequestException('Invalid User Uuid');
-    }
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
@@ -278,12 +257,9 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async changeTeamManager(
-    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
-    @Body('managerId') managerId: UserAttributes['uuid'],
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
+    @Body('managerId', ValidateUUIDPipe) managerId: UserAttributes['uuid'],
   ) {
-    if (!managerId || !isUUID(managerId)) {
-      throw new BadRequestException('Invalid Manager Uuid');
-    }
     return this.workspaceUseCases.changeTeamManager(teamId, managerId);
   }
 
@@ -301,15 +277,12 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async changeMemberRole(
-    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
-    @Param('teamId') teamId: WorkspaceTeamAttributes['id'],
-    @Param('memberId') userUuid: User['uuid'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
+    @Param('memberId', ValidateUUIDPipe) userUuid: User['uuid'],
     @Body() changeUserRoleBody: ChangeUserRoleDto,
   ) {
-    if (!userUuid || !isUUID(userUuid)) {
-      throw new BadRequestException('Invalid User Uuid');
-    }
-
     return this.workspaceUseCases.changeUserRole(
       workspaceId,
       teamId,
