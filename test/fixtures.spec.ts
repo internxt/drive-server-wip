@@ -426,4 +426,39 @@ describe('Testing fixtures tests', () => {
       expect(invite.spaceLimit).toBe(customAttributes.spaceLimit);
     });
   });
+
+  describe("newWorkspaceTeamUser's fixture", () => {
+    it('When it generates a team user, then the identifier should be random', () => {
+      const teamUser = fixtures.newWorkspaceTeamUser();
+      const otherTeamUser = fixtures.newWorkspaceTeamUser();
+      expect(teamUser.id).toBeTruthy();
+      expect(teamUser.id).not.toBe(otherTeamUser.id);
+    });
+
+    it('When it generates a team user, then the teamId should be random', () => {
+      const teamUser = fixtures.newWorkspaceTeamUser();
+      const otherTeamUser = fixtures.newWorkspaceTeamUser();
+      expect(teamUser.teamId).toBeTruthy();
+      expect(teamUser.teamId).not.toBe(otherTeamUser.teamId);
+    });
+
+    it('When it generates a workspace with a specified memberId, then the memberId should match', () => {
+      const memberId = 'customId';
+      const teamUser = fixtures.newWorkspaceTeamUser({ memberId });
+      expect(teamUser.memberId).toBe(memberId);
+    });
+
+    it('When it generates a team user with custom attributes, then those attributes are set correctly', () => {
+      const customAttributes = {
+        memberId: 'memberIdCustom',
+        teamId: 'customTeamId',
+      };
+      const teamUser = fixtures.newWorkspaceTeamUser({
+        attributes: customAttributes,
+      });
+
+      expect(teamUser.memberId).toBe(customAttributes.memberId);
+      expect(teamUser.teamId).toBe(customAttributes.teamId);
+    });
+  });
 });
