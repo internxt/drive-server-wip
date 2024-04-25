@@ -729,8 +729,12 @@ export class UserController {
     description: 'Returns a new jitsi token related to the user',
   })
   getJitsiToken(@UserDecorator() user: User) {
-    //check user condition to return Jitsi token or 401 (condition not defined yet)
-    const token = generateJitsiJWT(user.uuid, user.name, user.email);
-    return { token };
+    const closedBetaEmails: string[] = [];
+    if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
+      const token = generateJitsiJWT(user.uuid, user.name, user.email);
+      return { token };
+    } else {
+      throw new UnauthorizedException('User can not create an Internxt Meet');
+    }
   }
 }
