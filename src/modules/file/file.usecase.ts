@@ -1,17 +1,18 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  ConflictException,
   ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Share } from '../share/share.domain';
-import { ShareUseCases } from '../share/share.usecase';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import {
@@ -25,6 +26,8 @@ import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { SharingItemType } from '../sharing/sharing.domain';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -32,10 +35,10 @@ type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private fileRepository: SequelizeFileRepository,
-    @Inject(forwardRef(() => ShareUseCases))
-    private shareUseCases: ShareUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUsecases: FolderUseCases,
+    @Inject(forwardRef(() => SharingService))
+    private sharingUsecases: SharingService,
     private network: BridgeService,
     private cryptoService: CryptoService,
   ) {}
@@ -243,11 +246,23 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
-  moveFilesToTrash(
+  async moveFilesToTrash(
     user: User,
     fileIds: FileAttributes['fileId'][],
+    fileUuids: FileAttributes['uuid'][] = [],
   ): Promise<void> {
-    return this.fileRepository.updateFilesStatusToTrashed(user, fileIds);
+    const files = await this.fileRepository.findByFileIds(user.id, fileIds);
+    const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
+
+    await Promise.all([
+      this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
+      this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),
+      this.sharingUsecases.bulkRemoveSharings(
+        user,
+        allFileUuids,
+        SharingItemType.File,
+      ),
+    ]);
   }
 
   async getEncryptionKeyFileFromShare(
@@ -319,6 +334,70 @@ export class FileUseCases {
       fileId,
       size,
     };
+  }
+
+  async moveFile(
+    user: User,
+    fileUuid: File['fileId'],
+    destinationUuid: File['folderUuid'],
+  ): Promise<File> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id);
+    if (!file || file.removed === true || file.status === FileStatus.DELETED) {
+      throw new UnprocessableEntityException(
+        `File ${fileUuid} can not be moved`,
+      );
+    }
+
+    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
+      destinationUuid,
+      user,
+    );
+    if (!destinationFolder || destinationFolder.removed === true) {
+      throw new UnprocessableEntityException(
+        `File can not be moved to ${destinationUuid}`,
+      );
+    }
+
+    const originalPlainName = this.cryptoService.decryptName(
+      file.name,
+      file.folderId,
+    );
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      originalPlainName,
+      destinationFolder.id,
+    );
+
+    const exists = await this.fileRepository.findByNameAndFolderUuid(
+      destinationEncryptedName,
+      file.type,
+      destinationFolder.uuid,
+      FileStatus.EXISTS,
+    );
+    if (exists) {
+      if (exists.uuid === file.uuid) {
+        throw new ConflictException(
+          `File ${fileUuid} was already moved to that location`,
+        );
+      }
+      throw new ConflictException(
+        'A file with the same name already exists in destination folder',
+      );
+    }
+
+    const updateData: Partial<File> = {
+      folderId: destinationFolder.id,
+      folderUuid: destinationFolder.uuid,
+      name: destinationEncryptedName,
+      status: FileStatus.EXISTS,
+    };
+
+    await this.fileRepository.updateByUuidAndUserId(
+      fileUuid,
+      user.id,
+      updateData,
+    );
+
+    return Object.assign(file, updateData);
   }
 
   decrypFileName(file: File): any {

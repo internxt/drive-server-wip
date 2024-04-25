@@ -9,6 +9,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderController } from './folder.controller';
 import { UserModel } from '../user/user.model';
 import { UserModule } from '../user/user.module';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UserModule } from '../user/user.module';
     forwardRef(() => FileModule),
     forwardRef(() => UserModule),
     CryptoModule,
+    forwardRef(() => SharingModule),
   ],
   controllers: [FolderController],
   providers: [SequelizeFolderRepository, CryptoService, FolderUseCases],

@@ -43,6 +43,11 @@ export interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findByNameAndParentUuid(
+    name: FolderAttributes['name'],
+    parentUuid: FolderAttributes['parentUuid'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder | null>;
   findInTree(
     folderTreeRootId: FolderAttributes['parentId'],
     folderId: FolderAttributes['id'],
@@ -60,6 +65,10 @@ export interface FolderRepository {
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
+  findUserFoldersByUuid(
+    user: User,
+    uuids: FolderAttributes['uuid'][],
+  ): Promise<Folder[]>;
 }
 
 @Injectable()
@@ -138,6 +147,18 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
+  async findUserFoldersByUuid(user: User, uuids: FolderAttributes['uuid'][]) {
+    const folders = await this.folderModel.findAll({
+      where: {
+        uuid: { [Op.in]: uuids },
+        userId: user.id,
+        deleted: false,
+        removed: false,
+      },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
   async findAllByParentIdCursor(
     where: Partial<FolderAttributes>,
     limit: number,
@@ -158,6 +179,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     deleted: FolderAttributes['deleted'] = false,
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({ where: { uuid, deleted } });
+    return folder ? this.toDomain(folder) : null;
+  }
+
+  async findByNameAndParentUuid(
+    name: FolderAttributes['name'],
+    parentUuid: FolderAttributes['parentUuid'],
+    deleted: FolderAttributes['deleted'],
+  ): Promise<Folder> {
+    const folder = await this.folderModel.findOne({
+      where: {
+        name: { [Op.eq]: name },
+        parentUuid: { [Op.eq]: parentUuid },
+        deleted: { [Op.eq]: deleted },
+      },
+    });
     return folder ? this.toDomain(folder) : null;
   }
 
