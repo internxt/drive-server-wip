@@ -729,7 +729,8 @@ export class UserController {
     description: 'Returns a new jitsi token related to the user',
   })
   getJitsiToken(@UserDecorator() user: User) {
-    const closedBetaEmails: string[] = [];
+    const closedBetaEmails: string[] =
+      this.userUseCases.getJitsiClosedBetaUsers();
     if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
       const token = generateJitsiJWT(user.uuid, user.name, user.email);
       return { token };
