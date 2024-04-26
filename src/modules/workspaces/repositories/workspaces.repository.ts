@@ -10,6 +10,8 @@ import { WorkspaceInviteModel } from '../models/workspace-invite.model';
 import { WorkspaceInvite } from '../domains/workspace-invite.domain';
 import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
+import { UserModel } from '../../user/user.model';
+import { User } from '../../user/user.domain';
 
 export interface WorkspaceRepository {
   findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
@@ -237,6 +239,19 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     }));
   }
 
+  async findWorkspaceUsers(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<WorkspaceUser[]> {
+    const usersWorkspace = await this.modelWorkspaceUser.findAll({
+      where: { workspaceId },
+      include: [UserModel],
+    });
+
+    return usersWorkspace.map((userWorkspace) =>
+      this.workspaceUserToDomain(userWorkspace),
+    );
+  }
+
   async addUserToWorkspace(
     workspaceUser: Omit<WorkspaceUser, 'id'>,
   ): Promise<WorkspaceUser> {
@@ -282,6 +297,7 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
   workspaceUserToDomain(model: WorkspaceUserModel): WorkspaceUser {
     return WorkspaceUser.build({
       ...model?.toJSON(),
+      member: model.member ? User.build(model.member) : null,
     });
   }
 
