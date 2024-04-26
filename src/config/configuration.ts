@@ -40,6 +40,7 @@ export default () => ({
     jwt: process.env.JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
     captcha: process.env.RECAPTCHA_V3,
+    jitsiSecret: process.env.JITSI_SECRET,
   },
   apis: {
     notifications: {
@@ -115,5 +116,9 @@ export default () => ({
   },
   users: {
     preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
+  },
+  jitsi: {
+    appId: process.env.JITSI_APP_ID,
+    apiKey: process.env.JITSI_API_KEY,
   },
 });

@@ -1,12 +1,13 @@
 import { JwtHeader } from 'jsonwebtoken';
+import getEnv from '../config/configuration';
 
 export const getJitsiJWTSecret = () => {
-  return 'private-key';
+  return Buffer.from(getEnv().secrets.jitsiSecret, 'base64').toString('utf8');
 };
 
 export const getJitsiJWTPayload = (id: string, name: string, email: string) => {
   const now = new Date();
-  const appId = 'vpaas-magic-cookie-uuid_appId';
+  const appId = getEnv().jitsi.appId;
   return {
     aud: 'jitsi',
     context: {
@@ -35,7 +36,7 @@ export const getJitsiJWTPayload = (id: string, name: string, email: string) => {
 export const getJitsiJWTHeader = () => {
   const header: JwtHeader = {
     alg: 'RS256',
-    kid: 'vpaas-magic-cookie-uuid_apikey',
+    kid: getEnv().jitsi.apiKey,
     typ: 'JWT',
   };
   return header;
