@@ -1,8 +1,10 @@
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
+import { User } from '../../user/user.domain';
 
 export class WorkspaceUser implements WorkspaceUserAttributes {
   id: string;
   memberId: string;
+  member: User;
   key: string;
   workspaceId: string;
   spaceLimit: bigint;
@@ -15,6 +17,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
   constructor({
     id,
     memberId,
+    member,
     key,
     workspaceId,
     spaceLimit,
@@ -26,6 +29,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
   }: WorkspaceUserAttributes) {
     this.id = id;
     this.memberId = memberId;
+    this.setMember(member);
     this.key = key;
     this.workspaceId = workspaceId;
     this.spaceLimit = spaceLimit;
@@ -40,6 +44,18 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     return new WorkspaceUser(workspaceUser);
   }
 
+  setMember(member: User) {
+    this.member = member;
+  }
+
+  getUsedSpace(): string {
+    return (BigInt(this.driveUsage) + BigInt(this.backupsUsage)).toString();
+  }
+
+  getFreeSpace(): string {
+    return (BigInt(this.spaceLimit) - BigInt(this.getUsedSpace())).toString();
+  }
+
   toJSON() {
     return {
       id: this.id,
@@ -50,6 +66,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
       driveUsage: this.driveUsage.toString(),
       backupsUsage: this.backupsUsage.toString(),
       deactivated: this.deactivated,
+      member: this.member ? this.member.toJSON() : undefined,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

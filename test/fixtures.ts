@@ -18,9 +18,9 @@ import {
 import { Limit } from '../src/modules/feature-limit/limit.domain';
 import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
+import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
-import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -167,7 +167,7 @@ export const newUser = (): User => {
     backupsBucket: '',
     sharedWorkspace: false,
     tempKey: '',
-    avatar: v4(),
+    avatar: null,
     lastPasswordChangedAt: new Date(),
   });
 };
@@ -286,15 +286,17 @@ export const newWorkspaceTeam = (params?: {
   attributes?: Partial<WorkspaceTeam>;
   workspaceId?: string;
   manager?: User;
+  mainTeam?: boolean;
 }): WorkspaceTeam => {
   const randomCreatedAt = randomDataGenerator.date();
   const manager = params?.manager || newUser();
+  const name = params?.mainTeam ? null : randomDataGenerator.word();
 
   const team = WorkspaceTeam.build({
     id: v4(),
     workspaceId: params?.workspaceId || v4(),
     managerId: manager.uuid,
-    name: randomDataGenerator.word(),
+    name,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({
@@ -311,9 +313,44 @@ export const newWorkspaceTeam = (params?: {
   return team;
 };
 
+export const newWorkspaceTeamUser = (params?: {
+  attributes?: Partial<WorkspaceTeamUser>;
+  teamId: string;
+  memberId?: string;
+  team?: WorkspaceTeam;
+}): WorkspaceTeamUser => {
+  const randomCreatedAt = randomDataGenerator.date();
+  const team =
+    params?.team ||
+    newWorkspaceTeam({
+      attributes: { id: params.teamId },
+    });
+
+  const teamUser = WorkspaceTeamUser.build({
+    id: v4(),
+    teamId: params.teamId,
+    memberId: params?.memberId || v4(),
+    team,
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      teamUser[key] = params.attributes[key];
+    });
+
+  return teamUser;
+};
+
 export const newWorkspaceUser = (params?: {
   workspaceId?: string;
   memberId?: string;
+  member?: User;
   attributes?: Partial<WorkspaceUser>;
 }): WorkspaceUser => {
   const randomCreatedAt = randomDataGenerator.date();
@@ -322,6 +359,7 @@ export const newWorkspaceUser = (params?: {
   const workspaceUser = WorkspaceUser.build({
     id: v4(),
     memberId: params?.memberId || v4(),
+    member: params?.member,
     key: randomDataGenerator.string({ length: 32 }),
     workspaceId: params?.workspaceId || v4(),
     spaceLimit: BigInt(spaceLimit),

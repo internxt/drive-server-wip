@@ -46,6 +46,7 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Available workspaces and workspaceUser',
   })
+  @ApiBearerAuth()
   async getAvailableWorkspaces(@UserDecorator() user: User) {
     return this.workspaceUseCases.getAvailableWorkspaces(user);
   }
@@ -87,6 +88,28 @@ export class WorkspacesController {
       workspaceId,
       setupWorkspaceDto,
     );
+  }
+
+  @Get('/:workspaceId/members')
+  @ApiOperation({
+    summary: 'Gets workspace members',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Members in the workspace along with members quantity',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async getWorkspaceMembers(
+    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    if (!workspaceId || !isUUID(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    return this.workspaceUseCases.getWorkspaceMembers(workspaceId, user);
   }
 
   @Post('/:workspaceId/members/invite')
@@ -153,6 +176,7 @@ export class WorkspacesController {
   }
 
   @Get('/:workspaceId/teams/:teamId/members')
+  @ApiBearerAuth()
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getTeamMembers() {

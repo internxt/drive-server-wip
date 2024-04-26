@@ -1,6 +1,7 @@
 export interface WorkspaceUserAttributes {
   id: string;
   memberId: string;
+  member?: any;
   key: string;
   workspaceId: string;
   spaceLimit: bigint;

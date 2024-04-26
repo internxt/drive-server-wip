@@ -1,5 +1,5 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -131,6 +131,95 @@ describe('Workspace Controller', () => {
         user,
         invite.id,
       );
+    });
+  });
+
+  describe('GET /:workspaceId/members', () => {
+    const owner = newUser();
+    const workspace = newWorkspace({
+      owner,
+      attributes: { setupCompleted: true },
+    });
+
+    it('When the workspaceId is missing then it should throw BadRequestException', async () => {
+      const workspaceController = jest.spyOn(
+        workspacesController,
+        'getWorkspaceMembers',
+      );
+
+      const expectgetWorkspaceMembers = expect(async () => {
+        await workspacesController.getWorkspaceMembers(null, owner);
+      });
+      expectgetWorkspaceMembers.rejects.toThrow(BadRequestException);
+      expectgetWorkspaceMembers.rejects.toThrow('Invalid workspace ID');
+
+      expect(workspaceController).toHaveBeenCalled();
+    });
+
+    it('When the user is null or empty then it should throw UnauthorizedException', async () => {
+      const workspaceController = jest
+        .spyOn(workspacesController, 'getWorkspaceMembers')
+        .mockImplementation(async (workspaceId: string, user: any) => {
+          if (!user) throw UnauthorizedException;
+          return workspacesUsecases.getWorkspaceMembers(workspaceId, user);
+        });
+
+      const resFailed = workspacesController.getWorkspaceMembers(
+        workspace.id,
+        null,
+      );
+
+      await expect(resFailed).rejects.toThrow();
+      expect(workspaceController).toHaveBeenCalledTimes(1);
+    });
+
+    it('When members are requested with "workspaceId" and "user", then it should return workspaces members data', async () => {
+      const user1 = newUser();
+      const user2 = newUser();
+
+      const userWorkspace1 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user1.uuid,
+        member: user1,
+        attributes: { deactivated: false },
+      }).toJSON();
+      const userWorkspace2 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user2.uuid,
+        member: user2,
+        attributes: { deactivated: false },
+      }).toJSON();
+
+      const workspaceUsecase = jest.spyOn(
+        workspacesUsecases,
+        'getWorkspaceMembers',
+      );
+
+      const mockResolvedValues = [
+        {
+          ...userWorkspace1,
+          isOwner: false,
+          isManager: false,
+          freeSpace: BigInt(15000).toString(),
+          usedSpace: BigInt(0).toString(),
+        },
+        {
+          ...userWorkspace2,
+          isOwner: false,
+          isManager: false,
+          freeSpace: BigInt(13000).toString(),
+          usedSpace: BigInt(0).toString(),
+        },
+      ];
+      workspacesUsecases.getWorkspaceMembers.mockResolvedValueOnce(
+        mockResolvedValues,
+      );
+
+      await expect(
+        workspacesController.getWorkspaceMembers(workspace.id, owner),
+      ).resolves.toEqual(mockResolvedValues);
+
+      expect(workspaceUsecase).toHaveBeenCalledWith(workspace.id, owner);
     });
   });
 });
