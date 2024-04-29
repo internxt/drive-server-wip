@@ -1070,6 +1070,6 @@ export class UserUseCases {
   }
 
   getMeetClosedBetaUsers() {
-    return [];
+    return this.userRepository.getMeetClosedBetaUsers();
   }
 }

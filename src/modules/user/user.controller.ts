@@ -728,9 +728,9 @@ export class UserController {
   @ApiOkResponse({
     description: 'Returns a new meet token related to the user',
   })
-  getMeetToken(@UserDecorator() user: User) {
+  async getMeetToken(@UserDecorator() user: User) {
     const closedBetaEmails: string[] =
-      this.userUseCases.getMeetClosedBetaUsers();
+      await this.userUseCases.getMeetClosedBetaUsers();
     if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
       const token = generateJitsiJWT(user.uuid, user.name, user.email);
       return { token };

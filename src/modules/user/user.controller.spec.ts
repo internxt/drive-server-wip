@@ -143,19 +143,19 @@ describe('User Controller', () => {
 
   describe('GET /meet token', () => {
     const user = newUser();
-    it('When token is requested and user is in the closed beta, then it generates a meet token', () => {
-      userUseCases.getMeetClosedBetaUsers.mockReturnValue([user.email]);
+    it('When token is requested and user is in the closed beta, then it generates a meet token', async () => {
+      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([user.email]);
 
-      const result = userController.getMeetToken(user);
+      const result = await userController.getMeetToken(user);
       expect(result.token).toBeDefined();
     });
 
-    it('When token is requested and user is not in the closed beta, then it throws an error', () => {
-      userUseCases.getMeetClosedBetaUsers.mockReturnValue([]);
+    it('When token is requested and user is not in the closed beta, then it throws an error', async () => {
+      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([]);
 
-      expect(() => {
-        userController.getMeetToken(user);
-      }).toThrow(UnauthorizedException);
+      await expect(userController.getMeetToken(user)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });
