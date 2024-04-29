@@ -14,6 +14,11 @@ export enum SharingType {
   Private = 'private',
 }
 
+export enum SharingItemType {
+  File = 'file',
+  Folder = 'folder',
+}
+
 export interface SharingAttributes {
   id: string;
   itemId: ItemId;

@@ -33,11 +33,22 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
+  findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File | null>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<File>;
+  updateByUuidAndUserId(
+    uuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ): Promise<void>;
   updateManyByFieldIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
@@ -45,6 +56,18 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  updateFilesStatusToTrashed(
+    user: User,
+    fileIds: File['fileId'][],
+  ): Promise<void>;
+  updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void>;
+  findByFileIds(
+    userId: User['id'],
+    fileIds: FileAttributes['fileId'][],
+  ): Promise<File[]>;
 }
 
 @Injectable()
@@ -67,6 +90,22 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async findByFileIds(
+    userId: User['id'],
+    fileIds: FileAttributes['fileId'][],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        userId: userId,
+        fileId: {
+          [Op.in]: fileIds,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findById(
@@ -99,7 +138,7 @@ export class SequelizeFileRepository implements FileRepository {
     fileUuid: string,
     userId: number,
     where: FindOptions<FileAttributes> = {},
-  ): Promise<File> {
+  ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
         uuid: fileUuid,
@@ -108,6 +147,23 @@ export class SequelizeFileRepository implements FileRepository {
       },
     });
 
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        name: { [Op.eq]: name },
+        type: { [Op.eq]: type },
+        folderUuid: { [Op.eq]: folderUuid },
+        status: { [Op.eq]: status },
+      },
+    });
     return file ? this.toDomain(file) : null;
   }
 
@@ -381,7 +437,32 @@ export class SequelizeFileRepository implements FileRepository {
             [Op.in]: fileIds,
           },
           status: {
-            [Op.not]: FileStatus.DELETED,
+            [Op.eq]: FileStatus.EXISTS,
+          },
+        },
+      },
+    );
+  }
+
+  async updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        deleted: true,
+        deletedAt: new Date(),
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          uuid: {
+            [Op.in]: fileUuids,
+          },
+          status: {
+            [Op.eq]: FileStatus.EXISTS,
           },
         },
       },
