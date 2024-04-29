@@ -1069,7 +1069,7 @@ export class UserUseCases {
     };
   }
 
-  getJitsiClosedBetaUsers() {
-    return ['larry@internxt.com'];
+  getMeetClosedBetaUsers() {
+    return [];
   }
 }

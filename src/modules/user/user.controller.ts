@@ -720,17 +720,17 @@ export class UserController {
     return await this.userUseCases.isAttemptChangeEmailExpired(id);
   }
 
-  @Get('/jitsi')
+  @Get('/meet-token')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Get the user Jitsi token',
+    summary: 'Get the user Meet token',
   })
   @ApiOkResponse({
-    description: 'Returns a new jitsi token related to the user',
+    description: 'Returns a new meet token related to the user',
   })
-  getJitsiToken(@UserDecorator() user: User) {
+  getMeetToken(@UserDecorator() user: User) {
     const closedBetaEmails: string[] =
-      this.userUseCases.getJitsiClosedBetaUsers();
+      this.userUseCases.getMeetClosedBetaUsers();
     if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
       const token = generateJitsiJWT(user.uuid, user.name, user.email);
       return { token };

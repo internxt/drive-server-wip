@@ -141,20 +141,20 @@ describe('User Controller', () => {
     });
   });
 
-  describe('GET /jitsi token', () => {
+  describe('GET /meet token', () => {
     const user = newUser();
-    it('When token is requested and user is in the closed beta, then it generates a jitsi token', () => {
-      userUseCases.getJitsiClosedBetaUsers.mockReturnValue([user.email]);
+    it('When token is requested and user is in the closed beta, then it generates a meet token', () => {
+      userUseCases.getMeetClosedBetaUsers.mockReturnValue([user.email]);
 
-      const result = userController.getJitsiToken(user);
+      const result = userController.getMeetToken(user);
       expect(result.token).toBeDefined();
     });
 
     it('When token is requested and user is not in the closed beta, then it throws an error', () => {
-      userUseCases.getJitsiClosedBetaUsers.mockReturnValue([]);
+      userUseCases.getMeetClosedBetaUsers.mockReturnValue([]);
 
       expect(() => {
-        userController.getJitsiToken(user);
+        userController.getMeetToken(user);
       }).toThrow(UnauthorizedException);
     });
   });
