@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
-import { Sequelize, Transaction } from 'sequelize';
+import { Sequelize } from 'sequelize';
 import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
@@ -20,11 +20,8 @@ export class SequelizeWorkspaceTeamRepository {
     private teamUserModel: typeof WorkspaceTeamUserModel,
   ) {}
 
-  async createTeam(
-    team: Omit<WorkspaceTeam, 'id'>,
-    transaction?: Transaction,
-  ): Promise<WorkspaceTeam> {
-    const raw = await this.teamModel.create(team, { transaction });
+  async createTeam(team: Omit<WorkspaceTeam, 'id'>): Promise<WorkspaceTeam> {
+    const raw = await this.teamModel.create(team);
 
     return this.toDomain(raw);
   }
@@ -32,9 +29,8 @@ export class SequelizeWorkspaceTeamRepository {
   async updateById(
     id: WorkspaceAttributes['id'],
     update: Partial<WorkspaceTeam>,
-    transaction?: Transaction,
   ): Promise<void> {
-    await this.teamModel.update(update, { where: { id }, transaction });
+    await this.teamModel.update(update, { where: { id } });
   }
 
   async getTeamMembers(teamId: WorkspaceTeamAttributes['id']) {
@@ -44,6 +40,14 @@ export class SequelizeWorkspaceTeamRepository {
     });
 
     return result.map((teamUser) => User.build({ ...teamUser.member }));
+  }
+
+  async getTeamMembersCount(teamId: WorkspaceTeamAttributes['id']) {
+    const membersCount = await this.teamUserModel.count({
+      where: { id: teamId },
+    });
+
+    return membersCount ?? 0;
   }
 
   async getTeamUserAndTeamByTeamId(
@@ -92,6 +96,15 @@ export class SequelizeWorkspaceTeamRepository {
     return raw ? this.toDomain(raw) : null;
   }
 
+  async removeMemberFromTeam(
+    teamId: WorkspaceTeamAttributes['id'],
+    memberId: User['uuid'],
+  ): Promise<void> {
+    await this.teamUserModel.destroy({
+      where: { teamId, memberId },
+    });
+  }
+
   async addUserToTeam(
     teamId: WorkspaceTeamAttributes['id'],
     userUuid: UserAttributes['uuid'],
@@ -137,6 +150,18 @@ export class SequelizeWorkspaceTeamRepository {
       team: this.toDomain(team),
       membersCount: parseInt(team.dataValues?.membersCount),
     }));
+  }
+
+  async getTeamsInWorkspaceCount(workspaceId: WorkspaceAttributes['id']) {
+    const teamsCount = await this.teamModel.count({
+      where: { workspaceId },
+    });
+
+    return teamsCount;
+  }
+
+  async deleteTeamById(teamId: WorkspaceTeamAttributes['id']): Promise<void> {
+    await this.teamModel.destroy({ where: { id: teamId } });
   }
 
   toDomain(model: WorkspaceTeamModel): WorkspaceTeam {
