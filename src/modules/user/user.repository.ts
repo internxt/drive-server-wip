@@ -28,6 +28,7 @@ export interface UserRepository {
     update: Partial<UserAttributes>,
     transaction?: Transaction,
   ): Promise<void>;
+  getMeetClosedBetaUsers(): Promise<string[]>;
 }
 
 @Injectable()
@@ -141,6 +142,17 @@ export class SequelizeUserRepository implements UserRepository {
 
   async updateByUuid(uuid: User['uuid'], update: Partial<User>): Promise<void> {
     await this.modelUser.update(update, { where: { uuid } });
+  }
+
+  async getMeetClosedBetaUsers(): Promise<string[]> {
+    const [rawEmails] = await this.modelUser.sequelize.query(
+      'SELECT email FROM meet_closed_beta_users',
+    );
+
+    const betaEmails = rawEmails.map(
+      (rawEmail: { email: string }) => rawEmail.email,
+    );
+    return betaEmails;
   }
 
   toDomain(model: UserModel): User {

@@ -1068,4 +1068,8 @@ export class UserUseCases {
       },
     };
   }
+
+  getMeetClosedBetaUsers() {
+    return this.userRepository.getMeetClosedBetaUsers();
+  }
 }
