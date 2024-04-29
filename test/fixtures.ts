@@ -246,7 +246,7 @@ export const newFeatureLimit = (bindTo?: {
   });
 };
 
-export function generateBase64PrivateKeyStub (): string {
+export function generateBase64PrivateKeyStub(): string {
   const { privateKey } = generateKeyPairSync('rsa', {
     modulusLength: 4096,
   });
