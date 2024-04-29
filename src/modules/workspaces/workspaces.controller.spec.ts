@@ -1,5 +1,4 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -7,6 +6,7 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceInvite,
+  newWorkspaceTeamUser,
   newWorkspaceUser,
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
@@ -26,28 +26,25 @@ describe('Workspace Controller', () => {
   });
 
   describe('PATCH /:workspaceId/teams/:teamId/members/:memberId/role', () => {
-    it('When memberId is not a valid uuid, then it throws.', async () => {
-      workspacesUsecases.changeUserRole.mockRejectedValueOnce(
-        new BadRequestException(),
-      );
+    it('When role is updated correctly, then it works', async () => {
+      const userUuid = '9aa9399e-8697-41f7-88e3-df1d78794cb8';
+      const teamId = '286d2eea-8319-4a3f-a66b-d2b80e5c08fe';
+      const workspaceId = '3864950c-122d-4df3-b126-4d8b3fc23c29';
+
       await expect(
-        workspacesController.changeMemberRole('', '', 'notValidUuid', {
+        workspacesController.changeMemberRole(workspaceId, teamId, userUuid, {
           role: WorkspaceRole.MEMBER,
         }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When input is valid, then it works', async () => {
-      await expect(
-        workspacesController.changeMemberRole(
-          '',
-          '',
-          '9aa9399e-8697-41f7-88e3-df1d78794cb8',
-          {
-            role: WorkspaceRole.MEMBER,
-          },
-        ),
       ).resolves.toBeTruthy();
+
+      expect(workspacesUsecases.changeUserRole).toHaveBeenCalledWith(
+        workspaceId,
+        teamId,
+        userUuid,
+        {
+          role: WorkspaceRole.MEMBER,
+        },
+      );
     });
   });
 
@@ -60,20 +57,7 @@ describe('Workspace Controller', () => {
       encryptedMnemonic: 'encryptedMnemonic',
     };
 
-    it('When workspace id is not a valid uuid, then it throws.', async () => {
-      workspacesUsecases.changeUserRole.mockRejectedValueOnce(
-        new BadRequestException(),
-      );
-      await expect(
-        workspacesController.setupWorkspace(
-          user,
-          'notValidUuid',
-          workspaceDatDto,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When input is valid, then it works', async () => {
+    it('Workspace is set up correctly, then it works', async () => {
       await expect(
         workspacesController.setupWorkspace(user, v4(), workspaceDatDto),
       ).resolves.toBeTruthy();
@@ -101,6 +85,37 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('PATCH /teams/:teamId', () => {
+    it('When teamId is valid and update is successful, then resolve', async () => {
+      await expect(
+        workspacesController.editTeam(v4(), { name: 'new name' }),
+      ).resolves.toBeTruthy();
+    });
+  });
+
+  describe('POST /teams/:teamId/user/:userUuid', () => {
+    it('When member is added succesfully, return member data', async () => {
+      const teamUser = newWorkspaceTeamUser();
+
+      workspacesUsecases.addMemberToTeam.mockResolvedValueOnce(teamUser);
+
+      const newTeamMember = await workspacesController.addUserToTeam(
+        v4(),
+        v4(),
+      );
+
+      expect(newTeamMember).toEqual(teamUser);
+    });
+  });
+
+  describe('DELETE /teams/:teamId/user/:userUuid', () => {
+    it('When member is removed succesfully, then return', async () => {
+      await expect(
+        workspacesController.removeUserFromTeam(v4(), v4()),
+      ).resolves.toBeTruthy();
+    });
+  });
+
   describe('GET /pending-setup', () => {
     it('When workspaces ready to be setup are requested, then it should return workspaces data', async () => {
       const owner = newUser();
@@ -120,7 +135,7 @@ describe('Workspace Controller', () => {
 
   describe('POST /invitations/accept', () => {
     const user = newUser();
-    it('When workspace id is not a valid uuid, then it throws.', async () => {
+    it('When invitation is accepted successfully, then it returns.', async () => {
       const invite = newWorkspaceInvite({ invitedUser: user.uuid });
 
       await workspacesController.acceptWorkspaceInvitation(user, {

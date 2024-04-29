@@ -1,5 +1,6 @@
 import { User } from '../../user/user.domain';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
+import { WorkspaceTeam } from './workspace-team.domain';
 
 export class Workspace implements WorkspaceAttributes {
   id: string;
@@ -47,6 +48,10 @@ export class Workspace implements WorkspaceAttributes {
 
   isWorkspaceReady() {
     return this.setupCompleted === true;
+  }
+
+  isDefaultTeam(team: WorkspaceTeam) {
+    return this.defaultTeamId === team.id;
   }
 
   toJSON() {
