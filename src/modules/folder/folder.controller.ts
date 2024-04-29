@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Delete,
   ForbiddenException,
@@ -8,6 +9,7 @@ import {
   NotFoundException,
   NotImplementedException,
   Param,
+  Patch,
   Query,
   UseFilters,
 } from '@nestjs/common';
@@ -30,6 +32,7 @@ import logger from '../../externals/logger';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
+import { MoveFolderDto } from './dto/move-folder.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -455,7 +458,16 @@ export class FolderController {
         throw new NotFoundException();
       }
 
-      return folder;
+      let folderStatus: FileStatus;
+      if (folder.removed) {
+        folderStatus = FileStatus.DELETED;
+      } else if (folder.deleted) {
+        folderStatus = FileStatus.TRASHED;
+      } else {
+        folderStatus = FileStatus.EXISTS;
+      }
+
+      return { ...folder, status: folderStatus };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
@@ -524,5 +536,22 @@ export class FolderController {
     const size = await this.folderUseCases.getFolderSizeByUuid(folderUuid);
 
     return { size };
+  }
+
+  @Patch('/:uuid')
+  async moveFolder(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: Folder['uuid'],
+    @Body() moveFolderData: MoveFolderDto,
+  ) {
+    if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
+      throw new BadRequestException('Invalid UUID provided');
+    }
+    const folder = await this.folderUseCases.moveFolder(
+      user,
+      folderUuid,
+      moveFolderData.destinationFolder,
+    );
+    return folder;
   }
 }

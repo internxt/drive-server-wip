@@ -4,24 +4,32 @@ import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
   ForbiddenException,
-  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { File, FileAttributes, FileStatus } from './file.domain';
 import { User } from '../user/user.domain';
-import { ShareUseCases } from '../share/share.usecase';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { CryptoModule } from '../../externals/crypto/crypto.module';
+import {
+  FolderRepository,
+  SequelizeFolderRepository,
+} from '../folder/folder.repository';
+import { newFile, newFolder } from '../../../test/fixtures';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { v4 } from 'uuid';
+import { SharingService } from '../sharing/sharing.service';
+import { SharingItemType } from '../sharing/sharing.domain';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
 describe('FileUseCases', () => {
   let service: FileUseCases;
+  let folderUseCases: FolderUseCases;
   let fileRepository: FileRepository;
-  let shareUseCases: ShareUseCases;
+  let folderRepository: FolderRepository;
+  let sharingService: SharingService;
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
 
@@ -57,19 +65,19 @@ describe('FileUseCases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule],
-      providers: [FileUseCases, CryptoService],
+      imports: [BridgeModule],
+      providers: [FileUseCases, FolderUseCases, SharingService],
     })
       .useMocker(() => createMock())
       .compile();
 
     service = module.get<FileUseCases>(FileUseCases);
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //@ts-ignore
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
-    shareUseCases = module.get<ShareUseCases>(ShareUseCases);
+    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
+    sharingService = module.get<SharingService>(SharingService);
   });
 
   afterEach(() => {
@@ -81,60 +89,61 @@ describe('FileUseCases', () => {
   });
 
   describe('move file to trash', () => {
-    it.skip('calls moveFilesToTrash and return file', async () => {
-      const mockFile = File.build({
-        id: 1,
-        fileId: '',
-        name: '',
-        type: '',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
-        deleted: false,
-        deletedAt: new Date(),
-        userId: 1,
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '',
-        folderUuid: '',
-        removed: false,
-        removedAt: undefined,
-        plainName: '',
-        status: FileStatus.EXISTS,
-      });
-      jest
-        .spyOn(fileRepository, 'updateByFieldIdAndUserId')
-        .mockResolvedValue(mockFile);
-      const result = await service.moveFilesToTrash(userMocked, [fileId]);
-      expect(result).toEqual(mockFile);
+    const mockFile = File.build({
+      id: 1,
+      fileId: '',
+      name: '',
+      type: '',
+      size: null,
+      bucket: '',
+      folderId: 4,
+      encryptVersion: '',
+      deleted: false,
+      deletedAt: new Date(),
+      userId: 1,
+      modificationTime: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      uuid: '723274e5-ca2a-4e61-bf17-d9fba3b8d430',
+      folderUuid: '',
+      removed: false,
+      removedAt: undefined,
+      plainName: '',
+      status: FileStatus.EXISTS,
     });
 
-    it.skip('throws an error if the file is not found', async () => {
-      jest
-        .spyOn(fileRepository, 'updateByFieldIdAndUserId')
-        .mockRejectedValue(new NotFoundException());
-      expect(service.moveFilesToTrash(userMocked, [fileId])).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('move multiple files to trash', () => {
-    it.skip('calls moveFilesToTrash', async () => {
+    it('When you try to trash files with id and uuid, then functions are called with respective values', async () => {
       const fileIds = [fileId];
-      jest
-        .spyOn(fileRepository, 'updateManyByFieldIdAndUserId')
-        .mockImplementation(() => {
-          return new Promise((resolve) => {
-            resolve();
-          });
-        });
-      const result = await service.moveFilesToTrash(userMocked, fileIds);
-      expect(result).toEqual(undefined);
-      expect(fileRepository.updateManyByFieldIdAndUserId).toHaveBeenCalledTimes(
+      const fileUuids = [mockFile.uuid];
+      jest.spyOn(fileRepository, 'updateFilesStatusToTrashed');
+      jest.spyOn(fileRepository, 'updateFilesStatusToTrashedByUuid');
+      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+      expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledTimes(
         1,
+      );
+      expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledWith(
+        userMocked,
+        fileIds,
+      );
+      expect(
+        fileRepository.updateFilesStatusToTrashedByUuid,
+      ).toHaveBeenCalledWith(userMocked, fileUuids);
+    });
+
+    it('When you try to trash files, then it stops sharing those files', async () => {
+      const files = [newFile(), newFile(), newFile()];
+      const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
+      const fileIds = [fileId];
+
+      jest.spyOn(sharingService, 'bulkRemoveSharings');
+      jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce(files);
+
+      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+
+      expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
+        userMocked,
+        [...fileUuids, ...files.map((file) => file.uuid)],
+        SharingItemType.File,
       );
     });
   });
@@ -250,17 +259,12 @@ describe('FileUseCases', () => {
         .mockImplementationOnce(() => Promise.resolve());
 
       jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      jest
         .spyOn(bridgeService, 'deleteFile')
         .mockImplementationOnce(() => Promise.resolve());
 
       await service.deleteFilePermanently(file, userMock);
 
       expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
-      expect(shareUseCases.deleteFileShare).toHaveBeenCalledTimes(1);
     });
 
     it.skip('should fail when the folder trying to delete has not been trashed', async () => {
@@ -304,14 +308,12 @@ describe('FileUseCases', () => {
         deleted: true,
       } as File;
 
-      jest.spyOn(shareUseCases, 'deleteFileShare');
       jest.spyOn(bridgeService, 'deleteFile');
       jest.spyOn(fileRepository, 'deleteByFileId');
 
       expect(service.deleteFilePermanently(file, userMock)).rejects.toThrow(
         new ForbiddenException(`You are not owner of this share`),
       );
-      expect(shareUseCases.deleteFileShare).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).not.toHaveBeenCalled();
       expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
     });
@@ -343,9 +345,6 @@ describe('FileUseCases', () => {
 
       const errorReason = new Error('reason');
 
-      jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.reject(errorReason));
       jest
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
@@ -393,9 +392,7 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
-      jest
-        .spyOn(shareUseCases, 'deleteFileShare')
-        .mockImplementationOnce(() => Promise.resolve());
+
       jest
         .spyOn(bridgeService, 'deleteFile')
         .mockImplementationOnce(() => Promise.reject(errorReason));
@@ -478,6 +475,153 @@ describe('FileUseCases', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe('Unable to decrypt file name');
       }
+    });
+  });
+
+  describe('move file', () => {
+    const file = newFile({ attributes: { userId: userMocked.id } });
+    const destinationFolder = newFolder({
+      attributes: { userId: userMocked.id },
+    });
+
+    it('When file is moved, then the file is returned with its updated properties', async () => {
+      const expectedFile = newFile({
+        attributes: {
+          ...file,
+          name: 'newencrypted-' + file.name,
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValueOnce(destinationFolder);
+
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(file.plainName);
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(expectedFile.name);
+
+      jest
+        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(fileRepository, 'updateByUuidAndUserId')
+        .mockResolvedValueOnce();
+
+      const result = await service.moveFile(
+        userMocked,
+        file.uuid,
+        destinationFolder.uuid,
+      );
+
+      expect(result.toJSON()).toStrictEqual(expectedFile.toJSON());
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledTimes(1);
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        file.uuid,
+        userMocked.id,
+        {
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          name: expectedFile.name,
+          status: FileStatus.EXISTS,
+        },
+      );
+    });
+
+    it('When file is moved but it is removed, then an error is thrown', () => {
+      const mockFile = newFile({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
+
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File ${file.uuid} can not be moved`);
+    });
+
+    it('When file is moved but the destination folder is removed, then an error is thrown', () => {
+      const mockDestinationFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: true },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValueOnce(mockDestinationFolder);
+
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
+    });
+
+    it('When a non existent file is moved to a folder, then it should throw a not found error', () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(null);
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File ${file.uuid} can not be moved`);
+    });
+
+    it('When a file is moved to a non existent folder, then it should throw a not found error', () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValueOnce(null);
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
+    });
+
+    it('When file is moved to a folder that has been already moved to, then it should throw a conflict error', () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(file.plainName);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
+      jest
+        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .mockResolvedValueOnce(file);
+
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(`File ${file.uuid} was already moved to that location`);
+    });
+
+    it('When file is moved to a folder that has already a file with the same name, then it should throw a conflict error', () => {
+      const conflictFile = newFile({
+        attributes: {
+          ...file,
+          uuid: v4(),
+        },
+      });
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(file.plainName);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
+      jest
+        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .mockResolvedValueOnce(conflictFile);
+
+      expect(
+        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+      ).rejects.toThrow(
+        'A file with the same name already exists in destination folder',
+      );
     });
   });
 });

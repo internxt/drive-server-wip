@@ -594,6 +594,36 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async bulkDeleteInvites(
+    itemIds: SharingInvite['itemId'][],
+    type: SharingInvite['itemType'],
+  ): Promise<void> {
+    await this.sharingInvites.destroy({
+      where: {
+        itemId: {
+          [Op.in]: itemIds,
+        },
+        itemType: type,
+      },
+    });
+  }
+
+  async bulkDeleteSharings(
+    userUuid: User['uuid'],
+    itemIds: SharingInvite['itemId'][],
+    type: SharingInvite['itemType'],
+  ): Promise<void> {
+    await this.sharings.destroy({
+      where: {
+        itemId: {
+          [Op.in]: itemIds,
+        },
+        itemType: type,
+        ownerId: userUuid,
+      },
+    });
+  }
+
   async deleteInvite(invite: SharingInvite): Promise<void> {
     await this.sharingInvites.destroy({
       where: {
