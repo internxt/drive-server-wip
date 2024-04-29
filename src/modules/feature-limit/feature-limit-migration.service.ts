@@ -8,7 +8,7 @@ import { UserAttributes } from '../user/user.attributes';
 import { ConfigService } from '@nestjs/config';
 import { HttpClient } from '../../externals/http/http.service';
 import { Sign } from '../../middlewares/passport';
-import { Op } from 'sequelize';
+import extractMessageFromError from '@internxt/lib/dist/src/request/extractMessageFromError';
 
 @Injectable()
 export class FeatureLimitsMigrationService {
@@ -24,7 +24,7 @@ export class FeatureLimitsMigrationService {
     private httpClient: HttpClient,
   ) {}
 
-  async startScript() {
+  async start() {
     const limit = 20; // Remember we are tied to Stripe's rate limit, we can not process more than 100 requets per second, so we should aim to a lower limit.
     let processed = 0;
     let lastId = 0;
@@ -41,7 +41,10 @@ export class FeatureLimitsMigrationService {
       );
 
       for (const user of users) {
+        console.time('apply-tier');
+        console.log('applying tier for user', user.uuid, user.id);
         await this.assignTierToUser(user);
+        console.timeEnd('apply-tier');
       }
 
       const resultLength = users.length;
@@ -49,9 +52,9 @@ export class FeatureLimitsMigrationService {
       if (resultLength > 0) {
         lastId = users[resultLength - 1].id;
       }
-      if (resultLength < limit) {
-        hasMore = false;
-      }
+
+      hasMore = resultLength === limit;
+
       processed += resultLength;
       Logger.log(
         `[FEATURE_LIMIT_MIGRATION]: Total processed users: ${processed}, lastId: ${lastId} `,
@@ -85,7 +88,9 @@ export class FeatureLimitsMigrationService {
       );
     } catch (error) {
       Logger.error(
-        `[FEATURE_LIMIT_MIGRATION/ERROR]: error applying applying tier to user userUuid: ${user.uuid} email: ${user.email}  error: ${error.message}`,
+        `[FEATURE_LIMIT_MIGRATION/ERROR]: error applying applying tier to user userUuid: ${
+          user.uuid
+        } email: ${user.email}  error: ${extractMessageFromError(error)}`,
       );
     }
   }
