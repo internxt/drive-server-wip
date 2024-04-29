@@ -1026,7 +1026,7 @@ describe('WorkspacesUsecases', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When team is default company of the workspace, then it should throw', async () => {
+      it('When team is the default one of the workspace, then it should throw', async () => {
         const workspace = newWorkspace();
         const team = newWorkspaceTeam({ workspaceId: workspace.id });
         workspace.defaultTeamId = team.id;
