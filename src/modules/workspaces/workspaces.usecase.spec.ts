@@ -1277,6 +1277,84 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getMemberDetails', () => {
+    it('When workspace is not valid, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.getMemberDetails('workspaceId', 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not valid, then it should throw', async () => {
+      const workspace = newWorkspace();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.getMemberDetails(workspace.id, 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not part of workspace, then it should throw', async () => {
+      const userNotMember = newUser();
+      const workspace = newWorkspace();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(userNotMember);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.getMemberDetails(workspace.id, userNotMember.uuid),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user and workspace are valid and user is part of workspace, then it should return the member data', async () => {
+      const managerUser = newUser();
+      managerUser.avatar = null;
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({ workspaceId: workspace.id });
+      const team = newWorkspaceTeam({
+        workspaceId: workspace.id,
+        manager: managerUser,
+      });
+      const teamUser = newWorkspaceTeamUser({
+        teamId: team.id,
+        memberId: managerUser.uuid,
+      });
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(managerUser);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(teamRepository, 'getTeamAndMemberByWorkspaceAndMemberId')
+        .mockResolvedValue([{ team, teamUser }]);
+
+      const memberDetails = await service.getMemberDetails(
+        workspace.id,
+        managerUser.uuid,
+      );
+
+      expect(memberDetails).toMatchObject({
+        workspaceUser,
+        user: {
+          name: managerUser.name,
+          lastname: managerUser.lastname,
+          email: managerUser.email,
+          uuid: managerUser.uuid,
+          id: managerUser.id,
+          avatar: null,
+        },
+        teams: [{ ...team, isManager: team.isUserManager(managerUser) }],
+      });
+    });
+  });
+
   describe('teams', () => {
     describe('createTeam', () => {
       it('When workspace is not found, then fail', async () => {
