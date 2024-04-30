@@ -51,7 +51,11 @@ import {
   RequestRecoverAccountDto,
   ResetAccountDto,
 } from './dto/recover-account.dto';
-import { verifyToken, verifyWithDefaultSecret } from '../../lib/jwt';
+import {
+  generateJitsiJWT,
+  verifyToken,
+  verifyWithDefaultSecret,
+} from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -714,5 +718,24 @@ export class UserController {
     @Param('encryptedAttemptChangeEmailId') id: string,
   ) {
     return await this.userUseCases.isAttemptChangeEmailExpired(id);
+  }
+
+  @Get('/meet-token')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get the user Meet token',
+  })
+  @ApiOkResponse({
+    description: 'Returns a new meet token related to the user',
+  })
+  async getMeetToken(@UserDecorator() user: User) {
+    const closedBetaEmails: string[] =
+      await this.userUseCases.getMeetClosedBetaUsers();
+    if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
+      const token = generateJitsiJWT(user.uuid, user.name, user.email);
+      return { token };
+    } else {
+      throw new UnauthorizedException('User can not create an Internxt Meet');
+    }
   }
 }
