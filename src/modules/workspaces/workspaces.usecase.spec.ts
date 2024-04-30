@@ -25,6 +25,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { v4 } from 'uuid';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1352,6 +1353,47 @@ describe('WorkspacesUsecases', () => {
         },
         teams: [{ ...team, isManager: team.isUserManager(managerUser) }],
       });
+    });
+  });
+
+  describe('getTeamMembers', () => {
+    it('When members are found, then it should return members data', async () => {
+      const member1 = newUser();
+      const member2 = newUser();
+      const avatarUrl = 'avatarUrl';
+      jest
+        .spyOn(teamRepository, 'getTeamMembers')
+        .mockResolvedValue([member1, member2]);
+      jest.spyOn(userUsecases, 'getAvatarUrl').mockResolvedValue(avatarUrl);
+
+      const result = await service.getTeamMembers(v4());
+
+      expect(result).toEqual([
+        {
+          name: member1.name,
+          lastname: member1.lastname,
+          email: member1.email,
+          id: member1.id,
+          uuid: member1.uuid,
+          avatar: avatarUrl,
+        },
+        {
+          name: member2.name,
+          lastname: member2.lastname,
+          email: member2.email,
+          id: member2.id,
+          uuid: member2.uuid,
+          avatar: avatarUrl,
+        },
+      ]);
+    });
+
+    it('When members are not found, then it should return empty', async () => {
+      jest.spyOn(teamRepository, 'getTeamMembers').mockResolvedValue([]);
+
+      const result = await service.getTeamMembers(v4());
+
+      expect(result).toEqual([]);
     });
   });
 
