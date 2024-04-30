@@ -14,22 +14,22 @@ export const getJitsiJWTPayload = (id: string, name: string, email: string) => {
       user: {
         id,
         name,
-        avatar: '',
         email,
-        moderator: 'true',
+        avatar: '',
+        moderator: true,
       },
       features: {
-        livestreaming: 'false',
-        recording: 'false',
-        transcription: 'false',
-        'outbound-call': 'false',
+        livestreaming: false,
+        recording: false,
+        transcription: false,
+        'outbound-call': false,
       },
     },
     iss: 'chat',
     room: '*',
     sub: appId,
     exp: Math.round(now.setHours(now.getHours() + 3) / 1000),
-    nbf: Math.round(now.getTime() / 1000) - 10,
+    nbf: Math.round(new Date().getTime() / 1000) - 10,
   };
 };
 
