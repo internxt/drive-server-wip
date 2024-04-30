@@ -1355,6 +1355,67 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('deactivateWorkspaceUser', () => {
+    it('When user is not part of workspace, then it should throw', async () => {
+      const workspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace, workspaceUser: null });
+
+      await expect(
+        service.deactivateWorkspaceUser(newUser(), 'workspaceId', 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When workspace is not valid, then it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace: null, workspaceUser: null });
+
+      await expect(
+        service.deactivateWorkspaceUser(newUser(), 'workspaceId', 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is owner of workspace, then it should throw', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: owner.uuid,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace, workspaceUser });
+
+      await expect(
+        service.deactivateWorkspaceUser(owner, 'workspaceId', 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is valid, then it is deactivated', async () => {
+      const member = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: member.uuid,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace, workspaceUser });
+
+      await service.deactivateWorkspaceUser(member, 'workspaceId', 'memberId');
+
+      expect(workspaceRepository.deactivateWorkspaceUser).toHaveBeenCalledWith(
+        member.uuid,
+        workspace.id,
+      );
+    });
+  });
+
   describe('teams', () => {
     describe('createTeam', () => {
       it('When workspace is not found, then fail', async () => {
