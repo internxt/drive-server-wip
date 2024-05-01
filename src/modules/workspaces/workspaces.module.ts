@@ -14,6 +14,9 @@ import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
 import { WorkspaceGuard } from './guards/workspaces.guard';
 import { WorkspaceInviteModel } from './models/workspace-invite.model';
 import { MailerModule } from '../../externals/mailer/mailer.module';
+import { SequelizeWorkspaceItemsUsersRepository } from './repositories/items-users.repository';
+import { FolderModule } from '../folder/folder.module';
+import { FileModule } from '../file/file.module';
 
 @Module({
   imports: [
@@ -26,6 +29,8 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
       WorkspaceInviteModel,
     ]),
     forwardRef(() => UserModule),
+    forwardRef(() => FileModule),
+    forwardRef(() => FolderModule),
     BridgeModule,
     MailerModule,
   ],
@@ -35,6 +40,7 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
     WorkspacesUsecases,
     SequelizeWorkspaceTeamRepository,
     SequelizeWorkspaceRepository,
+    SequelizeWorkspaceItemsUsersRepository,
     WorkspaceGuard,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],

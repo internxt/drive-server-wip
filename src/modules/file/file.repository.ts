@@ -68,6 +68,7 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
+  deleteFiles(files: File[]): Promise<void>;
 }
 
 @Injectable()
@@ -480,6 +481,24 @@ export class SequelizeFileRepository implements FileRepository {
       {
         where: {
           userId: user.id,
+          id: {
+            [Op.in]: files.map(({ id }) => id),
+          },
+        },
+      },
+    );
+  }
+
+  async deleteFiles(files: File[]): Promise<void> {
+    await this.fileModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+        status: FileStatus.DELETED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
           id: {
             [Op.in]: files.map(({ id }) => id),
           },

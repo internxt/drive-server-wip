@@ -22,6 +22,7 @@ import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
 import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
 import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
+import { WorkspaceItemUser } from 'src/modules/workspaces/domains/workspace-items-users.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -398,4 +399,30 @@ export const newWorkspaceInvite = (params?: {
     });
 
   return workspaceInvite;
+};
+
+export const newItemUser = (params?: {
+  workspaceId?: string;
+  createdBy?: string;
+  attributes?: Partial<WorkspaceItemUser>;
+}): WorkspaceItemUser => {
+  const defaultCreatedAt = new Date(randomDataGenerator.date({ year: 2024 }));
+
+  const itemUser = WorkspaceItemUser.build({
+    id: v4(),
+    workspaceId: params?.workspaceId || v4(),
+    createdBy: params?.createdBy || v4(),
+    createdAt: defaultCreatedAt,
+    itemId: v4(),
+    itemType: randomDataGenerator.pickone(['file', 'folder']),
+    updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
+    context: 'context',
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      itemUser[key] = params.attributes[key];
+    });
+
+  return itemUser;
 };
