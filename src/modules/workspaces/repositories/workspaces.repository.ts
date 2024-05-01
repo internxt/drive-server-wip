@@ -273,6 +273,10 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     await this.modelWorkspace.update(update, { where, transaction });
   }
 
+  async deleteById(id: WorkspaceAttributes['id']): Promise<void> {
+    await this.modelWorkspace.destroy({ where: { id } });
+  }
+
   toDomain(model: WorkspaceModel): Workspace {
     return Workspace.build({
       ...model.toJSON(),

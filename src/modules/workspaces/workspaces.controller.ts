@@ -307,4 +307,21 @@ export class WorkspacesController {
 
     return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
   }
+
+  @Delete('/:workspaceId/members/leave')
+  @ApiOperation({
+    summary: 'Leave a workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User left workspace',
+  })
+  async leaveWorkspace(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.leaveWorkspace(user, workspaceId);
+  }
 }

@@ -1393,5 +1393,43 @@ describe('WorkspacesUsecases', () => {
         expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
       });
     });
+
+    describe('deleteWorkspaceContent', () => {
+      it('When workspace is not found, then it should throw', async () => {
+        const workspaceId = 'workspace-id';
+        const user = newUser();
+        jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+        await expect(
+          service.deleteWorkspaceContent(workspaceId, user),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When user is not the owner of the workspace, then it should throw', async () => {
+        const workspace = newWorkspace();
+        const user = newUser();
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+
+        await expect(
+          service.deleteWorkspaceContent(workspace.id, user),
+        ).rejects.toThrow(ForbiddenException);
+      });
+
+      it('When workspace is found and user is the owner, then it should delete all workspace content', async () => {
+        const user = newUser();
+        const workspace = newWorkspace({ attributes: { ownerId: user.uuid } });
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+
+        await service.deleteWorkspaceContent(workspace.id, user);
+
+        expect(workspaceRepository.deleteById).toHaveBeenCalledWith(
+          workspace.id,
+        );
+      });
+    });
   });
 });

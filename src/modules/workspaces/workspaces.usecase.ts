@@ -30,17 +30,23 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
+import { SequelizeWorkspaceItemsUsersRepository } from './repositories/items-users.repository';
+import { FileUseCases } from '../file/file.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
+    private readonly workspaceItemsUsersRepository: SequelizeWorkspaceItemsUsersRepository,
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
     private configService: ConfigService,
     private mailerService: MailerService,
+    private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
   ) {}
 
   async initiateWorkspace(
@@ -720,5 +726,72 @@ export class WorkspacesUsecases {
     teamUser: WorkspaceTeamUser | null;
   }> {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
+  }
+
+  async deleteWorkspaceContent(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== user.uuid) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    const items =
+      await this.workspaceItemsUsersRepository.getAllByWorkspaceId(workspaceId);
+
+    const itemsDeletionChunkSize = 10;
+
+    const fileIds = items
+      .filter((item) => item.itemType === 'file')
+      .map((item) => parseInt(item.itemId));
+    const folderIds = items
+      .filter((item) => item.itemType === 'folder')
+      .map((item) => parseInt(item.itemId));
+
+    const files =
+      fileIds.length > 0
+        ? await this.fileUseCases.getFilesByIds(user, fileIds)
+        : [];
+    const folders =
+      folderIds.length > 0
+        ? await this.folderUseCases.getFoldersByIds(user, folderIds)
+        : [];
+
+    for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
+      await this.fileUseCases.delete(
+        files.slice(i, i + itemsDeletionChunkSize),
+      );
+    }
+
+    for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
+      await this.folderUseCases.delete(
+        folders.slice(i, i + itemsDeletionChunkSize),
+      );
+    }
+
+    await this.workspaceRepository.deleteById(workspaceId);
+  }
+
+  async leaveWorkspace(
+    user: User,
+    workspaceId: Workspace['id'],
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const isUserOwner = workspace.ownerId === user.uuid;
+
+    if (isUserOwner) {
+      await this.deleteWorkspaceContent(workspaceId, user);
+    }
   }
 }
