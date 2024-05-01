@@ -741,7 +741,6 @@ export class WorkspacesUsecases {
     if (workspace.ownerId !== user.uuid) {
       throw new ForbiddenException('You are not the owner of this workspace');
     }
-
     const items =
       await this.workspaceItemsUsersRepository.getAllByWorkspaceId(workspaceId);
 

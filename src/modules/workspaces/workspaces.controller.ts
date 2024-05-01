@@ -322,6 +322,11 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    return this.workspaceUseCases.leaveWorkspace(user, workspaceId);
+    const workspace = await this.workspaceUseCases.findById(workspaceId);
+    if (workspace.ownerId === user.uuid) {
+      await this.workspaceUseCases.deleteWorkspaceContent(workspaceId, user);
+    } else {
+      return this.workspaceUseCases.leaveWorkspace(user, workspaceId);
+    }
   }
 }
