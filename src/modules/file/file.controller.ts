@@ -12,7 +12,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
@@ -26,6 +32,7 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { ApplyLimit } from '../feature-limit/decorators/apply-limit.decorator';
 import { LimitLabels } from '../feature-limit/limits.enum';
 import { FeatureLimit } from '../feature-limit/feature-limits.guard';
+import { FileCheckSizeLimitDTO } from './dto/file-size-limit.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -60,6 +67,21 @@ export class FileController {
   @ApplyLimit({
     limitLabels: [LimitLabels.MaxFileUploadSize],
     dataSources: [{ sourceKey: 'body', fieldName: 'file' }],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Check File Size Limit',
+    description:
+      'Checks if the size of the file to be uploaded does not exceed the size allowed for the current user plan.',
+  })
+  @ApiResponse({ status: 200, description: 'File can be uploaded' })
+  @ApiResponse({
+    status: 402,
+    description: 'User plan does not allow this file size.',
+  })
+  @ApiBody({
+    description: 'Details of the file to check',
+    type: FileCheckSizeLimitDTO,
   })
   @UseGuards(FeatureLimit)
   async checkFileSizeLimit() {
