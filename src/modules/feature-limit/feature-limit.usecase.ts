@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -11,10 +12,12 @@ import { SharingType } from '../sharing/sharing.domain';
 import { Limit } from './limit.domain';
 import {
   LimitTypeMapping,
+  MaxFileUploadSizeAttribute,
   MaxInviteesPerItemAttribute,
   MaxSharedItemsAttribute,
 } from './limits.attributes';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
+import { isNumber } from 'class-validator';
 
 @Injectable()
 export class FeatureLimitUsecases {
@@ -33,6 +36,8 @@ export class FeatureLimitUsecases {
     [LimitLabels.MaxSharedItems]: this.checkMaxSharedItemsLimit.bind(this),
     [LimitLabels.MaxSharedItemInvites]:
       this.checkMaxInviteesPerItemLimit.bind(this),
+    [LimitLabels.MaxFileUploadSize]:
+      this.checkMaxFileUploadSizeLimit.bind(this),
   };
 
   async enforceLimit<T extends keyof LimitTypeMapping>(
@@ -139,6 +144,33 @@ export class FeatureLimitUsecases {
     // Add 1 to include owner in the limit count.
     limitContext.currentCount =
       sharingsCountForThisItem + invitesCountForThisItem + 1;
+
+    return limit.shouldLimitBeEnforced(limitContext);
+  }
+
+  async checkMaxFileUploadSizeLimit({
+    limit,
+    data,
+  }: {
+    limit: Limit;
+    data: MaxFileUploadSizeAttribute;
+  }) {
+    const limitContext = { currentCount: 0 };
+
+    const {
+      file: { size },
+    } = data;
+
+    if (size === undefined || size === undefined) {
+      throw new BadRequestException('You need to send file size');
+    }
+
+    if (!isNumber(size)) {
+      throw new BadRequestException('File size should be a valid number');
+    }
+
+    //  Minus 1 byte to prevent failing when size === limit
+    limitContext.currentCount = size - 1;
 
     return limit.shouldLimitBeEnforced(limitContext);
   }

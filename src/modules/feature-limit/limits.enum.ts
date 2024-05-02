@@ -1,6 +1,7 @@
 export enum LimitLabels {
   MaxSharedItems = 'max-shared-items',
   MaxSharedItemInvites = 'max-shared-invites',
+  MaxFileUploadSize = 'max-file-upload-size',
 }
 
 export enum LimitTypes {

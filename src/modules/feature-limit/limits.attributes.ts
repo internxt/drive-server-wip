@@ -18,6 +18,10 @@ export interface MaxInviteesPerItemAttribute {
   itemType: 'folder' | 'file';
 }
 
+export interface MaxFileUploadSizeAttribute {
+  file: { size: number };
+}
+
 export interface MaxSharedItemsAttribute {
   user: User;
   itemId: string;
@@ -27,5 +31,6 @@ export interface MaxSharedItemsAttribute {
 export interface LimitTypeMapping {
   [LimitLabels.MaxSharedItemInvites]: MaxInviteesPerItemAttribute;
   [LimitLabels.MaxSharedItems]: MaxSharedItemsAttribute;
+  [LimitLabels.MaxFileUploadSize]: MaxSharedItemsAttribute;
   [key: string]: any;
 }

@@ -7,8 +7,10 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -21,6 +23,9 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
+import { ApplyLimit } from '../feature-limit/decorators/apply-limit.decorator';
+import { LimitLabels } from '../feature-limit/limits.enum';
+import { FeatureLimit } from '../feature-limit/feature-limits.guard';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -49,6 +54,16 @@ export class FileController {
     }
 
     return { count };
+  }
+
+  @Post('/check-size-limit')
+  @ApplyLimit({
+    limitLabels: [LimitLabels.MaxFileUploadSize],
+    dataSources: [{ sourceKey: 'body', fieldName: 'file' }],
+  })
+  @UseGuards(FeatureLimit)
+  async checkFileSizeLimit() {
+    return 'File can be uploaded';
   }
 
   @Get('/:uuid/meta')
