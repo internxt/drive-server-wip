@@ -65,90 +65,21 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspacesPendingToBeSetup(user);
   }
 
-  @Patch('/:workspaceId/setup')
-  @ApiOperation({
-    summary: 'Set up workspace that has been initialized',
-  })
+  @Post('/invitations/accept')
   @ApiBearerAuth()
-  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOperation({
+    summary: 'Accepts invitation to workspace',
+  })
   @ApiOkResponse({
-    description: 'Workspace setup',
+    description: 'Workspace invitation accepted',
   })
-  @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async setupWorkspace(
+  async acceptWorkspaceInvitation(
     @UserDecorator() user: User,
-    @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
-    @Body() setupWorkspaceDto: SetupWorkspaceDto,
+    @Body() acceptInvitationDto: AcceptWorkspaceInviteDto,
   ) {
-    return this.workspaceUseCases.setupWorkspace(
-      user,
-      workspaceId,
-      setupWorkspaceDto,
-    );
-  }
+    const { inviteId } = acceptInvitationDto;
 
-  @Post('/:workspaceId/members/invite')
-  @ApiOperation({
-    summary: 'Invite user to a workspace',
-  })
-  @ApiBearerAuth()
-  @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @ApiOkResponse({
-    description: 'User has been invited successfully',
-  })
-  @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async inviteUsersToWorkspace(
-    @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
-    @Body() createInviteDto: CreateWorkspaceInviteDto,
-    @UserDecorator() user: User,
-  ) {
-    return this.workspaceUseCases.inviteUserToWorkspace(
-      user,
-      workspaceId,
-      createInviteDto,
-    );
-  }
-
-  @Post('/:workspaceId/teams')
-  @ApiOperation({
-    summary: 'Creates a team in a workspace',
-  })
-  @ApiBearerAuth()
-  @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async createTeam(
-    @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
-    @Body() createTeamBody: CreateTeamDto,
-    @UserDecorator() user: User,
-  ) {
-    return this.workspaceUseCases.createTeam(user, workspaceId, createTeamBody);
-  }
-
-  @Get('/:workspaceId/teams')
-  @ApiOperation({
-    summary: 'Gets workspace teams',
-  })
-  @ApiBearerAuth()
-  @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @ApiOkResponse({
-    description: 'Teams in the workspace along with its members quantity',
-  })
-  async getWorkspaceTeams(
-    @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
-    @UserDecorator() user: User,
-  ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
-    return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
+    return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
   }
 
   @Get('/teams/:teamId/members')
@@ -263,6 +194,92 @@ export class WorkspacesController {
     return this.workspaceUseCases.changeTeamManager(teamId, managerId);
   }
 
+  @Patch('/:workspaceId/setup')
+  @ApiOperation({
+    summary: 'Set up workspace that has been initialized',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace setup',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async setupWorkspace(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Body() setupWorkspaceDto: SetupWorkspaceDto,
+  ) {
+    return this.workspaceUseCases.setupWorkspace(
+      user,
+      workspaceId,
+      setupWorkspaceDto,
+    );
+  }
+
+  @Post('/:workspaceId/members/invite')
+  @ApiOperation({
+    summary: 'Invite user to a workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User has been invited successfully',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async inviteUsersToWorkspace(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Body() createInviteDto: CreateWorkspaceInviteDto,
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.inviteUserToWorkspace(
+      user,
+      workspaceId,
+      createInviteDto,
+    );
+  }
+
+  @Post('/:workspaceId/teams')
+  @ApiOperation({
+    summary: 'Creates a team in a workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async createTeam(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Body() createTeamBody: CreateTeamDto,
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.createTeam(user, workspaceId, createTeamBody);
+  }
+
+  @Get('/:workspaceId/teams')
+  @ApiOperation({
+    summary: 'Gets workspace teams',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Teams in the workspace along with its members quantity',
+  })
+  async getWorkspaceTeams(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    if (!workspaceId || !isUUID(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
+  }
+
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
   @ApiOperation({
     summary: 'Changes the role of a member in the workspace',
@@ -289,23 +306,6 @@ export class WorkspacesController {
       userUuid,
       changeUserRoleBody,
     );
-  }
-
-  @Post('/invitations/accept')
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Accepts invitation to workspace',
-  })
-  @ApiOkResponse({
-    description: 'Workspace invitation accepted',
-  })
-  async acceptWorkspaceInvitation(
-    @UserDecorator() user: User,
-    @Body() acceptInvitationDto: AcceptWorkspaceInviteDto,
-  ) {
-    const { inviteId } = acceptInvitationDto;
-
-    return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
   }
 
   @Delete('/:workspaceId/members/leave')
