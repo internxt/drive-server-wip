@@ -164,6 +164,17 @@ export class SequelizeWorkspaceTeamRepository {
     await this.teamModel.destroy({ where: { id: teamId } });
   }
 
+  async getTeamsWhereUserIsManagerByWorkspaceId(
+    workspaceId: WorkspaceAttributes['id'],
+    user: User,
+  ): Promise<WorkspaceTeam[]> {
+    const teams = await this.teamModel.findAll({
+      where: { workspaceId, ownerId: user.uuid },
+    });
+
+    return teams.map((team) => this.toDomain(team));
+  }
+
   toDomain(model: WorkspaceTeamModel): WorkspaceTeam {
     return WorkspaceTeam.build({
       ...model.toJSON(),

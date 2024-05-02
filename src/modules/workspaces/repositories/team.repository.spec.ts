@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/sequelize';
 import {
   newWorkspaceTeam,
   newWorkspaceTeamUser,
+  newUser,
 } from '../../../../test/fixtures';
 import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { SequelizeWorkspaceTeamRepository } from './team.repository';
@@ -125,6 +126,24 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       const result = await repository.getTeamById(teamId);
 
       expect(result).toEqual(raw);
+    });
+  });
+
+  describe('getTeamsWhereUserIsManagerByWorkspaceId', () => {
+    it('should get teams where user is manager by workspace id', async () => {
+      const user = newUser();
+      const workspaceId = '1';
+      const team = newWorkspaceTeam();
+      jest
+        .spyOn(workspaceTeamModel, 'findAll')
+        .mockResolvedValueOnce([team as any]);
+
+      const result = await repository.getTeamsWhereUserIsManagerByWorkspaceId(
+        workspaceId,
+        user,
+      );
+
+      expect(result).toEqual([team]);
     });
   });
 });
