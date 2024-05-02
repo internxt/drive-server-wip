@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { createMock } from '@golevelup/ts-jest';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import {
+  newItemUser,
   newUser,
   newWorkspace,
   newWorkspaceInvite,
@@ -25,6 +26,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { SequelizeWorkspaceItemsUsersRepository } from './repositories/items-users.repository';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -45,6 +47,7 @@ describe('WorkspacesUsecases', () => {
   let mailerService: MailerService;
   let networkService: BridgeService;
   let configService: ConfigService;
+  let workspaceItemsUsersRepository: SequelizeWorkspaceItemsUsersRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -67,6 +70,10 @@ describe('WorkspacesUsecases', () => {
     mailerService = module.get<MailerService>(MailerService);
     networkService = module.get<BridgeService>(BridgeService);
     configService = module.get<ConfigService>(ConfigService);
+    workspaceItemsUsersRepository =
+      module.get<SequelizeWorkspaceItemsUsersRepository>(
+        SequelizeWorkspaceItemsUsersRepository,
+      );
   });
 
   it('should be defined', () => {
@@ -1430,6 +1437,134 @@ describe('WorkspacesUsecases', () => {
           workspace.id,
         );
       });
+    });
+
+    describe('leaveWorkspace', () => {
+      it('When workspace is not found, then it should throw', async () => {
+        const workspaceId = 'workspace-id';
+        const user = newUser();
+        jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+        await expect(service.leaveWorkspace(user, workspaceId)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+
+      it('When user is not part of workspace, then it should throw', async () => {
+        const workspace = newWorkspace();
+        const user = newUser();
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(null);
+
+        await expect(
+          service.leaveWorkspace(user, workspace.id),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is the owner of the workspace, then it should throw', async () => {
+        const user = newUser();
+        const workspace = newWorkspace({ attributes: { ownerId: user.uuid } });
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+
+        await expect(
+          service.leaveWorkspace(user, workspace.id),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user has items in the workspace, then it should throw', async () => {
+        const user = newUser();
+        const workspace = newWorkspace();
+        const workspaceUser = newWorkspaceUser({
+          memberId: user.uuid,
+          workspaceId: workspace.id,
+        });
+        const itemUser = newItemUser({
+          workspaceId: workspace.id,
+          createdBy: user.uuid,
+        });
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(workspaceItemsUsersRepository, 'getAllByUserAndWorkspaceId')
+          .mockResolvedValue([itemUser]);
+
+        await expect(
+          service.leaveWorkspace(user, workspace.id),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is manager of any teams in the workspace then mangement is passed to the owner', async () => {
+        const user = newUser();
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({ owner: workspaceOwner });
+        const workspaceUser = newWorkspaceUser({
+          memberId: user.uuid,
+          workspaceId: workspace.id,
+        });
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+          manager: user,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(teamRepository, 'getTeamsWhereUserIsManagerByWorkspaceId')
+          .mockResolvedValue([team]);
+
+        await service.leaveWorkspace(user, workspace.id);
+
+        expect(teamRepository.updateById).toHaveBeenCalledWith(team.id, {
+          managerId: workspaceOwner.uuid,
+        });
+
+        expect(teamRepository.deleteUserFromTeam).toHaveBeenCalledWith(
+          user.uuid,
+          team.id,
+        );
+
+        expect(
+          workspaceRepository.deleteUserFromWorkspace,
+        ).toHaveBeenCalledWith(user.uuid, workspace.id);
+      });
+    });
+
+    it('When user is not a manager of any teams and has no items in the workspace, then they should leave the workspace', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(workspaceItemsUsersRepository, 'getAllByUserAndWorkspaceId')
+        .mockResolvedValue([]);
+
+      await service.leaveWorkspace(user, workspace.id);
+
+      expect(workspaceRepository.deleteUserFromWorkspace).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+      );
     });
   });
 });

@@ -165,10 +165,20 @@ describe('Workspace Controller', () => {
         user,
       );
     });
-    describe('When member attempts to leave workspace', () => {
-      it('When member does not have any items, then leave workspace', async () => {});
-      it('When member has items, then return error', async () => {});
+
+    it('When member requests to leave then leaveWorkspace should be attempted', async () => {
+      const workspace = newWorkspace();
+      jest.spyOn(workspacesUsecases, 'leaveWorkspace');
+      jest
+        .spyOn(workspacesUsecases, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await workspacesController.leaveWorkspace(user, workspace.id);
+
+      expect(workspacesUsecases.leaveWorkspace).toHaveBeenCalledWith(
+        user,
+        workspace.id,
+      );
     });
-    it('When team owner leaves workspace, then transfer ownership to workspace owner and leave workspace', async () => {});
   });
 });

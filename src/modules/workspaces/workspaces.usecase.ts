@@ -738,7 +738,7 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace not found');
     }
 
-    if (workspace.ownerId !== user.uuid) {
+    if (workspace.isUserOwner(user)) {
       throw new ForbiddenException('You are not the owner of this workspace');
     }
     const items =
@@ -787,10 +787,45 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace not found');
     }
 
-    const isUserOwner = workspace.ownerId === user.uuid;
-
-    if (isUserOwner) {
-      await this.deleteWorkspaceContent(workspaceId, user);
+    if (workspace.isUserOwner(user)) {
+      throw new BadRequestException('Owner can not simply leave workspace');
     }
+
+    const userInWorkspace = await this.workspaceRepository.findWorkspaceUser({
+      workspaceId,
+      memberId: user.uuid,
+    });
+
+    if (!userInWorkspace) {
+      throw new BadRequestException('User is not in the workspace');
+    }
+
+    const userItemsInWorkspace =
+      await this.workspaceItemsUsersRepository.getAllByUserAndWorkspaceId(
+        user,
+        workspaceId,
+      );
+
+    if (userItemsInWorkspace.length > 0) {
+      throw new BadRequestException('User has items in the workspace');
+    }
+
+    const teamsUserManages =
+      await this.teamRepository.getTeamsWhereUserIsManagerByWorkspaceId(
+        workspaceId,
+        user,
+      );
+
+    for (const team of teamsUserManages) {
+      await this.teamRepository.updateById(team.id, {
+        managerId: workspace.ownerId,
+      });
+      await this.teamRepository.deleteUserFromTeam(user.uuid, team.id);
+    }
+
+    await this.workspaceRepository.deleteUserFromWorkspace(
+      user.uuid,
+      workspaceId,
+    );
   }
 }

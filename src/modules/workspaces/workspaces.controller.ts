@@ -323,8 +323,12 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
   ) {
     const workspace = await this.workspaceUseCases.findById(workspaceId);
-    if (workspace.ownerId === user.uuid) {
-      await this.workspaceUseCases.deleteWorkspaceContent(workspaceId, user);
+    if (!workspace) {
+      throw new BadRequestException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      return this.workspaceUseCases.deleteWorkspaceContent(workspaceId, user);
     } else {
       return this.workspaceUseCases.leaveWorkspace(user, workspaceId);
     }

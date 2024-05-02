@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { SequelizeWorkspaceItemsUsersRepository } from './items-users.repository';
 import { WorkspaceItemUser } from '../domains/workspace-items-users.domain';
-import { newItemUser } from 'test/fixtures';
+import { newItemUser, newUser } from '../../../../test/fixtures';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import { getModelToken } from '@nestjs/sequelize';
 
@@ -37,7 +37,26 @@ describe('SequelizeWorkspaceItemsUsersRepository', () => {
 
       const itemsUsers = await repository.getAllByWorkspaceId(workspaceId);
 
-      expect(itemsUsers).toEqual([]);
+      expect(itemsUsers).toEqual(mockItemsUsers);
+    });
+  });
+
+  describe('getAllByUserAndWorkspaceId', () => {
+    it('should return all items users by user and workspace id', async () => {
+      const workspaceId = '1';
+      const user = newUser();
+      const mockItem = newItemUser({ workspaceId, createdBy: user.uuid });
+      const mockItemsUsers: WorkspaceItemUser[] = [mockItem];
+      jest
+        .spyOn(workspaceItemsUsersModel, 'findAll')
+        .mockResolvedValueOnce(mockItemsUsers as any);
+
+      const itemsUsers = await repository.getAllByUserAndWorkspaceId(
+        user,
+        workspaceId,
+      );
+
+      expect(itemsUsers).toEqual(mockItemsUsers);
     });
   });
 });
