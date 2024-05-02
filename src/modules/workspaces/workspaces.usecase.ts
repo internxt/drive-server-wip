@@ -738,7 +738,7 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace not found');
     }
 
-    if (workspace.isUserOwner(user)) {
+    if (!workspace.isUserOwner(user)) {
       throw new ForbiddenException('You are not the owner of this workspace');
     }
     const items =
