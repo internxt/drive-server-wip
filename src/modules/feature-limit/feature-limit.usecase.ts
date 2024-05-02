@@ -161,7 +161,9 @@ export class FeatureLimitUsecases {
       file: { size },
     } = data;
 
-    if (size === undefined || size === undefined) {
+    const isSizeUndefined = size === undefined || size === null;
+
+    if (isSizeUndefined) {
       throw new BadRequestException('You need to send file size');
     }
 
