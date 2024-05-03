@@ -30,6 +30,7 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -710,6 +711,27 @@ export class WorkspacesUsecases {
     await this.teamRepository.updateById(team.id, {
       managerId: newManagerId,
     });
+  }
+
+  async editWorkspaceDetails(
+    workspaceId: WorkspaceAttributes['id'],
+    user: User,
+    editWorkspaceDetailsDto: EditWorkspaceDetailsDto,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    await this.workspaceRepository.updateBy(
+      { id: workspaceId },
+      editWorkspaceDetailsDto,
+    );
   }
 
   findUserInTeam(

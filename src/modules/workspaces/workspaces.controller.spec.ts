@@ -148,4 +148,23 @@ describe('Workspace Controller', () => {
       );
     });
   });
+
+  describe('PATCH /:workspaceId', () => {
+    it('When workspace details are updated successfully, then it should return.', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+
+      await expect(
+        workspacesController.editWorkspaceDetails(workspace.id, user, {
+          name: 'new name',
+        }),
+      ).resolves.toBeTruthy();
+
+      expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
+        workspace.id,
+        user,
+        { name: 'new name' },
+      );
+    });
+  });
 });
