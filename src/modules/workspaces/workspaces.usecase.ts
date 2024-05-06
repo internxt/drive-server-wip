@@ -543,7 +543,7 @@ export class WorkspacesUsecases {
         workspace.id,
       );
 
-    const data: WorkspaceUserMemberDto[] = await Promise.all(
+    const workspaceUserMembers: WorkspaceUserMemberDto[] = await Promise.all(
       workspaceUsers.map(async (workspaceUser) => {
         if (workspaceUser.member && workspaceUser.member.avatar) {
           const resAvatarUrl = await this.userUsecases.getAvatarUrl(
@@ -569,7 +569,14 @@ export class WorkspacesUsecases {
       }),
     );
 
-    return data;
+    return {
+      activatedUsers: workspaceUserMembers.filter(
+        (workspaceUserMember) => workspaceUserMember.deactivated == false,
+      ),
+      disabledUsers: workspaceUserMembers.filter(
+        (workspaceUserMember) => workspaceUserMember.deactivated == true,
+      ),
+    };
   }
 
   findUserInWorkspace(

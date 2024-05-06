@@ -177,6 +177,12 @@ describe('Workspace Controller', () => {
       const user1 = newUser();
       const user2 = newUser();
 
+      const ownerWorkspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: owner.uuid,
+        member: owner,
+        attributes: { deactivated: false },
+      }).toJSON();
       const userWorkspace1 = newWorkspaceUser({
         workspaceId: workspace.id,
         memberId: user1.uuid,
@@ -187,7 +193,7 @@ describe('Workspace Controller', () => {
         workspaceId: workspace.id,
         memberId: user2.uuid,
         member: user2,
-        attributes: { deactivated: false },
+        attributes: { deactivated: true },
       }).toJSON();
 
       const workspaceUsecase = jest.spyOn(
@@ -195,22 +201,33 @@ describe('Workspace Controller', () => {
         'getWorkspaceMembers',
       );
 
-      const mockResolvedValues = [
-        {
-          ...userWorkspace1,
-          isOwner: false,
-          isManager: false,
-          freeSpace: BigInt(15000).toString(),
-          usedSpace: BigInt(0).toString(),
-        },
-        {
-          ...userWorkspace2,
-          isOwner: false,
-          isManager: false,
-          freeSpace: BigInt(13000).toString(),
-          usedSpace: BigInt(0).toString(),
-        },
-      ];
+      const mockResolvedValues = {
+        activatedUsers: [
+          {
+            ...ownerWorkspaceUser,
+            isOwner: true,
+            isManager: true,
+            freeSpace: BigInt(150000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+          {
+            ...userWorkspace1,
+            isOwner: false,
+            isManager: false,
+            freeSpace: BigInt(15000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+        ],
+        disabledUsers: [
+          {
+            ...userWorkspace2,
+            isOwner: false,
+            isManager: false,
+            freeSpace: BigInt(13000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+        ],
+      };
       workspacesUsecases.getWorkspaceMembers.mockResolvedValueOnce(
         mockResolvedValues,
       );
