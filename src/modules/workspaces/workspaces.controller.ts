@@ -41,6 +41,7 @@ import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { Request } from 'express';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { MultipartStreamManager } from '../../externals/multipart-stream-manager/busboy.service';
+import MultipartUploadError from '../../externals/multipart-stream-manager/multipart.error';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -213,6 +214,8 @@ export class WorkspacesController {
   ) {
     const processSingleUpload = {
       saveFile: this.avatarService.uploadAvatarToBucketFromStream.bind(this),
+      removeFile: async ({ key }) =>
+        key ? await this.avatarService.removeAvatarFromBucket(key) : null,
     };
 
     const result = await this.multipartStreamManager.processSingleUpload<{
@@ -221,8 +224,12 @@ export class WorkspacesController {
       limits: { fileSize: 1024 * 1024 },
     });
 
-    if (!result && !result.key) {
-      throw new BadRequestException('Invalid avatar');
+    if (!result) {
+      throw new BadRequestException(`You did not send any avatar`);
+    }
+
+    if (result instanceof MultipartUploadError) {
+      throw new BadRequestException(`Invalid avatar: ${result?.message}`);
     }
 
     return this.workspaceUseCases.setWorkspaceAvatar(workspaceId, result.key);

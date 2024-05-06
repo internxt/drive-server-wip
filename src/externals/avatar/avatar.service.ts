@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { GetObjectCommand, S3 } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, S3 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { User } from '../../modules/user/user.domain';
 import { Readable } from 'stream';
@@ -66,5 +66,24 @@ export class AvatarService {
     const result = await parallelUploads3.done();
 
     return { key: result.Key };
+  }
+
+  async removeAvatarFromBucket(key: string): Promise<void> {
+    const s3 = new S3({
+      endpoint: process.env.AVATAR_ENDPOINT,
+      region: process.env.AVATAR_REGION,
+      credentials: {
+        accessKeyId: process.env.AVATAR_ACCESS_KEY,
+        secretAccessKey: process.env.AVATAR_SECRET_KEY,
+      },
+      forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE === 'true',
+    });
+
+    await s3.send(
+      new DeleteObjectCommand({
+        Key: key,
+        Bucket: process.env.AVATAR_BUCKET,
+      }),
+    );
   }
 }
