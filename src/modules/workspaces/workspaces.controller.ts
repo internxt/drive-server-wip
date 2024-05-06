@@ -7,6 +7,8 @@ import {
   Param,
   Patch,
   Post,
+  Put,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -36,11 +38,18 @@ import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
+import { Request } from 'express';
+import { AvatarService } from '../../externals/avatar/avatar.service';
+import { MultipartStreamManager } from '../../externals/multipart-stream-manager/busboy.service';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 export class WorkspacesController {
-  constructor(private workspaceUseCases: WorkspacesUsecases) {}
+  constructor(
+    private workspaceUseCases: WorkspacesUsecases,
+    private avatarService: AvatarService,
+    private multipartStreamManager: MultipartStreamManager,
+  ) {}
 
   @Get('/')
   @ApiOperation({
@@ -192,6 +201,31 @@ export class WorkspacesController {
     @Body('managerId', ValidateUUIDPipe) managerId: UserAttributes['uuid'],
   ) {
     return this.workspaceUseCases.changeTeamManager(teamId, managerId);
+  }
+
+  @Put('/:workspaceId/avatar')
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  async uploadAvatar(
+    @Req() req: Request,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const processSingleUpload = {
+      saveFile: this.avatarService.uploadAvatarToBucketFromStream.bind(this),
+    };
+
+    const result = await this.multipartStreamManager.processSingleUpload<{
+      key: string;
+    } | null>(req, processSingleUpload, 'avatar', {
+      limits: { fileSize: 1024 * 1024 },
+    });
+
+    if (!result && !result.key) {
+      throw new BadRequestException('Invalid avatar');
+    }
+
+    return this.workspaceUseCases.setWorkspaceAvatar(workspaceId, result.key);
   }
 
   @Patch('/:workspaceId/setup')

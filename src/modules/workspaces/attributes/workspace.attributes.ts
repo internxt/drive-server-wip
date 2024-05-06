@@ -2,6 +2,7 @@ export interface WorkspaceAttributes {
   id: string;
   ownerId: string;
   address?: string;
+  avatar?: string;
   name: string;
   description?: string;
   defaultTeamId: string;

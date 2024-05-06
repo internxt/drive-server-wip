@@ -30,6 +30,7 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -41,6 +42,7 @@ export class WorkspacesUsecases {
     private userUsecases: UserUseCases,
     private configService: ConfigService,
     private mailerService: MailerService,
+    private avatarService: AvatarService,
   ) {}
 
   async initiateWorkspace(
@@ -646,6 +648,25 @@ export class WorkspacesUsecases {
     await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     await this.teamRepository.deleteTeamById(teamId);
+  }
+
+  async setWorkspaceAvatar(
+    workspaceId: WorkspaceAttributes['id'],
+    avatarKey: string,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new BadRequestException('Invalid workspace');
+    }
+
+    await this.workspaceRepository.updateById(workspace.id, {
+      avatar: avatarKey,
+    });
+
+    const url = await this.avatarService.getDownloadUrl(avatarKey);
+
+    return { avatar: url };
   }
 
   findUserInWorkspace(

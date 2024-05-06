@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { GetObjectCommand, S3 } from '@aws-sdk/client-s3';
-
+import { Upload } from '@aws-sdk/lib-storage';
 import { User } from '../../modules/user/user.domain';
+import { Readable } from 'stream';
+import { v4 } from 'uuid';
 
 @Injectable()
 export class AvatarService {
@@ -34,5 +36,35 @@ export class AvatarService {
     } else {
       return url;
     }
+  }
+
+  async uploadAvatarToBucketFromStream(
+    fileStream: Readable,
+    options?: { customKey?: string },
+  ): Promise<{ key: string }> {
+    const s3 = new S3({
+      endpoint: process.env.AVATAR_ENDPOINT,
+      region: process.env.AVATAR_REGION,
+      credentials: {
+        accessKeyId: process.env.AVATAR_ACCESS_KEY,
+        secretAccessKey: process.env.AVATAR_SECRET_KEY,
+      },
+      forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE === 'true',
+    });
+
+    const target = {
+      Bucket: process.env.AVATAR_BUCKET,
+      Key: options?.customKey ?? v4(),
+      Body: fileStream,
+    };
+
+    const parallelUploads3 = new Upload({
+      client: s3,
+      params: target,
+    });
+
+    const result = await parallelUploads3.done();
+
+    return { key: result.Key };
   }
 }

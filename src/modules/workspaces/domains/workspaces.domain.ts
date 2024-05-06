@@ -6,6 +6,7 @@ export class Workspace implements WorkspaceAttributes {
   id: string;
   ownerId: string;
   address?: string;
+  avatar?: string;
   name: string;
   description?: string;
   defaultTeamId: string;
@@ -18,6 +19,7 @@ export class Workspace implements WorkspaceAttributes {
     id,
     ownerId,
     address,
+    avatar,
     name,
     description,
     defaultTeamId,
@@ -29,6 +31,7 @@ export class Workspace implements WorkspaceAttributes {
     this.id = id;
     this.ownerId = ownerId;
     this.address = address;
+    this.avatar = avatar;
     this.name = name;
     this.description = description;
     this.defaultTeamId = defaultTeamId;
