@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -15,6 +16,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { CreateTeamDto } from './dto/create-team.dto';
@@ -96,6 +98,12 @@ export class WorkspacesController {
   })
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiQuery({
+    name: 'search',
+    description: 'Search users by name, lastname or email',
+    required: false,
+    type: String,
+  })
   @ApiOkResponse({
     description: 'Members in the workspace along with members quantity',
   })
@@ -104,12 +112,17 @@ export class WorkspacesController {
   async getWorkspaceMembers(
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Query('search') search: string | null = null,
   ) {
     if (!workspaceId || !isUUID(workspaceId)) {
       throw new BadRequestException('Invalid workspace ID');
     }
 
-    return this.workspaceUseCases.getWorkspaceMembers(workspaceId, user);
+    return this.workspaceUseCases.getWorkspaceMembers(
+      workspaceId,
+      user,
+      search,
+    );
   }
 
   @Post('/:workspaceId/members/invite')

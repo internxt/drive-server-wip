@@ -236,7 +236,53 @@ describe('Workspace Controller', () => {
         workspacesController.getWorkspaceMembers(workspace.id, owner),
       ).resolves.toEqual(mockResolvedValues);
 
-      expect(workspaceUsecase).toHaveBeenCalledWith(workspace.id, owner);
+      expect(workspaceUsecase).toHaveBeenCalledWith(workspace.id, owner, null);
+    });
+
+    it('When members are requested with "workspaceId" and "user", and additionally include a "search" then it should return workspaces members data according to the "search"', async () => {
+      const user1 = newUser();
+      const search = user1.name;
+
+      const userWorkspace1 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user1.uuid,
+        member: user1,
+        attributes: { deactivated: false },
+      }).toJSON();
+
+      const workspaceUsecase = jest.spyOn(
+        workspacesUsecases,
+        'getWorkspaceMembers',
+      );
+
+      const mockResolvedValues = {
+        activatedUsers: [
+          {
+            ...userWorkspace1,
+            isOwner: false,
+            isManager: false,
+            freeSpace: BigInt(15000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+        ],
+        disabledUsers: [],
+      };
+      workspacesUsecases.getWorkspaceMembers.mockResolvedValueOnce(
+        mockResolvedValues,
+      );
+
+      const data = await workspacesController.getWorkspaceMembers(
+        workspace.id,
+        owner,
+        search,
+      );
+      expect(data).toEqual(mockResolvedValues);
+      expect(data.activatedUsers).toHaveLength(1);
+      expect(workspaceUsecase).toHaveBeenCalledWith(
+        workspace.id,
+        owner,
+        search,
+      );
     });
   });
 });
