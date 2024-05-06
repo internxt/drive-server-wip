@@ -10,15 +10,25 @@ import {
   newWorkspaceUser,
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
+import { AvatarService } from '../../externals/avatar/avatar.service';
+import { MultipartStreamManager } from '../../externals/multipart-stream-manager/busboy.service';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
+  let avatarService: DeepMocked<AvatarService>;
+  let multipartStreamManager: DeepMocked<MultipartStreamManager>;
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
+    avatarService = createMock<AvatarService>();
+    multipartStreamManager = createMock<MultipartStreamManager>();
 
-    workspacesController = new WorkspacesController(workspacesUsecases);
+    workspacesController = new WorkspacesController(
+      workspacesUsecases,
+      avatarService,
+      multipartStreamManager,
+    );
   });
 
   it('should be defined', () => {
