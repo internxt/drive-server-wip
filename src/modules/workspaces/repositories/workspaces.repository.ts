@@ -12,6 +12,7 @@ import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attrib
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
+import { Op } from 'sequelize';
 
 export interface WorkspaceRepository {
   findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
@@ -241,11 +242,41 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
 
   async findWorkspaceUsers(
     workspaceId: WorkspaceAttributes['id'],
+    search: string | null = null,
   ): Promise<WorkspaceUser[]> {
-    const usersWorkspace = await this.modelWorkspaceUser.findAll({
-      where: { workspaceId },
-      include: [UserModel],
-    });
+    const usersWorkspace = search
+      ? await this.modelWorkspaceUser.findAll({
+          where: {
+            workspaceId,
+            [Op.or]: [
+              {
+                '$member.name$': {
+                  [Op.like]: `%${search}%`,
+                },
+              },
+              {
+                '$member.lastname$': {
+                  [Op.like]: `%${search}%`,
+                },
+              },
+              {
+                '$member.email$': {
+                  [Op.like]: `%${search}%`,
+                },
+              },
+            ],
+          },
+          include: [
+            {
+              model: UserModel,
+              as: 'member',
+            },
+          ],
+        })
+      : await this.modelWorkspaceUser.findAll({
+          where: { workspaceId },
+          include: [UserModel],
+        });
 
     return usersWorkspace.map((userWorkspace) =>
       this.workspaceUserToDomain(userWorkspace),
