@@ -274,6 +274,7 @@ export class FolderController {
       {
         parentUuid: folderUuid,
         deleted: false,
+        removed: false
       },
       {
         limit,
