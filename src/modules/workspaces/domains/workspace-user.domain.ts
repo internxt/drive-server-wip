@@ -66,7 +66,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
       driveUsage: this.driveUsage.toString(),
       backupsUsage: this.backupsUsage.toString(),
       deactivated: this.deactivated,
-      member: this.member ? this.member.toJSON() : undefined,
+      member: this.member ? this.member.toJSON() : null,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
