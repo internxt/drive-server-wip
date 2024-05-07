@@ -2,6 +2,7 @@ import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   ForbiddenException,
   InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
@@ -11,7 +12,7 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
-import { newUser } from '../../../test/fixtures';
+import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import { AccountTokenAction } from './user.domain';
 
 jest.mock('../../config/configuration', () => {
@@ -20,6 +21,11 @@ jest.mock('../../config/configuration', () => {
     default: jest.fn(() => ({
       secrets: {
         jwt: 'Test',
+        jitsiSecret: generateBase64PrivateKeyStub(),
+      },
+      jitsi: {
+        appId: 'jitsi-app-id',
+        apiKey: 'jitsi-api-key',
       },
     })),
   };
@@ -132,6 +138,24 @@ describe('User Controller', () => {
       await expect(
         userController.accountUnblock(validToken),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('GET /meet token', () => {
+    const user = newUser();
+    it('When token is requested and user is in the closed beta, then it generates a meet token', async () => {
+      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([user.email]);
+
+      const result = await userController.getMeetToken(user);
+      expect(result.token).toBeDefined();
+    });
+
+    it('When token is requested and user is not in the closed beta, then it throws an error', async () => {
+      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([]);
+
+      await expect(userController.getMeetToken(user)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });
