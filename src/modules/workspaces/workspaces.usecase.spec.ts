@@ -783,6 +783,79 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('removeWorkspaceInvite', () => {
+    const invitedUser = newUser();
+
+    it('When invite is not found, then fail', async () => {
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(null);
+      await expect(
+        service.removeWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invite does not have a valid workspace, then fail', async () => {
+      const invite = newWorkspaceInvite({ invitedUser: invitedUser.uuid });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.removeWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not invited user and tries to delete the invite, then it should throw', async () => {
+      const workspace = newWorkspace();
+      const notInvitedUser = newUser();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      await expect(
+        service.removeWorkspaceInvite(notInvitedUser, invite.id),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user is not invited user but it is owner of the workspace, then it should success', async () => {
+      const notInvitedUser = newUser();
+      const workspace = newWorkspace({ owner: notInvitedUser });
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      await service.removeWorkspaceInvite(notInvitedUser, invite.id);
+
+      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith({
+        id: invite.id,
+      });
+    });
+
+    it('When user is invited user and tries to delete the invite, then it should success', async () => {
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+      await service.removeWorkspaceInvite(invitedUser, invite.id);
+
+      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith({
+        id: invite.id,
+      });
+    });
+  });
+
   describe('changeUserRole', () => {
     it('When team does not exist, then error is thrown', async () => {
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);

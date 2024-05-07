@@ -414,6 +414,34 @@ export class WorkspacesUsecases {
     await this.workspaceRepository.deleteInviteBy({ id: invite.id });
   }
 
+  async removeWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
+    const invite = await this.workspaceRepository.findInvite({
+      id: inviteId,
+    });
+
+    if (!invite) {
+      throw new BadRequestException('Invalid invite');
+    }
+
+    const workspace = await this.workspaceRepository.findOne({
+      id: invite.workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Invalid invite');
+    }
+
+    const isInvitedUser = user.uuid === invite.invitedUser;
+
+    if (!workspace.isUserOwner(user) && !isInvitedUser) {
+      throw new ForbiddenException();
+    }
+
+    await this.workspaceRepository.deleteInviteBy({
+      id: invite.id,
+    });
+  }
+
   async getAssignableSpaceInWorkspace(
     workspace: Workspace,
     workpaceDefaultUser: User,
