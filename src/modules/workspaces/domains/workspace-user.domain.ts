@@ -48,12 +48,12 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     this.member = member;
   }
 
-  getUsedSpace(): string {
-    return (BigInt(this.driveUsage) + BigInt(this.backupsUsage)).toString();
+  getUsedSpace(): bigint {
+    return this.driveUsage + this.backupsUsage;
   }
 
-  getFreeSpace(): string {
-    return (BigInt(this.spaceLimit) - BigInt(this.getUsedSpace())).toString();
+  getFreeSpace(): bigint {
+    return this.spaceLimit - this.getUsedSpace();
   }
 
   toJSON() {

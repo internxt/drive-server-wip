@@ -152,6 +152,16 @@ export class SequelizeWorkspaceTeamRepository {
     }));
   }
 
+  async getTeamsInWorkspace(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<WorkspaceTeam[] | null> {
+    const teams = await this.teamModel.findAll({
+      where: { workspaceId },
+    });
+
+    return teams.map((team) => this.toDomain(team));
+  }
+
   async getTeamsInWorkspaceCount(workspaceId: WorkspaceAttributes['id']) {
     const teamsCount = await this.teamModel.count({
       where: { workspaceId },
