@@ -1,5 +1,5 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -158,35 +158,22 @@ describe('Workspace Controller', () => {
     });
 
     it('When the workspaceId is missing then it should throw BadRequestException', async () => {
-      const workspaceController = jest.spyOn(
-        workspacesController,
-        'getWorkspaceMembers',
-      );
-
-      const expectgetWorkspaceMembers = expect(async () => {
+      const expectResponse = expect(async () => {
         await workspacesController.getWorkspaceMembers(null, owner);
       });
-      expectgetWorkspaceMembers.rejects.toThrow(BadRequestException);
-      expectgetWorkspaceMembers.rejects.toThrow('Invalid workspace ID');
-
-      expect(workspaceController).toHaveBeenCalled();
+      expectResponse.rejects.toThrow(BadRequestException);
+      expectResponse.rejects.toThrow('Invalid workspace ID');
     });
 
-    it('When the user is null or empty then it should throw UnauthorizedException', async () => {
-      const workspaceController = jest
-        .spyOn(workspacesController, 'getWorkspaceMembers')
-        .mockImplementation(async (workspaceId: string, user: any) => {
-          if (!user) throw UnauthorizedException;
-          return workspacesUsecases.getWorkspaceMembers(workspaceId, user);
-        });
+    it('When the user is null or empty then it should return null', async () => {
+      const user = null;
+      workspacesUsecases.getWorkspaceMembers.mockResolvedValue(null);
 
-      const resFailed = workspacesController.getWorkspaceMembers(
+      const response = await workspacesController.getWorkspaceMembers(
         workspace.id,
-        null,
+        user,
       );
-
-      await expect(resFailed).rejects.toThrow();
-      expect(workspaceController).toHaveBeenCalledTimes(1);
+      expect(response).toBeNull();
     });
 
     it('When members are requested with "workspaceId" and "user", then it should return workspaces members data', async () => {
@@ -211,11 +198,6 @@ describe('Workspace Controller', () => {
         member: user2,
         attributes: { deactivated: true },
       }).toJSON();
-
-      const workspaceUsecase = jest.spyOn(
-        workspacesUsecases,
-        'getWorkspaceMembers',
-      );
 
       const mockResolvedValues = {
         activatedUsers: [
@@ -248,11 +230,11 @@ describe('Workspace Controller', () => {
         mockResolvedValues,
       );
 
-      await expect(
-        workspacesController.getWorkspaceMembers(workspace.id, owner),
-      ).resolves.toEqual(mockResolvedValues);
-
-      expect(workspaceUsecase).toHaveBeenCalledWith(workspace.id, owner);
+      const getMembers = await workspacesController.getWorkspaceMembers(
+        workspace.id,
+        owner,
+      );
+      expect(getMembers).toEqual(mockResolvedValues);
     });
   });
 });

@@ -477,6 +477,18 @@ export class WorkspacesUsecases {
       ? createTeamDto.managerId
       : user.uuid;
 
+    const isUserAlreadyInWorkspace =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: managerId,
+      });
+
+    if (!isUserAlreadyInWorkspace) {
+      throw new BadRequestException(
+        'User Manager is not part of the workspace',
+      );
+    }
+
     const newTeam = WorkspaceTeam.build({
       id: v4(),
       workspaceId: workspaceId,
@@ -547,10 +559,9 @@ export class WorkspacesUsecases {
       workspace.id,
     );
 
-    const teamsAndMembersCount =
-      await this.teamRepository.getTeamsAndMembersCountByWorkspace(
-        workspace.id,
-      );
+    const teamsInWorkspace = await this.teamRepository.getTeamsInWorkspace(
+      workspace.id,
+    );
 
     const workspaceUserMembers: WorkspaceUserMemberDto[] = await Promise.all(
       workspaceUsers.map(async (workspaceUser) => {
@@ -564,15 +575,15 @@ export class WorkspacesUsecases {
         }
 
         const isOwner = workspace.ownerId == workspaceUser.memberId;
-        const isManager = teamsAndMembersCount.some(
-          ({ team }) => team.managerId == workspaceUser.memberId,
+        const isManager = teamsInWorkspace.some(
+          (team) => team.managerId == workspaceUser.memberId,
         );
 
         return {
           isOwner,
           isManager,
-          usedSpace: workspaceUser.getUsedSpace(),
-          freeSpace: workspaceUser.getFreeSpace(),
+          usedSpace: workspaceUser.getUsedSpace().toString(),
+          freeSpace: workspaceUser.getFreeSpace().toString(),
           ...workspaceUser.toJSON(),
         };
       }),

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
 import {
+  newWorkspace,
   newWorkspaceTeam,
   newWorkspaceTeamUser,
 } from '../../../../test/fixtures';
@@ -125,6 +126,28 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       const result = await repository.getTeamById(teamId);
 
       expect(result).toEqual(raw);
+    });
+  });
+
+  describe('getTeamsInWorkspace', () => {
+    const workspace = newWorkspace();
+    it('When a workspace id is not found then we receive an empty array', async () => {
+      jest.spyOn(workspaceTeamModel, 'findAll').mockResolvedValueOnce([]);
+      const response = await repository.getTeamsInWorkspace(workspace.id);
+      expect(response).toEqual([]);
+    });
+
+    it('When a workspace id is found then we receive a WorkspaceTeam[]', async () => {
+      const team1 = newWorkspaceTeam({ workspaceId: workspace.id });
+      const team2 = newWorkspaceTeam({ workspaceId: workspace.id });
+
+      jest
+        .spyOn(workspaceTeamModel, 'findAll')
+        .mockResolvedValueOnce([team1, team2] as any);
+
+      const response = await repository.getTeamsInWorkspace(workspace.id);
+
+      expect(response).toEqual([team1, team2]);
     });
   });
 });

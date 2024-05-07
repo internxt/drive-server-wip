@@ -320,7 +320,7 @@ export const newWorkspaceTeamUser = (params?: {
   team?: WorkspaceTeam;
 }): WorkspaceTeamUser => {
   const randomCreatedAt = randomDataGenerator.date();
-  const getTeamId = params.teamId || v4();
+  const getTeamId = params?.teamId || v4();
   const team =
     params?.team ||
     newWorkspaceTeam({
