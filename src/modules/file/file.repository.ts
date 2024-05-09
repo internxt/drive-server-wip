@@ -92,6 +92,12 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async create(file: Omit<File, 'id'>): Promise<File | null> {
+    const raw = await this.fileModel.create(file);
+
+    return raw ? this.toDomain(raw) : null;
+  }
+
   async findByFileIds(
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
@@ -341,6 +347,13 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
         deleted,
       },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where,
     });
     return file ? this.toDomain(file) : null;
   }
