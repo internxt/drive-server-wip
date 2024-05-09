@@ -7,7 +7,10 @@ export class GatewayUseCases {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
-    const { ownerId, maxSpaceBytes } = initializeWorkspaceDto;
-    return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes);
+    const { ownerId, maxSpaceBytes, address } = initializeWorkspaceDto;
+
+    return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes, {
+      address,
+    });
   }
 }
