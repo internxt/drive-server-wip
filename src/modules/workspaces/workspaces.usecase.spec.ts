@@ -462,6 +462,32 @@ describe('WorkspacesUsecases', () => {
         },
       );
     });
+
+    it('When workspace is setup and no defined data was sent, then it should use data already in workspace', async () => {
+      const workspace = newWorkspace();
+      const setupWorkspaceDto = {
+        encryptedMnemonic: 'encryptedMnemonic',
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+
+      await service.setupWorkspace(user, workspace.id, setupWorkspaceDto);
+
+      expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
+        {
+          ownerId: user.uuid,
+          id: workspace.id,
+        },
+        {
+          name: workspace.name,
+          setupCompleted: true,
+          address: workspace.address,
+          description: workspace.description,
+        },
+      );
+    });
   });
 
   describe('isWorkspaceFull', () => {
@@ -491,10 +517,13 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('getAvailableWorkspaces', () => {
-    it('When trying to get user available workspaces, then workspaces that are already setup should be returned', async () => {
+    it('When trying to get user available workspaces, then it should return ready workspaces and workspaces pending to be setup', async () => {
       const user = newUser();
       const workspace = newWorkspace({
         attributes: { setupCompleted: true },
+      });
+      const pendingSetupWorkspace = newWorkspace({
+        attributes: { setupCompleted: false, ownerId: user.uuid },
       });
       const workspaceUser = newWorkspaceUser({
         workspaceId: workspace.id,
@@ -503,17 +532,20 @@ describe('WorkspacesUsecases', () => {
       });
 
       jest
+        .spyOn(service, 'getWorkspacesPendingToBeSetup')
+        .mockResolvedValueOnce([pendingSetupWorkspace]);
+      jest
         .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
-        .mockResolvedValue([{ workspaceUser, workspace }]);
-      const availablesWorkspaces = await service.getAvailableWorkspaces(user);
+        .mockResolvedValueOnce([{ workspaceUser, workspace }]);
+      const availableWorkspaces = await service.getAvailableWorkspaces(user);
 
-      expect(availablesWorkspaces[0]).toEqual({
-        workspaceUser,
-        workspace,
+      expect(availableWorkspaces).toEqual({
+        availableWorkspaces: [{ workspaceUser, workspace }],
+        pendingWorkspaces: [pendingSetupWorkspace],
       });
     });
 
-    it('When trying to get user available workspaces, then workspaces that are not setup should not be returned', async () => {
+    it('When there is no pending workspace, then it should return just available workspaces', async () => {
       const user = newUser();
       const workspace = newWorkspace({
         attributes: { setupCompleted: false },
@@ -525,11 +557,18 @@ describe('WorkspacesUsecases', () => {
       });
 
       jest
+        .spyOn(service, 'getWorkspacesPendingToBeSetup')
+        .mockResolvedValueOnce([]);
+      jest
         .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
         .mockResolvedValue([{ workspaceUser, workspace }]);
-      const availablesWorkspaces = await service.getAvailableWorkspaces(user);
 
-      expect(availablesWorkspaces).toEqual([]);
+      const availableWorkspaces = await service.getAvailableWorkspaces(user);
+
+      expect(availableWorkspaces).toEqual({
+        availableWorkspaces: [],
+        pendingWorkspaces: [],
+      });
     });
 
     it('When trying to get user available workspaces, workspaces that have this user deactivated should not be returned', async () => {
@@ -544,11 +583,17 @@ describe('WorkspacesUsecases', () => {
       });
 
       jest
+        .spyOn(service, 'getWorkspacesPendingToBeSetup')
+        .mockResolvedValueOnce([]);
+      jest
         .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
         .mockResolvedValue([{ workspaceUser, workspace }]);
-      const availablesWorkspaces = await service.getAvailableWorkspaces(user);
+      const availableWorkspaces = await service.getAvailableWorkspaces(user);
 
-      expect(availablesWorkspaces).toEqual([]);
+      expect(availableWorkspaces).toEqual({
+        availableWorkspaces: [],
+        pendingWorkspaces: [],
+      });
     });
   });
 

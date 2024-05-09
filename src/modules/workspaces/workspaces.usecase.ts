@@ -47,6 +47,7 @@ export class WorkspacesUsecases {
   async initiateWorkspace(
     ownerId: UserAttributes['uuid'],
     maxSpaceBytes: number,
+    workspaceData: { address?: string },
   ) {
     const owner = await this.userRepository.findByUuid(ownerId);
 
@@ -88,7 +89,8 @@ export class WorkspacesUsecases {
     const newWorkspace = Workspace.build({
       id: workspaceId,
       ownerId: owner.uuid,
-      name: '',
+      name: 'My Workspace',
+      address: workspaceData?.address,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
       setupCompleted: false,
@@ -174,17 +176,19 @@ export class WorkspacesUsecases {
       throw new InternalServerErrorException(finalMessage);
     }
 
+    const workspaceUpdatedInfo: Partial<WorkspaceAttributes> = {
+      name: setupWorkspaceDto.name ?? workspace.name,
+      setupCompleted: true,
+      address: setupWorkspaceDto.address ?? workspace.address,
+      description: setupWorkspaceDto.description ?? workspace.description,
+    };
+
     await this.workspaceRepository.updateBy(
       {
         ownerId: user.uuid,
         id: workspace.id,
       },
-      {
-        name: setupWorkspaceDto.name,
-        setupCompleted: true,
-        address: setupWorkspaceDto.address,
-        description: setupWorkspaceDto.description,
-      },
+      workspaceUpdatedInfo,
     );
   }
 
@@ -534,14 +538,18 @@ export class WorkspacesUsecases {
   }
 
   async getAvailableWorkspaces(user: User) {
-    const availablesWorkspaces =
-      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+    const [availablesWorkspaces, ownerPendingWorkspaces] = await Promise.all([
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid),
+      await this.getWorkspacesPendingToBeSetup(user),
+    ]);
 
-    return availablesWorkspaces.filter(
-      (workspaceData) =>
-        workspaceData.workspace.isWorkspaceReady() &&
-        !workspaceData.workspaceUser.deactivated,
-    );
+    return {
+      availableWorkspaces: availablesWorkspaces.filter(
+        ({ workspace, workspaceUser }) =>
+          workspace.isWorkspaceReady() && !workspaceUser.deactivated,
+      ),
+      pendingWorkspaces: ownerPendingWorkspaces,
+    };
   }
 
   async getWorkspacesPendingToBeSetup(user: User) {

@@ -77,12 +77,16 @@ describe('Workspace Controller', () => {
         attributes: { deactivated: false },
       });
 
-      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce([
-        { workspace, workspaceUser },
-      ]);
+      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce({
+        availableWorkspaces: [{ workspace, workspaceUser }],
+        pendingWorkspaces: [],
+      });
       await expect(
         workspacesController.getAvailableWorkspaces(user),
-      ).resolves.toEqual([{ workspace, workspaceUser }]);
+      ).resolves.toEqual({
+        availableWorkspaces: [{ workspace, workspaceUser }],
+        pendingWorkspaces: [],
+      });
     });
   });
 
