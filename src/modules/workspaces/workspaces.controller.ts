@@ -36,6 +36,7 @@ import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
+import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -81,6 +82,23 @@ export class WorkspacesController {
     const { inviteId } = acceptInvitationDto;
 
     return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
+  }
+
+  @Delete('/invitations/:inviteId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Declines invitation to workspace',
+  })
+  @ApiParam({ name: 'inviteId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace invitation declined',
+  })
+  async removeWorkspaceInvite(
+    @UserDecorator() user: User,
+    @Param('inviteId', ValidateUUIDPipe)
+    inviteId: WorkspaceInviteAttributes['id'],
+  ) {
+    return this.workspaceUseCases.removeWorkspaceInvite(user, inviteId);
   }
 
   @Get('/teams/:teamId/members')
