@@ -30,6 +30,7 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
+import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -472,16 +473,36 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Maximum teams reached');
     }
 
+    const managerId = createTeamDto.managerId
+      ? createTeamDto.managerId
+      : user.uuid;
+
+    const isUserAlreadyInWorkspace =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: managerId,
+      });
+
+    if (!isUserAlreadyInWorkspace) {
+      throw new BadRequestException(
+        'User Manager is not part of the workspace',
+      );
+    }
+
     const newTeam = WorkspaceTeam.build({
       id: v4(),
       workspaceId: workspaceId,
       name: createTeamDto.name,
-      managerId: createTeamDto.managerId ? createTeamDto.managerId : user.uuid,
+      managerId,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    return this.teamRepository.createTeam(newTeam);
+    const createdTeam = await this.teamRepository.createTeam(newTeam);
+
+    await this.teamRepository.addUserToTeam(createdTeam.id, managerId);
+
+    return createdTeam;
   }
 
   async getAvailableWorkspaces(user: User) {
@@ -520,6 +541,62 @@ export class WorkspacesUsecases {
       );
 
     return teamsWithMemberCount;
+  }
+
+  async getWorkspaceMembers(
+    workspaceId: WorkspaceAttributes['id'],
+    user: User,
+  ) {
+    const workspace = await this.workspaceRepository.findOne({
+      ownerId: user.uuid,
+      id: workspaceId,
+    });
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    const workspaceUsers = await this.workspaceRepository.findWorkspaceUsers(
+      workspace.id,
+    );
+
+    const teamsInWorkspace = await this.teamRepository.getTeamsInWorkspace(
+      workspace.id,
+    );
+
+    const workspaceUserMembers: WorkspaceUserMemberDto[] = await Promise.all(
+      workspaceUsers.map(async (workspaceUser) => {
+        if (workspaceUser.member && workspaceUser.member.avatar) {
+          const resAvatarUrl = await this.userUsecases.getAvatarUrl(
+            workspaceUser.member.avatar,
+          );
+
+          workspaceUser.member.avatar =
+            typeof resAvatarUrl == 'object' ? null : resAvatarUrl;
+        }
+
+        const isOwner = workspace.ownerId == workspaceUser.memberId;
+        const isManager = teamsInWorkspace.some(
+          (team) => team.managerId == workspaceUser.memberId,
+        );
+
+        return {
+          isOwner,
+          isManager,
+          usedSpace: workspaceUser.getUsedSpace().toString(),
+          freeSpace: workspaceUser.getFreeSpace().toString(),
+          ...workspaceUser.toJSON(),
+        };
+      }),
+    );
+
+    return {
+      activatedUsers: workspaceUserMembers.filter(
+        (workspaceUserMember) => workspaceUserMember.deactivated == false,
+      ),
+      disabledUsers: workspaceUserMembers.filter(
+        (workspaceUserMember) => workspaceUserMember.deactivated == true,
+      ),
+    };
   }
 
   async getTeamMembers(teamId: WorkspaceTeam['id']) {
