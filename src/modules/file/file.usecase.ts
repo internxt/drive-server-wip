@@ -1,6 +1,7 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   forwardRef,
@@ -28,6 +29,9 @@ import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { Logger } from '../../externals/logger/logger';
+import { v4 } from 'uuid';
+import { CreateFileDto } from './dto/create-file.dto';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -41,6 +45,7 @@ export class FileUseCases {
     private sharingUsecases: SharingService,
     private network: BridgeService,
     private cryptoService: CryptoService,
+    private logger: Logger,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -71,6 +76,63 @@ export class FileUseCases {
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
     return this.fileRepository.findByUuids(uuids);
+  }
+
+  async createFile(user: User, newFileDto: CreateFileDto) {
+    const folder = await this.folderUsecases.getFolderById(
+      newFileDto.folder_id,
+    );
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const isTheFolderOwner = folder.isOwnedBy(user);
+
+    if (!isTheFolderOwner) {
+      throw new ForbiddenException('Folder is not yours');
+    }
+
+    const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
+      name: newFileDto.name,
+      folderId: folder.id,
+      type: newFileDto.type,
+      userId: user.id,
+      status: FileStatus.EXISTS,
+    });
+
+    const fileAlreadyExists = !!maybeAlreadyExistentFile;
+
+    if (fileAlreadyExists) {
+      throw new ConflictException('File already exists');
+    }
+
+    const newFile = File.build({
+      id: undefined,
+      uuid: v4(),
+      name: newFileDto.name,
+      plainName: newFileDto.plain_name,
+      type: newFileDto.type,
+      size: newFileDto.size,
+      folderId: folder.id,
+      fileId: newFileDto.fileId,
+      bucket: newFileDto.bucket,
+      encryptVersion: newFileDto.encrypt_version,
+      userId: user.id,
+      folderUuid: folder.uuid,
+      modificationTime: newFileDto.modificationTime || new Date(),
+      deleted: false,
+      deletedAt: null,
+      removed: false,
+      createdAt: newFileDto.date ?? new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      status: FileStatus.EXISTS,
+    });
+
+    delete newFile.id;
+
+    return this.fileRepository.create(newFile);
   }
 
   async getFilesByFolderId(

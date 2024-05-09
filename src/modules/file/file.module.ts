@@ -12,6 +12,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
+import { LoggerModule } from '../../externals/logger/logger.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { SharingModule } from '../sharing/sharing.module';
     forwardRef(() => SharingModule),
     BridgeModule,
     CryptoModule,
+    LoggerModule,
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],

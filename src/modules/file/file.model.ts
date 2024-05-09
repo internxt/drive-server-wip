@@ -1,5 +1,6 @@
 import {
   AllowNull,
+  AutoIncrement,
   BelongsTo,
   Column,
   DataType,
@@ -28,6 +29,7 @@ import { Sharing } from '../sharing/sharing.domain';
 })
 export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
+  @AutoIncrement
   @Column
   id: number;
 

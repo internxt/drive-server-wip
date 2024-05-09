@@ -92,6 +92,15 @@ export class FolderUseCases {
     return folder;
   }
 
+  async getFolderById(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ): Promise<Folder | null> {
+    const folder = await this.folderRepository.findById(folderId, deleted);
+
+    return folder ? Folder.build({ ...this.decryptFolderName(folder) }) : null;
+  }
+
   async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
