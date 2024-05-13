@@ -5,6 +5,7 @@ export interface WorkspaceUserAttributes {
   key: string;
   workspaceId: string;
   spaceLimit: bigint;
+  rootFolderId?: number;
   driveUsage: bigint;
   backupsUsage: bigint;
   deactivated: boolean;

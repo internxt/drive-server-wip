@@ -12,6 +12,8 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -116,6 +118,40 @@ export class SequelizeFolderRepository implements FolderRepository {
           where: {
             deleted: false,
             removed: false,
+          },
+        },
+      ],
+      limit,
+      offset,
+      where,
+      order,
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithParentInWorkspaces(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      include: [
+        {
+          model: FolderModel,
+          as: 'parent',
+          attributes: ['id', 'uuid'],
+          where: {
+            deleted: false,
+            removed: false,
+          },
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
           },
         },
       ],
@@ -302,6 +338,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     name: FolderAttributes['name'],
     bucket: FolderAttributes['bucket'],
     parentId: FolderAttributes['id'],
+    parentUuid: FolderAttributes['uuid'],
     encryptVersion: FolderAttributes['encryptVersion'],
   ): Promise<Folder> {
     const folder = await this.folderModel.create({
@@ -309,6 +346,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       name,
       bucket,
       parentId,
+      parentUuid,
       encryptVersion,
       uuid: v4(),
     });

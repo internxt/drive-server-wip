@@ -1,12 +1,16 @@
 import { User } from '../../user/user.domain';
-import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
+import {
+  WorkspaceItemContext,
+  WorkspaceItemType,
+  WorkspaceItemUserAttributes,
+} from '../attributes/workspace-items-users.attributes';
 
 export class WorkspaceItemUser implements WorkspaceItemUserAttributes {
   id: string;
   workspaceId: string;
   itemId: string;
-  itemType: string;
-  context: string;
+  itemType: WorkspaceItemType;
+  context: WorkspaceItemContext;
   createdBy: User['uuid'];
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +37,10 @@ export class WorkspaceItemUser implements WorkspaceItemUserAttributes {
 
   static build(attributes: WorkspaceItemUserAttributes): WorkspaceItemUser {
     return new WorkspaceItemUser(attributes);
+  }
+
+  isOwnedBy(user: User) {
+    return this.createdBy === user.uuid;
   }
 
   toJSON() {

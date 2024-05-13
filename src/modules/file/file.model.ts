@@ -7,6 +7,7 @@ import {
   Default,
   ForeignKey,
   HasMany,
+  HasOne,
   Index,
   Model,
   PrimaryKey,
@@ -21,6 +22,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { Sharing } from '../sharing/sharing.domain';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 @Table({
   underscored: true,
@@ -110,6 +112,12 @@ export class FileModel extends Model implements FileAttributes {
     allowNull: false,
   })
   status: FileStatus;
+
+  @HasOne(() => WorkspaceItemUserModel, {
+    foreignKey: 'itemId',
+    sourceKey: 'uuid',
+  })
+  workspaceUser: WorkspaceItemUserModel;
 
   @HasMany(() => ShareModel, 'fileId')
   shares: Share[];
