@@ -29,7 +29,6 @@ import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
-import { Logger } from '../../externals/logger/logger';
 import { v4 } from 'uuid';
 import { CreateFileDto } from './dto/create-file.dto';
 
@@ -45,7 +44,6 @@ export class FileUseCases {
     private sharingUsecases: SharingService,
     private network: BridgeService,
     private cryptoService: CryptoService,
-    private logger: Logger,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -107,8 +105,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const newFile = File.build({
-      id: undefined,
+    const newFile = await this.fileRepository.create({
       uuid: v4(),
       name: newFileDto.name,
       plainName: newFileDto.plain_name,
@@ -130,9 +127,7 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
     });
 
-    delete newFile.id;
-
-    return this.fileRepository.create(newFile);
+    return newFile;
   }
 
   async getFilesByFolderId(
@@ -259,6 +254,48 @@ export class FileUseCases {
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnails(
           { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+
+    const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesWithThumbnailsModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getFilesInWorkspace(
+    createdBy: UserAttributes['uuid'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      withoutThumbnails?: boolean;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    let filesWithMaybePlainName;
+    if (options?.withoutThumbnails)
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorInWorkspace(
+          createdBy,
+          { ...where },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+    else
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorWithThumbnailsInWorkspace(
+          createdBy,
+          { ...where },
           options.limit,
           options.offset,
           options.sort,

@@ -21,6 +21,7 @@ import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -192,6 +193,7 @@ export class FolderUseCases {
       encryptedFolderName,
       bucketId,
       null,
+      null,
       '03-aes',
     );
 
@@ -293,6 +295,7 @@ export class FolderUseCases {
       encryptedFolderName,
       null,
       parentFolderId,
+      parentFolderExists.uuid,
       '03-aes',
     );
 
@@ -463,6 +466,28 @@ export class FolderUseCases {
     const foldersWithMaybePlainName =
       await this.folderRepository.findAllCursorWithParent(
         { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
+  async getFoldersWithParentInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<FolderAttributes>,
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findAllCursorWithParentInWorkspaces(
+        createdBy,
+        { ...where },
         options.limit,
         options.offset,
         options.sort,

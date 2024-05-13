@@ -7,11 +7,13 @@ import {
   ForeignKey,
   BelongsTo,
   HasMany,
+  HasOne,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceUserModel } from './workspace-users.model';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { WorkspaceTeamModel } from './workspace-team.model';
+import { FolderModel } from '../../folder/folder.model';
 
 @Table({
   underscored: true,
@@ -49,6 +51,13 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @ForeignKey(() => WorkspaceTeamModel)
   @Column(DataType.UUID)
   defaultTeamId: string;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.INTEGER)
+  rootFolderId: number;
+
+  @HasOne(() => FolderModel, 'id')
+  rootFolder: FolderModel;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'defaultTeamId',

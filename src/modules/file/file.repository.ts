@@ -10,6 +10,8 @@ import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 export interface FileRepository {
   deleteByFileId(fileId: any): Promise<any>;
@@ -92,7 +94,7 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async create(file: Omit<File, 'id'>): Promise<File | null> {
+  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
     const raw = await this.fileModel.create(file);
 
     return raw ? this.toDomain(raw) : null;
@@ -230,6 +232,27 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: {
+        model: WorkspaceItemUserModel,
+        where: { createdBy },
+      },
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -261,6 +284,40 @@ export class SequelizeFileRepository implements FileRepository {
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
+        },
+      ],
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnailsInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+          },
         },
       ],
       order,

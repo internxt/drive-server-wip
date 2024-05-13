@@ -5,8 +5,10 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -37,6 +39,14 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
+import {
+  FolderAttributes,
+  SortableFolderAttributes,
+} from '../folder/folder.domain';
+import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { PaginationQueryDto } from './dto/pagination.dto';
+import { SortableFileAttributes } from '../file/file.domain';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -319,6 +329,119 @@ export class WorkspacesController {
     }
 
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
+  }
+
+  @Post('/:workspaceId/files/')
+  @ApiOperation({
+    summary: 'Create File',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Created File',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async createFile(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() createFileDto: CreateWorkspaceFileDto,
+  ) {
+    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+  }
+
+  @Post('/:workspaceId/folders/')
+  @ApiOperation({
+    summary: 'Create folder',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Created Folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async createFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() createFolderDto: CreateWorkspaceFolderDto,
+  ) {
+    return this.workspaceUseCases.createFolder(
+      user,
+      workspaceId,
+      createFolderDto,
+    );
+  }
+
+  @Get('/:workspaceId/folders/:folderId/folders')
+  @ApiOperation({
+    summary: 'Get folders in folder',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'folderId', type: Number, required: true })
+  @ApiOkResponse({
+    description: 'Folders in folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFoldersInFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('folderId', ParseIntPipe)
+    folderId: FolderAttributes['id'],
+    @UserDecorator() user: User,
+    @Query() pagination: PaginationQueryDto,
+    @Query('sort') sort?: SortableFolderAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
+  ) {
+    const { limit, offset } = pagination;
+
+    return this.workspaceUseCases.getPersonalWorkspaceFoldersInFolder(
+      user,
+      workspaceId,
+      folderId,
+      limit,
+      offset,
+      sort,
+      order,
+    );
+  }
+
+  @Get('/:workspaceId/folders/:folderId/files')
+  @ApiOperation({
+    summary: 'Get files in folder',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'folderId', type: Number, required: true })
+  @ApiOkResponse({
+    description: 'Files in folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFilesInFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('folderId', ParseIntPipe)
+    folderId: FolderAttributes['id'],
+    @UserDecorator() user: User,
+    @Query() pagination: PaginationQueryDto,
+    @Query('sort') sort?: SortableFileAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
+  ) {
+    const { limit, offset } = pagination;
+    return this.workspaceUseCases.getPersonalWorkspaceFilesInFolder(
+      user,
+      workspaceId,
+      folderId,
+      limit,
+      offset,
+      sort,
+      order,
+    );
   }
 
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
