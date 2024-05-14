@@ -734,8 +734,10 @@ export class UserController {
     const closedBetaEmails: string[] =
       await this.userUseCases.getMeetClosedBetaUsers();
     if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
-      const token = generateJitsiJWT(user, '*', true);
-      return { token, room: v4() };
+      const room = v4();
+      const token = generateJitsiJWT(user, room, true);
+      await this.userUseCases.setRoomToBetaUser(room, user);
+      return { token, room };
     } else {
       throw new UnauthorizedException('User can not create an Internxt Meet');
     }
@@ -752,10 +754,13 @@ export class UserController {
   })
   @Public()
   async getMeetToken(@Query('room') room: string) {
-    if (!room || !validate(room)) {
+    const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
+    const isRoomCreated = roomCreator !== null;
+    if (!room || !validate(room) || !isRoomCreated) {
       throw new ForbiddenException('Room is not valid');
+    } else {
+      const token = generateJitsiJWT(null, room, false);
+      return { token };
     }
-    const token = generateJitsiJWT(null, room, false);
-    return { token };
   }
 }
