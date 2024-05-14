@@ -1,5 +1,5 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Logger } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -290,20 +290,22 @@ describe('Workspace Controller', () => {
         }
       });
       it('When unexpected error occurs, then it should catch and return error message', async () => {
+        jest.spyOn(Logger, 'error').mockImplementation(() => {});
+
         workspacesUsecases.validateWorkspaceInvite.mockRejectedValueOnce(
           new Error('Unexpected error'),
         );
 
-        try {
-          await workspacesController.validateWorkspaceInvitation(
-            'id',
-            mockResponse as any,
-          );
-          fail('Expected validateWorkspaceInvitation to throw an error.');
-        } catch (error) {
-          expect(error).toBeInstanceOf(Error);
-          expect(error.message).toEqual('Unexpected error');
-        }
+        const result = await workspacesController.validateWorkspaceInvitation(
+          'id',
+          mockResponse as any,
+        );
+
+        expect(Logger.error).toHaveBeenCalled();
+        expect(mockResponse.status).toHaveBeenCalledWith(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+        expect(result).toEqual({ message: 'Internal server error' });
       });
     });
   });

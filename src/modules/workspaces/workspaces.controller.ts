@@ -101,7 +101,7 @@ export class WorkspacesController {
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      return this.workspaceUseCases.validateWorkspaceInvite(inviteId);
+      return await this.workspaceUseCases.validateWorkspaceInvite(inviteId);
     } catch (error) {
       let errorMessage = error.message;
       if (error instanceof BadRequestException) {
