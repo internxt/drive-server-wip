@@ -34,7 +34,7 @@ export const getJitsiJWTPayload = (
     iss: 'chat',
     room: room,
     sub: appId,
-    exp: Math.round(now.setMinutes(now.getMinutes() + 2) / 1000),
+    exp: Math.round(now.setMinutes(now.getMinutes() + 1) / 1000),
     nbf: Math.round(new Date().getTime() / 1000) - 10,
   };
 };
