@@ -721,30 +721,46 @@ export class UserController {
   }
 
   @UseGuards(ThrottlerGuard)
-  @Get('/meet-token/creator')
+  @Get('/meet-token/beta')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get the user Meet token',
   })
   @ApiOkResponse({
-    description:
-      'Returns a new meet token related to the user creator of the meet',
+    description: 'Returns a new meet token related to the beta user',
   })
-  async getMeetTokenCreator(@UserDecorator() user: User) {
+  async getMeetTokenBeta(
+    @UserDecorator() user: User,
+    @Query('room') room: string,
+  ) {
     const closedBetaEmails: string[] =
       await this.userUseCases.getMeetClosedBetaUsers();
     if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
-      const room = v4();
-      const token = generateJitsiJWT(user, room, true);
-      await this.userUseCases.setRoomToBetaUser(room, user);
-      return { token, room };
+      let token: string;
+
+      if (!room || !validate(room)) {
+        const newRoom = v4();
+        token = generateJitsiJWT(user, newRoom, true);
+        await this.userUseCases.setRoomToBetaUser(newRoom, user);
+        return { token, room: newRoom };
+      } else {
+        const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
+        if (roomCreator && roomCreator.uuid === user.uuid) {
+          token = generateJitsiJWT(user, room, true);
+        } else {
+          token = generateJitsiJWT(user, room, false);
+        }
+        return { token, room };
+      }
     } else {
-      throw new UnauthorizedException('User can not create an Internxt Meet');
+      throw new UnauthorizedException(
+        'User can not interact with Internxt Meet Beta',
+      );
     }
   }
 
   @UseGuards(ThrottlerGuard)
-  @Get('/meet-token')
+  @Get('/meet-token/anon')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get an anonymous user Meet token',
@@ -753,7 +769,7 @@ export class UserController {
     description: 'Returns a new meet anonymous token',
   })
   @Public()
-  async getMeetToken(@Query('room') room: string) {
+  async getMeetTokenAnon(@Query('room') room: string) {
     const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
     const isRoomCreated = roomCreator !== null;
     if (!room || !validate(room) || !isRoomCreated) {
