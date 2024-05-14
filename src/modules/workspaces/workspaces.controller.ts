@@ -4,9 +4,12 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
+  Logger,
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -37,6 +40,7 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
+import { Response } from 'express';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -82,6 +86,37 @@ export class WorkspacesController {
     const { inviteId } = acceptInvitationDto;
 
     return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
+  }
+
+  @Get('/invitations/:inviteId/validate')
+  @ApiOperation({
+    summary: 'Validates if invitation is valid',
+  })
+  @ApiOkResponse({
+    description: 'Workspace invitation is valid',
+  })
+  async validateWorkspaceInvitation(
+    @Param('inviteId', ValidateUUIDPipe)
+    inviteId: WorkspaceInviteAttributes['id'],
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      return this.workspaceUseCases.validateWorkspaceInvite(inviteId);
+    } catch (error) {
+      let errorMessage = error.message;
+      if (error instanceof BadRequestException) {
+        throw error;
+      } else {
+        Logger.error(
+          `[WORKSPACES/INVITATIONS/:INVITEID/VALIDATE] Error while trying to validate invite with id ${inviteId}, message: ${error}, stack: ${
+            error.stack || 'No stack trace'
+          }`,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        errorMessage = 'Internal server error';
+      }
+      return { message: errorMessage };
+    }
   }
 
   @Delete('/invitations/:inviteId')

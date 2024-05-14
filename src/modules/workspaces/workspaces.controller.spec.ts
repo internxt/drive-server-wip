@@ -240,5 +240,71 @@ describe('Workspace Controller', () => {
       );
       expect(getMembers).toEqual(mockResolvedValues);
     });
+
+    describe('GET /invitations/:inviteId/validate', () => {
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        send: jest.fn().mockReturnThis(),
+      };
+      it('When invitation is validated successfully, then it returns.', async () => {
+        const invite = newWorkspaceInvite();
+        workspacesUsecases.validateWorkspaceInvite.mockResolvedValueOnce(
+          invite.id,
+        );
+
+        const validateInvite =
+          await workspacesController.validateWorkspaceInvitation(
+            invite.id,
+            mockResponse as any,
+          );
+
+        expect(workspacesUsecases.validateWorkspaceInvite).toHaveBeenCalledWith(
+          invite.id,
+        );
+        expect(validateInvite).toEqual(invite.id);
+      });
+
+      it('When invitation is validated with invalid inviteId, then it should throw BadRequestException', async () => {
+        const errorMessage = 'Invalid invitation ID';
+        workspacesUsecases.validateWorkspaceInvite.mockRejectedValueOnce(
+          new BadRequestException(errorMessage),
+        );
+
+        try {
+          await workspacesController.validateWorkspaceInvitation(
+            'invalid-id',
+            mockResponse as any,
+          );
+          // If the above line does not throw, the test should fail.
+          fail(
+            'Expected validateWorkspaceInvitation to throw a BadRequestException.',
+          );
+        } catch (error) {
+          // Now we assert that the error is what we expect it to be.
+          expect(error).toBeInstanceOf(BadRequestException);
+          expect(error.response).toEqual({
+            statusCode: 400,
+            message: errorMessage,
+            error: 'Bad Request',
+          });
+        }
+      });
+      it('When unexpected error occurs, then it should catch and return error message', async () => {
+        workspacesUsecases.validateWorkspaceInvite.mockRejectedValueOnce(
+          new Error('Unexpected error'),
+        );
+
+        try {
+          await workspacesController.validateWorkspaceInvitation(
+            'id',
+            mockResponse as any,
+          );
+          fail('Expected validateWorkspaceInvitation to throw an error.');
+        } catch (error) {
+          expect(error).toBeInstanceOf(Error);
+          expect(error.message).toEqual('Unexpected error');
+        }
+      });
+    });
   });
 });
