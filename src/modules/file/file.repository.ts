@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
-import { FindOptions, Op } from 'sequelize';
+import { FindOptions, Op, Sequelize } from 'sequelize';
+import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
@@ -208,17 +209,42 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  private applyCollateToPlainNameSort(
+    order: Array<[keyof FileModel, string]>,
+  ): Array<[keyof FileModel, string] | Literal> {
+    const plainNameIndex = order.findIndex(
+      ([field, _]) => field === 'plainName',
+    );
+    const isPlainNameSort = plainNameIndex !== -1;
+
+    if (!isPlainNameSort) {
+      return order;
+    }
+
+    const newOrder: Array<[keyof FileModel, string] | Literal> =
+      structuredClone(order);
+    const [, orderDirection] = order[plainNameIndex];
+    newOrder[plainNameIndex] = Sequelize.literal(
+      `plain_name COLLATE "custom_numeric" ${orderDirection}`,
+    );
+
+    return newOrder;
+  }
+
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const files = await this.fileModel.findAll({
       limit,
       offset,
       where,
-      order,
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
@@ -230,6 +256,8 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const files = await this.fileModel.findAll({
       limit,
       offset,
@@ -257,7 +285,8 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
       ],
-      order,
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
