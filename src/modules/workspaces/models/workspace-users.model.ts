@@ -38,8 +38,8 @@ export class WorkspaceUserModel
   member: UserModel;
 
   @ForeignKey(() => FolderModel)
-  @Column(DataType.INTEGER)
-  rootFolderId: number;
+  @Column(DataType.UUID)
+  rootFolderId?: string;
 
   @HasOne(() => FolderModel, 'id')
   rootFolder: FolderModel;

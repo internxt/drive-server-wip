@@ -6,7 +6,7 @@ export class Workspace implements WorkspaceAttributes {
   id: string;
   ownerId: string;
   address?: string;
-  rootFolderId?: number;
+  rootFolderId?: string;
   name: string;
   description?: string;
   defaultTeamId: string;

@@ -6,8 +6,8 @@ const newColumn = 'root_folder_id';
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn(tableName, newColumn, {
-      type: Sequelize.INTEGER,
-      references: { model: 'folders', key: 'id' },
+      type: Sequelize.UUID,
+      references: { model: 'folders', key: 'uuid' },
     });
   },
 

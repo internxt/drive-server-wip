@@ -12,8 +12,8 @@ export class CreateWorkspaceFolderDto {
 
   @ApiProperty({
     example: '1',
-    description: 'Id of the parent folder',
+    description: 'Uuid of the parent folder',
   })
   @IsNotEmpty()
-  parentFolderId: FolderAttributes['id'];
+  parentFolderUuid: FolderAttributes['uuid'];
 }

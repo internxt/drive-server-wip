@@ -331,7 +331,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
-  @Post('/:workspaceId/files/')
+  @Post('/:workspaceId/files')
   @ApiOperation({
     summary: 'Create File',
   })
@@ -351,7 +351,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
   }
 
-  @Post('/:workspaceId/folders/')
+  @Post('/:workspaceId/folders')
   @ApiOperation({
     summary: 'Create folder',
   })
@@ -375,13 +375,13 @@ export class WorkspacesController {
     );
   }
 
-  @Get('/:workspaceId/folders/:folderId/folders')
+  @Get('/:workspaceId/folders/:folderUuid/folders')
   @ApiOperation({
     summary: 'Get folders in folder',
   })
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @ApiParam({ name: 'folderId', type: Number, required: true })
+  @ApiParam({ name: 'folderUuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Folders in folder',
   })
@@ -390,8 +390,8 @@ export class WorkspacesController {
   async getFoldersInFolder(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-    @Param('folderId', ParseIntPipe)
-    folderId: FolderAttributes['id'],
+    @Param('folderUuid', ValidateUUIDPipe)
+    folderUuid: FolderAttributes['uuid'],
     @UserDecorator() user: User,
     @Query() pagination: PaginationQueryDto,
     @Query('sort') sort?: SortableFolderAttributes,
@@ -402,7 +402,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.getPersonalWorkspaceFoldersInFolder(
       user,
       workspaceId,
-      folderId,
+      folderUuid,
       limit,
       offset,
       sort,
@@ -410,13 +410,13 @@ export class WorkspacesController {
     );
   }
 
-  @Get('/:workspaceId/folders/:folderId/files')
+  @Get('/:workspaceId/folders/:folderUuid/files')
   @ApiOperation({
     summary: 'Get files in folder',
   })
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @ApiParam({ name: 'folderId', type: Number, required: true })
+  @ApiParam({ name: 'folderUuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Files in folder',
   })
@@ -425,8 +425,8 @@ export class WorkspacesController {
   async getFilesInFolder(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-    @Param('folderId', ParseIntPipe)
-    folderId: FolderAttributes['id'],
+    @Param('folderUuid', ValidateUUIDPipe)
+    folderUuid: FolderAttributes['uuid'],
     @UserDecorator() user: User,
     @Query() pagination: PaginationQueryDto,
     @Query('sort') sort?: SortableFileAttributes,
@@ -436,7 +436,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.getPersonalWorkspaceFilesInFolder(
       user,
       workspaceId,
-      folderId,
+      folderUuid,
       limit,
       offset,
       sort,

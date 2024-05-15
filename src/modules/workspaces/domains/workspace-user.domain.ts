@@ -7,7 +7,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
   member: User;
   key: string;
   workspaceId: string;
-  rootFolderId?: number;
+  rootFolderId?: string;
   spaceLimit: bigint;
   driveUsage: bigint;
   backupsUsage: bigint;

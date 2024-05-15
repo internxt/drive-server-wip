@@ -36,7 +36,11 @@ import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
+import {
+  Folder,
+  FolderAttributes,
+  SortableFolderAttributes,
+} from '../folder/folder.domain';
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
@@ -120,7 +124,7 @@ export class WorkspacesUsecases {
         v4(),
         bucket.id,
       );
-      newWorkspace.rootFolderId = rootFolder.id;
+      newWorkspace.rootFolderId = rootFolder.uuid;
 
       await this.userRepository.updateBy(
         { uuid: workspaceUser.uuid },
@@ -181,7 +185,7 @@ export class WorkspacesUsecases {
           driveUsage: BigInt(0),
           backupsUsage: BigInt(0),
           key: setupWorkspaceDto.encryptedMnemonic,
-          rootFolderId: rootFolder.id,
+          rootFolderId: rootFolder.uuid,
           deactivated: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -414,23 +418,20 @@ export class WorkspacesUsecases {
       throw new BadRequestException('You have not enough space for this file');
     }
 
-    const [parentFolder, workspace] = await Promise.all([
-      this.folderUseCases.getFolderById(createFileDto.folder_id),
-      this.workspaceRepository.findById(workspaceId),
-    ]);
+    const workspace = await this.workspaceRepository.findById(workspaceId);
 
     const item = await this.workspaceRepository.getItemBy({
       workspaceId,
-      itemId: parentFolder.uuid,
+      itemId: createFileDto.folderUuid,
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!item || !parentFolder) {
+    if (!item) {
       throw new BadRequestException('Parent folder is not valid');
     }
 
     const isParentFolderWorkspaceRootFolder =
-      parentFolder.id === workspace.rootFolderId;
+      createFileDto.folderUuid === workspace.rootFolderId;
 
     if (!item.isOwnedBy(member) || isParentFolderWorkspaceRootFolder) {
       throw new ForbiddenException('You can not create a file here');
@@ -470,23 +471,22 @@ export class WorkspacesUsecases {
     workspaceId: string,
     createFolderDto: CreateWorkspaceFolderDto,
   ) {
-    const [parentFolder, workspace] = await Promise.all([
-      this.folderUseCases.getFolderById(createFolderDto.parentFolderId),
-      this.workspaceRepository.findById(workspaceId),
-    ]);
+    const { parentFolderUuid } = createFolderDto;
+
+    const workspace = await this.workspaceRepository.findById(workspaceId);
 
     const item = await this.workspaceRepository.getItemBy({
       workspaceId,
-      itemId: parentFolder.uuid,
+      itemId: parentFolderUuid,
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!item || !parentFolder) {
+    if (!item) {
       throw new BadRequestException('Parent folder is not valid');
     }
 
     const isParentFolderWorkspaceRootFolder =
-      parentFolder.id === workspace.rootFolderId;
+      parentFolderUuid === workspace.rootFolderId;
 
     if (!item.isOwnedBy(user) || isParentFolderWorkspaceRootFolder) {
       throw new ForbiddenException('You can not create a folder here');
@@ -499,7 +499,7 @@ export class WorkspacesUsecases {
     const createdFolder = await this.folderUseCases.createFolder(
       networkUser,
       createFolderDto.name,
-      parentFolder.id,
+      parentFolderUuid,
     );
 
     const createdItemFolder = await this.workspaceRepository.createItem({
@@ -518,21 +518,21 @@ export class WorkspacesUsecases {
   async getPersonalWorkspaceFoldersInFolder(
     user: User,
     workspaceId: WorkspaceAttributes['id'],
-    folderId: number,
+    folderUuid: FolderAttributes['uuid'],
     limit = 100,
     offset = 0,
     sort: SortableFolderAttributes,
     order,
   ) {
-    const parentFolder = await this.folderUseCases.getFolderById(folderId);
+    const folder = await this.folderUseCases.getByUuid(folderUuid);
 
-    if (!parentFolder) {
-      throw new BadRequestException('Parent folder is not valid');
+    if (!folder) {
+      throw new BadRequestException('Folder is not valid');
     }
 
     const item = await this.workspaceRepository.getItemBy({
       workspaceId,
-      itemId: parentFolder.uuid,
+      itemId: folder.uuid,
       itemType: WorkspaceItemType.Folder,
     });
 
@@ -543,7 +543,7 @@ export class WorkspacesUsecases {
     const folders = await this.folderUseCases.getFoldersWithParentInWorkspace(
       user.uuid,
       {
-        parentId: folderId,
+        parentId: folder.id,
         deleted: false,
         removed: false,
       },
@@ -574,21 +574,21 @@ export class WorkspacesUsecases {
   async getPersonalWorkspaceFilesInFolder(
     user: User,
     workspaceId: WorkspaceAttributes['id'],
-    folderId: number,
+    folderUuid: FolderAttributes['uuid'],
     limit = 100,
     offset = 0,
     sort: SortableFileAttributes,
     order,
   ) {
-    const parentFolder = await this.folderUseCases.getFolderById(folderId);
+    const folder = await this.folderUseCases.getByUuid(folderUuid);
 
-    if (!parentFolder) {
-      throw new BadRequestException('Parent folder is not valid');
+    if (!folder) {
+      throw new BadRequestException('Folder is not valid');
     }
 
     const item = await this.workspaceRepository.getItemBy({
       workspaceId,
-      itemId: parentFolder.uuid,
+      itemId: folder.uuid,
       itemType: WorkspaceItemType.Folder,
     });
 
@@ -599,7 +599,7 @@ export class WorkspacesUsecases {
     const files = await this.fileUseCases.getFilesInWorkspace(
       user.uuid,
       {
-        folderId,
+        folderId: folder.id,
         status: FileStatus.EXISTS,
       },
       {
@@ -658,7 +658,7 @@ export class WorkspacesUsecases {
         memberId: invite.invitedUser,
         spaceLimit: invite.spaceLimit,
         driveUsage: BigInt(0),
-        rootFolderId: rootFolder.id,
+        rootFolderId: rootFolder.uuid,
         backupsUsage: BigInt(0),
         key: invite.encryptionKey,
         deactivated: false,

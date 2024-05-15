@@ -6,7 +6,7 @@ export class PaginationQueryDto {
   @IsNumber()
   @Type(() => Number)
   @Min(0)
-  @Max(100)
+  @Max(50)
   limit?: number;
 
   @IsOptional()

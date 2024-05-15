@@ -53,8 +53,8 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   defaultTeamId: string;
 
   @ForeignKey(() => FolderModel)
-  @Column(DataType.INTEGER)
-  rootFolderId: number;
+  @Column(DataType.UUID)
+  rootFolderId?: string;
 
   @HasOne(() => FolderModel, 'id')
   rootFolder: FolderModel;

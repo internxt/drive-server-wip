@@ -77,9 +77,7 @@ export class FileUseCases {
   }
 
   async createFile(user: User, newFileDto: CreateFileDto) {
-    const folder = await this.folderUsecases.getFolderById(
-      newFileDto.folder_id,
-    );
+    const folder = await this.folderUsecases.getByUuid(newFileDto.folderUuid);
 
     if (!folder) {
       throw new NotFoundException('Folder not found');
@@ -108,13 +106,13 @@ export class FileUseCases {
     const newFile = await this.fileRepository.create({
       uuid: v4(),
       name: newFileDto.name,
-      plainName: newFileDto.plain_name,
+      plainName: newFileDto.plainName,
       type: newFileDto.type,
       size: newFileDto.size,
       folderId: folder.id,
       fileId: newFileDto.fileId,
       bucket: newFileDto.bucket,
-      encryptVersion: newFileDto.encrypt_version,
+      encryptVersion: newFileDto.encryptVersion,
       userId: user.id,
       folderUuid: folder.uuid,
       modificationTime: newFileDto.modificationTime || new Date(),

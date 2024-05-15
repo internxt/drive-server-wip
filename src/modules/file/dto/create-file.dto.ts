@@ -1,4 +1,10 @@
-import { IsDateString, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateFileDto {
   @IsString()
@@ -11,17 +17,16 @@ export class CreateFileDto {
   fileId: string;
 
   @IsString()
-  encrypt_version: string;
+  encryptVersion: string;
 
-  @IsNumber()
-  folder_id: number;
+  @IsUUID('4')
+  folderUuid: string;
 
   @IsNumber()
   size: bigint;
 
   @IsString()
-  @IsOptional()
-  plain_name: string;
+  plainName: string;
 
   @IsString()
   @IsOptional()
