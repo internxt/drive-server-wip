@@ -333,6 +333,14 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
+  async createWithAttributes(
+    newFolder: Omit<FolderAttributes, 'id'>,
+  ): Promise<Folder> {
+    const folder = await this.folderModel.create(newFolder);
+
+    return this.toDomain(folder);
+  }
+
   async create(
     userId: UserAttributes['id'],
     name: FolderAttributes['name'],
