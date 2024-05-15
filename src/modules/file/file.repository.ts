@@ -225,7 +225,9 @@ export class SequelizeFileRepository implements FileRepository {
       structuredClone(order);
     const [, orderDirection] = order[plainNameIndex];
     newOrder[plainNameIndex] = Sequelize.literal(
-      `plain_name COLLATE "custom_numeric" ${orderDirection}`,
+      `plain_name COLLATE "custom_numeric" ${
+        orderDirection === 'ASC' ? 'ASC' : 'DESC'
+      }`,
     );
 
     return newOrder;
