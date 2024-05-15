@@ -3,11 +3,16 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -37,6 +42,8 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -235,6 +242,46 @@ export class WorkspacesController {
       workspaceId,
       setupWorkspaceDto,
     );
+  }
+
+  @Post('/:workspaceId/avatar')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Avatar added to the workspace',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAvatar(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1000 * 1000 * 5 }),
+          new FileTypeValidator({ fileType: 'image/*' }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.upsertAvatar(workspaceId, file);
+  }
+
+  @Delete('/:workspaceId/avatar')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Avatar deleted from the workspace',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  async deleteAvatar(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.deleteAvatar(workspaceId);
   }
 
   @Get('/:workspaceId/members')
