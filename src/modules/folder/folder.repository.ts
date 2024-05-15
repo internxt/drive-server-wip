@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op } from 'sequelize';
+import { FindOptions, Op, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
@@ -12,6 +12,7 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
+import { Literal } from 'sequelize/types/utils';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -78,17 +79,44 @@ export class SequelizeFolderRepository implements FolderRepository {
     private folderModel: typeof FolderModel,
   ) {}
 
+  private applyCollateToPlainNameSort(
+    order: Array<[keyof FolderModel, string]>,
+  ): Array<[keyof FolderModel, string] | Literal> {
+    const plainNameIndex = order.findIndex(
+      ([field, _]) => field === 'plainName',
+    );
+    const isPlainNameSort = plainNameIndex !== -1;
+
+    if (!isPlainNameSort) {
+      return order;
+    }
+
+    const newOrder: Array<[keyof FolderModel, string] | Literal> =
+      structuredClone(order);
+    const [, orderDirection] = order[plainNameIndex];
+    newOrder[plainNameIndex] = Sequelize.literal(
+      `plain_name COLLATE "custom_numeric" ${
+        orderDirection === 'ASC' ? 'ASC' : 'DESC'
+      }`,
+    );
+
+    return newOrder;
+  }
+
   async findAllCursor(
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Array<Folder> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const folders = await this.folderModel.findAll({
       limit,
       offset,
       where,
-      order,
+      subQuery: false,
+      order: appliedOrder,
       include: [
         {
           model: SharingModel,
