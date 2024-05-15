@@ -14,6 +14,7 @@ import { WorkspaceTeamUserModel } from './models/workspace-team-users.model';
 import { WorkspaceGuard } from './guards/workspaces.guard';
 import { WorkspaceInviteModel } from './models/workspace-invite.model';
 import { MailerModule } from '../../externals/mailer/mailer.module';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
     SequelizeWorkspaceTeamRepository,
     SequelizeWorkspaceRepository,
     WorkspaceGuard,
+    AvatarService,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],
 })

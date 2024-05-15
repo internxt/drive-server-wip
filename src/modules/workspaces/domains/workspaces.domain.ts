@@ -8,6 +8,7 @@ export class Workspace implements WorkspaceAttributes {
   address?: string;
   name: string;
   description?: string;
+  avatar: string;
   defaultTeamId: string;
   workspaceUserId: string;
   setupCompleted: boolean;
@@ -23,6 +24,7 @@ export class Workspace implements WorkspaceAttributes {
     defaultTeamId,
     workspaceUserId,
     setupCompleted,
+    avatar,
     createdAt,
     updatedAt,
   }: WorkspaceAttributes) {
@@ -30,6 +32,7 @@ export class Workspace implements WorkspaceAttributes {
     this.ownerId = ownerId;
     this.address = address;
     this.name = name;
+    this.avatar = avatar;
     this.description = description;
     this.defaultTeamId = defaultTeamId;
     this.workspaceUserId = workspaceUserId;
@@ -62,6 +65,7 @@ export class Workspace implements WorkspaceAttributes {
       name: this.name,
       description: this.description,
       defaultTeamId: this.defaultTeamId,
+      avatar: this.avatar,
       workspaceUserId: this.workspaceUserId,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,

@@ -7,6 +7,7 @@ import {
   ForeignKey,
   BelongsTo,
   HasMany,
+  AllowNull,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceUserModel } from './workspace-users.model';
@@ -45,6 +46,10 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
 
   @Column(DataType.BOOLEAN)
   setupCompleted: boolean;
+
+  @AllowNull
+  @Column(DataType.STRING)
+  avatar: string;
 
   @ForeignKey(() => WorkspaceTeamModel)
   @Column(DataType.UUID)

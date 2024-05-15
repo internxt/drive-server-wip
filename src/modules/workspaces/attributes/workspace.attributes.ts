@@ -4,6 +4,7 @@ export interface WorkspaceAttributes {
   address?: string;
   name: string;
   description?: string;
+  avatar: string;
   defaultTeamId: string;
   workspaceUserId: string;
   setupCompleted: boolean;
