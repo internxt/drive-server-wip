@@ -241,4 +241,65 @@ describe('Workspace Controller', () => {
       expect(getMembers).toEqual(mockResolvedValues);
     });
   });
+
+  describe('POST /:workspaceId/avatar', () => {
+    it('When workspaceId is null, throw error.', async () => {
+      const file: Express.Multer.File = {
+        stream: undefined,
+        fieldname: undefined,
+        originalname: undefined,
+        encoding: undefined,
+        mimetype: undefined,
+        size: undefined,
+        filename: undefined,
+        destination: undefined,
+        path: undefined,
+        buffer: undefined,
+      };
+      const workspaceId = null;
+      await expect(
+        workspacesController.uploadAvatar(file, workspaceId),
+      ).rejects.toThrow('Invalid workspace ID');
+    });
+
+    it('When passing a file and workspace id, workspacesUsecases.upsertAvatar should be called.', async () => {
+      const file: Express.Multer.File = {
+        stream: undefined,
+        fieldname: undefined,
+        originalname: undefined,
+        encoding: undefined,
+        mimetype: undefined,
+        size: undefined,
+        filename: undefined,
+        destination: undefined,
+        path: undefined,
+        buffer: undefined,
+      };
+      const workspace = newWorkspace();
+      await workspacesController.uploadAvatar(file, workspace.id);
+      expect(workspacesUsecases.upsertAvatar).toHaveBeenCalledWith(
+        workspace.id,
+        file,
+      );
+    });
+  });
+
+  describe('DELETE /:workspaceId/avatar', () => {
+    it('When workspaceId is null, throw error.', async () => {
+      const workspaceId = null;
+      await expect(
+        workspacesController.deleteAvatar(workspaceId),
+      ).rejects.toThrow('Invalid workspace ID');
+    });
+
+    it('When passing a workspace id, workspacesUsecases.deleteAvatar should be called and return resolve', async () => {
+      const workspace = newWorkspace({
+        avatar: '820ac21a-83d4-4e50-94bf-13e93d8ce1b1',
+      });
+
+      await expect(
+        workspacesController.deleteAvatar(workspace.id),
+      ).resolves.toBeTruthy();
+    });
+  });
 });
