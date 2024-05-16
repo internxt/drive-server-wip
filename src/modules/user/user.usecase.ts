@@ -1124,4 +1124,12 @@ export class UserUseCases {
   getMeetClosedBetaUsers() {
     return this.userRepository.getMeetClosedBetaUsers();
   }
+
+  setRoomToBetaUser(room: string, user: User) {
+    return this.userRepository.setRoomToBetaUser(room, user);
+  }
+
+  getBetaUserFromRoom(room: string) {
+    return this.userRepository.getBetaUserFromRoom(room);
+  }
 }
