@@ -14,6 +14,7 @@ import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 export interface FileRepository {
+  create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
@@ -30,6 +31,7 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
+  findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
   findByUuid(
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
