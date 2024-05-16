@@ -190,6 +190,10 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
+    if (order && order !== 'ASC' && order !== 'DESC') {
+      throw new BadRequestException('Invalid order parameter');
+    }
+
     const files = await this.fileUseCases.getFiles(
       user.id,
       {
@@ -274,7 +278,7 @@ export class FolderController {
       {
         parentUuid: folderUuid,
         deleted: false,
-        removed: false
+        removed: false,
       },
       {
         limit,

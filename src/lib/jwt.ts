@@ -6,6 +6,7 @@ import {
   getJitsiJWTPayload,
   getJitsiJWTSecret,
 } from './jitsi';
+import { User } from '../modules/user/user.domain';
 
 export function generateJWT(
   payload: Record<string, unknown>,
@@ -56,9 +57,9 @@ export function isTokenIatGreaterThanDate(date: Date, iat: number) {
   return Math.floor(date.getTime() / 1000) < iat;
 }
 
-export function generateJitsiJWT(id: string, name: string, email: string) {
+export function generateJitsiJWT(user: User, room: string, moderator: boolean) {
   return SignWithRS256AndHeader(
-    getJitsiJWTPayload(id, name, email),
+    getJitsiJWTPayload(user, room, moderator),
     getJitsiJWTSecret(),
     getJitsiJWTHeader(),
   );

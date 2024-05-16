@@ -57,7 +57,7 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
-import { validate } from 'uuid';
+import { v4, validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { Throttle } from '@nestjs/throttler';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
@@ -720,22 +720,63 @@ export class UserController {
     return await this.userUseCases.isAttemptChangeEmailExpired(id);
   }
 
-  @Get('/meet-token')
+  @UseGuards(ThrottlerGuard)
+  @Get('/meet-token/beta')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get the user Meet token',
   })
   @ApiOkResponse({
-    description: 'Returns a new meet token related to the user',
+    description: 'Returns a new meet token related to the beta user',
   })
-  async getMeetToken(@UserDecorator() user: User) {
+  async getMeetTokenBeta(
+    @UserDecorator() user: User,
+    @Query('room') room: string,
+  ) {
     const closedBetaEmails: string[] =
       await this.userUseCases.getMeetClosedBetaUsers();
     if (closedBetaEmails.includes(user.email.trim().toLowerCase())) {
-      const token = generateJitsiJWT(user.uuid, user.name, user.email);
-      return { token };
+      let token: string;
+
+      if (!room || !validate(room)) {
+        const newRoom = v4();
+        token = generateJitsiJWT(user, newRoom, true);
+        await this.userUseCases.setRoomToBetaUser(newRoom, user);
+        return { token, room: newRoom };
+      } else {
+        const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
+        if (roomCreator && roomCreator.uuid === user.uuid) {
+          token = generateJitsiJWT(user, room, true);
+        } else {
+          token = generateJitsiJWT(user, room, false);
+        }
+        return { token, room };
+      }
     } else {
-      throw new UnauthorizedException('User can not create an Internxt Meet');
+      throw new UnauthorizedException(
+        'User can not interact with Internxt Meet Beta',
+      );
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Get('/meet-token/anon')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get an anonymous user Meet token',
+  })
+  @ApiOkResponse({
+    description: 'Returns a new meet anonymous token',
+  })
+  @Public()
+  async getMeetTokenAnon(@Query('room') room: string) {
+    const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
+    const isRoomCreated = roomCreator !== null;
+    if (!room || !validate(room) || !isRoomCreated) {
+      throw new ForbiddenException('Room is not valid');
+    } else {
+      const token = generateJitsiJWT(null, room, false);
+      return { token };
     }
   }
 }
