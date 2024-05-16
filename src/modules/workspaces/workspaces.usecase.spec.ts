@@ -34,6 +34,7 @@ import { WorkspaceItemType } from './attributes/workspace-items-users.attributes
 import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
+import { v4 } from 'uuid';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1780,6 +1781,89 @@ describe('WorkspacesUsecases', () => {
       expect(result).toEqual({
         result: [],
       });
+    });
+  });
+
+  describe('initiateWorkspace', () => {
+    const ownerId = '693d930a-b497-43a2-825d-bd43a45b44b7';
+    const maxSpaceBytes = 1000000;
+    const workspaceData = { address: '123 Main St' };
+
+    it('When owner does not exist, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.initiateWorkspace(ownerId, maxSpaceBytes, workspaceData),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When workspace, default team and root folder are successfully created, then it should return the new workspace', async () => {
+      const owner = newUser();
+      const networkUser = { userId: 'networkUserId', uuid: v4() };
+      const workspaceUser = newUser();
+      const newDefaultTeam = newWorkspaceTeam();
+      const createdWorkspace = newWorkspace({
+        owner,
+        attributes: {
+          defaultTeamId: newDefaultTeam.id,
+          address: workspaceData.address,
+        },
+      });
+      const createdRootFolder = newFolder({ owner: workspaceUser });
+      const bucket = {
+        user: networkUser.userId,
+        encryptionKey: 'encryption-key',
+        publicPermissions: ['read', 'write'],
+        created: 'date',
+        maxFrameSize: 1000,
+        name: 'bucket-name',
+        pubkeys: ['pubkey1', 'pubkey2'],
+        transfer: 1000,
+        storage: 1000,
+        id: 'bucket-id',
+      };
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+      jest
+        .spyOn(networkService, 'createUser')
+        .mockResolvedValueOnce(networkUser);
+      jest.spyOn(networkService, 'setStorage').mockResolvedValueOnce(undefined);
+      jest.spyOn(userRepository, 'create').mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(networkService, 'createBucket').mockResolvedValueOnce(bucket);
+      jest
+        .spyOn(folderUseCases, 'createRootFolder')
+        .mockResolvedValueOnce(createdRootFolder);
+      jest.spyOn(userRepository, 'updateBy').mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(teamRepository, 'createTeam')
+        .mockResolvedValueOnce(newDefaultTeam);
+      jest
+        .spyOn(workspaceRepository, 'create')
+        .mockResolvedValueOnce(createdWorkspace);
+
+      const result = await service.initiateWorkspace(
+        ownerId,
+        maxSpaceBytes,
+        workspaceData,
+      );
+
+      expect(result).toEqual({
+        workspace: expect.objectContaining({
+          address: workspaceData.address,
+          name: 'My Workspace',
+          ownerId: owner.uuid,
+          rootFolderId: createdRootFolder.uuid,
+          workspaceUserId: workspaceUser.uuid,
+        }),
+      });
+      expect(folderUseCases.createRootFolder).toHaveBeenCalledWith(
+        workspaceUser,
+        expect.any(String),
+        bucket.id,
+      );
+      expect(workspaceRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ownerId: owner.uuid }),
+      );
     });
   });
 
