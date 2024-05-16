@@ -269,6 +269,8 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const files = await this.fileModel.findAll({
       limit,
       offset,
@@ -277,7 +279,8 @@ export class SequelizeFileRepository implements FileRepository {
         model: WorkspaceItemUserModel,
         where: { createdBy },
       },
-      order,
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
@@ -332,6 +335,8 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const files = await this.fileModel.findAll({
       limit,
       offset,
@@ -353,7 +358,8 @@ export class SequelizeFileRepository implements FileRepository {
           },
         },
       ],
-      order,
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));

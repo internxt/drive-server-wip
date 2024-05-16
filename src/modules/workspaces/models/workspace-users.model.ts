@@ -41,7 +41,7 @@ export class WorkspaceUserModel
   @Column(DataType.UUID)
   rootFolderId?: string;
 
-  @HasOne(() => FolderModel, 'id')
+  @HasOne(() => FolderModel, 'uuid')
   rootFolder: FolderModel;
 
   @Column(DataType.STRING)
