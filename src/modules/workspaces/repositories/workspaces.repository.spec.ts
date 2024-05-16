@@ -112,11 +112,9 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const result = await repository.findWorkspaceUser({ memberId: '1' });
       expect(result).toBeInstanceOf(WorkspaceUser);
-      expect(result).toEqual(
-        expect.objectContaining({
-          ...workspaceUser.toJSON(),
-        }),
-      );
+      expect(result.toJSON()).toMatchObject({
+        ...workspaceUser.toJSON(),
+      });
     });
 
     it('When a workspace user is searched and not found, it should return nothing', async () => {

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 import { FolderAttributes } from '../../folder/folder.attributes';
 
 export class CreateWorkspaceFolderDto {
@@ -15,5 +15,6 @@ export class CreateWorkspaceFolderDto {
     description: 'Uuid of the parent folder',
   })
   @IsNotEmpty()
+  @IsUUID('4')
   parentFolderUuid: FolderAttributes['uuid'];
 }
