@@ -906,4 +906,74 @@ describe('FolderUseCases', () => {
       expect(result).toEqual(newFolderCreated);
     });
   });
+
+  describe('getFoldersWithParentInWorkspace', () => {
+    const createdBy = userMocked.uuid;
+    const parentFolderUuid = 'parent-folder-uuid';
+    const decryptedFolder = newFolder({
+      attributes: { plainName: 'decrypted-name' },
+    });
+    const encryptedFolder = newFolder({
+      attributes: { plainName: null },
+    });
+
+    const findOptions = { limit: 20, offset: 0 };
+
+    it('When folders are found with plainName, then they should be returned as-is', async () => {
+      jest
+        .spyOn(folderRepository, 'findAllCursorWithParentInWorkspaces')
+        .mockResolvedValueOnce([decryptedFolder]);
+
+      const result = await service.getFoldersWithParentInWorkspace(
+        createdBy,
+        { parentUuid: parentFolderUuid },
+        findOptions,
+      );
+
+      expect(result).toEqual([decryptedFolder]);
+    });
+
+    it('When folders are found without plainName, then decryptFolderName should be called', async () => {
+      jest
+        .spyOn(folderRepository, 'findAllCursorWithParentInWorkspaces')
+        .mockResolvedValueOnce([encryptedFolder]);
+      const decryptFolderNameSpy = jest
+        .spyOn(service, 'decryptFolderName')
+        .mockReturnValueOnce(decryptedFolder);
+
+      const result = await service.getFoldersWithParentInWorkspace(
+        createdBy,
+        { parentUuid: parentFolderUuid },
+        findOptions,
+      );
+
+      expect(result).toEqual([decryptedFolder]);
+      expect(decryptFolderNameSpy).toHaveBeenCalledWith(encryptedFolder);
+    });
+
+    it('When sort options are provided, then they should be used', async () => {
+      const sortOptions = [['name', 'ASC']];
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWithParentInWorkspaces')
+        .mockResolvedValueOnce([decryptedFolder]);
+
+      const result = await service.getFoldersWithParentInWorkspace(
+        createdBy,
+        { parentUuid: parentFolderUuid },
+        { ...findOptions, sort: sortOptions as any },
+      );
+
+      expect(result).toEqual([decryptedFolder]);
+      expect(
+        folderRepository.findAllCursorWithParentInWorkspaces,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        { parentUuid: parentFolderUuid },
+        findOptions.limit,
+        findOptions.offset,
+        sortOptions,
+      );
+    });
+  });
 });

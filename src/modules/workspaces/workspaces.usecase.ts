@@ -521,8 +521,7 @@ export class WorkspacesUsecases {
     folderUuid: FolderAttributes['uuid'],
     limit = 100,
     offset = 0,
-    sort: SortableFolderAttributes,
-    order,
+    options?: { sort: SortableFolderAttributes; order },
   ) {
     const folder = await this.folderUseCases.getByUuid(folderUuid);
 
@@ -550,7 +549,8 @@ export class WorkspacesUsecases {
       {
         limit,
         offset,
-        sort: sort && order && [[sort, order]],
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
       },
     );
 
@@ -577,8 +577,10 @@ export class WorkspacesUsecases {
     folderUuid: FolderAttributes['uuid'],
     limit = 100,
     offset = 0,
-    sort: SortableFileAttributes,
-    order,
+    options?: {
+      sort: SortableFileAttributes;
+      order;
+    },
   ) {
     const folder = await this.folderUseCases.getByUuid(folderUuid);
 
@@ -605,7 +607,8 @@ export class WorkspacesUsecases {
       {
         limit,
         offset,
-        sort: sort && order && [[sort, order]],
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
       },
     );
 

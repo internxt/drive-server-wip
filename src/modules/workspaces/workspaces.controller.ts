@@ -5,7 +5,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -405,8 +404,7 @@ export class WorkspacesController {
       folderUuid,
       limit,
       offset,
-      sort,
-      order,
+      { sort, order },
     );
   }
 
@@ -439,8 +437,7 @@ export class WorkspacesController {
       folderUuid,
       limit,
       offset,
-      sort,
-      order,
+      { sort, order },
     );
   }
 

@@ -1551,8 +1551,7 @@ describe('WorkspacesUsecases', () => {
           folderUuid,
           limit,
           offset,
-          sort,
-          order,
+          { sort, order },
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -1569,8 +1568,7 @@ describe('WorkspacesUsecases', () => {
           folderUuid,
           limit,
           offset,
-          sort,
-          order,
+          { sort, order },
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -1591,8 +1589,7 @@ describe('WorkspacesUsecases', () => {
           folderUuid,
           limit,
           offset,
-          sort,
-          order,
+          { sort, order },
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -1614,8 +1611,7 @@ describe('WorkspacesUsecases', () => {
         folderUuid,
         limit,
         offset,
-        sort,
-        order,
+        { sort, order },
       );
 
       expect(result).toEqual({
@@ -1650,8 +1646,7 @@ describe('WorkspacesUsecases', () => {
         folderUuid,
         limit,
         offset,
-        sort,
-        order,
+        { sort, order },
       );
 
       expect(result).toEqual({
@@ -1688,8 +1683,7 @@ describe('WorkspacesUsecases', () => {
           folderUuid,
           limit,
           offset,
-          sort,
-          order,
+          { sort, order },
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -1706,8 +1700,7 @@ describe('WorkspacesUsecases', () => {
           folderUuid,
           limit,
           offset,
-          sort,
-          order,
+          { sort, order },
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -1728,8 +1721,7 @@ describe('WorkspacesUsecases', () => {
           folderUuid,
           limit,
           offset,
-          sort,
-          order,
+          { sort, order },
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -1751,8 +1743,7 @@ describe('WorkspacesUsecases', () => {
         folderUuid,
         limit,
         offset,
-        sort,
-        order,
+        { sort, order },
       );
 
       expect(result).toEqual({
@@ -1774,8 +1765,7 @@ describe('WorkspacesUsecases', () => {
         folderUuid,
         limit,
         offset,
-        sort,
-        order,
+        { sort, order },
       );
 
       expect(result).toEqual({

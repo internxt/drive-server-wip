@@ -1,7 +1,6 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   forwardRef,
