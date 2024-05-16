@@ -31,6 +31,9 @@ function mapSnakeCaseToCamelCase(data) {
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
 export interface FolderRepository {
+  createWithAttributes(
+    newFolder: Omit<FolderAttributes, 'id'>,
+  ): Promise<Folder>;
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
@@ -50,6 +53,7 @@ export interface FolderRepository {
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findOne(where: Partial<FolderAttributes>): Promise<Folder | null>;
   findInTree(
     folderTreeRootId: FolderAttributes['parentId'],
     folderId: FolderAttributes['id'],

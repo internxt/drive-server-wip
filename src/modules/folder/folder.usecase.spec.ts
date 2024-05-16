@@ -6,6 +6,7 @@ import {
   FolderRepository,
 } from './folder.repository';
 import {
+  BadRequestException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { User } from '../user/user.domain';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
+import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 
 const folderId = 4;
 const user = newUser();
@@ -819,6 +821,89 @@ describe('FolderUseCases', () => {
       ).rejects.toThrow(
         'A folder with the same name already exists in destination folder',
       );
+    });
+  });
+
+  describe('createFolder', () => {
+    const parentFolderUuid = 'parent-folder-uuid';
+    const folderName = 'New Folder';
+
+    it('When the parent folder does not exist or it was not created by user, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+
+      await expect(
+        service.createFolder(userMocked, folderName, parentFolderUuid),
+      ).rejects.toThrow(InvalidParentFolderException);
+    });
+
+    it('When the folder name is invalid, then it should throw', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const notValidName = '';
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+
+      await expect(
+        service.createFolder(userMocked, notValidName, parentFolderUuid),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.createFolder(userMocked, 'Invalid/Name', parentFolderUuid),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When the folder name already exists in the same location, then it should throw BadRequestException', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const existingFolder = newFolder({
+        attributes: { parentId: parentFolder.id, plainName: folderName },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(existingFolder);
+
+      await expect(
+        service.createFolder(userMocked, folderName, parentFolderUuid),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When new folder is valid, then it should create and return the new folder successfully', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const encryptedFolderName = 'encrypted-folder-name';
+      const newFolderCreated = newFolder({
+        attributes: {
+          userId: userMocked.id,
+          parentId: parentFolder.id,
+          parentUuid: parentFolderUuid,
+          name: encryptedFolderName,
+          plainName: folderName,
+        },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(encryptedFolderName);
+
+      jest
+        .spyOn(folderRepository, 'createWithAttributes')
+        .mockResolvedValueOnce(newFolderCreated);
+
+      const result = await service.createFolder(
+        userMocked,
+        folderName,
+        parentFolderUuid,
+      );
+
+      expect(result).toEqual(newFolderCreated);
     });
   });
 });
