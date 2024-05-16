@@ -8,8 +8,8 @@ export class SetupWorkspaceDto {
     example: 'My workspace',
     description: 'Name of the workspace to be created',
   })
-  @IsNotEmpty()
-  name: Workspace['name'];
+  @IsOptional()
+  name?: Workspace['name'];
 
   @ApiProperty({
     example: 'Address',
