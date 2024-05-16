@@ -60,6 +60,13 @@ export interface FolderRepository {
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
   ): Promise<FindInTreeResponse | null>;
+  findAllCursorWithParentInWorkspaces(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Array<Folder> | []>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
