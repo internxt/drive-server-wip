@@ -74,5 +74,6 @@ export class AvatarService {
       Key: avatarKey,
     });
     await s3Client.send(deleteObjectCommand);
+    return true;
   }
 }
