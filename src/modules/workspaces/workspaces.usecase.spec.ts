@@ -33,6 +33,7 @@ import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { FileStatus } from '../file/file.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1527,6 +1528,143 @@ describe('WorkspacesUsecases', () => {
       });
 
       expect(result).toEqual({ ...createdFile, item: createdItemFile });
+    });
+  });
+
+  describe('getPersonalWorkspaceFoldersInFolder', () => {
+    const user = newUser();
+    const workspaceId = '5f2fa203-6e09-4a82-8b51-1567f9b3f11e';
+    const folderUuid = '0c79eadc-95c2-4a59-9288-75e4ae160952';
+    const limit = 50;
+    const offset = 0;
+    const sort = 'name';
+    const order = 'asc';
+
+    it('When folder does not exist, then it should throw', async () => {
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getPersonalWorkspaceFoldersInFolder(
+          user,
+          workspaceId,
+          folderUuid,
+          limit,
+          offset,
+          sort,
+          order,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder is not in workspace, then it should throw', async () => {
+      const folder = newFolder();
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getPersonalWorkspaceFoldersInFolder(
+          user,
+          workspaceId,
+          folderUuid,
+          limit,
+          offset,
+          sort,
+          order,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user does not own folder, then it should throw', async () => {
+      const folder = newFolder();
+      const folderItem = newWorkspaceItemUser({ createdBy: 'notUser' });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValueOnce(folderItem);
+
+      await expect(
+        service.getPersonalWorkspaceFoldersInFolder(
+          user,
+          workspaceId,
+          folderUuid,
+          limit,
+          offset,
+          sort,
+          order,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user has access to folder, then it should return folders in that folder', async () => {
+      const folder = newFolder();
+      const item = newWorkspaceItemUser({ createdBy: user.uuid });
+      const childFolder = newFolder({ attributes: { parentId: folder.id } });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValueOnce(item);
+      jest
+        .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
+        .mockResolvedValueOnce([childFolder]);
+
+      const result = await service.getPersonalWorkspaceFoldersInFolder(
+        user,
+        workspaceId,
+        folderUuid,
+        limit,
+        offset,
+        sort,
+        order,
+      );
+
+      expect(result).toEqual({
+        result: [
+          {
+            ...childFolder,
+            status: FileStatus.EXISTS,
+          },
+        ],
+      });
+    });
+
+    it('When user has access to folder and child folder is removed or trashed, then it should return folders with respective status', async () => {
+      const folder = newFolder();
+      const item = newWorkspaceItemUser({ createdBy: user.uuid });
+      const removedFolder = newFolder({
+        attributes: { parentId: folder.id, removed: true, deleted: true },
+      });
+      const trashedFolder = newFolder({
+        attributes: { parentId: folder.id, deleted: true },
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValueOnce(item);
+      jest
+        .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
+        .mockResolvedValueOnce([removedFolder, trashedFolder]);
+
+      const result = await service.getPersonalWorkspaceFoldersInFolder(
+        user,
+        workspaceId,
+        folderUuid,
+        limit,
+        offset,
+        sort,
+        order,
+      );
+
+      expect(result).toEqual({
+        result: [
+          {
+            ...removedFolder,
+            status: FileStatus.DELETED,
+          },
+          {
+            ...trashedFolder,
+            status: FileStatus.TRASHED,
+          },
+        ],
+      });
     });
   });
 
