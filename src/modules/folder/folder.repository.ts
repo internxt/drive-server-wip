@@ -61,7 +61,7 @@ export interface FolderRepository {
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
   ): Promise<FindInTreeResponse | null>;
-  findAllCursorWithParentInWorkspaces(
+  findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,
@@ -169,24 +169,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map(this.toDomain.bind(this));
   }
 
-  async findAllCursorWithParentInWorkspaces(
+  async findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Array<Folder> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const folders = await this.folderModel.findAll({
       include: [
-        {
-          model: FolderModel,
-          as: 'parent',
-          attributes: ['id', 'uuid'],
-          where: {
-            deleted: false,
-            removed: false,
-          },
-        },
         {
           model: WorkspaceItemUserModel,
           where: {
@@ -197,7 +190,8 @@ export class SequelizeFolderRepository implements FolderRepository {
       limit,
       offset,
       where,
-      order,
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return folders.map(this.toDomain.bind(this));

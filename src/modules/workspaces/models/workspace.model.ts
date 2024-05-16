@@ -56,7 +56,7 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @Column(DataType.UUID)
   rootFolderId?: string;
 
-  @HasOne(() => FolderModel, 'id')
+  @HasOne(() => FolderModel, 'uuid')
   rootFolder: FolderModel;
 
   @BelongsTo(() => UserModel, {

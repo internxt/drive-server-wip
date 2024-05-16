@@ -497,7 +497,7 @@ export class FolderUseCases {
     },
   ): Promise<Folder[]> {
     const foldersWithMaybePlainName =
-      await this.folderRepository.findAllCursorWithParentInWorkspaces(
+      await this.folderRepository.findAllCursorInWorkspace(
         createdBy,
         { ...where },
         options.limit,

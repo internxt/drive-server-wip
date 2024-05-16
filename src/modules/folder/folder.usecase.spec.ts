@@ -825,14 +825,14 @@ describe('FolderUseCases', () => {
   });
 
   describe('createFolder', () => {
-    const parentFolderUuid = 'parent-folder-uuid';
     const folderName = 'New Folder';
 
     it('When the parent folder does not exist or it was not created by user, then it should throw', async () => {
+      const parentFolder = newFolder();
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
 
       await expect(
-        service.createFolder(userMocked, folderName, parentFolderUuid),
+        service.createFolder(userMocked, folderName, parentFolder.uuid),
       ).rejects.toThrow(InvalidParentFolderException);
     });
 
@@ -845,15 +845,15 @@ describe('FolderUseCases', () => {
         .mockResolvedValueOnce(parentFolder);
 
       await expect(
-        service.createFolder(userMocked, notValidName, parentFolderUuid),
+        service.createFolder(userMocked, notValidName, parentFolder.uuid),
       ).rejects.toThrow(BadRequestException);
 
       await expect(
-        service.createFolder(userMocked, 'Invalid/Name', parentFolderUuid),
+        service.createFolder(userMocked, 'Invalid/Name', parentFolder.uuid),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When the folder name already exists in the same location, then it should throw BadRequestException', async () => {
+    it('When the folder name already exists in the same location, then it should throw', async () => {
       const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
       const existingFolder = newFolder({
         attributes: { parentId: parentFolder.id, plainName: folderName },
@@ -867,7 +867,7 @@ describe('FolderUseCases', () => {
         .mockResolvedValueOnce(existingFolder);
 
       await expect(
-        service.createFolder(userMocked, folderName, parentFolderUuid),
+        service.createFolder(userMocked, folderName, parentFolder.uuid),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -878,7 +878,7 @@ describe('FolderUseCases', () => {
         attributes: {
           userId: userMocked.id,
           parentId: parentFolder.id,
-          parentUuid: parentFolderUuid,
+          parentUuid: parentFolder.uuid,
           name: encryptedFolderName,
           plainName: folderName,
         },
@@ -900,7 +900,7 @@ describe('FolderUseCases', () => {
       const result = await service.createFolder(
         userMocked,
         folderName,
-        parentFolderUuid,
+        parentFolder.uuid,
       );
 
       expect(result).toEqual(newFolderCreated);
@@ -921,7 +921,7 @@ describe('FolderUseCases', () => {
 
     it('When folders are found with plainName, then they should be returned as-is', async () => {
       jest
-        .spyOn(folderRepository, 'findAllCursorWithParentInWorkspaces')
+        .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([decryptedFolder]);
 
       const result = await service.getFoldersWithParentInWorkspace(
@@ -935,7 +935,7 @@ describe('FolderUseCases', () => {
 
     it('When folders are found without plainName, then decryptFolderName should be called', async () => {
       jest
-        .spyOn(folderRepository, 'findAllCursorWithParentInWorkspaces')
+        .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([encryptedFolder]);
       const decryptFolderNameSpy = jest
         .spyOn(service, 'decryptFolderName')
@@ -955,7 +955,7 @@ describe('FolderUseCases', () => {
       const sortOptions = [['name', 'ASC']];
 
       jest
-        .spyOn(folderRepository, 'findAllCursorWithParentInWorkspaces')
+        .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([decryptedFolder]);
 
       const result = await service.getFoldersWithParentInWorkspace(
@@ -965,9 +965,7 @@ describe('FolderUseCases', () => {
       );
 
       expect(result).toEqual([decryptedFolder]);
-      expect(
-        folderRepository.findAllCursorWithParentInWorkspaces,
-      ).toHaveBeenCalledWith(
+      expect(folderRepository.findAllCursorInWorkspace).toHaveBeenCalledWith(
         createdBy,
         { parentUuid: parentFolderUuid },
         findOptions.limit,

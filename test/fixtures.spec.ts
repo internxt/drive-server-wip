@@ -1,3 +1,4 @@
+import { v4 } from 'uuid';
 import {
   LimitLabels,
   LimitTypes,
@@ -496,7 +497,7 @@ describe('Testing fixtures tests', () => {
     });
 
     it('When it generates a workspace item user with a specified creator, then the createdBy should match', () => {
-      const createdBy = 'customCreatedBy';
+      const createdBy = v4();
       const itemUser = fixtures.newWorkspaceItemUser({ createdBy });
       expect(itemUser.createdBy).toBe(createdBy);
     });

@@ -1292,23 +1292,24 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('createFolder', () => {
-    const workspaceId = 'faa056fc-db0f-4ed9-8c39-a067f7124685';
     const createFolderDto: CreateWorkspaceFolderDto = {
       name: 'New Folder',
-      parentFolderUuid: '5f2fa203-6e09-4a82-8b51-1567f9b3f11e',
+      parentFolderUuid: v4(),
     };
 
     it('When parent folder is not found, then throw', async () => {
       const user = newUser();
+      const nonExistentWorkspaceId = v4();
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
 
       await expect(
-        service.createFolder(user, workspaceId, createFolderDto),
+        service.createFolder(user, nonExistentWorkspaceId, createFolderDto),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When user is not owner of parent folder, then it should throw', async () => {
       const user = newUser();
+      const workspace = newWorkspace();
       const folderItem = newWorkspaceItemUser();
 
       jest
@@ -1316,7 +1317,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue(folderItem);
 
       await expect(
-        service.createFolder(user, workspaceId, createFolderDto),
+        service.createFolder(user, workspace.id, createFolderDto),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -1334,7 +1335,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
 
       await expect(
-        service.createFolder(user, workspaceId, createFolderDto),
+        service.createFolder(user, workspace.id, createFolderDto),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -1365,7 +1366,7 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.createFolder(
         user,
-        workspaceId,
+        workspace.id,
         createFolderDto,
       );
 
@@ -1374,7 +1375,7 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('createFile', () => {
-    const workspaceId = 'workspace-id';
+    const workspace = newWorkspace();
     const createFileDto: CreateWorkspaceFileDto = {
       name: 'New File',
       bucket: 'bucket-id',
@@ -1399,7 +1400,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUserWithNoSpace);
 
       await expect(
-        service.createFile(user, workspaceId, createFileDto),
+        service.createFile(user, workspace.id, createFileDto),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -1415,7 +1416,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUserWithNoSpace);
 
       await expect(
-        service.createFile(user, workspaceId, { ...createFileDto, size }),
+        service.createFile(user, workspace.id, { ...createFileDto, size }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -1432,7 +1433,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
 
       await expect(
-        service.createFile(user, workspaceId, { ...createFileDto, size }),
+        service.createFile(user, workspace.id, { ...createFileDto, size }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -1452,7 +1453,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue(folderItem);
 
       await expect(
-        service.createFile(user, workspaceId, {
+        service.createFile(user, workspace.id, {
           ...createFileDto,
           size: fileSize,
         }),
@@ -1484,7 +1485,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
 
       await expect(
-        service.createFile(user, workspaceId, {
+        service.createFile(user, workspace.id, {
           ...createFileDto,
           size: fileSize,
         }),
@@ -1523,7 +1524,7 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'createItem')
         .mockResolvedValue(createdItemFile);
 
-      const result = await service.createFile(user, workspaceId, {
+      const result = await service.createFile(user, workspace.id, {
         ...createFileDto,
         size: fileSize,
       });
@@ -1534,21 +1535,21 @@ describe('WorkspacesUsecases', () => {
 
   describe('getPersonalWorkspaceFoldersInFolder', () => {
     const user = newUser();
-    const workspaceId = '5f2fa203-6e09-4a82-8b51-1567f9b3f11e';
-    const folderUuid = '0c79eadc-95c2-4a59-9288-75e4ae160952';
+    const workspace = newWorkspace();
     const limit = 50;
     const offset = 0;
     const sort = 'name';
     const order = 'asc';
 
     it('When folder does not exist, then it should throw', async () => {
+      const nonExistenFolderUuid = v4();
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(null);
 
       await expect(
         service.getPersonalWorkspaceFoldersInFolder(
           user,
-          workspaceId,
-          folderUuid,
+          workspace.id,
+          nonExistenFolderUuid,
           limit,
           offset,
           { sort, order },
@@ -1564,8 +1565,8 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getPersonalWorkspaceFoldersInFolder(
           user,
-          workspaceId,
-          folderUuid,
+          workspace.id,
+          folder.uuid,
           limit,
           offset,
           { sort, order },
@@ -1585,8 +1586,8 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getPersonalWorkspaceFoldersInFolder(
           user,
-          workspaceId,
-          folderUuid,
+          workspace.id,
+          folder.uuid,
           limit,
           offset,
           { sort, order },
@@ -1607,8 +1608,8 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getPersonalWorkspaceFoldersInFolder(
         user,
-        workspaceId,
-        folderUuid,
+        workspace.id,
+        folder.uuid,
         limit,
         offset,
         { sort, order },
@@ -1623,64 +1624,25 @@ describe('WorkspacesUsecases', () => {
         ],
       });
     });
-
-    it('When user has access to folder and child folder is removed or trashed, then it should return folders with respective status', async () => {
-      const folder = newFolder();
-      const item = newWorkspaceItemUser({ createdBy: user.uuid });
-      const removedFolder = newFolder({
-        attributes: { parentId: folder.id, removed: true, deleted: true },
-      });
-      const trashedFolder = newFolder({
-        attributes: { parentId: folder.id, deleted: true },
-      });
-
-      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
-      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValueOnce(item);
-      jest
-        .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
-        .mockResolvedValueOnce([removedFolder, trashedFolder]);
-
-      const result = await service.getPersonalWorkspaceFoldersInFolder(
-        user,
-        workspaceId,
-        folderUuid,
-        limit,
-        offset,
-        { sort, order },
-      );
-
-      expect(result).toEqual({
-        result: [
-          {
-            ...removedFolder,
-            status: FileStatus.DELETED,
-          },
-          {
-            ...trashedFolder,
-            status: FileStatus.TRASHED,
-          },
-        ],
-      });
-    });
   });
 
   describe('getPersonalWorkspaceFilesInFolder', () => {
     const user = newUser();
-    const workspaceId = '5f2fa203-6e09-4a82-8b51-1567f9b3f11e';
-    const folderUuid = '0c79eadc-95c2-4a59-9288-75e4ae160952';
+    const workspace = newWorkspace();
+    const folder = newFolder();
     const limit = 50;
     const offset = 0;
     const sort = 'name';
     const order = 'asc';
 
-    it('When container folder does not exist, then it should throw', async () => {
+    it('When parent folder does not exist, then it should throw', async () => {
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(null);
 
       await expect(
         service.getPersonalWorkspaceFilesInFolder(
           user,
-          workspaceId,
-          folderUuid,
+          workspace.id,
+          folder.uuid,
           limit,
           offset,
           { sort, order },
@@ -1696,8 +1658,8 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getPersonalWorkspaceFilesInFolder(
           user,
-          workspaceId,
-          folderUuid,
+          workspace.id,
+          folder.uuid,
           limit,
           offset,
           { sort, order },
@@ -1717,8 +1679,8 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getPersonalWorkspaceFilesInFolder(
           user,
-          workspaceId,
-          folderUuid,
+          workspace.id,
+          folder.uuid,
           limit,
           offset,
           { sort, order },
@@ -1739,8 +1701,8 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getPersonalWorkspaceFilesInFolder(
         user,
-        workspaceId,
-        folderUuid,
+        workspace.id,
+        folder.uuid,
         limit,
         offset,
         { sort, order },
@@ -1761,8 +1723,8 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getPersonalWorkspaceFilesInFolder(
         user,
-        workspaceId,
-        folderUuid,
+        workspace.id,
+        folder.uuid,
         limit,
         offset,
         { sort, order },
@@ -1775,7 +1737,7 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('initiateWorkspace', () => {
-    const ownerId = '693d930a-b497-43a2-825d-bd43a45b44b7';
+    const owner = newUser();
     const maxSpaceBytes = 1000000;
     const workspaceData = { address: '123 Main St' };
 
@@ -1783,7 +1745,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
 
       await expect(
-        service.initiateWorkspace(ownerId, maxSpaceBytes, workspaceData),
+        service.initiateWorkspace(owner.uuid, maxSpaceBytes, workspaceData),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -1832,7 +1794,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(createdWorkspace);
 
       const result = await service.initiateWorkspace(
-        ownerId,
+        owner.uuid,
         maxSpaceBytes,
         workspaceData,
       );

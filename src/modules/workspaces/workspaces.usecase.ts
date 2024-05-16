@@ -420,20 +420,20 @@ export class WorkspacesUsecases {
 
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
-    const item = await this.workspaceRepository.getItemBy({
+    const parentFolder = await this.workspaceRepository.getItemBy({
       workspaceId,
       itemId: createFileDto.folderUuid,
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!item) {
+    if (!parentFolder) {
       throw new BadRequestException('Parent folder is not valid');
     }
 
     const isParentFolderWorkspaceRootFolder =
       createFileDto.folderUuid === workspace.rootFolderId;
 
-    if (!item.isOwnedBy(member) || isParentFolderWorkspaceRootFolder) {
+    if (!parentFolder.isOwnedBy(member) || isParentFolderWorkspaceRootFolder) {
       throw new ForbiddenException('You can not create a file here');
     }
 
@@ -475,20 +475,20 @@ export class WorkspacesUsecases {
 
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
-    const item = await this.workspaceRepository.getItemBy({
+    const parentFolder = await this.workspaceRepository.getItemBy({
       workspaceId,
       itemId: parentFolderUuid,
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!item) {
+    if (!parentFolder) {
       throw new BadRequestException('Parent folder is not valid');
     }
 
     const isParentFolderWorkspaceRootFolder =
       parentFolderUuid === workspace.rootFolderId;
 
-    if (!item.isOwnedBy(user) || isParentFolderWorkspaceRootFolder) {
+    if (!parentFolder.isOwnedBy(user) || isParentFolderWorkspaceRootFolder) {
       throw new ForbiddenException('You can not create a folder here');
     }
 
@@ -529,13 +529,13 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Folder is not valid');
     }
 
-    const item = await this.workspaceRepository.getItemBy({
+    const parentFolder = await this.workspaceRepository.getItemBy({
       workspaceId,
       itemId: folder.uuid,
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!item?.isOwnedBy(user)) {
+    if (!parentFolder?.isOwnedBy(user)) {
       throw new ForbiddenException('You have no access to this folder');
     }
 
@@ -555,19 +555,7 @@ export class WorkspacesUsecases {
     );
 
     return {
-      result: folders.map((f) => {
-        let folderStatus: FileStatus;
-
-        if (f.removed) {
-          folderStatus = FileStatus.DELETED;
-        } else if (f.deleted) {
-          folderStatus = FileStatus.TRASHED;
-        } else {
-          folderStatus = FileStatus.EXISTS;
-        }
-
-        return { ...f, status: folderStatus };
-      }),
+      result: folders.map((f) => ({ ...f, status: FileStatus.EXISTS })),
     };
   }
 
@@ -588,13 +576,13 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Folder is not valid');
     }
 
-    const item = await this.workspaceRepository.getItemBy({
+    const folderInWorkspace = await this.workspaceRepository.getItemBy({
       workspaceId,
       itemId: folder.uuid,
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!item?.isOwnedBy(user)) {
+    if (!folderInWorkspace?.isOwnedBy(user)) {
       throw new ForbiddenException('You have no access to this folder');
     }
 
