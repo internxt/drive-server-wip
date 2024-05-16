@@ -1,5 +1,5 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -7,6 +7,7 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceInvite,
+  newWorkspaceTeamUser,
   newWorkspaceUser,
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
@@ -26,28 +27,25 @@ describe('Workspace Controller', () => {
   });
 
   describe('PATCH /:workspaceId/teams/:teamId/members/:memberId/role', () => {
-    it('When memberId is not a valid uuid, then it throws.', async () => {
-      workspacesUsecases.changeUserRole.mockRejectedValueOnce(
-        new BadRequestException(),
-      );
+    it('When role is updated correctly, then it works', async () => {
+      const userUuid = '9aa9399e-8697-41f7-88e3-df1d78794cb8';
+      const teamId = '286d2eea-8319-4a3f-a66b-d2b80e5c08fe';
+      const workspaceId = '3864950c-122d-4df3-b126-4d8b3fc23c29';
+
       await expect(
-        workspacesController.changeMemberRole('', '', 'notValidUuid', {
+        workspacesController.changeMemberRole(workspaceId, teamId, userUuid, {
           role: WorkspaceRole.MEMBER,
         }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When input is valid, then it works', async () => {
-      await expect(
-        workspacesController.changeMemberRole(
-          '',
-          '',
-          '9aa9399e-8697-41f7-88e3-df1d78794cb8',
-          {
-            role: WorkspaceRole.MEMBER,
-          },
-        ),
       ).resolves.toBeTruthy();
+
+      expect(workspacesUsecases.changeUserRole).toHaveBeenCalledWith(
+        workspaceId,
+        teamId,
+        userUuid,
+        {
+          role: WorkspaceRole.MEMBER,
+        },
+      );
     });
   });
 
@@ -60,20 +58,7 @@ describe('Workspace Controller', () => {
       encryptedMnemonic: 'encryptedMnemonic',
     };
 
-    it('When workspace id is not a valid uuid, then it throws.', async () => {
-      workspacesUsecases.changeUserRole.mockRejectedValueOnce(
-        new BadRequestException(),
-      );
-      await expect(
-        workspacesController.setupWorkspace(
-          user,
-          'notValidUuid',
-          workspaceDatDto,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When input is valid, then it works', async () => {
+    it('Workspace is set up correctly, then it works', async () => {
       await expect(
         workspacesController.setupWorkspace(user, v4(), workspaceDatDto),
       ).resolves.toBeTruthy();
@@ -92,12 +77,47 @@ describe('Workspace Controller', () => {
         attributes: { deactivated: false },
       });
 
-      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce([
-        { workspace, workspaceUser },
-      ]);
+      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce({
+        availableWorkspaces: [{ workspace, workspaceUser }],
+        pendingWorkspaces: [],
+      });
       await expect(
         workspacesController.getAvailableWorkspaces(user),
-      ).resolves.toEqual([{ workspace, workspaceUser }]);
+      ).resolves.toEqual({
+        availableWorkspaces: [{ workspace, workspaceUser }],
+        pendingWorkspaces: [],
+      });
+    });
+  });
+
+  describe('PATCH /teams/:teamId', () => {
+    it('When teamId is valid and update is successful, then resolve', async () => {
+      await expect(
+        workspacesController.editTeam(v4(), { name: 'new name' }),
+      ).resolves.toBeTruthy();
+    });
+  });
+
+  describe('POST /teams/:teamId/user/:userUuid', () => {
+    it('When member is added succesfully, return member data', async () => {
+      const teamUser = newWorkspaceTeamUser();
+
+      workspacesUsecases.addMemberToTeam.mockResolvedValueOnce(teamUser);
+
+      const newTeamMember = await workspacesController.addUserToTeam(
+        v4(),
+        v4(),
+      );
+
+      expect(newTeamMember).toEqual(teamUser);
+    });
+  });
+
+  describe('DELETE /teams/:teamId/user/:userUuid', () => {
+    it('When member is removed succesfully, then return', async () => {
+      await expect(
+        workspacesController.removeUserFromTeam(v4(), v4()),
+      ).resolves.toBeTruthy();
     });
   });
 
@@ -120,7 +140,7 @@ describe('Workspace Controller', () => {
 
   describe('POST /invitations/accept', () => {
     const user = newUser();
-    it('When workspace id is not a valid uuid, then it throws.', async () => {
+    it('When invitation is accepted successfully, then it returns.', async () => {
       const invite = newWorkspaceInvite({ invitedUser: user.uuid });
 
       await workspacesController.acceptWorkspaceInvitation(user, {
@@ -142,35 +162,22 @@ describe('Workspace Controller', () => {
     });
 
     it('When the workspaceId is missing then it should throw BadRequestException', async () => {
-      const workspaceController = jest.spyOn(
-        workspacesController,
-        'getWorkspaceMembers',
-      );
-
-      const expectgetWorkspaceMembers = expect(async () => {
+      const expectResponse = expect(async () => {
         await workspacesController.getWorkspaceMembers(null, owner);
       });
-      expectgetWorkspaceMembers.rejects.toThrow(BadRequestException);
-      expectgetWorkspaceMembers.rejects.toThrow('Invalid workspace ID');
-
-      expect(workspaceController).toHaveBeenCalled();
+      expectResponse.rejects.toThrow(BadRequestException);
+      expectResponse.rejects.toThrow('Invalid workspace ID');
     });
 
-    it('When the user is null or empty then it should throw UnauthorizedException', async () => {
-      const workspaceController = jest
-        .spyOn(workspacesController, 'getWorkspaceMembers')
-        .mockImplementation(async (workspaceId: string, user: any) => {
-          if (!user) throw UnauthorizedException;
-          return workspacesUsecases.getWorkspaceMembers(workspaceId, user);
-        });
+    it('When the user is null or empty then it should return null', async () => {
+      const user = null;
+      workspacesUsecases.getWorkspaceMembers.mockResolvedValue(null);
 
-      const resFailed = workspacesController.getWorkspaceMembers(
+      const response = await workspacesController.getWorkspaceMembers(
         workspace.id,
-        null,
+        user,
       );
-
-      await expect(resFailed).rejects.toThrow();
-      expect(workspaceController).toHaveBeenCalledTimes(1);
+      expect(response).toBeNull();
     });
 
     it('When members are requested with "workspaceId" and "user", then it should return workspaces members data', async () => {
@@ -195,11 +202,6 @@ describe('Workspace Controller', () => {
         member: user2,
         attributes: { deactivated: true },
       }).toJSON();
-
-      const workspaceUsecase = jest.spyOn(
-        workspacesUsecases,
-        'getWorkspaceMembers',
-      );
 
       const mockResolvedValues = {
         activatedUsers: [
@@ -236,7 +238,11 @@ describe('Workspace Controller', () => {
         workspacesController.getWorkspaceMembers(workspace.id, owner),
       ).resolves.toEqual(mockResolvedValues);
 
-      expect(workspaceUsecase).toHaveBeenCalledWith(workspace.id, owner, null);
+      expect(workspacesUsecases.getWorkspaceMembers).toHaveBeenCalledWith(
+        workspace.id,
+        owner,
+        null,
+      );
     });
 
     it('When members are requested with "workspaceId" and "user", and additionally include a "search" then it should return workspaces members data according to the "search"', async () => {

@@ -132,7 +132,9 @@ export class WorkspaceGuard implements CanActivate {
       return true;
     }
 
-    throw new ForbiddenException('You have no access to this team');
+    throw new ForbiddenException(
+      'You do not have the required access to this team',
+    );
   }
 
   private getIdFromRequest(

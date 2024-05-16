@@ -137,7 +137,7 @@ export class MailerService {
         picture_url: avatar.pictureUrl,
         initials: avatar.initials,
       },
-      signup_url: mailInfo.acceptUrl,
+      accept_url: mailInfo.acceptUrl,
       decline_url: mailInfo.declineUrl,
     };
     await this.send(

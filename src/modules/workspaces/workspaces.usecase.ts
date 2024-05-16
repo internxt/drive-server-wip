@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -16,6 +17,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserAttributes } from '../user/user.attributes';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
+import { EditTeamDto } from './dto/edit-team-data.dto';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { WorkspaceInvite } from './domains/workspace-invite.domain';
@@ -45,6 +47,7 @@ export class WorkspacesUsecases {
   async initiateWorkspace(
     ownerId: UserAttributes['uuid'],
     maxSpaceBytes: number,
+    workspaceData: { address?: string },
   ) {
     const owner = await this.userRepository.findByUuid(ownerId);
 
@@ -86,7 +89,8 @@ export class WorkspacesUsecases {
     const newWorkspace = Workspace.build({
       id: workspaceId,
       ownerId: owner.uuid,
-      name: '',
+      name: 'My Workspace',
+      address: workspaceData?.address,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
       setupCompleted: false,
@@ -172,17 +176,19 @@ export class WorkspacesUsecases {
       throw new InternalServerErrorException(finalMessage);
     }
 
+    const workspaceUpdatedInfo: Partial<WorkspaceAttributes> = {
+      name: setupWorkspaceDto.name ?? workspace.name,
+      setupCompleted: true,
+      address: setupWorkspaceDto.address ?? workspace.address,
+      description: setupWorkspaceDto.description ?? workspace.description,
+    };
+
     await this.workspaceRepository.updateBy(
       {
         ownerId: user.uuid,
         id: workspace.id,
       },
-      {
-        name: setupWorkspaceDto.name,
-        setupCompleted: true,
-        address: setupWorkspaceDto.address,
-        description: setupWorkspaceDto.description,
-      },
+      workspaceUpdatedInfo,
     );
   }
 
@@ -413,6 +419,34 @@ export class WorkspacesUsecases {
     await this.workspaceRepository.deleteInviteBy({ id: invite.id });
   }
 
+  async removeWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
+    const invite = await this.workspaceRepository.findInvite({
+      id: inviteId,
+    });
+
+    if (!invite) {
+      throw new BadRequestException('Invalid invite');
+    }
+
+    const workspace = await this.workspaceRepository.findOne({
+      id: invite.workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Invalid invite');
+    }
+
+    const isInvitedUser = user.uuid === invite.invitedUser;
+
+    if (!workspace.isUserOwner(user) && !isInvitedUser) {
+      throw new ForbiddenException();
+    }
+
+    await this.workspaceRepository.deleteInviteBy({
+      id: invite.id,
+    });
+  }
+
   async getAssignableSpaceInWorkspace(
     workspace: Workspace,
     workpaceDefaultUser: User,
@@ -464,9 +498,28 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Not valid workspace');
     }
 
+    const teamInWorkspaceCount =
+      await this.teamRepository.getTeamsInWorkspaceCount(workspace.id);
+
+    if (teamInWorkspaceCount >= 10) {
+      throw new BadRequestException('Maximum teams reached');
+    }
+
     const managerId = createTeamDto.managerId
       ? createTeamDto.managerId
       : user.uuid;
+
+    const isUserAlreadyInWorkspace =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: managerId,
+      });
+
+    if (!isUserAlreadyInWorkspace) {
+      throw new BadRequestException(
+        'User Manager is not part of the workspace',
+      );
+    }
 
     const newTeam = WorkspaceTeam.build({
       id: v4(),
@@ -485,14 +538,18 @@ export class WorkspacesUsecases {
   }
 
   async getAvailableWorkspaces(user: User) {
-    const availablesWorkspaces =
-      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+    const [availablesWorkspaces, ownerPendingWorkspaces] = await Promise.all([
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid),
+      await this.getWorkspacesPendingToBeSetup(user),
+    ]);
 
-    return availablesWorkspaces.filter(
-      (workspaceData) =>
-        workspaceData.workspace.isWorkspaceReady() &&
-        !workspaceData.workspaceUser.deactivated,
-    );
+    return {
+      availableWorkspaces: availablesWorkspaces.filter(
+        ({ workspace, workspaceUser }) =>
+          workspace.isWorkspaceReady() && !workspaceUser.deactivated,
+      ),
+      pendingWorkspaces: ownerPendingWorkspaces,
+    };
   }
 
   async getWorkspacesPendingToBeSetup(user: User) {
@@ -540,10 +597,9 @@ export class WorkspacesUsecases {
       search,
     );
 
-    const teamsAndMembersCount =
-      await this.teamRepository.getTeamsAndMembersCountByWorkspace(
-        workspace.id,
-      );
+    const teamsInWorkspace = await this.teamRepository.getTeamsInWorkspace(
+      workspace.id,
+    );
 
     const workspaceUserMembers: WorkspaceUserMemberDto[] = await Promise.all(
       workspaceUsers.map(async (workspaceUser) => {
@@ -557,15 +613,15 @@ export class WorkspacesUsecases {
         }
 
         const isOwner = workspace.ownerId == workspaceUser.memberId;
-        const isManager = teamsAndMembersCount.some(
-          ({ team }) => team.managerId == workspaceUser.memberId,
+        const isManager = teamsInWorkspace.some(
+          (team) => team.managerId == workspaceUser.memberId,
         );
 
         return {
           isOwner,
           isManager,
-          usedSpace: workspaceUser.getUsedSpace(),
-          freeSpace: workspaceUser.getFreeSpace(),
+          usedSpace: workspaceUser.getUsedSpace().toString(),
+          freeSpace: workspaceUser.getFreeSpace().toString(),
           ...workspaceUser.toJSON(),
         };
       }),
@@ -579,6 +635,132 @@ export class WorkspacesUsecases {
         (workspaceUserMember) => workspaceUserMember.deactivated == true,
       ),
     };
+  }
+
+  async getTeamMembers(teamId: WorkspaceTeam['id']) {
+    const members = await this.teamRepository.getTeamMembers(teamId);
+    return members;
+  }
+
+  async editTeamData(teamId: WorkspaceTeam['id'], editTeamDto: EditTeamDto) {
+    await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+
+    await this.teamRepository.updateById(teamId, editTeamDto);
+  }
+
+  async removeMemberFromTeam(
+    teamId: WorkspaceTeam['id'],
+    memberId: User['uuid'],
+  ) {
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+
+    const teamUser = await this.teamRepository.getTeamUser(memberId, team.id);
+
+    if (!teamUser) {
+      throw new BadRequestException('User is not part of team!');
+    }
+
+    const isUserManagerOfTeam = team.managerId === memberId;
+
+    if (isUserManagerOfTeam) {
+      const teamWorkspace = await this.workspaceRepository.findOne({
+        id: team.workspaceId,
+      });
+
+      await this.teamRepository.updateById(team.id, {
+        managerId: teamWorkspace.ownerId,
+      });
+    }
+
+    await this.teamRepository.removeMemberFromTeam(teamId, memberId);
+  }
+
+  async addMemberToTeam(teamId: WorkspaceTeam['id'], memberId: User['uuid']) {
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+
+    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      memberId,
+      deactivated: false,
+    });
+
+    if (!workspaceUser) {
+      throw new BadRequestException(
+        'This user is not valid member in the workspace',
+      );
+    }
+
+    const userAlreadyInTeam = await this.teamRepository.getTeamUser(
+      memberId,
+      team.id,
+    );
+
+    if (userAlreadyInTeam) {
+      throw new BadRequestException('This user is already part of team!');
+    }
+
+    const membersCount = await this.teamRepository.getTeamMembersCount(teamId);
+
+    if (membersCount >= 20) {
+      throw new BadRequestException('Maximum members reached');
+    }
+
+    const newMember = await this.teamRepository.addUserToTeam(teamId, memberId);
+
+    return newMember;
+  }
+
+  async getAndValidateNonDefaultTeamWorkspace(teamId: string) {
+    const team = await this.teamRepository.getTeamById(teamId);
+
+    if (!team) {
+      throw new BadRequestException('Team not found');
+    }
+
+    const workspace = await this.workspaceRepository.findOne({
+      id: team.workspaceId,
+    });
+
+    if (!workspace) {
+      throw new ForbiddenException('Not valid workspace found');
+    }
+
+    if (workspace.isDefaultTeam(team)) {
+      throw new BadRequestException('Invalid operation on default team');
+    }
+
+    return { team, workspace };
+  }
+
+  async changeTeamManager(
+    teamId: WorkspaceTeam['id'],
+    managerId: User['uuid'],
+  ) {
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+
+    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      memberId: managerId,
+      deactivated: false,
+    });
+
+    if (!workspaceUser) {
+      throw new BadRequestException(
+        'The user you are trying to assign as manager is not a valid member in the workspace',
+      );
+    }
+
+    const teamUser = await this.teamRepository.getTeamUser(managerId, team.id);
+
+    if (!teamUser) {
+      throw new BadRequestException('User is not in the team');
+    }
+
+    await this.teamRepository.updateById(team.id, { managerId });
+  }
+
+  async deleteTeam(teamId: WorkspaceTeam['id']) {
+    await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+
+    await this.teamRepository.deleteTeamById(teamId);
   }
 
   findUserInWorkspace(
