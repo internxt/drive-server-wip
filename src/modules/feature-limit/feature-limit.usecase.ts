@@ -65,6 +65,7 @@ export class FeatureLimitUsecases {
       if (limit.shouldLimitBeEnforced()) {
         throw new PaymentRequiredException(
           `Feature not available for ${limitLabel} `,
+          limitLabel,
         );
       }
       return false;
@@ -72,7 +73,10 @@ export class FeatureLimitUsecases {
 
     const isLimitSurprassed = await this.checkCounterLimit(user, limit, data);
     if (isLimitSurprassed) {
-      throw new PaymentRequiredException(`Limit exceeded for ${limitLabel} `);
+      throw new PaymentRequiredException(
+        `Limit exceeded for ${limitLabel} `,
+        limitLabel,
+      );
     }
     return false;
   }
@@ -112,6 +116,7 @@ export class FeatureLimitUsecases {
     } else {
       const sharingsCount =
         await this.sharingRepository.getSharedItemsNumberByUser(user.uuid);
+      console.log({ sharingsCount, limit });
       limitContext.currentCount = sharingsCount;
     }
 
