@@ -147,7 +147,7 @@ describe('SequelizeWorkspaceRepository', () => {
   });
 
   describe('deactivateWorkspaceUser', () => {
-    it('When the total is calculated, the respective space should be returned', async () => {
+    it('When the user is deactivated, then the respective user should be deleted', async () => {
       const member = newUser();
       const workspace = newWorkspace();
 

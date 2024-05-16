@@ -728,32 +728,25 @@ export class WorkspacesUsecases {
     workspaceId: WorkspaceAttributes['id'],
     memberId: User['uuid'],
   ) {
-    const workspace = await this.workspaceRepository.findById(workspaceId);
-
-    if (!workspace) {
-      throw new BadRequestException('Invalid workspace');
-    }
-
     const [workspaceUser, user] = await Promise.all([
       this.workspaceRepository.findWorkspaceUser({
-        workspaceId: workspace.id,
+        workspaceId: workspaceId,
         memberId,
       }),
       this.userRepository.findByUuid(memberId),
     ]);
 
     if (!workspaceUser || !user) {
-      throw new BadRequestException('Invalid user');
+      throw new NotFoundException('User was not found');
     }
 
     const workspaceTeamUser =
       await this.teamRepository.getTeamAndMemberByWorkspaceAndMemberId(
-        workspace.id,
+        workspaceId,
         workspaceUser.memberId,
       );
 
     return {
-      workspaceUser,
       user: {
         name: user.name,
         lastname: user.lastname,
@@ -763,6 +756,12 @@ export class WorkspacesUsecases {
         avatar: user.avatar
           ? await this.userUsecases.getAvatarUrl(user.avatar)
           : null,
+        memberId: workspaceUser.memberId,
+        workspaceId: workspaceUser.workspaceId,
+        spaceLimit: workspaceUser.spaceLimit.toString(),
+        driveUsage: workspaceUser.driveUsage.toString(),
+        backupsUsage: workspaceUser.backupsUsage.toString(),
+        deactivated: workspaceUser.deactivated,
       },
       teams: workspaceTeamUser.map((teamUserData) => ({
         ...teamUserData.team,
@@ -796,13 +795,16 @@ export class WorkspacesUsecases {
   async deactivateWorkspaceUser(
     user: User,
     memberId: WorkspaceUserAttributes['memberId'],
-    workpaceId: WorkspaceAttributes['id'],
+    workspaceId: WorkspaceAttributes['id'],
   ) {
     const { workspace, workspaceUser } =
-      await this.workspaceRepository.findWorkspaceAndUser(memberId, workpaceId);
+      await this.workspaceRepository.findWorkspaceAndUser(
+        memberId,
+        workspaceId,
+      );
 
     if (!workspace || !workspaceUser) {
-      throw new BadRequestException('Invalid workspace');
+      throw new BadRequestException('This user is not part of workspace');
     }
 
     if (workspace.isUserOwner(user)) {

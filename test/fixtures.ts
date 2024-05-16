@@ -21,6 +21,7 @@ import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.
 import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
+import { UserAttributes } from '../src/modules/user/user.attributes';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -138,10 +139,12 @@ export const newFile = (params?: NewFilesParams): File => {
   return file;
 };
 
-export const newUser = (): User => {
+export const newUser = (params?: {
+  attributes?: Partial<UserAttributes>;
+}): User => {
   const randomEmail = randomDataGenerator.email();
 
-  return User.build({
+  const user = User.build({
     id: randomDataGenerator.natural(),
     userId: '',
     name: 'John',
@@ -170,6 +173,13 @@ export const newUser = (): User => {
     avatar: null,
     lastPasswordChangedAt: new Date(),
   });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      user[key] = params.attributes[key];
+    });
+
+  return user;
 };
 
 export const publicUser = (): User => {

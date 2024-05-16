@@ -1279,15 +1279,7 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('getMemberDetails', () => {
-    it('When workspace is not valid, then it should throw', async () => {
-      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
-
-      await expect(
-        service.getMemberDetails('workspaceId', 'memberId'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When user is not valid, then it should throw', async () => {
+    it('When user is not found, then it should throw', async () => {
       const workspace = newWorkspace();
 
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
@@ -1295,14 +1287,13 @@ describe('WorkspacesUsecases', () => {
 
       await expect(
         service.getMemberDetails(workspace.id, 'memberId'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When user is not part of workspace, then it should throw', async () => {
       const userNotMember = newUser();
       const workspace = newWorkspace();
 
-      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(userNotMember);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
@@ -1310,12 +1301,11 @@ describe('WorkspacesUsecases', () => {
 
       await expect(
         service.getMemberDetails(workspace.id, userNotMember.uuid),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When user and workspace are valid and user is part of workspace, then it should return the member data', async () => {
       const managerUser = newUser();
-      managerUser.avatar = null;
       const workspace = newWorkspace();
       const workspaceUser = newWorkspaceUser({ workspaceId: workspace.id });
       const team = newWorkspaceTeam({
@@ -1327,7 +1317,6 @@ describe('WorkspacesUsecases', () => {
         memberId: managerUser.uuid,
       });
 
-      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(managerUser);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
@@ -1342,7 +1331,6 @@ describe('WorkspacesUsecases', () => {
       );
 
       expect(memberDetails).toMatchObject({
-        workspaceUser,
         user: {
           name: managerUser.name,
           lastname: managerUser.lastname,
@@ -1350,6 +1338,12 @@ describe('WorkspacesUsecases', () => {
           uuid: managerUser.uuid,
           id: managerUser.id,
           avatar: null,
+          memberId: workspaceUser.memberId,
+          workspaceId: workspaceUser.workspaceId,
+          spaceLimit: workspaceUser.spaceLimit.toString(),
+          driveUsage: workspaceUser.driveUsage.toString(),
+          backupsUsage: workspaceUser.backupsUsage.toString(),
+          deactivated: workspaceUser.deactivated,
         },
         teams: [{ ...team, isManager: team.isUserManager(managerUser) }],
       });
@@ -1358,7 +1352,9 @@ describe('WorkspacesUsecases', () => {
 
   describe('getTeamMembers', () => {
     it('When members are found, then it should return members data', async () => {
-      const member1 = newUser();
+      const member1 = newUser({
+        attributes: { avatar: '693d930a-b497-43a2-825d-bd43a45b44b7' },
+      });
       const member2 = newUser();
       const avatarUrl = 'avatarUrl';
       jest
@@ -1383,7 +1379,7 @@ describe('WorkspacesUsecases', () => {
           email: member2.email,
           id: member2.id,
           uuid: member2.uuid,
-          avatar: avatarUrl,
+          avatar: null,
         },
       ]);
     });
@@ -1398,19 +1394,7 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('deactivateWorkspaceUser', () => {
-    it('When user is not part of workspace, then it should throw', async () => {
-      const workspace = newWorkspace();
-
-      jest
-        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
-        .mockResolvedValue({ workspace, workspaceUser: null });
-
-      await expect(
-        service.deactivateWorkspaceUser(newUser(), 'workspaceId', 'memberId'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When workspace is not valid, then it should throw', async () => {
+    it('When user is not valid or it is not part of workspace, then it should throw', async () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceAndUser')
         .mockResolvedValue({ workspace: null, workspaceUser: null });

@@ -157,12 +157,15 @@ describe('SequelizeWorkspaceTeamRepository', () => {
   });
 
   describe('getTeamAndMemberByWorkspaceAndMemberId', () => {
+    const workspaceId = 'cc0b0b43-30cb-47cc-8461-7fda2caad132';
+    const memberId = '79a88429-b45a-4ae7-90f1-c351b6882670';
+
     it('When members are not found, then return empty array', async () => {
       jest.spyOn(workspaceTeamUserModel, 'findAll').mockResolvedValueOnce([]);
 
       const result = await repository.getTeamAndMemberByWorkspaceAndMemberId(
-        'workspaceiD',
-        'memberId',
+        workspaceId,
+        memberId,
       );
 
       expect(result).toEqual([]);
@@ -184,8 +187,8 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       ] as any);
 
       const result = await repository.getTeamAndMemberByWorkspaceAndMemberId(
-        'workspaceiD',
-        'memberId',
+        workspaceId,
+        memberId,
       );
 
       expect(result).toEqual([

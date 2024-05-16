@@ -357,7 +357,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'memberId', type: String, required: true })
   @ApiOkResponse({
-    description: 'Details of workpace member',
+    description: 'Details of the workspace members',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
