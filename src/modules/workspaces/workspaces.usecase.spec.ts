@@ -7,9 +7,12 @@ import { ConfigService } from '@nestjs/config';
 import { createMock } from '@golevelup/ts-jest';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import {
+  newFile,
+  newFolder,
   newUser,
   newWorkspace,
   newWorkspaceInvite,
+  newWorkspaceItemUser,
   newWorkspaceTeam,
   newWorkspaceTeamUser,
   newWorkspaceUser,
@@ -25,6 +28,11 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { FileUseCases } from '../file/file.usecase';
+import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -45,6 +53,8 @@ describe('WorkspacesUsecases', () => {
   let mailerService: MailerService;
   let networkService: BridgeService;
   let configService: ConfigService;
+  let folderUseCases: FolderUseCases;
+  let fileUseCases: FileUseCases;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -67,6 +77,8 @@ describe('WorkspacesUsecases', () => {
     mailerService = module.get<MailerService>(MailerService);
     networkService = module.get<BridgeService>(BridgeService);
     configService = module.get<ConfigService>(ConfigService);
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
+    fileUseCases = module.get<FileUseCases>(FileUseCases);
   });
 
   it('should be defined', () => {
@@ -1274,6 +1286,247 @@ describe('WorkspacesUsecases', () => {
         activatedUsers: [{ isManager: true }, { isManager: false }],
         disabledUsers: [],
       });
+    });
+  });
+
+  describe('createFolder', () => {
+    const workspaceId = 'faa056fc-db0f-4ed9-8c39-a067f7124685';
+    const createFolderDto: CreateWorkspaceFolderDto = {
+      name: 'New Folder',
+      parentFolderUuid: '5f2fa203-6e09-4a82-8b51-1567f9b3f11e',
+    };
+
+    it('When parent folder is not found, then throw', async () => {
+      const user = newUser();
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
+
+      await expect(
+        service.createFolder(user, workspaceId, createFolderDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not owner of parent folder, then it should throw', async () => {
+      const user = newUser();
+      const folderItem = newWorkspaceItemUser();
+
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+
+      await expect(
+        service.createFolder(user, workspaceId, createFolderDto),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to create folder in workspace root folder, then it should throw', async () => {
+      const user = newUser();
+      const parentFolderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const workspace = newWorkspace({
+        attributes: { rootFolderId: createFolderDto.parentFolderUuid },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(parentFolderItem);
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+
+      await expect(
+        service.createFolder(user, workspaceId, createFolderDto),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user has access to parent folder and it is not workspace root folder, then it should create folder successfully', async () => {
+      const user = newUser();
+      const networkUser = newUser();
+      const workspace = newWorkspace();
+      const parentFolderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFolder = newFolder({
+        owner: user,
+      });
+      const createdItemFolder = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.Folder,
+      });
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(parentFolderItem);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(networkUser);
+      jest
+        .spyOn(folderUseCases, 'createFolder')
+        .mockResolvedValue(createdFolder);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFolder);
+
+      const result = await service.createFolder(
+        user,
+        workspaceId,
+        createFolderDto,
+      );
+
+      expect(result).toEqual({ ...createdFolder, item: createdItemFolder });
+    });
+  });
+
+  describe('createFile', () => {
+    const workspaceId = 'workspace-id';
+    const createFileDto: CreateWorkspaceFileDto = {
+      name: 'New File',
+      bucket: 'bucket-id',
+      fileId: 'file-id',
+      encryptVersion: 'v1',
+      folderUuid: 'folder-uuid',
+      size: BigInt(1024),
+      plainName: 'plain-name',
+      type: 'text/plain',
+      modificationTime: new Date(),
+      date: new Date(),
+    };
+
+    it('When users do not have space, then it should throw', async () => {
+      const user = newUser();
+      const workspaceUserWithNoSpace = newWorkspaceUser({
+        attributes: { spaceLimit: BigInt(1024), driveUsage: BigInt(1024) },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUserWithNoSpace);
+
+      await expect(
+        service.createFile(user, workspaceId, createFileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When file size is bigger than free space, then it should throw', async () => {
+      const user = newUser();
+      const size = BigInt(2000);
+      const workspaceUserWithNoSpace = newWorkspaceUser({
+        attributes: { spaceLimit: BigInt(1024), driveUsage: BigInt(1024) },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUserWithNoSpace);
+
+      await expect(
+        service.createFile(user, workspaceId, { ...createFileDto, size }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When parent folder is not valid, then it should throw', async () => {
+      const user = newUser();
+      const size = BigInt(2000);
+      const workspaceUser = newWorkspaceUser({
+        attributes: { spaceLimit: BigInt(2048), driveUsage: BigInt(1024) },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
+
+      await expect(
+        service.createFile(user, workspaceId, { ...createFileDto, size }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user does not own the parent folder, then it should throw', async () => {
+      const user = newUser();
+      const fileSize = BigInt(1000);
+      const workspaceUser = newWorkspaceUser({
+        attributes: { spaceLimit: fileSize + BigInt(1) },
+      });
+      const folderItem = newWorkspaceItemUser();
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+
+      await expect(
+        service.createFile(user, workspaceId, {
+          ...createFileDto,
+          size: fileSize,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When parent folder is the workspace root folder, then it should throw', async () => {
+      const user = newUser();
+      const fileSize = BigInt(2000);
+      const workspace = newWorkspace({
+        attributes: { rootFolderId: createFileDto.folderUuid },
+      });
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: fileSize + BigInt(1),
+          rootFolderId: createFileDto.folderUuid,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+
+      await expect(
+        service.createFile(user, workspaceId, {
+          ...createFileDto,
+          size: fileSize,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When workspace user has enough space and parent folder is valid, then it should create file successfully', async () => {
+      const user = newUser();
+      const fileSize = BigInt(2000);
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: fileSize + BigInt(1),
+          rootFolderId: createFileDto.folderUuid,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(fileUseCases, 'createFile').mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+
+      const result = await service.createFile(user, workspaceId, {
+        ...createFileDto,
+        size: fileSize,
+      });
+
+      expect(result).toEqual({ ...createdFile, item: createdItemFile });
     });
   });
 

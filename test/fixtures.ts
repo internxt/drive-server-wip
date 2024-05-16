@@ -21,6 +21,12 @@ import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.
 import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
+import {
+  WorkspaceItemContext,
+  WorkspaceItemType,
+  WorkspaceItemUserAttributes,
+} from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -364,12 +370,8 @@ export const newWorkspaceUser = (params?: {
     key: randomDataGenerator.string({ length: 32 }),
     workspaceId: params?.workspaceId || v4(),
     spaceLimit: BigInt(spaceLimit),
-    driveUsage: BigInt(
-      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
-    ),
-    backupsUsage: BigInt(
-      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
-    ),
+    driveUsage: BigInt(0),
+    backupsUsage: BigInt(0),
     deactivated: randomDataGenerator.bool(),
     createdAt: randomCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
@@ -410,6 +412,36 @@ export const newWorkspaceInvite = (params?: {
 
   return workspaceInvite;
 };
+
+export const newWorkspaceItemUser = (params?: {
+  attributes?: Partial<WorkspaceItemUserAttributes>;
+  workspaceId?: string;
+  itemId?: string;
+  itemType?: WorkspaceItemType;
+  context?: WorkspaceItemContext;
+  createdBy?: User['uuid'];
+}): WorkspaceItemUser => {
+  const randomCreatedAt = randomDataGenerator.date();
+
+  const workspaceItemUser = WorkspaceItemUser.build({
+    id: v4(),
+    workspaceId: params?.workspaceId || v4(),
+    itemId: params?.itemId || v4(),
+    itemType: params?.itemType || WorkspaceItemType.Folder,
+    context: params?.context || WorkspaceItemContext.Drive,
+    createdBy: params?.createdBy || v4(),
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      workspaceItemUser[key] = params.attributes[key];
+    });
+
+  return workspaceItemUser;
+};
+
 export function generateBase64PrivateKeyStub(): string {
   const { privateKey } = generateKeyPairSync('rsa', {
     modulusLength: 4096,
