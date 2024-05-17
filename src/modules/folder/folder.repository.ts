@@ -378,18 +378,18 @@ export class SequelizeFolderRepository implements FolderRepository {
     userId: UserAttributes['id'],
     name: FolderAttributes['name'],
     bucket: FolderAttributes['bucket'],
-    parentId: FolderAttributes['id'],
-    parentUuid: FolderAttributes['uuid'],
+    parentId: FolderAttributes['parentId'],
     encryptVersion: FolderAttributes['encryptVersion'],
+    parentUuid?: FolderAttributes['parentUuid'],
   ): Promise<Folder> {
     const folder = await this.folderModel.create({
       userId,
       name,
       bucket,
       parentId,
-      parentUuid,
       encryptVersion,
       uuid: v4(),
+      parentUuid,
     });
 
     return this.toDomain(folder);
@@ -400,8 +400,9 @@ export class SequelizeFolderRepository implements FolderRepository {
       userId: UserAttributes['id'];
       name: FolderAttributes['name'];
       bucket: FolderAttributes['bucket'];
-      parentId: FolderAttributes['id'];
+      parentId: FolderAttributes['parentId'];
       encryptVersion: FolderAttributes['encryptVersion'];
+      parentUuid: FolderAttributes['parentUuid'];
     }[],
   ): Promise<Folder[]> {
     const rawFolders = await this.folderModel.bulkCreate(folders);
