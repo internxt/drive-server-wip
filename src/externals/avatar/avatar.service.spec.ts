@@ -73,7 +73,7 @@ describe('Avatar Service', () => {
 
       mockS3Client
         .on(DeleteObjectCommand, {
-          Bucket: process.env.AVATAR_BUCKET,
+          Bucket: 'avatars',
           Key: avatarKey,
         })
         .resolves({

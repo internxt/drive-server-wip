@@ -27,6 +27,7 @@ import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 import { Express } from 'express';
+import { v4 } from 'uuid';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1278,6 +1279,170 @@ describe('WorkspacesUsecases', () => {
         activatedUsers: [{ isManager: true }, { isManager: false }],
         disabledUsers: [],
       });
+    });
+  });
+
+  describe('getMemberDetails', () => {
+    it('When user is not found, then it should throw', async () => {
+      const workspace = newWorkspace();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.getMemberDetails(workspace.id, 'memberId'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not part of workspace, then it should throw', async () => {
+      const userNotMember = newUser();
+      const workspace = newWorkspace();
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(userNotMember);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.getMemberDetails(workspace.id, userNotMember.uuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user and workspace are valid and user is part of workspace, then it should return the member data', async () => {
+      const managerUser = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({ workspaceId: workspace.id });
+      const team = newWorkspaceTeam({
+        workspaceId: workspace.id,
+        manager: managerUser,
+      });
+      const teamUser = newWorkspaceTeamUser({
+        teamId: team.id,
+        memberId: managerUser.uuid,
+      });
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(managerUser);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(teamRepository, 'getTeamAndMemberByWorkspaceAndMemberId')
+        .mockResolvedValue([{ team, teamUser }]);
+
+      const memberDetails = await service.getMemberDetails(
+        workspace.id,
+        managerUser.uuid,
+      );
+
+      expect(memberDetails).toMatchObject({
+        user: {
+          name: managerUser.name,
+          lastname: managerUser.lastname,
+          email: managerUser.email,
+          uuid: managerUser.uuid,
+          id: managerUser.id,
+          avatar: null,
+          memberId: workspaceUser.memberId,
+          workspaceId: workspaceUser.workspaceId,
+          spaceLimit: workspaceUser.spaceLimit.toString(),
+          driveUsage: workspaceUser.driveUsage.toString(),
+          backupsUsage: workspaceUser.backupsUsage.toString(),
+          deactivated: workspaceUser.deactivated,
+        },
+        teams: [{ ...team, isManager: team.isUserManager(managerUser) }],
+      });
+    });
+  });
+
+  describe('getTeamMembers', () => {
+    it('When members are found, then it should return members data', async () => {
+      const member1 = newUser({
+        attributes: { avatar: v4() },
+      });
+      const member2 = newUser();
+      const avatarUrl = 'avatarUrl';
+      jest
+        .spyOn(teamRepository, 'getTeamMembers')
+        .mockResolvedValue([member1, member2]);
+      jest.spyOn(userUsecases, 'getAvatarUrl').mockResolvedValue(avatarUrl);
+
+      const result = await service.getTeamMembers(v4());
+
+      expect(result).toEqual([
+        {
+          name: member1.name,
+          lastname: member1.lastname,
+          email: member1.email,
+          id: member1.id,
+          uuid: member1.uuid,
+          avatar: avatarUrl,
+        },
+        {
+          name: member2.name,
+          lastname: member2.lastname,
+          email: member2.email,
+          id: member2.id,
+          uuid: member2.uuid,
+          avatar: null,
+        },
+      ]);
+    });
+
+    it('When members are not found, then it should return empty', async () => {
+      jest.spyOn(teamRepository, 'getTeamMembers').mockResolvedValue([]);
+
+      const result = await service.getTeamMembers(v4());
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('deactivateWorkspaceUser', () => {
+    it('When user is not valid or it is not part of workspace, then it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace: null, workspaceUser: null });
+
+      await expect(
+        service.deactivateWorkspaceUser(newUser(), 'workspaceId', 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is owner of workspace, then it should throw', async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: owner.uuid,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace, workspaceUser });
+
+      await expect(
+        service.deactivateWorkspaceUser(owner, 'workspaceId', 'memberId'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is valid, then it is deactivated', async () => {
+      const member = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: member.uuid,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceAndUser')
+        .mockResolvedValue({ workspace, workspaceUser });
+
+      await service.deactivateWorkspaceUser(member, 'workspaceId', 'memberId');
+
+      expect(workspaceRepository.deactivateWorkspaceUser).toHaveBeenCalledWith(
+        member.uuid,
+        workspace.id,
+      );
     });
   });
 
