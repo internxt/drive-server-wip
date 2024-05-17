@@ -45,6 +45,7 @@ import {
   WorkspaceItemContext,
   WorkspaceItemType,
 } from './attributes/workspace-items-users.attributes';
+import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -930,9 +931,25 @@ export class WorkspacesUsecases {
     };
   }
 
-  async getTeamMembers(teamId: WorkspaceTeam['id']) {
+  async getTeamMembers(
+    teamId: WorkspaceTeam['id'],
+  ): Promise<Pick<User, 'uuid' | 'email' | 'name' | 'lastname' | 'avatar'>[]> {
     const members = await this.teamRepository.getTeamMembers(teamId);
-    return members;
+
+    const membersInfo = await Promise.all(
+      members.map(async (member) => ({
+        name: member.name,
+        lastname: member.lastname,
+        email: member.email,
+        id: member.id,
+        uuid: member.uuid,
+        avatar: member.avatar
+          ? await this.userUsecases.getAvatarUrl(member.avatar)
+          : null,
+      })),
+    );
+
+    return membersInfo;
   }
 
   async editTeamData(teamId: WorkspaceTeam['id'], editTeamDto: EditTeamDto) {
@@ -1002,6 +1019,52 @@ export class WorkspacesUsecases {
     return newMember;
   }
 
+  async getMemberDetails(
+    workspaceId: WorkspaceAttributes['id'],
+    memberId: User['uuid'],
+  ) {
+    const [workspaceUser, user] = await Promise.all([
+      this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspaceId,
+        memberId,
+      }),
+      this.userRepository.findByUuid(memberId),
+    ]);
+
+    if (!workspaceUser || !user) {
+      throw new NotFoundException('User was not found');
+    }
+
+    const workspaceTeamUser =
+      await this.teamRepository.getTeamAndMemberByWorkspaceAndMemberId(
+        workspaceId,
+        workspaceUser.memberId,
+      );
+
+    return {
+      user: {
+        name: user.name,
+        lastname: user.lastname,
+        email: user.email,
+        uuid: user.uuid,
+        id: user.id,
+        avatar: user.avatar
+          ? await this.userUsecases.getAvatarUrl(user.avatar)
+          : null,
+        memberId: workspaceUser.memberId,
+        workspaceId: workspaceUser.workspaceId,
+        spaceLimit: workspaceUser.spaceLimit.toString(),
+        driveUsage: workspaceUser.driveUsage.toString(),
+        backupsUsage: workspaceUser.backupsUsage.toString(),
+        deactivated: workspaceUser.deactivated,
+      },
+      teams: workspaceTeamUser.map((teamUserData) => ({
+        ...teamUserData.team,
+        isManager: teamUserData.team.isUserManager(user),
+      })),
+    };
+  }
+
   async getAndValidateNonDefaultTeamWorkspace(teamId: string) {
     const team = await this.teamRepository.getTeamById(teamId);
 
@@ -1022,6 +1085,33 @@ export class WorkspacesUsecases {
     }
 
     return { team, workspace };
+  }
+
+  async deactivateWorkspaceUser(
+    user: User,
+    memberId: WorkspaceUserAttributes['memberId'],
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const { workspace, workspaceUser } =
+      await this.workspaceRepository.findWorkspaceAndUser(
+        memberId,
+        workspaceId,
+      );
+
+    if (!workspace || !workspaceUser) {
+      throw new BadRequestException('This user is not part of workspace');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new BadRequestException(
+        'You can not deactivate the owner of the workspace',
+      );
+    }
+
+    await this.workspaceRepository.deactivateWorkspaceUser(
+      workspaceUser.memberId,
+      workspace.id,
+    );
   }
 
   async changeTeamManager(

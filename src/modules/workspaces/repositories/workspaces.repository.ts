@@ -228,6 +228,16 @@ export class SequelizeWorkspaceRepository {
     };
   }
 
+  async deactivateWorkspaceUser(
+    memberId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(
+      { deactivated: true },
+      { where: { memberId, workspaceId } },
+    );
+  }
+
   async findUserAvailableWorkspaces(userUuid: string) {
     const userWorkspaces = await this.modelWorkspaceUser.findAll({
       where: { memberId: userUuid },
