@@ -1353,7 +1353,7 @@ describe('WorkspacesUsecases', () => {
   describe('getTeamMembers', () => {
     it('When members are found, then it should return members data', async () => {
       const member1 = newUser({
-        attributes: { avatar: '693d930a-b497-43a2-825d-bd43a45b44b7' },
+        attributes: { avatar: v4() },
       });
       const member2 = newUser();
       const avatarUrl = 'avatarUrl';
