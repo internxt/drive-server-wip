@@ -193,7 +193,8 @@ export class FolderUseCases {
     creator: User,
     folders: {
       name: FolderAttributes['name'];
-      parentFolderId: FolderAttributes['id'];
+      parentFolderId: FolderAttributes['parentId'];
+      parentUuid: FolderAttributes['parentUuid'];
     }[],
   ): Promise<Folder[]> {
     for (const { parentFolderId } of folders) {
@@ -226,6 +227,7 @@ export class FolderUseCases {
           encryptVersion: '03-aes',
           bucket: null,
           parentId: folder.parentFolderId,
+          parentUuid: folder.parentUuid,
         };
       }),
     );
@@ -234,7 +236,8 @@ export class FolderUseCases {
   async createFolder(
     creator: User,
     name: FolderAttributes['name'],
-    parentFolderId: FolderAttributes['id'],
+    parentFolderId: FolderAttributes['parentId'],
+    parentUuid: FolderAttributes['parentUuid'],
   ): Promise<Folder> {
     if (parentFolderId >= 2147483648) {
       throw new Error('Invalid parent folder');
@@ -285,6 +288,7 @@ export class FolderUseCases {
       null,
       parentFolderId,
       '03-aes',
+      parentUuid,
     );
 
     return folder;
