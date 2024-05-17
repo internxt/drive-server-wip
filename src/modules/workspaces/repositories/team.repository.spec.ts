@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
 import {
+  newUser,
   newWorkspace,
   newWorkspaceTeam,
   newWorkspaceTeamUser,
@@ -157,15 +158,15 @@ describe('SequelizeWorkspaceTeamRepository', () => {
   });
 
   describe('getTeamAndMemberByWorkspaceAndMemberId', () => {
-    const workspaceId = 'cc0b0b43-30cb-47cc-8461-7fda2caad132';
-    const memberId = '79a88429-b45a-4ae7-90f1-c351b6882670';
+    const workspace = newWorkspace();
+    const member = newUser();
 
     it('When members are not found, then return empty array', async () => {
       jest.spyOn(workspaceTeamUserModel, 'findAll').mockResolvedValueOnce([]);
 
       const result = await repository.getTeamAndMemberByWorkspaceAndMemberId(
-        workspaceId,
-        memberId,
+        workspace.id,
+        member.uuid,
       );
 
       expect(result).toEqual([]);
@@ -187,8 +188,8 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       ] as any);
 
       const result = await repository.getTeamAndMemberByWorkspaceAndMemberId(
-        workspaceId,
-        memberId,
+        workspace.id,
+        member.uuid,
       );
 
       expect(result).toEqual([
