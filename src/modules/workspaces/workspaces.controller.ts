@@ -109,7 +109,7 @@ export class WorkspacesController {
     description: 'Members of the team',
   })
   @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getTeamMembers(
     @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
   ) {
@@ -346,6 +346,53 @@ export class WorkspacesController {
       teamId,
       userUuid,
       changeUserRoleBody,
+    );
+  }
+
+  @Get(':workspaceId/members/:memberId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Gets workspace member details',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Details of the workspace members',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceMemberDetails(
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.getMemberDetails(workspaceId, memberId);
+  }
+
+  @Patch(':workspaceId/members/:memberId/deactivate')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Deactivate user from workspace',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User successfully deactivated',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async deactivateWorkspaceMember(
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.deactivateWorkspaceUser(
+      user,
+      memberId,
+      workspaceId,
     );
   }
 }
