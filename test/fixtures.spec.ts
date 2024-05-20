@@ -1,8 +1,13 @@
+import { v4 } from 'uuid';
 import {
   LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { FileStatus } from '../src/modules/file/file.domain';
+import {
+  WorkspaceItemContext,
+  WorkspaceItemType,
+} from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import * as fixtures from './fixtures';
 
 describe('Testing fixtures tests', () => {
@@ -459,6 +464,55 @@ describe('Testing fixtures tests', () => {
 
       expect(teamUser.memberId).toBe(customAttributes.memberId);
       expect(teamUser.teamId).toBe(customAttributes.teamId);
+    });
+  });
+
+  describe("WorkspaceItemUser's fixture", () => {
+    it('When it generates a workspace item user, then the identifier should be random', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      const otherItemUser = fixtures.newWorkspaceItemUser();
+
+      expect(itemUser.id).toBeTruthy();
+      expect(itemUser.id).not.toBe(otherItemUser.id);
+    });
+
+    it('When it generates a workspace item user, then the workspaceId should be random', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      const otherItemUser = fixtures.newWorkspaceItemUser();
+
+      expect(itemUser.workspaceId).toBeTruthy();
+      expect(itemUser.workspaceId).not.toBe(otherItemUser.workspaceId);
+    });
+
+    it('When it generates a workspace item user, then the itemType should be populated', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      expect(itemUser.itemType).toBeTruthy();
+      expect(Object.values(WorkspaceItemType)).toContain(itemUser.itemType);
+    });
+
+    it('When it generates a workspace item user, then the context should be populated', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      expect(itemUser.context).toBeTruthy();
+      expect(Object.values(WorkspaceItemContext)).toContain(itemUser.context);
+    });
+
+    it('When it generates a workspace item user with a specified creator, then the createdBy should match', () => {
+      const createdBy = v4();
+      const itemUser = fixtures.newWorkspaceItemUser({ createdBy });
+      expect(itemUser.createdBy).toBe(createdBy);
+    });
+
+    it('When it generates a workspace item user with custom attributes, then those attributes are set correctly', () => {
+      const customAttributes = {
+        itemType: WorkspaceItemType.File,
+        context: WorkspaceItemContext.Backup,
+      };
+      const itemUser = fixtures.newWorkspaceItemUser({
+        attributes: customAttributes,
+      });
+
+      expect(itemUser.itemType).toBe(customAttributes.itemType);
+      expect(itemUser.context).toBe(customAttributes.context);
     });
   });
 });
