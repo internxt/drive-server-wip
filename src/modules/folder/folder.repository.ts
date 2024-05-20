@@ -12,6 +12,8 @@ import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { Literal } from 'sequelize/types/utils';
 
 function mapSnakeCaseToCamelCase(data) {
@@ -30,6 +32,9 @@ function mapSnakeCaseToCamelCase(data) {
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
 export interface FolderRepository {
+  createWithAttributes(
+    newFolder: Omit<FolderAttributes, 'id'>,
+  ): Promise<Folder>;
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
@@ -49,12 +54,20 @@ export interface FolderRepository {
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findOne(where: Partial<FolderAttributes>): Promise<Folder | null>;
   findInTree(
     folderTreeRootId: FolderAttributes['parentId'],
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
     deleted: FolderAttributes['deleted'],
   ): Promise<FindInTreeResponse | null>;
+  findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Array<Folder> | []>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -151,6 +164,34 @@ export class SequelizeFolderRepository implements FolderRepository {
       offset,
       where,
       order,
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const folders = await this.folderModel.findAll({
+      include: [
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+          },
+        },
+      ],
+      limit,
+      offset,
+      where,
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return folders.map(this.toDomain.bind(this));
@@ -325,11 +366,20 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
+  async createWithAttributes(
+    newFolder: Omit<FolderAttributes, 'id'>,
+  ): Promise<Folder> {
+    const folder = await this.folderModel.create(newFolder);
+
+    return this.toDomain(folder);
+  }
+
   async create(
     userId: UserAttributes['id'],
     name: FolderAttributes['name'],
     bucket: FolderAttributes['bucket'],
     parentId: FolderAttributes['id'],
+    parentUuid: FolderAttributes['uuid'],
     encryptVersion: FolderAttributes['encryptVersion'],
   ): Promise<Folder> {
     const folder = await this.folderModel.create({
@@ -337,6 +387,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       name,
       bucket,
       parentId,
+      parentUuid,
       encryptVersion,
       uuid: v4(),
     });

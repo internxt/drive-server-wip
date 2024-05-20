@@ -11,8 +11,11 @@ import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 export interface FileRepository {
+  create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
@@ -29,6 +32,7 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
+  findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
   findByUuid(
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
@@ -91,6 +95,12 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
+    const raw = await this.fileModel.create(file);
+
+    return raw ? this.toDomain(raw) : null;
   }
 
   async findByFileIds(
@@ -252,6 +262,30 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: {
+        model: WorkspaceItemUserModel,
+        where: { createdBy },
+      },
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -285,6 +319,43 @@ export class SequelizeFileRepository implements FileRepository {
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnailsInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+          },
         },
       ],
       subQuery: false,
@@ -372,6 +443,13 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
         deleted,
       },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where,
     });
     return file ? this.toDomain(file) : null;
   }

@@ -29,6 +29,8 @@ module.exports = {
           model: 'workspaces',
           key: 'id',
         },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
       },
       space_limit: Sequelize.BIGINT.UNSIGNED,
       drive_usage: Sequelize.BIGINT.UNSIGNED,

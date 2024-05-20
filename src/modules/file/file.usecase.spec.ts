@@ -3,7 +3,9 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
+  ConflictException,
   ForbiddenException,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { File, FileAttributes, FileStatus } from './file.domain';
@@ -20,6 +22,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { CreateFileDto } from './dto/create-file.dto';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -622,6 +625,83 @@ describe('FileUseCases', () => {
       ).rejects.toThrow(
         'A file with the same name already exists in destination folder',
       );
+    });
+  });
+
+  describe('createFile', () => {
+    const newFileDto: CreateFileDto = {
+      name: 'Test File',
+      bucket: 'test-bucket',
+      fileId: 'file-id',
+      encryptVersion: 'v1',
+      folderUuid: 'folder-uuid',
+      size: BigInt(100),
+      plainName: 'test-file.txt',
+      type: 'text/plain',
+      modificationTime: new Date(),
+      date: new Date(),
+    };
+
+    it('When folder does not exist, then it should throw', async () => {
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(null);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When folder is not owned by user, then it should throw', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id + 1 } });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When file with same name already exists in folder, then it should throw', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+      const existingFile = newFile({
+        attributes: {
+          folderId: folder.id,
+          name: newFileDto.name,
+          plainName: newFileDto.plainName,
+        },
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(existingFile);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('When file is created successfully, then it should return the new file', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(null);
+
+      const createdFile = newFile({
+        attributes: {
+          ...newFileDto,
+          id: 1,
+          folderId: folder.id,
+          folderUuid: folder.uuid,
+          userId: userMocked.id,
+          uuid: v4(),
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+      const result = await service.createFile(userMocked, newFileDto);
+
+      expect(result).toEqual(createdFile);
     });
   });
 });
