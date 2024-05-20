@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
-import { FindOptions, Op } from 'sequelize';
+import { FindOptions, Op, Sequelize } from 'sequelize';
+import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
@@ -10,8 +11,11 @@ import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 export interface FileRepository {
+  create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
@@ -28,6 +32,7 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
+  findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
   findByUuid(
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
@@ -90,6 +95,12 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
+    const raw = await this.fileModel.create(file);
+
+    return raw ? this.toDomain(raw) : null;
   }
 
   async findByFileIds(
@@ -208,17 +219,68 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  private applyCollateToPlainNameSort(
+    order: Array<[keyof FileModel, string]>,
+  ): Array<[keyof FileModel, string] | Literal> {
+    const plainNameIndex = order.findIndex(
+      ([field, _]) => field === 'plainName',
+    );
+    const isPlainNameSort = plainNameIndex !== -1;
+
+    if (!isPlainNameSort) {
+      return order;
+    }
+
+    const newOrder: Array<[keyof FileModel, string] | Literal> =
+      structuredClone(order);
+    const [, orderDirection] = order[plainNameIndex];
+    newOrder[plainNameIndex] = Sequelize.literal(
+      `plain_name COLLATE "custom_numeric" ${
+        orderDirection === 'ASC' ? 'ASC' : 'DESC'
+      }`,
+    );
+
+    return newOrder;
+  }
+
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const files = await this.fileModel.findAll({
       limit,
       offset,
       where,
-      order,
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: {
+        model: WorkspaceItemUserModel,
+        where: { createdBy },
+      },
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
@@ -230,6 +292,8 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
     const files = await this.fileModel.findAll({
       limit,
       offset,
@@ -257,7 +321,45 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
       ],
-      order,
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnailsInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+          },
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
@@ -341,6 +443,13 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
         deleted,
       },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where,
     });
     return file ? this.toDomain(file) : null;
   }

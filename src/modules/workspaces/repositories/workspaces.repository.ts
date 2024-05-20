@@ -13,6 +13,9 @@ import { WorkspaceUserAttributes } from '../attributes/workspace-users.attribute
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { Op } from 'sequelize';
+import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
+import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
+import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 
 export interface WorkspaceRepository {
   findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
@@ -43,7 +46,7 @@ export interface WorkspaceRepository {
 }
 
 @Injectable()
-export class SequelizeWorkspaceRepository implements WorkspaceRepository {
+export class SequelizeWorkspaceRepository {
   constructor(
     @InjectModel(WorkspaceModel)
     private modelWorkspace: typeof WorkspaceModel,
@@ -51,6 +54,8 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     private modelWorkspaceUser: typeof WorkspaceUserModel,
     @InjectModel(WorkspaceInviteModel)
     private modelWorkspaceInvite: typeof WorkspaceInviteModel,
+    @InjectModel(WorkspaceItemUserModel)
+    private modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
   ) {}
   async findById(id: WorkspaceAttributes['id']): Promise<Workspace | null> {
     const workspace = await this.modelWorkspace.findByPk(id);
@@ -148,6 +153,33 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
   }
 
+  async createFile(inviteId: WorkspaceInviteAttributes['id']): Promise<void> {
+    await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
+  }
+
+  async createItem(
+    item: Omit<WorkspaceItemUserAttributes, 'id'>,
+  ): Promise<WorkspaceItemUser | null> {
+    const newItem = await this.modelWorkspaceItemUser.create(item);
+
+    return newItem ? this.workspaceItemUserToDomain(newItem) : null;
+  }
+
+  async getItemsBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<WorkspaceItemUser[]> {
+    const items = await this.modelWorkspaceItemUser.findAll({ where });
+    return items.map((item) => this.workspaceItemUserToDomain(item));
+  }
+
+  async getItemBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<WorkspaceItemUser | null> {
+    const item = await this.modelWorkspaceItemUser.findOne({ where });
+
+    return item ? this.workspaceItemUserToDomain(item) : null;
+  }
+
   async deleteUserFromWorkspace(
     memberId: WorkspaceUser['memberId'],
     workspaceId: WorkspaceUser['id'],
@@ -223,6 +255,16 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
         ? this.workspaceUserToDomain(workspace.workspaceUsers[0])
         : null,
     };
+  }
+
+  async deactivateWorkspaceUser(
+    memberId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(
+      { deactivated: true },
+      { where: { memberId, workspaceId } },
+    );
   }
 
   async findUserAvailableWorkspaces(userUuid: string) {
@@ -319,6 +361,15 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     await this.modelWorkspace.update(update, { where, transaction });
   }
 
+  async updateWorkspaceUser(
+    workspaceUserId: WorkspaceUserAttributes['id'],
+    update: Partial<WorkspaceUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(update, {
+      where: { id: workspaceUserId },
+    });
+  }
+
   toDomain(model: WorkspaceModel): Workspace {
     return Workspace.build({
       ...model.toJSON(),
@@ -329,6 +380,12 @@ export class SequelizeWorkspaceRepository implements WorkspaceRepository {
     return WorkspaceUser.build({
       ...model?.toJSON(),
       member: model.member ? User.build(model.member) : null,
+    });
+  }
+
+  workspaceItemUserToDomain(model: WorkspaceItemUserModel): WorkspaceItemUser {
+    return WorkspaceItemUser.build({
+      ...model?.toJSON(),
     });
   }
 
