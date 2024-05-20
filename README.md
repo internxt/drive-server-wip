@@ -11,7 +11,7 @@
 [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=coverage)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=internxt_drive-server-wip&metric=bugs)](https://sonarcloud.io/summary/new_code?id=internxt_drive-server-wip)
-
+ 
 Drive server WIP is the new API to Drive based on NestJS and following Clean Architecture and DDD(Domain Driven Design).
 
 ## Table of Contents
