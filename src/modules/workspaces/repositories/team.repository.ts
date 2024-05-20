@@ -10,6 +10,7 @@ import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
 import { UserAttributes } from '../../user/user.attributes';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
+import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
 
 @Injectable()
 export class SequelizeWorkspaceTeamRepository {
@@ -35,11 +36,13 @@ export class SequelizeWorkspaceTeamRepository {
 
   async getTeamMembers(teamId: WorkspaceTeamAttributes['id']) {
     const result = await this.teamUserModel.findAll({
-      where: { id: teamId },
-      include: { model: UserModel, as: 'member' },
+      where: { teamId },
+      include: { model: UserModel, required: true },
     });
 
-    return result.map((teamUser) => User.build({ ...teamUser.member }));
+    return result.map((teamUser) =>
+      User.build({ ...teamUser.member.get({ plain: true }) }),
+    );
   }
 
   async getTeamMembersCount(teamId: WorkspaceTeamAttributes['id']) {
@@ -94,6 +97,30 @@ export class SequelizeWorkspaceTeamRepository {
     const raw = await this.teamModel.findOne({ where: { id: teamId } });
 
     return raw ? this.toDomain(raw) : null;
+  }
+
+  async getTeamAndMemberByWorkspaceAndMemberId(
+    workspaceId: WorkspaceAttributes['id'],
+    memberId: WorkspaceTeamUserAttributes['memberId'],
+  ): Promise<
+    {
+      team: WorkspaceTeam;
+      teamUser: WorkspaceTeamUser;
+    }[]
+  > {
+    const memberTeamsAndData = await this.teamUserModel.findAll({
+      where: { memberId },
+      include: {
+        model: this.teamModel,
+        required: true,
+        where: { workspaceId },
+      },
+    });
+
+    return memberTeamsAndData.map((teamUser) => ({
+      team: this.toDomain(teamUser.team),
+      teamUser: this.teamUserToDomain(teamUser),
+    }));
   }
 
   async removeMemberFromTeam(

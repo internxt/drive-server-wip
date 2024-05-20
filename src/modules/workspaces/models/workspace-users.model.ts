@@ -6,10 +6,12 @@ import {
   PrimaryKey,
   ForeignKey,
   BelongsTo,
+  HasOne,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceModel } from './workspace.model';
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
+import { FolderModel } from '../../folder/folder.model';
 
 @Table({
   underscored: true,
@@ -34,6 +36,13 @@ export class WorkspaceUserModel
     as: 'member',
   })
   member: UserModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUID)
+  rootFolderId?: string;
+
+  @HasOne(() => FolderModel, 'uuid')
+  rootFolder: FolderModel;
 
   @Column(DataType.STRING)
   key: string;
