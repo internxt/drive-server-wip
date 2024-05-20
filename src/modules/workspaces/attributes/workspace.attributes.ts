@@ -8,6 +8,7 @@ export interface WorkspaceAttributes {
   defaultTeamId: string;
   workspaceUserId: string;
   setupCompleted: boolean;
+  rootFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

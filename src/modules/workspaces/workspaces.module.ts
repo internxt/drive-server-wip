@@ -15,6 +15,8 @@ import { WorkspaceGuard } from './guards/workspaces.guard';
 import { WorkspaceInviteModel } from './models/workspace-invite.model';
 import { MailerModule } from '../../externals/mailer/mailer.module';
 import { AvatarService } from '../../externals/avatar/avatar.service';
+import { FolderModule } from '../folder/folder.module';
+import { FileModule } from '../file/file.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
       WorkspaceInviteModel,
     ]),
     forwardRef(() => UserModule),
+    forwardRef(() => FolderModule),
+    forwardRef(() => FileModule),
     BridgeModule,
     MailerModule,
   ],

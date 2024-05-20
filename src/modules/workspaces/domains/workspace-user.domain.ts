@@ -7,6 +7,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
   member: User;
   key: string;
   workspaceId: string;
+  rootFolderId?: string;
   spaceLimit: bigint;
   driveUsage: bigint;
   backupsUsage: bigint;
@@ -23,6 +24,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     spaceLimit,
     driveUsage,
     backupsUsage,
+    rootFolderId,
     deactivated,
     createdAt,
     updatedAt,
@@ -32,10 +34,11 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     this.setMember(member);
     this.key = key;
     this.workspaceId = workspaceId;
-    this.spaceLimit = spaceLimit;
-    this.driveUsage = driveUsage;
-    this.backupsUsage = backupsUsage;
+    this.spaceLimit = BigInt(spaceLimit);
+    this.driveUsage = BigInt(driveUsage);
+    this.backupsUsage = BigInt(backupsUsage);
     this.deactivated = deactivated;
+    this.rootFolderId = rootFolderId;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -56,12 +59,21 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     return this.spaceLimit - this.getUsedSpace();
   }
 
+  hasEnoughSpaceForFile(size: bigint): boolean {
+    return this.getFreeSpace() >= size;
+  }
+
+  addDriveUsage(fileSize: bigint): void {
+    this.driveUsage += fileSize;
+  }
+
   toJSON() {
     return {
       id: this.id,
       memberId: this.memberId,
       key: this.key,
       workspaceId: this.workspaceId,
+      rootFolderId: this.rootFolderId,
       spaceLimit: this.spaceLimit.toString(),
       driveUsage: this.driveUsage.toString(),
       backupsUsage: this.backupsUsage.toString(),
