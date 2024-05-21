@@ -267,7 +267,7 @@ export class WorkspacesController {
   async getWorkspaceMembers(
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
-    @Query('search') search: string | null = null,
+    @Query('search') search?: string,
   ) {
     if (!workspaceId || !isUUID(workspaceId)) {
       throw new BadRequestException('Invalid workspace ID');

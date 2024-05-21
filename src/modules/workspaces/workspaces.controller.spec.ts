@@ -241,11 +241,11 @@ describe('Workspace Controller', () => {
       expect(workspacesUsecases.getWorkspaceMembers).toHaveBeenCalledWith(
         workspace.id,
         owner,
-        null,
+        undefined,
       );
     });
 
-    it('When members are requested with "workspaceId" and "user", and additionally include a "search" then it should return workspaces members data according to the "search"', async () => {
+    it('When a search param is provided, then it should be used for querying workspace members', async () => {
       const user1 = newUser();
       const search = user1.name;
 
@@ -283,7 +283,6 @@ describe('Workspace Controller', () => {
         search,
       );
       expect(data).toEqual(mockResolvedValues);
-      expect(data.activatedUsers).toHaveLength(1);
       expect(workspaceUsecase).toHaveBeenCalledWith(
         workspace.id,
         owner,

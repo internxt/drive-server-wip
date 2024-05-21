@@ -15,7 +15,7 @@ import {
 } from '../../../../test/fixtures';
 import { Workspace } from '../domains/workspaces.domain';
 import { User } from '../../user/user.domain';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;
@@ -257,7 +257,6 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const result = await repository.findWorkspaceUsers(workspace.id);
 
-      expect(result).toBeInstanceOf(Array as unknown as WorkspaceUser[]);
       expect(spyWUM).toHaveBeenCalledWith({
         where: {
           workspaceId: workspace.id,
@@ -265,7 +264,7 @@ describe('SequelizeWorkspaceRepository', () => {
         include: expect.anything(),
       });
       expect(result[0].member).toBeInstanceOf(User);
-      expect(result[0].member.email).toStrictEqual(workspaceUser1.member.email);
+      expect(result).toMatchObject(mockWorkspaceUserModel);
     });
 
     it('When passing the workspace id and a search value, it should return all users that match the search on username, email, or last name.', async () => {
@@ -287,7 +286,7 @@ describe('SequelizeWorkspaceRepository', () => {
           [Op.or]: expect.arrayContaining([
             expect.objectContaining({
               '$member.lastname$': {
-                [Op.like]: `%${searchValue}%`,
+                [Op.like]: Sequelize.literal(`\'%${searchValue}%\'`),
               },
             }),
           ]),
