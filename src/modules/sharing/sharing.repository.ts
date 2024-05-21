@@ -8,6 +8,7 @@ import {
 } from './models';
 import { SharingRolesModel } from './models/sharing-roles.model';
 import {
+  Permission,
   Role,
   Sharing,
   SharingAttributes,
@@ -83,6 +84,37 @@ export class SequelizeSharingRepository implements SharingRepository {
     sharingRoleId: SharingRole['id'],
   ): Promise<SharingRole | null> {
     return this.sharingRoles.findByPk(sharingRoleId);
+  }
+
+  async findUserPermissionsInSharing(
+    sharedWith: Sharing['sharedWith'],
+    sharedWithType: Sharing['sharedWithType'],
+    itemId: Sharing['itemId'],
+  ) {
+    const permissions = await this.permissions.findAll({
+      include: [
+        {
+          model: RoleModel,
+          include: [
+            {
+              model: SharingRolesModel,
+              include: [
+                {
+                  model: SharingModel,
+                  where: {
+                    sharedWith,
+                    itemId,
+                    sharedWithType,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    return permissions.map((permission) => this.toDomainPermission(permission));
   }
 
   async findSharingsWithRolesByItem(
@@ -426,6 +458,12 @@ export class SequelizeSharingRepository implements SharingRepository {
         ...file,
         user: user ? User.build(user) : null,
       }),
+    });
+  }
+
+  private toDomainPermission(model: PermissionModel): Permission {
+    return Permission.build({
+      ...model.get({ plain: true }),
     });
   }
 
