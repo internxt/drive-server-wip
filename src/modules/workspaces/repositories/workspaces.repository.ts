@@ -12,7 +12,7 @@ import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attrib
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
@@ -293,17 +293,17 @@ export class SequelizeWorkspaceRepository {
             [Op.or]: [
               {
                 '$member.name$': {
-                  [Op.like]: `%${search}%`,
+                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
                 },
               },
               {
                 '$member.lastname$': {
-                  [Op.like]: `%${search}%`,
+                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
                 },
               },
               {
                 '$member.email$': {
-                  [Op.like]: `%${search}%`,
+                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
                 },
               },
             ],
