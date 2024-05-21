@@ -325,7 +325,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
 
       await expect(
-        service.editWorkspaceDetails('workspace-id', user, editWorkspaceDto),
+        service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -343,7 +343,7 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When workspace is valid, then it should update the workspace details', async () => {
+    it('When the user is the owner of the workspace, then it should update the workspace details', async () => {
       jest
         .spyOn(workspaceRepository, 'findById')
         .mockResolvedValueOnce(workspace);

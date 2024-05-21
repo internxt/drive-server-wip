@@ -483,7 +483,7 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Body() editWorkspaceBody: EditWorkspaceDetailsDto,
   ) {
-    return this.workspaceUseCases.editWorkspaceDetails(
+    return await this.workspaceUseCases.editWorkspaceDetails(
       workspaceId,
       user,
       editWorkspaceBody,
