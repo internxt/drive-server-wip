@@ -14,6 +14,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
 import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import { AccountTokenAction } from './user.domain';
+import { v4 } from 'uuid';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -141,20 +142,52 @@ describe('User Controller', () => {
     });
   });
 
-  describe('GET /meet token', () => {
+  describe('GET /meet token beta', () => {
     const user = newUser();
-    it('When token is requested and user is in the closed beta, then it generates a meet token', async () => {
+    it('When beta token is requested and user is in the closed beta, then it generates a meet token and a new room', async () => {
       userUseCases.getMeetClosedBetaUsers.mockResolvedValue([user.email]);
 
-      const result = await userController.getMeetToken(user);
+      const result = await userController.getMeetTokenBeta(user, null);
+      expect(result.token).toBeDefined();
+      expect(result.room).toBeDefined();
+    });
+
+    it('When beta token with a room is requested and user is in the closed beta, then it generates a meet token and returns that room', async () => {
+      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([user.email]);
+      userUseCases.getBetaUserFromRoom.mockResolvedValue(user);
+
+      const room = v4();
+      const result = await userController.getMeetTokenBeta(user, room);
+      expect(result.token).toBeDefined();
+      expect(result.room).toBe(room);
+    });
+
+    it('When beta token is requested and user is not in the closed beta, then it throws an error', async () => {
+      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([]);
+
+      await expect(userController.getMeetTokenBeta(user, null)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(userController.getMeetTokenBeta(user, v4())).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('GET /meet token anon', () => {
+    const user = newUser();
+    it('When anon token is requested and the room is created, then it generates a new anon meet token', async () => {
+      userUseCases.getBetaUserFromRoom.mockResolvedValue(user);
+
+      const result = await userController.getMeetTokenAnon(v4());
       expect(result.token).toBeDefined();
     });
 
-    it('When token is requested and user is not in the closed beta, then it throws an error', async () => {
-      userUseCases.getMeetClosedBetaUsers.mockResolvedValue([]);
+    it('When anon token is requested and the room is not created, then it throws an error', async () => {
+      userUseCases.getBetaUserFromRoom.mockResolvedValue(null);
 
-      await expect(userController.getMeetToken(user)).rejects.toThrow(
-        UnauthorizedException,
+      await expect(userController.getMeetTokenAnon(v4())).rejects.toThrow(
+        ForbiddenException,
       );
     });
   });

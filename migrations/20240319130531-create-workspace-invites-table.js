@@ -18,6 +18,8 @@ module.exports = {
           model: 'workspaces',
           key: 'id',
         },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
       },
       invited_user: {
         type: Sequelize.UUID,

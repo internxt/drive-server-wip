@@ -13,6 +13,8 @@ module.exports = {
         table: referencedTableName,
         field: 'id',
       },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
     });
   },
 

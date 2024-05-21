@@ -285,8 +285,16 @@ export class UserUseCases {
       // Relate the root folder to the user
       this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
       this.folderUseCases.createFolders(user, [
-        { name: 'Family', parentFolderId: rootFolder.id },
-        { name: 'Personal', parentFolderId: rootFolder.id },
+        {
+          name: 'Family',
+          parentFolderId: rootFolder.id,
+          parentUuid: rootFolder.uuid,
+        },
+        {
+          name: 'Personal',
+          parentFolderId: rootFolder.id,
+          parentUuid: rootFolder.uuid,
+        },
       ]),
     ]);
 
@@ -1123,5 +1131,13 @@ export class UserUseCases {
 
   getMeetClosedBetaUsers() {
     return this.userRepository.getMeetClosedBetaUsers();
+  }
+
+  setRoomToBetaUser(room: string, user: User) {
+    return this.userRepository.setRoomToBetaUser(room, user);
+  }
+
+  getBetaUserFromRoom(room: string) {
+    return this.userRepository.getBetaUserFromRoom(room);
   }
 }
