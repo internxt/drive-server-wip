@@ -65,6 +65,7 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator';
+import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -542,10 +543,11 @@ export class WorkspacesController {
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
-    return this.workspaceUseCases.getFoldersInSharedFolder(
+    return this.workspaceUseCases.getItemsInSharedFolder(
       workspaceId,
       user,
       sharedFolderId,
+      WorkspaceItemType.Folder,
       token,
       { page, perPage, order },
     );
@@ -571,10 +573,11 @@ export class WorkspacesController {
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
-    return this.workspaceUseCases.getFilesInSharedFolder(
+    return this.workspaceUseCases.getItemsInSharedFolder(
       workspaceId,
       user,
       sharedFolderId,
+      WorkspaceItemType.File,
       token,
       { page, perPage, order },
     );
