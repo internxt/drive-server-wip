@@ -23,6 +23,12 @@ import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-inv
 import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
 import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-items-users.domain';
+import {
+  WorkspaceItemContext,
+  WorkspaceItemType,
+  WorkspaceItemUserAttributes,
+} from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
+import { UserAttributes } from '../src/modules/user/user.attributes';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -140,10 +146,12 @@ export const newFile = (params?: NewFilesParams): File => {
   return file;
 };
 
-export const newUser = (): User => {
+export const newUser = (params?: {
+  attributes?: Partial<UserAttributes>;
+}): User => {
   const randomEmail = randomDataGenerator.email();
 
-  return User.build({
+  const user = User.build({
     id: randomDataGenerator.natural(),
     userId: '',
     name: 'John',
@@ -169,9 +177,16 @@ export const newUser = (): User => {
     backupsBucket: '',
     sharedWorkspace: false,
     tempKey: '',
-    avatar: v4(),
+    avatar: null,
     lastPasswordChangedAt: new Date(),
   });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      user[key] = params.attributes[key];
+    });
+
+  return user;
 };
 
 export const publicUser = (): User => {
@@ -288,15 +303,17 @@ export const newWorkspaceTeam = (params?: {
   attributes?: Partial<WorkspaceTeam>;
   workspaceId?: string;
   manager?: User;
+  mainTeam?: boolean;
 }): WorkspaceTeam => {
   const randomCreatedAt = randomDataGenerator.date();
   const manager = params?.manager || newUser();
+  const name = params?.mainTeam ? null : randomDataGenerator.word();
 
   const team = WorkspaceTeam.build({
     id: v4(),
     workspaceId: params?.workspaceId || v4(),
     managerId: manager.uuid,
-    name: randomDataGenerator.word(),
+    name,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({
@@ -317,13 +334,21 @@ export const newWorkspaceTeamUser = (params?: {
   attributes?: Partial<WorkspaceTeamUser>;
   teamId?: string;
   memberId?: User['uuid'];
+  team?: WorkspaceTeam;
 }): WorkspaceTeamUser => {
   const randomCreatedAt = randomDataGenerator.date();
+  const getTeamId = params?.teamId || v4();
+  const team =
+    params?.team ||
+    newWorkspaceTeam({
+      attributes: { id: getTeamId },
+    });
 
   const teamUser = WorkspaceTeamUser.build({
     id: v4(),
-    teamId: params?.teamId || v4(),
+    teamId: getTeamId,
     memberId: params?.memberId || v4(),
+    team,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({
@@ -343,6 +368,7 @@ export const newWorkspaceTeamUser = (params?: {
 export const newWorkspaceUser = (params?: {
   workspaceId?: string;
   memberId?: string;
+  member?: User;
   attributes?: Partial<WorkspaceUser>;
 }): WorkspaceUser => {
   const randomCreatedAt = randomDataGenerator.date();
@@ -351,15 +377,12 @@ export const newWorkspaceUser = (params?: {
   const workspaceUser = WorkspaceUser.build({
     id: v4(),
     memberId: params?.memberId || v4(),
+    member: params?.member,
     key: randomDataGenerator.string({ length: 32 }),
     workspaceId: params?.workspaceId || v4(),
     spaceLimit: BigInt(spaceLimit),
-    driveUsage: BigInt(
-      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
-    ),
-    backupsUsage: BigInt(
-      randomDataGenerator.natural({ min: 1, max: spaceLimit }),
-    ),
+    driveUsage: BigInt(0),
+    backupsUsage: BigInt(0),
     deactivated: randomDataGenerator.bool(),
     createdAt: randomCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
@@ -401,31 +424,35 @@ export const newWorkspaceInvite = (params?: {
   return workspaceInvite;
 };
 
-export const newItemUser = (params?: {
+export const newWorkspaceItemUser = (params?: {
+  attributes?: Partial<WorkspaceItemUserAttributes>;
   workspaceId?: string;
-  createdBy?: string;
-  attributes?: Partial<WorkspaceItemUser>;
+  itemId?: string;
+  itemType?: WorkspaceItemType;
+  context?: WorkspaceItemContext;
+  createdBy?: User['uuid'];
 }): WorkspaceItemUser => {
-  const defaultCreatedAt = new Date(randomDataGenerator.date({ year: 2024 }));
+  const randomCreatedAt = randomDataGenerator.date();
 
-  const itemUser = WorkspaceItemUser.build({
+  const workspaceItemUser = WorkspaceItemUser.build({
     id: v4(),
     workspaceId: params?.workspaceId || v4(),
+    itemId: params?.itemId || v4(),
+    itemType: params?.itemType || WorkspaceItemType.Folder,
+    context: params?.context || WorkspaceItemContext.Drive,
     createdBy: params?.createdBy || v4(),
-    createdAt: defaultCreatedAt,
-    itemId: v4(),
-    itemType: randomDataGenerator.pickone(['file', 'folder']),
-    updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
-    context: 'context',
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
   });
 
   params?.attributes &&
     Object.keys(params.attributes).forEach((key) => {
-      itemUser[key] = params.attributes[key];
+      workspaceItemUser[key] = params.attributes[key];
     });
 
-  return itemUser;
+  return workspaceItemUser;
 };
+
 export function generateBase64PrivateKeyStub(): string {
   const { privateKey } = generateKeyPairSync('rsa', {
     modulusLength: 4096,

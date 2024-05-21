@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class InitializeWorkspaceDto {
   @ApiProperty({
@@ -8,6 +8,13 @@ export class InitializeWorkspaceDto {
   })
   @IsNotEmpty()
   ownerId: string;
+
+  @ApiProperty({
+    example: 'Address from billing',
+    description: 'Address of the workspace',
+  })
+  @IsOptional()
+  address?: string;
 
   @ApiProperty({
     example: '312321312',
