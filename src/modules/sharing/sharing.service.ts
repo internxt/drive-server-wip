@@ -13,7 +13,9 @@ import { v4, validate as validateUuid } from 'uuid';
 import {
   Item,
   Role,
+  SharedWithType,
   Sharing,
+  SharingActionName,
   SharingAttributes,
   SharingInvite,
   SharingRole,
@@ -1975,6 +1977,28 @@ export class SharingService {
           // no op
         });
     }
+  }
+
+  async canUserPerformActionInSharing(
+    sharedWith: Sharing['sharedWith'],
+    resourceId: Sharing['itemId'],
+    action: SharingActionName,
+    sharedWithType = SharedWithType.Individual,
+  ) {
+    const permissions =
+      await this.sharingRepository.findUserPermissionsInSharing(
+        sharedWith,
+        sharedWithType,
+        resourceId,
+      );
+
+    for (const permission of permissions) {
+      if (permission.name === action) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   async notifyUserSharingRoleUpdated(

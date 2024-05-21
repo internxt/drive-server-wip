@@ -1,6 +1,7 @@
 import { File } from '../file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
+import { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
 
 export type Item = File | Folder;
 type ItemId = File['uuid'] | Folder['uuid'];
@@ -19,12 +20,25 @@ export enum SharingItemType {
   Folder = 'folder',
 }
 
+export enum SharedWithType {
+  Individual = 'individual',
+  WorkspaceTeam = 'workspace_team',
+  WorkspaceMember = 'workspace_member',
+}
+
+// This should match with the permissions table for the given user role.
+export enum SharingActionName {
+  UploadFile = 'UPLOAD_FILE',
+  RenameItems = 'RENAME_ITEMS',
+}
+
 export interface SharingAttributes {
   id: string;
   itemId: ItemId;
   itemType: 'file' | 'folder';
   ownerId: User['uuid'];
-  sharedWith: User['uuid'];
+  sharedWith: User['uuid'] | WorkspaceTeam['id'];
+  sharedWithType?: SharedWithType;
   encryptedCode?: string;
   encryptedPassword?: string;
   encryptionKey: string;
@@ -50,11 +64,11 @@ export interface RoleAttributes {
 export interface PermissionAttributes {
   id: string;
   roleId: RoleAttributes['id'];
-  name: string;
+  name: SharingActionName;
 }
 
 export interface SharingInviteAttributes
-  extends Omit<SharingAttributes, 'ownerId' | 'type'> {
+  extends Omit<SharingAttributes, 'ownerId' | 'type' | 'sharedWithType'> {
   id: string;
   type: 'SELF' | 'OWNER';
   roleId: RoleAttributes['id'];
@@ -67,6 +81,7 @@ export class Sharing implements SharingAttributes {
   itemType: 'file' | 'folder';
   ownerId: User['uuid'];
   sharedWith: User['uuid'];
+  sharedWithType?: SharedWithType;
   encryptionKey: string;
   encryptionAlgorithm: string;
   createdAt: Date;
@@ -91,6 +106,9 @@ export class Sharing implements SharingAttributes {
     this.itemType = attributes.itemType;
     this.ownerId = attributes.ownerId;
     this.sharedWith = attributes.sharedWith;
+    this.sharedWithType =
+      attributes.sharedWithType ?? SharedWithType.Individual;
+
     this.encryptionKey = attributes.encryptionKey;
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
     this.encryptedCode = attributes.encryptedCode;
@@ -189,7 +207,7 @@ export class Role implements RoleWithTimeStamps {
 export class Permission implements PermissionAttributes {
   id: string;
   roleId: RoleAttributes['id'];
-  name: string;
+  name: SharingActionName;
 
   constructor(attributes: PermissionAttributes) {
     this.id = attributes.id;

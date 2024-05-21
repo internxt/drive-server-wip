@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -46,6 +47,7 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  Folder,
   FolderAttributes,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
@@ -57,6 +59,12 @@ import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { ShareItemWithMemberDto } from './dto/share-item-with-member.dto';
+import { OrderBy } from '../../common/order.type';
+import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
+import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../sharing/sharing.domain';
+import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -470,15 +478,106 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Created File',
   })
-  @UseGuards(WorkspaceGuard)
+  @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @RequiredSharingPermissions(SharingActionName.UploadFile)
   async createFile(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-    @UserDecorator() user: User,
+    @BehalfUserDecorator() behalfUser: User,
     @Body() createFileDto: CreateWorkspaceFileDto,
   ) {
-    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+    if (!behalfUser) {
+      throw new ForbiddenException('You have not permissions to do this!');
+    }
+
+    return this.workspaceUseCases.createFile(
+      behalfUser,
+      workspaceId,
+      createFileDto,
+    );
+  }
+
+  @Post('/:workspaceId/sharings/')
+  @ApiOperation({
+    summary: 'Share file or folder to workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Shared Item',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async shareItemWithMember(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() ShareItemWithMemberDto: ShareItemWithMemberDto,
+  ) {
+    return this.workspaceUseCases.shareItemWithMember(
+      user,
+      workspaceId,
+      ShareItemWithMemberDto,
+    );
+  }
+
+  @Get(':workspaceId/items/:sharedFolderId/folders')
+  @ApiOperation({
+    summary: 'Get all folders inside a shared folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFoldersInsideSharedFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('token') token: string,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getFoldersInSharedFolder(
+      workspaceId,
+      user,
+      sharedFolderId,
+      token,
+      { page, perPage, order },
+    );
+  }
+
+  @Get(':workspaceId/items/:sharedFolderId/files')
+  @ApiOperation({
+    summary: 'Get files inside a shared folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFilesInsideSharedFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('token') token: string,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getFilesInSharedFolder(
+      workspaceId,
+      user,
+      sharedFolderId,
+      token,
+      { page, perPage, order },
+    );
   }
 
   @Post('/:workspaceId/folders')
