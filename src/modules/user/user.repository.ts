@@ -29,6 +29,8 @@ export interface UserRepository {
     transaction?: Transaction,
   ): Promise<void>;
   getMeetClosedBetaUsers(): Promise<string[]>;
+  setRoomToBetaUser(room: string, user: User): Promise<void>;
+  getBetaUserFromRoom(room: string): Promise<User | null>;
 }
 
 @Injectable()
@@ -153,6 +155,35 @@ export class SequelizeUserRepository implements UserRepository {
       (rawEmail: { email: string }) => rawEmail.email,
     );
     return betaEmails;
+  }
+
+  async setRoomToBetaUser(room: string, user: User): Promise<void> {
+    await this.modelUser.sequelize.query(
+      'UPDATE meet_closed_beta_users SET room = :room, updated_at = NOW() WHERE email = :userEmail',
+      {
+        replacements: { room, userEmail: user.email },
+      },
+    );
+  }
+
+  async getBetaUserFromRoom(room: string): Promise<User | null> {
+    const [rawEmails] = await this.modelUser.sequelize.query(
+      'SELECT email FROM meet_closed_beta_users WHERE room = :room',
+      {
+        replacements: { room },
+      },
+    );
+
+    const betaEmails = rawEmails.map(
+      (rawEmail: { email: string }) => rawEmail.email,
+    );
+    if (betaEmails.length > 0) {
+      const user = await this.modelUser.findOne({
+        where: { email: betaEmails[0] },
+      });
+      return user ? this.toDomain(user) : null;
+    }
+    return null;
   }
 
   toDomain(model: UserModel): User {

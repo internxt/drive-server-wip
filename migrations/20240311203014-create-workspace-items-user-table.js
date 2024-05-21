@@ -15,6 +15,8 @@ module.exports = {
           model: 'workspaces',
           key: 'id',
         },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
       },
       item_id: Sequelize.UUID,
       item_type: Sequelize.STRING,

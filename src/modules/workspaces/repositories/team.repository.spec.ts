@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
 import {
+  newWorkspace,
   newWorkspaceTeam,
   newWorkspaceTeamUser,
   newUser,
@@ -10,10 +11,12 @@ import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { SequelizeWorkspaceTeamRepository } from './team.repository';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
+import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 
 describe('SequelizeWorkspaceTeamRepository', () => {
   let repository: SequelizeWorkspaceTeamRepository;
   let workspaceTeamModel: typeof WorkspaceTeamModel;
+  let workspaceTeamUserModel: typeof WorkspaceTeamUserModel;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,6 +30,9 @@ describe('SequelizeWorkspaceTeamRepository', () => {
     );
     workspaceTeamModel = module.get<typeof WorkspaceTeamModel>(
       getModelToken(WorkspaceTeamModel),
+    );
+    workspaceTeamUserModel = module.get<typeof WorkspaceTeamUserModel>(
+      getModelToken(WorkspaceTeamUserModel),
     );
   });
 
@@ -144,6 +150,69 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       );
 
       expect(result).toEqual([team]);
+    });
+  });
+
+  describe('getTeamsInWorkspace', () => {
+    const workspace = newWorkspace();
+    it('When a workspace id is not found then we receive an empty array', async () => {
+      jest.spyOn(workspaceTeamModel, 'findAll').mockResolvedValueOnce([]);
+      const response = await repository.getTeamsInWorkspace(workspace.id);
+      expect(response).toEqual([]);
+    });
+
+    it('When a workspace id is found then we receive a WorkspaceTeam[]', async () => {
+      const team1 = newWorkspaceTeam({ workspaceId: workspace.id });
+      const team2 = newWorkspaceTeam({ workspaceId: workspace.id });
+
+      jest
+        .spyOn(workspaceTeamModel, 'findAll')
+        .mockResolvedValueOnce([team1, team2] as any);
+
+      const response = await repository.getTeamsInWorkspace(workspace.id);
+
+      expect(response).toEqual([team1, team2]);
+    });
+  });
+
+  describe('getTeamAndMemberByWorkspaceAndMemberId', () => {
+    const workspace = newWorkspace();
+    const member = newUser();
+
+    it('When members are not found, then return empty array', async () => {
+      jest.spyOn(workspaceTeamUserModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.getTeamAndMemberByWorkspaceAndMemberId(
+        workspace.id,
+        member.uuid,
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('When members are found, then return member data and team', async () => {
+      const teamRaw = newWorkspaceTeam();
+      const workspaceTeamUserRaw = newWorkspaceTeamUser({ teamId: teamRaw.id });
+
+      jest.spyOn(workspaceTeamUserModel, 'findAll').mockResolvedValueOnce([
+        {
+          ...workspaceTeamUserRaw.toJSON(),
+          toJSON: jest.fn().mockReturnValue(workspaceTeamUserRaw),
+          team: {
+            ...teamRaw.toJSON(),
+            toJSON: jest.fn().mockReturnValue(teamRaw),
+          },
+        },
+      ] as any);
+
+      const result = await repository.getTeamAndMemberByWorkspaceAndMemberId(
+        workspace.id,
+        member.uuid,
+      );
+
+      expect(result).toEqual([
+        { team: teamRaw, teamUser: workspaceTeamUserRaw },
+      ]);
     });
   });
 });

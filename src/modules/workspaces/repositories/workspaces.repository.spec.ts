@@ -8,6 +8,8 @@ import { createMock } from '@golevelup/ts-jest';
 import { WorkspaceInvite } from '../domains/workspace-invite.domain';
 import { WorkspaceUser } from '../domains/workspace-user.domain';
 import {
+  newUser,
+  newWorkspace,
   newWorkspaceInvite,
   newWorkspaceUser,
 } from '../../../../test/fixtures';
@@ -112,11 +114,9 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const result = await repository.findWorkspaceUser({ memberId: '1' });
       expect(result).toBeInstanceOf(WorkspaceUser);
-      expect(result).toEqual(
-        expect.objectContaining({
-          ...workspaceUser.toJSON(),
-        }),
-      );
+      expect(result.toJSON()).toMatchObject({
+        ...workspaceUser.toJSON(),
+      });
     });
 
     it('When a workspace user is searched and not found, it should return nothing', async () => {
@@ -141,6 +141,19 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const total = await repository.getTotalSpaceLimitInWorkspaceUsers('1');
       expect(total).toStrictEqual(BigInt(10));
+    });
+  });
+
+  describe('deactivateWorkspaceUser', () => {
+    it('When the user is deactivated, then the respective user should be deleted', async () => {
+      const member = newUser();
+      const workspace = newWorkspace();
+
+      await repository.deactivateWorkspaceUser(member.uuid, workspace.id);
+      expect(workspaceUserModel.update).toHaveBeenCalledWith(
+        { deactivated: true },
+        { where: { memberId: member.uuid, workspaceId: workspace.id } },
+      );
     });
   });
 

@@ -10,6 +10,8 @@ import {
 import { WorkspaceModel } from './workspace.model';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
+import { FolderModel } from '../../folder/folder.model';
+import { FileModel } from '../../file/file.model';
 
 @Table({
   underscored: true,
@@ -25,7 +27,7 @@ export class WorkspaceItemUserModel
   id: string;
 
   @ForeignKey(() => WorkspaceModel)
-  @Column(DataType.UUID)
+  @Column({ type: DataType.UUID, allowNull: false })
   workspaceId: string;
 
   @BelongsTo(() => WorkspaceModel, {
@@ -38,11 +40,23 @@ export class WorkspaceItemUserModel
   @Column(DataType.UUID)
   itemId: string;
 
-  @Column(DataType.STRING)
-  itemType: string;
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+  })
+  folder: FolderModel;
+
+  @BelongsTo(() => FileModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+  })
+  file: FileModel;
 
   @Column(DataType.STRING)
-  context: string;
+  itemType: WorkspaceItemUserAttributes['itemType'];
+
+  @Column(DataType.STRING)
+  context: WorkspaceItemUserAttributes['context'];
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)

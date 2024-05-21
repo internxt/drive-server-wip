@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -21,6 +22,9 @@ import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { InvalidParentFolderException } from './exception/invalid-parent-folder';
+import { v4 } from 'uuid';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -90,6 +94,15 @@ export class FolderUseCases {
     });
 
     return folder;
+  }
+
+  async getFolderById(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ): Promise<Folder | null> {
+    const folder = await this.folderRepository.findById(folderId, deleted);
+
+    return folder ? Folder.build({ ...this.decryptFolderName(folder) }) : null;
   }
 
   async getFolder(
@@ -183,6 +196,7 @@ export class FolderUseCases {
       encryptedFolderName,
       bucketId,
       null,
+      null,
       '03-aes',
     );
 
@@ -193,7 +207,8 @@ export class FolderUseCases {
     creator: User,
     folders: {
       name: FolderAttributes['name'];
-      parentFolderId: FolderAttributes['id'];
+      parentFolderId: FolderAttributes['parentId'];
+      parentUuid: FolderAttributes['parentUuid'];
     }[],
   ): Promise<Folder[]> {
     for (const { parentFolderId } of folders) {
@@ -226,6 +241,7 @@ export class FolderUseCases {
           encryptVersion: '03-aes',
           bucket: null,
           parentId: folder.parentFolderId,
+          parentUuid: folder.parentUuid,
         };
       }),
     );
@@ -234,12 +250,8 @@ export class FolderUseCases {
   async createFolder(
     creator: User,
     name: FolderAttributes['name'],
-    parentFolderId: FolderAttributes['id'],
+    parentFolderUuid: FolderAttributes['uuid'],
   ): Promise<Folder> {
-    if (parentFolderId >= 2147483648) {
-      throw new Error('Invalid parent folder');
-    }
-
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
     let user = creator;
 
@@ -252,40 +264,54 @@ export class FolderUseCases {
       user = await this.userRepository.findByUsername(creator.bridgeUser);
     }
 
-    const parentFolderExists = await this.folderRepository.findOne({
-      id: parentFolderId,
+    const parentFolder = await this.folderRepository.findOne({
+      uuid: parentFolderUuid,
       userId: user.id,
     });
 
-    if (!parentFolderExists) {
-      throw new Error('Parent folder does not exist or is not yours');
+    if (!parentFolder) {
+      throw new InvalidParentFolderException(
+        'Parent folder does not exist or is not yours',
+      );
     }
 
     if (name === '' || invalidName.test(name)) {
-      throw new Error('Invalid folder name');
+      throw new BadRequestException('Invalid folder name');
+    }
+
+    const nameAlreadyInUse = await this.folderRepository.findOne({
+      parentId: parentFolder.id,
+      plainName: name,
+      deleted: false,
+    });
+
+    if (nameAlreadyInUse) {
+      throw new BadRequestException(
+        'Folder with the same name already exists in this location',
+      );
     }
 
     const encryptedFolderName = this.cryptoService.encryptName(
       name,
-      parentFolderId,
+      parentFolder.id,
     );
 
-    const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentId: parentFolderId,
+    const folder = await this.folderRepository.createWithAttributes({
+      uuid: v4(),
+      userId: user.id,
       name: encryptedFolderName,
+      plainName: name,
+      parentId: parentFolder.id,
+      parentUuid: parentFolder.uuid,
+      encryptVersion: '03-aes',
+      bucket: null,
+      deleted: false,
+      removed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      deletedAt: null,
     });
-
-    if (nameAlreadyInUse) {
-      throw Error('Folder with the same name already exists');
-    }
-
-    const folder = await this.folderRepository.create(
-      user.id,
-      encryptedFolderName,
-      null,
-      parentFolderId,
-      '03-aes',
-    );
 
     return folder;
   }
@@ -454,6 +480,28 @@ export class FolderUseCases {
     const foldersWithMaybePlainName =
       await this.folderRepository.findAllCursorWithParent(
         { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
+  async getFoldersWithParentInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    where: Partial<FolderAttributes>,
+    options: { limit: number; offset: number; sort?: SortParams } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findAllCursorInWorkspace(
+        createdBy,
+        { ...where },
         options.limit,
         options.offset,
         options.sort,

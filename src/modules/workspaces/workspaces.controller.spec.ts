@@ -1,4 +1,5 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { BadRequestException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -76,12 +77,16 @@ describe('Workspace Controller', () => {
         attributes: { deactivated: false },
       });
 
-      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce([
-        { workspace, workspaceUser },
-      ]);
+      workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce({
+        availableWorkspaces: [{ workspace, workspaceUser }],
+        pendingWorkspaces: [],
+      });
       await expect(
         workspacesController.getAvailableWorkspaces(user),
-      ).resolves.toEqual([{ workspace, workspaceUser }]);
+      ).resolves.toEqual({
+        availableWorkspaces: [{ workspace, workspaceUser }],
+        pendingWorkspaces: [],
+      });
     });
   });
 
@@ -179,6 +184,94 @@ describe('Workspace Controller', () => {
         user,
         workspace.id,
       );
+    });
+  });
+
+  describe('GET /:workspaceId/members', () => {
+    const owner = newUser();
+    const workspace = newWorkspace({
+      owner,
+      attributes: { setupCompleted: true },
+    });
+
+    it('When the workspaceId is missing then it should throw BadRequestException', async () => {
+      const expectResponse = expect(async () => {
+        await workspacesController.getWorkspaceMembers(null, owner);
+      });
+      expectResponse.rejects.toThrow(BadRequestException);
+      expectResponse.rejects.toThrow('Invalid workspace ID');
+    });
+
+    it('When the user is null or empty then it should return null', async () => {
+      const user = null;
+      workspacesUsecases.getWorkspaceMembers.mockResolvedValue(null);
+
+      const response = await workspacesController.getWorkspaceMembers(
+        workspace.id,
+        user,
+      );
+      expect(response).toBeNull();
+    });
+
+    it('When members are requested with "workspaceId" and "user", then it should return workspaces members data', async () => {
+      const user1 = newUser();
+      const user2 = newUser();
+
+      const ownerWorkspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: owner.uuid,
+        member: owner,
+        attributes: { deactivated: false },
+      }).toJSON();
+      const userWorkspace1 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user1.uuid,
+        member: user1,
+        attributes: { deactivated: false },
+      }).toJSON();
+      const userWorkspace2 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user2.uuid,
+        member: user2,
+        attributes: { deactivated: true },
+      }).toJSON();
+
+      const mockResolvedValues = {
+        activatedUsers: [
+          {
+            ...ownerWorkspaceUser,
+            isOwner: true,
+            isManager: true,
+            freeSpace: BigInt(150000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+          {
+            ...userWorkspace1,
+            isOwner: false,
+            isManager: false,
+            freeSpace: BigInt(15000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+        ],
+        disabledUsers: [
+          {
+            ...userWorkspace2,
+            isOwner: false,
+            isManager: false,
+            freeSpace: BigInt(13000).toString(),
+            usedSpace: BigInt(0).toString(),
+          },
+        ],
+      };
+      workspacesUsecases.getWorkspaceMembers.mockResolvedValueOnce(
+        mockResolvedValues,
+      );
+
+      const getMembers = await workspacesController.getWorkspaceMembers(
+        workspace.id,
+        owner,
+      );
+      expect(getMembers).toEqual(mockResolvedValues);
     });
   });
 });
