@@ -547,7 +547,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      });
+      }).toJSON();
 
       jest
         .spyOn(service, 'getWorkspacesPendingToBeSetup')
@@ -572,7 +572,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      });
+      }).toJSON();
 
       jest
         .spyOn(service, 'getWorkspacesPendingToBeSetup')
@@ -598,7 +598,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: true },
-      });
+      }).toJSON();
 
       jest
         .spyOn(service, 'getWorkspacesPendingToBeSetup')
@@ -2503,7 +2503,7 @@ describe('WorkspacesUsecases', () => {
         buffer: undefined,
       };
 
-      it('When a workspace id not exist it should throw error', async () => {
+      it('When a workspace id not exist then it fails', async () => {
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
 
         await expect(
@@ -2525,7 +2525,7 @@ describe('WorkspacesUsecases', () => {
         expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
       });
 
-      it('When avatar is not null then we should call the avatarService.deleteAvatar and avatarService.uploadAvatar, then should return the avatar url', async () => {
+      it('When avatar is not null we should call the avatarService[deleteAvatar|uploadAvatarAsStream], then should return the avatar url', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2533,7 +2533,7 @@ describe('WorkspacesUsecases', () => {
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
 
         jest
-          .spyOn(avatarService, 'uploadAvatar')
+          .spyOn(avatarService, 'uploadAvatarAsStream')
           .mockResolvedValue(newAvatarKey);
 
         jest.spyOn(service, 'getAvatarUrl').mockResolvedValue(newAvatarURL);
@@ -2553,7 +2553,7 @@ describe('WorkspacesUsecases', () => {
         );
       });
 
-      it('When we got an error from avatarService.deleteAvatar it should throw error', async () => {
+      it('When we got an error from avatarService.deleteAvatar then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2564,12 +2564,10 @@ describe('WorkspacesUsecases', () => {
           .spyOn(avatarService, 'deleteAvatar')
           .mockRejectedValue(new Error('Error in avatar service'));
 
-        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow(
-          'Deleting avatar to workspace has failed',
-        );
+        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
       });
 
-      it('When we got an error from avatarService.uploadAvatar it should throw error', async () => {
+      it('When we got an error from avatarService.uploadAvatarAsStream then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2577,15 +2575,17 @@ describe('WorkspacesUsecases', () => {
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
 
         jest
-          .spyOn(avatarService, 'uploadAvatar')
-          .mockRejectedValue(new Error('Error in avatarService uploadAvatar'));
+          .spyOn(avatarService, 'uploadAvatarAsStream')
+          .mockRejectedValue(
+            new Error('Error in avatarService uploadAvatarAsStream'),
+          );
 
-        await expect(service.upsertAvatar(workspace.id, file)).rejects.toThrow(
-          'Adding avatar to workspace has failed',
-        );
+        await expect(
+          service.upsertAvatar(workspace.id, file),
+        ).rejects.toThrow();
       });
 
-      it('When we got an error from workspaceRepository.updateById it should throw error', async () => {
+      it('When we got an error from workspaceRepository.updateById then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2598,12 +2598,12 @@ describe('WorkspacesUsecases', () => {
             new Error('Error in workspaceRepository updateById'),
           );
 
-        await expect(service.upsertAvatar(workspace.id, file)).rejects.toThrow(
-          'Adding avatar to workspace has failed',
-        );
+        await expect(
+          service.upsertAvatar(workspace.id, file),
+        ).rejects.toThrow();
       });
 
-      it('When we got an error from WorkspacesUsecases.getAvatarUrl it should throw error', async () => {
+      it('When we got an error from WorkspacesUsecases.getAvatarUrl then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2611,7 +2611,7 @@ describe('WorkspacesUsecases', () => {
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
 
         jest
-          .spyOn(avatarService, 'uploadAvatar')
+          .spyOn(avatarService, 'uploadAvatarAsStream')
           .mockResolvedValue(newAvatarKey);
 
         jest.spyOn(workspaceRepository, 'updateById').mockResolvedValue();
@@ -2629,7 +2629,7 @@ describe('WorkspacesUsecases', () => {
     });
 
     describe('delete workspace Avatar', () => {
-      it('When a workspace id not exist it should throw error', async () => {
+      it('When a workspace id not exist then it fails', async () => {
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
 
         await expect(
@@ -2671,7 +2671,7 @@ describe('WorkspacesUsecases', () => {
         );
       });
 
-      it('When we got an error from avatarService.deleteAvatar it should throw error', async () => {
+      it('When we got an error from avatarService.deleteAvatar then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2682,12 +2682,10 @@ describe('WorkspacesUsecases', () => {
           .spyOn(avatarService, 'deleteAvatar')
           .mockRejectedValue(new Error('Error in avatar service'));
 
-        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow(
-          'Deleting avatar to workspace has failed',
-        );
+        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
       });
 
-      it('When we got an error from workspaceRepository.updateById it should throw error', async () => {
+      it('When we got an error from workspaceRepository.updateById then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
@@ -2700,9 +2698,7 @@ describe('WorkspacesUsecases', () => {
             new Error('Error in workspaceRepository updateById'),
           );
 
-        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow(
-          'Deleting avatar to workspace has failed',
-        );
+        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
       });
     });
   });

@@ -275,9 +275,6 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
     return this.workspaceUseCases.upsertAvatar(workspaceId, file);
   }
 
@@ -293,9 +290,6 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
     return this.workspaceUseCases.deleteAvatar(workspaceId);
   }
 

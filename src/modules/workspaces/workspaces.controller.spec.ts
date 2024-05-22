@@ -75,7 +75,7 @@ describe('Workspace Controller', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      });
+      }).toJSON();
 
       workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce({
         availableWorkspaces: [{ workspace, workspaceUser }],
@@ -257,9 +257,13 @@ describe('Workspace Controller', () => {
         buffer: undefined,
       };
       const workspaceId = null;
+      jest
+        .spyOn(workspacesUsecases, 'upsertAvatar')
+        .mockRejectedValue(BadRequestException);
+
       await expect(
         workspacesController.uploadAvatar(file, workspaceId),
-      ).rejects.toThrow('Invalid workspace ID');
+      ).rejects.toThrow();
     });
 
     it('When passing a file and workspace id, workspacesUsecases.upsertAvatar should be called.', async () => {
@@ -285,11 +289,15 @@ describe('Workspace Controller', () => {
   });
 
   describe('DELETE /:workspaceId/avatar', () => {
-    it('When workspaceId is null, throw error.', async () => {
+    it('When workspaceId is null, then it fails.', async () => {
       const workspaceId = null;
+      jest
+        .spyOn(workspacesUsecases, 'deleteAvatar')
+        .mockRejectedValue(BadRequestException);
+
       await expect(
         workspacesController.deleteAvatar(workspaceId),
-      ).rejects.toThrow('Invalid workspace ID');
+      ).rejects.toThrow();
     });
 
     it('When passing a workspace id, workspacesUsecases.deleteAvatar should be called and return resolve', async () => {

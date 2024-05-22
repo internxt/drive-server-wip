@@ -1268,7 +1268,7 @@ export class WorkspacesUsecases {
     }
 
     try {
-      const s3AvatarKey = await this.avatarService.uploadAvatar(file);
+      const s3AvatarKey = await this.avatarService.uploadAvatarAsStream(file);
       await this.workspaceRepository.updateById(workspace.id, {
         avatar: s3AvatarKey,
       });

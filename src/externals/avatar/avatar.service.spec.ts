@@ -1,12 +1,17 @@
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AvatarService } from './avatar.service';
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
+import { v4 } from 'uuid';
+import configuration from '../../config/configuration';
 
 describe('Avatar Service', () => {
   let service: AvatarService;
@@ -14,8 +19,22 @@ describe('Avatar Service', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule],
-      providers: [AvatarService],
+      imports: [
+        ConfigModule.forRoot({
+          envFilePath: [`.env.${process.env.NODE_ENV}`],
+          load: [configuration],
+          isGlobal: true,
+        }),
+      ],
+      providers: [
+        {
+          provide: AvatarService,
+          useFactory: async (configService: ConfigService) => {
+            return new AvatarService(configService);
+          },
+          inject: [ConfigService],
+        },
+      ],
     }).compile();
 
     service = module.get<AvatarService>(AvatarService);
@@ -29,9 +48,9 @@ describe('Avatar Service', () => {
     });
     it('When avatar key is not null then it should return an url', async () => {
       const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
-      await expect(service.getDownloadUrl(avatarKey)).resolves.toStrictEqual(
-        expect.any(String),
-      );
+      const response = await service.getDownloadUrl(avatarKey);
+      const url = new URL(response);
+      expect(url).toBeInstanceOf(URL);
     });
   });
 
@@ -49,26 +68,48 @@ describe('Avatar Service', () => {
       buffer: undefined,
     };
 
-    it('When the PutObjectCommand has been created correctly it should delete the avatar file', async () => {
-      mockS3Client.on(PutObjectCommand).resolves({
-        $metadata: { httpStatusCode: 200 },
+    // { // CreateMultipartUploadOutput
+    //   AbortDate: new Date("TIMESTAMP"),
+    //   AbortRuleId: "STRING_VALUE",
+    //   Bucket: "STRING_VALUE",
+    //   Key: "STRING_VALUE",
+    //   UploadId: "STRING_VALUE",
+    //   ServerSideEncryption: "AES256" || "aws:kms" || "aws:kms:dsse",
+    //   SSECustomerAlgorithm: "STRING_VALUE",
+    //   SSECustomerKeyMD5: "STRING_VALUE",
+    //   SSEKMSKeyId: "STRING_VALUE",
+    //   SSEKMSEncryptionContext: "STRING_VALUE",
+    //   BucketKeyEnabled: true || false,
+    //   RequestCharged: "requester",
+    //   ChecksumAlgorithm: "CRC32" || "CRC32C" || "SHA1" || "SHA256",
+    // };
+    it('When the avatar upload is successful, it should return the uuid', async () => {
+      const uploadId = 'this-is-the-upload-id';
+      const eTag = 'this-is-an-etag';
+      mockS3Client.on(CreateMultipartUploadCommand).resolves({
+        UploadId: uploadId,
+      });
+      mockS3Client.on(UploadPartCommand).resolves({
+        ETag: eTag,
       });
 
-      await expect(service.uploadAvatar(file)).resolves.toStrictEqual(
+      await expect(service.uploadAvatarAsStream(file)).resolves.toStrictEqual(
         expect.any(String),
       );
-      await expect(service.uploadAvatar(file)).resolves.toHaveLength(36);
+      await expect(service.uploadAvatarAsStream(file)).resolves.toHaveLength(
+        36,
+      );
     });
 
-    it('When the PutObjectCommand has been created wrong it should throw an error', async () => {
+    it('When the avatar loading fails, then the error is propagated', async () => {
       mockS3Client.on(PutObjectCommand).rejects();
 
-      await expect(service.uploadAvatar(file)).rejects.toThrow();
+      await expect(service.uploadAvatarAsStream(file)).rejects.toThrow();
     });
   });
 
   describe('Delete avatar', () => {
-    it('When the DeleteObjectCommand has been created correctly it should delete the avatar file', async () => {
+    it('When deleting the avatar is successful, it should delete the avatar file and return true', async () => {
       const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
 
       mockS3Client
@@ -86,7 +127,7 @@ describe('Avatar Service', () => {
       await expect(service.deleteAvatar(avatarKey)).resolves.toBeTruthy();
     });
 
-    it('When the DeleteObjectCommand has been created wrong it should throw an error', async () => {
+    it('When the avatar deletion fails, then the error is propagated', async () => {
       const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
 
       mockS3Client
