@@ -7,10 +7,9 @@ import {
   DeleteObjectCommand,
   CreateMultipartUploadCommand,
   UploadPartCommand,
-  CompleteMultipartUploadCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
-import { v4 } from 'uuid';
 import configuration from '../../config/configuration';
 
 describe('Avatar Service', () => {
@@ -48,6 +47,10 @@ describe('Avatar Service', () => {
     });
     it('When avatar key is not null then it should return an url', async () => {
       const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
+      mockS3Client.on(GetObjectCommand).resolves({
+        Body: 'STREAMING_BLOB_VALUE',
+        ETag: 'STRING_VALUE',
+      });
       const response = await service.getDownloadUrl(avatarKey);
       const url = new URL(response);
       expect(url).toBeInstanceOf(URL);
@@ -68,21 +71,6 @@ describe('Avatar Service', () => {
       buffer: undefined,
     };
 
-    // { // CreateMultipartUploadOutput
-    //   AbortDate: new Date("TIMESTAMP"),
-    //   AbortRuleId: "STRING_VALUE",
-    //   Bucket: "STRING_VALUE",
-    //   Key: "STRING_VALUE",
-    //   UploadId: "STRING_VALUE",
-    //   ServerSideEncryption: "AES256" || "aws:kms" || "aws:kms:dsse",
-    //   SSECustomerAlgorithm: "STRING_VALUE",
-    //   SSECustomerKeyMD5: "STRING_VALUE",
-    //   SSEKMSKeyId: "STRING_VALUE",
-    //   SSEKMSEncryptionContext: "STRING_VALUE",
-    //   BucketKeyEnabled: true || false,
-    //   RequestCharged: "requester",
-    //   ChecksumAlgorithm: "CRC32" || "CRC32C" || "SHA1" || "SHA256",
-    // };
     it('When the avatar upload is successful, it should return the uuid', async () => {
       const uploadId = 'this-is-the-upload-id';
       const eTag = 'this-is-an-etag';
