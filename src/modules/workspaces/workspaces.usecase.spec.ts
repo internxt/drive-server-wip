@@ -1808,6 +1808,48 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getWorkspaceCredentials', () => {
+    const workspaceUser = newUser();
+    const workspace = newWorkspace({
+      attributes: { workspaceUserId: workspaceUser.uuid },
+    });
+    const rootFolder = newFolder();
+
+    it('When workspace user does not exist, then it should fail', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getWorkspaceCredentials(workspace.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace and workspace user exist, then it should return credentials', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(rootFolder);
+
+      const result = await service.getWorkspaceCredentials(workspace.id);
+
+      expect(result).toEqual({
+        workspaceId: workspace.id,
+        bucket: rootFolder.bucket,
+        workspaceUserId: workspaceUser.uuid,
+        email: workspaceUser.email,
+        credentials: {
+          networkPass: workspaceUser.userId,
+          networkUser: workspaceUser.bridgeUser,
+        },
+      });
+    });
+  });
+
   describe('initiateWorkspace', () => {
     const owner = newUser();
     const maxSpaceBytes = 1000000;
