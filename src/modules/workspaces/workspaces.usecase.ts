@@ -1260,7 +1260,7 @@ export class WorkspacesUsecases {
     }
 
     if (workspace.isUserOwner(user)) {
-      return this.deleteWorkspaceContent(workspaceId, user);
+      throw new BadRequestException('Owner can not leave workspace');
     }
 
     const userInWorkspace = await this.workspaceRepository.findWorkspaceUser({

@@ -2553,23 +2553,16 @@ describe('WorkspacesUsecases', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When user is the owner of the workspace, then deleteWorkspace should be called', async () => {
+      it('When user is the owner of the workspace, then it should throw', async () => {
         const user = newUser();
         const workspace = newWorkspace({ attributes: { ownerId: user.uuid } });
         jest
           .spyOn(workspaceRepository, 'findById')
           .mockResolvedValue(workspace);
 
-        jest
-          .spyOn(service, 'deleteWorkspaceContent')
-          .mockResolvedValue(undefined);
-
-        await service.leaveWorkspace(workspace.id, user);
-
-        expect(service.deleteWorkspaceContent).toHaveBeenCalledWith(
-          workspace.id,
-          user,
-        );
+        await expect(
+          service.leaveWorkspace(workspace.id, user),
+        ).rejects.toThrow(BadRequestException);
       });
 
       it('When user has items in the workspace, then it should throw', async () => {
@@ -2598,7 +2591,7 @@ describe('WorkspacesUsecases', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When user is manager of any teams in the workspace then mangement is passed to the owner', async () => {
+      it('When the user is a manager, then the workspace owner is set as manager of those teams', async () => {
         const user = newUser();
         const workspaceOwner = newUser();
         const workspace = newWorkspace({ owner: workspaceOwner });
