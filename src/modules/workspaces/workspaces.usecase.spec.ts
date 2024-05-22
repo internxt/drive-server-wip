@@ -335,11 +335,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspace);
 
       await expect(
-        service.editWorkspaceDetails(
-          'workspace-id',
-          newUser(),
-          editWorkspaceDto,
-        ),
+        service.editWorkspaceDetails(workspace.id, newUser(), editWorkspaceDto),
       ).rejects.toThrow(ForbiddenException);
     });
 

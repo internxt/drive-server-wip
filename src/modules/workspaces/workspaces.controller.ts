@@ -477,13 +477,13 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async editWorkspaceDetails(
+  editWorkspaceDetails(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Body() editWorkspaceBody: EditWorkspaceDetailsDto,
   ) {
-    return await this.workspaceUseCases.editWorkspaceDetails(
+    return this.workspaceUseCases.editWorkspaceDetails(
       workspaceId,
       user,
       editWorkspaceBody,
