@@ -159,17 +159,14 @@ describe('Workspace Controller', () => {
       const user = newUser();
       const workspace = newWorkspace({ owner: user });
 
-      await expect(
-        workspacesController.editWorkspaceDetails(workspace.id, user, {
-          name: 'new name',
-        }),
-      ).resolves.toBeTruthy();
-
-      expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
-        workspace.id,
-        user,
-        { name: 'new name' },
-      );
+      workspacesController.editWorkspaceDetails(workspace.id, user, {
+        name: 'new name',
+      }),
+        expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
+          workspace.id,
+          user,
+          { name: 'new name' },
+        );
     });
   });
   describe('GET /:workspaceId/members', () => {
