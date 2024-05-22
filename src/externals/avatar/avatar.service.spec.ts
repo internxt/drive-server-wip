@@ -11,6 +11,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
 import configuration from '../../config/configuration';
+import { Readable } from 'stream';
+import { sdkStreamMixin } from '@smithy/util-stream';
 
 describe('Avatar Service', () => {
   let service: AvatarService;
@@ -47,9 +49,12 @@ describe('Avatar Service', () => {
     });
     it('When avatar key is not null then it should return an url', async () => {
       const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
+      const stream = new Readable();
+      stream.push('hello world');
+      stream.push(null); // End of stream
+      const sdkStream = sdkStreamMixin(stream);
       mockS3Client.on(GetObjectCommand).resolves({
-        Body: 'STREAMING_BLOB_VALUE',
-        ETag: 'STRING_VALUE',
+        Body: sdkStream,
       });
       const response = await service.getDownloadUrl(avatarKey);
       const url = new URL(response);
