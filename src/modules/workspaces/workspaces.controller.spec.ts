@@ -161,12 +161,13 @@ describe('Workspace Controller', () => {
 
       workspacesController.editWorkspaceDetails(workspace.id, user, {
         name: 'new name',
-      }),
-        expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
-          workspace.id,
-          user,
-          { name: 'new name' },
-        );
+      });
+
+      expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
+        workspace.id,
+        user,
+        { name: 'new name' },
+      );
     });
   });
   describe('GET /:workspaceId/members', () => {
