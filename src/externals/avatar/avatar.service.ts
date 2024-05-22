@@ -42,7 +42,7 @@ export class AvatarService {
     avatarKey: User['avatar'] | Workspace['avatar'],
   ): Promise<string> {
     const s3Client = this.AvatarS3Instance();
-    const bucket = this.configService.get('avatar.bucket') || 'avatars';
+    const bucket = this.configService.get('avatar.bucket');
     const url = await getSignedUrl(
       s3Client,
       new GetObjectCommand({
@@ -67,7 +67,7 @@ export class AvatarService {
 
   async uploadAvatarAsBuffer(file: Express.Multer.File): Promise<string> {
     const s3Client = this.AvatarS3Instance();
-    const bucket = this.configService.get('avatar.bucket') || 'avatars';
+    const bucket = this.configService.get('avatar.bucket');
     const keyObject = v4();
 
     const putObjectInput = {
@@ -87,7 +87,7 @@ export class AvatarService {
     avatarKey: User['avatar'] | Workspace['avatar'],
   ): Promise<boolean> {
     const s3Client = this.AvatarS3Instance();
-    const bucket = this.configService.get('avatar.bucket') || 'avatars';
+    const bucket = this.configService.get('avatar.bucket');
     const deleteObjectCommand = new DeleteObjectCommand({
       Bucket: bucket,
       Key: avatarKey,
@@ -98,7 +98,7 @@ export class AvatarService {
 
   async uploadAvatarAsStream(file: Express.Multer.File): Promise<string> {
     const s3Client = this.AvatarS3Instance();
-    const bucket = this.configService.get('avatar.bucket') || 'avatars';
+    const bucket = this.configService.get('avatar.bucket');
     const keyObject = v4();
 
     try {

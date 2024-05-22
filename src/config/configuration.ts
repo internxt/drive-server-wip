@@ -127,12 +127,14 @@ export default () => ({
     apiKey: process.env.JITSI_API_KEY,
   },
   avatar: {
-    accessKey: process.env.AVATAR_ACCESS_KEY,
-    secretKey: process.env.AVATAR_SECRET_KEY,
-    bucket: process.env.AVATAR_BUCKET,
+    accessKey: process.env.AVATAR_ACCESS_KEY || 'internxt',
+    secretKey: process.env.AVATAR_SECRET_KEY || 'internxt',
+    bucket: process.env.AVATAR_BUCKET || 'avatars',
     region: process.env.AVATAR_REGION || 'us-east-1',
-    endpoint: process.env.AVATAR_ENDPOINT,
-    endpointForSignedUrls: process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS,
-    forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE,
+    endpoint: process.env.AVATAR_ENDPOINT || 'http://network-storage:9000',
+    endpointForSignedUrls:
+      process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS ||
+      'http://localhost:9000',
+    forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE || 'true',
   },
 });
