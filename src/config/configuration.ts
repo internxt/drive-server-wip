@@ -131,10 +131,8 @@ export default () => ({
     secretKey: process.env.AVATAR_SECRET_KEY || 'internxt',
     bucket: process.env.AVATAR_BUCKET || 'avatars',
     region: process.env.AVATAR_REGION || 'us-east-1',
-    endpoint: process.env.AVATAR_ENDPOINT || 'http://network-storage:9000',
-    endpointForSignedUrls:
-      process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS ||
-      'http://localhost:9000',
+    endpoint: process.env.AVATAR_ENDPOINT,
+    endpointForSignedUrls: process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS,
     forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE || 'true',
   },
 });
