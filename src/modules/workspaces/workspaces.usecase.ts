@@ -1235,45 +1235,23 @@ export class WorkspacesUsecases {
     if (!workspace.isUserOwner(user)) {
       throw new ForbiddenException('You are not the owner of this workspace');
     }
-    const items =
-      await this.workspaceItemsUsersRepository.getAllByWorkspaceId(workspaceId);
 
-    const itemsDeletionChunkSize = 10;
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
 
-    const fileIds = items
-      .filter((item) => item.itemType === 'file')
-      .map((item) => parseInt(item.itemId));
-    const folderIds = items
-      .filter((item) => item.itemType === 'folder')
-      .map((item) => parseInt(item.itemId));
+    const rootFolder = await this.folderUseCases.getByUuid(
+      workspace.rootFolderId,
+    );
 
-    const files =
-      fileIds.length > 0
-        ? await this.fileUseCases.getFilesByIds(user, fileIds)
-        : [];
-    const folders =
-      folderIds.length > 0
-        ? await this.folderUseCases.getFoldersByIds(user, folderIds)
-        : [];
-
-    for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
-      await this.fileUseCases.delete(
-        files.slice(i, i + itemsDeletionChunkSize),
-      );
-    }
-
-    for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
-      await this.folderUseCases.delete(
-        folders.slice(i, i + itemsDeletionChunkSize),
-      );
-    }
+    await this.folderUseCases.deleteByUser(workspaceUser, [rootFolder]);
 
     await this.workspaceRepository.deleteById(workspaceId);
   }
 
   async leaveWorkspace(
-    user: User,
     workspaceId: Workspace['id'],
+    user: User,
   ): Promise<void> {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -1282,7 +1260,7 @@ export class WorkspacesUsecases {
     }
 
     if (workspace.isUserOwner(user)) {
-      throw new BadRequestException('Owner can not simply leave workspace');
+      return this.deleteWorkspaceContent(workspaceId, user);
     }
 
     const userInWorkspace = await this.workspaceRepository.findWorkspaceUser({
@@ -1309,7 +1287,6 @@ export class WorkspacesUsecases {
         workspaceId,
         user,
       );
-
     for (const team of teamsUserManages) {
       await this.teamRepository.updateById(team.id, {
         managerId: workspace.ownerId,

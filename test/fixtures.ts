@@ -22,13 +22,13 @@ import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
 import { WorkspaceInviteAttributes } from '../src/modules/workspaces/attributes/workspace-invite.attribute';
 import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
-import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-items-users.domain';
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
   WorkspaceItemUserAttributes,
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import { UserAttributes } from '../src/modules/user/user.attributes';
+import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,

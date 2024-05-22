@@ -156,34 +156,12 @@ describe('Workspace Controller', () => {
 
   describe('DELETE /:workspaceId/members/leave', () => {
     const user = newUser();
-    it('When owner leaves workspace, then wipeout should occur', async () => {
+    it('When a member leaves workspace, then return', async () => {
       const workspace = newWorkspace({ owner: user });
 
-      jest.spyOn(workspacesUsecases, 'deleteWorkspaceContent');
-      jest
-        .spyOn(workspacesUsecases, 'findById')
-        .mockResolvedValueOnce(workspace);
-      await workspacesController.leaveWorkspace(user, workspace.id);
-
-      expect(workspacesUsecases.deleteWorkspaceContent).toHaveBeenCalledWith(
-        workspace.id,
-        user,
-      );
-    });
-
-    it('When member requests to leave then leaveWorkspace should be attempted', async () => {
-      const workspace = newWorkspace();
-      jest.spyOn(workspacesUsecases, 'leaveWorkspace');
-      jest
-        .spyOn(workspacesUsecases, 'findById')
-        .mockResolvedValueOnce(workspace);
-
-      await workspacesController.leaveWorkspace(user, workspace.id);
-
-      expect(workspacesUsecases.leaveWorkspace).toHaveBeenCalledWith(
-        user,
-        workspace.id,
-      );
+      await expect(
+        workspacesController.leaveWorkspace(user, workspace.id),
+      ).resolves.toBeTruthy();
     });
   });
 

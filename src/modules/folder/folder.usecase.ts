@@ -676,10 +676,6 @@ export class FolderUseCases {
     await this.folderRepository.deleteByUser(user, folders);
   }
 
-  async delete(folders: Folder[]): Promise<void> {
-    await this.folderRepository.delete(folders);
-  }
-
   getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
     return this.folderRepository.calculateFolderSize(folderUuid);
   }

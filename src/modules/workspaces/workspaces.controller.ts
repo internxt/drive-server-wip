@@ -478,21 +478,14 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'User left workspace',
   })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async leaveWorkspace(
     @UserDecorator() user: User,
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    const workspace = await this.workspaceUseCases.findById(workspaceId);
-    if (!workspace) {
-      throw new BadRequestException('Workspace not found');
-    }
-
-    if (workspace.isUserOwner(user)) {
-      return this.workspaceUseCases.deleteWorkspaceContent(workspaceId, user);
-    } else {
-      return this.workspaceUseCases.leaveWorkspace(user, workspaceId);
-    }
+    return this.workspaceUseCases.leaveWorkspace(workspaceId, user);
   }
 
   @Get(':workspaceId/members/:memberId')

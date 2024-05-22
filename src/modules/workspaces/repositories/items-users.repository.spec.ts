@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { SequelizeWorkspaceItemsUsersRepository } from './items-users.repository';
-import { WorkspaceItemUser } from '../domains/workspace-items-users.domain';
-import { newItemUser, newUser } from '../../../../test/fixtures';
+import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { newWorkspaceItemUser, newUser } from '../../../../test/fixtures';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import { getModelToken } from '@nestjs/sequelize';
+import { v4 } from 'uuid';
 
 describe('SequelizeWorkspaceItemsUsersRepository', () => {
   let repository: SequelizeWorkspaceItemsUsersRepository;
@@ -24,28 +25,14 @@ describe('SequelizeWorkspaceItemsUsersRepository', () => {
     );
   });
 
-  describe('getAllByWorkspaceId', () => {
-    it('should return all items users by workspace id', async () => {
-      const workspaceId = '1';
-      const mockItemsUsers: WorkspaceItemUser[] = [];
-      for (let i = 0; i < 4; i++) {
-        mockItemsUsers.push(newItemUser({ workspaceId }));
-      }
-      jest
-        .spyOn(workspaceItemsUsersModel, 'findAll')
-        .mockResolvedValueOnce(mockItemsUsers as any);
-
-      const itemsUsers = await repository.getAllByWorkspaceId(workspaceId);
-
-      expect(itemsUsers).toEqual(mockItemsUsers);
-    });
-  });
-
   describe('getAllByUserAndWorkspaceId', () => {
     it('should return all items users by user and workspace id', async () => {
-      const workspaceId = '1';
+      const workspaceId = v4();
       const user = newUser();
-      const mockItem = newItemUser({ workspaceId, createdBy: user.uuid });
+      const mockItem = newWorkspaceItemUser({
+        workspaceId,
+        createdBy: user.uuid,
+      });
       const mockItemsUsers: WorkspaceItemUser[] = [mockItem];
       jest
         .spyOn(workspaceItemsUsersModel, 'findAll')

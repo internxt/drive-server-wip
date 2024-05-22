@@ -12,6 +12,7 @@ import { SequelizeWorkspaceTeamRepository } from './team.repository';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
+import { v4 } from 'uuid';
 
 describe('SequelizeWorkspaceTeamRepository', () => {
   let repository: SequelizeWorkspaceTeamRepository;
@@ -138,7 +139,7 @@ describe('SequelizeWorkspaceTeamRepository', () => {
   describe('getTeamsWhereUserIsManagerByWorkspaceId', () => {
     it('should get teams where user is manager by workspace id', async () => {
       const user = newUser();
-      const workspaceId = '1';
+      const workspaceId = v4();
       const team = newWorkspaceTeam();
       jest
         .spyOn(workspaceTeamModel, 'findAll')

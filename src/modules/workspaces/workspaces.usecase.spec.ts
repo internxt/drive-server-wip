@@ -2491,7 +2491,7 @@ describe('WorkspacesUsecases', () => {
 
     describe('deleteWorkspaceContent', () => {
       it('When workspace is not found, then it should throw', async () => {
-        const workspaceId = 'workspace-id';
+        const workspaceId = v4();
         const user = newUser();
         jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
 
@@ -2529,11 +2529,11 @@ describe('WorkspacesUsecases', () => {
 
     describe('leaveWorkspace', () => {
       it('When workspace is not found, then it should throw', async () => {
-        const workspaceId = 'workspace-id';
+        const workspaceId = v4();
         const user = newUser();
         jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
 
-        await expect(service.leaveWorkspace(user, workspaceId)).rejects.toThrow(
+        await expect(service.leaveWorkspace(workspaceId, user)).rejects.toThrow(
           NotFoundException,
         );
       });
@@ -2549,20 +2549,27 @@ describe('WorkspacesUsecases', () => {
           .mockResolvedValue(null);
 
         await expect(
-          service.leaveWorkspace(user, workspace.id),
+          service.leaveWorkspace(workspace.id, user),
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When user is the owner of the workspace, then it should throw', async () => {
+      it('When user is the owner of the workspace, then deleteWorkspace should be called', async () => {
         const user = newUser();
         const workspace = newWorkspace({ attributes: { ownerId: user.uuid } });
         jest
           .spyOn(workspaceRepository, 'findById')
           .mockResolvedValue(workspace);
 
-        await expect(
-          service.leaveWorkspace(user, workspace.id),
-        ).rejects.toThrow(BadRequestException);
+        jest
+          .spyOn(service, 'deleteWorkspaceContent')
+          .mockResolvedValue(undefined);
+
+        await service.leaveWorkspace(workspace.id, user);
+
+        expect(service.deleteWorkspaceContent).toHaveBeenCalledWith(
+          workspace.id,
+          user,
+        );
       });
 
       it('When user has items in the workspace, then it should throw', async () => {
@@ -2587,7 +2594,7 @@ describe('WorkspacesUsecases', () => {
           .mockResolvedValue([itemUser]);
 
         await expect(
-          service.leaveWorkspace(user, workspace.id),
+          service.leaveWorkspace(workspace.id, user),
         ).rejects.toThrow(BadRequestException);
       });
 
@@ -2614,7 +2621,7 @@ describe('WorkspacesUsecases', () => {
           .spyOn(teamRepository, 'getTeamsWhereUserIsManagerByWorkspaceId')
           .mockResolvedValue([team]);
 
-        await service.leaveWorkspace(user, workspace.id);
+        await service.leaveWorkspace(workspace.id, user);
 
         expect(teamRepository.updateById).toHaveBeenCalledWith(team.id, {
           managerId: workspaceOwner.uuid,
@@ -2647,7 +2654,7 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceItemsUsersRepository, 'getAllByUserAndWorkspaceId')
         .mockResolvedValue([]);
 
-      await service.leaveWorkspace(user, workspace.id);
+      await service.leaveWorkspace(workspace.id, user);
 
       expect(workspaceRepository.deleteUserFromWorkspace).toHaveBeenCalledWith(
         user.uuid,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { WorkspaceItemUser } from '../domains/workspace-items-users.domain';
+import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from 'src/modules/user/user.domain';
@@ -10,13 +10,6 @@ export class SequelizeWorkspaceItemsUsersRepository {
     @InjectModel(WorkspaceItemUserModel)
     private modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
   ) {}
-
-  async getAllByWorkspaceId(workspaceId: string): Promise<WorkspaceItemUser[]> {
-    const itemsUsers = await this.modelWorkspaceItemUser.findAll({
-      where: { workspaceId },
-    });
-    return itemsUsers.map((itemUser) => this.toDomain(itemUser));
-  }
 
   async getAllByUserAndWorkspaceId(
     user: User,

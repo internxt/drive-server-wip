@@ -405,14 +405,6 @@ export class FileUseCases {
     await this.fileRepository.deleteFilesByUser(user, files);
   }
 
-  /**
-   * Deletes files regardless of the user. Useful in the case of workspace deletion.
-   * @param files Files to be deleted
-   */
-  async delete(files: File[]): Promise<void> {
-    await this.fileRepository.deleteFiles(files);
-  }
-
   async replaceFile(
     user: User,
     fileUuid: File['fileId'],
