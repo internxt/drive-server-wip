@@ -537,24 +537,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
-  async delete(folders: Folder[]): Promise<void> {
-    await this.folderModel.update(
-      {
-        removed: true,
-        removedAt: new Date(),
-        deleted: true,
-        deletedAt: new Date(),
-      },
-      {
-        where: {
-          id: {
-            [Op.in]: folders.map(({ id }) => id),
-          },
-        },
-      },
-    );
-  }
-
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
     updatedAfter: Date,
