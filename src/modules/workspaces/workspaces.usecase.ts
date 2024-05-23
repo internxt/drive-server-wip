@@ -48,6 +48,7 @@ import {
   WorkspaceItemType,
 } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
+import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -949,6 +950,37 @@ export class WorkspacesUsecases {
     });
 
     return workspacesToBeSetup;
+  }
+
+  async getWorkspaceResourceOwnerByItemAndCreator(
+    requester: User,
+    itemId: WorkspaceItemUser['itemId'],
+    itemType: WorkspaceItemUser['itemType'],
+  ) {
+    const item = await this.workspaceRepository.getItemBy({
+      itemId,
+      itemType,
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item not found in workspace');
+    }
+
+    if (!item.isOwnedBy(requester)) {
+      throw new ForbiddenException('This item is not yours');
+    }
+
+    const workspace = await this.workspaceRepository.findById(item.workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const resourceOwner = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    return resourceOwner;
   }
 
   async getWorkspaceTeams(user: User, workspaceId: WorkspaceAttributes['id']) {

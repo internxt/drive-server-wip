@@ -25,6 +25,7 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { v4 } from 'uuid';
+import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -244,6 +245,45 @@ export class FolderUseCases {
         };
       }),
     );
+  }
+
+  async updateFolderMetaData(
+    user: User,
+    folderUuid: Folder['uuid'],
+    newFolderMetadata: UpdateFolderMetaDto,
+  ) {
+    const folder = await this.folderRepository.findOne({
+      uuid: folderUuid,
+      deleted: false,
+    });
+
+    if (!folder.isOwnedBy(user)) {
+      throw new ForbiddenException('This folder is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFolderMetadata.plainName,
+      folder.parentId,
+    );
+
+    const folderWithSameNameExists = await this.folderRepository.findOne({
+      name: cryptoFileName,
+      parentId: folder.parentId,
+      deleted: false,
+    });
+
+    if (folderWithSameNameExists) {
+      throw new ConflictException(
+        'A folder with this name already exists in this location',
+      );
+    }
+
+    const updatedFolder = await this.folderRepository.updateByFolderId(
+      folder.id,
+      { plainName: newFolderMetadata.plainName, name: cryptoFileName },
+    );
+
+    return updatedFolder;
   }
 
   async createFolder(

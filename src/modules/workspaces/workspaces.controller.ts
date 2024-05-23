@@ -448,6 +448,8 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
+  // =============
+
   @Post('/:workspaceId/files')
   @ApiOperation({
     summary: 'Create File',
@@ -558,6 +560,8 @@ export class WorkspacesController {
       { sort, order },
     );
   }
+
+  // ================
 
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
   @ApiOperation({
