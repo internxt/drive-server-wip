@@ -21,6 +21,7 @@ import {
   UseFilters,
   InternalServerErrorException,
   HttpException,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -66,6 +67,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
+import { MAX_USERS_PER_ROOM, getJitsiUserUuidFromToken } from '../../lib/jitsi';
 
 @ApiTags('User')
 @Controller('users')
@@ -748,7 +750,17 @@ export class UserController {
         if (roomCreator && roomCreator.uuid === user.uuid) {
           token = generateJitsiJWT(user, room, true);
         } else if (roomCreator) {
-          token = generateJitsiJWT(user, room, false);
+          const roomUsers =
+            await this.userUseCases.getCurrentUsersFromRoom(room);
+          const isRoomFull = roomUsers.length > MAX_USERS_PER_ROOM;
+          if (!isRoomFull) {
+            token = generateJitsiJWT(user, room, false);
+            // todo asign userUuid to room table
+          } else {
+            throw new ForbiddenException(
+              'The room has reached the maximum number of occupants',
+            );
+          }
         } else {
           throw new ForbiddenException('The room is not valid');
         }
@@ -771,14 +783,35 @@ export class UserController {
     description: 'Returns a new meet anonymous token',
   })
   @Public()
-  async getMeetTokenAnon(@Query('room') room: string) {
+  async getMeetTokenAnon(
+    @Query('room') room: string,
+    @Headers('mToken') meetToken?: string,
+  ) {
     const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
     const isRoomCreated = roomCreator !== null;
     if (!room || !validate(room) || !isRoomCreated) {
       throw new ForbiddenException('The room is not valid');
     } else {
-      const token = generateJitsiJWT(null, room, false);
-      return { token };
+      let userUuid = v4();
+
+      if (meetToken) {
+        const userUuidToken = getJitsiUserUuidFromToken(meetToken);
+        if (userUuidToken) {
+          userUuid = userUuidToken;
+        }
+      }
+
+      const roomUsers = await this.userUseCases.getCurrentUsersFromRoom(room);
+      const isRoomFull = roomUsers.length > MAX_USERS_PER_ROOM;
+      if (!isRoomFull) {
+        const token = generateJitsiJWT({ uuid: userUuid }, room, false);
+        // todo asign userUuid to room table
+        return { token };
+      } else {
+        throw new ForbiddenException(
+          'The room has reached the maximum number of occupants',
+        );
+      }
     }
   }
 }

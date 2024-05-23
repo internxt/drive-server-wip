@@ -1,7 +1,10 @@
 import { JwtHeader } from 'jsonwebtoken';
-import { v4 } from 'uuid';
+import { v4, validate } from 'uuid';
 import getEnv from '../config/configuration';
 import { User } from '../modules/user/user.domain';
+import { verifyJitsiJWTSigning } from './jwt';
+
+export const MAX_USERS_PER_ROOM = 7;
 
 export const getJitsiJWTSecret = () => {
   return Buffer.from(getEnv().secrets.jitsiSecret, 'base64').toString('utf8');
@@ -46,4 +49,22 @@ export const getJitsiJWTHeader = () => {
     typ: 'JWT',
   };
   return header;
+};
+
+export const getJitsiUserUuidFromToken = (
+  meetToken: string,
+): string | undefined => {
+  try {
+    const decoded = verifyJitsiJWTSigning(meetToken);
+    if (typeof decoded !== 'string') {
+      const decodedContent = decoded as {
+        payload: { context: { user: { id: string } } };
+      };
+
+      const payloadUuid = decodedContent?.payload?.context?.user?.id;
+      if (payloadUuid && validate(payloadUuid)) {
+        return payloadUuid;
+      }
+    }
+  } catch {}
 };
