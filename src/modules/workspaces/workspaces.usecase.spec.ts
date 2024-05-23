@@ -344,7 +344,9 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'findById')
         .mockResolvedValueOnce(workspace);
 
-      await service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto);
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto),
+      ).resolves.not.toThrow();
 
       expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
         {

@@ -1215,7 +1215,7 @@ export class WorkspacesUsecases {
     workspaceId: WorkspaceAttributes['id'],
     user: User,
     editWorkspaceDetailsDto: EditWorkspaceDetailsDto,
-  ) {
+  ): Promise<void> {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
     if (!workspace) {

@@ -163,6 +163,17 @@ describe('Workspace Controller', () => {
         name: 'new name',
       });
 
+      jest
+        .spyOn(workspacesUsecases, 'editWorkspaceDetails')
+        .mockResolvedValue(Promise.resolve());
+
+      await expect(
+        workspacesController.editWorkspaceDetails(workspace.id, user, {
+          name: 'new name',
+          description: 'new description',
+        }),
+      ).resolves.toBeUndefined();
+
       expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
         workspace.id,
         user,
