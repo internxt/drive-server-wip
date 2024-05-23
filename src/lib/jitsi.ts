@@ -8,7 +8,7 @@ export const getJitsiJWTSecret = () => {
 };
 
 export const getJitsiJWTPayload = (
-  user: User,
+  user: Partial<User>,
   room: string,
   moderator: boolean,
 ) => {
@@ -18,7 +18,7 @@ export const getJitsiJWTPayload = (
     aud: 'jitsi',
     context: {
       user: {
-        id: user?.id ?? v4(),
+        id: user?.uuid ?? v4(),
         name: user?.name ?? 'anonymous',
         email: user?.email ?? 'anonymous@internxt.com',
         avatar: '',

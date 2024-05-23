@@ -57,7 +57,11 @@ export function isTokenIatGreaterThanDate(date: Date, iat: number) {
   return Math.floor(date.getTime() / 1000) < iat;
 }
 
-export function generateJitsiJWT(user: User, room: string, moderator: boolean) {
+export function generateJitsiJWT(
+  user: Partial<User>,
+  room: string,
+  moderator: boolean,
+) {
   return SignWithRS256AndHeader(
     getJitsiJWTPayload(user, room, moderator),
     getJitsiJWTSecret(),
