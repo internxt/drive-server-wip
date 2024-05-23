@@ -10,7 +10,12 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
@@ -21,6 +26,9 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -52,6 +60,9 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
+  @WorkspacesInBehalfValidationFile([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -81,6 +92,9 @@ export class FileController {
   }
 
   @Put('/:uuid')
+  @WorkspacesInBehalfValidationFile([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async replaceFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -107,6 +121,33 @@ export class FileController {
 
       throw error;
     }
+  }
+
+  @Put('/:uuid/meta')
+  @ApiOperation({
+    summary: 'Update File data',
+  })
+  @ApiBearerAuth()
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'file uuid',
+  })
+  @WorkspacesInBehalfValidationFile([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async updateFileMetadata(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe)
+    fileUuid: File['uuid'],
+    @Body() updateFileMetaDto: UpdateFileMetaDto,
+  ) {
+    return this.fileUseCases.updateFileMetaData(
+      user,
+      fileUuid,
+      updateFileMetaDto,
+    );
   }
 
   @Get('/')
@@ -179,6 +220,9 @@ export class FileController {
   }
 
   @Patch('/:uuid')
+  @WorkspacesInBehalfValidationFile([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async moveFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],

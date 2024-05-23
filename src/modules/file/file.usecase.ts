@@ -30,6 +30,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { v4 } from 'uuid';
 import { CreateFileDto } from './dto/create-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -125,6 +126,47 @@ export class FileUseCases {
     });
 
     return newFile;
+  }
+
+  async updateFileMetaData(
+    user: User,
+    fileUuid: File['uuid'],
+    newFileMetada: UpdateFileMetaDto,
+  ) {
+    const file = await this.fileRepository.findOneBy({
+      uuid: fileUuid,
+      status: FileStatus.EXISTS,
+    });
+
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('This file is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFileMetada.plainName,
+      file.folderId,
+    );
+
+    const fileWithSameNameExists = await this.fileRepository.findOneBy({
+      name: cryptoFileName,
+      folderId: file.folderId,
+      type: file.type,
+      status: FileStatus.EXISTS,
+    });
+
+    if (fileWithSameNameExists) {
+      throw new ConflictException(
+        'A file with this name already exists in this location',
+      );
+    }
+
+    const updatedFile = await this.fileRepository.updateByUuidAndUserId(
+      file.uuid,
+      user.id,
+      { plainName: newFileMetada.plainName, name: cryptoFileName },
+    );
+
+    return updatedFile;
   }
 
   async getFilesByFolderId(
