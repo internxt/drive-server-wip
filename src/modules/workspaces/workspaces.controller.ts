@@ -11,8 +11,7 @@ import {
   Query,
   UseGuards,
   UseInterceptors,
-  HttpException,
-  HttpStatus,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -269,18 +268,9 @@ export class WorkspacesController {
   ) {
     const { key } = file;
     if (key) {
-      return await this.workspaceUseCases.upsertAvatar(workspaceId, key);
+      return this.workspaceUseCases.upsertAvatar(workspaceId, key);
     }
-    return new Promise((_, reject) => {
-      reject(
-        new HttpException(
-          {
-            message: 'File could not be uploaded',
-          },
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        ),
-      );
-    });
+    throw new InternalServerErrorException('File could not be uploaded');
   }
 
   @Delete('/:workspaceId/avatar')

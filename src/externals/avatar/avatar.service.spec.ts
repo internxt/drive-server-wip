@@ -10,6 +10,7 @@ import { mockClient } from 'aws-sdk-client-mock';
 import configuration from '../../config/configuration';
 import { Readable } from 'stream';
 import { sdkStreamMixin } from '@smithy/util-stream';
+import { v4 } from 'uuid';
 
 describe('Avatar Service', () => {
   let service: AvatarService;
@@ -45,7 +46,7 @@ describe('Avatar Service', () => {
       await expect(service.getDownloadUrl(avatarKey)).rejects.toThrow();
     });
     it('When avatar key is not null then it should return an url', async () => {
-      const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
+      const avatarKey = v4();
       const stream = new Readable();
       stream.push('hello world');
       stream.push(null); // End of stream
@@ -61,7 +62,7 @@ describe('Avatar Service', () => {
 
   describe('Delete avatar', () => {
     it('When deleting the avatar is successful, it should delete the avatar file and return true', async () => {
-      const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
+      const avatarKey = v4();
 
       mockS3Client
         .on(DeleteObjectCommand, {
@@ -79,7 +80,7 @@ describe('Avatar Service', () => {
     });
 
     it('When the avatar deletion fails, then the error is propagated', async () => {
-      const avatarKey = 'cc925fa0-a145-58b8-8959-8b3796fd025f';
+      const avatarKey = v4();
 
       mockS3Client
         .on(DeleteObjectCommand, {

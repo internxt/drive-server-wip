@@ -28,9 +28,9 @@ describe('Workspace Controller', () => {
 
   describe('PATCH /:workspaceId/teams/:teamId/members/:memberId/role', () => {
     it('When role is updated correctly, then it works', async () => {
-      const userUuid = '9aa9399e-8697-41f7-88e3-df1d78794cb8';
-      const teamId = '286d2eea-8319-4a3f-a66b-d2b80e5c08fe';
-      const workspaceId = '3864950c-122d-4df3-b126-4d8b3fc23c29';
+      const userUuid = v4();
+      const teamId = v4();
+      const workspaceId = v4();
 
       await expect(
         workspacesController.changeMemberRole(workspaceId, teamId, userUuid, {
@@ -243,7 +243,7 @@ describe('Workspace Controller', () => {
   });
 
   describe('POST /:workspaceId/avatar', () => {
-    const newAvatarKey = '820ac21a-83d4-4e50-94bf-13e93d8ce1b1';
+    const newAvatarKey = v4();
     const file: Express.Multer.File | any = {
       stream: undefined,
       fieldname: undefined,
@@ -301,7 +301,7 @@ describe('Workspace Controller', () => {
 
     it('When passing a workspace id, workspacesUsecases.deleteAvatar should be called and return resolve', async () => {
       const workspace = newWorkspace({
-        avatar: '820ac21a-83d4-4e50-94bf-13e93d8ce1b1',
+        avatar: v4(),
       });
 
       await expect(
