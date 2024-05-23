@@ -3,17 +3,16 @@ import {
   Body,
   Controller,
   Delete,
-  FileTypeValidator,
   Get,
-  MaxFileSizeValidator,
   Param,
-  ParseFilePipe,
   Patch,
   Post,
   UploadedFile,
   Query,
   UseGuards,
   UseInterceptors,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -53,6 +52,7 @@ import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import { SortableFileAttributes } from '../file/file.domain';
+import { avatarStorageS3Config } from '../../externals/multer';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -261,21 +261,26 @@ export class WorkspacesController {
   })
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   @UseGuards(WorkspaceGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', avatarStorageS3Config))
   async uploadAvatar(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1000 * 1000 * 5 }),
-          new FileTypeValidator({ fileType: 'image/*' }),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | any,
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    return this.workspaceUseCases.upsertAvatar(workspaceId, file);
+    const { key } = file;
+    if (key) {
+      return await this.workspaceUseCases.upsertAvatar(workspaceId, key);
+    }
+    return new Promise((_, reject) => {
+      reject(
+        new HttpException(
+          {
+            message: 'File could not be uploaded',
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        ),
+      );
+    });
   }
 
   @Delete('/:workspaceId/avatar')

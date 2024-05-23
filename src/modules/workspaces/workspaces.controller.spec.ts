@@ -243,19 +243,21 @@ describe('Workspace Controller', () => {
   });
 
   describe('POST /:workspaceId/avatar', () => {
+    const newAvatarKey = '820ac21a-83d4-4e50-94bf-13e93d8ce1b1';
+    const file: Express.Multer.File | any = {
+      stream: undefined,
+      fieldname: undefined,
+      originalname: undefined,
+      encoding: undefined,
+      mimetype: undefined,
+      size: undefined,
+      filename: undefined,
+      destination: undefined,
+      path: undefined,
+      buffer: undefined,
+    };
+
     it('When workspaceId is null, throw error.', async () => {
-      const file: Express.Multer.File = {
-        stream: undefined,
-        fieldname: undefined,
-        originalname: undefined,
-        encoding: undefined,
-        mimetype: undefined,
-        size: undefined,
-        filename: undefined,
-        destination: undefined,
-        path: undefined,
-        buffer: undefined,
-      };
       const workspaceId = null;
       jest
         .spyOn(workspacesUsecases, 'upsertAvatar')
@@ -266,24 +268,21 @@ describe('Workspace Controller', () => {
       ).rejects.toThrow();
     });
 
-    it('When passing a file and workspace id, workspacesUsecases.upsertAvatar should be called.', async () => {
-      const file: Express.Multer.File = {
-        stream: undefined,
-        fieldname: undefined,
-        originalname: undefined,
-        encoding: undefined,
-        mimetype: undefined,
-        size: undefined,
-        filename: undefined,
-        destination: undefined,
-        path: undefined,
-        buffer: undefined,
-      };
+    it('When Multer does not return the key field in the file then the file was not uploaded to s3 and we should raise an error', async () => {
       const workspace = newWorkspace();
+      file.key = null;
+      await expect(
+        workspacesController.uploadAvatar(file, workspace.id),
+      ).rejects.toThrow();
+    });
+
+    it('When Multer returns the key field in the file then the file was uploaded to s3 and we must save the key', async () => {
+      const workspace = newWorkspace();
+      file.key = newAvatarKey;
       await workspacesController.uploadAvatar(file, workspace.id);
       expect(workspacesUsecases.upsertAvatar).toHaveBeenCalledWith(
         workspace.id,
-        file,
+        newAvatarKey,
       );
     });
   });

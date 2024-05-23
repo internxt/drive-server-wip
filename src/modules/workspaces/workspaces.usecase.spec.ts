@@ -29,7 +29,6 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
-import { Express } from 'express';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
@@ -2490,28 +2489,16 @@ describe('WorkspacesUsecases', () => {
     describe('upload workspace Avatar', () => {
       const newAvatarKey = '820ac21a-83d4-4e50-94bf-13e93d8ce1b1';
       const newAvatarURL = `http://localhost:9000/${newAvatarKey}`;
-      const file: Express.Multer.File = {
-        stream: undefined,
-        fieldname: undefined,
-        originalname: undefined,
-        encoding: undefined,
-        mimetype: undefined,
-        size: undefined,
-        filename: undefined,
-        destination: undefined,
-        path: undefined,
-        buffer: undefined,
-      };
 
       it('When a workspace id not exist then it fails', async () => {
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
 
         await expect(
-          service.upsertAvatar('workspace-uuid-not-exist', file),
+          service.upsertAvatar('workspace-uuid-not-exist', newAvatarKey),
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When avatar is null then it not call the avatarService.deleteAvatar', async () => {
+      it('When workspace.avatar is null then it not call the avatarService.deleteAvatar', async () => {
         const workspace = newWorkspace({
           avatar: null,
         });
@@ -2525,21 +2512,17 @@ describe('WorkspacesUsecases', () => {
         expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
       });
 
-      it('When avatar is not null we should call the avatarService[deleteAvatar|uploadAvatarAsStream], then should return the avatar url', async () => {
+      it('When workspace.avatar is not null we should call the avatarService[deleteAvatar], then should return the avatar url', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
         });
 
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
 
-        jest
-          .spyOn(avatarService, 'uploadAvatarAsStream')
-          .mockResolvedValue(newAvatarKey);
-
         jest.spyOn(service, 'getAvatarUrl').mockResolvedValue(newAvatarURL);
 
         await expect(
-          service.upsertAvatar(workspace.id, file),
+          service.upsertAvatar(workspace.id, newAvatarKey),
         ).resolves.toMatchObject({ avatar: newAvatarURL });
 
         expect(avatarService.deleteAvatar).toHaveBeenCalledWith(
@@ -2567,24 +2550,6 @@ describe('WorkspacesUsecases', () => {
         await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
       });
 
-      it('When we got an error from avatarService.uploadAvatarAsStream then it fails', async () => {
-        const workspace = newWorkspace({
-          avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
-        });
-
-        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
-
-        jest
-          .spyOn(avatarService, 'uploadAvatarAsStream')
-          .mockRejectedValue(
-            new Error('Error in avatarService uploadAvatarAsStream'),
-          );
-
-        await expect(
-          service.upsertAvatar(workspace.id, file),
-        ).rejects.toThrow();
-      });
-
       it('When we got an error from workspaceRepository.updateById then it fails', async () => {
         const workspace = newWorkspace({
           avatar: '3be096b9-e8c2-4c29-b273-a8d1d910e4f7',
@@ -2599,7 +2564,7 @@ describe('WorkspacesUsecases', () => {
           );
 
         await expect(
-          service.upsertAvatar(workspace.id, file),
+          service.upsertAvatar(workspace.id, newAvatarKey),
         ).rejects.toThrow();
       });
 
@@ -2610,10 +2575,6 @@ describe('WorkspacesUsecases', () => {
 
         jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
 
-        jest
-          .spyOn(avatarService, 'uploadAvatarAsStream')
-          .mockResolvedValue(newAvatarKey);
-
         jest.spyOn(workspaceRepository, 'updateById').mockResolvedValue();
 
         jest
@@ -2622,9 +2583,9 @@ describe('WorkspacesUsecases', () => {
             new Error('Error in WorkspacesUsecases getAvatarUrl'),
           );
 
-        await expect(service.upsertAvatar(workspace.id, file)).rejects.toThrow(
-          'Adding avatar to workspace has failed',
-        );
+        await expect(
+          service.upsertAvatar(workspace.id, newAvatarKey),
+        ).rejects.toThrow();
       });
     });
 

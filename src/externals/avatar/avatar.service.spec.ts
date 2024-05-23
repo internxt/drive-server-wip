@@ -3,10 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AvatarService } from './avatar.service';
 import {
   S3Client,
-  PutObjectCommand,
   DeleteObjectCommand,
-  CreateMultipartUploadCommand,
-  UploadPartCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -59,45 +56,6 @@ describe('Avatar Service', () => {
       const response = await service.getDownloadUrl(avatarKey);
       const url = new URL(response);
       expect(url).toBeInstanceOf(URL);
-    });
-  });
-
-  describe('Upload avatar', () => {
-    const file: Express.Multer.File = {
-      stream: undefined,
-      fieldname: undefined,
-      originalname: undefined,
-      encoding: undefined,
-      mimetype: undefined,
-      size: undefined,
-      filename: undefined,
-      destination: undefined,
-      path: undefined,
-      buffer: undefined,
-    };
-
-    it('When the avatar upload is successful, it should return the uuid', async () => {
-      const uploadId = 'this-is-the-upload-id';
-      const eTag = 'this-is-an-etag';
-      mockS3Client.on(CreateMultipartUploadCommand).resolves({
-        UploadId: uploadId,
-      });
-      mockS3Client.on(UploadPartCommand).resolves({
-        ETag: eTag,
-      });
-
-      await expect(service.uploadAvatarAsStream(file)).resolves.toStrictEqual(
-        expect.any(String),
-      );
-      await expect(service.uploadAvatarAsStream(file)).resolves.toHaveLength(
-        36,
-      );
-    });
-
-    it('When the avatar loading fails, then the error is propagated', async () => {
-      mockS3Client.on(PutObjectCommand).rejects();
-
-      await expect(service.uploadAvatarAsStream(file)).rejects.toThrow();
     });
   });
 

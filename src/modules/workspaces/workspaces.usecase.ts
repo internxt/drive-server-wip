@@ -32,7 +32,6 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
-import { Express } from 'express';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
@@ -1244,7 +1243,7 @@ export class WorkspacesUsecases {
 
   async upsertAvatar(
     workspaceId: Workspace['id'],
-    file: Express.Multer.File,
+    avatarKey: string,
   ): Promise<Error | { avatar: string }> {
     const workspace = await this.workspaceRepository.findOne({
       id: workspaceId,
@@ -1252,6 +1251,10 @@ export class WorkspacesUsecases {
 
     if (!workspace) {
       throw new BadRequestException('Not valid workspace');
+    }
+
+    if (!avatarKey) {
+      throw new BadRequestException('Avatar key required');
     }
 
     if (workspace.avatar) {
@@ -1268,11 +1271,10 @@ export class WorkspacesUsecases {
     }
 
     try {
-      const s3AvatarKey = await this.avatarService.uploadAvatarAsStream(file);
       await this.workspaceRepository.updateById(workspace.id, {
-        avatar: s3AvatarKey,
+        avatar: avatarKey,
       });
-      const avatarUrl = await this.getAvatarUrl(s3AvatarKey);
+      const avatarUrl = await this.getAvatarUrl(avatarKey);
       return { avatar: avatarUrl };
     } catch (err) {
       Logger.error(
