@@ -1,4 +1,4 @@
-import { sign, SignOptions, verify } from 'jsonwebtoken';
+import { sign, SignOptions, verify, VerifyOptions } from 'jsonwebtoken';
 import getEnv from '../config/configuration';
 import { SignWithRS256AndHeader } from '../middlewares/passport';
 import {
@@ -49,6 +49,14 @@ export function verifyWithDefaultSecret(token: string) {
   return verify(token, getEnv().secrets.jwt);
 }
 
+export function verifyTokenWithOptions(
+  token: string,
+  secret: string,
+  options: VerifyOptions,
+) {
+  return verify(token, secret, options);
+}
+
 export function getTokenDefaultIat() {
   return Math.floor(Date.now() / 1000);
 }
@@ -67,4 +75,10 @@ export function generateJitsiJWT(
     getJitsiJWTSecret(),
     getJitsiJWTHeader(),
   );
+}
+
+export function verifyJitsiJWTSigning(token: string) {
+  return verifyTokenWithOptions(token, getJitsiJWTSecret(), {
+    ignoreExpiration: true,
+  });
 }
