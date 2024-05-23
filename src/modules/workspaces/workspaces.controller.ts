@@ -298,6 +298,24 @@ export class WorkspacesController {
     return this.workspaceUseCases.deleteAvatar(workspaceId);
   }
 
+  @Get('/:workspaceId/credentials')
+  @ApiOperation({
+    summary: 'Gets workspace credentials',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace credentials',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceUser(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
+  }
+
   @Get('/:workspaceId/members')
   @ApiOperation({
     summary: 'Gets workspace members',

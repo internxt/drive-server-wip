@@ -948,6 +948,35 @@ export class WorkspacesUsecases {
     };
   }
 
+  async getWorkspaceCredentials(workspaceId: WorkspaceAttributes['id']) {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    if (!workspaceNetworkUser) {
+      throw new NotFoundException('Workspace user not found');
+    }
+
+    const rootFolder = await this.folderUseCases.getByUuid(
+      workspace.rootFolderId,
+    );
+
+    return {
+      workspaceId: workspace.id,
+      bucket: rootFolder.bucket,
+      workspaceUserId: workspaceNetworkUser.uuid,
+      email: workspaceNetworkUser.email,
+      credentials: {
+        networkPass: workspaceNetworkUser.userId,
+        networkUser: workspaceNetworkUser.bridgeUser,
+      },
+    };
+  }
+
   async getTeamMembers(
     teamId: WorkspaceTeam['id'],
   ): Promise<Pick<User, 'uuid' | 'email' | 'name' | 'lastname' | 'avatar'>[]> {
