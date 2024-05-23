@@ -747,8 +747,10 @@ export class UserController {
         const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
         if (roomCreator && roomCreator.uuid === user.uuid) {
           token = generateJitsiJWT(user, room, true);
-        } else {
+        } else if (roomCreator) {
           token = generateJitsiJWT(user, room, false);
+        } else {
+          throw new ForbiddenException('The room is not valid');
         }
         return { token, room };
       }
@@ -773,7 +775,7 @@ export class UserController {
     const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
     const isRoomCreated = roomCreator !== null;
     if (!room || !validate(room) || !isRoomCreated) {
-      throw new ForbiddenException('Room is not valid');
+      throw new ForbiddenException('The room is not valid');
     } else {
       const token = generateJitsiJWT(null, room, false);
       return { token };
