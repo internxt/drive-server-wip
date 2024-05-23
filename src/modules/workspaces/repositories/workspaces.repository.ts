@@ -248,7 +248,7 @@ export class SequelizeWorkspaceRepository {
     });
 
     return userWorkspaces.map((userWorkspace) => ({
-      workspaceUser: this.workspaceUserToDomain(userWorkspace).toJSON(),
+      workspaceUser: this.workspaceUserToDomain(userWorkspace),
       workspace: this.toDomain(userWorkspace.workspace),
     }));
   }

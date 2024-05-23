@@ -546,7 +546,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      }).toJSON();
+      });
 
       jest
         .spyOn(service, 'getWorkspacesPendingToBeSetup')
@@ -557,7 +557,9 @@ describe('WorkspacesUsecases', () => {
       const availableWorkspaces = await service.getAvailableWorkspaces(user);
 
       expect(availableWorkspaces).toEqual({
-        availableWorkspaces: [{ workspaceUser, workspace }],
+        availableWorkspaces: [
+          { workspaceUser: workspaceUser.toJSON(), workspace },
+        ],
         pendingWorkspaces: [pendingSetupWorkspace],
       });
     });
@@ -571,7 +573,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      }).toJSON();
+      });
 
       jest
         .spyOn(service, 'getWorkspacesPendingToBeSetup')
@@ -597,7 +599,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: true },
-      }).toJSON();
+      });
 
       jest
         .spyOn(service, 'getWorkspacesPendingToBeSetup')

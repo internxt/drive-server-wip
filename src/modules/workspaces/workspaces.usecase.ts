@@ -849,7 +849,7 @@ export class WorkspacesUsecases {
 
     const workspacesWithAvatar = await Promise.all(
       workspacesFiltered.map(async (item) => ({
-        workspaceUser: item.workspaceUser,
+        workspaceUser: item.workspaceUser.toJSON(),
         workspace: {
           ...item.workspace,
           avatar: item.workspace?.avatar
