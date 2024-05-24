@@ -189,44 +189,44 @@ describe('Workspace Controller', () => {
         memberId: owner.uuid,
         member: owner,
         attributes: { deactivated: false },
-      }).toJSON();
+      });
       const userWorkspace1 = newWorkspaceUser({
         workspaceId: workspace.id,
         memberId: user1.uuid,
         member: user1,
         attributes: { deactivated: false },
-      }).toJSON();
+      });
       const userWorkspace2 = newWorkspaceUser({
         workspaceId: workspace.id,
         memberId: user2.uuid,
         member: user2,
         attributes: { deactivated: true },
-      }).toJSON();
+      });
 
       const mockResolvedValues = {
         activatedUsers: [
           {
-            ...ownerWorkspaceUser,
+            ...ownerWorkspaceUser.toJSON(),
             isOwner: true,
             isManager: true,
-            freeSpace: BigInt(150000).toString(),
-            usedSpace: BigInt(0).toString(),
+            freeSpace: ownerWorkspaceUser.getFreeSpace(),
+            usedSpace: ownerWorkspaceUser.getUsedSpace(),
           },
           {
-            ...userWorkspace1,
+            ...userWorkspace1.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: BigInt(15000).toString(),
-            usedSpace: BigInt(0).toString(),
+            freeSpace: userWorkspace1.getFreeSpace(),
+            usedSpace: userWorkspace1.getUsedSpace(),
           },
         ],
         disabledUsers: [
           {
-            ...userWorkspace2,
+            ...userWorkspace2.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: BigInt(13000).toString(),
-            usedSpace: BigInt(0).toString(),
+            freeSpace: userWorkspace2.getFreeSpace(),
+            usedSpace: userWorkspace2.getUsedSpace(),
           },
         ],
       };

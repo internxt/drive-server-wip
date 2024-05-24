@@ -103,7 +103,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'Dasdsadas',
           encryptionAlgorithm: 'dadads',
         }),
@@ -120,7 +120,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'Dasdsadas',
           encryptionAlgorithm: 'dadads',
         }),
@@ -145,7 +145,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(BigInt(6000000));
+        .mockResolvedValueOnce(6000000);
       jest.spyOn(configService, 'get').mockResolvedValueOnce('secret' as never);
       jest
         .spyOn(mailerService, 'sendWorkspaceUserExternalInvitation')
@@ -154,7 +154,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: '',
           encryptionAlgorithm: '',
         }),
@@ -184,7 +184,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(BigInt(6000000));
+        .mockResolvedValueOnce(6000000);
       jest
         .spyOn(mailerService, 'sendWorkspaceUserInvitation')
         .mockResolvedValueOnce(undefined);
@@ -193,7 +193,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: '',
           encryptionAlgorithm: '',
         }),
@@ -221,7 +221,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -246,7 +246,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUser.email,
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -277,7 +277,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUserEmail,
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -302,13 +302,13 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(BigInt(spaceLeft));
+        .mockResolvedValueOnce(spaceLeft);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
 
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUserEmail,
-          spaceLimit: BigInt(spaceLeft + 1),
+          spaceLimit: spaceLeft + 1,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -725,7 +725,7 @@ describe('WorkspacesUsecases', () => {
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
-        attributes: { spaceLimit: BigInt(1000) },
+        attributes: { spaceLimit: 1000 },
       });
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
@@ -1076,16 +1076,16 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(networkService, 'getLimit').mockResolvedValue(1000000);
       jest
         .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
-        .mockResolvedValue(BigInt(500000));
+        .mockResolvedValue(500000);
       jest
         .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
-        .mockResolvedValue(BigInt(200000));
+        .mockResolvedValue(200000);
 
       const assignableSpace = await service.getAssignableSpaceInWorkspace(
         workspace,
         workspaceDefaultUser,
       );
-      expect(assignableSpace).toBe(BigInt(300000));
+      expect(assignableSpace).toBe(300000);
     });
   });
 
@@ -1217,8 +1217,8 @@ describe('WorkspacesUsecases', () => {
             ...workspaceUser.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: workspaceUser.getFreeSpace().toString(),
-            usedSpace: workspaceUser.getUsedSpace().toString(),
+            freeSpace: workspaceUser.getFreeSpace(),
+            usedSpace: workspaceUser.getUsedSpace(),
           },
         ],
         disabledUsers: [],
@@ -1272,15 +1272,15 @@ describe('WorkspacesUsecases', () => {
             ...workspaceUser1.toJSON(),
             isOwner: false,
             isManager: true,
-            freeSpace: workspaceUser1.getFreeSpace().toString(),
-            usedSpace: workspaceUser1.getUsedSpace().toString(),
+            freeSpace: workspaceUser1.getFreeSpace(),
+            usedSpace: workspaceUser1.getUsedSpace(),
           },
           {
             ...workspaceUser2.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: workspaceUser2.getFreeSpace().toString(),
-            usedSpace: workspaceUser2.getUsedSpace().toString(),
+            freeSpace: workspaceUser2.getFreeSpace(),
+            usedSpace: workspaceUser2.getUsedSpace(),
           },
         ],
         disabledUsers: [],
@@ -1397,7 +1397,7 @@ describe('WorkspacesUsecases', () => {
     it('When users do not have space, then it should throw', async () => {
       const user = newUser();
       const workspaceUserWithNoSpace = newWorkspaceUser({
-        attributes: { spaceLimit: BigInt(1024), driveUsage: BigInt(1024) },
+        attributes: { spaceLimit: 1024, driveUsage: 1024 },
       });
 
       jest
@@ -1411,9 +1411,9 @@ describe('WorkspacesUsecases', () => {
 
     it('When file size is bigger than free space, then it should throw', async () => {
       const user = newUser();
-      const size = BigInt(2000);
+      const size = 2000;
       const workspaceUserWithNoSpace = newWorkspaceUser({
-        attributes: { spaceLimit: BigInt(1024), driveUsage: BigInt(1024) },
+        attributes: { spaceLimit: 1024, driveUsage: 1024 },
       });
 
       jest
@@ -1421,15 +1421,18 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUserWithNoSpace);
 
       await expect(
-        service.createFile(user, workspace.id, { ...createFileDto, size }),
+        service.createFile(user, workspace.id, {
+          ...createFileDto,
+          size: BigInt(size),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When parent folder is not valid, then it should throw', async () => {
       const user = newUser();
-      const size = BigInt(2000);
+      const size = 2000;
       const workspaceUser = newWorkspaceUser({
-        attributes: { spaceLimit: BigInt(2048), driveUsage: BigInt(1024) },
+        attributes: { spaceLimit: 2048, driveUsage: 1024 },
       });
 
       jest
@@ -1438,15 +1441,18 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
 
       await expect(
-        service.createFile(user, workspace.id, { ...createFileDto, size }),
+        service.createFile(user, workspace.id, {
+          ...createFileDto,
+          size: BigInt(size),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When user does not own the parent folder, then it should throw', async () => {
       const user = newUser();
-      const fileSize = BigInt(1000);
+      const fileSize = 1000;
       const workspaceUser = newWorkspaceUser({
-        attributes: { spaceLimit: fileSize + BigInt(1) },
+        attributes: { spaceLimit: fileSize + 1 },
       });
       const folderItem = newWorkspaceItemUser();
 
@@ -1460,20 +1466,20 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.createFile(user, workspace.id, {
           ...createFileDto,
-          size: fileSize,
+          size: BigInt(fileSize),
         }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When parent folder is the workspace root folder, then it should throw', async () => {
       const user = newUser();
-      const fileSize = BigInt(2000);
+      const fileSize = 2000;
       const workspace = newWorkspace({
         attributes: { rootFolderId: createFileDto.folderUuid },
       });
       const workspaceUser = newWorkspaceUser({
         attributes: {
-          spaceLimit: fileSize + BigInt(1),
+          spaceLimit: fileSize + 1,
           rootFolderId: createFileDto.folderUuid,
         },
         workspaceId: workspace.id,
@@ -1492,18 +1498,18 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.createFile(user, workspace.id, {
           ...createFileDto,
-          size: fileSize,
+          size: BigInt(fileSize),
         }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When workspace user has enough space and parent folder is valid, then it should create file successfully', async () => {
       const user = newUser();
-      const fileSize = BigInt(2000);
+      const fileSize = 2000;
       const workspace = newWorkspace();
       const workspaceUser = newWorkspaceUser({
         attributes: {
-          spaceLimit: fileSize + BigInt(1),
+          spaceLimit: fileSize + 1,
           rootFolderId: createFileDto.folderUuid,
         },
         workspaceId: workspace.id,
@@ -1531,7 +1537,7 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.createFile(user, workspace.id, {
         ...createFileDto,
-        size: fileSize,
+        size: BigInt(fileSize),
       });
 
       expect(result).toEqual({ ...createdFile, item: createdItemFile });

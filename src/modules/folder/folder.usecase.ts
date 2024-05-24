@@ -196,7 +196,6 @@ export class FolderUseCases {
       encryptedFolderName,
       bucketId,
       null,
-      null,
       '03-aes',
     );
 
