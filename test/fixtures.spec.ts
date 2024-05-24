@@ -375,18 +375,14 @@ describe('Testing fixtures tests', () => {
 
     it('When it generates a workspace user, then driveUsage and backupsUsage should not exceed spaceLimit', () => {
       const user = fixtures.newWorkspaceUser();
-      expect(Number(user.driveUsage)).toBeLessThanOrEqual(
-        BigInt(user.spaceLimit),
-      );
-      expect(BigInt(user.backupsUsage)).toBeLessThanOrEqual(
-        BigInt(user.spaceLimit),
-      );
+      expect(Number(user.driveUsage)).toBeLessThanOrEqual(user.spaceLimit);
+      expect(user.backupsUsage).toBeLessThanOrEqual(user.spaceLimit);
     });
 
     it('When it generates a workspace user with custom attributes, then those attributes are set correctly', () => {
       const customAttributes = {
         deactivated: true,
-        spaceLimit: BigInt(500),
+        spaceLimit: 500,
       };
       const user = fixtures.newWorkspaceUser({ attributes: customAttributes });
 
@@ -419,7 +415,7 @@ describe('Testing fixtures tests', () => {
     it('When it generates a workspace invite with custom attributes, then those attributes are set correctly', () => {
       const customAttributes = {
         encryptionAlgorithm: 'AES-256',
-        spaceLimit: BigInt(2048),
+        spaceLimit: 2048,
       };
       const invite = fixtures.newWorkspaceInvite({
         attributes: customAttributes,
