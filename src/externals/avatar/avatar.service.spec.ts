@@ -40,6 +40,9 @@ describe('Avatar Service', () => {
   describe('Get avatar download url', () => {
     it('When avatar key is null then it should throw an error', async () => {
       const avatarKey = null;
+      jest
+        .spyOn(s3RequestPresigner, 'getSignedUrl')
+        .mockRejectedValueOnce(new Error());
       await expect(service.getDownloadUrl(avatarKey)).rejects.toThrow();
     });
     it('When avatar key is not null then it should return an url', async () => {
