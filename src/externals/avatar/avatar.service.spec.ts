@@ -1,16 +1,13 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AvatarService } from './avatar.service';
-import {
-  S3Client,
-  DeleteObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
 import configuration from '../../config/configuration';
-import { Readable } from 'stream';
-import { sdkStreamMixin } from '@smithy/util-stream';
 import { v4 } from 'uuid';
+import * as s3RequestPresigner from '@aws-sdk/s3-request-presigner';
+
+jest.mock('@aws-sdk/s3-request-presigner');
 
 describe('Avatar Service', () => {
   let service: AvatarService;
@@ -47,47 +44,24 @@ describe('Avatar Service', () => {
     });
     it('When avatar key is not null then it should return an url', async () => {
       const avatarKey = v4();
-      const stream = new Readable();
-      stream.push('hello world');
-      stream.push(null); // End of stream
-      const sdkStream = sdkStreamMixin(stream);
-      mockS3Client.on(GetObjectCommand).resolves({
-        Body: sdkStream,
-      });
+      const expectedUrl = `https://avatar.network.com/${avatarKey}`;
+      jest
+        .spyOn(s3RequestPresigner, 'getSignedUrl')
+        .mockResolvedValueOnce(expectedUrl);
       const response = await service.getDownloadUrl(avatarKey);
-      const url = new URL(response);
-      expect(url).toBeInstanceOf(URL);
+      expect(response).toBe(expectedUrl);
     });
   });
 
   describe('Delete avatar', () => {
     it('When deleting the avatar is successful, it should delete the avatar file and return true', async () => {
       const avatarKey = v4();
-
-      mockS3Client
-        .on(DeleteObjectCommand, {
-          Bucket: 'avatars',
-          Key: avatarKey,
-        })
-        .resolves({
-          $metadata: { httpStatusCode: 204 },
-          DeleteMarker: true,
-          VersionId: '1',
-          RequestCharged: 'requester',
-        });
-
       await expect(service.deleteAvatar(avatarKey)).resolves.toBeTruthy();
     });
 
     it('When the avatar deletion fails, then the error is propagated', async () => {
       const avatarKey = v4();
-
-      mockS3Client
-        .on(DeleteObjectCommand, {
-          Key: avatarKey,
-        })
-        .rejects();
-
+      mockS3Client.on(DeleteObjectCommand).rejects();
       await expect(service.deleteAvatar(avatarKey)).rejects.toThrow();
     });
   });

@@ -267,10 +267,10 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
   ) {
     const { key } = file;
-    if (key) {
-      return this.workspaceUseCases.upsertAvatar(workspaceId, key);
+    if (!key) {
+      throw new InternalServerErrorException('File could not be uploaded');
     }
-    throw new InternalServerErrorException('File could not be uploaded');
+    return this.workspaceUseCases.upsertAvatar(workspaceId, key);
   }
 
   @Delete('/:workspaceId/avatar')

@@ -1293,7 +1293,7 @@ export class WorkspacesUsecases {
             workspace.id
           } has failed. Error: ${(err as Error).message}`,
         );
-        throw new Error('Deleting avatar to workspace has failed');
+        throw Error;
       }
     }
 
@@ -1309,7 +1309,7 @@ export class WorkspacesUsecases {
           workspace.id
         } has failed. Error: ${(err as Error).message}`,
       );
-      throw new Error('Adding avatar to workspace has failed');
+      throw Error;
     }
   }
 
@@ -1334,7 +1334,7 @@ export class WorkspacesUsecases {
             workspace.id
           } has failed. Error: ${(err as Error).message}`,
         );
-        throw new Error('Deleting avatar to workspace has failed');
+        throw Error;
       }
     }
   }
