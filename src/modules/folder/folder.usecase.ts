@@ -316,7 +316,7 @@ export class FolderUseCases {
     const folders = foldersById.concat(foldersByUuid);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
-    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder));
+    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId);
 
     await Promise.all([
       driveFolders.length > 0
