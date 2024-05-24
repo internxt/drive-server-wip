@@ -169,21 +169,21 @@ export class SequelizeWorkspaceRepository {
   }
   async getSpaceLimitInInvitations(
     workspaceId: WorkspaceAttributes['id'],
-  ): Promise<bigint> {
+  ): Promise<number> {
     const totalSpaceLimit = await this.modelWorkspaceInvite.sum('spaceLimit', {
       where: { workspaceId: workspaceId },
     });
 
-    return BigInt(totalSpaceLimit || 0);
+    return totalSpaceLimit || 0;
   }
 
   async getTotalSpaceLimitInWorkspaceUsers(
     workspaceId: WorkspaceAttributes['id'],
-  ): Promise<bigint> {
+  ): Promise<number> {
     const total = await this.modelWorkspaceUser.sum('spaceLimit', {
       where: { workspaceId },
     });
-    return BigInt(total ?? 0);
+    return total ?? 0;
   }
 
   async createInvite(

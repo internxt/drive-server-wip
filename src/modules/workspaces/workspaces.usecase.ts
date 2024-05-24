@@ -182,9 +182,9 @@ export class WorkspacesUsecases {
           id: v4(),
           workspaceId: workspace.id,
           memberId: user.uuid,
-          spaceLimit: BigInt(0),
-          driveUsage: BigInt(0),
-          backupsUsage: BigInt(0),
+          spaceLimit: 0,
+          driveUsage: 0,
+          backupsUsage: 0,
           key: setupWorkspaceDto.encryptedMnemonic,
           rootFolderId: rootFolder.uuid,
           deactivated: false,
@@ -346,7 +346,7 @@ export class WorkspacesUsecases {
       invitedUser: userJoining.uuid,
       encryptionAlgorithm: createInviteDto.encryptionAlgorithm,
       encryptionKey: createInviteDto.encryptionKey,
-      spaceLimit: BigInt(createInviteDto.spaceLimit),
+      spaceLimit: createInviteDto.spaceLimit,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -415,7 +415,7 @@ export class WorkspacesUsecases {
       workspaceId,
     });
 
-    if (!workspaceUser.hasEnoughSpaceForFile(createFileDto.size)) {
+    if (!workspaceUser.hasEnoughSpaceForFile(Number(createFileDto.size))) {
       throw new BadRequestException('You have not enough space for this file');
     }
 
@@ -457,7 +457,7 @@ export class WorkspacesUsecases {
       updatedAt: new Date(),
     });
 
-    workspaceUser.addDriveUsage(BigInt(createdFile.size));
+    workspaceUser.addDriveUsage(Number(createdFile.size));
 
     await this.workspaceRepository.updateWorkspaceUser(
       workspaceUser.id,
@@ -649,9 +649,9 @@ export class WorkspacesUsecases {
         workspaceId: invite.workspaceId,
         memberId: invite.invitedUser,
         spaceLimit: invite.spaceLimit,
-        driveUsage: BigInt(0),
+        driveUsage: 0,
         rootFolderId: rootFolder.uuid,
-        backupsUsage: BigInt(0),
+        backupsUsage: 0,
         key: invite.encryptionKey,
         deactivated: false,
         createdAt: new Date(),
@@ -746,7 +746,7 @@ export class WorkspacesUsecases {
   async getAssignableSpaceInWorkspace(
     workspace: Workspace,
     workpaceDefaultUser: User,
-  ): Promise<bigint> {
+  ): Promise<number> {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
@@ -761,9 +761,7 @@ export class WorkspacesUsecases {
     ]);
 
     const spaceLeft =
-      BigInt(spaceLimit) -
-      totalSpaceLimitAssigned -
-      totalSpaceAssignedInInvitations;
+      spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
 
     return spaceLeft;
   }
@@ -914,8 +912,8 @@ export class WorkspacesUsecases {
         return {
           isOwner,
           isManager,
-          usedSpace: workspaceUser.getUsedSpace().toString(),
-          freeSpace: workspaceUser.getFreeSpace().toString(),
+          usedSpace: workspaceUser.getUsedSpace(),
+          freeSpace: workspaceUser.getFreeSpace(),
           ...workspaceUser.toJSON(),
         };
       }),

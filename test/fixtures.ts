@@ -379,9 +379,9 @@ export const newWorkspaceUser = (params?: {
     member: params?.member,
     key: randomDataGenerator.string({ length: 32 }),
     workspaceId: params?.workspaceId || v4(),
-    spaceLimit: BigInt(spaceLimit),
-    driveUsage: BigInt(0),
-    backupsUsage: BigInt(0),
+    spaceLimit: spaceLimit,
+    driveUsage: 0,
+    backupsUsage: 0,
     deactivated: randomDataGenerator.bool(),
     createdAt: randomCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
@@ -408,9 +408,7 @@ export const newWorkspaceInvite = (params?: {
     invitedUser: params?.invitedUser || randomDataGenerator.email(),
     encryptionAlgorithm: 'AES-256',
     encryptionKey: randomDataGenerator.string({ length: 32 }),
-    spaceLimit: BigInt(
-      randomDataGenerator.natural({ min: 1024, max: 1048576 }),
-    ),
+    spaceLimit: randomDataGenerator.natural({ min: 1024, max: 1048576 }),
     createdAt: defaultCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
   });
