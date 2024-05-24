@@ -1293,7 +1293,7 @@ export class WorkspacesUsecases {
             workspace.id
           } has failed. Error: ${(err as Error).message}`,
         );
-        throw Error;
+        throw new InternalServerErrorException();
       }
     }
 
@@ -1309,7 +1309,7 @@ export class WorkspacesUsecases {
           workspace.id
         } has failed. Error: ${(err as Error).message}`,
       );
-      throw Error;
+      throw new InternalServerErrorException();
     }
   }
 
@@ -1334,7 +1334,7 @@ export class WorkspacesUsecases {
             workspace.id
           } has failed. Error: ${(err as Error).message}`,
         );
-        throw Error;
+        throw new InternalServerErrorException();
       }
     }
   }
