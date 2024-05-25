@@ -9,6 +9,7 @@ import { WorkspacesUsecases } from './workspaces.usecase';
 import {
   newFile,
   newFolder,
+  newPreCreatedUser,
   newUser,
   newWorkspace,
   newWorkspaceInvite,
@@ -571,6 +572,198 @@ describe('WorkspacesUsecases', () => {
 
       const isFull = await service.isWorkspaceFull(workspaceId);
       expect(isFull).toBe(true);
+    });
+  });
+
+  describe('getUserInvites', () => {
+    it('When user invites are searched, then should return successfully', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspace2 = newWorkspace();
+      const limit = 10;
+      const offset = 0;
+
+      const invites = [
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace2.id,
+        }),
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce(invites);
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace2);
+
+      const result = await service.getUserInvites(user, limit, offset);
+
+      expect(result).toEqual([
+        { ...invites[0], workspace: workspace.toJSON() },
+        { ...invites[1], workspace: workspace2.toJSON() },
+      ]);
+
+      expect(workspaceRepository.findInvitesBy).toHaveBeenCalledWith(
+        { invitedUser: user.uuid },
+        limit,
+        offset,
+      );
+    });
+
+    it('When user invites are searched but no invites are found, then should return nothing', async () => {
+      const user = newUser();
+      const limit = 10;
+      const offset = 0;
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getUserInvites(user, limit, offset);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getWorkspacePendingInvitations', () => {
+    const workspace = newWorkspace();
+
+    it('When workspace has invitations, then it should return invites with users', async () => {
+      const avatarUrl = 'avatarUrl';
+      const user = newUser();
+      const anotherUser = newUser();
+      anotherUser.avatar = avatarUrl;
+
+      const invites = [
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        newWorkspaceInvite({
+          invitedUser: anotherUser.uuid,
+          workspaceId: workspace.id,
+        }),
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce(invites);
+      jest
+        .spyOn(userUsecases, 'findByUuids')
+        .mockResolvedValueOnce([user, anotherUser]);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedUsersByUuids')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(userUsecases, 'getAvatarUrl').mockResolvedValueOnce(avatarUrl);
+
+      const expectedUsersWithAvatars = [
+        { ...user, avatar: null },
+        { ...anotherUser, avatar: avatarUrl },
+      ];
+
+      const result = await service.getWorkspacePendingInvitations(
+        workspace.id,
+        10,
+        0,
+      );
+
+      expect(userUsecases.findByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        anotherUser.uuid,
+      ]);
+      expect(userUsecases.findPreCreatedUsersByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        anotherUser.uuid,
+      ]);
+
+      expect(result).toEqual([
+        {
+          ...invites[0],
+          user: expectedUsersWithAvatars[0],
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: expectedUsersWithAvatars[1],
+          isGuessInvite: false,
+        },
+      ]);
+    });
+
+    it('When workspace has invitations for non registered users, then it should return invites with pre created user data', async () => {
+      const user = newUser();
+      const preCreatedUser = newPreCreatedUser();
+
+      const invites = [
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        newWorkspaceInvite({
+          invitedUser: preCreatedUser.uuid,
+          workspaceId: workspace.id,
+        }),
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce(invites);
+      jest.spyOn(userUsecases, 'findByUuids').mockResolvedValueOnce([user]);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedUsersByUuids')
+        .mockResolvedValueOnce([preCreatedUser]);
+
+      const expectedUsersWithAvatars = [{ ...user, avatar: null }];
+
+      const result = await service.getWorkspacePendingInvitations(
+        workspace.id,
+        10,
+        0,
+      );
+
+      expect(userUsecases.findByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        preCreatedUser.uuid,
+      ]);
+      expect(userUsecases.findPreCreatedUsersByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        preCreatedUser.uuid,
+      ]);
+
+      expect(result).toEqual([
+        {
+          ...invites[0],
+          user: expectedUsersWithAvatars[0],
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: preCreatedUser.toJSON(),
+          isGuessInvite: true,
+        },
+      ]);
+    });
+
+    it('When workspace has not invitations, then it should return empty', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getWorkspacePendingInvitations(
+        workspace.id,
+        10,
+        0,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 

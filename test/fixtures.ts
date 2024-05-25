@@ -28,6 +28,7 @@ import {
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 import { UserAttributes } from '../src/modules/user/user.attributes';
+import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -186,6 +187,24 @@ export const newUser = (params?: {
     });
 
   return user;
+};
+
+export const newPreCreatedUser = (): PreCreatedUser => {
+  const randomEmail = randomDataGenerator.email();
+
+  return PreCreatedUser.build({
+    id: randomDataGenerator.natural(),
+    uuid: v4(),
+    email: randomEmail,
+    username: randomEmail,
+    password: '',
+    mnemonic: '',
+    hKey: '',
+    publicKey: '',
+    privateKey: '',
+    revocationKey: '',
+    encryptVersion: '03-aes',
+  });
 };
 
 export const publicUser = (): User => {
