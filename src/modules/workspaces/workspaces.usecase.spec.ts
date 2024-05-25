@@ -28,6 +28,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
@@ -310,6 +311,49 @@ describe('WorkspacesUsecases', () => {
           encryptionAlgorithm: 'RSA',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('editWorkspaceDetails', () => {
+    const user = newUser();
+    const workspace = newWorkspace({ owner: user });
+    const editWorkspaceDto: EditWorkspaceDetailsDto = {
+      name: 'Test Workspace',
+      description: 'Workspace description',
+    };
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not the owner of the workspace, then it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, newUser(), editWorkspaceDto),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When the user is the owner of the workspace, then it should update the workspace details', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto),
+      ).resolves.not.toThrow();
+
+      expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
+        {
+          id: workspace.id,
+        },
+        editWorkspaceDto,
+      );
     });
   });
 

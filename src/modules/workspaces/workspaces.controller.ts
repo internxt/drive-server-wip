@@ -37,6 +37,7 @@ import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import {
   FolderAttributes,
@@ -484,6 +485,26 @@ export class WorkspacesController {
       teamId,
       userUuid,
       changeUserRoleBody,
+    );
+  }
+  @Patch('/:workspaceId')
+  @ApiOperation({
+    summary: 'Edit workspace details',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  editWorkspaceDetails(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() editWorkspaceBody: EditWorkspaceDetailsDto,
+  ) {
+    return this.workspaceUseCases.editWorkspaceDetails(
+      workspaceId,
+      user,
+      editWorkspaceBody,
     );
   }
 
