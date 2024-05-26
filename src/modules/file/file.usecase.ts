@@ -31,6 +31,7 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { v4 } from 'uuid';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -309,6 +310,7 @@ export class FileUseCases {
 
   async getFilesInWorkspace(
     createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<FileAttributes>,
     options: {
       limit: number;
@@ -325,6 +327,7 @@ export class FileUseCases {
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorInWorkspace(
           createdBy,
+          workspaceId,
           { ...where },
           options.limit,
           options.offset,
@@ -334,6 +337,7 @@ export class FileUseCases {
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnailsInWorkspace(
           createdBy,
+          workspaceId,
           { ...where },
           options.limit,
           options.offset,

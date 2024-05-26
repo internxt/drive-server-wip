@@ -26,6 +26,7 @@ import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -529,8 +530,9 @@ export class FolderUseCases {
     );
   }
 
-  async getFoldersWithParentInWorkspace(
+  async getFoldersInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<FolderAttributes>,
     options: { limit: number; offset: number; sort?: SortParams } = {
       limit: 20,
@@ -540,6 +542,7 @@ export class FolderUseCases {
     const foldersWithMaybePlainName =
       await this.folderRepository.findAllCursorInWorkspace(
         createdBy,
+        workspaceId,
         { ...where },
         options.limit,
         options.offset,

@@ -55,6 +55,7 @@ import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -491,6 +492,35 @@ export class WorkspacesController {
       user,
       workspaceId,
       createFolderDto,
+    );
+  }
+
+  @Get('/:workspaceId/my-trash')
+  @ApiOperation({
+    summary: 'Get current workspace user trash',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: "user's trashed items in workspace",
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getUserTrashedItems(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Query() pagination: PaginationQueryDto,
+    @Query('type') type: WorkspaceItemType,
+  ) {
+    const { limit, offset } = pagination;
+
+    return this.workspaceUseCases.getWorkspaceUserTrashedItems(
+      user,
+      workspaceId,
+      type,
+      limit,
+      offset,
     );
   }
 

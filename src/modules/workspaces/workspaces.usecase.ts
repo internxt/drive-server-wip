@@ -34,7 +34,7 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileUseCases } from '../file/file.usecase';
@@ -46,6 +46,7 @@ import {
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
+  WorkspaceItemUserAttributes,
 } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
@@ -410,6 +411,45 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async getWorkspaceUserTrashedItems(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+    itemType: WorkspaceItemUserAttributes['itemType'],
+    limit = 50,
+    offset = 0,
+  ) {
+    let result: File[] | Folder[];
+
+    if (itemType === WorkspaceItemType.File) {
+      result = await this.fileUseCases.getFilesInWorkspace(
+        user.uuid,
+        workspaceId,
+        {
+          status: FileStatus.TRASHED,
+        },
+        {
+          limit,
+          offset,
+        },
+      );
+    } else {
+      result = await this.folderUseCases.getFoldersInWorkspace(
+        user.uuid,
+        workspaceId,
+        {
+          deleted: true,
+          removed: false,
+        },
+        {
+          limit,
+          offset,
+        },
+      );
+    }
+
+    return { result };
+  }
+
   async createFile(
     member: User,
     workspaceId: string,
@@ -545,8 +585,9 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('You have no access to this folder');
     }
 
-    const folders = await this.folderUseCases.getFoldersWithParentInWorkspace(
+    const folders = await this.folderUseCases.getFoldersInWorkspace(
       user.uuid,
+      workspaceId,
       {
         parentId: folder.id,
         deleted: false,
@@ -594,6 +635,7 @@ export class WorkspacesUsecases {
 
     const files = await this.fileUseCases.getFilesInWorkspace(
       user.uuid,
+      workspaceId,
       {
         folderId: folder.id,
         status: FileStatus.EXISTS,
@@ -952,7 +994,15 @@ export class WorkspacesUsecases {
     return workspacesToBeSetup;
   }
 
-  async getWorkspaceResourceOwnerByItemAndCreator(
+  async findWorkspaceResourceOwner(workspace: Workspace) {
+    const resourceOwner = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    return resourceOwner;
+  }
+
+  async isUserCreatorOfItem(
     requester: User,
     itemId: WorkspaceItemUser['itemId'],
     itemType: WorkspaceItemUser['itemType'],
@@ -962,25 +1012,24 @@ export class WorkspacesUsecases {
       itemType,
     });
 
-    if (!item) {
-      throw new NotFoundException('Item not found in workspace');
+    if (!item || !item.isOwnedBy(requester)) {
+      return false;
     }
 
-    if (!item.isOwnedBy(requester)) {
-      throw new ForbiddenException('This item is not yours');
-    }
+    return true;
+  }
 
-    const workspace = await this.workspaceRepository.findById(item.workspaceId);
+  async isUserCreatorOfAllItems(
+    requester: User,
+    items: Pick<WorkspaceItemUserAttributes, 'itemId' | 'itemType'>[],
+  ) {
+    const userItems =
+      await this.workspaceRepository.getItemsByAttributesAndCreator(
+        requester.uuid,
+        items,
+      );
 
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    const resourceOwner = await this.userRepository.findByUuid(
-      workspace.workspaceUserId,
-    );
-
-    return resourceOwner;
+    return userItems.length === items.length;
   }
 
   async getWorkspaceTeams(user: User, workspaceId: WorkspaceAttributes['id']) {
@@ -1301,7 +1350,7 @@ export class WorkspacesUsecases {
     await this.teamRepository.deleteTeamById(teamId);
   }
 
-  findUserInWorkspace(
+  findUserAndWorkspace(
     userUuid: string,
     workspaceId: string,
   ): Promise<{
