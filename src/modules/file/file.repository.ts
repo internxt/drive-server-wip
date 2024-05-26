@@ -13,6 +13,7 @@ import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -264,6 +265,7 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
@@ -277,7 +279,7 @@ export class SequelizeFileRepository implements FileRepository {
       where,
       include: {
         model: WorkspaceItemUserModel,
-        where: { createdBy },
+        where: { createdBy, workspaceId },
       },
       subQuery: false,
       order: appliedOrder,
@@ -331,6 +333,7 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findAllCursorWithThumbnailsInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
@@ -356,6 +359,7 @@ export class SequelizeFileRepository implements FileRepository {
           model: WorkspaceItemUserModel,
           where: {
             createdBy,
+            workspaceId,
           },
         },
       ],
