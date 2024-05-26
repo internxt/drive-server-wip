@@ -8,12 +8,23 @@ export interface DataSource {
   fieldName: string;
   value?: any;
 }
+export interface ValidationOptions {
+  defaultItemType?: WorkspaceItemType;
+  action?: WorkspaceResourcesAction;
+}
+
+export enum WorkspaceResourcesAction {
+  AddItemsToTrash = 'addItemsToTrash',
+  Default = 'default',
+}
 
 export const WORKSPACE_IN_BEHALF_SOURCES_META_KEY = 'workspaceInBehalfMetakey';
+export const WORKSPACE_IN_BEHALF_ACTION_META_KEY =
+  'workspaceInBehalfActionMetakey';
 
 const createValidationDecorator = (
   dataSources: DataSource[],
-  options?: { defaultItemType?: WorkspaceItemType },
+  options?: ValidationOptions,
 ) => {
   const dataSourcesWithOptions = [...dataSources];
 
@@ -26,6 +37,7 @@ const createValidationDecorator = (
 
   return applyDecorators(
     SetMetadata(WORKSPACE_IN_BEHALF_SOURCES_META_KEY, dataSourcesWithOptions),
+    SetMetadata(WORKSPACE_IN_BEHALF_ACTION_META_KEY, options?.action),
     UseGuards(WorkspacesResourcesItemsInBehalfGuard),
   );
 };
@@ -33,6 +45,14 @@ const createValidationDecorator = (
 export const WorkspacesInBehalfValidationFolder = (dataSources: DataSource[]) =>
   createValidationDecorator(dataSources, {
     defaultItemType: WorkspaceItemType.Folder,
+  });
+
+export const WorkspacesInBehalfGuard = (
+  dataSources: DataSource[],
+  action?: WorkspaceResourcesAction,
+) =>
+  createValidationDecorator(dataSources, {
+    action,
   });
 
 export const WorkspacesInBehalfValidationFile = (dataSources: DataSource[]) =>

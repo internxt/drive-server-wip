@@ -72,7 +72,7 @@ export class WorkspaceGuard implements CanActivate {
     role: WorkspaceRole,
   ) {
     const { workspace, workspaceUser } =
-      await this.workspaceUseCases.findUserInWorkspace(user.uuid, workspaceId);
+      await this.workspaceUseCases.findUserAndWorkspace(user.uuid, workspaceId);
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');

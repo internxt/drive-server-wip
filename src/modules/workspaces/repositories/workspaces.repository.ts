@@ -15,6 +15,11 @@ import { User } from '../../user/user.domain';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { FileModel } from '../../file/file.model';
+import { File } from '../../file/file.domain';
+import { Folder } from '../../folder/folder.domain';
+import { Op } from 'sequelize';
+import { FolderModel } from '../../folder/folder.model';
 
 @Injectable()
 export class SequelizeWorkspaceRepository {
@@ -155,6 +160,24 @@ export class SequelizeWorkspaceRepository {
     const item = await this.modelWorkspaceItemUser.findOne({ where });
 
     return item ? this.workspaceItemUserToDomain(item) : null;
+  }
+
+  async getItemsByAttributesAndCreator(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    items: Partial<Omit<WorkspaceItemUserAttributes, 'createdBy'>>[],
+  ): Promise<WorkspaceItemUser[]> {
+    const conditions = items.map((item) => ({
+      ...item,
+      createdBy,
+    }));
+
+    const foundItems = await this.modelWorkspaceItemUser.findAll({
+      where: {
+        [Op.or]: conditions,
+      },
+    });
+
+    return foundItems.map((item) => this.workspaceItemUserToDomain(item));
   }
 
   async deleteUserFromWorkspace(

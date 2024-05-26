@@ -451,6 +451,9 @@ export class FolderController {
   }
 
   @Get('/:uuid/meta')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -497,6 +500,9 @@ export class FolderController {
   }
 
   @Get('/:uuid/ancestors')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolderAncestors(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
