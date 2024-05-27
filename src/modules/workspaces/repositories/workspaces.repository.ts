@@ -67,8 +67,14 @@ export class SequelizeWorkspaceRepository {
 
   async findInvitesBy(
     where: Partial<WorkspaceInvite>,
+    limit?: number,
+    offset?: number,
   ): Promise<WorkspaceInvite[]> {
-    const invites = await this.modelWorkspaceInvite.findAll({ where });
+    const invites = await this.modelWorkspaceInvite.findAll({
+      where,
+      limit,
+      offset,
+    });
 
     return invites.map((invite) => WorkspaceInvite.build(invite));
   }
