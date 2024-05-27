@@ -90,6 +90,71 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('GET /:workspaceId/invitations', () => {
+    it('When workspace invites are requested, then it should return successfully', async () => {
+      const user = newUser();
+      const anotherUser = newUser();
+      const workspace = newWorkspace();
+
+      const invites = [
+        newWorkspaceInvite({ invitedUser: user.uuid }),
+        newWorkspaceInvite({ invitedUser: anotherUser.uuid }),
+      ];
+
+      workspacesUsecases.getWorkspacePendingInvitations.mockResolvedValueOnce([
+        {
+          ...invites[0],
+          user: { ...user },
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: { ...anotherUser },
+          isGuessInvite: false,
+        },
+      ]);
+
+      await expect(
+        workspacesController.getWorkspacePendingInvitations(
+          { limit: 10, offset: 0 },
+          workspace.id,
+        ),
+      ).resolves.toEqual([
+        {
+          ...invites[0],
+          user: { ...user },
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: { ...anotherUser },
+          isGuessInvite: false,
+        },
+      ]);
+    });
+  });
+
+  describe('GET /invitations', () => {
+    it('When user invites are requested, then it should return successfully', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: user.uuid,
+        workspaceId: workspace.id,
+      });
+      const limit = 10;
+      const offset = 0;
+
+      const invites = [{ ...invite, workspace: workspace.toJSON() }];
+
+      workspacesUsecases.getUserInvites.mockResolvedValueOnce(invites);
+
+      await expect(
+        workspacesController.getUserInvitations(user, { limit, offset }),
+      ).resolves.toEqual(invites);
+    });
+  });
+
   describe('PATCH /teams/:teamId', () => {
     it('When teamId is valid and update is successful, then resolve', async () => {
       await expect(
@@ -154,6 +219,33 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('PATCH /:workspaceId', () => {
+    it('When workspace details are updated successfully, then it should return.', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+
+      workspacesController.editWorkspaceDetails(workspace.id, user, {
+        name: 'new name',
+      });
+
+      jest
+        .spyOn(workspacesUsecases, 'editWorkspaceDetails')
+        .mockResolvedValue(Promise.resolve());
+
+      await expect(
+        workspacesController.editWorkspaceDetails(workspace.id, user, {
+          name: 'new name',
+          description: 'new description',
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
+        workspace.id,
+        user,
+        { name: 'new name' },
+      );
+    });
+  });
   describe('GET /:workspaceId/members', () => {
     const owner = newUser();
     const workspace = newWorkspace({

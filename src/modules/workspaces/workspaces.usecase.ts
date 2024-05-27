@@ -30,6 +30,7 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -718,6 +719,84 @@ export class WorkspacesUsecases {
     return rootFolder;
   }
 
+  async getUserInvites(user: User, limit: number, offset: number) {
+    const invites = await this.workspaceRepository.findInvitesBy(
+      {
+        invitedUser: user.uuid,
+      },
+      limit,
+      offset,
+    );
+
+    const invitesWithWorkspaceData = await Promise.all(
+      invites.map(async (invite) => {
+        const workspace = await this.workspaceRepository.findById(
+          invite.workspaceId,
+        );
+
+        return {
+          ...invite,
+          workspace: workspace.toJSON(),
+        };
+      }),
+    );
+
+    return invitesWithWorkspaceData;
+  }
+
+  async getWorkspacePendingInvitations(
+    workspaceId: WorkspaceAttributes['id'],
+    limit: number,
+    offset: number,
+  ) {
+    const invites = await this.workspaceRepository.findInvitesBy(
+      {
+        workspaceId,
+      },
+      limit,
+      offset,
+    );
+
+    const invitedUsersUuuids = invites.map((invite) => invite.invitedUser);
+
+    const [users, preCreatedUsers] = await Promise.all([
+      this.userUsecases.findByUuids(invitedUsersUuuids),
+      this.userUsecases.findPreCreatedUsersByUuids(invitedUsersUuuids),
+    ]);
+
+    const usersWithAvatars = await Promise.all(
+      users.map(async (user) => {
+        const avatar = user.avatar
+          ? await this.userUsecases.getAvatarUrl(user.avatar)
+          : null;
+        return {
+          ...user,
+          avatar,
+        };
+      }),
+    );
+
+    const invitesWithUserData = invites.map((invite) => {
+      const user = usersWithAvatars.find(
+        (user) => invite.invitedUser === user.uuid,
+      );
+
+      const prePrecreatedUser = preCreatedUsers
+        .find((user) => invite.invitedUser === user.uuid)
+        ?.toJSON();
+
+      const isGuessInvite = !user && !!prePrecreatedUser;
+
+      return {
+        ...invite,
+        user: user ?? prePrecreatedUser,
+        isGuessInvite,
+      };
+    });
+
+    return invitesWithUserData;
+  }
+
   async removeWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
     const invite = await this.workspaceRepository.findInvite({
       id: inviteId,
@@ -1252,6 +1331,27 @@ export class WorkspacesUsecases {
     await this.teamRepository.updateById(team.id, {
       managerId: newManagerId,
     });
+  }
+
+  async editWorkspaceDetails(
+    workspaceId: WorkspaceAttributes['id'],
+    user: User,
+    editWorkspaceDetailsDto: EditWorkspaceDetailsDto,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    await this.workspaceRepository.updateBy(
+      { id: workspaceId },
+      editWorkspaceDetailsDto,
+    );
   }
 
   findUserInTeam(
