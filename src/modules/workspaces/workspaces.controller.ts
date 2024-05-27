@@ -38,6 +38,7 @@ import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import {
   FolderAttributes,
@@ -47,6 +48,7 @@ import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import { SortableFileAttributes } from '../file/file.domain';
+import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -75,6 +77,23 @@ export class WorkspacesController {
   })
   async getUserWorkspacesToBeSetup(@UserDecorator() user: User) {
     return this.workspaceUseCases.getWorkspacesPendingToBeSetup(user);
+  }
+
+  @Get('/invitations/')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get current user pending invitations',
+  })
+  @ApiOkResponse({
+    description: 'User Pending invitations',
+  })
+  async getUserInvitations(
+    @UserDecorator() user: User,
+    @Query() paginationLimit: WorkspaceInvitationsPagination,
+  ) {
+    const { limit, offset } = paginationLimit;
+
+    return this.workspaceUseCases.getUserInvites(user, limit, offset);
   }
 
   @Post('/invitations/accept')
@@ -223,6 +242,29 @@ export class WorkspacesController {
     return this.workspaceUseCases.changeTeamManager(teamId, managerId);
   }
 
+  @Get('/:workspaceId/invitations')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get workspace pending invitations',
+  })
+  @ApiOkResponse({
+    description: 'Workspace pending invitations',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async getWorkspacePendingInvitations(
+    @Query() pagination: WorkspaceInvitationsPagination,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const { limit, offset } = pagination;
+
+    return this.workspaceUseCases.getWorkspacePendingInvitations(
+      workspaceId,
+      limit,
+      offset,
+    );
+  }
+
   @Patch('/:workspaceId/setup')
   @ApiOperation({
     summary: 'Set up workspace that has been initialized',
@@ -245,6 +287,24 @@ export class WorkspacesController {
       workspaceId,
       setupWorkspaceDto,
     );
+  }
+
+  @Get('/:workspaceId/credentials')
+  @ApiOperation({
+    summary: 'Gets workspace credentials',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace credentials',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceUser(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
   }
 
   @Get('/:workspaceId/members')
@@ -478,6 +538,26 @@ export class WorkspacesController {
       teamId,
       userUuid,
       changeUserRoleBody,
+    );
+  }
+  @Patch('/:workspaceId')
+  @ApiOperation({
+    summary: 'Edit workspace details',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  editWorkspaceDetails(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() editWorkspaceBody: EditWorkspaceDetailsDto,
+  ) {
+    return this.workspaceUseCases.editWorkspaceDetails(
+      workspaceId,
+      user,
+      editWorkspaceBody,
     );
   }
 

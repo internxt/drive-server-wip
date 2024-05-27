@@ -44,7 +44,7 @@ export class WorkspaceInviteModel
   encryptionKey: string;
 
   @Column({ type: DataType.BIGINT.UNSIGNED, allowNull: false })
-  spaceLimit: bigint;
+  spaceLimit: number;
 
   @Column({ allowNull: false, defaultValue: DataType.NOW })
   createdAt: Date;

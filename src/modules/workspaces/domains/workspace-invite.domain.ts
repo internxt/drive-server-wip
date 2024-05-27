@@ -6,7 +6,7 @@ export class WorkspaceInvite implements WorkspaceInviteAttributes {
   invitedUser: string;
   encryptionAlgorithm: string;
   encryptionKey: string;
-  spaceLimit: bigint;
+  spaceLimit: number;
   createdAt: Date;
   updatedAt: Date;
 
@@ -41,7 +41,7 @@ export class WorkspaceInvite implements WorkspaceInviteAttributes {
       invitedUser: this.invitedUser,
       encryptionAlgorithm: this.encryptionAlgorithm,
       encryptionKey: this.encryptionKey,
-      spaceLimit: this.spaceLimit.toString(),
+      spaceLimit: this.spaceLimit,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

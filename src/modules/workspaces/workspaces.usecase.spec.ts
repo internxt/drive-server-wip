@@ -9,6 +9,7 @@ import { WorkspacesUsecases } from './workspaces.usecase';
 import {
   newFile,
   newFolder,
+  newPreCreatedUser,
   newUser,
   newWorkspace,
   newWorkspaceInvite,
@@ -28,6 +29,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
@@ -100,7 +102,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'Dasdsadas',
           encryptionAlgorithm: 'dadads',
         }),
@@ -117,7 +119,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'Dasdsadas',
           encryptionAlgorithm: 'dadads',
         }),
@@ -142,7 +144,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(BigInt(6000000));
+        .mockResolvedValueOnce(6000000);
       jest.spyOn(configService, 'get').mockResolvedValueOnce('secret' as never);
       jest
         .spyOn(mailerService, 'sendWorkspaceUserExternalInvitation')
@@ -151,7 +153,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: '',
           encryptionAlgorithm: '',
         }),
@@ -181,7 +183,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(BigInt(6000000));
+        .mockResolvedValueOnce(6000000);
       jest
         .spyOn(mailerService, 'sendWorkspaceUserInvitation')
         .mockResolvedValueOnce(undefined);
@@ -190,7 +192,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: '',
           encryptionAlgorithm: '',
         }),
@@ -218,7 +220,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: 'test@example.com',
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -243,7 +245,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUser.email,
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -274,7 +276,7 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUserEmail,
-          spaceLimit: BigInt(1024),
+          spaceLimit: 1024,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
@@ -299,17 +301,60 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(BigInt(spaceLeft));
+        .mockResolvedValueOnce(spaceLeft);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
 
       await expect(
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUserEmail,
-          spaceLimit: BigInt(spaceLeft + 1),
+          spaceLimit: spaceLeft + 1,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('editWorkspaceDetails', () => {
+    const user = newUser();
+    const workspace = newWorkspace({ owner: user });
+    const editWorkspaceDto: EditWorkspaceDetailsDto = {
+      name: 'Test Workspace',
+      description: 'Workspace description',
+    };
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not the owner of the workspace, then it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, newUser(), editWorkspaceDto),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When the user is the owner of the workspace, then it should update the workspace details', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, editWorkspaceDto),
+      ).resolves.not.toThrow();
+
+      expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
+        {
+          id: workspace.id,
+        },
+        editWorkspaceDto,
+      );
     });
   });
 
@@ -530,6 +575,198 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getUserInvites', () => {
+    it('When user invites are searched, then should return successfully', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspace2 = newWorkspace();
+      const limit = 10;
+      const offset = 0;
+
+      const invites = [
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace2.id,
+        }),
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce(invites);
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace2);
+
+      const result = await service.getUserInvites(user, limit, offset);
+
+      expect(result).toEqual([
+        { ...invites[0], workspace: workspace.toJSON() },
+        { ...invites[1], workspace: workspace2.toJSON() },
+      ]);
+
+      expect(workspaceRepository.findInvitesBy).toHaveBeenCalledWith(
+        { invitedUser: user.uuid },
+        limit,
+        offset,
+      );
+    });
+
+    it('When user invites are searched but no invites are found, then should return nothing', async () => {
+      const user = newUser();
+      const limit = 10;
+      const offset = 0;
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getUserInvites(user, limit, offset);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getWorkspacePendingInvitations', () => {
+    const workspace = newWorkspace();
+
+    it('When workspace has invitations, then it should return invites with users', async () => {
+      const avatarUrl = 'avatarUrl';
+      const user = newUser();
+      const anotherUser = newUser();
+      anotherUser.avatar = avatarUrl;
+
+      const invites = [
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        newWorkspaceInvite({
+          invitedUser: anotherUser.uuid,
+          workspaceId: workspace.id,
+        }),
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce(invites);
+      jest
+        .spyOn(userUsecases, 'findByUuids')
+        .mockResolvedValueOnce([user, anotherUser]);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedUsersByUuids')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(userUsecases, 'getAvatarUrl').mockResolvedValueOnce(avatarUrl);
+
+      const expectedUsersWithAvatars = [
+        { ...user, avatar: null },
+        { ...anotherUser, avatar: avatarUrl },
+      ];
+
+      const result = await service.getWorkspacePendingInvitations(
+        workspace.id,
+        10,
+        0,
+      );
+
+      expect(userUsecases.findByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        anotherUser.uuid,
+      ]);
+      expect(userUsecases.findPreCreatedUsersByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        anotherUser.uuid,
+      ]);
+
+      expect(result).toEqual([
+        {
+          ...invites[0],
+          user: expectedUsersWithAvatars[0],
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: expectedUsersWithAvatars[1],
+          isGuessInvite: false,
+        },
+      ]);
+    });
+
+    it('When workspace has invitations for non registered users, then it should return invites with pre created user data', async () => {
+      const user = newUser();
+      const preCreatedUser = newPreCreatedUser();
+
+      const invites = [
+        newWorkspaceInvite({
+          invitedUser: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        newWorkspaceInvite({
+          invitedUser: preCreatedUser.uuid,
+          workspaceId: workspace.id,
+        }),
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce(invites);
+      jest.spyOn(userUsecases, 'findByUuids').mockResolvedValueOnce([user]);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedUsersByUuids')
+        .mockResolvedValueOnce([preCreatedUser]);
+
+      const expectedUsersWithAvatars = [{ ...user, avatar: null }];
+
+      const result = await service.getWorkspacePendingInvitations(
+        workspace.id,
+        10,
+        0,
+      );
+
+      expect(userUsecases.findByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        preCreatedUser.uuid,
+      ]);
+      expect(userUsecases.findPreCreatedUsersByUuids).toHaveBeenCalledWith([
+        user.uuid,
+        preCreatedUser.uuid,
+      ]);
+
+      expect(result).toEqual([
+        {
+          ...invites[0],
+          user: expectedUsersWithAvatars[0],
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: preCreatedUser.toJSON(),
+          isGuessInvite: true,
+        },
+      ]);
+    });
+
+    it('When workspace has not invitations, then it should return empty', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getWorkspacePendingInvitations(
+        workspace.id,
+        10,
+        0,
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('getAvailableWorkspaces', () => {
     it('When trying to get user available workspaces, then it should return ready workspaces and workspaces pending to be setup', async () => {
       const user = newUser();
@@ -720,7 +957,7 @@ describe('WorkspacesUsecases', () => {
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
-        attributes: { spaceLimit: BigInt(1000) },
+        attributes: { spaceLimit: 1000 },
       });
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
@@ -1071,16 +1308,16 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(networkService, 'getLimit').mockResolvedValue(1000000);
       jest
         .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
-        .mockResolvedValue(BigInt(500000));
+        .mockResolvedValue(500000);
       jest
         .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
-        .mockResolvedValue(BigInt(200000));
+        .mockResolvedValue(200000);
 
       const assignableSpace = await service.getAssignableSpaceInWorkspace(
         workspace,
         workspaceDefaultUser,
       );
-      expect(assignableSpace).toBe(BigInt(300000));
+      expect(assignableSpace).toBe(300000);
     });
   });
 
@@ -1212,8 +1449,8 @@ describe('WorkspacesUsecases', () => {
             ...workspaceUser.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: workspaceUser.getFreeSpace().toString(),
-            usedSpace: workspaceUser.getUsedSpace().toString(),
+            freeSpace: workspaceUser.getFreeSpace(),
+            usedSpace: workspaceUser.getUsedSpace(),
           },
         ],
         disabledUsers: [],
@@ -1267,15 +1504,15 @@ describe('WorkspacesUsecases', () => {
             ...workspaceUser1.toJSON(),
             isOwner: false,
             isManager: true,
-            freeSpace: workspaceUser1.getFreeSpace().toString(),
-            usedSpace: workspaceUser1.getUsedSpace().toString(),
+            freeSpace: workspaceUser1.getFreeSpace(),
+            usedSpace: workspaceUser1.getUsedSpace(),
           },
           {
             ...workspaceUser2.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: workspaceUser2.getFreeSpace().toString(),
-            usedSpace: workspaceUser2.getUsedSpace().toString(),
+            freeSpace: workspaceUser2.getFreeSpace(),
+            usedSpace: workspaceUser2.getUsedSpace(),
           },
         ],
         disabledUsers: [],
@@ -1392,7 +1629,7 @@ describe('WorkspacesUsecases', () => {
     it('When users do not have space, then it should throw', async () => {
       const user = newUser();
       const workspaceUserWithNoSpace = newWorkspaceUser({
-        attributes: { spaceLimit: BigInt(1024), driveUsage: BigInt(1024) },
+        attributes: { spaceLimit: 1024, driveUsage: 1024 },
       });
 
       jest
@@ -1406,9 +1643,9 @@ describe('WorkspacesUsecases', () => {
 
     it('When file size is bigger than free space, then it should throw', async () => {
       const user = newUser();
-      const size = BigInt(2000);
+      const size = 2000;
       const workspaceUserWithNoSpace = newWorkspaceUser({
-        attributes: { spaceLimit: BigInt(1024), driveUsage: BigInt(1024) },
+        attributes: { spaceLimit: 1024, driveUsage: 1024 },
       });
 
       jest
@@ -1416,15 +1653,18 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUserWithNoSpace);
 
       await expect(
-        service.createFile(user, workspace.id, { ...createFileDto, size }),
+        service.createFile(user, workspace.id, {
+          ...createFileDto,
+          size: BigInt(size),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When parent folder is not valid, then it should throw', async () => {
       const user = newUser();
-      const size = BigInt(2000);
+      const size = 2000;
       const workspaceUser = newWorkspaceUser({
-        attributes: { spaceLimit: BigInt(2048), driveUsage: BigInt(1024) },
+        attributes: { spaceLimit: 2048, driveUsage: 1024 },
       });
 
       jest
@@ -1433,15 +1673,18 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
 
       await expect(
-        service.createFile(user, workspace.id, { ...createFileDto, size }),
+        service.createFile(user, workspace.id, {
+          ...createFileDto,
+          size: BigInt(size),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When user does not own the parent folder, then it should throw', async () => {
       const user = newUser();
-      const fileSize = BigInt(1000);
+      const fileSize = 1000;
       const workspaceUser = newWorkspaceUser({
-        attributes: { spaceLimit: fileSize + BigInt(1) },
+        attributes: { spaceLimit: fileSize + 1 },
       });
       const folderItem = newWorkspaceItemUser();
 
@@ -1455,20 +1698,20 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.createFile(user, workspace.id, {
           ...createFileDto,
-          size: fileSize,
+          size: BigInt(fileSize),
         }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When parent folder is the workspace root folder, then it should throw', async () => {
       const user = newUser();
-      const fileSize = BigInt(2000);
+      const fileSize = 2000;
       const workspace = newWorkspace({
         attributes: { rootFolderId: createFileDto.folderUuid },
       });
       const workspaceUser = newWorkspaceUser({
         attributes: {
-          spaceLimit: fileSize + BigInt(1),
+          spaceLimit: fileSize + 1,
           rootFolderId: createFileDto.folderUuid,
         },
         workspaceId: workspace.id,
@@ -1487,18 +1730,18 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.createFile(user, workspace.id, {
           ...createFileDto,
-          size: fileSize,
+          size: BigInt(fileSize),
         }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When workspace user has enough space and parent folder is valid, then it should create file successfully', async () => {
       const user = newUser();
-      const fileSize = BigInt(2000);
+      const fileSize = 2000;
       const workspace = newWorkspace();
       const workspaceUser = newWorkspaceUser({
         attributes: {
-          spaceLimit: fileSize + BigInt(1),
+          spaceLimit: fileSize + 1,
           rootFolderId: createFileDto.folderUuid,
         },
         workspaceId: workspace.id,
@@ -1526,7 +1769,7 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.createFile(user, workspace.id, {
         ...createFileDto,
-        size: fileSize,
+        size: BigInt(fileSize),
       });
 
       expect(result).toEqual({ ...createdFile, item: createdItemFile });
@@ -1804,6 +2047,48 @@ describe('WorkspacesUsecases', () => {
 
       expect(result).toEqual({
         result: [],
+      });
+    });
+  });
+
+  describe('getWorkspaceCredentials', () => {
+    const workspaceUser = newUser();
+    const workspace = newWorkspace({
+      attributes: { workspaceUserId: workspaceUser.uuid },
+    });
+    const rootFolder = newFolder();
+
+    it('When workspace user does not exist, then it should fail', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getWorkspaceCredentials(workspace.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace and workspace user exist, then it should return credentials', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(rootFolder);
+
+      const result = await service.getWorkspaceCredentials(workspace.id);
+
+      expect(result).toEqual({
+        workspaceId: workspace.id,
+        bucket: rootFolder.bucket,
+        workspaceUserId: workspaceUser.uuid,
+        email: workspaceUser.email,
+        credentials: {
+          networkPass: workspaceUser.userId,
+          networkUser: workspaceUser.bridgeUser,
+        },
       });
     });
   });
