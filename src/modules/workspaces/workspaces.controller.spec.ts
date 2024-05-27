@@ -11,6 +11,7 @@ import {
   newWorkspaceUser,
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
+import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
@@ -362,8 +363,8 @@ describe('Workspace Controller', () => {
             freeSpace: BigInt(15000).toString(),
             usedSpace: BigInt(0).toString(),
           },
-        ],
-        disabledUsers: [],
+        ] as unknown as WorkspaceUserMemberDto[],
+        disabledUsers: [] as WorkspaceUserMemberDto[],
       };
       workspacesUsecases.getWorkspaceMembers.mockResolvedValueOnce(
         mockResolvedValues,
