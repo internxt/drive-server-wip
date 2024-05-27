@@ -8,9 +8,9 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
   key: string;
   workspaceId: string;
   rootFolderId?: string;
-  spaceLimit: bigint;
-  driveUsage: bigint;
-  backupsUsage: bigint;
+  spaceLimit: number;
+  driveUsage: number;
+  backupsUsage: number;
   deactivated: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -34,9 +34,9 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     this.setMember(member);
     this.key = key;
     this.workspaceId = workspaceId;
-    this.spaceLimit = BigInt(spaceLimit);
-    this.driveUsage = BigInt(driveUsage);
-    this.backupsUsage = BigInt(backupsUsage);
+    this.spaceLimit = spaceLimit;
+    this.driveUsage = driveUsage;
+    this.backupsUsage = backupsUsage;
     this.deactivated = deactivated;
     this.rootFolderId = rootFolderId;
     this.createdAt = createdAt;
@@ -51,19 +51,19 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     this.member = member;
   }
 
-  getUsedSpace(): bigint {
+  getUsedSpace(): number {
     return this.driveUsage + this.backupsUsage;
   }
 
-  getFreeSpace(): bigint {
+  getFreeSpace(): number {
     return this.spaceLimit - this.getUsedSpace();
   }
 
-  hasEnoughSpaceForFile(size: bigint): boolean {
+  hasEnoughSpaceForFile(size: number): boolean {
     return this.getFreeSpace() >= size;
   }
 
-  addDriveUsage(fileSize: bigint): void {
+  addDriveUsage(fileSize: number): void {
     this.driveUsage += fileSize;
   }
 
@@ -74,9 +74,9 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
       key: this.key,
       workspaceId: this.workspaceId,
       rootFolderId: this.rootFolderId,
-      spaceLimit: this.spaceLimit.toString(),
-      driveUsage: this.driveUsage.toString(),
-      backupsUsage: this.backupsUsage.toString(),
+      spaceLimit: this.spaceLimit,
+      driveUsage: this.driveUsage,
+      backupsUsage: this.backupsUsage,
       deactivated: this.deactivated,
       member: this.member ? this.member.toJSON() : null,
       createdAt: this.createdAt,

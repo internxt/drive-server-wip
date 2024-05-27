@@ -132,7 +132,7 @@ describe('SequelizeWorkspaceRepository', () => {
       jest.spyOn(workspaceInviteModel, 'sum').mockResolvedValueOnce(null);
 
       const totalSpace = await repository.getSpaceLimitInInvitations('1');
-      expect(totalSpace).toStrictEqual(BigInt(0));
+      expect(totalSpace).toStrictEqual(0);
     });
   });
 
@@ -141,7 +141,7 @@ describe('SequelizeWorkspaceRepository', () => {
       jest.spyOn(workspaceUserModel, 'sum').mockResolvedValueOnce(10);
 
       const total = await repository.getTotalSpaceLimitInWorkspaceUsers('1');
-      expect(total).toStrictEqual(BigInt(10));
+      expect(total).toStrictEqual(10);
     });
   });
 
