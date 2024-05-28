@@ -30,7 +30,24 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import { AvatarService } from '../../externals/avatar/avatar.service';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { FileUseCases } from '../file/file.usecase';
+import {
+  Folder,
+  FolderAttributes,
+  SortableFolderAttributes,
+} from '../folder/folder.domain';
+import {
+  WorkspaceItemContext,
+  WorkspaceItemType,
+} from './attributes/workspace-items-users.attributes';
+import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -40,8 +57,11 @@ export class WorkspacesUsecases {
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
+    private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
     private configService: ConfigService,
     private mailerService: MailerService,
+    private readonly avatarService: AvatarService,
   ) {}
 
   async initiateWorkspace(
@@ -91,6 +111,7 @@ export class WorkspacesUsecases {
       ownerId: owner.uuid,
       name: 'My Workspace',
       address: workspaceData?.address,
+      avatar: null,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
       setupCompleted: false,
@@ -98,13 +119,36 @@ export class WorkspacesUsecases {
       updatedAt: new Date(),
     });
 
-    await this.teamRepository.createTeam(newDefaultTeam);
-    await this.workspaceRepository.create(newWorkspace);
-    await this.teamRepository.updateById(newDefaultTeam.id, { workspaceId });
+    try {
+      const bucket = await this.networkService.createBucket(
+        workspaceEmail,
+        networkUserId,
+      );
+      const rootFolder = await this.folderUseCases.createRootFolder(
+        workspaceUser,
+        v4(),
+        bucket.id,
+      );
+      newWorkspace.rootFolderId = rootFolder.uuid;
 
-    return {
-      workspace: newWorkspace,
-    };
+      await this.userRepository.updateBy(
+        { uuid: workspaceUser.uuid },
+        { rootFolderId: rootFolder.id },
+      );
+
+      await this.teamRepository.createTeam(newDefaultTeam);
+      await this.workspaceRepository.create(newWorkspace);
+      await this.teamRepository.updateById(newDefaultTeam.id, { workspaceId });
+
+      return {
+        workspace: newWorkspace,
+      };
+    } catch (error) {
+      Logger.log(
+        `[WORKSPACES/INITIATE]: An error has ocurred while initializing a workspace userId: ${ownerId} error: ${error.message}`,
+      );
+      throw error;
+    }
   }
 
   async setupWorkspace(
@@ -133,20 +177,36 @@ export class WorkspacesUsecases {
 
     try {
       if (!userAlreadyInWorkspace) {
+        const rootFolder = await this.initiateWorkspacePersonalRootFolder(
+          workspace.workspaceUserId,
+          workspace.rootFolderId,
+        );
+
         const workspaceUser = WorkspaceUser.build({
           id: v4(),
           workspaceId: workspace.id,
           memberId: user.uuid,
-          spaceLimit: BigInt(0),
-          driveUsage: BigInt(0),
-          backupsUsage: BigInt(0),
+          spaceLimit: 0,
+          driveUsage: 0,
+          backupsUsage: 0,
           key: setupWorkspaceDto.encryptedMnemonic,
+          rootFolderId: rootFolder.uuid,
           deactivated: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
 
         await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+
+        await this.workspaceRepository.createItem({
+          itemId: rootFolder.uuid,
+          workspaceId: workspace.id,
+          itemType: WorkspaceItemType.Folder,
+          context: WorkspaceItemContext.Drive,
+          createdBy: user.uuid,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
       }
 
       if (!userAlreadyInDefaultTeam) {
@@ -290,7 +350,7 @@ export class WorkspacesUsecases {
       invitedUser: userJoining.uuid,
       encryptionAlgorithm: createInviteDto.encryptionAlgorithm,
       encryptionKey: createInviteDto.encryptionKey,
-      spaceLimit: BigInt(createInviteDto.spaceLimit),
+      spaceLimit: createInviteDto.spaceLimit,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -349,6 +409,207 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async createFile(
+    member: User,
+    workspaceId: string,
+    createFileDto: CreateWorkspaceFileDto,
+  ) {
+    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      memberId: member.uuid,
+      workspaceId,
+    });
+
+    if (!workspaceUser.hasEnoughSpaceForFile(Number(createFileDto.size))) {
+      throw new BadRequestException('You have not enough space for this file');
+    }
+
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    const parentFolder = await this.workspaceRepository.getItemBy({
+      workspaceId,
+      itemId: createFileDto.folderUuid,
+      itemType: WorkspaceItemType.Folder,
+    });
+
+    if (!parentFolder) {
+      throw new BadRequestException('Parent folder is not valid');
+    }
+
+    const isParentFolderWorkspaceRootFolder =
+      createFileDto.folderUuid === workspace.rootFolderId;
+
+    if (!parentFolder.isOwnedBy(member) || isParentFolderWorkspaceRootFolder) {
+      throw new ForbiddenException('You can not create a file here');
+    }
+
+    const networkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const createdFile = await this.fileUseCases.createFile(
+      networkUser,
+      createFileDto,
+    );
+
+    const createdItemFile = await this.workspaceRepository.createItem({
+      itemId: createdFile.uuid,
+      workspaceId,
+      itemType: WorkspaceItemType.File,
+      context: WorkspaceItemContext.Drive,
+      createdBy: member.uuid,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    workspaceUser.addDriveUsage(Number(createdFile.size));
+
+    await this.workspaceRepository.updateWorkspaceUser(
+      workspaceUser.id,
+      workspaceUser,
+    );
+
+    return { ...createdFile, item: createdItemFile };
+  }
+
+  async createFolder(
+    user: User,
+    workspaceId: string,
+    createFolderDto: CreateWorkspaceFolderDto,
+  ) {
+    const { parentFolderUuid } = createFolderDto;
+
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    const parentFolder = await this.workspaceRepository.getItemBy({
+      workspaceId,
+      itemId: parentFolderUuid,
+      itemType: WorkspaceItemType.Folder,
+    });
+
+    if (!parentFolder) {
+      throw new BadRequestException('Parent folder is not valid');
+    }
+
+    const isParentFolderWorkspaceRootFolder =
+      parentFolderUuid === workspace.rootFolderId;
+
+    if (!parentFolder.isOwnedBy(user) || isParentFolderWorkspaceRootFolder) {
+      throw new ForbiddenException('You can not create a folder here');
+    }
+
+    const networkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const createdFolder = await this.folderUseCases.createFolder(
+      networkUser,
+      createFolderDto.name,
+      parentFolderUuid,
+    );
+
+    const createdItemFolder = await this.workspaceRepository.createItem({
+      itemId: createdFolder.uuid,
+      workspaceId,
+      itemType: WorkspaceItemType.Folder,
+      context: WorkspaceItemContext.Drive,
+      createdBy: user.uuid,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return { ...createdFolder, item: createdItemFolder };
+  }
+
+  async getPersonalWorkspaceFoldersInFolder(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+    folderUuid: FolderAttributes['uuid'],
+    limit = 100,
+    offset = 0,
+    options?: { sort: SortableFolderAttributes; order },
+  ) {
+    const folder = await this.folderUseCases.getByUuid(folderUuid);
+
+    if (!folder) {
+      throw new BadRequestException('Folder is not valid');
+    }
+
+    const parentFolder = await this.workspaceRepository.getItemBy({
+      workspaceId,
+      itemId: folder.uuid,
+      itemType: WorkspaceItemType.Folder,
+    });
+
+    if (!parentFolder?.isOwnedBy(user)) {
+      throw new ForbiddenException('You have no access to this folder');
+    }
+
+    const folders = await this.folderUseCases.getFoldersWithParentInWorkspace(
+      user.uuid,
+      {
+        parentId: folder.id,
+        deleted: false,
+        removed: false,
+      },
+      {
+        limit,
+        offset,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return {
+      result: folders.map((f) => ({ ...f, status: FileStatus.EXISTS })),
+    };
+  }
+
+  async getPersonalWorkspaceFilesInFolder(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+    folderUuid: FolderAttributes['uuid'],
+    limit = 100,
+    offset = 0,
+    options?: {
+      sort: SortableFileAttributes;
+      order;
+    },
+  ) {
+    const folder = await this.folderUseCases.getByUuid(folderUuid);
+
+    if (!folder) {
+      throw new BadRequestException('Folder is not valid');
+    }
+
+    const folderInWorkspace = await this.workspaceRepository.getItemBy({
+      workspaceId,
+      itemId: folder.uuid,
+      itemType: WorkspaceItemType.Folder,
+    });
+
+    if (!folderInWorkspace?.isOwnedBy(user)) {
+      throw new ForbiddenException('You have no access to this folder');
+    }
+
+    const files = await this.fileUseCases.getFilesInWorkspace(
+      user.uuid,
+      {
+        folderId: folder.id,
+        status: FileStatus.EXISTS,
+      },
+      {
+        limit,
+        offset,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return {
+      result: files,
+    };
+  }
+
   async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
     const invite = await this.workspaceRepository.findInvite({
       id: inviteId,
@@ -356,7 +617,7 @@ export class WorkspacesUsecases {
     });
 
     if (!invite) {
-      throw new BadRequestException();
+      throw new BadRequestException('This invitation is not valid');
     }
 
     const workspace = await this.workspaceRepository.findOne({
@@ -365,21 +626,10 @@ export class WorkspacesUsecases {
     });
 
     if (!workspace) {
-      throw new BadRequestException('This invitation workspace is not valid');
+      throw new BadRequestException(
+        'This invitation does not have a valid workspace',
+      );
     }
-
-    const workspaceUser = WorkspaceUser.build({
-      id: v4(),
-      workspaceId: invite.workspaceId,
-      memberId: invite.invitedUser,
-      spaceLimit: invite.spaceLimit,
-      driveUsage: BigInt(0),
-      backupsUsage: BigInt(0),
-      key: invite.encryptionKey,
-      deactivated: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
 
     const userAlreadyInWorkspace =
       await this.workspaceRepository.findWorkspaceUser({
@@ -387,36 +637,164 @@ export class WorkspacesUsecases {
         memberId: user.uuid,
       });
 
-    if (!userAlreadyInWorkspace) {
-      try {
-        await this.workspaceRepository.addUserToWorkspace(workspaceUser);
-
-        await this.teamRepository.addUserToTeam(
-          workspace.defaultTeamId,
-          user.uuid,
-        );
-      } catch (error) {
-        let finalMessage = 'There was a problem accepting this invite! ';
-        const rollbackError = await this.rollbackUserAddedToWorkspace(
-          user.uuid,
-          workspace,
-        );
-
-        finalMessage += rollbackError
-          ? rollbackError.message
-          : 'rollback applied successfully';
-
-        Logger.error(
-          `[WORKSPACE/ACEPT_INVITE]: Error while accepting user invitation! ${
-            (error as Error).message
-          }`,
-        );
-
-        throw new InternalServerErrorException(finalMessage);
-      }
+    if (userAlreadyInWorkspace) {
+      await this.workspaceRepository.deleteInviteBy({ id: invite.id });
+      return userAlreadyInWorkspace.toJSON();
     }
 
-    await this.workspaceRepository.deleteInviteBy({ id: invite.id });
+    try {
+      const rootFolder = await this.initiateWorkspacePersonalRootFolder(
+        workspace.workspaceUserId,
+        workspace.rootFolderId,
+      );
+
+      const workspaceUser = WorkspaceUser.build({
+        id: v4(),
+        workspaceId: invite.workspaceId,
+        memberId: invite.invitedUser,
+        spaceLimit: invite.spaceLimit,
+        driveUsage: 0,
+        rootFolderId: rootFolder.uuid,
+        backupsUsage: 0,
+        key: invite.encryptionKey,
+        deactivated: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+
+      await this.teamRepository.addUserToTeam(
+        workspace.defaultTeamId,
+        user.uuid,
+      );
+
+      await this.workspaceRepository.createItem({
+        itemId: rootFolder.uuid,
+        workspaceId: workspace.id,
+        itemType: WorkspaceItemType.Folder,
+        context: WorkspaceItemContext.Drive,
+        createdBy: user.uuid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await this.workspaceRepository.deleteInviteBy({ id: invite.id });
+
+      return workspaceUser.toJSON();
+    } catch (error) {
+      let finalMessage = 'There was a problem accepting this invite! ';
+      const rollbackError = await this.rollbackUserAddedToWorkspace(
+        user.uuid,
+        workspace,
+      );
+
+      finalMessage += rollbackError
+        ? rollbackError.message
+        : 'rollback applied successfully';
+
+      Logger.error(
+        `[WORKSPACE/ACEPT_INVITE]: Error while accepting user invitation! ${
+          (error as Error).message
+        }`,
+      );
+
+      throw new InternalServerErrorException(finalMessage);
+    }
+  }
+
+  async initiateWorkspacePersonalRootFolder(
+    workspaceUserId: WorkspaceAttributes['workspaceUserId'],
+    workspaceRootFolderId: WorkspaceAttributes['rootFolderId'],
+  ): Promise<Folder> {
+    const workspaceNetworkUser =
+      await this.userRepository.findByUuid(workspaceUserId);
+
+    const rootFolder = await this.folderUseCases.createFolder(
+      workspaceNetworkUser,
+      v4(),
+      workspaceRootFolderId,
+    );
+
+    return rootFolder;
+  }
+
+  async getUserInvites(user: User, limit: number, offset: number) {
+    const invites = await this.workspaceRepository.findInvitesBy(
+      {
+        invitedUser: user.uuid,
+      },
+      limit,
+      offset,
+    );
+
+    const invitesWithWorkspaceData = await Promise.all(
+      invites.map(async (invite) => {
+        const workspace = await this.workspaceRepository.findById(
+          invite.workspaceId,
+        );
+
+        return {
+          ...invite,
+          workspace: workspace.toJSON(),
+        };
+      }),
+    );
+
+    return invitesWithWorkspaceData;
+  }
+
+  async getWorkspacePendingInvitations(
+    workspaceId: WorkspaceAttributes['id'],
+    limit: number,
+    offset: number,
+  ) {
+    const invites = await this.workspaceRepository.findInvitesBy(
+      {
+        workspaceId,
+      },
+      limit,
+      offset,
+    );
+
+    const invitedUsersUuuids = invites.map((invite) => invite.invitedUser);
+
+    const [users, preCreatedUsers] = await Promise.all([
+      this.userUsecases.findByUuids(invitedUsersUuuids),
+      this.userUsecases.findPreCreatedUsersByUuids(invitedUsersUuuids),
+    ]);
+
+    const usersWithAvatars = await Promise.all(
+      users.map(async (user) => {
+        const avatar = user.avatar
+          ? await this.userUsecases.getAvatarUrl(user.avatar)
+          : null;
+        return {
+          ...user,
+          avatar,
+        };
+      }),
+    );
+
+    const invitesWithUserData = invites.map((invite) => {
+      const user = usersWithAvatars.find(
+        (user) => invite.invitedUser === user.uuid,
+      );
+
+      const prePrecreatedUser = preCreatedUsers
+        .find((user) => invite.invitedUser === user.uuid)
+        ?.toJSON();
+
+      const isGuessInvite = !user && !!prePrecreatedUser;
+
+      return {
+        ...invite,
+        user: user ?? prePrecreatedUser,
+        isGuessInvite,
+      };
+    });
+
+    return invitesWithUserData;
   }
 
   async removeWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
@@ -450,7 +828,7 @@ export class WorkspacesUsecases {
   async getAssignableSpaceInWorkspace(
     workspace: Workspace,
     workpaceDefaultUser: User,
-  ): Promise<bigint> {
+  ): Promise<number> {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
@@ -465,9 +843,7 @@ export class WorkspacesUsecases {
     ]);
 
     const spaceLeft =
-      BigInt(spaceLimit) -
-      totalSpaceLimitAssigned -
-      totalSpaceAssignedInInvitations;
+      spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
 
     return spaceLeft;
   }
@@ -543,11 +919,25 @@ export class WorkspacesUsecases {
       await this.getWorkspacesPendingToBeSetup(user),
     ]);
 
+    const workspacesFiltered = availablesWorkspaces.filter(
+      ({ workspace, workspaceUser }) =>
+        workspace.isWorkspaceReady() && !workspaceUser.deactivated,
+    );
+
+    const workspacesWithAvatar = await Promise.all(
+      workspacesFiltered.map(async (item) => ({
+        workspaceUser: item.workspaceUser.toJSON(),
+        workspace: {
+          ...item.workspace,
+          avatar: item.workspace?.avatar
+            ? await this.getAvatarUrl(item.workspace.avatar)
+            : null,
+        },
+      })),
+    );
+
     return {
-      availableWorkspaces: availablesWorkspaces.filter(
-        ({ workspace, workspaceUser }) =>
-          workspace.isWorkspaceReady() && !workspaceUser.deactivated,
-      ),
+      availableWorkspaces: workspacesWithAvatar,
       pendingWorkspaces: ownerPendingWorkspaces,
     };
   }
@@ -618,8 +1008,8 @@ export class WorkspacesUsecases {
         return {
           isOwner,
           isManager,
-          usedSpace: workspaceUser.getUsedSpace().toString(),
-          freeSpace: workspaceUser.getFreeSpace().toString(),
+          usedSpace: workspaceUser.getUsedSpace(),
+          freeSpace: workspaceUser.getFreeSpace(),
           ...workspaceUser.toJSON(),
         };
       }),
@@ -635,9 +1025,54 @@ export class WorkspacesUsecases {
     };
   }
 
-  async getTeamMembers(teamId: WorkspaceTeam['id']) {
+  async getWorkspaceCredentials(workspaceId: WorkspaceAttributes['id']) {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    if (!workspaceNetworkUser) {
+      throw new NotFoundException('Workspace user not found');
+    }
+
+    const rootFolder = await this.folderUseCases.getByUuid(
+      workspace.rootFolderId,
+    );
+
+    return {
+      workspaceId: workspace.id,
+      bucket: rootFolder.bucket,
+      workspaceUserId: workspaceNetworkUser.uuid,
+      email: workspaceNetworkUser.email,
+      credentials: {
+        networkPass: workspaceNetworkUser.userId,
+        networkUser: workspaceNetworkUser.bridgeUser,
+      },
+    };
+  }
+
+  async getTeamMembers(
+    teamId: WorkspaceTeam['id'],
+  ): Promise<Pick<User, 'uuid' | 'email' | 'name' | 'lastname' | 'avatar'>[]> {
     const members = await this.teamRepository.getTeamMembers(teamId);
-    return members;
+
+    const membersInfo = await Promise.all(
+      members.map(async (member) => ({
+        name: member.name,
+        lastname: member.lastname,
+        email: member.email,
+        id: member.id,
+        uuid: member.uuid,
+        avatar: member.avatar
+          ? await this.userUsecases.getAvatarUrl(member.avatar)
+          : null,
+      })),
+    );
+
+    return membersInfo;
   }
 
   async editTeamData(teamId: WorkspaceTeam['id'], editTeamDto: EditTeamDto) {
@@ -707,6 +1142,52 @@ export class WorkspacesUsecases {
     return newMember;
   }
 
+  async getMemberDetails(
+    workspaceId: WorkspaceAttributes['id'],
+    memberId: User['uuid'],
+  ) {
+    const [workspaceUser, user] = await Promise.all([
+      this.workspaceRepository.findWorkspaceUser({
+        workspaceId: workspaceId,
+        memberId,
+      }),
+      this.userRepository.findByUuid(memberId),
+    ]);
+
+    if (!workspaceUser || !user) {
+      throw new NotFoundException('User was not found');
+    }
+
+    const workspaceTeamUser =
+      await this.teamRepository.getTeamAndMemberByWorkspaceAndMemberId(
+        workspaceId,
+        workspaceUser.memberId,
+      );
+
+    return {
+      user: {
+        name: user.name,
+        lastname: user.lastname,
+        email: user.email,
+        uuid: user.uuid,
+        id: user.id,
+        avatar: user.avatar
+          ? await this.userUsecases.getAvatarUrl(user.avatar)
+          : null,
+        memberId: workspaceUser.memberId,
+        workspaceId: workspaceUser.workspaceId,
+        spaceLimit: workspaceUser.spaceLimit.toString(),
+        driveUsage: workspaceUser.driveUsage.toString(),
+        backupsUsage: workspaceUser.backupsUsage.toString(),
+        deactivated: workspaceUser.deactivated,
+      },
+      teams: workspaceTeamUser.map((teamUserData) => ({
+        ...teamUserData.team,
+        isManager: teamUserData.team.isUserManager(user),
+      })),
+    };
+  }
+
   async getAndValidateNonDefaultTeamWorkspace(teamId: string) {
     const team = await this.teamRepository.getTeamById(teamId);
 
@@ -727,6 +1208,33 @@ export class WorkspacesUsecases {
     }
 
     return { team, workspace };
+  }
+
+  async deactivateWorkspaceUser(
+    user: User,
+    memberId: WorkspaceUserAttributes['memberId'],
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const { workspace, workspaceUser } =
+      await this.workspaceRepository.findWorkspaceAndUser(
+        memberId,
+        workspaceId,
+      );
+
+    if (!workspace || !workspaceUser) {
+      throw new BadRequestException('This user is not part of workspace');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new BadRequestException(
+        'You can not deactivate the owner of the workspace',
+      );
+    }
+
+    await this.workspaceRepository.deactivateWorkspaceUser(
+      workspaceUser.memberId,
+      workspace.id,
+    );
   }
 
   async changeTeamManager(
@@ -825,6 +1333,27 @@ export class WorkspacesUsecases {
     });
   }
 
+  async editWorkspaceDetails(
+    workspaceId: WorkspaceAttributes['id'],
+    user: User,
+    editWorkspaceDetailsDto: EditWorkspaceDetailsDto,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    await this.workspaceRepository.updateBy(
+      { id: workspaceId },
+      editWorkspaceDetailsDto,
+    );
+  }
+
   findUserInTeam(
     userUuid: string,
     teamId: string,
@@ -845,5 +1374,80 @@ export class WorkspacesUsecases {
     }
 
     return invite.id;
+  }
+
+  getAvatarUrl(avatarKey: Workspace['avatar']): Promise<string> {
+    return this.avatarService.getDownloadUrl(avatarKey);
+  }
+
+  async upsertAvatar(
+    workspaceId: Workspace['id'],
+    avatarKey: string,
+  ): Promise<Error | { avatar: string }> {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    if (!avatarKey) {
+      throw new BadRequestException('Avatar key required');
+    }
+
+    if (workspace.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(workspace.avatar);
+      } catch (err) {
+        Logger.error(
+          `[WORKSPACE/SET_AVATAR]Deleting the avatar in workspaceId: ${
+            workspace.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
+
+    try {
+      await this.workspaceRepository.updateById(workspace.id, {
+        avatar: avatarKey,
+      });
+      const avatarUrl = await this.getAvatarUrl(avatarKey);
+      return { avatar: avatarUrl };
+    } catch (err) {
+      Logger.error(
+        `[WORKSPACE/SET_AVATAR]Adding the avatar in workspaceId: ${
+          workspace.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async deleteAvatar(workspaceId: Workspace['id']): Promise<Error | void> {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    if (workspace.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(workspace.avatar);
+        await this.workspaceRepository.updateById(workspace.id, {
+          avatar: null,
+        });
+      } catch (err) {
+        Logger.error(
+          `[WORKSPACE/DELETE_AVATAR]Deleting the avatar in workspaceId: ${
+            workspace.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
   }
 }

@@ -190,6 +190,10 @@ export class FolderController {
       throw new BadRequestInvalidOffsetException();
     }
 
+    if (order && order !== 'ASC' && order !== 'DESC') {
+      throw new BadRequestException('Invalid order parameter');
+    }
+
     const files = await this.fileUseCases.getFiles(
       user.id,
       {
@@ -274,6 +278,7 @@ export class FolderController {
       {
         parentUuid: folderUuid,
         deleted: false,
+        removed: false,
       },
       {
         limit,
@@ -329,6 +334,7 @@ export class FolderController {
       {
         parentId: folderId,
         deleted: false,
+        removed: false,
       },
       {
         limit,
@@ -502,7 +508,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Param('id') folderId: Folder['id'],
   ) {
-    if (typeof folderId !== 'number' || folderId < 0) {
+    if (folderId < 0) {
       throw new BadRequestException('Invalid id provided');
     }
 

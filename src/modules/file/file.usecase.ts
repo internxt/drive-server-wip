@@ -28,6 +28,8 @@ import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { v4 } from 'uuid';
+import { CreateFileDto } from './dto/create-file.dto';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -71,6 +73,58 @@ export class FileUseCases {
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
     return this.fileRepository.findByUuids(uuids);
+  }
+
+  async createFile(user: User, newFileDto: CreateFileDto) {
+    const folder = await this.folderUsecases.getByUuid(newFileDto.folderUuid);
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const isTheFolderOwner = folder.isOwnedBy(user);
+
+    if (!isTheFolderOwner) {
+      throw new ForbiddenException('Folder is not yours');
+    }
+
+    const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
+      name: newFileDto.name,
+      folderId: folder.id,
+      type: newFileDto.type,
+      userId: user.id,
+      status: FileStatus.EXISTS,
+    });
+
+    const fileAlreadyExists = !!maybeAlreadyExistentFile;
+
+    if (fileAlreadyExists) {
+      throw new ConflictException('File already exists');
+    }
+
+    const newFile = await this.fileRepository.create({
+      uuid: v4(),
+      name: newFileDto.name,
+      plainName: newFileDto.plainName,
+      type: newFileDto.type,
+      size: newFileDto.size,
+      folderId: folder.id,
+      fileId: newFileDto.fileId,
+      bucket: newFileDto.bucket,
+      encryptVersion: newFileDto.encryptVersion,
+      userId: user.id,
+      folderUuid: folder.uuid,
+      modificationTime: newFileDto.modificationTime || new Date(),
+      deleted: false,
+      deletedAt: null,
+      removed: false,
+      createdAt: newFileDto.date ?? new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      status: FileStatus.EXISTS,
+    });
+
+    return newFile;
   }
 
   async getFilesByFolderId(
@@ -197,6 +251,48 @@ export class FileUseCases {
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnails(
           { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+
+    const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesWithThumbnailsModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getFilesInWorkspace(
+    createdBy: UserAttributes['uuid'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      withoutThumbnails?: boolean;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    let filesWithMaybePlainName;
+    if (options?.withoutThumbnails)
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorInWorkspace(
+          createdBy,
+          { ...where },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+    else
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorWithThumbnailsInWorkspace(
+          createdBy,
+          { ...where },
           options.limit,
           options.offset,
           options.sort,

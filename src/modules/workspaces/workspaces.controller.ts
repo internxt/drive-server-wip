@@ -10,7 +10,11 @@ import {
   Patch,
   Post,
   Res,
+  UploadedFile,
+  Query,
   UseGuards,
+  UseInterceptors,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -39,8 +43,21 @@ import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
+import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
+import {
+  FolderAttributes,
+  SortableFolderAttributes,
+} from '../folder/folder.domain';
+import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { PaginationQueryDto } from './dto/pagination.dto';
+import { SortableFileAttributes } from '../file/file.domain';
+import { avatarStorageS3Config } from '../../externals/multer';
+import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -69,6 +86,23 @@ export class WorkspacesController {
   })
   async getUserWorkspacesToBeSetup(@UserDecorator() user: User) {
     return this.workspaceUseCases.getWorkspacesPendingToBeSetup(user);
+  }
+
+  @Get('/invitations/')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get current user pending invitations',
+  })
+  @ApiOkResponse({
+    description: 'User Pending invitations',
+  })
+  async getUserInvitations(
+    @UserDecorator() user: User,
+    @Query() paginationLimit: WorkspaceInvitationsPagination,
+  ) {
+    const { limit, offset } = paginationLimit;
+
+    return this.workspaceUseCases.getUserInvites(user, limit, offset);
   }
 
   @Post('/invitations/accept')
@@ -144,7 +178,7 @@ export class WorkspacesController {
     description: 'Members of the team',
   })
   @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getTeamMembers(
     @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
   ) {
@@ -248,6 +282,29 @@ export class WorkspacesController {
     return this.workspaceUseCases.changeTeamManager(teamId, managerId);
   }
 
+  @Get('/:workspaceId/invitations')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get workspace pending invitations',
+  })
+  @ApiOkResponse({
+    description: 'Workspace pending invitations',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async getWorkspacePendingInvitations(
+    @Query() pagination: WorkspaceInvitationsPagination,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const { limit, offset } = pagination;
+
+    return this.workspaceUseCases.getWorkspacePendingInvitations(
+      workspaceId,
+      limit,
+      offset,
+    );
+  }
+
   @Patch('/:workspaceId/setup')
   @ApiOperation({
     summary: 'Set up workspace that has been initialized',
@@ -270,6 +327,60 @@ export class WorkspacesController {
       workspaceId,
       setupWorkspaceDto,
     );
+  }
+
+  @Post('/:workspaceId/avatar')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Avatar added to the workspace',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  @UseInterceptors(FileInterceptor('file', avatarStorageS3Config))
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File | any,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const { key } = file;
+    if (!key) {
+      throw new InternalServerErrorException('File could not be uploaded');
+    }
+    return this.workspaceUseCases.upsertAvatar(workspaceId, key);
+  }
+
+  @Delete('/:workspaceId/avatar')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Avatar deleted from the workspace',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  async deleteAvatar(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.deleteAvatar(workspaceId);
+  }
+
+  @Get('/:workspaceId/credentials')
+  @ApiOperation({
+    summary: 'Gets workspace credentials',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace credentials',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceUser(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
   }
 
   @Get('/:workspaceId/members')
@@ -356,6 +467,117 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
+  @Post('/:workspaceId/files')
+  @ApiOperation({
+    summary: 'Create File',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Created File',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async createFile(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() createFileDto: CreateWorkspaceFileDto,
+  ) {
+    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+  }
+
+  @Post('/:workspaceId/folders')
+  @ApiOperation({
+    summary: 'Create folder',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Created Folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async createFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() createFolderDto: CreateWorkspaceFolderDto,
+  ) {
+    return this.workspaceUseCases.createFolder(
+      user,
+      workspaceId,
+      createFolderDto,
+    );
+  }
+
+  @Get('/:workspaceId/folders/:folderUuid/folders')
+  @ApiOperation({
+    summary: 'Get folders in folder',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'folderUuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Folders in folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFoldersInFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('folderUuid', ValidateUUIDPipe)
+    folderUuid: FolderAttributes['uuid'],
+    @UserDecorator() user: User,
+    @Query() pagination: PaginationQueryDto,
+    @Query('sort') sort?: SortableFolderAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
+  ) {
+    const { limit, offset } = pagination;
+
+    return this.workspaceUseCases.getPersonalWorkspaceFoldersInFolder(
+      user,
+      workspaceId,
+      folderUuid,
+      limit,
+      offset,
+      { sort, order },
+    );
+  }
+
+  @Get('/:workspaceId/folders/:folderUuid/files')
+  @ApiOperation({
+    summary: 'Get files in folder',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'folderUuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Files in folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFilesInFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('folderUuid', ValidateUUIDPipe)
+    folderUuid: FolderAttributes['uuid'],
+    @UserDecorator() user: User,
+    @Query() pagination: PaginationQueryDto,
+    @Query('sort') sort?: SortableFileAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
+  ) {
+    const { limit, offset } = pagination;
+    return this.workspaceUseCases.getPersonalWorkspaceFilesInFolder(
+      user,
+      workspaceId,
+      folderUuid,
+      limit,
+      offset,
+      { sort, order },
+    );
+  }
+
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
   @ApiOperation({
     summary: 'Changes the role of a member in the workspace',
@@ -381,6 +603,73 @@ export class WorkspacesController {
       teamId,
       userUuid,
       changeUserRoleBody,
+    );
+  }
+  @Patch('/:workspaceId')
+  @ApiOperation({
+    summary: 'Edit workspace details',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  editWorkspaceDetails(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() editWorkspaceBody: EditWorkspaceDetailsDto,
+  ) {
+    return this.workspaceUseCases.editWorkspaceDetails(
+      workspaceId,
+      user,
+      editWorkspaceBody,
+    );
+  }
+
+  @Get(':workspaceId/members/:memberId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Gets workspace member details',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Details of the workspace members',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceMemberDetails(
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.getMemberDetails(workspaceId, memberId);
+  }
+
+  @Patch(':workspaceId/members/:memberId/deactivate')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Deactivate user from workspace',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User successfully deactivated',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async deactivateWorkspaceMember(
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.deactivateWorkspaceUser(
+      user,
+      memberId,
+      workspaceId,
     );
   }
 }

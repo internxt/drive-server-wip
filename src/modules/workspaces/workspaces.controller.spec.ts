@@ -28,9 +28,9 @@ describe('Workspace Controller', () => {
 
   describe('PATCH /:workspaceId/teams/:teamId/members/:memberId/role', () => {
     it('When role is updated correctly, then it works', async () => {
-      const userUuid = '9aa9399e-8697-41f7-88e3-df1d78794cb8';
-      const teamId = '286d2eea-8319-4a3f-a66b-d2b80e5c08fe';
-      const workspaceId = '3864950c-122d-4df3-b126-4d8b3fc23c29';
+      const userUuid = v4();
+      const teamId = v4();
+      const workspaceId = v4();
 
       await expect(
         workspacesController.changeMemberRole(workspaceId, teamId, userUuid, {
@@ -75,7 +75,7 @@ describe('Workspace Controller', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      });
+      }).toJSON();
 
       workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce({
         availableWorkspaces: [{ workspace, workspaceUser }],
@@ -87,6 +87,71 @@ describe('Workspace Controller', () => {
         availableWorkspaces: [{ workspace, workspaceUser }],
         pendingWorkspaces: [],
       });
+    });
+  });
+
+  describe('GET /:workspaceId/invitations', () => {
+    it('When workspace invites are requested, then it should return successfully', async () => {
+      const user = newUser();
+      const anotherUser = newUser();
+      const workspace = newWorkspace();
+
+      const invites = [
+        newWorkspaceInvite({ invitedUser: user.uuid }),
+        newWorkspaceInvite({ invitedUser: anotherUser.uuid }),
+      ];
+
+      workspacesUsecases.getWorkspacePendingInvitations.mockResolvedValueOnce([
+        {
+          ...invites[0],
+          user: { ...user },
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: { ...anotherUser },
+          isGuessInvite: false,
+        },
+      ]);
+
+      await expect(
+        workspacesController.getWorkspacePendingInvitations(
+          { limit: 10, offset: 0 },
+          workspace.id,
+        ),
+      ).resolves.toEqual([
+        {
+          ...invites[0],
+          user: { ...user },
+          isGuessInvite: false,
+        },
+        {
+          ...invites[1],
+          user: { ...anotherUser },
+          isGuessInvite: false,
+        },
+      ]);
+    });
+  });
+
+  describe('GET /invitations', () => {
+    it('When user invites are requested, then it should return successfully', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const invite = newWorkspaceInvite({
+        invitedUser: user.uuid,
+        workspaceId: workspace.id,
+      });
+      const limit = 10;
+      const offset = 0;
+
+      const invites = [{ ...invite, workspace: workspace.toJSON() }];
+
+      workspacesUsecases.getUserInvites.mockResolvedValueOnce(invites);
+
+      await expect(
+        workspacesController.getUserInvitations(user, { limit, offset }),
+      ).resolves.toEqual(invites);
     });
   });
 
@@ -154,6 +219,33 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('PATCH /:workspaceId', () => {
+    it('When workspace details are updated successfully, then it should return.', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+
+      workspacesController.editWorkspaceDetails(workspace.id, user, {
+        name: 'new name',
+      });
+
+      jest
+        .spyOn(workspacesUsecases, 'editWorkspaceDetails')
+        .mockResolvedValue(Promise.resolve());
+
+      await expect(
+        workspacesController.editWorkspaceDetails(workspace.id, user, {
+          name: 'new name',
+          description: 'new description',
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
+        workspace.id,
+        user,
+        { name: 'new name' },
+      );
+    });
+  });
   describe('GET /:workspaceId/members', () => {
     const owner = newUser();
     const workspace = newWorkspace({
@@ -189,44 +281,44 @@ describe('Workspace Controller', () => {
         memberId: owner.uuid,
         member: owner,
         attributes: { deactivated: false },
-      }).toJSON();
+      });
       const userWorkspace1 = newWorkspaceUser({
         workspaceId: workspace.id,
         memberId: user1.uuid,
         member: user1,
         attributes: { deactivated: false },
-      }).toJSON();
+      });
       const userWorkspace2 = newWorkspaceUser({
         workspaceId: workspace.id,
         memberId: user2.uuid,
         member: user2,
         attributes: { deactivated: true },
-      }).toJSON();
+      });
 
       const mockResolvedValues = {
         activatedUsers: [
           {
-            ...ownerWorkspaceUser,
+            ...ownerWorkspaceUser.toJSON(),
             isOwner: true,
             isManager: true,
-            freeSpace: BigInt(150000).toString(),
-            usedSpace: BigInt(0).toString(),
+            freeSpace: ownerWorkspaceUser.getFreeSpace(),
+            usedSpace: ownerWorkspaceUser.getUsedSpace(),
           },
           {
-            ...userWorkspace1,
+            ...userWorkspace1.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: BigInt(15000).toString(),
-            usedSpace: BigInt(0).toString(),
+            freeSpace: userWorkspace1.getFreeSpace(),
+            usedSpace: userWorkspace1.getUsedSpace(),
           },
         ],
         disabledUsers: [
           {
-            ...userWorkspace2,
+            ...userWorkspace2.toJSON(),
             isOwner: false,
             isManager: false,
-            freeSpace: BigInt(13000).toString(),
-            usedSpace: BigInt(0).toString(),
+            freeSpace: userWorkspace2.getFreeSpace(),
+            usedSpace: userWorkspace2.getUsedSpace(),
           },
         ],
       };
@@ -307,6 +399,74 @@ describe('Workspace Controller', () => {
         );
         expect(result).toEqual({ message: 'Internal server error' });
       });
+    });
+  });
+
+  describe('POST /:workspaceId/avatar', () => {
+    const newAvatarKey = v4();
+    const file: Express.Multer.File | any = {
+      stream: undefined,
+      fieldname: undefined,
+      originalname: undefined,
+      encoding: undefined,
+      mimetype: undefined,
+      size: undefined,
+      filename: undefined,
+      destination: undefined,
+      path: undefined,
+      buffer: undefined,
+    };
+
+    it('When workspaceId is null, throw error.', async () => {
+      const workspaceId = null;
+      jest
+        .spyOn(workspacesUsecases, 'upsertAvatar')
+        .mockRejectedValue(BadRequestException);
+
+      await expect(
+        workspacesController.uploadAvatar(file, workspaceId),
+      ).rejects.toThrow();
+    });
+
+    it('When Multer does not return the key field in the file then the file was not uploaded to s3 and we should raise an error', async () => {
+      const workspace = newWorkspace();
+      file.key = null;
+      await expect(
+        workspacesController.uploadAvatar(file, workspace.id),
+      ).rejects.toThrow();
+    });
+
+    it('When Multer returns the key field in the file then the file was uploaded to s3 and we must save the key', async () => {
+      const workspace = newWorkspace();
+      file.key = newAvatarKey;
+      await workspacesController.uploadAvatar(file, workspace.id);
+      expect(workspacesUsecases.upsertAvatar).toHaveBeenCalledWith(
+        workspace.id,
+        newAvatarKey,
+      );
+    });
+  });
+
+  describe('DELETE /:workspaceId/avatar', () => {
+    it('When workspaceId is null, then it fails.', async () => {
+      const workspaceId = null;
+      jest
+        .spyOn(workspacesUsecases, 'deleteAvatar')
+        .mockRejectedValue(BadRequestException);
+
+      await expect(
+        workspacesController.deleteAvatar(workspaceId),
+      ).rejects.toThrow();
+    });
+
+    it('When passing a workspace id, workspacesUsecases.deleteAvatar should be called and return resolve', async () => {
+      const workspace = newWorkspace({
+        avatar: v4(),
+      });
+
+      await expect(
+        workspacesController.deleteAvatar(workspace.id),
+      ).resolves.toBeTruthy();
     });
   });
 });

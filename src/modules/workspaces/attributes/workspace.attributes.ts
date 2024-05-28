@@ -4,9 +4,11 @@ export interface WorkspaceAttributes {
   address?: string;
   name: string;
   description?: string;
+  avatar: string | null;
   defaultTeamId: string;
   workspaceUserId: string;
   setupCompleted: boolean;
+  rootFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

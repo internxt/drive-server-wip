@@ -1,8 +1,13 @@
+import { v4 } from 'uuid';
 import {
   LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { FileStatus } from '../src/modules/file/file.domain';
+import {
+  WorkspaceItemContext,
+  WorkspaceItemType,
+} from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import * as fixtures from './fixtures';
 
 describe('Testing fixtures tests', () => {
@@ -370,18 +375,14 @@ describe('Testing fixtures tests', () => {
 
     it('When it generates a workspace user, then driveUsage and backupsUsage should not exceed spaceLimit', () => {
       const user = fixtures.newWorkspaceUser();
-      expect(Number(user.driveUsage)).toBeLessThanOrEqual(
-        BigInt(user.spaceLimit),
-      );
-      expect(BigInt(user.backupsUsage)).toBeLessThanOrEqual(
-        BigInt(user.spaceLimit),
-      );
+      expect(Number(user.driveUsage)).toBeLessThanOrEqual(user.spaceLimit);
+      expect(user.backupsUsage).toBeLessThanOrEqual(user.spaceLimit);
     });
 
     it('When it generates a workspace user with custom attributes, then those attributes are set correctly', () => {
       const customAttributes = {
         deactivated: true,
-        spaceLimit: BigInt(500),
+        spaceLimit: 500,
       };
       const user = fixtures.newWorkspaceUser({ attributes: customAttributes });
 
@@ -414,7 +415,7 @@ describe('Testing fixtures tests', () => {
     it('When it generates a workspace invite with custom attributes, then those attributes are set correctly', () => {
       const customAttributes = {
         encryptionAlgorithm: 'AES-256',
-        spaceLimit: BigInt(2048),
+        spaceLimit: 2048,
       };
       const invite = fixtures.newWorkspaceInvite({
         attributes: customAttributes,
@@ -459,6 +460,80 @@ describe('Testing fixtures tests', () => {
 
       expect(teamUser.memberId).toBe(customAttributes.memberId);
       expect(teamUser.teamId).toBe(customAttributes.teamId);
+    });
+  });
+
+  describe("WorkspaceItemUser's fixture", () => {
+    it('When it generates a workspace item user, then the identifier should be random', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      const otherItemUser = fixtures.newWorkspaceItemUser();
+
+      expect(itemUser.id).toBeTruthy();
+      expect(itemUser.id).not.toBe(otherItemUser.id);
+    });
+
+    it('When it generates a workspace item user, then the workspaceId should be random', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      const otherItemUser = fixtures.newWorkspaceItemUser();
+
+      expect(itemUser.workspaceId).toBeTruthy();
+      expect(itemUser.workspaceId).not.toBe(otherItemUser.workspaceId);
+    });
+
+    it('When it generates a workspace item user, then the itemType should be populated', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      expect(itemUser.itemType).toBeTruthy();
+      expect(Object.values(WorkspaceItemType)).toContain(itemUser.itemType);
+    });
+
+    it('When it generates a workspace item user, then the context should be populated', () => {
+      const itemUser = fixtures.newWorkspaceItemUser();
+      expect(itemUser.context).toBeTruthy();
+      expect(Object.values(WorkspaceItemContext)).toContain(itemUser.context);
+    });
+
+    it('When it generates a workspace item user with a specified creator, then the createdBy should match', () => {
+      const createdBy = v4();
+      const itemUser = fixtures.newWorkspaceItemUser({ createdBy });
+      expect(itemUser.createdBy).toBe(createdBy);
+    });
+
+    it('When it generates a workspace item user with custom attributes, then those attributes are set correctly', () => {
+      const customAttributes = {
+        itemType: WorkspaceItemType.File,
+        context: WorkspaceItemContext.Backup,
+      };
+      const itemUser = fixtures.newWorkspaceItemUser({
+        attributes: customAttributes,
+      });
+
+      expect(itemUser.itemType).toBe(customAttributes.itemType);
+      expect(itemUser.context).toBe(customAttributes.context);
+    });
+  });
+
+  describe('PreCreatedUser fixture', () => {
+    it('When it generates a pre-created user, then the identifier should be a natural number', () => {
+      const user = fixtures.newPreCreatedUser();
+      expect(user.id).toBeGreaterThan(0);
+    });
+
+    it('When it generates a pre-created user, then the UUID should be random', () => {
+      const user = fixtures.newPreCreatedUser();
+      const otherUser = fixtures.newPreCreatedUser();
+
+      expect(user.uuid).not.toBe(otherUser.uuid);
+    });
+
+    it('When it generates a pre-created user, then the email should be random', () => {
+      const user = fixtures.newPreCreatedUser();
+      const otherUser = fixtures.newPreCreatedUser();
+      expect(user.email).not.toBe(otherUser.email);
+    });
+
+    it('When it generates a pre-created user, then the username should match the email', () => {
+      const user = fixtures.newPreCreatedUser();
+      expect(user.username).toBe(user.email);
     });
   });
 });
