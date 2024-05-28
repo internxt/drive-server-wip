@@ -1364,8 +1364,8 @@ export class WorkspacesUsecases {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
   }
 
-  async getAvatarUrl(avatarKey: Workspace['avatar']): Promise<string> {
-    return await this.avatarService.getDownloadUrl(avatarKey);
+  getAvatarUrl(avatarKey: Workspace['avatar']): Promise<string> {
+    return this.avatarService.getDownloadUrl(avatarKey);
   }
 
   async upsertAvatar(
