@@ -334,70 +334,18 @@ describe('Workspace Controller', () => {
     });
 
     describe('GET /invitations/:inviteId/validate', () => {
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        send: jest.fn().mockReturnThis(),
-      };
       it('When invitation is validated successfully, then it returns.', async () => {
         const invite = newWorkspaceInvite();
-        workspacesUsecases.validateWorkspaceInvite.mockResolvedValueOnce(
-          invite.id,
-        );
+        jest
+          .spyOn(workspacesUsecases, 'validateWorkspaceInvite')
+          .mockResolvedValueOnce(Promise.resolve(invite.id));
 
-        const validateInvite =
-          await workspacesController.validateWorkspaceInvitation(
-            invite.id,
-            mockResponse as any,
-          );
-
+        await expect(
+          workspacesController.validateWorkspaceInvitation(invite.id),
+        ).resolves.toEqual(invite.id);
         expect(workspacesUsecases.validateWorkspaceInvite).toHaveBeenCalledWith(
           invite.id,
         );
-        expect(validateInvite).toEqual(invite.id);
-      });
-
-      it('When invitation is validated with invalid inviteId, then it should throw BadRequestException', async () => {
-        const errorMessage = 'Invalid invitation ID';
-        workspacesUsecases.validateWorkspaceInvite.mockRejectedValueOnce(
-          new BadRequestException(errorMessage),
-        );
-
-        try {
-          await workspacesController.validateWorkspaceInvitation(
-            'invalid-id',
-            mockResponse as any,
-          );
-          // If the above line does not throw, the test should fail.
-          fail(
-            'Expected validateWorkspaceInvitation to throw a BadRequestException.',
-          );
-        } catch (error) {
-          // Now we assert that the error is what we expect it to be.
-          expect(error).toBeInstanceOf(BadRequestException);
-          expect(error.response).toEqual({
-            statusCode: 400,
-            message: errorMessage,
-            error: 'Bad Request',
-          });
-        }
-      });
-      it('When unexpected error occurs, then it should catch and return error message', async () => {
-        jest.spyOn(Logger, 'error').mockImplementation(() => {});
-
-        workspacesUsecases.validateWorkspaceInvite.mockRejectedValueOnce(
-          new Error('Unexpected error'),
-        );
-
-        const result = await workspacesController.validateWorkspaceInvitation(
-          'id',
-          mockResponse as any,
-        );
-
-        expect(Logger.error).toHaveBeenCalled();
-        expect(mockResponse.status).toHaveBeenCalledWith(
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-        expect(result).toEqual({ message: 'Internal server error' });
       });
     });
   });

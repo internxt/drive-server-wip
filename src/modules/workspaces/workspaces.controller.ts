@@ -129,28 +129,11 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Workspace invitation is valid',
   })
-  async validateWorkspaceInvitation(
+  validateWorkspaceInvitation(
     @Param('inviteId', ValidateUUIDPipe)
     inviteId: WorkspaceInviteAttributes['id'],
-    @Res({ passthrough: true }) res: Response,
   ) {
-    try {
-      return await this.workspaceUseCases.validateWorkspaceInvite(inviteId);
-    } catch (error) {
-      let errorMessage = error.message;
-      if (error instanceof BadRequestException) {
-        throw error;
-      } else {
-        Logger.error(
-          `[WORKSPACES/INVITATIONS/:INVITEID/VALIDATE] Error while trying to validate invite with id ${inviteId}, message: ${error}, stack: ${
-            error.stack || 'No stack trace'
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal server error';
-      }
-      return { message: errorMessage };
-    }
+    return this.workspaceUseCases.validateWorkspaceInvite(inviteId);
   }
 
   @Delete('/invitations/:inviteId')
