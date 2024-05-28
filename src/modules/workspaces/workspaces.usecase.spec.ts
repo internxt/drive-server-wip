@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { createMock } from '@golevelup/ts-jest';
@@ -55,6 +56,7 @@ describe('WorkspacesUsecases', () => {
   let userRepository: SequelizeUserRepository;
   let userUsecases: UserUseCases;
   let mailerService: MailerService;
+  let avatarService: AvatarService;
   let networkService: BridgeService;
   let configService: ConfigService;
   let folderUseCases: FolderUseCases;
@@ -79,6 +81,7 @@ describe('WorkspacesUsecases', () => {
     );
     userUsecases = module.get<UserUseCases>(UserUseCases);
     mailerService = module.get<MailerService>(MailerService);
+    avatarService = module.get<AvatarService>(AvatarService);
     networkService = module.get<BridgeService>(BridgeService);
     configService = module.get<ConfigService>(ConfigService);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
@@ -791,7 +794,9 @@ describe('WorkspacesUsecases', () => {
       const availableWorkspaces = await service.getAvailableWorkspaces(user);
 
       expect(availableWorkspaces).toEqual({
-        availableWorkspaces: [{ workspaceUser, workspace }],
+        availableWorkspaces: [
+          { workspaceUser: workspaceUser.toJSON(), workspace },
+        ],
         pendingWorkspaces: [pendingSetupWorkspace],
       });
     });
@@ -2765,6 +2770,183 @@ describe('WorkspacesUsecases', () => {
           await service.deleteTeam(team.id);
           expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
         });
+      });
+    });
+
+    describe('upload workspace Avatar', () => {
+      const newAvatarKey = v4();
+      const newAvatarURL = `http://localhost:9000/${newAvatarKey}`;
+
+      it('When a workspace id not exist then it fails', async () => {
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+        await expect(
+          service.upsertAvatar('workspace-uuid-not-exist', newAvatarKey),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When workspace has no avatar already, then previous avatar is not deleted', async () => {
+        const workspace = newWorkspace({
+          avatar: null,
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await expect(
+          service.deleteAvatar(workspace.id),
+        ).resolves.toBeUndefined();
+
+        expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
+      });
+
+      it('When workspace has an avatar, then avatar is deleted and updated with the new one', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        jest.spyOn(service, 'getAvatarUrl').mockResolvedValue(newAvatarURL);
+
+        await expect(
+          service.upsertAvatar(workspace.id, newAvatarKey),
+        ).resolves.toMatchObject({ avatar: newAvatarURL });
+
+        expect(avatarService.deleteAvatar).toHaveBeenCalledWith(
+          workspace.avatar,
+        );
+        expect(workspaceRepository.updateById).toHaveBeenCalledWith(
+          workspace.id,
+          {
+            avatar: newAvatarKey,
+          },
+        );
+      });
+
+      it('When there is an error while deleting the previous avatar, then it fails', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        jest
+          .spyOn(avatarService, 'deleteAvatar')
+          .mockRejectedValue(new Error('Error in avatar service'));
+
+        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
+      });
+
+      it('When there is an error while updating the avatar, then it fails', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        jest
+          .spyOn(workspaceRepository, 'updateById')
+          .mockRejectedValue(
+            new Error('Error in workspaceRepository updateById'),
+          );
+
+        await expect(
+          service.upsertAvatar(workspace.id, newAvatarKey),
+        ).rejects.toThrow();
+      });
+
+      it('When there is an error getting the new avatar URL, then it fails', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        jest.spyOn(workspaceRepository, 'updateById').mockResolvedValue();
+
+        jest
+          .spyOn(service, 'getAvatarUrl')
+          .mockRejectedValue(
+            new Error('Error in WorkspacesUsecases getAvatarUrl'),
+          );
+
+        await expect(
+          service.upsertAvatar(workspace.id, newAvatarKey),
+        ).rejects.toThrow();
+      });
+    });
+
+    describe('delete workspace Avatar', () => {
+      it('When a workspace id not exist then it fails', async () => {
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+        await expect(
+          service.deleteAvatar('workspace-uuid-not-exist'),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When avatar is null it should return empty', async () => {
+        const workspace = newWorkspace({
+          avatar: null,
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await expect(
+          service.deleteAvatar(workspace.id),
+        ).resolves.toBeUndefined();
+      });
+
+      it('When avatar is not null then we should delete the avatar and return empty', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        await expect(
+          service.deleteAvatar(workspace.id),
+        ).resolves.toBeUndefined();
+
+        expect(avatarService.deleteAvatar).toHaveBeenCalledWith(
+          workspace.avatar,
+        );
+        expect(workspaceRepository.updateById).toHaveBeenCalledWith(
+          workspace.id,
+          {
+            avatar: null,
+          },
+        );
+      });
+
+      it('When there is an error while deleting the avatar from bucket, then it fail', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        jest
+          .spyOn(avatarService, 'deleteAvatar')
+          .mockRejectedValue(new Error('Error in avatar service'));
+
+        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
+      });
+
+      it('When there is an error while removing the old avatar from the workspace, then it fails', async () => {
+        const workspace = newWorkspace({
+          avatar: v4(),
+        });
+
+        jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+
+        jest
+          .spyOn(workspaceRepository, 'updateById')
+          .mockRejectedValue(
+            new Error('Error in workspaceRepository updateById'),
+          );
+
+        await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
       });
     });
   });

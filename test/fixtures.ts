@@ -289,12 +289,14 @@ export const newFeatureLimit = (bindTo?: {
 export const newWorkspace = (params?: {
   attributes?: Partial<Workspace>;
   owner?: User;
+  avatar?: Workspace['avatar'];
 }): Workspace => {
   const randomCreatedAt = randomDataGenerator.date();
 
   const workspace = Workspace.build({
     id: v4(),
     ownerId: params?.owner?.uuid || v4(),
+    avatar: params?.avatar || null,
     address: randomDataGenerator.address(),
     name: randomDataGenerator.company(),
     description: randomDataGenerator.sentence(),

@@ -28,9 +28,9 @@ describe('Workspace Controller', () => {
 
   describe('PATCH /:workspaceId/teams/:teamId/members/:memberId/role', () => {
     it('When role is updated correctly, then it works', async () => {
-      const userUuid = '9aa9399e-8697-41f7-88e3-df1d78794cb8';
-      const teamId = '286d2eea-8319-4a3f-a66b-d2b80e5c08fe';
-      const workspaceId = '3864950c-122d-4df3-b126-4d8b3fc23c29';
+      const userUuid = v4();
+      const teamId = v4();
+      const workspaceId = v4();
 
       await expect(
         workspacesController.changeMemberRole(workspaceId, teamId, userUuid, {
@@ -75,7 +75,7 @@ describe('Workspace Controller', () => {
         workspaceId: workspace.id,
         memberId: user.uuid,
         attributes: { deactivated: false },
-      });
+      }).toJSON();
 
       workspacesUsecases.getAvailableWorkspaces.mockResolvedValueOnce({
         availableWorkspaces: [{ workspace, workspaceUser }],
@@ -331,6 +331,74 @@ describe('Workspace Controller', () => {
         owner,
       );
       expect(getMembers).toEqual(mockResolvedValues);
+    });
+  });
+
+  describe('POST /:workspaceId/avatar', () => {
+    const newAvatarKey = v4();
+    const file: Express.Multer.File | any = {
+      stream: undefined,
+      fieldname: undefined,
+      originalname: undefined,
+      encoding: undefined,
+      mimetype: undefined,
+      size: undefined,
+      filename: undefined,
+      destination: undefined,
+      path: undefined,
+      buffer: undefined,
+    };
+
+    it('When workspaceId is null, throw error.', async () => {
+      const workspaceId = null;
+      jest
+        .spyOn(workspacesUsecases, 'upsertAvatar')
+        .mockRejectedValue(BadRequestException);
+
+      await expect(
+        workspacesController.uploadAvatar(file, workspaceId),
+      ).rejects.toThrow();
+    });
+
+    it('When Multer does not return the key field in the file then the file was not uploaded to s3 and we should raise an error', async () => {
+      const workspace = newWorkspace();
+      file.key = null;
+      await expect(
+        workspacesController.uploadAvatar(file, workspace.id),
+      ).rejects.toThrow();
+    });
+
+    it('When Multer returns the key field in the file then the file was uploaded to s3 and we must save the key', async () => {
+      const workspace = newWorkspace();
+      file.key = newAvatarKey;
+      await workspacesController.uploadAvatar(file, workspace.id);
+      expect(workspacesUsecases.upsertAvatar).toHaveBeenCalledWith(
+        workspace.id,
+        newAvatarKey,
+      );
+    });
+  });
+
+  describe('DELETE /:workspaceId/avatar', () => {
+    it('When workspaceId is null, then it fails.', async () => {
+      const workspaceId = null;
+      jest
+        .spyOn(workspacesUsecases, 'deleteAvatar')
+        .mockRejectedValue(BadRequestException);
+
+      await expect(
+        workspacesController.deleteAvatar(workspaceId),
+      ).rejects.toThrow();
+    });
+
+    it('When passing a workspace id, workspacesUsecases.deleteAvatar should be called and return resolve', async () => {
+      const workspace = newWorkspace({
+        avatar: v4(),
+      });
+
+      await expect(
+        workspacesController.deleteAvatar(workspace.id),
+      ).resolves.toBeTruthy();
     });
   });
 });

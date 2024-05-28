@@ -14,7 +14,6 @@ import {
   newWorkspaceUser,
 } from '../../../../test/fixtures';
 import { Workspace } from '../domains/workspaces.domain';
-import { v4 } from 'uuid';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;

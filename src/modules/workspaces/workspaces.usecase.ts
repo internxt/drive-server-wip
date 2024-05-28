@@ -32,6 +32,7 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
@@ -60,6 +61,7 @@ export class WorkspacesUsecases {
     private folderUseCases: FolderUseCases,
     private configService: ConfigService,
     private mailerService: MailerService,
+    private readonly avatarService: AvatarService,
   ) {}
 
   async initiateWorkspace(
@@ -109,6 +111,7 @@ export class WorkspacesUsecases {
       ownerId: owner.uuid,
       name: 'My Workspace',
       address: workspaceData?.address,
+      avatar: null,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
       setupCompleted: false,
@@ -916,11 +919,25 @@ export class WorkspacesUsecases {
       await this.getWorkspacesPendingToBeSetup(user),
     ]);
 
+    const workspacesFiltered = availablesWorkspaces.filter(
+      ({ workspace, workspaceUser }) =>
+        workspace.isWorkspaceReady() && !workspaceUser.deactivated,
+    );
+
+    const workspacesWithAvatar = await Promise.all(
+      workspacesFiltered.map(async (item) => ({
+        workspaceUser: item.workspaceUser.toJSON(),
+        workspace: {
+          ...item.workspace,
+          avatar: item.workspace?.avatar
+            ? await this.getAvatarUrl(item.workspace.avatar)
+            : null,
+        },
+      })),
+    );
+
     return {
-      availableWorkspaces: availablesWorkspaces.filter(
-        ({ workspace, workspaceUser }) =>
-          workspace.isWorkspaceReady() && !workspaceUser.deactivated,
-      ),
+      availableWorkspaces: workspacesWithAvatar,
       pendingWorkspaces: ownerPendingWorkspaces,
     };
   }
@@ -1345,5 +1362,80 @@ export class WorkspacesUsecases {
     teamUser: WorkspaceTeamUser | null;
   }> {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
+  }
+
+  getAvatarUrl(avatarKey: Workspace['avatar']): Promise<string> {
+    return this.avatarService.getDownloadUrl(avatarKey);
+  }
+
+  async upsertAvatar(
+    workspaceId: Workspace['id'],
+    avatarKey: string,
+  ): Promise<Error | { avatar: string }> {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    if (!avatarKey) {
+      throw new BadRequestException('Avatar key required');
+    }
+
+    if (workspace.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(workspace.avatar);
+      } catch (err) {
+        Logger.error(
+          `[WORKSPACE/SET_AVATAR]Deleting the avatar in workspaceId: ${
+            workspace.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
+
+    try {
+      await this.workspaceRepository.updateById(workspace.id, {
+        avatar: avatarKey,
+      });
+      const avatarUrl = await this.getAvatarUrl(avatarKey);
+      return { avatar: avatarUrl };
+    } catch (err) {
+      Logger.error(
+        `[WORKSPACE/SET_AVATAR]Adding the avatar in workspaceId: ${
+          workspace.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async deleteAvatar(workspaceId: Workspace['id']): Promise<Error | void> {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    if (workspace.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(workspace.avatar);
+        await this.workspaceRepository.updateById(workspace.id, {
+          avatar: null,
+        });
+      } catch (err) {
+        Logger.error(
+          `[WORKSPACE/DELETE_AVATAR]Deleting the avatar in workspaceId: ${
+            workspace.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
   }
 }
