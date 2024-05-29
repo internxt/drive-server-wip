@@ -43,7 +43,6 @@ import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Express } from 'express';
 import {
   FolderAttributes,
   SortableFolderAttributes,
@@ -116,6 +115,20 @@ export class WorkspacesController {
     const { inviteId } = acceptInvitationDto;
 
     return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
+  }
+
+  @Get('/invitations/:inviteId/validate')
+  @ApiOperation({
+    summary: 'Validates if invitation is valid',
+  })
+  @ApiOkResponse({
+    description: 'Workspace invitation is valid',
+  })
+  validateWorkspaceInvitation(
+    @Param('inviteId', ValidateUUIDPipe)
+    inviteId: WorkspaceInviteAttributes['id'],
+  ) {
+    return this.workspaceUseCases.validateWorkspaceInvite(inviteId);
   }
 
   @Delete('/invitations/:inviteId')

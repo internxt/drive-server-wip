@@ -332,6 +332,22 @@ describe('Workspace Controller', () => {
       );
       expect(getMembers).toEqual(mockResolvedValues);
     });
+
+    describe('GET /invitations/:inviteId/validate', () => {
+      it('When invitation is validated successfully, then it returns.', async () => {
+        const invite = newWorkspaceInvite();
+        jest
+          .spyOn(workspacesUsecases, 'validateWorkspaceInvite')
+          .mockResolvedValueOnce(Promise.resolve(invite.id));
+
+        await expect(
+          workspacesController.validateWorkspaceInvitation(invite.id),
+        ).resolves.toEqual(invite.id);
+        expect(workspacesUsecases.validateWorkspaceInvite).toHaveBeenCalledWith(
+          invite.id,
+        );
+      });
+    });
   });
 
   describe('POST /:workspaceId/avatar', () => {

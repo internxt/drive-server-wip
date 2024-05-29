@@ -1364,6 +1364,18 @@ export class WorkspacesUsecases {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
   }
 
+  async validateWorkspaceInvite(
+    inviteId: WorkspaceInvite['id'],
+  ): Promise<string> {
+    const invite = await this.workspaceRepository.findInvite({ id: inviteId });
+
+    if (!invite) {
+      throw new BadRequestException('Invalid invite');
+    }
+
+    return invite.id;
+  }
+
   getAvatarUrl(avatarKey: Workspace['avatar']): Promise<string> {
     return this.avatarService.getDownloadUrl(avatarKey);
   }

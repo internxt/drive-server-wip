@@ -911,6 +911,24 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('validateWorkspaceInvite', () => {
+    it('When invite is not found, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(null);
+      await expect(service.validateWorkspaceInvite('anyUuid')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When invite is found, then it should return the invite', async () => {
+      const invite = newWorkspaceInvite();
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+
+      const foundInvite = await service.validateWorkspaceInvite(invite.id);
+
+      expect(foundInvite).toEqual(invite.id);
+    });
+  });
+
   describe('acceptWorkspaceInvite', () => {
     const invitedUser = newUser();
 
