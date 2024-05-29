@@ -4,12 +4,9 @@ import {
   Controller,
   Delete,
   Get,
-  HttpStatus,
-  Logger,
   Param,
   Patch,
   Post,
-  Res,
   UploadedFile,
   Query,
   UseGuards,
@@ -45,9 +42,7 @@ import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
-import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Express } from 'express';
 import {
   FolderAttributes,
   SortableFolderAttributes,
