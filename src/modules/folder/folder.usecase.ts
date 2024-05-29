@@ -256,6 +256,7 @@ export class FolderUseCases {
     const folder = await this.folderRepository.findOne({
       uuid: folderUuid,
       deleted: false,
+      removed: false,
     });
 
     if (!folder.isOwnedBy(user)) {
@@ -271,6 +272,7 @@ export class FolderUseCases {
       name: cryptoFileName,
       parentId: folder.parentId,
       deleted: false,
+      removed: false,
     });
 
     if (folderWithSameNameExists) {

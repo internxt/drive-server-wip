@@ -449,8 +449,6 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
-  // =============
-
   @Post('/:workspaceId/files')
   @ApiOperation({
     summary: 'Create File',
@@ -524,6 +522,26 @@ export class WorkspacesController {
     );
   }
 
+  @Delete('/:workspaceId/my-trash')
+  @ApiOperation({
+    summary: 'Empty current member trash',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description:
+      "Member's trashed items in workspace have been successfully removed",
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async emptyTrash(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.emptyUserTrashedItems(user, workspaceId);
+  }
+
   @Get('/:workspaceId/folders/:folderUuid/folders')
   @ApiOperation({
     summary: 'Get folders in folder',
@@ -590,8 +608,6 @@ export class WorkspacesController {
       { sort, order },
     );
   }
-
-  // ================
 
   @Patch('/:workspaceId/teams/:teamId/members/:memberId/role')
   @ApiOperation({

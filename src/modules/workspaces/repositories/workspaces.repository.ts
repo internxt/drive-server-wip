@@ -13,11 +13,14 @@ import { WorkspaceUserAttributes } from '../attributes/workspace-users.attribute
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
-import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
+import {
+  WorkspaceItemType,
+  WorkspaceItemUserAttributes,
+} from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../file/file.model';
-import { File } from '../../file/file.domain';
-import { Folder } from '../../folder/folder.domain';
+import { FileAttributes } from '../../file/file.domain';
+import { FolderAttributes } from '../../folder/folder.domain';
 import { Op } from 'sequelize';
 import { FolderModel } from '../../folder/folder.model';
 
@@ -152,6 +155,45 @@ export class SequelizeWorkspaceRepository {
   ): Promise<WorkspaceItemUser[]> {
     const items = await this.modelWorkspaceItemUser.findAll({ where });
     return items.map((item) => this.workspaceItemUserToDomain(item));
+  }
+
+  getItemsCountBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<number> {
+    return this.modelWorkspaceItemUser.count({ where });
+  }
+
+  getItemFilesCountBy(
+    where: Partial<Omit<WorkspaceItemUserAttributes, 'itemType'>>,
+    whereFile?: Partial<FileAttributes>,
+  ): Promise<number> {
+    return this.modelWorkspaceItemUser.count({
+      where: { ...where, itemType: WorkspaceItemType.File },
+      include: { model: FileModel, where: { ...whereFile } },
+    });
+  }
+
+  getItemFoldersCountBy(
+    where: Partial<Omit<WorkspaceItemUserAttributes, 'itemType'>>,
+    whereFolder?: Partial<FolderAttributes>,
+  ): Promise<number> {
+    return this.modelWorkspaceItemUser.count({
+      where: { ...where, itemType: WorkspaceItemType.Folder },
+      include: { model: FolderModel, where: { ...whereFolder } },
+    });
+  }
+
+  async findWorkspaceResourcesOwner(
+    workspaceId: WorkspaceItemUserAttributes['id'],
+  ): Promise<User | null> {
+    const workspaceUser = await this.modelWorkspace.findOne({
+      where: { id: workspaceId },
+      include: { model: UserModel, as: 'workpaceUser' },
+    });
+
+    return workspaceUser?.workpaceUser
+      ? User.build({ ...workspaceUser?.workpaceUser.get({ plain: true }) })
+      : null;
   }
 
   async getItemBy(
