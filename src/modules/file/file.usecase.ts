@@ -161,13 +161,16 @@ export class FileUseCases {
       );
     }
 
-    const updatedFile = await this.fileRepository.updateByUuidAndUserId(
-      file.uuid,
-      user.id,
-      { plainName: newFileMetada.plainName, name: cryptoFileName },
-    );
+    await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
+      plainName: newFileMetada.plainName,
+      name: cryptoFileName,
+    });
 
-    return updatedFile;
+    return {
+      ...file.toJSON(),
+      name: cryptoFileName,
+      plainName: newFileMetada.plainName,
+    };
   }
 
   async getFilesByFolderId(
