@@ -1869,7 +1869,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValueOnce(item);
       jest
-        .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
+        .spyOn(folderUseCases, 'getFoldersInWorkspace')
         .mockResolvedValueOnce([childFolder]);
 
       const result = await service.getPersonalWorkspaceFoldersInFolder(

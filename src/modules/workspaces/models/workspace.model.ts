@@ -71,9 +71,16 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   })
   defaultTeam: WorkspaceTeamModel;
 
-  @ForeignKey(() => WorkspaceUserModel)
+  @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
   workspaceUserId: string;
+
+  @BelongsTo(() => UserModel, {
+    foreignKey: 'workspaceUserId',
+    targetKey: 'uuid',
+    as: 'workpaceUser',
+  })
+  workpaceUser: UserModel;
 
   @HasMany(() => WorkspaceUserModel)
   workspaceUsers: WorkspaceUserModel[];

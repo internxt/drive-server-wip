@@ -450,6 +450,54 @@ export class WorkspacesUsecases {
     return { result };
   }
 
+  async emptyUserTrashedItems(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const [filesCount, foldersCount] = await Promise.all([
+      this.workspaceRepository.getItemFilesCountBy(
+        {
+          createdBy: user.uuid,
+          workspaceId,
+        },
+        { status: FileStatus.TRASHED },
+      ),
+      this.workspaceRepository.getItemFoldersCountBy(
+        {
+          createdBy: user.uuid,
+          workspaceId,
+        },
+        { removed: false, deleted: true },
+      ),
+    ]);
+
+    const workspaceUser =
+      await this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId);
+
+    const emptyTrashChunkSize = 100;
+    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
+      const folders = await this.folderUseCases.getFoldersInWorkspace(
+        user.uuid,
+        workspaceId,
+        { deleted: true, removed: false },
+        { limit: emptyTrashChunkSize, offset: i },
+      );
+
+      await this.folderUseCases.deleteByUser(workspaceUser, folders);
+    }
+
+    for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
+      const files = await this.fileUseCases.getFilesInWorkspace(
+        user.uuid,
+        workspaceId,
+        { status: FileStatus.TRASHED },
+        { limit: emptyTrashChunkSize, offset: i },
+      );
+
+      await this.fileUseCases.deleteByUser(workspaceUser, files);
+    }
+  }
+
   async createFile(
     member: User,
     workspaceId: string,
@@ -995,11 +1043,7 @@ export class WorkspacesUsecases {
   }
 
   async findWorkspaceResourceOwner(workspace: Workspace) {
-    const resourceOwner = await this.userRepository.findByUuid(
-      workspace.workspaceUserId,
-    );
-
-    return resourceOwner;
+    return this.workspaceRepository.findWorkspaceResourcesOwner(workspace.id);
   }
 
   async isUserCreatorOfItem(

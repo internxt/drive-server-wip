@@ -16,7 +16,7 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { newFolder, newUser } from '../../../test/fixtures';
+import { newFolder, newUser, newWorkspace } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
@@ -907,8 +907,9 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('getFoldersWithParentInWorkspace', () => {
+  describe('getFoldersInWorkspace', () => {
     const createdBy = userMocked.uuid;
+    const workspace = newWorkspace();
     const parentFolderUuid = 'parent-folder-uuid';
     const decryptedFolder = newFolder({
       attributes: { plainName: 'decrypted-name' },
@@ -924,8 +925,9 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([decryptedFolder]);
 
-      const result = await service.getFoldersWithParentInWorkspace(
+      const result = await service.getFoldersInWorkspace(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         findOptions,
       );
@@ -941,8 +943,9 @@ describe('FolderUseCases', () => {
         .spyOn(service, 'decryptFolderName')
         .mockReturnValueOnce(decryptedFolder);
 
-      const result = await service.getFoldersWithParentInWorkspace(
+      const result = await service.getFoldersInWorkspace(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         findOptions,
       );
@@ -958,8 +961,9 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([decryptedFolder]);
 
-      const result = await service.getFoldersWithParentInWorkspace(
+      const result = await service.getFoldersInWorkspace(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         { ...findOptions, sort: sortOptions as any },
       );
@@ -967,6 +971,7 @@ describe('FolderUseCases', () => {
       expect(result).toEqual([decryptedFolder]);
       expect(folderRepository.findAllCursorInWorkspace).toHaveBeenCalledWith(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         findOptions.limit,
         findOptions.offset,

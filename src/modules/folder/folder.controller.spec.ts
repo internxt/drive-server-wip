@@ -58,7 +58,9 @@ describe('FolderController', () => {
         { provide: FolderUseCases, useValue: createMock() },
         { provide: FileUseCases, useValue: createMock() },
       ],
-    }).compile();
+    })
+      .useMocker(createMock)
+      .compile();
 
     folderController = module.get<FolderController>(FolderController);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
