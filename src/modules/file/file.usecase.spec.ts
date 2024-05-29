@@ -23,6 +23,7 @@ import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -702,6 +703,78 @@ describe('FileUseCases', () => {
       const result = await service.createFile(userMocked, newFileDto);
 
       expect(result).toEqual(createdFile);
+    });
+  });
+
+  describe('updateFileMetaData', () => {
+    const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+
+    it('When file is not owned by user, then it should fail', async () => {
+      const mockFile = newFile();
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
+
+      await expect(
+        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When a file with the same name already exists in the folder, then it should fail', async () => {
+      const mockFile = newFile({ owner: userMocked });
+      const fileWithSameName = newFile({
+        owner: userMocked,
+        attributes: { name: mockFile.name, plainName: mockFile.plainName },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(mockFile)
+        .mockResolvedValueOnce(fileWithSameName);
+
+      await expect(
+        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When a file is updated successfully, it should update and return updated file', async () => {
+      const mockFile = newFile({ owner: userMocked });
+
+      const encryptedName = 'encrypted-name';
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          plainName: newFileMeta.plainName,
+          name: encryptedName,
+        },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(mockFile)
+        .mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        name: encryptedName,
+        folderId: mockFile.folderId,
+        type: mockFile.type,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        { plainName: newFileMeta.plainName, name: encryptedName },
+      );
+      expect(result).toEqual(updatedFile);
     });
   });
 });
