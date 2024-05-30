@@ -19,7 +19,7 @@ import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { isUUID } from 'class-validator';
 
-interface DecodedToken {
+export interface DecodedToken {
   workspaceId: string;
 }
 
@@ -42,7 +42,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     private workspaceUseCases: WorkspacesUsecases,
   ) {}
 
-  private actionHandlers: ActionHandlers = {
+  protected actionHandlers: ActionHandlers = {
     [WorkspaceResourcesAction.AddItemsToTrash]:
       this.hasUserTrashPermissions.bind(this),
     [WorkspaceResourcesAction.Default]: this.hasUserPermissions.bind(this),
@@ -71,9 +71,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     }
 
     const decodedToken = this.decodeWorkspaceToken(workspaceHeaderToken);
-
     const requester = User.build({ ...request.user });
-
     const extractedData = this.extractDataFromRequest(request, dataSources);
 
     const { workspace, workspaceUser } =
@@ -86,14 +84,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
       throw new ForbiddenException('You can not access this workspace');
     }
 
-    const actionHandler =
-      this.actionHandlers[action ?? WorkspaceResourcesAction.Default];
-
-    if (!actionHandler) {
-      throw new Error(
-        `There was an error setting the guard for workspaces resources! action: ${action} is invalid  `,
-      );
-    }
+    const actionHandler = this.getActionHandler(action);
 
     const canUserPerformAction = await actionHandler(requester, extractedData);
 
@@ -104,7 +95,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     }
 
     const behalfUser =
-      this.workspaceUseCases.findWorkspaceResourceOwner(workspace);
+      await this.workspaceUseCases.findWorkspaceResourceOwner(workspace);
 
     request.user = behalfUser;
     request.requester = requester;
@@ -193,5 +184,16 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     } catch {
       throw new BadRequestException('Invalid workspace token!');
     }
+  }
+
+  protected getActionHandler(action: WorkspaceResourcesAction) {
+    const actionHandler =
+      this.actionHandlers[action ?? WorkspaceResourcesAction.Default];
+    if (!actionHandler) {
+      throw new Error(
+        `There was an error setting the guard for workspaces resources! action: ${action} is invalid  `,
+      );
+    }
+    return actionHandler;
   }
 }
