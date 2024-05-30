@@ -2116,6 +2116,212 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('isUserCreatorOfItem', () => {
+    it('When item does not exist, then return false', async () => {
+      const user = newUser();
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
+
+      const result = await service.isUserCreatorOfItem(
+        user,
+        v4(),
+        WorkspaceItemType.File,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('When item is not created by user, return false', async () => {
+      const user = newUser();
+      const owner = newUser();
+
+      const item = newWorkspaceItemUser({ createdBy: owner.uuid });
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+
+      const result = await service.isUserCreatorOfItem(
+        user,
+        item.id,
+        item.itemType,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('When item is created by user, return true', async () => {
+      const owner = newUser();
+
+      const item = newWorkspaceItemUser({ createdBy: owner.uuid });
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+
+      const result = await service.isUserCreatorOfItem(
+        owner,
+        item.id,
+        item.itemType,
+      );
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('isUserCreatorOfAllItems', () => {
+    it('When user is not owner of all items, it should return false', async () => {
+      const user = newUser();
+      const itemNotOwnedByUser = newWorkspaceItemUser({ createdBy: user.uuid });
+      const userItems = [newWorkspaceItemUser({ createdBy: user.uuid })];
+
+      const items = [
+        { itemId: userItems[0].itemId, itemType: userItems[0].itemType },
+        {
+          itemId: itemNotOwnedByUser.itemId,
+          itemType: itemNotOwnedByUser.itemType,
+        },
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'getItemsByAttributesAndCreator')
+        .mockResolvedValue(userItems);
+
+      const result = await service.isUserCreatorOfAllItems(user, items);
+
+      expect(result).toBe(false);
+    });
+
+    it('When user is not owner of all items, it should return true', async () => {
+      const user = newUser();
+      const userItems = [
+        newWorkspaceItemUser({ createdBy: user.uuid }),
+        newWorkspaceItemUser({ createdBy: user.uuid }),
+      ];
+
+      const items = [
+        { itemId: userItems[0].itemId, itemType: userItems[0].itemType },
+        { itemId: userItems[1].itemId, itemType: userItems[1].itemType },
+      ];
+
+      jest
+        .spyOn(workspaceRepository, 'getItemsByAttributesAndCreator')
+        .mockResolvedValue(userItems);
+
+      const result = await service.isUserCreatorOfAllItems(user, items);
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('getWorkspaceUserTrashedItems', () => {
+    const user = newUser();
+    const workspaceId = 'workspace-id';
+    const limit = 50;
+    const offset = 0;
+
+    it('When files are retrieved, it should return files', async () => {
+      const trashedFiles = [newFile()];
+      jest
+        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .mockResolvedValue(trashedFiles);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.File,
+        limit,
+        offset,
+      );
+
+      expect(result).toEqual({ result: trashedFiles });
+      expect(fileUseCases.getFilesInWorkspace).toHaveBeenCalledWith(
+        user.uuid,
+        workspaceId,
+        { status: FileStatus.TRASHED },
+        { limit, offset },
+      );
+    });
+
+    it('When folders are retrieved, it should return folders', async () => {
+      const trashedFolders = [newFolder({ attributes: { deleted: true } })];
+      jest
+        .spyOn(folderUseCases, 'getFoldersInWorkspace')
+        .mockResolvedValue(trashedFolders);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.Folder,
+        limit,
+        offset,
+      );
+
+      expect(result).toEqual({ result: trashedFolders });
+      expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
+        user.uuid,
+        workspaceId,
+        { deleted: true, removed: false },
+        { limit, offset },
+      );
+    });
+  });
+
+  describe('emptyUserTrashedItems', () => {
+    const user = newUser();
+    const workspaceId = newWorkspace().id;
+
+    it('When there are trashed items, it should delete them in chunks', async () => {
+      const filesCount = 150;
+      const foldersCount = 120;
+      const emptyTrashChunkSize = 100;
+      const trashedFiles = [newFile(), newFile()];
+      const trashedFolders = [newFolder(), newFolder()];
+      const workspaceUser = newUser();
+
+      jest
+        .spyOn(workspaceRepository, 'getItemFilesCountBy')
+        .mockResolvedValue(filesCount);
+      jest
+        .spyOn(workspaceRepository, 'getItemFoldersCountBy')
+        .mockResolvedValue(foldersCount);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
+        .mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .mockResolvedValue(trashedFiles);
+      jest
+        .spyOn(folderUseCases, 'getFoldersInWorkspace')
+        .mockResolvedValue(trashedFolders);
+
+      await service.emptyUserTrashedItems(user, workspaceId);
+
+      expect(fileUseCases.getFilesInWorkspace).toHaveBeenNthCalledWith(
+        1,
+        user.uuid,
+        workspaceId,
+        { status: FileStatus.TRASHED },
+        { limit: emptyTrashChunkSize, offset: 0 },
+      );
+      expect(fileUseCases.getFilesInWorkspace).toHaveBeenNthCalledWith(
+        2,
+        user.uuid,
+        workspaceId,
+        { status: FileStatus.TRASHED },
+        { limit: emptyTrashChunkSize, offset: emptyTrashChunkSize },
+      );
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledWith(
+        workspaceUser,
+        trashedFiles,
+      );
+
+      expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
+        user.uuid,
+        workspaceId,
+        { deleted: true, removed: false },
+        { limit: emptyTrashChunkSize, offset: 0 },
+      );
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(
+        workspaceUser,
+        trashedFolders,
+      );
+    });
+  });
+
   describe('initiateWorkspace', () => {
     const owner = newUser();
     const maxSpaceBytes = 1000000;
