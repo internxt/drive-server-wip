@@ -454,6 +454,20 @@ export class WorkspacesUsecases {
     user: User,
     workspaceId: WorkspaceAttributes['id'],
   ) {
+    const emptyTrashItems = async (
+      itemCount: number,
+      chunkSize: number,
+      getItems: (offset: number) => Promise<any[]>,
+      deleteItems: (items: (File | Folder)[]) => Promise<void>,
+    ) => {
+      const promises = [];
+      for (let i = 0; i < itemCount; i += chunkSize) {
+        const items = await getItems(i);
+        promises.push(deleteItems(items));
+      }
+      await Promise.all(promises);
+    };
+
     const [filesCount, foldersCount] = await Promise.all([
       this.workspaceRepository.getItemFilesCountBy(
         {
@@ -475,27 +489,33 @@ export class WorkspacesUsecases {
       await this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId);
 
     const emptyTrashChunkSize = 100;
-    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
-      const folders = await this.folderUseCases.getFoldersInWorkspace(
-        user.uuid,
-        workspaceId,
-        { deleted: true, removed: false },
-        { limit: emptyTrashChunkSize, offset: i },
-      );
 
-      await this.folderUseCases.deleteByUser(workspaceUser, folders);
-    }
+    await emptyTrashItems(
+      foldersCount,
+      emptyTrashChunkSize,
+      (offset) =>
+        this.folderUseCases.getFoldersInWorkspace(
+          user.uuid,
+          workspaceId,
+          { deleted: true, removed: false },
+          { limit: emptyTrashChunkSize, offset },
+        ),
+      (folders: Folder[]) =>
+        this.folderUseCases.deleteByUser(workspaceUser, folders),
+    );
 
-    for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
-      const files = await this.fileUseCases.getFilesInWorkspace(
-        user.uuid,
-        workspaceId,
-        { status: FileStatus.TRASHED },
-        { limit: emptyTrashChunkSize, offset: i },
-      );
-
-      await this.fileUseCases.deleteByUser(workspaceUser, files);
-    }
+    await emptyTrashItems(
+      filesCount,
+      emptyTrashChunkSize,
+      (offset) =>
+        this.fileUseCases.getFilesInWorkspace(
+          user.uuid,
+          workspaceId,
+          { status: FileStatus.TRASHED },
+          { limit: emptyTrashChunkSize, offset },
+        ),
+      (files: File[]) => this.fileUseCases.deleteByUser(workspaceUser, files),
+    );
   }
 
   async createFile(
@@ -1056,7 +1076,7 @@ export class WorkspacesUsecases {
       itemType,
     });
 
-    if (!item || !item.isOwnedBy(requester)) {
+    if (!item?.isOwnedBy(requester)) {
       return false;
     }
 

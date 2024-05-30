@@ -307,6 +307,59 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       expect(hasPermissions).toBeTruthy();
     });
   });
+
+  describe('extractDataFromRequest', () => {
+    it('When correct data is passed, then it should return the extracted data', () => {
+      const request = {
+        params: { id: '123' },
+        query: { search: 'test' },
+      } as any;
+      const dataSources = [
+        { sourceKey: 'params', fieldName: 'id' },
+        { sourceKey: 'query', fieldName: 'search' },
+      ] as any;
+
+      const extractedData = guard.extractDataFromRequest(request, dataSources);
+
+      expect(extractedData).toEqual({
+        id: '123',
+        search: 'test',
+      });
+    });
+
+    it('When required field is missing, then it should fail', () => {
+      const request = {
+        params: { id: '123' },
+        query: {},
+      } as any;
+      const dataSources = [
+        { sourceKey: 'params', fieldName: 'id' },
+        { sourceKey: 'query', fieldName: 'search' },
+      ] as any;
+
+      expect(() => guard.extractDataFromRequest(request, dataSources)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When a field is being renamed, it should return with object renamed', () => {
+      const request = {
+        params: { id: '123' },
+        query: { search: 'test' },
+      } as any;
+      const dataSources = [
+        { sourceKey: 'params', fieldName: 'id', newFieldName: 'newId' },
+        { sourceKey: 'query', fieldName: 'search' },
+      ] as any;
+
+      const extractedData = guard.extractDataFromRequest(request, dataSources);
+
+      expect(extractedData).toEqual({
+        newId: '123',
+        search: 'test',
+      });
+    });
+  });
 });
 
 const createMockExecutionContext = (
