@@ -4,7 +4,7 @@ export interface WorkspaceInviteAttributes {
   invitedUser: string;
   encryptionAlgorithm: string;
   encryptionKey: string;
-  spaceLimit: bigint;
+  spaceLimit: number;
   createdAt: Date;
   updatedAt: Date;
 }

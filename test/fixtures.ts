@@ -29,6 +29,7 @@ import {
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import { UserAttributes } from '../src/modules/user/user.attributes';
 import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
+import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -189,6 +190,24 @@ export const newUser = (params?: {
   return user;
 };
 
+export const newPreCreatedUser = (): PreCreatedUser => {
+  const randomEmail = randomDataGenerator.email();
+
+  return PreCreatedUser.build({
+    id: randomDataGenerator.natural(),
+    uuid: v4(),
+    email: randomEmail,
+    username: randomEmail,
+    password: '',
+    mnemonic: '',
+    hKey: '',
+    publicKey: '',
+    privateKey: '',
+    revocationKey: '',
+    encryptVersion: '03-aes',
+  });
+};
+
 export const publicUser = (): User => {
   const user = newUser();
   user.uuid = '00000000-0000-0000-0000-000000000000';
@@ -271,12 +290,14 @@ export const newFeatureLimit = (bindTo?: {
 export const newWorkspace = (params?: {
   attributes?: Partial<Workspace>;
   owner?: User;
+  avatar?: Workspace['avatar'];
 }): Workspace => {
   const randomCreatedAt = randomDataGenerator.date();
 
   const workspace = Workspace.build({
     id: v4(),
     ownerId: params?.owner?.uuid || v4(),
+    avatar: params?.avatar || null,
     address: randomDataGenerator.address(),
     name: randomDataGenerator.company(),
     description: randomDataGenerator.sentence(),
@@ -380,9 +401,9 @@ export const newWorkspaceUser = (params?: {
     member: params?.member,
     key: randomDataGenerator.string({ length: 32 }),
     workspaceId: params?.workspaceId || v4(),
-    spaceLimit: BigInt(spaceLimit),
-    driveUsage: BigInt(0),
-    backupsUsage: BigInt(0),
+    spaceLimit: spaceLimit,
+    driveUsage: 0,
+    backupsUsage: 0,
     deactivated: randomDataGenerator.bool(),
     createdAt: randomCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
@@ -409,9 +430,7 @@ export const newWorkspaceInvite = (params?: {
     invitedUser: params?.invitedUser || randomDataGenerator.email(),
     encryptionAlgorithm: 'AES-256',
     encryptionKey: randomDataGenerator.string({ length: 32 }),
-    spaceLimit: BigInt(
-      randomDataGenerator.natural({ min: 1024, max: 1048576 }),
-    ),
+    spaceLimit: randomDataGenerator.natural({ min: 1024, max: 1048576 }),
     createdAt: defaultCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
   });

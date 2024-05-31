@@ -15,6 +15,7 @@ import { WorkspaceGuard } from './guards/workspaces.guard';
 import { WorkspaceInviteModel } from './models/workspace-invite.model';
 import { MailerModule } from '../../externals/mailer/mailer.module';
 import { SequelizeWorkspaceItemsUsersRepository } from './repositories/items-users.repository';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderModule } from '../folder/folder.module';
 import { FileModule } from '../file/file.module';
 
@@ -42,6 +43,7 @@ import { FileModule } from '../file/file.module';
     SequelizeWorkspaceRepository,
     SequelizeWorkspaceItemsUsersRepository,
     WorkspaceGuard,
+    AvatarService,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],
 })
