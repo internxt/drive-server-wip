@@ -4,10 +4,10 @@ export interface WorkspaceUserAttributes {
   member?: any;
   key: string;
   workspaceId: string;
-  spaceLimit: bigint;
+  spaceLimit: number;
   rootFolderId?: string;
-  driveUsage: bigint;
-  backupsUsage: bigint;
+  driveUsage: number;
+  backupsUsage: number;
   deactivated: boolean;
   createdAt: Date;
   updatedAt: Date;

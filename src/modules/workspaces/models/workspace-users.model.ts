@@ -58,14 +58,14 @@ export class WorkspaceUserModel
   })
   workspace: WorkspaceModel;
 
-  @Column(DataType.BIGINT)
-  spaceLimit: bigint;
+  @Column(DataType.BIGINT.UNSIGNED)
+  spaceLimit: number;
 
-  @Column(DataType.BIGINT)
-  driveUsage: bigint;
+  @Column(DataType.BIGINT.UNSIGNED)
+  driveUsage: number;
 
-  @Column(DataType.BIGINT)
-  backupsUsage: bigint;
+  @Column(DataType.BIGINT.UNSIGNED)
+  backupsUsage: number;
 
   @Column(DataType.BOOLEAN)
   deactivated: boolean;

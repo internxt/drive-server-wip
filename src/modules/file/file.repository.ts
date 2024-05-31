@@ -312,6 +312,7 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
         {
+          separate: true,
           model: this.thumbnailModel,
           required: false,
         },

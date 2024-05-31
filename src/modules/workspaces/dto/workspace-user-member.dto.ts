@@ -9,11 +9,11 @@ export interface WorkspaceUserMemberDto {
   member: UserToJsonDto;
   key: string;
   workspaceId: string;
-  spaceLimit: string;
-  driveUsage: string;
-  backupsUsage: string;
-  usedSpace: string;
-  freeSpace: string;
+  spaceLimit: number;
+  driveUsage: number;
+  backupsUsage: number;
+  usedSpace: number;
+  freeSpace: number;
   deactivated: boolean;
   createdAt: Date;
   updatedAt: Date;
