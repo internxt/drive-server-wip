@@ -39,6 +39,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
+import { Folder } from '../folder/folder.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2835,6 +2836,135 @@ describe('WorkspacesUsecases', () => {
       });
     });
 
+    describe('transferPersonalItemsToWorkspaceOwner', () => {
+      it('When workspace is not found, then it should throw', async () => {
+        const workspaceId = v4();
+        const user = newUser();
+        jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+        await expect(
+          service.transferPersonalItemsToWorkspaceOwner(workspaceId, user),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When user is the owner of the workspace, then it should throw', async () => {
+        const user = newUser();
+        const workspace = newWorkspace({ owner: user });
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+
+        await expect(
+          service.transferPersonalItemsToWorkspaceOwner(workspace.id, user),
+        ).rejects.toThrow(ForbiddenException);
+      });
+
+      it('When user has no items in the workspace, then it should resolve', async () => {
+        const workspaceOwner = newUser();
+        const workspaceNetworkUser = newUser();
+        const member = newUser();
+        const workspace = newWorkspace({
+          owner: workspaceOwner,
+        });
+        const folderToMove = newFolder();
+        const memberWorkspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: member,
+          memberId: member.uuid,
+          attributes: {
+            rootFolderId: folderToMove.uuid,
+          },
+        });
+        const ownerWorkspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          memberId: workspaceOwner.uuid,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValueOnce(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValueOnce(memberWorkspaceUser)
+          .mockResolvedValueOnce(ownerWorkspaceUser);
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(workspaceNetworkUser);
+        jest
+          .spyOn(folderUseCases, 'getByUuid')
+          .mockResolvedValueOnce(folderToMove);
+        jest
+          .spyOn(fileUseCases, 'getFilesInWorkspace')
+          .mockResolvedValueOnce([]);
+        jest
+          .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
+          .mockResolvedValueOnce([]);
+        jest.spyOn(folderUseCases, 'moveFolder');
+        await expect(
+          service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
+        ).resolves.toBeUndefined();
+        expect(folderUseCases.moveFolder).not.toHaveBeenCalled();
+      });
+
+      it("When user is not the owner of the workspace, then it should move the member's root folder to the workspace owner's root folder", async () => {
+        const workspaceOwner = newUser();
+        const workspaceNetworkUser = newUser();
+        const member = newUser();
+        const workspace = newWorkspace({
+          owner: workspaceOwner,
+        });
+        const folderToMove = newFolder();
+        const memberWorkspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: member,
+          memberId: member.uuid,
+          attributes: {
+            rootFolderId: folderToMove.uuid,
+          },
+        });
+        const ownerWorkspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          memberId: workspaceOwner.uuid,
+        });
+        const resultingFolder = Object.assign(newFolder(), folderToMove, {
+          parentUuid: ownerWorkspaceUser.rootFolderId,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValueOnce(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValueOnce(memberWorkspaceUser)
+          .mockResolvedValueOnce(ownerWorkspaceUser);
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(workspaceNetworkUser);
+        jest
+          .spyOn(folderUseCases, 'getByUuid')
+          .mockResolvedValueOnce(folderToMove);
+        jest
+          .spyOn(fileUseCases, 'getFilesInWorkspace')
+          .mockResolvedValueOnce([newFile()]);
+        jest
+          .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
+          .mockResolvedValue([]);
+        jest
+          .spyOn(folderUseCases, 'moveFolder')
+          .mockResolvedValueOnce(Promise.resolve(resultingFolder));
+        await expect(
+          service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
+        ).resolves.toBeUndefined();
+        expect(folderUseCases.moveFolder).toHaveBeenCalledWith(
+          workspaceNetworkUser,
+          folderToMove.uuid,
+          ownerWorkspaceUser.rootFolderId,
+        );
+      });
+    });
+
     describe('leaveWorkspace', () => {
       it('When workspace is not found, then it should throw', async () => {
         const workspaceId = v4();
@@ -2844,21 +2974,6 @@ describe('WorkspacesUsecases', () => {
         await expect(service.leaveWorkspace(workspaceId, user)).rejects.toThrow(
           NotFoundException,
         );
-      });
-
-      it('When user is not part of workspace, then it should throw', async () => {
-        const workspace = newWorkspace();
-        const user = newUser();
-        jest
-          .spyOn(workspaceRepository, 'findById')
-          .mockResolvedValue(workspace);
-        jest
-          .spyOn(workspaceRepository, 'findWorkspaceUser')
-          .mockResolvedValue(null);
-
-        await expect(
-          service.leaveWorkspace(workspace.id, user),
-        ).rejects.toThrow(BadRequestException);
       });
 
       it('When user is the owner of the workspace, then it should throw', async () => {
@@ -2880,23 +2995,19 @@ describe('WorkspacesUsecases', () => {
           memberId: user.uuid,
           workspaceId: workspace.id,
         });
-        const itemUser = newWorkspaceItemUser({
-          workspaceId: workspace.id,
-          createdBy: user.uuid,
-        });
         jest
           .spyOn(workspaceRepository, 'findById')
           .mockResolvedValue(workspace);
         jest
           .spyOn(workspaceRepository, 'findWorkspaceUser')
           .mockResolvedValue(workspaceUser);
-        jest
-          .spyOn(workspaceItemsUsersRepository, 'getAllByUserAndWorkspaceId')
-          .mockResolvedValue([itemUser]);
+        jest.spyOn(service, 'transferPersonalItemsToWorkspaceOwner');
 
-        await expect(
-          service.leaveWorkspace(workspace.id, user),
-        ).rejects.toThrow(BadRequestException);
+        await service.leaveWorkspace(workspace.id, user);
+
+        expect(
+          service.transferPersonalItemsToWorkspaceOwner,
+        ).toHaveBeenCalledWith(workspace.id, user);
       });
 
       it('When the user is a manager, then the workspace owner is set as manager of those teams', async () => {

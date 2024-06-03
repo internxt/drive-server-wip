@@ -1393,6 +1393,77 @@ export class WorkspacesUsecases {
     await this.workspaceRepository.deleteById(workspaceId);
   }
 
+  async transferPersonalItemsToWorkspaceOwner(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are the owner of this workspace');
+    }
+
+    const memberWorkspaceUser =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId,
+        memberId: user.uuid,
+      });
+
+    const memberRootFolder = await this.folderUseCases.getByUuid(
+      memberWorkspaceUser.rootFolderId,
+    );
+
+    const foldersInPersonalRootFolder =
+      await this.folderUseCases.getFoldersWithParentInWorkspace(
+        user.uuid,
+        {
+          parentId: memberRootFolder.id,
+          deleted: false,
+          removed: false,
+        },
+        { limit: 1, offset: 0 },
+      );
+
+    const filesInPersonalRootFolder =
+      await this.fileUseCases.getFilesInWorkspace(
+        user.uuid,
+        {
+          folderId: memberRootFolder.id,
+          status: FileStatus.EXISTS,
+          deleted: false,
+          removed: false,
+        },
+        { limit: 1, offset: 0 },
+      );
+
+    if (
+      !foldersInPersonalRootFolder.length &&
+      !filesInPersonalRootFolder.length
+    )
+      return;
+
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const ownerWorkspaceUser = await this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId,
+        memberId: workspace.ownerId,
+      },
+    );
+
+    await this.folderUseCases.moveFolder(
+      workspaceNetworkUser,
+      memberRootFolder.uuid,
+      ownerWorkspaceUser.rootFolderId,
+    );
+  }
+
   async leaveWorkspace(
     workspaceId: Workspace['id'],
     user: User,
@@ -1407,24 +1478,7 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Owner can not leave workspace');
     }
 
-    const userInWorkspace = await this.workspaceRepository.findWorkspaceUser({
-      workspaceId,
-      memberId: user.uuid,
-    });
-
-    if (!userInWorkspace) {
-      throw new BadRequestException('User is not in the workspace');
-    }
-
-    const userItemsInWorkspace =
-      await this.workspaceItemsUsersRepository.getAllByUserAndWorkspaceId(
-        user,
-        workspaceId,
-      );
-
-    if (userItemsInWorkspace.length > 0) {
-      throw new BadRequestException('User has items in the workspace');
-    }
+    await this.transferPersonalItemsToWorkspaceOwner(workspaceId, user);
 
     const teamsUserManages =
       await this.teamRepository.getTeamsWhereUserIsManagerByWorkspaceId(
