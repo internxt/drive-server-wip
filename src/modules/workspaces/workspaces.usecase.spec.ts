@@ -2117,17 +2117,13 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('isUserCreatorOfItem', () => {
-    it('When item does not exist, then return false', async () => {
+    it('When item does not exist, then fail', async () => {
       const user = newUser();
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
 
-      const result = await service.isUserCreatorOfItem(
-        user,
-        v4(),
-        WorkspaceItemType.File,
-      );
-
-      expect(result).toBe(false);
+      expect(
+        service.isUserCreatorOfItem(user, v4(), WorkspaceItemType.File),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When item is not created by user, return false', async () => {
@@ -2209,7 +2205,7 @@ describe('WorkspacesUsecases', () => {
 
   describe('getWorkspaceUserTrashedItems', () => {
     const user = newUser();
-    const workspaceId = 'workspace-id';
+    const workspaceId = v4();
     const limit = 50;
     const offset = 0;
 

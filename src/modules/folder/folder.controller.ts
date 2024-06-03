@@ -551,7 +551,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder([
     { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
   ])
-  async UpdateFolderMetadata(
+  async updateFolderMetadata(
     @Param('uuid', ValidateUUIDPipe)
     folderUuid: Folder['uuid'],
     @UserDecorator() user: User,

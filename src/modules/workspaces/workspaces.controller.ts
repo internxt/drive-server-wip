@@ -493,7 +493,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get('/:workspaceId/my-trash')
+  @Get('/:workspaceId/trash')
   @ApiOperation({
     summary: 'Get current workspace user trash',
   })

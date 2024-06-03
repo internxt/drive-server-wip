@@ -747,10 +747,8 @@ describe('FileUseCases', () => {
         },
       });
 
-      jest
-        .spyOn(fileRepository, 'findOneBy')
-        .mockResolvedValueOnce(mockFile)
-        .mockResolvedValueOnce(null);
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
 
       const result = await service.updateFileMetaData(
@@ -763,12 +761,14 @@ describe('FileUseCases', () => {
         uuid: mockFile.uuid,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
-        name: encryptedName,
-        folderId: mockFile.folderId,
-        type: mockFile.type,
-        status: FileStatus.EXISTS,
-      });
+      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
+        {
+          folderId: mockFile.folderId,
+          type: mockFile.type,
+          status: FileStatus.EXISTS,
+        },
+        { name: encryptedName, plainName: newFileMeta.plainName },
+      );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,

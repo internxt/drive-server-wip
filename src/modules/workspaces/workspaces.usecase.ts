@@ -1076,11 +1076,11 @@ export class WorkspacesUsecases {
       itemType,
     });
 
-    if (!item?.isOwnedBy(requester)) {
-      return false;
+    if (!item) {
+      throw new NotFoundException('Item does not exist');
     }
 
-    return true;
+    return item.isOwnedBy(requester);
   }
 
   async isUserCreatorOfAllItems(

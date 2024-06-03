@@ -148,12 +148,14 @@ export class FileUseCases {
       file.folderId,
     );
 
-    const fileWithSameNameExists = await this.fileRepository.findOneBy({
-      name: cryptoFileName,
-      folderId: file.folderId,
-      type: file.type,
-      status: FileStatus.EXISTS,
-    });
+    const fileWithSameNameExists = await this.fileRepository.findFileByName(
+      {
+        folderId: file.folderId,
+        type: file.type,
+        status: FileStatus.EXISTS,
+      },
+      { name: cryptoFileName, plainName: newFileMetada.plainName },
+    );
 
     if (fileWithSameNameExists) {
       throw new ConflictException(

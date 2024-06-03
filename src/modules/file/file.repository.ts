@@ -39,6 +39,10 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
+  findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null>;
   findByNameAndFolderUuid(
     name: FileAttributes['name'],
     type: FileAttributes['type'],
@@ -455,6 +459,22 @@ export class SequelizeFileRepository implements FileRepository {
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where,
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        ...where,
+        [Op.or]: [
+          { name: nameFilter.name },
+          { plainName: nameFilter.plainName },
+        ],
+      },
     });
     return file ? this.toDomain(file) : null;
   }
