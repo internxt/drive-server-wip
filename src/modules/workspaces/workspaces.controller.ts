@@ -12,6 +12,7 @@ import {
   UseGuards,
   UseInterceptors,
   InternalServerErrorException,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -53,9 +54,11 @@ import { PaginationQueryDto } from './dto/pagination.dto';
 import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
+import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
+@UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
