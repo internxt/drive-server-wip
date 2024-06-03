@@ -30,7 +30,6 @@ import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes'
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
-import { SequelizeWorkspaceItemsUsersRepository } from './repositories/items-users.repository';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -55,7 +54,6 @@ export class WorkspacesUsecases {
   constructor(
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
-    private readonly workspaceItemsUsersRepository: SequelizeWorkspaceItemsUsersRepository,
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
@@ -1457,11 +1455,23 @@ export class WorkspacesUsecases {
       },
     );
 
-    await this.folderUseCases.moveFolder(
+    const movedFolder = await this.folderUseCases.moveFolder(
       workspaceNetworkUser,
       memberRootFolder.uuid,
       ownerWorkspaceUser.rootFolderId,
     );
+
+    await this.workspaceRepository.updateItemBy(
+      {
+        createdBy: ownerWorkspaceUser.memberId,
+      },
+      {
+        workspaceId,
+        itemId: memberRootFolder.uuid,
+      },
+    );
+
+    await this.folderUseCases.renameFolder(movedFolder, user.username);
   }
 
   async leaveWorkspace(

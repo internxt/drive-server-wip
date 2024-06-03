@@ -654,6 +654,34 @@ export class FolderUseCases {
     return updatedFolder;
   }
 
+  async renameFolder(folder: Folder, newName: string): Promise<Folder> {
+    if (newName === '' || invalidName.test(newName)) {
+      throw new BadRequestException('Invalid folder name');
+    }
+
+    const newEncryptedName = this.cryptoService.encryptName(
+      newName,
+      folder.parentId,
+    );
+
+    const exists = await this.folderRepository.findByNameAndParentUuid(
+      newEncryptedName,
+      folder.parentUuid,
+      false,
+    );
+
+    if (exists) {
+      throw new ConflictException(
+        'A folder with the same name already exists in this location',
+      );
+    }
+
+    return await this.folderRepository.updateByFolderId(folder.id, {
+      name: newEncryptedName,
+      plainName: newName,
+    });
+  }
+
   decryptFolderName(folder: Folder): any {
     const decryptedName = this.cryptoService.decryptName(
       folder.name,

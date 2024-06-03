@@ -30,7 +30,6 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
-import { SequelizeWorkspaceItemsUsersRepository } from './repositories/items-users.repository';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
@@ -39,7 +38,6 @@ import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
-import { Folder } from '../folder/folder.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -61,7 +59,6 @@ describe('WorkspacesUsecases', () => {
   let avatarService: AvatarService;
   let networkService: BridgeService;
   let configService: ConfigService;
-  let workspaceItemsUsersRepository: SequelizeWorkspaceItemsUsersRepository;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
 
@@ -87,10 +84,6 @@ describe('WorkspacesUsecases', () => {
     avatarService = module.get<AvatarService>(AvatarService);
     networkService = module.get<BridgeService>(BridgeService);
     configService = module.get<ConfigService>(ConfigService);
-    workspaceItemsUsersRepository =
-      module.get<SequelizeWorkspaceItemsUsersRepository>(
-        SequelizeWorkspaceItemsUsersRepository,
-      );
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
   });
@@ -2900,7 +2893,7 @@ describe('WorkspacesUsecases', () => {
         jest
           .spyOn(folderUseCases, 'getFoldersWithParentInWorkspace')
           .mockResolvedValueOnce([]);
-        jest.spyOn(folderUseCases, 'moveFolder');
+
         await expect(
           service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
         ).resolves.toBeUndefined();
@@ -2931,6 +2924,14 @@ describe('WorkspacesUsecases', () => {
         const resultingFolder = Object.assign(newFolder(), folderToMove, {
           parentUuid: ownerWorkspaceUser.rootFolderId,
         });
+        const resultingRenamedFolder = Object.assign(
+          newFolder(),
+          resultingFolder,
+          {
+            plainName: member.username,
+            name: 'encrypted-name',
+          },
+        );
 
         jest
           .spyOn(workspaceRepository, 'findById')
@@ -2953,7 +2954,11 @@ describe('WorkspacesUsecases', () => {
           .mockResolvedValue([]);
         jest
           .spyOn(folderUseCases, 'moveFolder')
-          .mockResolvedValueOnce(Promise.resolve(resultingFolder));
+          .mockResolvedValueOnce(resultingFolder);
+        jest
+          .spyOn(folderUseCases, 'renameFolder')
+          .mockResolvedValueOnce(resultingRenamedFolder);
+
         await expect(
           service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
         ).resolves.toBeUndefined();
@@ -2961,6 +2966,10 @@ describe('WorkspacesUsecases', () => {
           workspaceNetworkUser,
           folderToMove.uuid,
           ownerWorkspaceUser.rootFolderId,
+        );
+        expect(folderUseCases.renameFolder).toHaveBeenCalledWith(
+          resultingFolder,
+          member.username,
         );
       });
     });
@@ -3062,9 +3071,6 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValue(workspaceUser);
-      jest
-        .spyOn(workspaceItemsUsersRepository, 'getAllByUserAndWorkspaceId')
-        .mockResolvedValue([]);
 
       await service.leaveWorkspace(workspace.id, user);
 
