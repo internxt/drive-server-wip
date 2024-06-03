@@ -157,6 +157,13 @@ export class SequelizeWorkspaceRepository {
     return item ? this.workspaceItemUserToDomain(item) : null;
   }
 
+  async updateItemBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+    update: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceItemUser.update(update, { where });
+  }
+
   async deleteUserFromWorkspace(
     memberId: WorkspaceUser['memberId'],
     workspaceId: WorkspaceUser['id'],
