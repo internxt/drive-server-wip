@@ -94,6 +94,7 @@ describe('FolderUseCases', () => {
         plainName: '',
         removed: false,
         removedAt: null,
+        depth: null,
       });
       jest
         .spyOn(folderRepository, 'updateByFolderId')
@@ -130,6 +131,7 @@ describe('FolderUseCases', () => {
       plainName: '',
       removed: false,
       removedAt: null,
+      depth: null,
     });
 
     it('When uuid and id are passed and there is a backup and drive folder, then backups and drive folders should be updated', async () => {
@@ -149,6 +151,7 @@ describe('FolderUseCases', () => {
         plainName: '',
         removed: false,
         removedAt: null,
+        depth: null,
       });
 
       jest
@@ -228,6 +231,7 @@ describe('FolderUseCases', () => {
         plainName: '',
         removed: false,
         removedAt: null,
+        depth: null,
       });
       jest
         .spyOn(folderRepository, 'findById')
@@ -292,6 +296,7 @@ describe('FolderUseCases', () => {
           plainName: '',
           removed: false,
           removedAt: null,
+          depth: null,
         }),
       ];
       jest
@@ -368,6 +373,7 @@ describe('FolderUseCases', () => {
         plainName: '',
         removed: false,
         removedAt: null,
+        depth: null,
       });
 
       jest
@@ -428,6 +434,7 @@ describe('FolderUseCases', () => {
         plainName: '',
         removed: false,
         removedAt: null,
+        depth: null,
       });
 
       jest
@@ -493,6 +500,7 @@ describe('FolderUseCases', () => {
         plainName: '',
         removed: false,
         removedAt: null,
+        depth: null,
       });
 
       jest
@@ -558,6 +566,7 @@ describe('FolderUseCases', () => {
       plainName: 'name',
       removed: false,
       removedAt: null,
+      depth: null,
     };
 
     it('returns folder json data with the name decrypted', () => {
@@ -579,11 +588,13 @@ describe('FolderUseCases', () => {
       const expectedResult = {
         ...folderAtributes,
         size: 0,
+        sharings: undefined,
       };
       delete expectedResult.parentId;
       delete expectedResult.parentUuid;
+      delete expectedResult.depth;
 
-      expect(result).toStrictEqual({ ...expectedResult, sharings: undefined });
+      expect(result).toStrictEqual(expectedResult);
     });
 
     it('fails when the folder name is not encrypted', () => {

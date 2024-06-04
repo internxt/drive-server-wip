@@ -19,4 +19,5 @@ export interface FolderAttributes {
   updatedAt: Date;
   removedAt: Date;
   sharings?: Sharing[];
+  depth: number;
 }

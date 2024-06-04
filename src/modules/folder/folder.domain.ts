@@ -34,6 +34,7 @@ export class Folder implements FolderAttributes {
   updatedAt: Date;
   size: number;
   sharings?: Sharing[];
+  depth: number | null;
 
   private constructor({
     id,
@@ -75,6 +76,7 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.sharings = sharings;
+    this.depth = null;
   }
 
   static build(folder: FolderAttributes): Folder {
