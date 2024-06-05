@@ -25,6 +25,8 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { v4 } from 'uuid';
+import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -244,6 +246,47 @@ export class FolderUseCases {
         };
       }),
     );
+  }
+
+  async updateFolderMetaData(
+    user: User,
+    folderUuid: Folder['uuid'],
+    newFolderMetadata: UpdateFolderMetaDto,
+  ) {
+    const folder = await this.folderRepository.findOne({
+      uuid: folderUuid,
+      deleted: false,
+      removed: false,
+    });
+
+    if (!folder.isOwnedBy(user)) {
+      throw new ForbiddenException('This folder is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFolderMetadata.plainName,
+      folder.parentId,
+    );
+
+    const folderWithSameNameExists = await this.folderRepository.findOne({
+      name: cryptoFileName,
+      parentId: folder.parentId,
+      deleted: false,
+      removed: false,
+    });
+
+    if (folderWithSameNameExists) {
+      throw new ConflictException(
+        'A folder with this name already exists in this location',
+      );
+    }
+
+    const updatedFolder = await this.folderRepository.updateByFolderId(
+      folder.id,
+      { plainName: newFolderMetadata.plainName, name: cryptoFileName },
+    );
+
+    return updatedFolder;
   }
 
   async createFolder(
@@ -489,8 +532,9 @@ export class FolderUseCases {
     );
   }
 
-  async getFoldersWithParentInWorkspace(
+  async getFoldersInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<FolderAttributes>,
     options: { limit: number; offset: number; sort?: SortParams } = {
       limit: 20,
@@ -500,6 +544,7 @@ export class FolderUseCases {
     const foldersWithMaybePlainName =
       await this.folderRepository.findAllCursorInWorkspace(
         createdBy,
+        workspaceId,
         { ...where },
         options.limit,
         options.offset,
