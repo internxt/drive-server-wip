@@ -625,6 +625,7 @@ export class FolderUseCases {
 
     const exists = await this.folderRepository.findByNameAndParentUuid(
       destinationEncryptedName,
+      originalPlainName,
       destinationFolder.uuid,
       false,
     );
@@ -666,6 +667,7 @@ export class FolderUseCases {
 
     const exists = await this.folderRepository.findByNameAndParentUuid(
       newEncryptedName,
+      newName,
       folder.parentUuid,
       false,
     );
