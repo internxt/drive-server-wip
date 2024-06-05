@@ -403,7 +403,7 @@ export const newWorkspaceUser = (params?: {
     spaceLimit: spaceLimit,
     driveUsage: 0,
     backupsUsage: 0,
-    deactivated: randomDataGenerator.bool(),
+    deactivated: false,
     createdAt: randomCreatedAt,
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
   });
