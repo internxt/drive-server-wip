@@ -522,7 +522,7 @@ export class WorkspacesController {
     );
   }
 
-  @Delete('/:workspaceId/my-trash')
+  @Delete('/:workspaceId/trash')
   @ApiOperation({
     summary: 'Empty current member trash',
   })

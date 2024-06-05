@@ -2181,7 +2181,7 @@ describe('WorkspacesUsecases', () => {
       expect(result).toBe(false);
     });
 
-    it('When user is not owner of all items, it should return true', async () => {
+    it('When user is the owner of all the items, then it returns true', async () => {
       const user = newUser();
       const userItems = [
         newWorkspaceItemUser({ createdBy: user.uuid }),
