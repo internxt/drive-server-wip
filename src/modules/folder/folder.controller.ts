@@ -10,6 +10,7 @@ import {
   NotImplementedException,
   Param,
   Patch,
+  Put,
   Query,
   UseFilters,
 } from '@nestjs/common';
@@ -33,6 +34,10 @@ import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
+
+import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -446,6 +451,9 @@ export class FolderController {
   }
 
   @Get('/:uuid/meta')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -492,6 +500,9 @@ export class FolderController {
   }
 
   @Get('/:uuid/ancestors')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolderAncestors(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -534,6 +545,23 @@ export class FolderController {
         }`,
       });
     }
+  }
+
+  @Put('/:uuid/meta')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async updateFolderMetadata(
+    @Param('uuid', ValidateUUIDPipe)
+    folderUuid: Folder['uuid'],
+    @UserDecorator() user: User,
+    @Body() updateFolderMetaDto: UpdateFolderMetaDto,
+  ) {
+    return this.folderUseCases.updateFolderMetaData(
+      user,
+      folderUuid,
+      updateFolderMetaDto,
+    );
   }
 
   @UseFilters(new HttpExceptionFilter())
