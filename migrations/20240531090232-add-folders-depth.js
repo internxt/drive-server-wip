@@ -70,7 +70,6 @@ module.exports = {
           LOOP
               UPDATE folders SET depth = parentDepth + 1 WHERE uuid = child.uuid;
 
-              -- Recursivamente actualizar la profundidad de las carpetas hijas
               PERFORM update_child_folders_depth(child.uuid, parentDepth + 1);
           END LOOP;
       END;
