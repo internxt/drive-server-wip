@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty } from 'class-validator';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
-import { User } from '../../user/user.domain';
+import { WorkspaceTeam } from '../domains/workspace-team.domain';
 
-export class ShareItemWithMemberDto {
+export class ShareItemWithTeamDto {
   @ApiProperty({
     example: 'uuid',
     description: 'The uuid of the item to share',
@@ -20,11 +20,10 @@ export class ShareItemWithMemberDto {
 
   @ApiProperty({
     example: '84f47d08-dc7c-43dc-b27c-bec4edaa9598',
-    description:
-      "Workspace's member id (user uuid) you want to share this file with",
+    description: "Workspace's team id you want to share this file with",
   })
   @IsNotEmpty()
-  sharedWith: User['uuid'];
+  sharedWith: WorkspaceTeam['id'];
 
   @ApiProperty({
     example: '84f47d08-dc7c-43dc-b27c-bec4edaa9598',
