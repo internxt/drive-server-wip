@@ -2,16 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
 import {
-  newUser,
   newWorkspace,
   newWorkspaceTeam,
   newWorkspaceTeamUser,
+  newUser,
 } from '../../../../test/fixtures';
 import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { SequelizeWorkspaceTeamRepository } from './team.repository';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
+import { v4 } from 'uuid';
 
 describe('SequelizeWorkspaceTeamRepository', () => {
   let repository: SequelizeWorkspaceTeamRepository;
@@ -132,6 +133,24 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       const result = await repository.getTeamById(teamId);
 
       expect(result).toEqual(raw);
+    });
+  });
+
+  describe('getTeamsWhereUserIsManagerByWorkspaceId', () => {
+    it('should get teams where user is manager by workspace id', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const team = newWorkspaceTeam();
+      jest
+        .spyOn(workspaceTeamModel, 'findAll')
+        .mockResolvedValueOnce([team as any]);
+
+      const result = await repository.getTeamsWhereUserIsManagerByWorkspaceId(
+        workspaceId,
+        user,
+      );
+
+      expect(result).toEqual([team]);
     });
   });
 

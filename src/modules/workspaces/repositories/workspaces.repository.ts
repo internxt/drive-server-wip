@@ -204,6 +204,12 @@ export class SequelizeWorkspaceRepository {
     return item ? this.workspaceItemUserToDomain(item) : null;
   }
 
+  async updateItemBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+    update: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceItemUser.update(update, { where });
+  }
   async getItemsByAttributesAndCreator(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     items: Partial<Omit<WorkspaceItemUserAttributes, 'createdBy'>>[],
@@ -371,6 +377,10 @@ export class SequelizeWorkspaceRepository {
     transaction?: Transaction,
   ): Promise<void> {
     await this.modelWorkspace.update(update, { where, transaction });
+  }
+
+  async deleteById(id: WorkspaceAttributes['id']): Promise<void> {
+    await this.modelWorkspace.destroy({ where: { id } });
   }
 
   async updateWorkspaceUser(

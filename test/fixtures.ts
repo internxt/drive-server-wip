@@ -18,16 +18,16 @@ import {
 import { Limit } from '../src/modules/feature-limit/limit.domain';
 import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
-import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
 import { WorkspaceInvite } from '../src/modules/workspaces/domains/workspace-invite.domain';
+import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-team-user.domain';
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
   WorkspaceItemUserAttributes,
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
-import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 import { UserAttributes } from '../src/modules/user/user.attributes';
+import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 
 export const constants = {
