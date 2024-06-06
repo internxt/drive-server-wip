@@ -21,13 +21,18 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { Folder } from '../folder/folder.domain';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) {}
+  constructor(
+    private readonly fileUseCases: FileUseCases,
+    private readonly folderUseCases: FolderUseCases,
+  ) {}
 
   @Get('/count')
   async getFileCount(
@@ -193,5 +198,89 @@ export class FileController {
       moveFileData.destinationFolder,
     );
     return file;
+  }
+
+  @Get('/meta')
+  async getFileMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') encodedPath: string,
+  ) {
+    const filePath = Buffer.from(encodedPath, 'base64').toString('binary');
+    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    try {
+      const depth = this.fileUseCases.getPathDepth(filePath);
+      const folderName = this.fileUseCases.getPathLastFolder(filePath);
+      const { fileName, fileType } =
+        this.fileUseCases.getPathFileData(filePath);
+
+      const possibleFolders =
+        (await this.folderUseCases.getFoldersByDepthAndName(
+          user.id,
+          depth,
+          folderName.length > 0 ? folderName : null,
+        )) as Folder[];
+
+      const possibleFiles: File[] = [];
+      for (const possibleFolder of possibleFolders) {
+        const file = await this.fileUseCases.getFileByFolderAndName(
+          fileName,
+          fileType,
+          possibleFolder.uuid,
+        );
+        if (file) {
+          possibleFiles.push(file);
+        }
+      }
+
+      if (possibleFiles.length === 0) {
+        throw new NotFoundException('File not found');
+      }
+
+      if (possibleFiles.length === 1) {
+        return { file: possibleFiles[0] };
+      } else {
+        /**
+         * We can only have multiple possible files when depth > 1. As we can not have 2 folders with the same name inside the root folder.
+         * Path examples with same depth and same file name:
+         * /Folder1/samesubfoldername/hi.jpg
+         * /Folder2/samesubfoldername/hi.jpg
+         * The first ancestor folder has to be different, so we can use it to get the correct file
+         */
+        if (depth < 2) {
+          throw new BadRequestException(
+            'Found multiple duplicated files under the same folder',
+          );
+        }
+        const firstFolder = this.fileUseCases.getPathFirstFolder(filePath);
+        for (const possibleFile of possibleFiles) {
+          const ancestors = await this.folderUseCases.getFolderAncestors(
+            user,
+            possibleFile.folderUuid,
+          );
+          const firstAncestor = ancestors[ancestors.length - 2];
+
+          if (firstAncestor.plainName === firstFolder) {
+            return { file: possibleFile };
+          }
+        }
+        throw new NotFoundException('File not found');
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATABYPATH] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
   }
 }

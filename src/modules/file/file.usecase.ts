@@ -28,6 +28,7 @@ import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import path from 'path';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -453,5 +454,53 @@ export class FileUseCases {
       userId,
       status: FileStatus.EXISTS,
     });
+  }
+
+  getPathDepth(filePath: string): number {
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const parts = filePath.split('/');
+    // If the path is empty after stripping, it means the depth is 0 (root folder)
+    const depth = parts.length - 1;
+    return depth;
+  }
+
+  getPathLastFolder(filePath: string): string {
+    const directory = path.dirname(filePath);
+    const lastFolderName = path.basename(directory);
+    return lastFolderName;
+  }
+
+  getPathFirstFolder(filePath: string): string {
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const parts = filePath.split('/');
+    for (const part of parts) {
+      if (part && part.length > 0) {
+        return part;
+      }
+    }
+    return '';
+  }
+
+  getPathFileData(filePath: string): { fileName: string; fileType: string } {
+    const fileType = path.extname(filePath);
+    const fileName = path.basename(filePath, fileType);
+    return { fileName, fileType: fileType.replace('.', '') };
+  }
+
+  getFileByFolderAndName(
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByPlainNameAndFolderUuid(
+      plainName,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
   }
 }
