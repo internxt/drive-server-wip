@@ -49,25 +49,25 @@ import {
   WorkspaceItemUserAttributes,
 } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
-import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
-import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import {
   SharedWithType,
   Sharing,
   SharingType,
 } from '../sharing/sharing.domain';
-import { ShareItemWithMemberDto } from './dto/share-item-with-member.dto';
+import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
+import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
+import { SharingService } from '../sharing/sharing.service';
 
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
-    private readonly sharingRepository: SequelizeSharingRepository,
+    private readonly sharingUseCases: SharingService,
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
@@ -733,12 +733,12 @@ export class WorkspacesUsecases {
     };
   }
 
-  async shareItemWithMember(
+  async shareItemWithTeam(
     user: User,
     workspaceId: string,
-    shareWithMemberDto: ShareItemWithMemberDto,
+    shareWithTeamDto: ShareItemWithTeamDto,
   ) {
-    const { itemType, itemId } = shareWithMemberDto;
+    const { itemType, itemId } = shareWithTeamDto;
 
     const item = await this.workspaceRepository.getItemBy({
       workspaceId: workspaceId,
@@ -754,18 +754,18 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('You can not share this item');
     }
 
-    const memberInWorkspace = await this.workspaceRepository.findWorkspaceUser({
-      memberId: shareWithMemberDto.sharedWith,
-    });
+    const team = await this.teamRepository.getTeamById(
+      shareWithTeamDto.sharedWith,
+    );
 
-    if (!memberInWorkspace) {
-      throw new BadRequestException('Member is not part of workspace');
+    if (!team) {
+      throw new BadRequestException('Team was not found');
     }
 
     const [existentSharing, workspace] = await Promise.all([
-      this.sharingRepository.findOneSharingBy({
-        sharedWithType: SharedWithType.WorkspaceMember,
-        sharedWith: memberInWorkspace.memberId,
+      this.sharingUseCases.findSharingBy({
+        sharedWithType: SharedWithType.WorkspaceTeam,
+        sharedWith: team.id,
         itemId: item.itemId,
         itemType: item.itemType,
       }),
@@ -774,14 +774,14 @@ export class WorkspacesUsecases {
 
     if (existentSharing) {
       throw new BadRequestException(
-        'This item is already shared with this user!',
+        'This item is already shared with this team!',
       );
     }
 
     const sharing = Sharing.build({
       id: v4(),
-      sharedWithType: SharedWithType.WorkspaceMember,
-      sharedWith: memberInWorkspace.memberId,
+      sharedWithType: SharedWithType.WorkspaceTeam,
+      sharedWith: team.id,
       itemId: item.itemId,
       itemType: item.itemType,
       ownerId: workspace.workspaceUserId,
@@ -792,14 +792,10 @@ export class WorkspacesUsecases {
       updatedAt: new Date(),
     });
 
-    const createdSharing = await this.sharingRepository.createSharing(sharing);
-
-    await this.sharingRepository.createSharingRole({
-      roleId: shareWithMemberDto.roleId,
-      sharingId: createdSharing.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    const createdSharing = this.sharingUseCases.createSharing(
+      sharing,
+      shareWithTeamDto.roleId,
+    );
 
     return createdSharing;
   }
@@ -817,8 +813,9 @@ export class WorkspacesUsecases {
       folderUuid: Folder['uuid'],
     ) => {
       const folders = (
-        await this.folderUseCases.getFoldersWithParentInWorkspace(
+        await this.folderUseCases.getFoldersInWorkspace(
           createdBy,
+          workspaceId,
           {
             parentUuid: folderUuid,
             deleted: false,
@@ -848,6 +845,7 @@ export class WorkspacesUsecases {
       const files = (
         await this.fileUseCases.getFilesInWorkspace(
           createdBy,
+          workspaceId,
           {
             folderUuid: folderUuid,
             status: FileStatus.EXISTS,
@@ -937,7 +935,7 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('Invalid token');
     }
 
-    const sharing = await this.sharingRepository.findOneSharing({
+    const sharing = await this.sharingUseCases.findSharingBy({
       sharedWith: user.uuid,
       itemId: requestedFolderIsSharedRootFolder
         ? folderUuid
@@ -982,7 +980,7 @@ export class WorkspacesUsecases {
       itemsType === WorkspaceItemType.Folder
         ? await getFolderContentByCreatedBy(itemFolder.createdBy, folder.uuid)
         : await getFilesFromFolder(itemFolder.createdBy, folder.uuid),
-      this.sharingRepository.findSharingRoleBy({ sharingId: sharing.id }),
+      this.sharingUseCases.findSharingRoleBy({ sharingId: sharing.id }),
     ]);
 
     return {
@@ -1719,10 +1717,56 @@ export class WorkspacesUsecases {
     userUuid: string,
     workspaceId: string,
   ): Promise<{
-    workspace: Workspace | null;
-    workspaceUser: WorkspaceUser | null;
+    workspace?: Workspace | null;
+    workspaceUser?: WorkspaceUser | null;
   }> {
     return this.workspaceRepository.findWorkspaceAndUser(userUuid, workspaceId);
+  }
+
+  findWorkspaceItemByUser(
+    createdBy: WorkspaceItemUser['createdBy'],
+    itemId: WorkspaceItemUser['itemId'],
+    itemType: WorkspaceItemUser['itemType'],
+  ) {
+    return this.workspaceRepository.getItemBy({ createdBy, itemId, itemType });
+  }
+
+  async findWorkspaceResourceOwnerByWorkspaceItem(
+    requester: User,
+    itemId: WorkspaceItemUser['itemId'],
+    itemType: WorkspaceItemUser['itemType'],
+    workspaceId: Workspace['id'],
+  ): Promise<User> {
+    const { workspaceUser: memberInWorkspace, workspace } =
+      await this.findUserAndWorkspace(requester.uuid, workspaceId);
+
+    if (!memberInWorkspace || !workspace) {
+      throw new ForbiddenException(
+        'This user is not part of workspace or workspace not valid',
+      );
+    }
+
+    const itemInWorkspace = await this.findWorkspaceItemByUser(
+      requester.uuid,
+      itemId,
+      itemType,
+    );
+
+    if (!itemInWorkspace.isOwnedBy(requester)) {
+      throw new ForbiddenException(
+        'This user is not part of workspace or workspace not valid',
+      );
+    }
+
+    const workspaceResourcesOwner = await this.userUsecases.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    if (!workspaceResourcesOwner) {
+      throw new NotFoundException('Resource owner not found');
+    }
+
+    return workspaceResourcesOwner;
   }
 
   findById(workspaceId: string): Promise<Workspace | null> {

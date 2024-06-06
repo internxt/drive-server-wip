@@ -38,6 +38,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
+import { SharingService } from '../sharing/sharing.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -61,6 +62,7 @@ describe('WorkspacesUsecases', () => {
   let configService: ConfigService;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
+  let sharingRepository: SharingService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -1962,6 +1964,111 @@ describe('WorkspacesUsecases', () => {
         teams: [{ ...team, isManager: team.isUserManager(managerUser) }],
       });
     });
+  });
+
+  describe('shareItemWithMember', () => {
+    const user = newUser();
+    const workspaceId = 'some-workspace-id';
+    const item = newWorkspaceItemUser();
+
+    const shareWithMemberDto = {
+      itemType: WorkspaceItemType.File,
+      itemId: 'string',
+      sharedWith: 'string',
+      roleId: 'string',
+    };
+
+    it('When item is invalid, then it should throw BadRequestException', async () => {
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
+
+      await expect(
+        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When item is not owned by user, then it should throw ForbiddenException', async () => {
+      const item = newWorkspaceItemUser();
+
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+
+      await expect(
+        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When member is not part of workspace, then it should throw BadRequestException', async () => {
+      const item = newWorkspaceItemUser();
+
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    /*     it('When item is already shared with member, then it should throw BadRequestException', async () => {
+      const item = newWorkspaceItemUser();
+      const memberInWorkspace = newWorkspaceUser();
+      const existentSharing = { id: 'existing-sharing-id' };
+
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(memberInWorkspace);
+      jest
+        .spyOn(sharingRepository, 'findOneSharingBy')
+        .mockResolvedValue(existentSharing);
+
+      await expect(
+        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When item is successfully shared with member, then it should return the created sharing', async () => {
+      const item = newWorkspaceItemUser();
+      const memberInWorkspace = newWorkspaceUser();
+      const workspace = newWorkspace();
+      const createdSharing = newSharing();
+
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(memberInWorkspace);
+      jest.spyOn(sharingRepository, 'findOneSharingBy').mockResolvedValue(null);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(sharingRepository, 'createSharing')
+        .mockResolvedValue(createdSharing);
+      jest
+        .spyOn(sharingRepository, 'createSharingRole')
+        .mockResolvedValue(undefined);
+
+      const result = await service.shareItemWithMember(
+        user,
+        workspaceId,
+        shareWithMemberDto,
+      );
+
+      expect(result).toEqual(createdSharing);
+      expect(sharingRepository.createSharing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sharedWithType: SharedWithType.WorkspaceMember,
+          sharedWith: memberInWorkspace.memberId,
+          itemId: item.itemId,
+          itemType: item.itemType,
+          ownerId: workspace.workspaceUserId,
+        }),
+      );
+      expect(sharingRepository.createSharingRole).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roleId: shareWithMemberDto.roleId,
+          sharingId: createdSharing.id,
+        }),
+      );
+    }); */
   });
 
   describe('getPersonalWorkspaceFilesInFolder', () => {

@@ -58,20 +58,23 @@ import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
-import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
-import { ShareItemWithMemberDto } from './dto/share-item-with-member.dto';
+import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import { OrderBy } from '../../common/order.type';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { SharingService } from '../sharing/sharing.service';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 @UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
-  constructor(private workspaceUseCases: WorkspacesUsecases) {}
+  constructor(
+    private workspaceUseCases: WorkspacesUsecases,
+    private sharingUseCases: SharingService,
+  ) {}
 
   @Get('/')
   @ApiOperation({
@@ -486,20 +489,17 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @BehalfUserDecorator() behalfUser: User,
+    @UserDecorator() user: User,
     @Body() createFileDto: CreateWorkspaceFileDto,
   ) {
-    if (!behalfUser) {
-      throw new ForbiddenException('You have not permissions to do this!');
-    }
-
     return this.workspaceUseCases.createFile(
-      behalfUser,
+      behalfUser ?? user,
       workspaceId,
       createFileDto,
     );
   }
 
-  @Post('/:workspaceId/sharings/')
+  @Post('/:workspaceId/shared/')
   @ApiOperation({
     summary: 'Share file or folder to workspace',
   })
@@ -514,16 +514,70 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
-    @Body() ShareItemWithMemberDto: ShareItemWithMemberDto,
+    @Body() shareItemWithTeam: ShareItemWithTeamDto,
   ) {
-    return this.workspaceUseCases.shareItemWithMember(
+    return this.workspaceUseCases.shareItemWithTeam(
       user,
       workspaceId,
-      ShareItemWithMemberDto,
+      shareItemWithTeam,
     );
   }
 
-  @Get(':workspaceId/items/:sharedFolderId/folders')
+  @Get(':workspaceId/:teamId/shared/files')
+  @ApiOperation({
+    summary: 'Get shared files',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
+  async getSharedFiles(
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.sharingUseCases.getSharedFilesInWorkspaces(
+      user,
+      teamId,
+      page,
+      perPage,
+      order,
+    );
+  }
+
+  @Get(':workspaceId/:teamId/shared/folders')
+  @ApiOperation({
+    summary: 'Get shared folders',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
+  async getSharedFolders(
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.sharingUseCases.getSharedFoldersInWorkspace(
+      user,
+      teamId,
+      page,
+      perPage,
+      order,
+    );
+  }
+
+  @Get(':workspaceId/shared/:sharedFolderId/folders')
   @ApiOperation({
     summary: 'Get all folders inside a shared folder',
   })
@@ -553,7 +607,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/items/:sharedFolderId/files')
+  @Get(':workspaceId/shared/:sharedFolderId/files')
   @ApiOperation({
     summary: 'Get files inside a shared folder',
   })

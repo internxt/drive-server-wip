@@ -108,4 +108,20 @@ export class SharingPermissionsGuard implements CanActivate {
 
     return userIsAllowedToPerfomAction;
   }
+
+  async isIndividualUserAbleToPerfomAction(
+    requester: User,
+    sharedRootFolderId: Folder['uuid'],
+    action: SharingActionName,
+  ) {
+    const userIsAllowedToPerfomAction =
+      await this.sharingUseCases.canUserPerformActionInSharing(
+        requester.uuid,
+        sharedRootFolderId,
+        action,
+        SharedWithType.Individual,
+      );
+
+    return userIsAllowedToPerfomAction;
+  }
 }
