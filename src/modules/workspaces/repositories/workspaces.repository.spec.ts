@@ -227,5 +227,14 @@ describe('SequelizeWorkspaceRepository', () => {
         workspaceUser: null,
       });
     });
+
+    describe('deleteById', () => {
+      it('When a workspace is deleted, it should call the model to delete the workspace', async () => {
+        await repository.deleteById('1');
+        expect(workspaceModel.destroy).toHaveBeenCalledWith({
+          where: { id: '1' },
+        });
+      });
+    });
   });
 });

@@ -827,6 +827,63 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('renameFolder', () => {
+    it('When the new folder name is invalid, then it should throw', async () => {
+      const folder = newFolder();
+      const emptyName = '';
+
+      await expect(service.renameFolder(folder, emptyName)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      const invalidName = 'Invalid/Name';
+      await expect(service.renameFolder(folder, invalidName)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When a folder already exists with the new name, then it should throw', async () => {
+      const folder = newFolder();
+      const existingFolder = newFolder({
+        attributes: { parentId: folder.parentId, plainName: 'New Name' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValue(existingFolder);
+
+      await expect(service.renameFolder(folder, 'New Name')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('When the folder is renamed successfully, then it should return the updated folder', async () => {
+      const folder = newFolder();
+      const encryptedFolderName = 'encrypted-folder-name';
+      const newFolderName = 'New Name';
+      const updatedFolder = newFolder({
+        attributes: {
+          name: encryptedFolderName,
+          plainName: newFolderName,
+        },
+      });
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(encryptedFolderName);
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(folderRepository, 'updateByFolderId')
+        .mockResolvedValueOnce(updatedFolder);
+
+      const result = await service.renameFolder(folder, newFolderName);
+
+      expect(result).toEqual(updatedFolder);
+    });
+  });
+
   describe('createFolder', () => {
     const folderName = 'New Folder';
 

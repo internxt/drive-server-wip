@@ -31,9 +31,9 @@ import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
-import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
@@ -59,10 +59,10 @@ export class WorkspacesUsecases {
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
     private configService: ConfigService,
     private mailerService: MailerService,
+    private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
   ) {}
 
@@ -1509,6 +1509,151 @@ export class WorkspacesUsecases {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
   }
 
+  async deleteWorkspaceContent(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const rootFolder = await this.folderUseCases.getByUuid(
+      workspace.rootFolderId,
+    );
+
+    await this.folderUseCases.deleteByUser(workspaceUser, [rootFolder]);
+
+    await this.workspaceRepository.deleteById(workspaceId);
+  }
+
+  async transferPersonalItemsToWorkspaceOwner(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are the owner of this workspace');
+    }
+
+    const memberWorkspaceUser =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId,
+        memberId: user.uuid,
+      });
+
+    const memberRootFolder = await this.folderUseCases.getByUuid(
+      memberWorkspaceUser.rootFolderId,
+    );
+
+    const foldersInPersonalRootFolder =
+      await this.folderUseCases.getFoldersInWorkspace(
+        user.uuid,
+        workspace.id,
+        {
+          parentId: memberRootFolder.id,
+          deleted: false,
+          removed: false,
+        },
+        { limit: 1, offset: 0 },
+      );
+
+    const filesInPersonalRootFolder =
+      await this.fileUseCases.getFilesInWorkspace(
+        user.uuid,
+        workspace.id,
+        {
+          folderId: memberRootFolder.id,
+          status: FileStatus.EXISTS,
+          deleted: false,
+          removed: false,
+        },
+        { limit: 1, offset: 0 },
+      );
+
+    if (
+      !foldersInPersonalRootFolder.length &&
+      !filesInPersonalRootFolder.length
+    )
+      return;
+
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const ownerWorkspaceUser = await this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId,
+        memberId: workspace.ownerId,
+      },
+    );
+
+    const movedFolder = await this.folderUseCases.moveFolder(
+      workspaceNetworkUser,
+      memberRootFolder.uuid,
+      ownerWorkspaceUser.rootFolderId,
+    );
+
+    await this.workspaceRepository.updateItemBy(
+      {
+        createdBy: ownerWorkspaceUser.memberId,
+      },
+      {
+        workspaceId,
+        itemId: memberRootFolder.uuid,
+      },
+    );
+
+    await this.folderUseCases.renameFolder(movedFolder, user.username);
+  }
+
+  async leaveWorkspace(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new BadRequestException('Owner can not leave workspace');
+    }
+
+    await this.transferPersonalItemsToWorkspaceOwner(workspaceId, user);
+
+    const teamsUserManages =
+      await this.teamRepository.getTeamsWhereUserIsManagerByWorkspaceId(
+        workspaceId,
+        user,
+      );
+    for (const team of teamsUserManages) {
+      await this.teamRepository.updateById(team.id, {
+        managerId: workspace.ownerId,
+      });
+      await this.teamRepository.deleteUserFromTeam(user.uuid, team.id);
+    }
+
+    await this.workspaceRepository.deleteUserFromWorkspace(
+      user.uuid,
+      workspaceId,
+    );
+  }
   async validateWorkspaceInvite(
     inviteId: WorkspaceInvite['id'],
   ): Promise<string> {

@@ -657,6 +657,25 @@ export class WorkspacesController {
     );
   }
 
+  @Delete('/:workspaceId/members/leave')
+  @ApiOperation({
+    summary: 'Leave a workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User left workspace',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async leaveWorkspace(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.leaveWorkspace(workspaceId, user);
+  }
+
   @Get(':workspaceId/members/:memberId')
   @ApiBearerAuth()
   @ApiOperation({

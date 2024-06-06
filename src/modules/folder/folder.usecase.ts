@@ -380,7 +380,9 @@ export class FolderUseCases {
     const folders = foldersById.concat(foldersByUuid);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
-    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId);
+    const driveFolders = folders.filter(
+      (f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId,
+    );
 
     await Promise.all([
       driveFolders.length > 0
@@ -670,6 +672,7 @@ export class FolderUseCases {
 
     const exists = await this.folderRepository.findByNameAndParentUuid(
       destinationEncryptedName,
+      originalPlainName,
       destinationFolder.uuid,
       false,
     );
@@ -697,6 +700,35 @@ export class FolderUseCases {
       updateData,
     );
     return updatedFolder;
+  }
+
+  async renameFolder(folder: Folder, newName: string): Promise<Folder> {
+    if (newName === '' || invalidName.test(newName)) {
+      throw new BadRequestException('Invalid folder name');
+    }
+
+    const newEncryptedName = this.cryptoService.encryptName(
+      newName,
+      folder.parentId,
+    );
+
+    const exists = await this.folderRepository.findByNameAndParentUuid(
+      newEncryptedName,
+      newName,
+      folder.parentUuid,
+      false,
+    );
+
+    if (exists) {
+      throw new ConflictException(
+        'A folder with the same name already exists in this location',
+      );
+    }
+
+    return await this.folderRepository.updateByFolderId(folder.id, {
+      name: newEncryptedName,
+      plainName: newName,
+    });
   }
 
   decryptFolderName(folder: Folder): any {

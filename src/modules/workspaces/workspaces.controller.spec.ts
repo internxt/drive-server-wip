@@ -219,6 +219,17 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('DELETE /:workspaceId/members/leave', () => {
+    const user = newUser();
+    it('When a member leaves workspace, then return', async () => {
+      const workspace = newWorkspace({ owner: user });
+
+      await expect(
+        workspacesController.leaveWorkspace(user, workspace.id),
+      ).resolves.toBeTruthy();
+    });
+  });
+
   describe('PATCH /:workspaceId', () => {
     it('When workspace details are updated successfully, then it should return.', async () => {
       const user = newUser();
