@@ -71,13 +71,22 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Invalid token');
     }
 
-    const userIsAllowedToPerfomAction =
-      await this.isTeamMemberAbleToPerformAction(
+    let userIsAllowedToPerfomAction = false;
+
+    if (decoded.workspace) {
+      userIsAllowedToPerfomAction = await this.isTeamMemberAbleToPerformAction(
         requester,
         decoded.workspace.teamId,
         decoded.sharedRootFolderId,
         action,
       );
+    } else {
+      userIsAllowedToPerfomAction = await this.isUserAbleToPerfomAction(
+        requester,
+        decoded.sharedRootFolderId,
+        action,
+      );
+    }
 
     if (!userIsAllowedToPerfomAction) {
       return false;
@@ -112,6 +121,22 @@ export class SharingPermissionsGuard implements CanActivate {
       this.workspaceUseCases.findUserInTeam(requester.uuid, teamId),
     ]);
 
-    return userIsAllowedToPerfomAction && isUserPartOfTeam;
+    return userIsAllowedToPerfomAction && !!isUserPartOfTeam;
+  }
+
+  async isUserAbleToPerfomAction(
+    requester: User,
+    sharedRootFolderId: Folder['uuid'],
+    action: SharingActionName,
+  ) {
+    const userIsAllowedToPerfomAction =
+      await this.sharingUseCases.canPerfomAction(
+        requester.uuid,
+        sharedRootFolderId,
+        action,
+        SharedWithType.Individual,
+      );
+
+    return userIsAllowedToPerfomAction;
   }
 }

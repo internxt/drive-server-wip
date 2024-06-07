@@ -773,6 +773,10 @@ export class WorkspacesUsecases {
       this.workspaceRepository.findById(workspaceId),
     ]);
 
+    if (!workspace) {
+      throw new BadRequestException('Workspace is not valid!');
+    }
+
     if (existentSharing) {
       throw new ConflictException(
         'This item is already shared with this team!',
