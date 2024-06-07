@@ -4,20 +4,17 @@ import { UuidDto } from '../../common/uuid.dto';
 import { createMock } from '@golevelup/ts-jest';
 import { Sharing } from './sharing.domain';
 import { newSharing } from '../../../test/fixtures';
-import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 
 describe('SharingController', () => {
   let controller: SharingController;
   let sharingService: SharingService;
-  let workspaceUseCases: WorkspacesUsecases;
 
   let sharing: Sharing;
 
   beforeEach(async () => {
     sharingService = createMock<SharingService>();
-    workspaceUseCases = createMock<WorkspacesUsecases>();
 
-    controller = new SharingController(sharingService, workspaceUseCases);
+    controller = new SharingController(sharingService);
     sharing = newSharing({});
   });
 

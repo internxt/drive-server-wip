@@ -22,7 +22,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
-import { SharingType } from './sharing.domain';
+import { SharedWithType, SharingType } from './sharing.domain';
 import { FileStatus } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 
@@ -395,6 +395,7 @@ describe('Sharing Use Cases', () => {
         owner.uuid,
         itemIds,
         itemType,
+        SharedWithType.Individual,
       );
     });
   });

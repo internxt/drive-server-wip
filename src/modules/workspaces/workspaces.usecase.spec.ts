@@ -1966,7 +1966,7 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
-  describe('shareItemWithMember', () => {
+  describe('shareItemWithTeam', () => {
     const user = newUser();
     const workspaceId = 'some-workspace-id';
     const item = newWorkspaceItemUser();
@@ -1978,12 +1978,12 @@ describe('WorkspacesUsecases', () => {
       roleId: 'string',
     };
 
-    it('When item is invalid, then it should throw BadRequestException', async () => {
+    it('When item is invalid, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(null);
 
       await expect(
-        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
-      ).rejects.toThrow(BadRequestException);
+        service.shareItemWithTeam(user, workspaceId, shareWithMemberDto),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When item is not owned by user, then it should throw ForbiddenException', async () => {
@@ -1992,11 +1992,11 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
 
       await expect(
-        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
+        service.shareItemWithTeam(user, workspaceId, shareWithMemberDto),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When member is not part of workspace, then it should throw BadRequestException', async () => {
+    it('When member is not part of workspace, then it should throw', async () => {
       const item = newWorkspaceItemUser();
 
       jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
@@ -2005,8 +2005,8 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue(null);
 
       await expect(
-        service.shareItemWithMember(user, workspaceId, shareWithMemberDto),
-      ).rejects.toThrow(BadRequestException);
+        service.shareItemWithTeam(user, workspaceId, shareWithMemberDto),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     /*     it('When item is already shared with member, then it should throw BadRequestException', async () => {
