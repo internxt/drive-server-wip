@@ -25,7 +25,6 @@ export enum SharedWithType {
   WorkspaceTeam = 'workspace_team',
 }
 
-// This should match with the permissions table for the given user role.
 export enum SharingActionName {
   UploadFile = 'UPLOAD_FILE',
   RenameItems = 'RENAME_ITEMS',
