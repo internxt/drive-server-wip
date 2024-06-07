@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -66,6 +65,7 @@ import { SharingActionName } from '../sharing/sharing.domain';
 import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { SharingService } from '../sharing/sharing.service';
+import { WorkspaceTeam } from './domains/workspace-team.domain';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -525,7 +525,7 @@ export class WorkspacesController {
 
   @Get(':workspaceId/:teamId/shared/files')
   @ApiOperation({
-    summary: 'Get shared files',
+    summary: 'Get shared files with a team',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
@@ -552,7 +552,7 @@ export class WorkspacesController {
 
   @Get(':workspaceId/:teamId/shared/folders')
   @ApiOperation({
-    summary: 'Get shared folders',
+    summary: 'Get shared folders with a team',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
@@ -577,7 +577,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/shared/:sharedFolderId/folders')
+  @Get(':workspaceId/:teamId/shared/:sharedFolderId/folders')
   @ApiOperation({
     summary: 'Get all folders inside a shared folder',
   })
@@ -586,6 +586,8 @@ export class WorkspacesController {
   async getFoldersInsideSharedFolder(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
@@ -599,6 +601,7 @@ export class WorkspacesController {
 
     return this.workspaceUseCases.getItemsInSharedFolder(
       workspaceId,
+      teamId,
       user,
       sharedFolderId,
       WorkspaceItemType.Folder,
@@ -607,7 +610,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/shared/:sharedFolderId/files')
+  @Get(':workspaceId/:teamId/shared/:sharedFolderId/files')
   @ApiOperation({
     summary: 'Get files inside a shared folder',
   })
@@ -616,6 +619,8 @@ export class WorkspacesController {
   async getFilesInsideSharedFolder(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
@@ -629,6 +634,7 @@ export class WorkspacesController {
 
     return this.workspaceUseCases.getItemsInSharedFolder(
       workspaceId,
+      teamId,
       user,
       sharedFolderId,
       WorkspaceItemType.File,

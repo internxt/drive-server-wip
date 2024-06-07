@@ -90,7 +90,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     return this.sharingRoles.findByPk(sharingRoleId);
   }
 
-  async findUserPermissionsInSharing(
+  async findPermissionsInSharing(
     sharedWith: Sharing['sharedWith'],
     sharedWithType: Sharing['sharedWithType'],
     itemId: Sharing['itemId'],
@@ -447,21 +447,24 @@ export class SequelizeSharingRepository implements SharingRepository {
   ): Promise<Sharing[]> {
     const sharedFiles = await this.sharings.findAll({
       where: {
-        sharedWith: teamId,
-        sharedWithType: SharedWithType.WorkspaceTeam,
+        [Op.or]: [
+          {
+            sharedWith: teamId,
+            sharedWithType: SharedWithType.WorkspaceTeam,
+          },
+          {
+            '$file->workspaceUser.created_by$': ownerId,
+          },
+        ],
       },
       attributes: [
-        [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
-          'encryptionKey',
-        ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
       group: [
         'file.id',
         'file->workspaceUser.id',
-        'SharingModel.item_id',
         'file->workspaceUser->creator.id',
+        'SharingModel.item_id',
       ],
       include: [
         {
@@ -472,23 +475,14 @@ export class SequelizeSharingRepository implements SharingRepository {
           include: [
             {
               model: WorkspaceItemUserModel,
-              where: { createdBy: ownerId },
+              as: 'workspaceUser',
               include: [
                 {
                   model: UserModel,
                   as: 'creator',
-                  attributes: [
-                    'uuid',
-                    'email',
-                    'name',
-                    'lastname',
-                    'avatar',
-                    'userId',
-                    'bridgeUser',
-                  ],
+                  attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
                 },
               ],
-              required: true,
             },
           ],
         },
@@ -499,13 +493,15 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return sharedFiles.map((shared) => {
+      const sharing = shared.get({ plain: true });
+      const user = sharing.file.workspaceUser?.creator;
+      delete sharing.file.user;
+
       return Sharing.build({
-        ...shared.get({ plain: true }),
+        ...sharing,
         file: File.build({
-          ...shared.get({ plain: true }),
-          user: shared.file.workspaceUser.creator
-            ? User.build(shared.file.workspaceUser.creator)
-            : null,
+          ...sharing.file,
+          user: user ? User.build(user) : null,
         }),
       });
     });
@@ -520,21 +516,24 @@ export class SequelizeSharingRepository implements SharingRepository {
   ): Promise<Sharing[]> {
     const sharedFolders = await this.sharings.findAll({
       where: {
-        sharedWith: teamId,
-        sharedWithType: SharedWithType.WorkspaceTeam,
+        [Op.or]: [
+          {
+            sharedWith: teamId,
+            sharedWithType: SharedWithType.WorkspaceTeam,
+          },
+          {
+            '$folder->workspaceUser.created_by$': ownerId,
+          },
+        ],
       },
       attributes: [
-        [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
-          'encryptionKey',
-        ],
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
       group: [
         'folder.id',
         'folder->workspaceUser.id',
-        'SharingModel.item_id',
         'folder->workspaceUser->creator.id',
+        'SharingModel.item_id',
       ],
       include: [
         {
@@ -546,20 +545,11 @@ export class SequelizeSharingRepository implements SharingRepository {
           include: [
             {
               model: WorkspaceItemUserModel,
-              where: { createdBy: ownerId },
               include: [
                 {
                   model: UserModel,
                   as: 'creator',
-                  attributes: [
-                    'uuid',
-                    'email',
-                    'name',
-                    'lastname',
-                    'avatar',
-                    'userId',
-                    'bridgeUser',
-                  ],
+                  attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
                 },
               ],
             },
@@ -572,13 +562,14 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
 
     return sharedFolders.map((shared) => {
+      const sharing = shared.get({ plain: true });
+      const user = sharing.folder.workspaceUser?.creator;
+
       return Sharing.build({
-        ...shared.get({ plain: true }),
+        ...sharing,
         folder: Folder.build({
-          ...shared.folder.get({ plain: true }),
-          user: shared.folder.workspaceUser.creator
-            ? User.build(shared.folder.workspaceUser.creator)
-            : null,
+          ...sharing.folder,
+          user: user ? User.build(user) : null,
         }),
       });
     });

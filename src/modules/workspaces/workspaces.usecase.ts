@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -741,13 +742,13 @@ export class WorkspacesUsecases {
     const { itemType, itemId } = shareWithTeamDto;
 
     const item = await this.workspaceRepository.getItemBy({
-      workspaceId: workspaceId,
+      workspaceId,
       itemId,
       itemType,
     });
 
     if (!item) {
-      throw new BadRequestException('Invalid Item');
+      throw new NotFoundException('Item was not found');
     }
 
     if (!item.isOwnedBy(user)) {
@@ -759,7 +760,7 @@ export class WorkspacesUsecases {
     );
 
     if (!team) {
-      throw new BadRequestException('Team was not found');
+      throw new BadRequestException('Team is not valid');
     }
 
     const [existentSharing, workspace] = await Promise.all([
@@ -773,7 +774,7 @@ export class WorkspacesUsecases {
     ]);
 
     if (existentSharing) {
-      throw new BadRequestException(
+      throw new ConflictException(
         'This item is already shared with this team!',
       );
     }
@@ -802,6 +803,7 @@ export class WorkspacesUsecases {
 
   async getItemsInSharedFolder(
     workspaceId: Workspace['id'],
+    teamId: WorkspaceTeam['id'],
     user: User,
     folderUuid: Folder['uuid'],
     itemsType: WorkspaceItemType,
@@ -883,6 +885,10 @@ export class WorkspacesUsecases {
       workspaceId: workspaceId,
     });
 
+    if (!itemFolder) {
+      throw new NotFoundException('Item not found in workspace');
+    }
+
     const parentFolder = folder.parentUuid
       ? await this.folderUseCases.getByUuid(folder.parentUuid)
       : null;
@@ -923,6 +929,7 @@ export class WorkspacesUsecases {
               };
               workspace: {
                 workspaceId: Workspace['id'];
+                teamId: WorkspaceTeam['id'];
               };
               owner: {
                 id: User['id'];
@@ -936,15 +943,15 @@ export class WorkspacesUsecases {
     }
 
     const sharing = await this.sharingUseCases.findSharingBy({
-      sharedWith: user.uuid,
+      sharedWith: teamId,
       itemId: requestedFolderIsSharedRootFolder
         ? folderUuid
         : decoded.sharedRootFolderId,
-      sharedWithType: SharedWithType.WorkspaceMember,
+      sharedWithType: SharedWithType.WorkspaceTeam,
     });
 
     if (!sharing) {
-      throw new ForbiddenException('User does not have access to this folder');
+      throw new ForbiddenException('Team does not have access to this folder');
     }
 
     if (!requestedFolderIsSharedRootFolder) {
@@ -955,13 +962,13 @@ export class WorkspacesUsecases {
 
       if (navigationUpFromSharedFolder) {
         throw new ForbiddenException(
-          'User does not have access to this folder',
+          'Team does not have access to this folder',
         );
       }
 
       if (!navigationDown && !navigationUp) {
         throw new ForbiddenException(
-          'User does not have access to this folder',
+          'Team does not have access to this folder',
         );
       }
     }
@@ -1000,6 +1007,7 @@ export class WorkspacesUsecases {
           },
           workspace: {
             workspaceId: workspace.id,
+            teamId,
           },
           owner: {
             uuid: itemFolder.createdBy,

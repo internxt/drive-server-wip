@@ -22,6 +22,7 @@ import {
 import { Workspace } from '../../workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../../workspaces/domains/workspace-team.domain';
 import { Folder } from '../../folder/folder.domain';
+import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
 
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {
@@ -29,6 +30,7 @@ export class SharingPermissionsGuard implements CanActivate {
     private reflector: Reflector,
     private userUseCases: UserUseCases,
     private sharingUseCases: SharingService,
+    private workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -70,8 +72,9 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     const userIsAllowedToPerfomAction =
-      await this.isWorkspaceMemberAbleToPerformAction(
+      await this.isTeamMemberAbleToPerformAction(
         requester,
+        decoded.workspace.teamId,
         decoded.sharedRootFolderId,
         action,
       );
@@ -93,35 +96,22 @@ export class SharingPermissionsGuard implements CanActivate {
     return true;
   }
 
-  async isWorkspaceMemberAbleToPerformAction(
+  async isTeamMemberAbleToPerformAction(
     requester: User,
+    teamId: WorkspaceTeam['id'],
     sharedRootFolderId: Folder['uuid'],
     action: SharingActionName,
   ) {
-    const userIsAllowedToPerfomAction =
-      await this.sharingUseCases.canUserPerformActionInSharing(
+    const [userIsAllowedToPerfomAction, isUserPartOfTeam] = await Promise.all([
+      this.sharingUseCases.canPerfomActionInWorkspace(
         requester.uuid,
         sharedRootFolderId,
         action,
-        SharedWithType.WorkspaceMember,
-      );
+        SharedWithType.WorkspaceTeam,
+      ),
+      this.workspaceUseCases.findUserInTeam(requester.uuid, teamId),
+    ]);
 
-    return userIsAllowedToPerfomAction;
-  }
-
-  async isIndividualUserAbleToPerfomAction(
-    requester: User,
-    sharedRootFolderId: Folder['uuid'],
-    action: SharingActionName,
-  ) {
-    const userIsAllowedToPerfomAction =
-      await this.sharingUseCases.canUserPerformActionInSharing(
-        requester.uuid,
-        sharedRootFolderId,
-        action,
-        SharedWithType.Individual,
-      );
-
-    return userIsAllowedToPerfomAction;
+    return userIsAllowedToPerfomAction && isUserPartOfTeam;
   }
 }

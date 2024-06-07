@@ -23,7 +23,6 @@ export enum SharingItemType {
 export enum SharedWithType {
   Individual = 'individual',
   WorkspaceTeam = 'workspace_team',
-  WorkspaceMember = 'workspace_member',
 }
 
 // This should match with the permissions table for the given user role.

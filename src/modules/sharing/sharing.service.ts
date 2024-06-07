@@ -1820,10 +1820,6 @@ export class SharingService {
               ? await this.usersUsecases.getAvatarUrl(avatar)
               : null,
           },
-          credentials: {
-            networkPass: folderWithSharedInfo.folder.user.userId,
-            networkUser: folderWithSharedInfo.folder.user.bridgeUser,
-          },
         };
       }),
     )) as FolderWithSharedInfo[];
@@ -1872,10 +1868,6 @@ export class SharingService {
             avatar: avatar
               ? await this.usersUsecases.getAvatarUrl(avatar)
               : null,
-          },
-          credentials: {
-            networkPass: fileWithSharedInfo.file.user.userId,
-            networkUser: fileWithSharedInfo.file.user.bridgeUser,
           },
         };
       }),
@@ -2110,18 +2102,17 @@ export class SharingService {
     }
   }
 
-  async canUserPerformActionInSharing(
+  async canPerfomActionInWorkspace(
     sharedWith: Sharing['sharedWith'],
     resourceId: Sharing['itemId'],
     action: SharingActionName,
     sharedWithType = SharedWithType.Individual,
   ) {
-    const permissions =
-      await this.sharingRepository.findUserPermissionsInSharing(
-        sharedWith,
-        sharedWithType,
-        resourceId,
-      );
+    const permissions = await this.sharingRepository.findPermissionsInSharing(
+      sharedWith,
+      sharedWithType,
+      resourceId,
+    );
 
     for (const permission of permissions) {
       if (permission.name === action) {

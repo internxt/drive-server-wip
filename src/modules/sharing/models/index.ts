@@ -137,11 +137,7 @@ export class SharingModel extends Model implements SharingAttributes {
   @AllowNull(false)
   @Default(SharedWithType.Individual)
   @Column(
-    DataType.ENUM(
-      SharedWithType.Individual,
-      SharedWithType.WorkspaceMember,
-      SharedWithType.WorkspaceTeam,
-    ),
+    DataType.ENUM(SharedWithType.Individual, SharedWithType.WorkspaceTeam),
   )
   sharedWithType: SharedWithType;
 

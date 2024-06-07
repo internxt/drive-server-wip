@@ -7,7 +7,7 @@ const newColumn = 'shared_with_type';
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn(tableName, newColumn, {
-      type: Sequelize.ENUM('individual', 'workspace_team', 'workspace_member'),
+      type: Sequelize.ENUM('individual', 'workspace_team'),
       defaultValue: 'individual',
       allowNull: false,
     });
