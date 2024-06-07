@@ -103,7 +103,7 @@ export class SharingPermissionsGuard implements CanActivate {
     action: SharingActionName,
   ) {
     const [userIsAllowedToPerfomAction, isUserPartOfTeam] = await Promise.all([
-      this.sharingUseCases.canPerfomActionInWorkspace(
+      this.sharingUseCases.canPerfomAction(
         requester.uuid,
         sharedRootFolderId,
         action,

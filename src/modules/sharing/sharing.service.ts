@@ -1803,7 +1803,7 @@ export class SharingService {
 
     const folders = (await Promise.all(
       foldersWithSharedInfo.map(async (folderWithSharedInfo) => {
-        const avatar = folderWithSharedInfo.folder.user.avatar;
+        const avatar = folderWithSharedInfo.folder?.user?.avatar;
         return {
           ...folderWithSharedInfo.folder,
           plainName:
@@ -1854,7 +1854,7 @@ export class SharingService {
 
     const files = (await Promise.all(
       filesWithSharedInfo.map(async (fileWithSharedInfo) => {
-        const avatar = fileWithSharedInfo.file.user.avatar;
+        const avatar = fileWithSharedInfo.file?.user?.avatar;
         return {
           ...fileWithSharedInfo.file,
           plainName:
@@ -2102,7 +2102,7 @@ export class SharingService {
     }
   }
 
-  async canPerfomActionInWorkspace(
+  async canPerfomAction(
     sharedWith: Sharing['sharedWith'],
     resourceId: Sharing['itemId'],
     action: SharingActionName,

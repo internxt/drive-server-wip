@@ -808,7 +808,7 @@ export class WorkspacesUsecases {
     folderUuid: Folder['uuid'],
     itemsType: WorkspaceItemType,
     token: string | null,
-    options?: { page: number; perPage: number; order: [string, string][] },
+    options?: { page: number; perPage: number; order: string[][] },
   ) {
     const getFolderContentByCreatedBy = async (
       createdBy: User['uuid'],
@@ -1737,44 +1737,6 @@ export class WorkspacesUsecases {
     itemType: WorkspaceItemUser['itemType'],
   ) {
     return this.workspaceRepository.getItemBy({ createdBy, itemId, itemType });
-  }
-
-  async findWorkspaceResourceOwnerByWorkspaceItem(
-    requester: User,
-    itemId: WorkspaceItemUser['itemId'],
-    itemType: WorkspaceItemUser['itemType'],
-    workspaceId: Workspace['id'],
-  ): Promise<User> {
-    const { workspaceUser: memberInWorkspace, workspace } =
-      await this.findUserAndWorkspace(requester.uuid, workspaceId);
-
-    if (!memberInWorkspace || !workspace) {
-      throw new ForbiddenException(
-        'This user is not part of workspace or workspace not valid',
-      );
-    }
-
-    const itemInWorkspace = await this.findWorkspaceItemByUser(
-      requester.uuid,
-      itemId,
-      itemType,
-    );
-
-    if (!itemInWorkspace.isOwnedBy(requester)) {
-      throw new ForbiddenException(
-        'This user is not part of workspace or workspace not valid',
-      );
-    }
-
-    const workspaceResourcesOwner = await this.userUsecases.findByUuid(
-      workspace.workspaceUserId,
-    );
-
-    if (!workspaceResourcesOwner) {
-      throw new NotFoundException('Resource owner not found');
-    }
-
-    return workspaceResourcesOwner;
   }
 
   findById(workspaceId: string): Promise<Workspace | null> {
