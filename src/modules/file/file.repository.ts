@@ -13,6 +13,7 @@ import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -37,6 +38,10 @@ export interface FileRepository {
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
+  ): Promise<File | null>;
+  findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
   ): Promise<File | null>;
   findByNameAndFolderUuid(
     name: FileAttributes['name'],
@@ -264,6 +269,7 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
@@ -277,7 +283,7 @@ export class SequelizeFileRepository implements FileRepository {
       where,
       include: {
         model: WorkspaceItemUserModel,
-        where: { createdBy },
+        where: { createdBy, workspaceId },
       },
       subQuery: false,
       order: appliedOrder,
@@ -331,6 +337,7 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findAllCursorWithThumbnailsInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
     offset: number,
@@ -356,6 +363,7 @@ export class SequelizeFileRepository implements FileRepository {
           model: WorkspaceItemUserModel,
           where: {
             createdBy,
+            workspaceId,
           },
         },
       ],
@@ -451,6 +459,22 @@ export class SequelizeFileRepository implements FileRepository {
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where,
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        ...where,
+        [Op.or]: [
+          { name: nameFilter.name },
+          { plainName: nameFilter.plainName },
+        ],
+      },
     });
     return file ? this.toDomain(file) : null;
   }

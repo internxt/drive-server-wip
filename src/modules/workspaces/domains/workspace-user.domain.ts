@@ -34,9 +34,9 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     this.setMember(member);
     this.key = key;
     this.workspaceId = workspaceId;
-    this.spaceLimit = spaceLimit;
-    this.driveUsage = driveUsage;
-    this.backupsUsage = backupsUsage;
+    this.spaceLimit = Number(spaceLimit ?? 0);
+    this.driveUsage = Number(driveUsage ?? 0);
+    this.backupsUsage = Number(backupsUsage ?? 0);
     this.deactivated = deactivated;
     this.rootFolderId = rootFolderId;
     this.createdAt = createdAt;
