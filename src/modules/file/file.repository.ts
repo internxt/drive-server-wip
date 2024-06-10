@@ -49,12 +49,17 @@ export interface FileRepository {
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
-  getSumSizeOfTrashedAndExistentFiles(
+  getSumSizeOfFilesByStatuses(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
-    limit: number,
-    offset: number,
-    order: Array<[keyof File, string]>,
+    statuses: FileStatus[],
+    options?: {
+      createdFrom?: Date;
+      removedFrom?: Date;
+      limit: number;
+      offset: number;
+      order?: Array<[keyof File, string]>;
+    },
   ): Promise<{ size: string }[]>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
@@ -299,29 +304,48 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async getSumSizeOfTrashedAndExistentFiles(
+  async getSumSizeOfFilesByStatuses(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
-    limit: number,
-    offset: number,
-    order: Array<[keyof File, string]> = [],
+    statuses: FileStatus[],
+    options?: {
+      createdFrom?: Date;
+      removedFrom?: Date;
+      limit: number;
+      offset: number;
+      order?: Array<[keyof File, string]>;
+    },
   ): Promise<{ size: string }[]> {
+    const statusesFilter = statuses.map((value) => ({ status: value }));
+
+    const fileDateFilters: any = {};
+    if (options?.removedFrom) {
+      fileDateFilters.removed_at = {
+        [Op.gte]: options?.removedFrom,
+      };
+    }
+
+    const workspaceItemDateFilters: any = {};
+    if (options?.createdFrom) {
+      workspaceItemDateFilters.created_at = {
+        [Op.gte]: options.createdFrom,
+      };
+    }
+
     const sizes = await this.fileModel.findAll({
       attributes: ['size'],
-      limit,
-      offset,
+      limit: options?.limit,
+      offset: options?.offset,
       where: {
-        [Op.or]: [
-          { status: FileStatus.EXISTS },
-          { status: FileStatus.TRASHED },
-        ],
+        [Op.or]: statusesFilter,
+        ...fileDateFilters,
       },
       include: {
         model: WorkspaceItemUserModel,
         attributes: [],
-        where: { createdBy, workspaceId },
+        where: { createdBy, workspaceId, ...workspaceItemDateFilters },
       },
-      order,
+      order: options?.order,
     });
 
     return sizes as unknown as { size: string }[];
