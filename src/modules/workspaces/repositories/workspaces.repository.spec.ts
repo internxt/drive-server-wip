@@ -14,6 +14,8 @@ import {
   newWorkspaceUser,
 } from '../../../../test/fixtures';
 import { Workspace } from '../domains/workspaces.domain';
+import { User } from '../../user/user.domain';
+import { Op, Sequelize } from 'sequelize';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;
@@ -235,6 +237,76 @@ describe('SequelizeWorkspaceRepository', () => {
           where: { id: '1' },
         });
       });
+    });
+  });
+
+  describe('findWorkspaceUsers', () => {
+    it('When passing workspace id and not a search value, it should return all the users that belongs to that workspace', async () => {
+      const workspace = newWorkspace();
+      const user1 = newUser();
+      const user2 = newUser();
+      const workspaceUser1 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        member: user1,
+        memberId: user1.uuid,
+      });
+      const workspaceUser2 = newWorkspaceUser({
+        workspaceId: workspace.id,
+        member: user2,
+        memberId: user2.uuid,
+      });
+      const mockWorkspaceUserModel = [
+        workspaceUser1,
+        workspaceUser2,
+      ] as unknown as WorkspaceUserModel[];
+
+      const spyWUM = jest
+        .spyOn(workspaceUserModel, 'findAll')
+        .mockResolvedValueOnce(mockWorkspaceUserModel);
+
+      const result = await repository.findWorkspaceUsers(workspace.id);
+
+      expect(spyWUM).toHaveBeenCalledWith({
+        where: {
+          workspaceId: workspace.id,
+        },
+        include: expect.anything(),
+      });
+      expect(result[0].member).toBeInstanceOf(User);
+      expect(result).toMatchObject(mockWorkspaceUserModel);
+    });
+
+    it('When passing the workspace id and a search value, it should return all users that match the search on username, email, or last name.', async () => {
+      const workspaceId = '2b27db5b-5162-42df-a8f4-8b5639b50451';
+      const searchValue = 'imposible-to-get-this-one';
+      const spyWUM = jest
+        .spyOn(workspaceUserModel, 'findAll')
+        .mockResolvedValueOnce([]);
+
+      const response = await repository.findWorkspaceUsers(
+        workspaceId,
+        searchValue,
+      );
+
+      expect(response).toBeTruthy;
+      expect(spyWUM).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          workspaceId: workspaceId,
+          [Op.or]: expect.arrayContaining([
+            expect.objectContaining({
+              '$member.lastname$': {
+                [Op.like]: Sequelize.literal(`\'%${searchValue}%\'`),
+              },
+            }),
+          ]),
+        }),
+        include: expect.arrayContaining([
+          expect.objectContaining({
+            as: 'member',
+          }),
+        ]),
+      });
+      expect(response).toEqual([]);
     });
   });
 });
