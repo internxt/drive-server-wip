@@ -12,6 +12,7 @@ import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attrib
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
+import { Op, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import {
   WorkspaceItemType,
@@ -21,7 +22,6 @@ import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../file/file.model';
 import { FileAttributes } from '../../file/file.domain';
 import { FolderAttributes } from '../../folder/folder.domain';
-import { Op } from 'sequelize';
 import { FolderModel } from '../../folder/folder.model';
 
 @Injectable()
@@ -332,11 +332,41 @@ export class SequelizeWorkspaceRepository {
 
   async findWorkspaceUsers(
     workspaceId: WorkspaceAttributes['id'],
+    search: string | null = null,
   ): Promise<WorkspaceUser[]> {
-    const usersWorkspace = await this.modelWorkspaceUser.findAll({
-      where: { workspaceId },
-      include: [UserModel],
-    });
+    const usersWorkspace = search
+      ? await this.modelWorkspaceUser.findAll({
+          where: {
+            workspaceId,
+            [Op.or]: [
+              {
+                '$member.name$': {
+                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                },
+              },
+              {
+                '$member.lastname$': {
+                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                },
+              },
+              {
+                '$member.email$': {
+                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                },
+              },
+            ],
+          },
+          include: [
+            {
+              model: UserModel,
+              as: 'member',
+            },
+          ],
+        })
+      : await this.modelWorkspaceUser.findAll({
+          where: { workspaceId },
+          include: [UserModel],
+        });
 
     return usersWorkspace.map((userWorkspace) =>
       this.workspaceUserToDomain(userWorkspace),

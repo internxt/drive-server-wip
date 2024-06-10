@@ -1117,6 +1117,7 @@ export class WorkspacesUsecases {
   async getWorkspaceMembers(
     workspaceId: WorkspaceAttributes['id'],
     user: User,
+    search?: string,
   ) {
     const workspace = await this.workspaceRepository.findOne({
       ownerId: user.uuid,
@@ -1128,6 +1129,7 @@ export class WorkspacesUsecases {
 
     const workspaceUsers = await this.workspaceRepository.findWorkspaceUsers(
       workspace.id,
+      search,
     );
 
     const teamsInWorkspace = await this.teamRepository.getTeamsInWorkspace(
