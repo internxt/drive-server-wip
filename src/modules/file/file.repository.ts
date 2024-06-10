@@ -49,6 +49,13 @@ export interface FileRepository {
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
+  getSumSizeOfTrashedAndExistentFiles(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    limit: number,
+    offset: number,
+    order: Array<[keyof File, string]>,
+  ): Promise<{ size: string }[]>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -290,6 +297,34 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async getSumSizeOfTrashedAndExistentFiles(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    limit: number,
+    offset: number,
+    order: Array<[keyof File, string]> = [],
+  ): Promise<{ size: string }[]> {
+    const sizes = await this.fileModel.findAll({
+      attributes: ['size'],
+      limit,
+      offset,
+      where: {
+        [Op.or]: [
+          { status: FileStatus.EXISTS },
+          { status: FileStatus.TRASHED },
+        ],
+      },
+      include: {
+        model: WorkspaceItemUserModel,
+        attributes: [],
+        where: { createdBy, workspaceId },
+      },
+      order,
+    });
+
+    return sizes as unknown as { size: string }[];
   }
 
   async findAllCursorWithThumbnails(
