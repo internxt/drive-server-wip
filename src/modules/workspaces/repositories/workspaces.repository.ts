@@ -24,34 +24,6 @@ import { FileAttributes } from '../../file/file.domain';
 import { FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
 
-export interface WorkspaceRepository {
-  findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
-  findByOwner(ownerId: Workspace['ownerId']): Promise<Workspace[]>;
-  createTransaction(): Promise<Transaction>;
-  findOrCreate(opts: FindOrCreateOptions): Promise<[Workspace | null, boolean]>;
-  create(workspace: any): Promise<Workspace>;
-  findAllBy(where: any): Promise<Array<Workspace> | []>;
-  findAllByWithPagination(
-    where: any,
-    limit?: number,
-    offset?: number,
-  ): Promise<Workspace[]>;
-  findOne(where: Partial<WorkspaceAttributes>): Promise<Workspace | null>;
-  findInvite(
-    where: Partial<WorkspaceInviteAttributes>,
-  ): Promise<WorkspaceInvite | null>;
-  updateById(
-    id: WorkspaceAttributes['id'],
-    update: Partial<WorkspaceAttributes>,
-    transaction?: Transaction,
-  ): Promise<void>;
-  updateBy(
-    where: Partial<WorkspaceAttributes>,
-    update: Partial<WorkspaceAttributes>,
-    transaction?: Transaction,
-  ): Promise<void>;
-}
-
 @Injectable()
 export class SequelizeWorkspaceRepository {
   constructor(
