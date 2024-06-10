@@ -22,7 +22,6 @@ import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { Folder } from '../folder/folder.domain';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 

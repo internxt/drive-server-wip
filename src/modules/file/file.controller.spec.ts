@@ -7,10 +7,12 @@ import { FileUseCases } from './file.usecase';
 import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 describe('FileController', () => {
   let fileController: FileController;
   let fileUseCases: FileUseCases;
+  let folderUseCases: FolderUseCases;
   let file: File;
 
   const userMocked = User.build({
@@ -53,6 +55,7 @@ describe('FileController', () => {
 
     fileController = module.get<FileController>(FileController);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     file = newFile();
   });
 
@@ -107,6 +110,75 @@ describe('FileController', () => {
         filePath,
       );
       expect(result).toEqual({ file: expectedFile });
+    });
+
+    it('When get file metadata by path is requested with a valid path and multiple posibble files, then the file is returned', async () => {
+      const firstAncestorFolder1 = newFolder({
+        attributes: {
+          name: 'test',
+          plainName: 'test',
+        },
+      });
+      const firstAncestorFolder2 = newFolder({
+        attributes: {
+          name: 'test2',
+          plainName: 'test2',
+        },
+      });
+      const possibleFolder1 = newFolder({
+        attributes: {
+          name: 'folder',
+          plainName: 'folder',
+          parent: firstAncestorFolder1,
+          parentId: firstAncestorFolder1.id,
+          parentUuid: firstAncestorFolder1.uuid,
+        },
+      });
+      const possibleFolder2 = newFolder({
+        attributes: {
+          name: 'folder',
+          plainName: 'folder',
+          parent: firstAncestorFolder2,
+          parentId: firstAncestorFolder2.id,
+          parentUuid: firstAncestorFolder2.uuid,
+        },
+      });
+      const possibleFile1 = newFile({
+        attributes: {
+          name: 'file',
+          type: 'png',
+          folder: possibleFolder1,
+          folderId: possibleFolder1.id,
+          folderUuid: possibleFolder1.uuid,
+        },
+      });
+      const possibleFile2 = newFile({
+        attributes: {
+          name: 'file',
+          type: 'png',
+          folder: possibleFolder2,
+          folderId: possibleFolder2.id,
+          folderUuid: possibleFolder2.uuid,
+        },
+      });
+      const completePath = `/${firstAncestorFolder1.name}/${possibleFolder1.name}/${possibleFile1.name}.${possibleFile1.type}`;
+      const filePath = Buffer.from(completePath, 'binary').toString('base64');
+      jest
+        .spyOn(fileUseCases, 'getFilesByPathAndUser')
+        .mockResolvedValue([possibleFile1, possibleFile2]);
+      jest
+        .spyOn(fileUseCases, 'getPathFirstFolder')
+        .mockReturnValue(possibleFolder1.plainName);
+      jest
+        .spyOn(folderUseCases, 'getFolderAncestors')
+        .mockResolvedValueOnce([newFolder(), possibleFolder2, newFolder()])
+        .mockResolvedValueOnce([newFolder(), possibleFolder1, newFolder()]);
+
+      const result = await fileController.getFileMetaByPath(
+        userMocked,
+        filePath,
+      );
+      expect(result).toEqual({ file: possibleFile1 });
     });
 
     it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
