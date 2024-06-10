@@ -2118,75 +2118,138 @@ describe('WorkspacesUsecases', () => {
 
   describe('getUserUsageInWorkspace', () => {
     const user = newUser();
-    const workspaceId = v4();
+    const workspace = newWorkspace();
 
-    it('When user is not valid, then it should throw', async () => {
+    it('When user is not valid, then it should throw a BadRequestException', async () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValue(null);
 
       await expect(
-        service.getUserUsageInWorkspace(user, workspaceId),
+        service.getUserUsageInWorkspace(user, workspace.id),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When user is valid, then it should calculate the drive usage correctly', async () => {
-      const workspaceUser = newWorkspaceUser({
-        attributes: { memberId: user.uuid, workspaceId },
+    it('When fetching file sizes, then it should correctly sum the file sizes and update the member usage', async () => {
+      const existingDriveUsage = 500;
+
+      const member = newWorkspaceUser({
+        attributes: {
+          driveUsage: existingDriveUsage,
+          spaceLimit: existingDriveUsage * 10,
+        },
       });
+
+      const fileSizes = [{ size: '100' }, { size: '200' }];
 
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
-        .mockResolvedValue(workspaceUser);
+        .mockResolvedValue(member);
+
       jest
-        .spyOn(fileUseCases, 'getTrashedAndExistentFilesSizeSum')
-        .mockResolvedValueOnce([{ size: '1000' }, { size: '0' }])
-        .mockResolvedValueOnce([{ size: '1500' }, { size: '0' }])
-        .mockResolvedValueOnce([{ size: '500' }, { size: '0' }])
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(fileSizes)
         .mockResolvedValueOnce([]);
 
-      const result = await service.getUserUsageInWorkspace(user, workspaceId);
+      const result = await service.getUserUsageInWorkspace(user, workspace.id);
 
       expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
         memberId: user.uuid,
-        workspaceId,
+        workspaceId: workspace.id,
       });
-      expect(
-        fileUseCases.getTrashedAndExistentFilesSizeSum,
-      ).toHaveBeenCalledTimes(4);
-      expect(
-        fileUseCases.getTrashedAndExistentFilesSizeSum,
-      ).toHaveBeenNthCalledWith(1, user.uuid, workspaceId, {
-        limit: 100,
-        offset: 0,
-      });
-      expect(
-        fileUseCases.getTrashedAndExistentFilesSizeSum,
-      ).toHaveBeenNthCalledWith(2, user.uuid, workspaceId, {
-        limit: 100,
-        offset: 100,
-      });
-      expect(
-        fileUseCases.getTrashedAndExistentFilesSizeSum,
-      ).toHaveBeenNthCalledWith(3, user.uuid, workspaceId, {
-        limit: 100,
-        offset: 200,
-      });
-      expect(
-        fileUseCases.getTrashedAndExistentFilesSizeSum,
-      ).toHaveBeenNthCalledWith(4, user.uuid, workspaceId, {
-        limit: 100,
-        offset: 300,
-      });
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(4);
       expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
-        workspaceUser.id,
-        { ...workspaceUser, driveUsage: 3000 },
+        member.id,
+        {
+          ...member,
+          driveUsage: 1100,
+          lastUsageSyncAt: expect.any(Date),
+        },
       );
+
       expect(result).toEqual({
-        driveUsage: 3000,
-        backupsUsage: workspaceUser.backupsUsage,
-        spacelimit: workspaceUser.spaceLimit,
+        driveUsage: 1100,
+        backupsUsage: member.backupsUsage,
+        spaceLimit: member.spaceLimit,
       });
+    });
+
+    it('When there are no files, then it should not update the drive usage', async () => {
+      const member = newWorkspaceUser();
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValue([]);
+
+      const result = await service.getUserUsageInWorkspace(user, workspace.id);
+
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(2);
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        member.id,
+        {
+          ...member,
+          driveUsage: 0,
+          lastUsageSyncAt: expect.any(Date),
+        },
+      );
+
+      expect(result).toEqual({
+        driveUsage: 0,
+        backupsUsage: member.backupsUsage,
+        spaceLimit: member.spaceLimit,
+      });
+    });
+  });
+
+  describe('calculateFilesSizeSum', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When calculating file sizes, then it should correctly sum the sizes in chunks', async () => {
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.calculateFilesSizeSum(
+        user.uuid,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        null,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(300);
+    });
+
+    it('When there are no files, then it should return zero', async () => {
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValue([]);
+
+      const result = await service.calculateFilesSizeSum(
+        user.uuid,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        null,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(0);
     });
   });
 

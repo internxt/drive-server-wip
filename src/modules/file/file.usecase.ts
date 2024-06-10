@@ -313,23 +313,31 @@ export class FileUseCases {
     );
   }
 
-  async getTrashedAndExistentFilesSizeSum(
+  async getWorkspaceFilesSizeSumByStatuses(
     createdBy: UserAttributes['uuid'],
     workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
     options: {
       limit: number;
       offset: number;
       order?: Array<[keyof File, string]>;
+      createdFrom?: Date;
+      removedFrom?: Date;
     },
   ) {
     const fetchOrder = options?.order ?? [['uuid', 'ASC']];
 
-    return this.fileRepository.getSumSizeOfTrashedAndExistentFiles(
+    return this.fileRepository.getSumSizeOfFilesByStatuses(
       createdBy,
       workspaceId,
-      options.limit,
-      options.offset,
-      fetchOrder,
+      statuses,
+      {
+        limit: options.limit,
+        offset: options.offset,
+        order: fetchOrder,
+        createdFrom: options?.createdFrom,
+        removedFrom: options?.removedFrom,
+      },
     );
   }
 

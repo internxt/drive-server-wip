@@ -401,6 +401,7 @@ export const newWorkspaceUser = (params?: {
     key: randomDataGenerator.string({ length: 32 }),
     workspaceId: params?.workspaceId || v4(),
     spaceLimit: spaceLimit,
+    lastUsageSyncAt: new Date(),
     driveUsage: 0,
     backupsUsage: 0,
     deactivated: false,

@@ -17,7 +17,12 @@ import {
   FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
-import { newFile, newFolder } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
@@ -778,63 +783,79 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('getTrashedAndExistentFilesSizeSum', () => {
-    const createdBy = v4();
-    const workspaceId = v4();
-    const options = { limit: 10, offset: 10 };
+  describe('getWorkspaceFilesSizeSumByStatuses', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
 
-    it('When order is provided, then it should fetch files size with the given order', async () => {
-      const expectedResponse = [{ size: '1000' }, { size: '2000' }];
+    it('When called with specific statuses and options, then it should use them to fetch files', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const fileSizes = [{ size: '100' }, { size: '200' }];
 
       jest
-        .spyOn(fileRepository, 'getSumSizeOfTrashedAndExistentFiles')
-        .mockResolvedValue(expectedResponse);
+        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
+        .mockResolvedValue(fileSizes);
 
-      const result = await service.getTrashedAndExistentFilesSizeSum(
-        createdBy,
-        workspaceId,
+      const createdFrom = new Date('2023-01-01');
+
+      const options = {
+        limit: 100,
+        offset: 0,
+        createdFrom,
+      };
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+        options,
+      );
+
+      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+        statuses,
         {
-          ...options,
-          order: [['name', 'ASC']],
+          limit: options.limit,
+          offset: options.offset,
+          order: [['uuid', 'ASC']],
+          createdFrom: createdFrom,
+          removedFrom: undefined,
         },
       );
-
-      expect(
-        fileRepository.getSumSizeOfTrashedAndExistentFiles,
-      ).toHaveBeenCalledWith(
-        createdBy,
-        workspaceId,
-        options.limit,
-        options.offset,
-        [['name', 'ASC']],
-      );
-      expect(result).toEqual(expectedResponse);
+      expect(result).toEqual(fileSizes);
     });
 
-    it('When order is not provided, then it should fetch files size with the default order', async () => {
-      const expectedResponse = [{ size: '3000' }];
-      const defaultOrder = [['uuid', 'ASC']];
+    it('When there are no file sizes, then it should return an empty array', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const options = {
+        limit: 100,
+        offset: 0,
+      };
+      const fileSizes: { size: string }[] = [];
 
       jest
-        .spyOn(fileRepository, 'getSumSizeOfTrashedAndExistentFiles')
-        .mockResolvedValue(expectedResponse);
+        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
+        .mockResolvedValue(fileSizes);
 
-      const result = await service.getTrashedAndExistentFilesSizeSum(
-        createdBy,
-        workspaceId,
-        { limit: options.limit, offset: options.offset },
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+        { ...options, order: [['uuid', 'ASC']] },
       );
 
-      expect(
-        fileRepository.getSumSizeOfTrashedAndExistentFiles,
-      ).toHaveBeenCalledWith(
-        createdBy,
-        workspaceId,
-        options.limit,
-        options.offset,
-        defaultOrder,
+      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+        statuses,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          order: [['uuid', 'ASC']],
+          createdFrom: undefined,
+          removedFrom: undefined,
+        },
       );
-      expect(result).toEqual(expectedResponse);
+      expect(result).toEqual(fileSizes);
     });
   });
 });

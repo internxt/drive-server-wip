@@ -19,7 +19,7 @@ import {
 } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../file/file.model';
-import { FileAttributes, FileStatus } from '../../file/file.domain';
+import { FileAttributes } from '../../file/file.domain';
 import { FolderAttributes } from '../../folder/folder.domain';
 import { Op } from 'sequelize';
 import { FolderModel } from '../../folder/folder.model';
