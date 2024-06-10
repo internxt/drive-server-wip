@@ -7,6 +7,8 @@ import {
 } from './folder.repository';
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -16,10 +18,11 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { newFolder, newUser } from '../../../test/fixtures';
+import { newFolder, newUser, newWorkspace } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
+import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 
 const folderId = 4;
 const user = newUser();
@@ -824,6 +827,63 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('renameFolder', () => {
+    it('When the new folder name is invalid, then it should throw', async () => {
+      const folder = newFolder();
+      const emptyName = '';
+
+      await expect(service.renameFolder(folder, emptyName)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      const invalidName = 'Invalid/Name';
+      await expect(service.renameFolder(folder, invalidName)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When a folder already exists with the new name, then it should throw', async () => {
+      const folder = newFolder();
+      const existingFolder = newFolder({
+        attributes: { parentId: folder.parentId, plainName: 'New Name' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValue(existingFolder);
+
+      await expect(service.renameFolder(folder, 'New Name')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('When the folder is renamed successfully, then it should return the updated folder', async () => {
+      const folder = newFolder();
+      const encryptedFolderName = 'encrypted-folder-name';
+      const newFolderName = 'New Name';
+      const updatedFolder = newFolder({
+        attributes: {
+          name: encryptedFolderName,
+          plainName: newFolderName,
+        },
+      });
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(encryptedFolderName);
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(folderRepository, 'updateByFolderId')
+        .mockResolvedValueOnce(updatedFolder);
+
+      const result = await service.renameFolder(folder, newFolderName);
+
+      expect(result).toEqual(updatedFolder);
+    });
+  });
+
   describe('createFolder', () => {
     const folderName = 'New Folder';
 
@@ -907,8 +967,9 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('getFoldersWithParentInWorkspace', () => {
+  describe('getFoldersInWorkspace', () => {
     const createdBy = userMocked.uuid;
+    const workspace = newWorkspace();
     const parentFolderUuid = 'parent-folder-uuid';
     const decryptedFolder = newFolder({
       attributes: { plainName: 'decrypted-name' },
@@ -924,8 +985,9 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([decryptedFolder]);
 
-      const result = await service.getFoldersWithParentInWorkspace(
+      const result = await service.getFoldersInWorkspace(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         findOptions,
       );
@@ -941,8 +1003,9 @@ describe('FolderUseCases', () => {
         .spyOn(service, 'decryptFolderName')
         .mockReturnValueOnce(decryptedFolder);
 
-      const result = await service.getFoldersWithParentInWorkspace(
+      const result = await service.getFoldersInWorkspace(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         findOptions,
       );
@@ -958,8 +1021,9 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findAllCursorInWorkspace')
         .mockResolvedValueOnce([decryptedFolder]);
 
-      const result = await service.getFoldersWithParentInWorkspace(
+      const result = await service.getFoldersInWorkspace(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         { ...findOptions, sort: sortOptions as any },
       );
@@ -967,11 +1031,83 @@ describe('FolderUseCases', () => {
       expect(result).toEqual([decryptedFolder]);
       expect(folderRepository.findAllCursorInWorkspace).toHaveBeenCalledWith(
         createdBy,
+        workspace.id,
         { parentUuid: parentFolderUuid },
         findOptions.limit,
         findOptions.offset,
         sortOptions,
       );
+    });
+  });
+
+  describe('updateFolderMetaData', () => {
+    const newFolderMetadata: UpdateFolderMetaDto = {
+      plainName: 'new-folder-name',
+    };
+
+    it('When the folder is not owned by the user, then it should throw', async () => {
+      const mockFolder = newFolder();
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
+
+      await expect(
+        service.updateFolderMetaData(
+          userMocked,
+          mockFolder.uuid,
+          newFolderMetadata,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When a folder with the same name already exists in the same location, then it should throw', async () => {
+      const mockFolder = newFolder({ owner: userMocked });
+      const folderWithSameName = newFolder({
+        owner: userMocked,
+        attributes: { name: mockFolder.name, plainName: mockFolder.plainName },
+      });
+
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(folderWithSameName);
+
+      await expect(
+        service.updateFolderMetaData(
+          userMocked,
+          mockFolder.uuid,
+          newFolderMetadata,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When the folder metadata is updated successfully, then it should update and return the updated folder', async () => {
+      const encryptedName = 'encrypted-new-folder-name';
+      const mockFolder = newFolder({ owner: userMocked });
+      const updatedFolder = newFolder({
+        attributes: {
+          name: encryptedName,
+          plainName: newFolderMetadata.plainName,
+        },
+      });
+
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
+      jest.spyOn(mockFolder, 'isOwnedBy').mockReturnValueOnce(true);
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
+      jest
+        .spyOn(folderRepository, 'updateByFolderId')
+        .mockResolvedValue(updatedFolder);
+
+      const result = await service.updateFolderMetaData(
+        userMocked,
+        mockFolder.uuid,
+        newFolderMetadata,
+      );
+
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
+        mockFolder.id,
+        { plainName: newFolderMetadata.plainName, name: encryptedName },
+      );
+      expect(result).toEqual(updatedFolder);
     });
   });
 });

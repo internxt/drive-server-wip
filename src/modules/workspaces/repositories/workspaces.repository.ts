@@ -14,8 +14,15 @@ import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { Op, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
-import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
+import {
+  WorkspaceItemType,
+  WorkspaceItemUserAttributes,
+} from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { FileModel } from '../../file/file.model';
+import { FileAttributes } from '../../file/file.domain';
+import { FolderAttributes } from '../../folder/folder.domain';
+import { FolderModel } from '../../folder/folder.model';
 
 export interface WorkspaceRepository {
   findById(id: WorkspaceAttributes['id']): Promise<Workspace | null>;
@@ -178,12 +185,75 @@ export class SequelizeWorkspaceRepository {
     return items.map((item) => this.workspaceItemUserToDomain(item));
   }
 
+  getItemsCountBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<number> {
+    return this.modelWorkspaceItemUser.count({ where });
+  }
+
+  getItemFilesCountBy(
+    where: Partial<Omit<WorkspaceItemUserAttributes, 'itemType'>>,
+    whereFile?: Partial<FileAttributes>,
+  ): Promise<number> {
+    return this.modelWorkspaceItemUser.count({
+      where: { ...where, itemType: WorkspaceItemType.File },
+      include: { model: FileModel, where: { ...whereFile } },
+    });
+  }
+
+  getItemFoldersCountBy(
+    where: Partial<Omit<WorkspaceItemUserAttributes, 'itemType'>>,
+    whereFolder?: Partial<FolderAttributes>,
+  ): Promise<number> {
+    return this.modelWorkspaceItemUser.count({
+      where: { ...where, itemType: WorkspaceItemType.Folder },
+      include: { model: FolderModel, where: { ...whereFolder } },
+    });
+  }
+
+  async findWorkspaceResourcesOwner(
+    workspaceId: WorkspaceItemUserAttributes['id'],
+  ): Promise<User | null> {
+    const workspaceUser = await this.modelWorkspace.findOne({
+      where: { id: workspaceId },
+      include: { model: UserModel, as: 'workpaceUser' },
+    });
+
+    return workspaceUser?.workpaceUser
+      ? User.build({ ...workspaceUser?.workpaceUser.get({ plain: true }) })
+      : null;
+  }
+
   async getItemBy(
     where: Partial<WorkspaceItemUserAttributes>,
   ): Promise<WorkspaceItemUser | null> {
     const item = await this.modelWorkspaceItemUser.findOne({ where });
 
     return item ? this.workspaceItemUserToDomain(item) : null;
+  }
+
+  async updateItemBy(
+    where: Partial<WorkspaceItemUserAttributes>,
+    update: Partial<WorkspaceItemUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceItemUser.update(update, { where });
+  }
+  async getItemsByAttributesAndCreator(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    items: Partial<Omit<WorkspaceItemUserAttributes, 'createdBy'>>[],
+  ): Promise<WorkspaceItemUser[]> {
+    const conditions = items.map((item) => ({
+      ...item,
+      createdBy,
+    }));
+
+    const foundItems = await this.modelWorkspaceItemUser.findAll({
+      where: {
+        [Op.or]: conditions,
+      },
+    });
+
+    return foundItems.map((item) => this.workspaceItemUserToDomain(item));
   }
 
   async deleteUserFromWorkspace(
@@ -365,6 +435,10 @@ export class SequelizeWorkspaceRepository {
     transaction?: Transaction,
   ): Promise<void> {
     await this.modelWorkspace.update(update, { where, transaction });
+  }
+
+  async deleteById(id: WorkspaceAttributes['id']): Promise<void> {
+    await this.modelWorkspace.destroy({ where: { id } });
   }
 
   async updateWorkspaceUser(

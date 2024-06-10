@@ -31,9 +31,10 @@ import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
-import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileUseCases } from '../file/file.usecase';
@@ -45,8 +46,10 @@ import {
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
+  WorkspaceItemUserAttributes,
 } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
+import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -56,10 +59,11 @@ export class WorkspacesUsecases {
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
     private configService: ConfigService,
     private mailerService: MailerService,
+    private fileUseCases: FileUseCases,
+    private folderUseCases: FolderUseCases,
+    private readonly avatarService: AvatarService,
   ) {}
 
   async initiateWorkspace(
@@ -109,6 +113,7 @@ export class WorkspacesUsecases {
       ownerId: owner.uuid,
       name: 'My Workspace',
       address: workspaceData?.address,
+      avatar: null,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
       setupCompleted: false,
@@ -406,6 +411,113 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async getWorkspaceUserTrashedItems(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+    itemType: WorkspaceItemUserAttributes['itemType'],
+    limit = 50,
+    offset = 0,
+  ) {
+    let result: File[] | Folder[];
+
+    if (itemType === WorkspaceItemType.File) {
+      result = await this.fileUseCases.getFilesInWorkspace(
+        user.uuid,
+        workspaceId,
+        {
+          status: FileStatus.TRASHED,
+        },
+        {
+          limit,
+          offset,
+        },
+      );
+    } else {
+      result = await this.folderUseCases.getFoldersInWorkspace(
+        user.uuid,
+        workspaceId,
+        {
+          deleted: true,
+          removed: false,
+        },
+        {
+          limit,
+          offset,
+        },
+      );
+    }
+
+    return { result };
+  }
+
+  async emptyUserTrashedItems(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const emptyTrashItems = async (
+      itemCount: number,
+      chunkSize: number,
+      getItems: (offset: number) => Promise<any[]>,
+      deleteItems: (items: (File | Folder)[]) => Promise<void>,
+    ) => {
+      const promises = [];
+      for (let i = 0; i < itemCount; i += chunkSize) {
+        const items = await getItems(i);
+        promises.push(deleteItems(items));
+      }
+      await Promise.all(promises);
+    };
+
+    const [filesCount, foldersCount] = await Promise.all([
+      this.workspaceRepository.getItemFilesCountBy(
+        {
+          createdBy: user.uuid,
+          workspaceId,
+        },
+        { status: FileStatus.TRASHED },
+      ),
+      this.workspaceRepository.getItemFoldersCountBy(
+        {
+          createdBy: user.uuid,
+          workspaceId,
+        },
+        { removed: false, deleted: true },
+      ),
+    ]);
+
+    const workspaceUser =
+      await this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId);
+
+    const emptyTrashChunkSize = 100;
+
+    await emptyTrashItems(
+      foldersCount,
+      emptyTrashChunkSize,
+      (offset) =>
+        this.folderUseCases.getFoldersInWorkspace(
+          user.uuid,
+          workspaceId,
+          { deleted: true, removed: false },
+          { limit: emptyTrashChunkSize, offset },
+        ),
+      (folders: Folder[]) =>
+        this.folderUseCases.deleteByUser(workspaceUser, folders),
+    );
+
+    await emptyTrashItems(
+      filesCount,
+      emptyTrashChunkSize,
+      (offset) =>
+        this.fileUseCases.getFilesInWorkspace(
+          user.uuid,
+          workspaceId,
+          { status: FileStatus.TRASHED },
+          { limit: emptyTrashChunkSize, offset },
+        ),
+      (files: File[]) => this.fileUseCases.deleteByUser(workspaceUser, files),
+    );
+  }
+
   async createFile(
     member: User,
     workspaceId: string,
@@ -541,8 +653,9 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('You have no access to this folder');
     }
 
-    const folders = await this.folderUseCases.getFoldersWithParentInWorkspace(
+    const folders = await this.folderUseCases.getFoldersInWorkspace(
       user.uuid,
+      workspaceId,
       {
         parentId: folder.id,
         deleted: false,
@@ -590,6 +703,7 @@ export class WorkspacesUsecases {
 
     const files = await this.fileUseCases.getFilesInWorkspace(
       user.uuid,
+      workspaceId,
       {
         folderId: folder.id,
         status: FileStatus.EXISTS,
@@ -916,11 +1030,25 @@ export class WorkspacesUsecases {
       await this.getWorkspacesPendingToBeSetup(user),
     ]);
 
+    const workspacesFiltered = availablesWorkspaces.filter(
+      ({ workspace, workspaceUser }) =>
+        workspace.isWorkspaceReady() && !workspaceUser.deactivated,
+    );
+
+    const workspacesWithAvatar = await Promise.all(
+      workspacesFiltered.map(async (item) => ({
+        workspaceUser: item.workspaceUser.toJSON(),
+        workspace: {
+          ...item.workspace,
+          avatar: item.workspace?.avatar
+            ? await this.getAvatarUrl(item.workspace.avatar)
+            : null,
+        },
+      })),
+    );
+
     return {
-      availableWorkspaces: availablesWorkspaces.filter(
-        ({ workspace, workspaceUser }) =>
-          workspace.isWorkspaceReady() && !workspaceUser.deactivated,
-      ),
+      availableWorkspaces: workspacesWithAvatar,
       pendingWorkspaces: ownerPendingWorkspaces,
     };
   }
@@ -932,6 +1060,40 @@ export class WorkspacesUsecases {
     });
 
     return workspacesToBeSetup;
+  }
+
+  async findWorkspaceResourceOwner(workspace: Workspace) {
+    return this.workspaceRepository.findWorkspaceResourcesOwner(workspace.id);
+  }
+
+  async isUserCreatorOfItem(
+    requester: User,
+    itemId: WorkspaceItemUser['itemId'],
+    itemType: WorkspaceItemUser['itemType'],
+  ) {
+    const item = await this.workspaceRepository.getItemBy({
+      itemId,
+      itemType,
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item does not exist');
+    }
+
+    return item.isOwnedBy(requester);
+  }
+
+  async isUserCreatorOfAllItems(
+    requester: User,
+    items: Pick<WorkspaceItemUserAttributes, 'itemId' | 'itemType'>[],
+  ) {
+    const userItems =
+      await this.workspaceRepository.getItemsByAttributesAndCreator(
+        requester.uuid,
+        items,
+      );
+
+    return userItems.length === items.length;
   }
 
   async getWorkspaceTeams(user: User, workspaceId: WorkspaceAttributes['id']) {
@@ -1254,7 +1416,7 @@ export class WorkspacesUsecases {
     await this.teamRepository.deleteTeamById(teamId);
   }
 
-  findUserInWorkspace(
+  findUserAndWorkspace(
     userUuid: string,
     workspaceId: string,
   ): Promise<{
@@ -1347,5 +1509,237 @@ export class WorkspacesUsecases {
     teamUser: WorkspaceTeamUser | null;
   }> {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
+  }
+
+  async deleteWorkspaceContent(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const rootFolder = await this.folderUseCases.getByUuid(
+      workspace.rootFolderId,
+    );
+
+    await this.folderUseCases.deleteByUser(workspaceUser, [rootFolder]);
+
+    await this.workspaceRepository.deleteById(workspaceId);
+  }
+
+  async transferPersonalItemsToWorkspaceOwner(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are the owner of this workspace');
+    }
+
+    const memberWorkspaceUser =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId,
+        memberId: user.uuid,
+      });
+
+    const memberRootFolder = await this.folderUseCases.getByUuid(
+      memberWorkspaceUser.rootFolderId,
+    );
+
+    const foldersInPersonalRootFolder =
+      await this.folderUseCases.getFoldersInWorkspace(
+        user.uuid,
+        workspace.id,
+        {
+          parentId: memberRootFolder.id,
+          deleted: false,
+          removed: false,
+        },
+        { limit: 1, offset: 0 },
+      );
+
+    const filesInPersonalRootFolder =
+      await this.fileUseCases.getFilesInWorkspace(
+        user.uuid,
+        workspace.id,
+        {
+          folderId: memberRootFolder.id,
+          status: FileStatus.EXISTS,
+          deleted: false,
+          removed: false,
+        },
+        { limit: 1, offset: 0 },
+      );
+
+    if (
+      !foldersInPersonalRootFolder.length &&
+      !filesInPersonalRootFolder.length
+    )
+      return;
+
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const ownerWorkspaceUser = await this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId,
+        memberId: workspace.ownerId,
+      },
+    );
+
+    const movedFolder = await this.folderUseCases.moveFolder(
+      workspaceNetworkUser,
+      memberRootFolder.uuid,
+      ownerWorkspaceUser.rootFolderId,
+    );
+
+    await this.workspaceRepository.updateItemBy(
+      {
+        createdBy: ownerWorkspaceUser.memberId,
+      },
+      {
+        workspaceId,
+        itemId: memberRootFolder.uuid,
+      },
+    );
+
+    await this.folderUseCases.renameFolder(movedFolder, user.username);
+  }
+
+  async leaveWorkspace(
+    workspaceId: Workspace['id'],
+    user: User,
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.isUserOwner(user)) {
+      throw new BadRequestException('Owner can not leave workspace');
+    }
+
+    await this.transferPersonalItemsToWorkspaceOwner(workspaceId, user);
+
+    const teamsUserManages =
+      await this.teamRepository.getTeamsWhereUserIsManagerByWorkspaceId(
+        workspaceId,
+        user,
+      );
+    for (const team of teamsUserManages) {
+      await this.teamRepository.updateById(team.id, {
+        managerId: workspace.ownerId,
+      });
+      await this.teamRepository.deleteUserFromTeam(user.uuid, team.id);
+    }
+
+    await this.workspaceRepository.deleteUserFromWorkspace(
+      user.uuid,
+      workspaceId,
+    );
+  }
+  async validateWorkspaceInvite(
+    inviteId: WorkspaceInvite['id'],
+  ): Promise<string> {
+    const invite = await this.workspaceRepository.findInvite({ id: inviteId });
+
+    if (!invite) {
+      throw new BadRequestException('Invalid invite');
+    }
+
+    return invite.id;
+  }
+
+  getAvatarUrl(avatarKey: Workspace['avatar']): Promise<string> {
+    return this.avatarService.getDownloadUrl(avatarKey);
+  }
+
+  async upsertAvatar(
+    workspaceId: Workspace['id'],
+    avatarKey: string,
+  ): Promise<Error | { avatar: string }> {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    if (!avatarKey) {
+      throw new BadRequestException('Avatar key required');
+    }
+
+    if (workspace.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(workspace.avatar);
+      } catch (err) {
+        Logger.error(
+          `[WORKSPACE/SET_AVATAR]Deleting the avatar in workspaceId: ${
+            workspace.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
+
+    try {
+      await this.workspaceRepository.updateById(workspace.id, {
+        avatar: avatarKey,
+      });
+      const avatarUrl = await this.getAvatarUrl(avatarKey);
+      return { avatar: avatarUrl };
+    } catch (err) {
+      Logger.error(
+        `[WORKSPACE/SET_AVATAR]Adding the avatar in workspaceId: ${
+          workspace.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async deleteAvatar(workspaceId: Workspace['id']): Promise<Error | void> {
+    const workspace = await this.workspaceRepository.findOne({
+      id: workspaceId,
+    });
+
+    if (!workspace) {
+      throw new BadRequestException('Not valid workspace');
+    }
+
+    if (workspace.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(workspace.avatar);
+        await this.workspaceRepository.updateById(workspace.id, {
+          avatar: null,
+        });
+      } catch (err) {
+        Logger.error(
+          `[WORKSPACE/DELETE_AVATAR]Deleting the avatar in workspaceId: ${
+            workspace.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
   }
 }

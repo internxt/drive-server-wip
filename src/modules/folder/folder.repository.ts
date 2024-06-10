@@ -15,6 +15,7 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { Literal } from 'sequelize/types/utils';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -51,6 +52,7 @@ export interface FolderRepository {
   ): Promise<Folder | null>;
   findByNameAndParentUuid(
     name: FolderAttributes['name'],
+    plainName: FolderAttributes['plainName'],
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
@@ -63,6 +65,7 @@ export interface FolderRepository {
   ): Promise<FindInTreeResponse | null>;
   findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,
     offset: number,
@@ -171,6 +174,7 @@ export class SequelizeFolderRepository implements FolderRepository {
 
   async findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,
     offset: number,
@@ -184,6 +188,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           model: WorkspaceItemUserModel,
           where: {
             createdBy,
+            workspaceId,
           },
         },
       ],
@@ -253,12 +258,16 @@ export class SequelizeFolderRepository implements FolderRepository {
 
   async findByNameAndParentUuid(
     name: FolderAttributes['name'],
+    plainName: FolderAttributes['plainName'],
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({
       where: {
-        name: { [Op.eq]: name },
+        [Op.or]: [
+          { name: { [Op.eq]: name } },
+          { plainName: { [Op.eq]: plainName } },
+        ],
         parentUuid: { [Op.eq]: parentUuid },
         deleted: { [Op.eq]: deleted },
       },

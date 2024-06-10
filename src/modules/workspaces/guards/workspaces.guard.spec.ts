@@ -88,7 +88,7 @@ describe('WorkspaceGuard', () => {
         idSource: 'params',
       });
 
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace: null,
         workspaceUser: null,
       });
@@ -115,7 +115,7 @@ describe('WorkspaceGuard', () => {
         idSource: 'params',
       });
 
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace,
         workspaceUser: {} as WorkspaceUser,
       });
@@ -142,7 +142,7 @@ describe('WorkspaceGuard', () => {
         idSource: 'params',
       });
 
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace,
         workspaceUser: {} as WorkspaceUser,
       });
@@ -166,7 +166,7 @@ describe('WorkspaceGuard', () => {
         idSource: 'params',
       });
 
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace,
         workspaceUser: {} as WorkspaceUser,
       });
@@ -187,7 +187,7 @@ describe('WorkspaceGuard', () => {
         accessContext: AccessContext.WORKSPACE,
         idSource: 'params',
       });
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace,
         workspaceUser: {} as WorkspaceUser,
       });
@@ -208,7 +208,7 @@ describe('WorkspaceGuard', () => {
         accessContext: AccessContext.WORKSPACE,
         idSource: 'params',
       });
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace,
         workspaceUser: workspaceMember,
       });
@@ -229,7 +229,7 @@ describe('WorkspaceGuard', () => {
         accessContext: AccessContext.WORKSPACE,
         idSource: 'params',
       });
-      workspaceUseCases.findUserInWorkspace.mockResolvedValue({
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
         workspace,
         workspaceUser: null,
       });

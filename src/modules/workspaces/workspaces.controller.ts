@@ -7,8 +7,12 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   Query,
   UseGuards,
+  UseInterceptors,
+  InternalServerErrorException,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -40,6 +44,7 @@ import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   FolderAttributes,
   SortableFolderAttributes,
@@ -48,10 +53,14 @@ import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import { SortableFileAttributes } from '../file/file.domain';
+import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
+import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
+@UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
   constructor(private workspaceUseCases: WorkspacesUsecases) {}
 
@@ -111,6 +120,20 @@ export class WorkspacesController {
     const { inviteId } = acceptInvitationDto;
 
     return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
+  }
+
+  @Get('/invitations/:inviteId/validate')
+  @ApiOperation({
+    summary: 'Validates if invitation is valid',
+  })
+  @ApiOkResponse({
+    description: 'Workspace invitation is valid',
+  })
+  validateWorkspaceInvitation(
+    @Param('inviteId', ValidateUUIDPipe)
+    inviteId: WorkspaceInviteAttributes['id'],
+  ) {
+    return this.workspaceUseCases.validateWorkspaceInvite(inviteId);
   }
 
   @Delete('/invitations/:inviteId')
@@ -289,6 +312,42 @@ export class WorkspacesController {
     );
   }
 
+  @Post('/:workspaceId/avatar')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Avatar added to the workspace',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  @UseInterceptors(FileInterceptor('file', avatarStorageS3Config))
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File | any,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const { key } = file;
+    if (!key) {
+      throw new InternalServerErrorException('File could not be uploaded');
+    }
+    return this.workspaceUseCases.upsertAvatar(workspaceId, key);
+  }
+
+  @Delete('/:workspaceId/avatar')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Avatar deleted from the workspace',
+  })
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @UseGuards(WorkspaceGuard)
+  async deleteAvatar(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.deleteAvatar(workspaceId);
+  }
+
   @Get('/:workspaceId/credentials')
   @ApiOperation({
     summary: 'Gets workspace credentials',
@@ -446,6 +505,55 @@ export class WorkspacesController {
     );
   }
 
+  @Get('/:workspaceId/trash')
+  @ApiOperation({
+    summary: 'Get current workspace user trash',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: "user's trashed items in workspace",
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getUserTrashedItems(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Query() pagination: PaginationQueryDto,
+    @Query('type') type: WorkspaceItemType,
+  ) {
+    const { limit, offset } = pagination;
+
+    return this.workspaceUseCases.getWorkspaceUserTrashedItems(
+      user,
+      workspaceId,
+      type,
+      limit,
+      offset,
+    );
+  }
+
+  @Delete('/:workspaceId/trash')
+  @ApiOperation({
+    summary: 'Empty current member trash',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description:
+      "Member's trashed items in workspace have been successfully removed",
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async emptyTrash(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.emptyUserTrashedItems(user, workspaceId);
+  }
+
   @Get('/:workspaceId/folders/:folderUuid/folders')
   @ApiOperation({
     summary: 'Get folders in folder',
@@ -559,6 +667,25 @@ export class WorkspacesController {
       user,
       editWorkspaceBody,
     );
+  }
+
+  @Delete('/:workspaceId/members/leave')
+  @ApiOperation({
+    summary: 'Leave a workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User left workspace',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async leaveWorkspace(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.leaveWorkspace(workspaceId, user);
   }
 
   @Get(':workspaceId/members/:memberId')
