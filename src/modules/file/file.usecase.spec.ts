@@ -624,4 +624,76 @@ describe('FileUseCases', () => {
       );
     });
   });
+
+  describe('file path operations', () => {
+    it('When get depth from path is requested, then it is returned', async () => {
+      expect(service.getPathDepth('/folder')).toStrictEqual(0);
+      expect(service.getPathDepth('folder')).toStrictEqual(0);
+      expect(service.getPathDepth('/')).toStrictEqual(0);
+      expect(service.getPathDepth('/file.png')).toStrictEqual(0);
+      expect(service.getPathDepth('/subfolder/file.png')).toStrictEqual(1);
+      expect(service.getPathDepth('subfolder/file.png')).toStrictEqual(1);
+      expect(
+        service.getPathDepth('/subfolder/other/test/file.png'),
+      ).toStrictEqual(3);
+    });
+
+    it('When get last folder name from path is requested, then it is returned', async () => {
+      expect(service.getPathLastFolder('/folder')).toStrictEqual('');
+      expect(service.getPathLastFolder('folder')).toStrictEqual('');
+      expect(service.getPathLastFolder('/')).toStrictEqual('');
+      expect(service.getPathLastFolder('/file.png')).toStrictEqual('');
+      expect(service.getPathLastFolder('/subfolder/file.png')).toStrictEqual(
+        'subfolder',
+      );
+      expect(service.getPathLastFolder('subfolder/file.png')).toStrictEqual(
+        'subfolder',
+      );
+      expect(
+        service.getPathLastFolder('/subfolder/other/test/file.png'),
+      ).toStrictEqual('test');
+    });
+
+    it('When get first folder name from path is requested, then it is returned', async () => {
+      expect(service.getPathFirstFolder('/folder')).toStrictEqual('');
+      expect(service.getPathFirstFolder('folder')).toStrictEqual('');
+      expect(service.getPathFirstFolder('/')).toStrictEqual('');
+      expect(service.getPathFirstFolder('/file.png')).toStrictEqual('');
+      expect(service.getPathFirstFolder('/subfolder/file.png')).toStrictEqual(
+        'subfolder',
+      );
+      expect(service.getPathFirstFolder('subfolder/file.png')).toStrictEqual(
+        'subfolder',
+      );
+      expect(
+        service.getPathFirstFolder('/subfolder/other/test/file.png'),
+      ).toStrictEqual('subfolder');
+    });
+
+    it('When get file data from path is requested, then it is returned', async () => {
+      expect(service.getPathFileData('/file.png')).toStrictEqual({
+        fileName: 'file',
+        fileType: 'png',
+      });
+      expect(service.getPathFileData('test/file.png')).toStrictEqual({
+        fileName: 'file',
+        fileType: 'png',
+      });
+      expect(service.getPathFileData('file.png')).toStrictEqual({
+        fileName: 'file',
+        fileType: 'png',
+      });
+      expect(
+        service.getPathFileData('/subfolder/other/test/file.png'),
+      ).toStrictEqual({ fileName: 'file', fileType: 'png' });
+      expect(service.getPathFileData('/file')).toStrictEqual({
+        fileName: 'file',
+        fileType: '',
+      });
+      expect(service.getPathFileData('folder')).toStrictEqual({
+        fileName: 'folder',
+        fileType: '',
+      });
+    });
+  });
 });

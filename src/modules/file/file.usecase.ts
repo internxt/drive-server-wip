@@ -468,9 +468,16 @@ export class FileUseCases {
   }
 
   getPathLastFolder(filePath: string): string {
-    const directory = path.dirname(filePath);
-    const lastFolderName = path.basename(directory);
-    return lastFolderName;
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const parts = filePath.split('/');
+    for (let i = parts.length - 2; i >= 0; i--) {
+      if (parts[i]) {
+        return parts[i];
+      }
+    }
+    return '';
   }
 
   getPathFirstFolder(filePath: string): string {
@@ -479,7 +486,7 @@ export class FileUseCases {
     }
     const parts = filePath.split('/');
     for (const part of parts) {
-      if (part && part.length > 0) {
+      if (part && parts.length > 1) {
         return part;
       }
     }
