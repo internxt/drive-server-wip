@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { newFile, newFolder } from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
@@ -88,6 +88,49 @@ describe('FileController', () => {
         fileController.moveFile(userMocked, v4(), {
           destinationFolder: 'invaliduuid',
         }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('get file by path', () => {
+    it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
+      const expectedFile = newFile();
+      const filePath = Buffer.from('/test/file.png', 'binary').toString(
+        'base64',
+      );
+      jest
+        .spyOn(fileUseCases, 'getFilesByPathAndUser')
+        .mockResolvedValue([expectedFile]);
+
+      const result = await fileController.getFileMetaByPath(
+        userMocked,
+        filePath,
+      );
+      expect(result).toEqual({ file: expectedFile });
+    });
+
+    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+      const filePath = Buffer.from('/test/file.png', 'binary').toString(
+        'base64',
+      );
+      jest.spyOn(fileUseCases, 'getFilesByPathAndUser').mockResolvedValue([]);
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
+      expect(
+        fileController.getFileMetaByPath(userMocked, 'invalidpath'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(fileController.getFileMetaByPath(userMocked, '')).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, '/path/notBase64Encoded'),
       ).rejects.toThrow(BadRequestException);
     });
   });

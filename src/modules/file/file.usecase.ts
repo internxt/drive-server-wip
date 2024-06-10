@@ -24,6 +24,7 @@ import {
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { Folder } from '../folder/folder.domain';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
@@ -502,5 +503,42 @@ export class FileUseCases {
       folderUuid,
       FileStatus.EXISTS,
     );
+  }
+
+  async getFilesByPathAndUser(filePath: string, userId: number) {
+    const depth = this.getPathDepth(filePath);
+    const folderName = this.getPathLastFolder(filePath);
+    const { fileName, fileType } = this.getPathFileData(filePath);
+
+    const possibleFolders = (await this.folderUsecases.getFoldersByDepthAndName(
+      userId,
+      depth,
+      folderName.length > 0 ? folderName : null,
+    )) as Folder[];
+
+    const possibleFiles: File[] = [];
+    for (const possibleFolder of possibleFolders) {
+      const file = await this.getFileByFolderAndName(
+        fileName,
+        fileType,
+        possibleFolder.uuid,
+      );
+      if (file) {
+        possibleFiles.push(file);
+      }
+    }
+    /**
+     * We can only have multiple possible files when depth > 1. As we can not have 2 folders with the same name inside the root folder.
+     * Path examples with same depth and same file name:
+     * /Folder1/samesubfoldername/hi.jpg
+     * /Folder2/samesubfoldername/hi.jpg
+     * The first ancestor folder has to be different, so we can use it to get the correct file
+     */
+    if (depth < 2 && possibleFiles.length > 1) {
+      throw new ConflictException(
+        'Found multiple duplicated files under the same folder',
+      );
+    }
+    return possibleFiles;
   }
 }
