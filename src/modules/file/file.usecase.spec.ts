@@ -777,4 +777,64 @@ describe('FileUseCases', () => {
       expect(result).toEqual(updatedFile);
     });
   });
+
+  describe('getTrashedAndExistentFilesSizeSum', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const options = { limit: 10, offset: 10 };
+
+    it('When order is provided, then it should fetch files size with the given order', async () => {
+      const expectedResponse = [{ size: '1000' }, { size: '2000' }];
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfTrashedAndExistentFiles')
+        .mockResolvedValue(expectedResponse);
+
+      const result = await service.getTrashedAndExistentFilesSizeSum(
+        createdBy,
+        workspaceId,
+        {
+          ...options,
+          order: [['name', 'ASC']],
+        },
+      );
+
+      expect(
+        fileRepository.getSumSizeOfTrashedAndExistentFiles,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        options.limit,
+        options.offset,
+        [['name', 'ASC']],
+      );
+      expect(result).toEqual(expectedResponse);
+    });
+
+    it('When order is not provided, then it should fetch files size with the default order', async () => {
+      const expectedResponse = [{ size: '3000' }];
+      const defaultOrder = [['uuid', 'ASC']];
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfTrashedAndExistentFiles')
+        .mockResolvedValue(expectedResponse);
+
+      const result = await service.getTrashedAndExistentFilesSizeSum(
+        createdBy,
+        workspaceId,
+        { limit: options.limit, offset: options.offset },
+      );
+
+      expect(
+        fileRepository.getSumSizeOfTrashedAndExistentFiles,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        options.limit,
+        options.offset,
+        defaultOrder,
+      );
+      expect(result).toEqual(expectedResponse);
+    });
+  });
 });

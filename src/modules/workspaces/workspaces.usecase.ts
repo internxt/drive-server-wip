@@ -450,6 +450,53 @@ export class WorkspacesUsecases {
     return { result };
   }
 
+  async getUserUsageInWorkspace(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const member = await this.workspaceRepository.findWorkspaceUser({
+      memberId: user.uuid,
+      workspaceId,
+    });
+
+    if (!member) {
+      throw new BadRequestException('User not valid');
+    }
+
+    const calculateUsageChunkSize = 100;
+    let offset = 0;
+    let totalUsedDrive = 0;
+    let filesFetched;
+
+    do {
+      const sizesChunk =
+        await this.fileUseCases.getTrashedAndExistentFilesSizeSum(
+          user.uuid,
+          workspaceId,
+          { limit: calculateUsageChunkSize, offset },
+        );
+
+      filesFetched = sizesChunk.length;
+
+      const filesSize = sizesChunk.reduce(
+        (sum, file) => sum + Number(file.size),
+        0,
+      );
+
+      totalUsedDrive += filesSize;
+      offset += calculateUsageChunkSize;
+    } while (filesFetched !== 0);
+
+    member.driveUsage = totalUsedDrive;
+    await this.workspaceRepository.updateWorkspaceUser(member.id, member);
+
+    return {
+      driveUsage: member.driveUsage,
+      backupsUsage: member.backupsUsage,
+      spacelimit: member.spaceLimit,
+    };
+  }
+
   async emptyUserTrashedItems(
     user: User,
     workspaceId: WorkspaceAttributes['id'],

@@ -19,7 +19,7 @@ import {
 } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../file/file.model';
-import { FileAttributes } from '../../file/file.domain';
+import { FileAttributes, FileStatus } from '../../file/file.domain';
 import { FolderAttributes } from '../../folder/folder.domain';
 import { Op } from 'sequelize';
 import { FolderModel } from '../../folder/folder.model';
@@ -389,6 +389,15 @@ export class SequelizeWorkspaceRepository {
   ): Promise<void> {
     await this.modelWorkspaceUser.update(update, {
       where: { id: workspaceUserId },
+    });
+  }
+
+  async updateWorkspaceUserBy(
+    where: Partial<WorkspaceUserAttributes>,
+    update: Partial<WorkspaceUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(update, {
+      where,
     });
   }
 

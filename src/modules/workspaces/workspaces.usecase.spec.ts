@@ -2116,6 +2116,80 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getUserUsageInWorkspace', () => {
+    const user = newUser();
+    const workspaceId = v4();
+
+    it('When user is not valid, then it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.getUserUsageInWorkspace(user, workspaceId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is valid, then it should calculate the drive usage correctly', async () => {
+      const workspaceUser = newWorkspaceUser({
+        attributes: { memberId: user.uuid, workspaceId },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(fileUseCases, 'getTrashedAndExistentFilesSizeSum')
+        .mockResolvedValueOnce([{ size: '1000' }, { size: '0' }])
+        .mockResolvedValueOnce([{ size: '1500' }, { size: '0' }])
+        .mockResolvedValueOnce([{ size: '500' }, { size: '0' }])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getUserUsageInWorkspace(user, workspaceId);
+
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+        memberId: user.uuid,
+        workspaceId,
+      });
+      expect(
+        fileUseCases.getTrashedAndExistentFilesSizeSum,
+      ).toHaveBeenCalledTimes(4);
+      expect(
+        fileUseCases.getTrashedAndExistentFilesSizeSum,
+      ).toHaveBeenNthCalledWith(1, user.uuid, workspaceId, {
+        limit: 100,
+        offset: 0,
+      });
+      expect(
+        fileUseCases.getTrashedAndExistentFilesSizeSum,
+      ).toHaveBeenNthCalledWith(2, user.uuid, workspaceId, {
+        limit: 100,
+        offset: 100,
+      });
+      expect(
+        fileUseCases.getTrashedAndExistentFilesSizeSum,
+      ).toHaveBeenNthCalledWith(3, user.uuid, workspaceId, {
+        limit: 100,
+        offset: 200,
+      });
+      expect(
+        fileUseCases.getTrashedAndExistentFilesSizeSum,
+      ).toHaveBeenNthCalledWith(4, user.uuid, workspaceId, {
+        limit: 100,
+        offset: 300,
+      });
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        workspaceUser.id,
+        { ...workspaceUser, driveUsage: 3000 },
+      );
+      expect(result).toEqual({
+        driveUsage: 3000,
+        backupsUsage: workspaceUser.backupsUsage,
+        spacelimit: workspaceUser.spaceLimit,
+      });
+    });
+  });
+
   describe('isUserCreatorOfItem', () => {
     it('When item does not exist, then fail', async () => {
       const user = newUser();

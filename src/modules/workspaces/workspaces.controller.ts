@@ -449,6 +449,25 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
+  @Get('/:workspaceId/usage')
+  @ApiOperation({
+    summary: 'User usage in drive',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User usage in drive',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async calculateUserUsage(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.getUserUsageInWorkspace(user, workspaceId);
+  }
+
   @Post('/:workspaceId/files')
   @ApiOperation({
     summary: 'Create File',
