@@ -2114,13 +2114,7 @@ export class SharingService {
       resourceId,
     );
 
-    for (const permission of permissions) {
-      if (permission.name === action) {
-        return true;
-      }
-    }
-
-    return false;
+    return permissions.some((p) => p.name === action);
   }
 
   async notifyUserSharingRoleUpdated(

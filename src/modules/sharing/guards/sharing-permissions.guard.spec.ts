@@ -25,7 +25,11 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceTeam,
+  newWorkspaceTeamUser,
 } from '../../../../test/fixtures';
+import { WorkspaceTeam } from '../../workspaces/domains/workspace-team.domain';
+import { v4 } from 'uuid';
+import { Folder } from '../../folder/folder.domain';
 
 jest.mock('../../../lib/jwt');
 
@@ -171,6 +175,114 @@ describe('SharingPermissionsGuard', () => {
     jest.spyOn(guard, 'isUserAbleToPerfomAction').mockResolvedValue(true);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  describe('isTeamMemberAbleToPerformAction', () => {
+    it('When team is able to perfom action and user is part of team, it should return true', async () => {
+      const teamId = v4();
+      const sharedRootFolderId = v4();
+      const action = SharingActionName.UploadFile;
+
+      sharingUseCases.canPerfomAction.mockResolvedValue(true);
+      workspaceUseCases.findUserInTeam.mockResolvedValue({
+        teamUser: newWorkspaceTeamUser(),
+        team: newWorkspaceTeam(),
+      });
+
+      const result = await guard.isTeamMemberAbleToPerformAction(
+        user,
+        teamId,
+        sharedRootFolderId,
+        action,
+      );
+
+      expect(result).toBe(true);
+      expect(sharingUseCases.canPerfomAction).toHaveBeenCalledWith(
+        user.uuid,
+        sharedRootFolderId,
+        action,
+        SharedWithType.WorkspaceTeam,
+      );
+      expect(workspaceUseCases.findUserInTeam).toHaveBeenCalledWith(
+        user.uuid,
+        teamId,
+      );
+    });
+
+    it('When team is able to perform action but user is not part of team, it should return false', async () => {
+      const teamId = v4();
+      const sharedRootFolderId = v4();
+      const action = SharingActionName.UploadFile;
+
+      sharingUseCases.canPerfomAction.mockResolvedValue(true);
+      workspaceUseCases.findUserInTeam.mockResolvedValue({
+        teamUser: null,
+        team: newWorkspaceTeam(),
+      });
+
+      const result = await guard.isTeamMemberAbleToPerformAction(
+        user,
+        teamId,
+        sharedRootFolderId,
+        action,
+      );
+
+      expect(result).toBe(false);
+      expect(sharingUseCases.canPerfomAction).toHaveBeenCalledWith(
+        user.uuid,
+        sharedRootFolderId,
+        action,
+        SharedWithType.WorkspaceTeam,
+      );
+      expect(workspaceUseCases.findUserInTeam).toHaveBeenCalledWith(
+        user.uuid,
+        teamId,
+      );
+    });
+  });
+
+  describe('isUserAbleToPerfomAction', () => {
+    it('When user has permissions for the requested action, it should return true', async () => {
+      const sharedRootFolderId = v4();
+      const action = SharingActionName.UploadFile;
+
+      sharingUseCases.canPerfomAction.mockResolvedValue(true);
+
+      const result = await guard.isUserAbleToPerfomAction(
+        user,
+        sharedRootFolderId,
+        action,
+      );
+
+      expect(result).toBe(true);
+      expect(sharingUseCases.canPerfomAction).toHaveBeenCalledWith(
+        user.uuid,
+        sharedRootFolderId,
+        action,
+        SharedWithType.Individual,
+      );
+    });
+
+    it('When user does not have permissions for the requested action, it should return false', async () => {
+      const sharedRootFolderId = v4();
+      const action = SharingActionName.UploadFile;
+
+      sharingUseCases.canPerfomAction.mockResolvedValue(false);
+
+      const result = await guard.isUserAbleToPerfomAction(
+        user,
+        sharedRootFolderId,
+        action,
+      );
+
+      expect(result).toBe(false);
+      expect(sharingUseCases.canPerfomAction).toHaveBeenCalledWith(
+        user.uuid,
+        sharedRootFolderId,
+        action,
+        SharedWithType.Individual,
+      );
+    });
   });
 });
 

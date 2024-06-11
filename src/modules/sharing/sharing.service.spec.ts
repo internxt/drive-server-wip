@@ -636,7 +636,7 @@ describe('Sharing Use Cases', () => {
               sharingId: sharing.id,
               encryptionKey: sharing.encryptionKey,
               dateShared: sharing.createdAt,
-              sharedWithMe: user.uuid !== sharing.folder.user.uuid,
+              sharedWithMe: true,
             }),
           ]),
           files: [],

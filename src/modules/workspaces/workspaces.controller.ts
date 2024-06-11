@@ -66,6 +66,7 @@ import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator'
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { SharingService } from '../sharing/sharing.service';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
+import { getItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-shared-folder.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -523,7 +524,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/:teamId/shared/files')
+  @Get(':workspaceId/teams/:teamId/shared/files')
   @ApiOperation({
     summary: 'Get shared files with a team',
   })
@@ -550,7 +551,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/:teamId/shared/folders')
+  @Get(':workspaceId/teams/:teamId/shared/folders')
   @ApiOperation({
     summary: 'Get shared folders with a team',
   })
@@ -577,7 +578,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/:teamId/shared/:sharedFolderId/folders')
+  @Get(':workspaceId/teams/:teamId/shared/:sharedFolderId/folders')
   @ApiOperation({
     summary: 'Get all folders inside a shared folder',
   })
@@ -590,11 +591,10 @@ export class WorkspacesController {
     teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
-    @Query('orderBy') orderBy: OrderBy,
-    @Query('token') token: string,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query() queryDto: getItemsInsideSharedFolderDtoQuery,
   ) {
+    const { orderBy, token, page, perPage } = queryDto;
+
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;
@@ -610,7 +610,7 @@ export class WorkspacesController {
     );
   }
 
-  @Get(':workspaceId/:teamId/shared/:sharedFolderId/files')
+  @Get(':workspaceId/teams/:teamId/shared/:sharedFolderId/files')
   @ApiOperation({
     summary: 'Get files inside a shared folder',
   })
@@ -623,11 +623,10 @@ export class WorkspacesController {
     teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
-    @Query('orderBy') orderBy: OrderBy,
-    @Query('token') token: string,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query() queryDto: getItemsInsideSharedFolderDtoQuery,
   ) {
+    const { orderBy, token, page, perPage } = queryDto;
+
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;

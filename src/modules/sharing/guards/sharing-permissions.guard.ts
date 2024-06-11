@@ -121,7 +121,7 @@ export class SharingPermissionsGuard implements CanActivate {
       this.workspaceUseCases.findUserInTeam(requester.uuid, teamId),
     ]);
 
-    return userIsAllowedToPerfomAction && !!isUserPartOfTeam;
+    return userIsAllowedToPerfomAction && !!isUserPartOfTeam?.teamUser;
   }
 
   async isUserAbleToPerfomAction(

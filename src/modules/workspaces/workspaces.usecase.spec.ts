@@ -47,7 +47,6 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import { Role } from '../sharing/sharing.domain';
-import { CreatedAt } from 'sequelize-typescript';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2282,6 +2281,191 @@ describe('WorkspacesUsecases', () => {
         items: [
           {
             ...childFolder,
+            encryptionKey: null,
+            dateShared: null,
+            sharedWithMe: null,
+          },
+        ],
+        token: expect.any(String),
+        bucket: rootFolder.bucket,
+        parent: { uuid: folder.uuid, name: folder.plainName },
+        name: folder.plainName,
+        role: sharingRole.role.name,
+      });
+    });
+
+    it('When user tries to navigate up from shared root folder, then it should throw', async () => {
+      const sharedRootFolderId = v4();
+      const folder = newFolder({ attributes: { uuid: sharedRootFolderId } });
+      const itemFolder = newWorkspaceItemUser();
+      const sharing = newSharing();
+      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const decodedToken = {
+        sharedRootFolderId,
+        parentFolderId: sharedRootFolderId,
+        folder: { uuid: sharedRootFolderId, id: v4() },
+        workspace: { workspaceId, teamId },
+        owner: { uuid: v4() },
+      };
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(itemFolder);
+      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(sharing);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userUsecases, 'getUser').mockResolvedValue(workspaceUser);
+      (verifyWithDefaultSecret as jest.Mock).mockReturnValue(decodedToken);
+
+      await expect(
+        service.getItemsInSharedFolder(
+          workspaceId,
+          teamId,
+          user,
+          folderUuid,
+          itemsType,
+          'validToken',
+          options,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When navigation is neither up nor down, then it should throw', async () => {
+      const folder = newFolder();
+      const itemFolder = newWorkspaceItemUser();
+      const sharing = newSharing();
+      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const decodedToken = {
+        sharedRootFolderId: v4(),
+        parentFolderId: v4(),
+        folder: { uuid: v4(), id: v4() },
+        workspace: { workspaceId, teamId },
+        owner: { uuid: v4() },
+      };
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(itemFolder);
+      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(sharing);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userUsecases, 'getUser').mockResolvedValue(workspaceUser);
+      (verifyWithDefaultSecret as jest.Mock).mockReturnValue(decodedToken);
+
+      await expect(
+        service.getItemsInSharedFolder(
+          workspaceId,
+          teamId,
+          user,
+          folderUuid,
+          itemsType,
+          'validToken',
+          options,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When item is owned by user and itemsType is File, then it should return the files in the folder', async () => {
+      const folder = newFolder();
+      const itemFolder = newWorkspaceItemUser({
+        attributes: {
+          createdBy: user.uuid,
+        },
+      });
+      const childFile = newFile({
+        attributes: { folderUuid: folder.uuid },
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(itemFolder);
+      jest
+        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .mockResolvedValue([childFile]);
+
+      const result = await service.getItemsInSharedFolder(
+        workspaceId,
+        teamId,
+        user,
+        folderUuid,
+        WorkspaceItemType.File,
+        token,
+        options,
+      );
+
+      expect(result).toEqual({
+        items: [
+          {
+            ...childFile,
+            encryptionKey: null,
+            dateShared: null,
+            sharedWithMe: null,
+          },
+        ],
+        name: folder.plainName,
+        bucket: '',
+        encryptionKey: null,
+        token: '',
+        parent: { uuid: folder.uuid, name: folder.plainName },
+        role: 'OWNER',
+      });
+    });
+
+    it('When team has access to the folder and itemsType is File, then it should return the files in the folder', async () => {
+      const folder = newFolder();
+      const itemFolder = newWorkspaceItemUser();
+      const sharing = newSharing();
+      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const childFile = newFile({
+        attributes: { folderUuid: folder.uuid },
+      });
+      const rootFolder = newFolder();
+      const sharingRole = newSharingRole();
+      sharingRole.role = new Role({
+        id: v4(),
+        name: 'name',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(itemFolder);
+      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(sharing);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(userUsecases, 'getUser').mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .mockResolvedValue([childFile]);
+      jest
+        .spyOn(sharingUseCases, 'findSharingRoleBy')
+        .mockResolvedValue(sharingRole);
+      (generateTokenWithPlainSecret as jest.Mock).mockReturnValue(
+        'generatedToken',
+      );
+
+      const result = await service.getItemsInSharedFolder(
+        workspaceId,
+        teamId,
+        user,
+        folderUuid,
+        WorkspaceItemType.File,
+        token,
+        options,
+      );
+
+      expect(result).toMatchObject({
+        items: [
+          {
+            ...childFile,
             encryptionKey: null,
             dateShared: null,
             sharedWithMe: null,
