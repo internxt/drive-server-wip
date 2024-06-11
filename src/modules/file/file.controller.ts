@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
   Put,
   Query,
 } from '@nestjs/common';
@@ -29,6 +30,7 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { CreateFileDto } from './dto/create-file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -36,6 +38,18 @@ const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 @Controller('files')
 export class FileController {
   constructor(private readonly fileUseCases: FileUseCases) {}
+
+  @Post('/')
+  @ApiOperation({
+    summary: 'Create File',
+  })
+  @ApiBearerAuth()
+  async createFile(
+    @UserDecorator() user: User,
+    @Body() createFileDto: CreateFileDto,
+  ) {
+    return this.fileUseCases.createFile(user, createFileDto);
+  }
 
   @Get('/count')
   async getFileCount(
