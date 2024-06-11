@@ -168,7 +168,7 @@ describe('FileController', () => {
         .mockResolvedValue([possibleFile1, possibleFile2]);
       jest
         .spyOn(fileUseCases, 'getPathFirstFolder')
-        .mockReturnValue(possibleFolder1.plainName);
+        .mockReturnValue(possibleFolder1.name);
       jest
         .spyOn(folderUseCases, 'getFolderAncestors')
         .mockResolvedValueOnce([newFolder(), possibleFolder2, newFolder()])

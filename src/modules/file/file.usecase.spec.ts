@@ -695,5 +695,81 @@ describe('FileUseCases', () => {
         fileType: '',
       });
     });
+
+    it('When get files from path and user is requested, then they are returned', async () => {
+      const firstAncestorFolder1 = newFolder({
+        attributes: {
+          name: 'test',
+          plainName: 'test',
+        },
+      });
+      const firstAncestorFolder2 = newFolder({
+        attributes: {
+          name: 'test2',
+          plainName: 'test2',
+        },
+      });
+      const possibleFolder1 = newFolder({
+        attributes: {
+          name: 'folder',
+          plainName: 'folder',
+          parent: firstAncestorFolder1,
+          parentId: firstAncestorFolder1.id,
+          parentUuid: firstAncestorFolder1.uuid,
+        },
+      });
+      const possibleFolder2 = newFolder({
+        attributes: {
+          name: 'folder',
+          plainName: 'folder',
+          parent: firstAncestorFolder2,
+          parentId: firstAncestorFolder2.id,
+          parentUuid: firstAncestorFolder2.uuid,
+        },
+      });
+      const possibleFile1 = newFile({
+        attributes: {
+          name: 'file',
+          type: 'png',
+          folder: possibleFolder1,
+          folderId: possibleFolder1.id,
+          folderUuid: possibleFolder1.uuid,
+        },
+      });
+      const possibleFile2 = newFile({
+        attributes: {
+          name: 'file',
+          type: 'png',
+          folder: possibleFolder2,
+          folderId: possibleFolder2.id,
+          folderUuid: possibleFolder2.uuid,
+        },
+      });
+      const completePath = `/${firstAncestorFolder1.name}/${possibleFolder1.name}/${possibleFile1.name}.${possibleFile1.type}`;
+      const filePath = Buffer.from(completePath, 'binary').toString('base64');
+
+      jest.spyOn(service, 'getPathDepth').mockReturnValue(2);
+      jest
+        .spyOn(service, 'getPathLastFolder')
+        .mockReturnValue(possibleFolder1.name);
+      jest.spyOn(service, 'getPathFileData').mockReturnValue({
+        fileName: possibleFile1.name,
+        fileType: possibleFile1.type,
+      });
+      jest
+        .spyOn(folderUseCases, 'getFoldersByDepthAndName')
+        .mockResolvedValue([possibleFolder1, possibleFolder2]);
+
+      jest
+        .spyOn(service, 'getFileByFolderAndName')
+        .mockResolvedValueOnce(possibleFile1)
+        .mockResolvedValueOnce(possibleFile2);
+
+      const result = await service.getFilesByPathAndUser(
+        filePath,
+        userMocked.id,
+      );
+      expect(result).toEqual([possibleFile1, possibleFile2]);
+    });
   });
 });
