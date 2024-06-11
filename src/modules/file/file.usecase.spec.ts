@@ -746,7 +746,7 @@ describe('FileUseCases', () => {
         },
       });
       const completePath = `/${firstAncestorFolder1.name}/${possibleFolder1.name}/${possibleFile1.name}.${possibleFile1.type}`;
-      const filePath = Buffer.from(completePath, 'binary').toString('base64');
+      const filePath = Buffer.from(completePath, 'utf-8').toString('base64');
 
       jest.spyOn(service, 'getPathDepth').mockReturnValue(2);
       jest

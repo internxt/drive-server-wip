@@ -98,7 +98,7 @@ describe('FileController', () => {
   describe('get file by path', () => {
     it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
       const expectedFile = newFile();
-      const filePath = Buffer.from('/test/file.png', 'binary').toString(
+      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
         'base64',
       );
       jest
@@ -162,7 +162,7 @@ describe('FileController', () => {
         },
       });
       const completePath = `/${firstAncestorFolder1.name}/${possibleFolder1.name}/${possibleFile1.name}.${possibleFile1.type}`;
-      const filePath = Buffer.from(completePath, 'binary').toString('base64');
+      const filePath = Buffer.from(completePath, 'utf-8').toString('base64');
       jest
         .spyOn(fileUseCases, 'getFilesByPathAndUser')
         .mockResolvedValue([possibleFile1, possibleFile2]);
