@@ -291,7 +291,7 @@ export class FolderUseCases {
 
   async createFolder(
     creator: User,
-    name: FolderAttributes['name'],
+    name: FolderAttributes['plainName'],
     parentFolderUuid: FolderAttributes['uuid'],
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;

@@ -10,11 +10,12 @@ import {
   NotImplementedException,
   Param,
   Patch,
+  Post,
   Put,
   Query,
   UseFilters,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -38,6 +39,7 @@ import { MoveFolderDto } from './dto/move-folder.dto';
 import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { CreateFolderDto } from './dto/create-folder.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -83,6 +85,24 @@ export class FolderController {
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
   ) {}
+
+  @Post('/')
+  @ApiOperation({
+    summary: 'Create Folder',
+  })
+  @ApiBearerAuth()
+  async createFolder(
+    @UserDecorator() user: User,
+    @Body() createFolderDto: CreateFolderDto,
+  ) {
+    const { plainName, parentFolderUuid } = createFolderDto;
+    const folder = await this.folderUseCases.createFolder(
+      user,
+      plainName,
+      parentFolderUuid,
+    );
+    return folder;
+  }
 
   @Get('/count')
   async getFolderCount(
