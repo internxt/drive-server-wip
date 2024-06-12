@@ -113,9 +113,6 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   sharedWorkspace: boolean;
 
-  @Column
-  tempKey: string;
-
   @AllowNull
   @Column
   avatar: string;

@@ -161,7 +161,6 @@ export const newUser = (): User => {
     secret_2FA: '',
     backupsBucket: '',
     sharedWorkspace: false,
-    tempKey: '',
     avatar: v4(),
     lastPasswordChangedAt: new Date(),
   });
