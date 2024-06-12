@@ -2318,6 +2318,35 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('findByOwnerId', () => {
+    it('When owner is not null then we should return the workspaces that belongs to the owner', async () => {
+      const owner = newUser();
+      const workspaceOne = newWorkspace({ owner });
+      const workspaceTwo = newWorkspace({ owner });
+      const workspaceThree = newWorkspace({
+        owner,
+        attributes: { setupCompleted: false },
+      });
+
+      const mockFindByOwner = [workspaceOne, workspaceTwo, workspaceThree];
+      jest
+        .spyOn(workspaceRepository, 'findByOwner')
+        .mockResolvedValue(mockFindByOwner);
+
+      await expect(service.findByOwnerId(owner.uuid)).resolves.toStrictEqual(
+        mockFindByOwner,
+      );
+    });
+
+    it('When owner is null, then is empty', async () => {
+      const spyFindByOwner = jest
+        .spyOn(workspaceRepository, 'findByOwner')
+        .mockResolvedValue([]);
+      await expect(service.findByOwnerId(null)).resolves.toStrictEqual([]);
+      expect(spyFindByOwner).toHaveBeenCalledWith(null);
+    });
+  });
+
   describe('initiateWorkspace', () => {
     const owner = newUser();
     const maxSpaceBytes = 1000000;
