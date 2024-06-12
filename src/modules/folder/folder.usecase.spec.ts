@@ -59,7 +59,6 @@ describe('FolderUseCases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
   });
 
@@ -351,7 +350,6 @@ describe('FolderUseCases', () => {
         mnemonic: '',
         hKey: undefined,
         secret_2FA: '',
-        tempKey: '',
         lastPasswordChangedAt: new Date(),
       });
       const folderId = 2713105696;
@@ -411,7 +409,6 @@ describe('FolderUseCases', () => {
         mnemonic: '',
         hKey: undefined,
         secret_2FA: '',
-        tempKey: '',
         lastPasswordChangedAt: new Date(),
       });
       const folderId = 2713105696;
@@ -476,7 +473,6 @@ describe('FolderUseCases', () => {
         mnemonic: '',
         hKey: undefined,
         secret_2FA: '',
-        tempKey: '',
         lastPasswordChangedAt: new Date(),
       });
       const folderId = 2713105696;

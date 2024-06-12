@@ -55,7 +55,6 @@ describe('Share Use Cases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
   });
   const userMock = User.build({
@@ -84,7 +83,6 @@ describe('Share Use Cases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
   });
   const mockFolder = Folder.build({

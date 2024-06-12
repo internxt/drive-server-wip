@@ -426,8 +426,16 @@ export class UserUseCases {
       const newTokenPayload = this.getNewTokenPayload(user);
 
       return {
-        token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
-        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        token: SignEmail(
+          newUser.email,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
+        newToken: Sign(
+          newTokenPayload,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
@@ -1129,8 +1137,16 @@ export class UserUseCases {
     return {
       ...emails,
       newAuthentication: {
-        token: SignEmail(user.email, this.configService.get('secrets.jwt')),
-        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        token: SignEmail(
+          user.email,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
+        newToken: Sign(
+          newTokenPayload,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
         user,
       },
     };
