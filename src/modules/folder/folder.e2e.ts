@@ -40,7 +40,6 @@ const user = new User({
   registerCompleted: false,
   backupsBucket: '',
   sharedWorkspace: false,
-  tempKey: '',
   avatar: '',
   lastPasswordChangedAt: null,
 });
