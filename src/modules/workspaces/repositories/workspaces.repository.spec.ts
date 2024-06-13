@@ -295,7 +295,7 @@ describe('SequelizeWorkspaceRepository', () => {
           [Op.or]: expect.arrayContaining([
             expect.objectContaining({
               '$member.lastname$': {
-                [Op.like]: Sequelize.literal(`\'%${searchValue}%\'`),
+                [Op.substring]: searchValue,
               },
             }),
           ]),

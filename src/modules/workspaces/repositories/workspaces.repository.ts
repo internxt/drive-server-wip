@@ -341,17 +341,17 @@ export class SequelizeWorkspaceRepository {
             [Op.or]: [
               {
                 '$member.name$': {
-                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                  [Op.substring]: search,
                 },
               },
               {
                 '$member.lastname$': {
-                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                  [Op.substring]: search,
                 },
               },
               {
                 '$member.email$': {
-                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                  [Op.substring]: search,
                 },
               },
             ],
