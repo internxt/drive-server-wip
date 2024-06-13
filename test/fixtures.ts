@@ -73,7 +73,6 @@ export const newFolder = (params?: NewFolderParams): Folder => {
     removed: false,
     deletedAt: undefined,
     removedAt: undefined,
-    depth: null,
   });
 
   params?.attributes &&

@@ -102,7 +102,6 @@ describe('Share Use Cases', () => {
     plainName: '',
     removed: false,
     removedAt: null,
-    depth: null,
   });
   const mockFile = File.build({
     id: 1,

@@ -34,7 +34,7 @@ export class Folder implements FolderAttributes {
   updatedAt: Date;
   size: number;
   sharings?: Sharing[];
-  depth: number | null;
+  depth?: number;
 
   private constructor({
     id,
