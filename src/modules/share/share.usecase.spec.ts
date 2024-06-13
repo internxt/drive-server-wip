@@ -113,6 +113,7 @@ describe('Share Use Cases', () => {
     deleted: false,
     deletedAt: undefined,
     userId: 1,
+    creationTime: new Date(),
     modificationTime: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
