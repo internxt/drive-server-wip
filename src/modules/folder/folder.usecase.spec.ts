@@ -558,6 +558,7 @@ describe('FolderUseCases', () => {
       plainName: 'name',
       removed: false,
       removedAt: null,
+      depth: undefined,
     };
 
     it('returns folder json data with the name decrypted', () => {
@@ -583,7 +584,6 @@ describe('FolderUseCases', () => {
       };
       delete expectedResult.parentId;
       delete expectedResult.parentUuid;
-      delete expectedResult.depth;
 
       expect(result).toStrictEqual(expectedResult);
     });
