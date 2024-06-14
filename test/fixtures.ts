@@ -115,7 +115,7 @@ export const newFile = (params?: NewFilesParams): File => {
       length: 20,
     }),
     type: randomDataGenerator.string(),
-    size: BigInt(randomDataGenerator.natural({ min: 1 })),
+    size: randomDataGenerator.natural({ min: 1 }),
     encryptVersion: '03-aes',
     deleted: false,
     removed: false,

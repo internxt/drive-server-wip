@@ -50,8 +50,13 @@ export class FileModel extends Model implements FileAttributes {
   @Column
   type: string;
 
-  @Column(DataType.BIGINT.UNSIGNED)
-  size: bigint;
+  @Column({
+    type: DataType.BIGINT.UNSIGNED,
+    get() {
+      return parseInt(this.getDataValue('size'));
+    },
+  })
+  size: number;
 
   @Column(DataType.STRING(24))
   bucket: string;

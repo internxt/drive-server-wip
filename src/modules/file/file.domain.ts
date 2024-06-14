@@ -22,7 +22,7 @@ export interface FileAttributes {
   fileId: string;
   name: string;
   type: string;
-  size: bigint;
+  size: number;
   bucket: string;
   folderId: number;
   folder?: any;
@@ -58,7 +58,7 @@ export class File implements FileAttributes {
   fileId: string;
   name: string;
   type: string;
-  size: bigint;
+  size: number;
   bucket: string;
   folderId: number;
   folder: Folder;

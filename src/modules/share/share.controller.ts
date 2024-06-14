@@ -121,7 +121,17 @@ export class ShareController {
       password,
     );
     const shareJSON = share.toJSON();
-    shareJSON.item = this.decryptItem(share.item);
+
+    const decryptedItem = this.decryptItem(share.item);
+
+    if ('size' in decryptedItem) {
+      shareJSON.item = {
+        ...decryptedItem,
+        size: parseInt(decryptedItem.size.toString()),
+      };
+    } else {
+      shareJSON.item = decryptedItem;
+    }
 
     return shareJSON;
   }

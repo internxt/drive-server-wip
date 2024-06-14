@@ -14,7 +14,7 @@ export class ShareDto {
   createdAt: Date;
   updatedAt: Date;
   fileId: number;
-  fileSize: bigint;
+  fileSize: number;
   folderId: number;
   folderUuid: string;
   fileToken: string;
