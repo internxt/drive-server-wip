@@ -1,4 +1,9 @@
-import { Module, forwardRef } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  forwardRef,
+} from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFileRepository } from './file.repository';
 import { FileUseCases } from './file.usecase';
@@ -12,6 +17,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
+import { convertSizeMiddleware } from 'src/middlewares/convert-size';
 
 @Module({
   imports: [
@@ -27,4 +33,8 @@ import { SharingModule } from '../sharing/sharing.module';
   providers: [SequelizeFileRepository, FileUseCases],
   exports: [FileUseCases, SequelizeFileRepository],
 })
-export class FileModule {}
+export class FileModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(convertSizeMiddleware).forRoutes(FileController);
+  }
+}
