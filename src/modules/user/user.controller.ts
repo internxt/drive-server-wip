@@ -393,9 +393,10 @@ export class UserController {
     }
 
     const { token, newToken } = this.userUseCases.getAuthTokens(user);
+    const avatar = await this.userUseCases.getAvatarUrl(user.avatar);
 
     return {
-      user: await this.userUseCases.getUser(user.uuid),
+      user: { ...user, avatar },
       oldToken: token,
       newToken: newToken,
     };
