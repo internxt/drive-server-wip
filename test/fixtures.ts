@@ -163,6 +163,7 @@ export const newUser = (): User => {
     sharedWorkspace: false,
     avatar: v4(),
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 };
 
