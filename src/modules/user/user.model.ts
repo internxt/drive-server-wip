@@ -124,4 +124,9 @@ export class UserModel extends Model implements UserAttributes {
   @AllowNull
   @Column
   tierId: string;
+
+  @Default(false)
+  @AllowNull(false)
+  @Column
+  emailVerified: boolean;
 }
