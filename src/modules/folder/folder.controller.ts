@@ -15,7 +15,13 @@ import {
   Query,
   UseFilters,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -326,6 +332,47 @@ export class FolderController {
 
         return { ...f, status: folderStatus };
       }),
+    };
+  }
+
+  @Get('/content/:uuid')
+  @ApiOperation({
+    summary: 'Gets folder content',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'uuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Current folder with children folders and files',
+  })
+  async getFolderContent(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+  ) {
+    const [currentFolder, childrenFolders, files] = await Promise.all([
+      this.folderUseCases.getFolderByUuidAndUser(folderUuid, user),
+      this.folderUseCases.getFolders(user.id, {
+        parentUuid: folderUuid,
+        deleted: false,
+        removed: false,
+      }),
+      this.fileUseCases.getFiles(user.id, {
+        folderUuid: folderUuid,
+        status: FileStatus.EXISTS,
+      }),
+    ]);
+
+    if (!currentFolder) {
+      throw new BadRequestException();
+    }
+
+    return {
+      ...currentFolder,
+      status: currentFolder.getFolderStatus(),
+      children: childrenFolders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      })),
+      files,
     };
   }
 
