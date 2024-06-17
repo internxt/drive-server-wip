@@ -20,7 +20,7 @@ export const convertSizeMiddleware = (
   res.send = function (data) {
     const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
     let newData = data;
-    if (typeof parsedData === 'object') {
+    if (typeof parsedData === 'object' && !Array.isArray(parsedData)) {
       newData = { ...parsedData };
       if ('size' in newData && typeof newData.size !== 'string') {
         newData.size = newData.size.toString();
@@ -38,6 +38,17 @@ export const convertSizeMiddleware = (
         }),
       };
     }
+
+    if (Array.isArray(parsedData)) {
+      newData = parsedData.map((item) => {
+        if (typeof item === 'object' && 'size' in item) {
+          return { ...item, size: item.size.toString() };
+        }
+
+        return item;
+      });
+    }
+
     return oldSend.call(this, JSON.stringify(newData));
   };
 
