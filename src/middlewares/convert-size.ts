@@ -8,12 +8,6 @@ export const convertSizeMiddleware = (
   const client = req.headers['internxt-client'] as string;
   const clientVersion = req.headers['internxt-version'] as string;
   const userAgent = req.headers['user-agent'];
-  console.log(':p', client, clientVersion, userAgent);
-  console.log(
-    client !== 'drive-desktop',
-    !userAgent.toLowerCase().includes('mac'),
-    compareVersion(clientVersion, '2.2.0.50') > 0,
-  );
   // early exit meant to only apply this middleware for macOs client with older versions
   if (
     client !== 'drive-desktop' ||
@@ -23,7 +17,6 @@ export const convertSizeMiddleware = (
     return next();
   }
   const oldSend = res.send;
-  console.log('Middleware applied');
   res.send = function (data) {
     const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
     let newData = data;
@@ -45,7 +38,6 @@ export const convertSizeMiddleware = (
         }),
       };
     }
-    console.log('calling send');
     return oldSend.call(this, JSON.stringify(newData));
   };
 

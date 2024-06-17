@@ -2,6 +2,7 @@ import {
   MiddlewareConsumer,
   Module,
   NestModule,
+  RequestMethod,
   forwardRef,
 } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
@@ -35,6 +36,12 @@ import { convertSizeMiddleware } from 'src/middlewares/convert-size';
 })
 export class FileModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(convertSizeMiddleware).forRoutes(FileController);
+    consumer
+      .apply(convertSizeMiddleware)
+      .forRoutes(
+        { path: 'files/:fileUUID', method: RequestMethod.PUT },
+        { path: 'files/:fileUUID/meta', method: RequestMethod.GET },
+        { path: 'files', method: RequestMethod.GET },
+      );
   }
 }

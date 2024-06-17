@@ -32,6 +32,11 @@ import { convertSizeMiddleware } from 'src/middlewares/convert-size';
 })
 export class FolderModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(convertSizeMiddleware).forRoutes(FolderController);
+    consumer
+      .apply(convertSizeMiddleware)
+      .forRoutes(
+        { path: 'folders/*/files', method: RequestMethod.GET },
+        FolderController,
+      );
   }
 }
