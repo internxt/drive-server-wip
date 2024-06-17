@@ -273,4 +273,56 @@ describe('FolderController', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('getFolderContent', () => {
+    it('When folde content is requested and the current folder is not found, then it should throw', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(null);
+
+      expect(
+        folderController.getFolderContent(userMocked, v4()),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder content is requested, then children folders and files should be returned', async () => {
+      const currentFolder = newFolder();
+
+      const expectedSubfiles = [
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+      ];
+
+      const expectedSubfolders = [
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+      ];
+
+      const mappedSubfolders = expectedSubfolders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      }));
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(currentFolder);
+
+      jest
+        .spyOn(folderUseCases, 'getFolders')
+        .mockResolvedValue(expectedSubfolders);
+
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedSubfiles);
+
+      const result = await folderController.getFolderContent(userMocked, v4());
+
+      expect(result).toEqual({
+        ...currentFolder,
+        status: currentFolder.getFolderStatus(),
+        children: mappedSubfolders,
+        files: expectedSubfiles,
+      });
+    });
+  });
 });
