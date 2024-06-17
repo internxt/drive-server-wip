@@ -12,12 +12,9 @@ module.exports = {
     });
 
     await queryInterface.sequelize.query(`
-      UPDATE files
-      SET "creation_time" = created_at,
-          "created_at" = CASE
-              WHEN created_at > NOW() THEN NOW()
-              ELSE created_at
-          END;
+      ALTER TABLE files RENAME COLUMN creation_time TO creation_time_temp;
+      ALTER TABLE files RENAME COLUMN created_at TO creation_time;
+      ALTER TABLE files RENAME COLUMN creation_time_temp TO created_at;
     `);
   },
 
