@@ -22,7 +22,7 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
-import { ConvertSizeInterceptor } from 'src/lib/convertSize.interceptor';
+import { ConvertSizeInterceptor } from '../../lib/convertSize.interceptor';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 

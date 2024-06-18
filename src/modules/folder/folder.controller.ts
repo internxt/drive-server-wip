@@ -34,7 +34,7 @@ import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
-import { ConvertSizeInterceptor } from 'src/lib/convertSize.interceptor';
+import { ConvertSizeInterceptor } from '../../lib/convertSize.interceptor';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
