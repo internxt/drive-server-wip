@@ -28,6 +28,8 @@ export class User implements UserAttributes {
   avatar: string;
   lastPasswordChangedAt: Date;
   tierId: string;
+  emailVerified: boolean;
+
   constructor({
     id,
     userId,
@@ -56,6 +58,7 @@ export class User implements UserAttributes {
     avatar,
     lastPasswordChangedAt,
     tierId,
+    emailVerified,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -84,6 +87,7 @@ export class User implements UserAttributes {
     this.avatar = avatar;
     this.lastPasswordChangedAt = lastPasswordChangedAt;
     this.tierId = tierId;
+    this.emailVerified = emailVerified;
   }
 
   static build(user: UserAttributes): User {
