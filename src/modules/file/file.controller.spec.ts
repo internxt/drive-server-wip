@@ -40,6 +40,7 @@ describe('FileController', () => {
     hKey: undefined,
     secret_2FA: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
