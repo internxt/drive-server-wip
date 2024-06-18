@@ -12,6 +12,7 @@ import {
   Patch,
   Query,
   UseFilters,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
@@ -33,6 +34,7 @@ import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
+import { ConvertSizeInterceptor } from 'src/lib/convertSize.interceptor';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -166,6 +168,7 @@ export class FolderController {
   }
 
   @Get(':id/files')
+  @UseInterceptors(ConvertSizeInterceptor)
   async getFolderFiles(
     @UserDecorator() user: User,
     @Param('id') folderId: number,

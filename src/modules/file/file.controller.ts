@@ -9,6 +9,7 @@ import {
   Patch,
   Put,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -21,6 +22,7 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
+import { ConvertSizeInterceptor } from 'src/lib/convertSize.interceptor';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -52,6 +54,7 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
+  @UseInterceptors(ConvertSizeInterceptor)
   async getFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -81,6 +84,7 @@ export class FileController {
   }
 
   @Put('/:uuid')
+  @UseInterceptors(ConvertSizeInterceptor)
   async replaceFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -110,6 +114,7 @@ export class FileController {
   }
 
   @Get('/')
+  @UseInterceptors(ConvertSizeInterceptor)
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,

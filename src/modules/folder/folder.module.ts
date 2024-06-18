@@ -1,10 +1,4 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  RequestMethod,
-  forwardRef,
-} from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
@@ -16,7 +10,6 @@ import { FolderController } from './folder.controller';
 import { UserModel } from '../user/user.model';
 import { UserModule } from '../user/user.module';
 import { SharingModule } from '../sharing/sharing.module';
-import { convertSizeMiddleware } from 'src/middlewares/convert-size';
 
 @Module({
   imports: [
@@ -30,13 +23,4 @@ import { convertSizeMiddleware } from 'src/middlewares/convert-size';
   providers: [SequelizeFolderRepository, CryptoService, FolderUseCases],
   exports: [FolderUseCases, SequelizeFolderRepository],
 })
-export class FolderModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(convertSizeMiddleware)
-      .forRoutes(
-        { path: 'folders/*/files', method: RequestMethod.GET },
-        FolderController,
-      );
-  }
-}
+export class FolderModule {}
