@@ -124,6 +124,7 @@ export class FileUseCases {
       updatedAt: new Date(),
       removedAt: null,
       status: FileStatus.EXISTS,
+      creationTime: new Date(),
     });
 
     return newFile;
