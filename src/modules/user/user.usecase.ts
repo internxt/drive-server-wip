@@ -364,20 +364,6 @@ export class UserUseCases {
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    const hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
-      email,
-      email,
-      networkPass,
-    ).catch((err) => {
-      Logger.error(
-        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
-        }`,
-      );
-      notifySignUpError(err);
-      return false;
-    });
-
     const freeTier = await this.featureLimitRepository.getFreeTier();
 
     const user = await this.userRepository.create({
@@ -412,17 +398,6 @@ export class UserUseCases {
         ).catch(notifySignUpError);
       }
 
-      let hasBeenSubscribed = false;
-      try {
-        hasBeenSubscribed = await hasBeenSubscribedPromise;
-
-        if (!hasBeenSubscribed) {
-          await this.createUserReferrals(user.id);
-        }
-      } catch (err) {
-        notifySignUpError(err);
-      }
-
       const newTokenPayload = this.getNewTokenPayload(user);
 
       return {
@@ -445,7 +420,7 @@ export class UserUseCases {
           bucket: bucket.id,
           uuid: userUuid,
           userId: networkPass,
-          hasReferralsProgram: !hasBeenSubscribed,
+          hasReferralsProgram: false,
         } as unknown as User,
         uuid: userUuid,
       };
