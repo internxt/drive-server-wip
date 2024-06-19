@@ -21,13 +21,17 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) {}
+  constructor(
+    private readonly fileUseCases: FileUseCases,
+    private readonly folderUseCases: FolderUseCases,
+  ) {}
 
   @Get('/count')
   async getFileCount(
@@ -193,5 +197,62 @@ export class FileController {
       moveFileData.destinationFolder,
     );
     return file;
+  }
+
+  @Get('/meta')
+  async getFileMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') encodedPath: string,
+  ) {
+    const filePath = Buffer.from(encodedPath, 'base64').toString('utf-8');
+    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    try {
+      const possibleFiles = await this.fileUseCases.getFilesByPathAndUser(
+        filePath,
+        user.id,
+      );
+
+      if (possibleFiles.length === 0) {
+        throw new NotFoundException('File not found');
+      }
+
+      if (possibleFiles.length === 1) {
+        return { file: possibleFiles[0] };
+      } else {
+        // If there are multiple files under the same depth and filename, we can use the ancestors to indentify the correct file
+        const firstFolder = this.fileUseCases.getPathFirstFolder(filePath);
+        for (const possibleFile of possibleFiles) {
+          const ancestors = await this.folderUseCases.getFolderAncestors(
+            user,
+            possibleFile.folderUuid,
+          );
+          const firstAncestorPosition = ancestors.length - 2; // the last ancestor folder from the array is the root folder
+          if (firstAncestorPosition >= 0) {
+            const firstAncestor = ancestors[firstAncestorPosition];
+
+            if (firstAncestor.plainName === firstFolder) {
+              return { file: possibleFile };
+            }
+          }
+        }
+        throw new NotFoundException('File not found');
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATABYPATH] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
   }
 }

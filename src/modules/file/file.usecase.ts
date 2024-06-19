@@ -24,10 +24,12 @@ import {
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { Folder } from '../folder/folder.domain';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import path from 'path';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -453,5 +455,97 @@ export class FileUseCases {
       userId,
       status: FileStatus.EXISTS,
     });
+  }
+
+  getPathDepth(filePath: string): number {
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const parts = filePath.split('/');
+    // If the path is empty after stripping, it means the depth is 0 (root folder)
+    const depth = parts.length - 1;
+    return depth;
+  }
+
+  getPathLastFolder(filePath: string): string {
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const parts = filePath.split('/');
+    for (let i = parts.length - 2; i >= 0; i--) {
+      if (parts[i]) {
+        return parts[i];
+      }
+    }
+    return '';
+  }
+
+  getPathFirstFolder(filePath: string): string {
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const parts = filePath.split('/');
+    for (const part of parts) {
+      if (part && parts.length > 1) {
+        return part;
+      }
+    }
+    return '';
+  }
+
+  getPathFileData(filePath: string): { fileName: string; fileType: string } {
+    const fileType = path.extname(filePath);
+    const fileName = path.basename(filePath, fileType);
+    return { fileName, fileType: fileType.replace('.', '') };
+  }
+
+  getFileByFolderAndName(
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByPlainNameAndFolderUuid(
+      plainName,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
+
+  async getFilesByPathAndUser(filePath: string, userId: number) {
+    const depth = this.getPathDepth(filePath);
+    const folderName = this.getPathLastFolder(filePath);
+    const { fileName, fileType } = this.getPathFileData(filePath);
+
+    const possibleFolders = (await this.folderUsecases.getFoldersByDepthAndName(
+      userId,
+      depth,
+      folderName.length > 0 ? folderName : null,
+    )) as Folder[];
+
+    const possibleFiles: File[] = [];
+    for (const possibleFolder of possibleFolders) {
+      const file = await this.getFileByFolderAndName(
+        fileName,
+        fileType,
+        possibleFolder.uuid,
+      );
+      if (file) {
+        possibleFiles.push(file);
+      }
+    }
+    /**
+     * We can only have multiple possible files when depth > 1. As we can not have 2 folders with the same name inside the root folder.
+     * Path examples with same depth and same file name:
+     * /Folder1/samesubfoldername/hi.jpg
+     * /Folder2/samesubfoldername/hi.jpg
+     * The first ancestor folder has to be different, so we can use it to get the correct file
+     */
+    if (depth < 2 && possibleFiles.length > 1) {
+      throw new ConflictException(
+        'Found multiple duplicated files under the same folder',
+      );
+    }
+    return possibleFiles;
   }
 }
