@@ -93,7 +93,7 @@ export class FileUseCases {
     const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
       name: newFileDto.name,
       folderId: folder.id,
-      type: newFileDto.type,
+      ...(newFileDto.type ? { type: newFileDto.type } : null),
       userId: user.id,
       status: FileStatus.EXISTS,
     });

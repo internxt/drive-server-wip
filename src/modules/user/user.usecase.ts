@@ -417,11 +417,12 @@ export class UserUseCases {
           password: user.password.toString(),
           mnemonic: user.mnemonic.toString(),
           rootFolderId: rootFolder.id,
+          rootFolderUuid: rootFolder.uuid,
           bucket: bucket.id,
           uuid: userUuid,
           userId: networkPass,
           hasReferralsProgram: false,
-        } as unknown as User,
+        } as unknown as User & { rootFolderUuid: string },
         uuid: userUuid,
       };
     } catch (err) {
