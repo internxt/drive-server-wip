@@ -50,6 +50,7 @@ import {
 } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
+import { generateWithDefaultSecret } from '../../lib/jwt';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -1189,6 +1190,11 @@ export class WorkspacesUsecases {
       workspace.rootFolderId,
     );
 
+    const workspaceItemsToken = generateWithDefaultSecret(
+      { workspaceId },
+      '1d',
+    );
+
     return {
       workspaceId: workspace.id,
       bucket: rootFolder.bucket,
@@ -1198,6 +1204,7 @@ export class WorkspacesUsecases {
         networkPass: workspaceNetworkUser.userId,
         networkUser: workspaceNetworkUser.bridgeUser,
       },
+      tokenHeader: workspaceItemsToken,
     };
   }
 

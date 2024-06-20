@@ -38,6 +38,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
+import * as jwtUtils from '../../lib/jwt';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2093,6 +2094,8 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When workspace and workspace user exist, then it should return credentials', async () => {
+      const tokenText = 'token';
+
       jest
         .spyOn(workspaceRepository, 'findOne')
         .mockResolvedValueOnce(workspace);
@@ -2100,6 +2103,10 @@ describe('WorkspacesUsecases', () => {
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(rootFolder);
+
+      jest
+        .spyOn(jwtUtils, 'generateWithDefaultSecret')
+        .mockReturnValue(tokenText);
 
       const result = await service.getWorkspaceCredentials(workspace.id);
 
@@ -2112,6 +2119,7 @@ describe('WorkspacesUsecases', () => {
           networkPass: workspaceUser.userId,
           networkUser: workspaceUser.bridgeUser,
         },
+        tokenHeader: tokenText,
       });
     });
   });
