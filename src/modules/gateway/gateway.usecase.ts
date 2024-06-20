@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { SequelizeUserRepository } from '../user/user.repository';
@@ -23,30 +27,36 @@ export class GatewayUseCases {
   async updateWorkspaceStorage(
     ownerId: string,
     maxSpaceBytes: number,
-  ): Promise<void[]> {
+  ): Promise<void> {
     const owner = await this.userRepository.findByUuid(ownerId);
     if (!owner) {
       throw new BadRequestException();
     }
     const workspaces = await this.workspaceUseCases.findByOwnerId(owner.uuid);
-    return Promise.all(
+    if (!workspaces.length) {
+      throw new NotFoundException();
+    }
+    await Promise.all(
       workspaces.map(async ({ setupCompleted, workspaceUserId }) => {
         if (setupCompleted) {
           const { email } =
             await this.userRepository.findByUuid(workspaceUserId);
-          return this.networkService.setStorage(email, maxSpaceBytes);
+          await this.networkService.setStorage(email, maxSpaceBytes);
         }
       }),
     );
   }
 
-  async destroyWorkspace(ownerId: string): Promise<void[]> {
+  async destroyWorkspace(ownerId: string): Promise<void> {
     const owner = await this.userRepository.findByUuid(ownerId);
     if (!owner) {
       throw new BadRequestException();
     }
     const workspaces = await this.workspaceUseCases.findByOwnerId(owner.uuid);
-    return Promise.all(
+    if (!workspaces.length) {
+      throw new NotFoundException();
+    }
+    await Promise.all(
       workspaces.map(async ({ id, setupCompleted }) => {
         if (setupCompleted) {
           await this.workspaceUseCases.deleteWorkspaceContent(id, owner);
