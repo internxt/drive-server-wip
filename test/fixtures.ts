@@ -100,6 +100,7 @@ export const newFolder = (params?: NewFolderParams): Folder => {
 
 export const newFile = (params?: NewFilesParams): File => {
   const randomCreatedAt = randomDataGenerator.date();
+  const randomCreationTime = randomDataGenerator.date();
   const folder = params?.folder || newFolder();
 
   const file = File.build({
@@ -133,7 +134,12 @@ export const newFile = (params?: NewFilesParams): File => {
     removed: false,
     deletedAt: undefined,
     removedAt: undefined,
-    modificationTime: undefined,
+    creationTime: randomCreationTime,
+    modificationTime: new Date(
+      randomDataGenerator.date({
+        min: randomCreationTime,
+      }),
+    ),
   });
 
   params?.attributes &&
@@ -176,9 +182,9 @@ export const newUser = (params?: {
     secret_2FA: '',
     backupsBucket: '',
     sharedWorkspace: false,
-    tempKey: '',
     avatar: null,
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   params?.attributes &&
