@@ -39,8 +39,8 @@ describe('FileController', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {

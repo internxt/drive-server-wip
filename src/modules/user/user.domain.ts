@@ -25,10 +25,11 @@ export class User implements UserAttributes {
   registerCompleted: boolean;
   backupsBucket: string;
   sharedWorkspace: boolean;
-  tempKey: string;
   avatar: string;
   lastPasswordChangedAt: Date;
   tierId: string;
+  emailVerified: boolean;
+
   constructor({
     id,
     userId,
@@ -54,10 +55,10 @@ export class User implements UserAttributes {
     registerCompleted,
     backupsBucket,
     sharedWorkspace,
-    tempKey,
     avatar,
     lastPasswordChangedAt,
     tierId,
+    emailVerified,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -83,10 +84,10 @@ export class User implements UserAttributes {
     this.registerCompleted = registerCompleted;
     this.backupsBucket = backupsBucket;
     this.sharedWorkspace = sharedWorkspace;
-    this.tempKey = tempKey;
     this.avatar = avatar;
     this.lastPasswordChangedAt = lastPasswordChangedAt;
     this.tierId = tierId;
+    this.emailVerified = emailVerified;
   }
 
   static build(user: UserAttributes): User {

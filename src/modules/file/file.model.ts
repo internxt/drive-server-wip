@@ -23,6 +23,7 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { Sequelize } from 'sequelize';
 
 @Table({
   underscored: true,
@@ -80,6 +81,11 @@ export class FileModel extends Model implements FileAttributes {
   @BelongsTo(() => UserModel)
   user: UserModel;
 
+  @Default(Sequelize.fn('NOW'))
+  @Column
+  creationTime: Date;
+
+  @Default(Sequelize.fn('NOW'))
   @Column
   modificationTime: Date;
 

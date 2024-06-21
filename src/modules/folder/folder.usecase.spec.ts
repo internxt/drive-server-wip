@@ -59,8 +59,8 @@ describe('FolderUseCases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
@@ -351,8 +351,8 @@ describe('FolderUseCases', () => {
         mnemonic: '',
         hKey: undefined,
         secret_2FA: '',
-        tempKey: '',
         lastPasswordChangedAt: new Date(),
+        emailVerified: false,
       });
       const folderId = 2713105696;
       const folder = Folder.build({
@@ -411,8 +411,8 @@ describe('FolderUseCases', () => {
         mnemonic: '',
         hKey: undefined,
         secret_2FA: '',
-        tempKey: '',
         lastPasswordChangedAt: new Date(),
+        emailVerified: false,
       });
       const folderId = 2713105696;
       const folder = Folder.build({
@@ -476,8 +476,8 @@ describe('FolderUseCases', () => {
         mnemonic: '',
         hKey: undefined,
         secret_2FA: '',
-        tempKey: '',
         lastPasswordChangedAt: new Date(),
+        emailVerified: false,
       });
       const folderId = 2713105696;
       const folder = Folder.build({

@@ -63,8 +63,8 @@ describe('FileUseCases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
@@ -105,6 +105,7 @@ describe('FileUseCases', () => {
       deleted: false,
       deletedAt: new Date(),
       userId: 1,
+      creationTime: new Date(),
       modificationTime: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -187,6 +188,7 @@ describe('FileUseCases', () => {
         deleted: false,
         deletedAt: new Date(),
         userId: 1,
+        creationTime: new Date(),
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -245,8 +247,8 @@ describe('FileUseCases', () => {
       mnemonic: '',
       hKey: undefined,
       secret_2FA: '',
-      tempKey: '',
       lastPasswordChangedAt: new Date(),
+      emailVerified: false,
     });
 
     it.skip('should be able to delete a trashed file', async () => {
@@ -285,6 +287,7 @@ describe('FileUseCases', () => {
         deleted: false,
         deletedAt: new Date(),
         userId: incrementalUserId,
+        creationTime: new Date(),
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -336,6 +339,7 @@ describe('FileUseCases', () => {
         deleted: true,
         deletedAt: new Date(),
         userId: incrementalUserId,
+        creationTime: new Date(),
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -379,6 +383,7 @@ describe('FileUseCases', () => {
         deleted: true,
         deletedAt: new Date(),
         userId: incrementalUserId,
+        creationTime: new Date(),
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -427,6 +432,7 @@ describe('FileUseCases', () => {
       deletedAt: new Date('2022-09-21T11:11:30.742Z'),
       userId: 3431709237,
       user: null,
+      creationTime: new Date('2022-09-21T11:11:30.742Z'),
       modificationTime: new Date('2022-09-21T11:11:30.742Z'),
       createdAt: new Date('2022-09-21T11:11:30.742Z'),
       updatedAt: new Date('2022-09-21T11:11:30.742Z'),

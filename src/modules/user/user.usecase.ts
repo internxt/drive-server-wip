@@ -364,20 +364,6 @@ export class UserUseCases {
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    const hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
-      email,
-      email,
-      networkPass,
-    ).catch((err) => {
-      Logger.error(
-        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
-        }`,
-      );
-      notifySignUpError(err);
-      return false;
-    });
-
     const freeTier = await this.featureLimitRepository.getFreeTier();
 
     const user = await this.userRepository.create({
@@ -412,33 +398,31 @@ export class UserUseCases {
         ).catch(notifySignUpError);
       }
 
-      let hasBeenSubscribed = false;
-      try {
-        hasBeenSubscribed = await hasBeenSubscribedPromise;
-
-        if (!hasBeenSubscribed) {
-          await this.createUserReferrals(user.id);
-        }
-      } catch (err) {
-        notifySignUpError(err);
-      }
-
       const newTokenPayload = this.getNewTokenPayload(user);
 
       return {
-        token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
-        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        token: SignEmail(
+          newUser.email,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
+        newToken: Sign(
+          newTokenPayload,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
           password: user.password.toString(),
           mnemonic: user.mnemonic.toString(),
           rootFolderId: rootFolder.id,
+          rootFolderUuid: rootFolder.uuid,
           bucket: bucket.id,
           uuid: userUuid,
           userId: networkPass,
-          hasReferralsProgram: !hasBeenSubscribed,
-        } as unknown as User,
+          hasReferralsProgram: false,
+        } as unknown as User & { rootFolderUuid: string },
         uuid: userUuid,
       };
     } catch (err) {
@@ -1129,8 +1113,16 @@ export class UserUseCases {
     return {
       ...emails,
       newAuthentication: {
-        token: SignEmail(user.email, this.configService.get('secrets.jwt')),
-        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        token: SignEmail(
+          user.email,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
+        newToken: Sign(
+          newTokenPayload,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
         user,
       },
     };
