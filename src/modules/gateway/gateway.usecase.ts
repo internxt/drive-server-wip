@@ -32,19 +32,17 @@ export class GatewayUseCases {
     if (!owner) {
       throw new BadRequestException();
     }
-    const workspaces = await this.workspaceUseCases.findByOwnerId(owner.uuid);
-    if (!workspaces.length) {
-      throw new NotFoundException();
+    const workspace = await this.workspaceUseCases.findOne({
+      ownerId: owner.uuid,
+      setupCompleted: true,
+    });
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
     }
-    await Promise.all(
-      workspaces.map(async ({ setupCompleted, workspaceUserId }) => {
-        if (setupCompleted) {
-          const { email } =
-            await this.userRepository.findByUuid(workspaceUserId);
-          await this.networkService.setStorage(email, maxSpaceBytes);
-        }
-      }),
+    const { username } = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
     );
+    await this.networkService.setStorage(username, maxSpaceBytes);
   }
 
   async destroyWorkspace(ownerId: string): Promise<void> {
@@ -52,16 +50,13 @@ export class GatewayUseCases {
     if (!owner) {
       throw new BadRequestException();
     }
-    const workspaces = await this.workspaceUseCases.findByOwnerId(owner.uuid);
-    if (!workspaces.length) {
-      throw new NotFoundException();
+    const workspace = await this.workspaceUseCases.findOne({
+      ownerId: owner.uuid,
+      setupCompleted: true,
+    });
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
     }
-    await Promise.all(
-      workspaces.map(async ({ id, setupCompleted }) => {
-        if (setupCompleted) {
-          await this.workspaceUseCases.deleteWorkspaceContent(id, owner);
-        }
-      }),
-    );
+    await this.workspaceUseCases.deleteWorkspaceContent(workspace.id, owner);
   }
 }

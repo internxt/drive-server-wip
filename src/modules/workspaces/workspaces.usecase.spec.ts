@@ -38,6 +38,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
+import { WorkspaceAttributes } from './attributes/workspace.attributes';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2344,6 +2345,46 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue([]);
       await expect(service.findByOwnerId(null)).resolves.toStrictEqual([]);
       expect(spyFindByOwner).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe('findOne', () => {
+    it('When the attributes are passed then we return the matching workspace', async () => {
+      const owner = newUser();
+      const workspaceOne = newWorkspace({ owner });
+      const workspaceTwo = newWorkspace({
+        owner,
+        attributes: { setupCompleted: false },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspaceOne)
+        .mockResolvedValueOnce(workspaceTwo);
+
+      const attributesOne: Partial<WorkspaceAttributes> = {
+        ownerId: owner.uuid,
+        setupCompleted: true,
+      };
+      await expect(service.findOne(attributesOne)).resolves.toStrictEqual(
+        workspaceOne,
+      );
+
+      const attributesTwo: Partial<WorkspaceAttributes> = {
+        ownerId: owner.uuid,
+        setupCompleted: false,
+      };
+      await expect(service.findOne(attributesTwo)).resolves.toStrictEqual(
+        workspaceTwo,
+      );
+    });
+
+    it('When attributes is null, then is empty', async () => {
+      const spyFindOne = jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(null);
+      await expect(service.findOne(undefined)).resolves.toStrictEqual(null);
+      expect(spyFindOne).toHaveBeenCalledWith(undefined);
     });
   });
 

@@ -93,11 +93,9 @@ describe('GatewayUseCases', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('When workspaces are not found, then it should throw', async () => {
+      it('When the workspace is not found, then it should throw', async () => {
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
-        jest
-          .spyOn(workspaceUseCases, 'findByOwnerId')
-          .mockResolvedValueOnce([]);
+        jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValueOnce(null);
 
         await expect(
           service.updateWorkspaceStorage(owner.uuid, maxSpaceBytes),
@@ -105,38 +103,35 @@ describe('GatewayUseCases', () => {
       });
 
       it('When owner and workspaces are found, then it should update the workspaces completed', async () => {
-        const userWorkspaceEmail = 'user@workspace.com';
-        const userWorkspace = newUser({
-          attributes: { email: userWorkspaceEmail },
-        });
-        const workspaceIncompleted = newWorkspace({
-          owner,
+        const workspaceUserEmail = 'user@workspace.com';
+        const workspaceUser = newUser({
           attributes: {
-            ownerId: owner.uuid,
-            setupCompleted: false,
+            email: workspaceUserEmail,
+            username: workspaceUserEmail,
+            bridgeUser: workspaceUserEmail,
           },
         });
-        const workspaceCompleted = newWorkspace({
+        const workspace = newWorkspace({
           owner,
           attributes: {
             ownerId: owner.uuid,
-            workspaceUserId: userWorkspace.uuid,
+            workspaceUserId: workspaceUser.uuid,
           },
         });
 
         jest
           .spyOn(userRepository, 'findByUuid')
           .mockResolvedValueOnce(owner)
-          .mockResolvedValueOnce(userWorkspace);
+          .mockResolvedValueOnce(workspaceUser);
 
         jest
-          .spyOn(workspaceUseCases, 'findByOwnerId')
-          .mockResolvedValueOnce([workspaceIncompleted, workspaceCompleted]);
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
 
         await service.updateWorkspaceStorage(owner.uuid, maxSpaceBytes);
 
         expect(networkService.setStorage).toHaveBeenCalledWith(
-          userWorkspaceEmail,
+          workspaceUserEmail,
           maxSpaceBytes,
         );
       });
@@ -151,8 +146,8 @@ describe('GatewayUseCases', () => {
         );
       });
 
-      it('When workspace are not found, then it should throw', async () => {
-        jest.spyOn(workspaceUseCases, 'findByOwnerId').mockResolvedValue([]);
+      it('When the workspace is not found, then it should throw', async () => {
+        jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValue(null);
 
         await expect(service.destroyWorkspace(owner.uuid)).rejects.toThrow(
           NotFoundException,
@@ -160,27 +155,17 @@ describe('GatewayUseCases', () => {
       });
 
       it('When owner and workspaces are found, then it should delete all workspaces completed', async () => {
-        const workspaceIncompleted = newWorkspace({
-          owner,
-          attributes: { ownerId: owner.uuid, setupCompleted: false },
-        });
-        const workspaceCompleted = newWorkspace({
+        const workspace = newWorkspace({
           owner,
           attributes: { ownerId: owner.uuid },
         });
 
-        jest
-          .spyOn(workspaceUseCases, 'findByOwnerId')
-          .mockResolvedValue([workspaceIncompleted, workspaceCompleted]);
+        jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValue(workspace);
 
         await service.destroyWorkspace(owner.uuid);
 
-        expect(
-          workspaceUseCases.deleteWorkspaceContent,
-        ).not.toHaveBeenCalledWith(workspaceIncompleted.id, owner);
-
         expect(workspaceUseCases.deleteWorkspaceContent).toHaveBeenCalledWith(
-          workspaceCompleted.id,
+          workspace.id,
           owner,
         );
       });
