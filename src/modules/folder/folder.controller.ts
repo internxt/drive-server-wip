@@ -344,6 +344,9 @@ export class FolderController {
   @ApiOkResponse({
     description: 'Current folder with children folders and files',
   })
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolderContent(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
