@@ -1437,6 +1437,14 @@ export class WorkspacesUsecases {
     return this.workspaceRepository.findById(workspaceId);
   }
 
+  findByOwnerId(ownerId: string): Promise<Workspace[]> {
+    return this.workspaceRepository.findByOwner(ownerId);
+  }
+
+  findOne(attributes: Partial<WorkspaceAttributes>): Promise<Workspace | null> {
+    return this.workspaceRepository.findOne(attributes);
+  }
+
   async changeUserRole(
     workspaceId: WorkspaceAttributes['id'],
     teamId: WorkspaceTeamAttributes['id'],
