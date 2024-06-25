@@ -263,6 +263,21 @@ export class SequelizeWorkspaceRepository {
     return total ?? 0;
   }
 
+  async getTotalDriveAndBackupUsageWorkspaceUsers(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<number> {
+    const [backupsUsageTotal, driveUsageTotal] = await Promise.all([
+      this.modelWorkspaceUser.sum('backupsUsage', {
+        where: { workspaceId },
+      }),
+      this.modelWorkspaceUser.sum('driveUsage', {
+        where: { workspaceId },
+      }),
+    ]);
+
+    return backupsUsageTotal + driveUsageTotal;
+  }
+
   async createInvite(
     invite: Omit<WorkspaceInvite, 'id'>,
   ): Promise<WorkspaceInvite | null> {
