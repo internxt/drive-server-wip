@@ -13,6 +13,7 @@ import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { Literal } from 'sequelize/types/utils';
+import { FileStatus } from '../file/file.domain';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -515,8 +516,15 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
-  async calculateFolderSize(folderUuid: string): Promise<number> {
+  async calculateFolderSize(
+    folderUuid: string,
+    includeTrash = true,
+  ): Promise<number> {
     try {
+      const fileStatusCondition = includeTrash
+        ? [FileStatus.EXISTS, FileStatus.TRASHED]
+        : [FileStatus.EXISTS];
+
       const calculateSizeQuery = `
       WITH RECURSIVE folder_recursive AS (
         SELECT 
@@ -526,7 +534,7 @@ export class SequelizeFolderRepository implements FolderRepository {
             1 AS row_num,
             fl1.user_id as owner_id
         FROM folders fl1
-        LEFT JOIN files f1 ON f1.folder_uuid = fl1.uuid AND f1.status != 'DELETED'
+        LEFT JOIN files f1 ON f1.folder_uuid = fl1.uuid AND f1.status IN (:fileStatusCondition)
         WHERE fl1.uuid = :folderUuid
           AND fl1.removed = FALSE 
           AND fl1.deleted = FALSE
@@ -540,7 +548,7 @@ export class SequelizeFolderRepository implements FolderRepository {
             fr.row_num + 1,
             fr.owner_id
         FROM folders fl2
-        LEFT JOIN files f2 ON f2.folder_uuid = fl2.uuid AND f2.status != 'DELETED'
+        LEFT JOIN files f2 ON f2.folder_uuid = fl2.uuid AND f2.status IN (:fileStatusCondition)
         INNER JOIN folder_recursive fr ON fr.uuid = fl2.parent_uuid
         WHERE fr.row_num < 100000
           AND fl2.user_id = fr.owner_id
@@ -555,6 +563,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           replacements: {
             folderUuid,
+            fileStatusCondition,
           },
         },
       );

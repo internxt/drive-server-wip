@@ -316,7 +316,9 @@ export class FolderUseCases {
     const folders = foldersById.concat(foldersByUuid);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
-    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId);
+    const driveFolders = folders.filter(
+      (f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId,
+    );
 
     await Promise.all([
       driveFolders.length > 0
@@ -632,7 +634,13 @@ export class FolderUseCases {
     await this.folderRepository.deleteByUser(user, folders);
   }
 
-  getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
-    return this.folderRepository.calculateFolderSize(folderUuid);
+  getFolderSizeByUuid(
+    folderUuid: Folder['uuid'],
+    includeTrashedFiles = true,
+  ): Promise<number> {
+    return this.folderRepository.calculateFolderSize(
+      folderUuid,
+      includeTrashedFiles,
+    );
   }
 }
