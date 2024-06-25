@@ -23,9 +23,18 @@ import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
-import { newMailLimit } from '../../../test/fixtures';
+import {
+  newMailLimit,
+  newNotificationToken,
+  newUser,
+} from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
+import {
+  DeviceType,
+  RegisterNotificationTokenDto,
+} from './dto/register-notification-token.dto';
+import { UserNotificationTokens } from './user-notification-tokens.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -591,6 +600,45 @@ describe('User use cases', () => {
       await expect(
         userUseCases.acceptAttemptChangeEmail('encryptedId'),
       ).rejects.toThrowError('Change email failed');
+    });
+  });
+
+  describe('registerUserNotificationToken', () => {
+    it('When registering a notification token, Then it should call userRepository.addNotificationToken', async () => {
+      const user = newUser();
+      const body: RegisterNotificationTokenDto = {
+        token: 'token',
+        type: DeviceType.macos,
+      };
+      await userUseCases.registerUserNotificationToken(user, body);
+
+      jest.spyOn(userRepository, 'addNotificationToken');
+
+      expect(userRepository.addNotificationToken).toHaveBeenCalledWith(
+        user.uuid,
+        body.token,
+        body.type,
+      );
+    });
+  });
+
+  describe('getUserNotificationTokens', () => {
+    it("When getting notification tokens, Then it should return the user's tokens", async () => {
+      const user = newUser();
+      const mockTokens: UserNotificationTokens[] = [];
+      for (let i = 0; i < 3; i++) {
+        mockTokens.push(newNotificationToken());
+      }
+      jest
+        .spyOn(userRepository, 'getNotificationTokens')
+        .mockResolvedValueOnce(mockTokens);
+
+      const tokens = await userUseCases.getUserNotificationTokens(user);
+
+      expect(userRepository.getNotificationTokens).toHaveBeenCalledWith(
+        user.uuid,
+      );
+      expect(tokens).toEqual(mockTokens);
     });
   });
 });

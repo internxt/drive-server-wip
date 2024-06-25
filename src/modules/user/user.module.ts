@@ -44,6 +44,7 @@ import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { SecurityModule } from '../security/security.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { UserNotificationTokensModel } from './user-notification-tokens.model';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
       FriendInvitationModel,
       KeyServerModel,
       AttemptChangeEmailModel,
+      UserNotificationTokensModel,
     ]),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),

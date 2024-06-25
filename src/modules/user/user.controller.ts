@@ -66,6 +66,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
+import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -779,5 +780,19 @@ export class UserController {
       const token = generateJitsiJWT(null, room, false);
       return { token };
     }
+  }
+
+  @Post('/notification-token')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Add a notification token',
+  })
+  @ApiOkResponse({ description: 'Creates a notification token' })
+  @Public()
+  async addNotificationToken(
+    @UserDecorator() user: User,
+    @Body() body: RegisterNotificationTokenDto,
+  ) {
+    return this.userUseCases.registerUserNotificationToken(user, body);
   }
 }
