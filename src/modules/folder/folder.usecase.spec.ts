@@ -617,6 +617,24 @@ describe('FolderUseCases', () => {
       expect(folderRepository.calculateFolderSize).toHaveBeenCalledTimes(1);
       expect(folderRepository.calculateFolderSize).toHaveBeenCalledWith(
         folder.uuid,
+        true,
+      );
+    });
+
+    it('When the folder size is required without including trashed files, then it should request the size without trash', async () => {
+      const mockSize = 123456789;
+
+      jest
+        .spyOn(folderRepository, 'calculateFolderSize')
+        .mockResolvedValueOnce(mockSize);
+
+      const result = await service.getFolderSizeByUuid(folder.uuid, false);
+
+      expect(result).toBe(mockSize);
+      expect(folderRepository.calculateFolderSize).toHaveBeenCalledTimes(1);
+      expect(folderRepository.calculateFolderSize).toHaveBeenCalledWith(
+        folder.uuid,
+        false,
       );
     });
 
