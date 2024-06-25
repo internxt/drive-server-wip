@@ -51,6 +51,7 @@ import {
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { generateWithDefaultSecret } from '../../lib/jwt';
+import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -410,6 +411,58 @@ export class WorkspacesUsecases {
     }
 
     return newInvite.toJSON();
+  }
+
+  async changeUserAssignedSpace(
+    workspaceId: Workspace['id'],
+    memberId: WorkspaceUser['memberId'],
+    changeAssignedSpace: ChangeUserAssignedSpaceDto,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace does not exist');
+    }
+
+    const member = await this.workspaceRepository.findWorkspaceUser({
+      memberId,
+      workspaceId,
+    });
+
+    if (!member) {
+      throw new BadRequestException('Member does not exist in this workspace');
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(
+      workspace,
+      workspaceUser,
+    );
+
+    const newSpaceLimit = changeAssignedSpace.spaceLimit;
+    const currentSpaceLimit = member.spaceLimit;
+    const spaceLeftWithoutUser = spaceLeft + currentSpaceLimit;
+
+    if (newSpaceLimit > spaceLeftWithoutUser) {
+      throw new BadRequestException(
+        `Space limit set for the invitation is superior to the space assignable in workspace. Assignable space: ${spaceLeftWithoutUser}`,
+      );
+    }
+
+    if (member.getUsedSpace() >= newSpaceLimit) {
+      throw new BadRequestException(
+        'The space you are trying to assign to the user is less than the user already used space',
+      );
+    }
+
+    member.spaceLimit = changeAssignedSpace.spaceLimit;
+
+    this.workspaceRepository.updateWorkspaceUser(member.id, member);
+
+    return member.toJSON();
   }
 
   async getWorkspaceUserTrashedItems(
@@ -957,7 +1010,42 @@ export class WorkspacesUsecases {
     const spaceLeft =
       spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
 
+    console.log({
+      spaceLimit,
+      totalSpaceLimitAssigned,
+      totalSpaceAssignedInInvitations,
+      spaceLeft,
+    });
+
     return spaceLeft;
+  }
+
+  async getWorkspaceUsage(workspace: Workspace) {
+    const workpaceDefaultUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const [
+      spaceLimit,
+      totalSpaceLimitAssigned,
+      totalSpaceAssignedInInvitations,
+      spaceUsed,
+    ] = await Promise.all([
+      this.networkService.getLimit(
+        workpaceDefaultUser.bridgeUser,
+        workpaceDefaultUser.userId,
+      ),
+      this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
+      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+      this.workspaceRepository.getTotalDriveAndBackupUsageWorkspaceUsers(
+        workspace.id,
+      ),
+    ]);
+
+    const spaceAssigned =
+      totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
+
+    return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
 
   async isWorkspaceFull(workspaceId: Workspace['id']): Promise<boolean> {

@@ -57,6 +57,8 @@ import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
+import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -364,6 +366,50 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
   ) {
     return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
+  }
+
+  @Get('/:workspaceId/usage')
+  @ApiOperation({
+    summary: 'Gets workspace usage',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Returns workspace usage',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async getWorkspaceStorageUsage(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const workspace = await this.workspaceUseCases.findById(workspaceId);
+
+    if (!workspace) {
+      throw new BadRequestException('Workspace not valid');
+    }
+
+    return this.workspaceUseCases.getWorkspaceUsage(workspace);
+  }
+
+  @Patch('/:workspaceId/members/:memberId/usage')
+  @ApiOperation({
+    summary: 'Change workspace member assigned space',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async changeMemberAssignedSpace(
+    @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
+    @Param('memberId') memberId: WorkspaceUserAttributes['memberId'],
+    @Body() assignSpaceToUserDto: ChangeUserAssignedSpaceDto,
+  ) {
+    return this.workspaceUseCases.changeUserAssignedSpace(
+      workspaceId,
+      memberId,
+      assignSpaceToUserDto,
+    );
   }
 
   @Get('/:workspaceId/members')
