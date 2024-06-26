@@ -28,6 +28,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -784,11 +785,11 @@ export class UserController {
 
   @Post('/notification-token')
   @HttpCode(201)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Add a notification token',
   })
-  @ApiOkResponse({ description: 'Creates a notification token' })
-  @Public()
+  @ApiResponse({ status: 201, description: 'Creates a notification token' })
   async addNotificationToken(
     @UserDecorator() user: User,
     @Body() body: RegisterNotificationTokenDto,
