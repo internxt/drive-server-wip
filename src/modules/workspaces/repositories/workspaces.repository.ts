@@ -437,6 +437,15 @@ export class SequelizeWorkspaceRepository {
     });
   }
 
+  async updateWorkspaceUserBy(
+    where: Partial<WorkspaceUserAttributes>,
+    update: Partial<WorkspaceUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(update, {
+      where,
+    });
+  }
+
   toDomain(model: WorkspaceModel): Workspace {
     return Workspace.build({
       ...model.toJSON(),
