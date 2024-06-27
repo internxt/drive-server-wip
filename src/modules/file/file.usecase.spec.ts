@@ -17,7 +17,12 @@ import {
   FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
-import { newFile, newFolder } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
@@ -781,6 +786,82 @@ describe('FileUseCases', () => {
         { plainName: newFileMeta.plainName, name: encryptedName },
       );
       expect(result).toEqual(updatedFile);
+    });
+  });
+
+  describe('getWorkspaceFilesSizeSumByStatuses', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When called with specific statuses and options, then it should use them to fetch files', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
+        .mockResolvedValue(fileSizes);
+
+      const createdFrom = new Date('2023-01-01');
+
+      const options = {
+        limit: 100,
+        offset: 0,
+        createdFrom,
+      };
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+        options,
+      );
+
+      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+        statuses,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          order: [['uuid', 'ASC']],
+          createdFrom: createdFrom,
+          removedFrom: undefined,
+        },
+      );
+      expect(result).toEqual(fileSizes);
+    });
+
+    it('When there are no file sizes, then it should return an empty array', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const options = {
+        limit: 100,
+        offset: 0,
+      };
+      const fileSizes: { size: string }[] = [];
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
+        .mockResolvedValue(fileSizes);
+
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+        { ...options, order: [['uuid', 'ASC']] },
+      );
+
+      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+        statuses,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          order: [['uuid', 'ASC']],
+          createdFrom: undefined,
+          removedFrom: undefined,
+        },
+      );
+      expect(result).toEqual(fileSizes);
     });
   });
 });

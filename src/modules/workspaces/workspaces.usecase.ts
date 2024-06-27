@@ -504,6 +504,90 @@ export class WorkspacesUsecases {
     return { result };
   }
 
+  async getUserUsageInWorkspace(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const member = await this.workspaceRepository.findWorkspaceUser({
+      memberId: user.uuid,
+      workspaceId,
+    });
+
+    if (!member) {
+      throw new BadRequestException('User not valid');
+    }
+
+    const syncStartedAt = new Date();
+
+    const [totalUsedDrive, totalDeletedSize] = await Promise.all([
+      this.calculateFilesSizeSum(
+        user.uuid,
+        workspaceId,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        member.lastUsageSyncAt,
+      ),
+      this.calculateFilesSizeSum(
+        user.uuid,
+        workspaceId,
+        [FileStatus.DELETED],
+        member.lastUsageSyncAt,
+        'removedFrom',
+      ),
+    ]);
+
+    member.driveUsage =
+      Math.max(member.driveUsage - totalDeletedSize, 0) + totalUsedDrive;
+
+    member.lastUsageSyncAt = syncStartedAt;
+
+    await this.workspaceRepository.updateWorkspaceUser(member.id, member);
+
+    return {
+      driveUsage: member.driveUsage,
+      backupsUsage: member.backupsUsage,
+      spaceLimit: member.spaceLimit,
+    };
+  }
+
+  async calculateFilesSizeSum(
+    userId: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+    dateFrom: Date | null,
+    dateField: 'createdFrom' | 'removedFrom' = 'createdFrom',
+  ): Promise<number> {
+    const calculateUsageChunkSize = 100;
+    let filesFetched;
+
+    let offset = 0;
+    let totalSize = 0;
+
+    do {
+      const sizesChunk = await this.fileUseCases.getWorkspaceFilesSizeSumByStatuses(
+        userId,
+        workspaceId,
+        statuses,
+        {
+          limit: calculateUsageChunkSize,
+          offset,
+          [dateField]: dateFrom,
+        },
+      );
+
+      filesFetched = sizesChunk.length;
+
+      const filesSize = sizesChunk.reduce(
+        (sum, file) => sum + Number(file.size),
+        0,
+      );
+
+      totalSize += filesSize;
+      offset += calculateUsageChunkSize;
+    } while (filesFetched !== 0);
+
+    return totalSize;
+  }
+
   async emptyUserTrashedItems(
     user: User,
     workspaceId: WorkspaceAttributes['id'],

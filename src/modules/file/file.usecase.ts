@@ -314,6 +314,34 @@ export class FileUseCases {
     );
   }
 
+  async getWorkspaceFilesSizeSumByStatuses(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+    options: {
+      limit: number;
+      offset: number;
+      order?: Array<[keyof File, string]>;
+      createdFrom?: Date;
+      removedFrom?: Date;
+    },
+  ) {
+    const fetchOrder = options?.order ?? [['uuid', 'ASC']];
+
+    return this.fileRepository.getSumSizeOfFilesByStatuses(
+      createdBy,
+      workspaceId,
+      statuses,
+      {
+        limit: options.limit,
+        offset: options.offset,
+        order: fetchOrder,
+        createdFrom: options?.createdFrom,
+        removedFrom: options?.removedFrom,
+      },
+    );
+  }
+
   async getFilesInWorkspace(
     createdBy: UserAttributes['uuid'],
     workspaceId: WorkspaceAttributes['id'],

@@ -2125,6 +2125,143 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getUserUsageInWorkspace', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When user is not valid, then it should throw a BadRequestException', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.getUserUsageInWorkspace(user, workspace.id),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When fetching file sizes, then it should correctly sum the file sizes and update the member usage', async () => {
+      const existingDriveUsage = 500;
+
+      const member = newWorkspaceUser({
+        attributes: {
+          driveUsage: existingDriveUsage,
+          spaceLimit: existingDriveUsage * 10,
+        },
+      });
+
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getUserUsageInWorkspace(user, workspace.id);
+
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(4);
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        member.id,
+        {
+          ...member,
+          driveUsage: 1100,
+          lastUsageSyncAt: expect.any(Date),
+        },
+      );
+
+      expect(result).toEqual({
+        driveUsage: 1100,
+        backupsUsage: member.backupsUsage,
+        spaceLimit: member.spaceLimit,
+      });
+    });
+
+    it('When there are no files, then it should not update the drive usage', async () => {
+      const member = newWorkspaceUser();
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValue([]);
+
+      const result = await service.getUserUsageInWorkspace(user, workspace.id);
+
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(2);
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        member.id,
+        {
+          ...member,
+          driveUsage: 0,
+          lastUsageSyncAt: expect.any(Date),
+        },
+      );
+
+      expect(result).toEqual({
+        driveUsage: 0,
+        backupsUsage: member.backupsUsage,
+        spaceLimit: member.spaceLimit,
+      });
+    });
+  });
+
+  describe('calculateFilesSizeSum', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When calculating file sizes, then it should correctly sum the sizes in chunks', async () => {
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.calculateFilesSizeSum(
+        user.uuid,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        null,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(300);
+    });
+
+    it('When there are no files, then it should return zero', async () => {
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValue([]);
+
+      const result = await service.calculateFilesSizeSum(
+        user.uuid,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        null,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(0);
+    });
+  });
+
   describe('isUserCreatorOfItem', () => {
     it('When item does not exist, then fail', async () => {
       const user = newUser();
