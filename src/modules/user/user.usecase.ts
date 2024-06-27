@@ -1081,10 +1081,31 @@ export class UserUseCases {
   getBetaUserFromRoom(room: string) {
     return this.userRepository.getBetaUserFromRoom(room);
   }
-  registerUserNotificationToken(
+
+  async registerUserNotificationToken(
     user: User,
     registerTokenDto: RegisterNotificationTokenDto,
   ): Promise<void> {
+    const tokenCount = await this.userRepository.getNotificationTokenCount(
+      user.uuid,
+    );
+
+    if (tokenCount >= 10) {
+      throw new BadRequestException('Max token limit reached');
+    }
+
+    const tokenExists = await this.userRepository.getNotificationTokens(
+      user.uuid,
+      {
+        token: registerTokenDto.token,
+        type: registerTokenDto.type,
+      },
+    );
+
+    if (tokenExists.length > 0) {
+      throw new BadRequestException('Token already exists');
+    }
+
     return this.userRepository.addNotificationToken(
       user.uuid,
       registerTokenDto.token,

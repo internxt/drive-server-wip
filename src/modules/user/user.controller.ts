@@ -783,6 +783,7 @@ export class UserController {
     }
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('/notification-token')
   @HttpCode(201)
   @ApiBearerAuth()

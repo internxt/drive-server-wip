@@ -34,6 +34,7 @@ export interface UserRepository {
   setRoomToBetaUser(room: string, user: User): Promise<void>;
   getBetaUserFromRoom(room: string): Promise<User | null>;
   getNotificationTokens(userId: string): Promise<UserNotificationTokens[]>;
+  getNotificationTokenCount(userId: string): Promise<number>;
 }
 
 @Injectable()
@@ -193,9 +194,10 @@ export class SequelizeUserRepository implements UserRepository {
 
   async getNotificationTokens(
     userId: string,
+    where?: Partial<Omit<UserNotificationTokens, 'userId'>>,
   ): Promise<UserNotificationTokens[]> {
     const tokens = await this.modelUserNotificationTokens.findAll({
-      where: { userId },
+      where: { userId, ...where },
     });
 
     return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
@@ -211,6 +213,10 @@ export class SequelizeUserRepository implements UserRepository {
       token,
       type,
     });
+  }
+
+  async getNotificationTokenCount(userId: string): Promise<number> {
+    return this.modelUserNotificationTokens.count({ where: { userId } });
   }
 
   toDomain(model: UserModel): User {

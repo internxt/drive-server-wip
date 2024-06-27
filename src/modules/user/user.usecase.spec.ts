@@ -604,15 +604,44 @@ describe('User use cases', () => {
   });
 
   describe('registerUserNotificationToken', () => {
+    const body: RegisterNotificationTokenDto = {
+      token: 'token',
+      type: DeviceType.macos,
+    };
+    it('When registering a notification token where the user has 10 tokens, Then it should throw a BadRequestException', async () => {
+      const user = newUser();
+
+      jest
+        .spyOn(userRepository, 'getNotificationTokenCount')
+        .mockResolvedValue(10);
+
+      await expect(
+        userUseCases.registerUserNotificationToken(user, body),
+      ).rejects.toThrow(BadRequestException);
+    });
+    it('When registering a notification token that already exists, Then it should throw a BadRequestException', async () => {
+      const user = newUser();
+
+      jest
+        .spyOn(userRepository, 'getNotificationTokenCount')
+        .mockResolvedValue(0);
+      jest
+        .spyOn(userRepository, 'getNotificationTokens')
+        .mockResolvedValueOnce([newNotificationToken()]);
+
+      await expect(
+        userUseCases.registerUserNotificationToken(user, body),
+      ).rejects.toThrow(BadRequestException);
+    });
     it('When registering a notification token, Then it should call userRepository.addNotificationToken', async () => {
       const user = newUser();
-      const body: RegisterNotificationTokenDto = {
-        token: 'token',
-        type: DeviceType.macos,
-      };
-      await userUseCases.registerUserNotificationToken(user, body);
 
+      jest
+        .spyOn(userRepository, 'getNotificationTokenCount')
+        .mockResolvedValue(0);
       jest.spyOn(userRepository, 'addNotificationToken');
+
+      await userUseCases.registerUserNotificationToken(user, body);
 
       expect(userRepository.addNotificationToken).toHaveBeenCalledWith(
         user.uuid,
