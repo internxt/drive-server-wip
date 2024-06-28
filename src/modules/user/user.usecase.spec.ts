@@ -654,10 +654,11 @@ describe('User use cases', () => {
   describe('getUserNotificationTokens', () => {
     it("When getting notification tokens, Then it should return the user's tokens", async () => {
       const user = newUser();
-      const mockTokens: UserNotificationTokens[] = [];
-      for (let i = 0; i < 3; i++) {
-        mockTokens.push(newNotificationToken());
-      }
+      const mockTokens: UserNotificationTokens[] = [
+        newNotificationToken(),
+        newNotificationToken(),
+      ];
+
       jest
         .spyOn(userRepository, 'getNotificationTokens')
         .mockResolvedValueOnce(mockTokens);
