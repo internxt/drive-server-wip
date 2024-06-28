@@ -36,6 +36,7 @@ async function bootstrap() {
         'x-share-password',
         'X-Internxt-Captcha',
         'x-internxt-workspace',
+        'internxt-resources-token',
       ],
       exposedHeaders: ['sessionId'],
       origin: '*',
