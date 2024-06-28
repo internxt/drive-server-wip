@@ -66,7 +66,7 @@ import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator'
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { SharingService } from '../sharing/sharing.service';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
-import { getItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-shared-folder.dto';
+import { GetItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-shared-folder.dto';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 
@@ -656,7 +656,7 @@ export class WorkspacesController {
     teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
-    @Query() queryDto: getItemsInsideSharedFolderDtoQuery,
+    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
   ) {
     const { orderBy, token, page, perPage } = queryDto;
 
@@ -688,7 +688,7 @@ export class WorkspacesController {
     teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
-    @Query() queryDto: getItemsInsideSharedFolderDtoQuery,
+    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
   ) {
     const { orderBy, token, page, perPage } = queryDto;
 

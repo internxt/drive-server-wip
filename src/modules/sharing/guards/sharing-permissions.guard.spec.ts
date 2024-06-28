@@ -27,9 +27,7 @@ import {
   newWorkspaceTeam,
   newWorkspaceTeamUser,
 } from '../../../../test/fixtures';
-import { WorkspaceTeam } from '../../workspaces/domains/workspace-team.domain';
 import { v4 } from 'uuid';
-import { Folder } from '../../folder/folder.domain';
 
 jest.mock('../../../lib/jwt');
 
