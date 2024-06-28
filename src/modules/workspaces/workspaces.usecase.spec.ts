@@ -47,6 +47,8 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import { Role } from '../sharing/sharing.domain';
+import { WorkspaceAttributes } from './attributes/workspace.attributes';
+import * as jwtUtils from '../../lib/jwt';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2609,6 +2611,8 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When workspace and workspace user exist, then it should return credentials', async () => {
+      const tokenText = 'token';
+
       jest
         .spyOn(workspaceRepository, 'findOne')
         .mockResolvedValueOnce(workspace);
@@ -2616,6 +2620,10 @@ describe('WorkspacesUsecases', () => {
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(rootFolder);
+
+      jest
+        .spyOn(jwtUtils, 'generateWithDefaultSecret')
+        .mockReturnValue(tokenText);
 
       const result = await service.getWorkspaceCredentials(workspace.id);
 
@@ -2628,7 +2636,153 @@ describe('WorkspacesUsecases', () => {
           networkPass: workspaceUser.userId,
           networkUser: workspaceUser.bridgeUser,
         },
+        tokenHeader: tokenText,
       });
+    });
+  });
+
+  describe('getUserUsageInWorkspace', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When user is not valid, then it should throw a BadRequestException', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.getUserUsageInWorkspace(user, workspace.id),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When fetching file sizes, then it should correctly sum the file sizes and update the member usage', async () => {
+      const existingDriveUsage = 500;
+
+      const member = newWorkspaceUser({
+        attributes: {
+          driveUsage: existingDriveUsage,
+          spaceLimit: existingDriveUsage * 10,
+        },
+      });
+
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getUserUsageInWorkspace(user, workspace.id);
+
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(4);
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        member.id,
+        {
+          ...member,
+          driveUsage: 1100,
+          lastUsageSyncAt: expect.any(Date),
+        },
+      );
+
+      expect(result).toEqual({
+        driveUsage: 1100,
+        backupsUsage: member.backupsUsage,
+        spaceLimit: member.spaceLimit,
+      });
+    });
+
+    it('When there are no files, then it should not update the drive usage', async () => {
+      const member = newWorkspaceUser();
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValue([]);
+
+      const result = await service.getUserUsageInWorkspace(user, workspace.id);
+
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(2);
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        member.id,
+        {
+          ...member,
+          driveUsage: 0,
+          lastUsageSyncAt: expect.any(Date),
+        },
+      );
+
+      expect(result).toEqual({
+        driveUsage: 0,
+        backupsUsage: member.backupsUsage,
+        spaceLimit: member.spaceLimit,
+      });
+    });
+  });
+
+  describe('calculateFilesSizeSum', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When calculating file sizes, then it should correctly sum the sizes in chunks', async () => {
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValueOnce(fileSizes)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.calculateFilesSizeSum(
+        user.uuid,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        null,
+      );
+
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(300);
+    });
+
+    it('When there are no files, then it should return zero', async () => {
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
+        .mockResolvedValue([]);
+
+      const result = await service.calculateFilesSizeSum(
+        user.uuid,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        null,
+      );
+
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(0);
     });
   });
 
@@ -2831,6 +2985,75 @@ describe('WorkspacesUsecases', () => {
         workspaceUser,
         trashedFolders,
       );
+    });
+  });
+
+  describe('findByOwnerId', () => {
+    it('When owner is not null then we should return the workspaces that belongs to the owner', async () => {
+      const owner = newUser();
+      const workspaceOne = newWorkspace({ owner });
+      const workspaceTwo = newWorkspace({ owner });
+      const workspaceThree = newWorkspace({
+        owner,
+        attributes: { setupCompleted: false },
+      });
+
+      const mockFindByOwner = [workspaceOne, workspaceTwo, workspaceThree];
+      jest
+        .spyOn(workspaceRepository, 'findByOwner')
+        .mockResolvedValue(mockFindByOwner);
+
+      await expect(service.findByOwnerId(owner.uuid)).resolves.toStrictEqual(
+        mockFindByOwner,
+      );
+    });
+
+    it('When owner is null, then is empty', async () => {
+      const spyFindByOwner = jest
+        .spyOn(workspaceRepository, 'findByOwner')
+        .mockResolvedValue([]);
+      await expect(service.findByOwnerId(null)).resolves.toStrictEqual([]);
+      expect(spyFindByOwner).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe('findOne', () => {
+    it('When the attributes are passed then we return the matching workspace', async () => {
+      const owner = newUser();
+      const workspaceOne = newWorkspace({ owner });
+      const workspaceTwo = newWorkspace({
+        owner,
+        attributes: { setupCompleted: false },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(workspaceOne)
+        .mockResolvedValueOnce(workspaceTwo);
+
+      const attributesOne: Partial<WorkspaceAttributes> = {
+        ownerId: owner.uuid,
+        setupCompleted: true,
+      };
+      await expect(service.findOne(attributesOne)).resolves.toStrictEqual(
+        workspaceOne,
+      );
+
+      const attributesTwo: Partial<WorkspaceAttributes> = {
+        ownerId: owner.uuid,
+        setupCompleted: false,
+      };
+      await expect(service.findOne(attributesTwo)).resolves.toStrictEqual(
+        workspaceTwo,
+      );
+    });
+
+    it('When attributes is null, then is empty', async () => {
+      const spyFindOne = jest
+        .spyOn(workspaceRepository, 'findOne')
+        .mockResolvedValueOnce(null);
+      await expect(service.findOne(undefined)).resolves.toStrictEqual(null);
+      expect(spyFindOne).toHaveBeenCalledWith(undefined);
     });
   });
 

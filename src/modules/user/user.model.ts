@@ -113,9 +113,6 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   sharedWorkspace: boolean;
 
-  @Column
-  tempKey: string;
-
   @AllowNull
   @Column
   avatar: string;
@@ -127,4 +124,9 @@ export class UserModel extends Model implements UserAttributes {
   @AllowNull
   @Column
   tierId: string;
+
+  @Default(false)
+  @AllowNull(false)
+  @Column
+  emailVerified: boolean;
 }

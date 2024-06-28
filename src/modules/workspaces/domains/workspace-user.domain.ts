@@ -12,6 +12,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
   driveUsage: number;
   backupsUsage: number;
   deactivated: boolean;
+  lastUsageSyncAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 
@@ -25,6 +26,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     driveUsage,
     backupsUsage,
     rootFolderId,
+    lastUsageSyncAt,
     deactivated,
     createdAt,
     updatedAt,
@@ -39,6 +41,7 @@ export class WorkspaceUser implements WorkspaceUserAttributes {
     this.backupsUsage = Number(backupsUsage ?? 0);
     this.deactivated = deactivated;
     this.rootFolderId = rootFolderId;
+    this.lastUsageSyncAt = lastUsageSyncAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }

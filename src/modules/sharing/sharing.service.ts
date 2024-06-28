@@ -2232,7 +2232,7 @@ export class SharingService {
       throw new SharingNotFoundException();
     }
 
-    return this.folderUsecases.getFolderSizeByUuid(sharing.itemId);
+    return this.folderUsecases.getFolderSizeByUuid(sharing.itemId, false);
   }
 
   async createSharing(

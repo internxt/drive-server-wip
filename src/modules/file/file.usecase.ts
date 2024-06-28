@@ -94,7 +94,7 @@ export class FileUseCases {
       name: newFileDto.name,
       plainName: newFileDto.plainName,
       folderId: folder.id,
-      type: newFileDto.type,
+      ...(newFileDto.type ? { type: newFileDto.type } : null),
       userId: user.id,
       status: FileStatus.EXISTS,
     });
@@ -125,6 +125,7 @@ export class FileUseCases {
       updatedAt: new Date(),
       removedAt: null,
       status: FileStatus.EXISTS,
+      creationTime: new Date(),
     });
 
     return newFile;
@@ -311,6 +312,34 @@ export class FileUseCases {
 
     return filesWithThumbnailsModified.map((file) =>
       file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getWorkspaceFilesSizeSumByStatuses(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+    options: {
+      limit: number;
+      offset: number;
+      order?: Array<[keyof File, string]>;
+      createdFrom?: Date;
+      removedFrom?: Date;
+    },
+  ) {
+    const fetchOrder = options?.order ?? [['uuid', 'ASC']];
+
+    return this.fileRepository.getSumSizeOfFilesByStatuses(
+      createdBy,
+      workspaceId,
+      statuses,
+      {
+        limit: options.limit,
+        offset: options.offset,
+        order: fetchOrder,
+        createdFrom: options?.createdFrom,
+        removedFrom: options?.removedFrom,
+      },
     );
   }
 

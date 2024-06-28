@@ -16,6 +16,7 @@ import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-use
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { Literal } from 'sequelize/types/utils';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { FileStatus } from '../file/file.domain';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -252,7 +253,9 @@ export class SequelizeFolderRepository implements FolderRepository {
     uuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'] = false,
   ): Promise<Folder> {
-    const folder = await this.folderModel.findOne({ where: { uuid, deleted } });
+    const folder = await this.folderModel.findOne({
+      where: { uuid, deleted, removed: false },
+    });
     return folder ? this.toDomain(folder) : null;
   }
 
@@ -571,39 +574,44 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
-  async calculateFolderSize(folderUuid: string): Promise<number> {
+  async calculateFolderSize(
+    folderUuid: string,
+    includeTrash = true,
+  ): Promise<number> {
     try {
+      const fileStatusCondition = includeTrash
+        ? [FileStatus.EXISTS, FileStatus.TRASHED]
+        : [FileStatus.EXISTS];
+
       const calculateSizeQuery = `
       WITH RECURSIVE folder_recursive AS (
         SELECT 
             fl1.uuid,
             fl1.parent_uuid,
-            f1.size AS filesize,
+            COALESCE(f1.size, 0) AS filesize,
             1 AS row_num,
             fl1.user_id as owner_id
         FROM folders fl1
-        LEFT JOIN files f1 ON f1.folder_uuid = fl1.uuid
+        LEFT JOIN files f1 ON f1.folder_uuid = fl1.uuid AND f1.status IN (:fileStatusCondition)
         WHERE fl1.uuid = :folderUuid
-        AND fl1.removed = FALSE 
-        AND fl1.deleted = FALSE
-        AND f1.status != 'DELETED'
+          AND fl1.removed = FALSE 
+          AND fl1.deleted = FALSE
         
         UNION ALL
         
         SELECT 
             fl2.uuid,
             fl2.parent_uuid,
-            f2.size AS filesize,
+            COALESCE(f2.size, 0) AS filesize,
             fr.row_num + 1,
             fr.owner_id
         FROM folders fl2
-        INNER JOIN files f2 ON f2.folder_uuid = fl2.uuid
+        LEFT JOIN files f2 ON f2.folder_uuid = fl2.uuid AND f2.status IN (:fileStatusCondition)
         INNER JOIN folder_recursive fr ON fr.uuid = fl2.parent_uuid
         WHERE fr.row_num < 100000
-        AND fl2.user_id = fr.owner_id
-        AND fl2.removed = FALSE 
-        AND fl2.deleted = FALSE
-        AND f2.status != 'DELETED'
+          AND fl2.user_id = fr.owner_id
+          AND fl2.removed = FALSE 
+          AND fl2.deleted = FALSE
     ) 
     SELECT COALESCE(SUM(filesize), 0) AS totalsize FROM folder_recursive;
       `;
@@ -613,6 +621,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           replacements: {
             folderUuid,
+            fileStatusCondition,
           },
         },
       );

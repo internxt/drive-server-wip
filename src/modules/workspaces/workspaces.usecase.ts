@@ -62,6 +62,8 @@ import {
 } from '../../lib/jwt';
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { SharingService } from '../sharing/sharing.service';
+import { generateWithDefaultSecret } from '../../lib/jwt';
+import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -424,6 +426,58 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async changeUserAssignedSpace(
+    workspaceId: Workspace['id'],
+    memberId: WorkspaceUser['memberId'],
+    changeAssignedSpace: ChangeUserAssignedSpaceDto,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace does not exist');
+    }
+
+    const member = await this.workspaceRepository.findWorkspaceUser({
+      memberId,
+      workspaceId,
+    });
+
+    if (!member) {
+      throw new BadRequestException('Member does not exist in this workspace');
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(
+      workspace,
+      workspaceUser,
+    );
+
+    const newSpaceLimit = changeAssignedSpace.spaceLimit;
+    const currentSpaceLimit = member.spaceLimit;
+    const spaceLeftWithoutUser = spaceLeft + currentSpaceLimit;
+
+    if (newSpaceLimit > spaceLeftWithoutUser) {
+      throw new BadRequestException(
+        `Space limit set for the invitation is superior to the space assignable in workspace. Assignable space: ${spaceLeftWithoutUser}`,
+      );
+    }
+
+    if (member.getUsedSpace() >= newSpaceLimit) {
+      throw new BadRequestException(
+        'The space you are trying to assign to the user is less than the user already used space',
+      );
+    }
+
+    member.spaceLimit = changeAssignedSpace.spaceLimit;
+
+    this.workspaceRepository.updateWorkspaceUser(member.id, member);
+
+    return member.toJSON();
+  }
+
   async getWorkspaceUserTrashedItems(
     user: User,
     workspaceId: WorkspaceAttributes['id'],
@@ -461,6 +515,91 @@ export class WorkspacesUsecases {
     }
 
     return { result };
+  }
+
+  async getUserUsageInWorkspace(
+    user: User,
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const member = await this.workspaceRepository.findWorkspaceUser({
+      memberId: user.uuid,
+      workspaceId,
+    });
+
+    if (!member) {
+      throw new BadRequestException('User not valid');
+    }
+
+    const syncStartedAt = new Date();
+
+    const [totalUsedDrive, totalDeletedSize] = await Promise.all([
+      this.calculateFilesSizeSum(
+        user.uuid,
+        workspaceId,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+        member.lastUsageSyncAt,
+      ),
+      this.calculateFilesSizeSum(
+        user.uuid,
+        workspaceId,
+        [FileStatus.DELETED],
+        member.lastUsageSyncAt,
+        'removedFrom',
+      ),
+    ]);
+
+    member.driveUsage =
+      Math.max(member.driveUsage - totalDeletedSize, 0) + totalUsedDrive;
+
+    member.lastUsageSyncAt = syncStartedAt;
+
+    await this.workspaceRepository.updateWorkspaceUser(member.id, member);
+
+    return {
+      driveUsage: member.driveUsage,
+      backupsUsage: member.backupsUsage,
+      spaceLimit: member.spaceLimit,
+    };
+  }
+
+  async calculateFilesSizeSum(
+    userId: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+    dateFrom: Date | null,
+    dateField: 'createdFrom' | 'removedFrom' = 'createdFrom',
+  ): Promise<number> {
+    const calculateUsageChunkSize = 100;
+    let filesFetched;
+
+    let offset = 0;
+    let totalSize = 0;
+
+    do {
+      const sizesChunk =
+        await this.fileUseCases.getWorkspaceFilesSizeSumByStatuses(
+          userId,
+          workspaceId,
+          statuses,
+          {
+            limit: calculateUsageChunkSize,
+            offset,
+            [dateField]: dateFrom,
+          },
+        );
+
+      filesFetched = sizesChunk.length;
+
+      const filesSize = sizesChunk.reduce(
+        (sum, file) => sum + Number(file.size),
+        0,
+      );
+
+      totalSize += filesSize;
+      offset += calculateUsageChunkSize;
+    } while (filesFetched !== 0);
+
+    return totalSize;
   }
 
   async emptyUserTrashedItems(
@@ -1265,7 +1404,42 @@ export class WorkspacesUsecases {
     const spaceLeft =
       spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
 
+    console.log({
+      spaceLimit,
+      totalSpaceLimitAssigned,
+      totalSpaceAssignedInInvitations,
+      spaceLeft,
+    });
+
     return spaceLeft;
+  }
+
+  async getWorkspaceUsage(workspace: Workspace) {
+    const workpaceDefaultUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const [
+      spaceLimit,
+      totalSpaceLimitAssigned,
+      totalSpaceAssignedInInvitations,
+      spaceUsed,
+    ] = await Promise.all([
+      this.networkService.getLimit(
+        workpaceDefaultUser.bridgeUser,
+        workpaceDefaultUser.userId,
+      ),
+      this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
+      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+      this.workspaceRepository.getTotalDriveAndBackupUsageWorkspaceUsers(
+        workspace.id,
+      ),
+    ]);
+
+    const spaceAssigned =
+      totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
+
+    return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
 
   async isWorkspaceFull(workspaceId: Workspace['id']): Promise<boolean> {
@@ -1498,6 +1672,11 @@ export class WorkspacesUsecases {
       workspace.rootFolderId,
     );
 
+    const workspaceItemsToken = generateWithDefaultSecret(
+      { workspaceId },
+      '1d',
+    );
+
     return {
       workspaceId: workspace.id,
       bucket: rootFolder.bucket,
@@ -1507,6 +1686,7 @@ export class WorkspacesUsecases {
         networkPass: workspaceNetworkUser.userId,
         networkUser: workspaceNetworkUser.bridgeUser,
       },
+      tokenHeader: workspaceItemsToken,
     };
   }
 
@@ -1745,6 +1925,14 @@ export class WorkspacesUsecases {
 
   findById(workspaceId: string): Promise<Workspace | null> {
     return this.workspaceRepository.findById(workspaceId);
+  }
+
+  findByOwnerId(ownerId: string): Promise<Workspace[]> {
+    return this.workspaceRepository.findByOwner(ownerId);
+  }
+
+  findOne(attributes: Partial<WorkspaceAttributes>): Promise<Workspace | null> {
+    return this.workspaceRepository.findOne(attributes);
   }
 
   async changeUserRole(

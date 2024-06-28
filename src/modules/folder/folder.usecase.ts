@@ -752,7 +752,13 @@ export class FolderUseCases {
     await this.folderRepository.deleteByUser(user, folders);
   }
 
-  getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
-    return this.folderRepository.calculateFolderSize(folderUuid);
+  getFolderSizeByUuid(
+    folderUuid: Folder['uuid'],
+    includeTrashedFiles = true,
+  ): Promise<number> {
+    return this.folderRepository.calculateFolderSize(
+      folderUuid,
+      includeTrashedFiles,
+    );
   }
 }
