@@ -9,6 +9,7 @@ import {
   WorkspaceItemType,
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import * as fixtures from './fixtures';
+import { SharingActionName } from '../src/modules/sharing/sharing.domain';
 
 describe('Testing fixtures tests', () => {
   describe("User's fixture", () => {
@@ -270,6 +271,34 @@ describe('Testing fixtures tests', () => {
 
       expect(limit.type).toEqual(LimitTypes.Boolean);
       expect(limit.value).toEqual('0');
+    });
+  });
+
+  describe('Permission fixture', () => {
+    it('When it generates a new permission, then the identifier should be random', () => {
+      const permission = fixtures.newPermission();
+      const otherPermission = fixtures.newPermission();
+
+      expect(permission.id).toBeTruthy();
+      expect(otherPermission.id).not.toBe(permission.id);
+    });
+
+    it('When it generates a permission and a name is provided, then that name should be set', () => {
+      const actionName: SharingActionName = SharingActionName.UploadFile;
+      const permission = fixtures.newPermission({
+        name: actionName,
+      });
+
+      expect(permission.name).toEqual(actionName);
+    });
+
+    it('When it generates a permission and a roleId is provided, then that roleId should be set', () => {
+      const roleId = v4();
+      const permission = fixtures.newPermission({
+        roleId,
+      });
+
+      expect(permission.roleId).toEqual(roleId);
     });
   });
 

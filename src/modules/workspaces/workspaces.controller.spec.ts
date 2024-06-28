@@ -12,15 +12,23 @@ import {
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
+  let sharingUseCases: DeepMocked<SharingService>;
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
+    sharingUseCases = createMock<SharingService>();
 
-    workspacesController = new WorkspacesController(workspacesUsecases);
+    workspacesController = new WorkspacesController(
+      workspacesUsecases,
+      sharingUseCases,
+    );
   });
 
   it('should be defined', () => {
@@ -476,6 +484,115 @@ describe('Workspace Controller', () => {
       await expect(
         workspacesController.deleteAvatar(workspace.id),
       ).resolves.toBeTruthy();
+    });
+  });
+
+  describe('GET /:workspaceId/teams/:teamId/shared/files', () => {
+    it('When shared files are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const teamId = v4();
+      const orderBy = 'createdAt:ASC';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getSharedFiles(
+        teamId,
+        user,
+        orderBy,
+        page,
+        perPage,
+      );
+
+      expect(sharingUseCases.getSharedFilesInWorkspaces).toHaveBeenCalledWith(
+        user,
+        teamId,
+        page,
+        perPage,
+        order,
+      );
+    });
+  });
+
+  describe('GET /:workspaceId/teams/:teamId/shared/folders', () => {
+    it('When shared folders are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const teamId = v4();
+      const orderBy = 'createdAt:ASC';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getSharedFolders(
+        teamId,
+        user,
+        orderBy,
+        page,
+        perPage,
+      );
+
+      expect(sharingUseCases.getSharedFoldersInWorkspace).toHaveBeenCalledWith(
+        user,
+        teamId,
+        page,
+        perPage,
+        order,
+      );
+    });
+  });
+
+  describe('GET /:workspaceId/teams/:teamId/shared/:sharedFolderId/files', () => {
+    it('When files inside a shared folder are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const teamId = v4();
+      const sharedFolderId = v4();
+      const orderBy = 'createdAt:ASC';
+      const token = 'token';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getFilesInsideSharedFolder(
+        workspaceId,
+        teamId,
+        user,
+        sharedFolderId,
+        { token, page, perPage, orderBy },
+      );
+
+      expect(workspacesUsecases.getItemsInSharedFolder).toHaveBeenCalledWith(
+        workspaceId,
+        teamId,
+        user,
+        sharedFolderId,
+        WorkspaceItemType.File,
+        token,
+        { page, perPage, order },
+      );
+    });
+  });
+
+  describe('POST /:workspaceId/folders', () => {
+    it('When a folder is created successfully, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const createFolderDto: CreateWorkspaceFolderDto = {
+        name: 'New Folder',
+        parentFolderUuid: v4(),
+      };
+
+      await workspacesController.createFolder(
+        workspaceId,
+        user,
+        createFolderDto,
+      );
+
+      expect(workspacesUsecases.createFolder).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        createFolderDto,
+      );
     });
   });
 });

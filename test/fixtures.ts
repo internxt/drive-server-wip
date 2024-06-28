@@ -4,7 +4,9 @@ import { generateKeyPairSync } from 'crypto';
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
 import {
+  Permission,
   Sharing,
+  SharingActionName,
   SharingRole,
   SharingType,
 } from '../src/modules/sharing/sharing.domain';
@@ -232,13 +234,13 @@ export const newSharing = (bindTo?: {
   encryptedPassword?: string;
 }): Sharing => {
   return Sharing.build({
-    type: bindTo.sharingType ? bindTo.sharingType : SharingType.Private,
+    type: bindTo?.sharingType ? bindTo.sharingType : SharingType.Private,
     id: v4(),
     itemId: bindTo?.item?.uuid || v4(),
     itemType: (bindTo?.item instanceof File ? 'file' : 'folder') || 'folder',
     ownerId: bindTo?.owner?.uuid || v4(),
     sharedWith: bindTo?.sharedWith?.uuid || v4(),
-    encryptedPassword: bindTo.encryptedPassword || null,
+    encryptedPassword: bindTo?.encryptedPassword || null,
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
     encryptionAlgorithm: 'test',
@@ -323,6 +325,18 @@ export const newWorkspace = (params?: {
     });
 
   return workspace;
+};
+
+export const newPermission = (bindTo?: {
+  id?: string;
+  roleId?: string;
+  name?: SharingActionName;
+}): Permission => {
+  return Permission.build({
+    id: bindTo?.id ?? v4(),
+    roleId: bindTo?.roleId ?? v4(),
+    name: bindTo?.name ?? SharingActionName.UploadFile,
+  });
 };
 
 export const newWorkspaceTeam = (params?: {

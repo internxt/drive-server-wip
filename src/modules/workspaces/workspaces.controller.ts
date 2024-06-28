@@ -46,6 +46,7 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  Folder,
   FolderAttributes,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
@@ -56,7 +57,16 @@ import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
+import { OrderBy } from '../../common/order.type';
+import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
+import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../sharing/sharing.domain';
+import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { SharingService } from '../sharing/sharing.service';
+import { WorkspaceTeam } from './domains/workspace-team.domain';
+import { GetItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-shared-folder.dto';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 
@@ -64,7 +74,10 @@ import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto
 @Controller('workspaces')
 @UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
-  constructor(private workspaceUseCases: WorkspacesUsecases) {}
+  constructor(
+    private workspaceUseCases: WorkspacesUsecases,
+    private sharingUseCases: SharingService,
+  ) {}
 
   @Get('/')
   @ApiOperation({
@@ -535,15 +548,163 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Created File',
   })
-  @UseGuards(WorkspaceGuard)
+  @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @RequiredSharingPermissions(SharingActionName.UploadFile)
   async createFile(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
+    @BehalfUserDecorator() behalfUser: User,
     @UserDecorator() user: User,
     @Body() createFileDto: CreateWorkspaceFileDto,
   ) {
-    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+    return this.workspaceUseCases.createFile(
+      behalfUser ?? user,
+      workspaceId,
+      createFileDto,
+    );
+  }
+
+  @Post('/:workspaceId/shared/')
+  @ApiOperation({
+    summary: 'Share file or folder to workspace',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Shared Item',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async shareItemWithMember(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Body() shareItemWithTeam: ShareItemWithTeamDto,
+  ) {
+    return this.workspaceUseCases.shareItemWithTeam(
+      user,
+      workspaceId,
+      shareItemWithTeam,
+    );
+  }
+
+  @Get(':workspaceId/teams/:teamId/shared/files')
+  @ApiOperation({
+    summary: 'Get shared files with a team',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
+  async getSharedFiles(
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.sharingUseCases.getSharedFilesInWorkspaces(
+      user,
+      teamId,
+      page,
+      perPage,
+      order,
+    );
+  }
+
+  @Get(':workspaceId/teams/:teamId/shared/folders')
+  @ApiOperation({
+    summary: 'Get shared folders with a team',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
+  async getSharedFolders(
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.sharingUseCases.getSharedFoldersInWorkspace(
+      user,
+      teamId,
+      page,
+      perPage,
+      order,
+    );
+  }
+
+  @Get(':workspaceId/teams/:teamId/shared/:sharedFolderId/folders')
+  @ApiOperation({
+    summary: 'Get all folders inside a shared folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFoldersInsideSharedFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeam['id'],
+    @UserDecorator() user: User,
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
+    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
+  ) {
+    const { orderBy, token, page, perPage } = queryDto;
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getItemsInSharedFolder(
+      workspaceId,
+      teamId,
+      user,
+      sharedFolderId,
+      WorkspaceItemType.Folder,
+      token,
+      { page, perPage, order },
+    );
+  }
+
+  @Get(':workspaceId/teams/:teamId/shared/:sharedFolderId/files')
+  @ApiOperation({
+    summary: 'Get files inside a shared folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFilesInsideSharedFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('teamId', ValidateUUIDPipe)
+    teamId: WorkspaceTeam['id'],
+    @UserDecorator() user: User,
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
+    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
+  ) {
+    const { orderBy, token, page, perPage } = queryDto;
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getItemsInSharedFolder(
+      workspaceId,
+      teamId,
+      user,
+      sharedFolderId,
+      WorkspaceItemType.File,
+      token,
+      { page, perPage, order },
+    );
   }
 
   @Post('/:workspaceId/folders')

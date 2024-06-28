@@ -170,6 +170,10 @@ export class UserUseCases {
     return this.preCreatedUserRepository.findByUuids(uuids);
   }
 
+  findByUuid(uuid: User['uuid']): Promise<User> {
+    return this.userRepository.findByUuid(uuid);
+  }
+
   findById(id: User['id']): Promise<User | null> {
     return this.userRepository.findById(id);
   }

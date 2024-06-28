@@ -300,8 +300,8 @@ export class SequelizeWorkspaceRepository {
     userUuid: string,
     workspaceId: string,
   ): Promise<{
-    workspace: Workspace | null;
-    workspaceUser: WorkspaceUser | null;
+    workspace?: Workspace | null;
+    workspaceUser?: WorkspaceUser | null;
   }> {
     const workspace = await this.modelWorkspace.findOne({
       where: { id: workspaceId },
