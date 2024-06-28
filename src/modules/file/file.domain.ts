@@ -34,6 +34,7 @@ export interface FileAttributes {
   removedAt: Date;
   userId: number;
   user?: any;
+  creationTime: Date;
   modificationTime: Date;
   plainName: string;
   createdAt: Date;
@@ -68,6 +69,7 @@ export class File implements FileAttributes {
   deletedAt: Date;
   userId: number;
   user: User;
+  creationTime: Date;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -93,6 +95,7 @@ export class File implements FileAttributes {
     deletedAt,
     userId,
     user,
+    creationTime,
     modificationTime,
     createdAt,
     updatedAt,
@@ -118,6 +121,7 @@ export class File implements FileAttributes {
     this.deletedAt = deletedAt;
     this.userId = userId;
     this.setUser(user);
+    this.creationTime = creationTime;
     this.modificationTime = modificationTime;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -190,6 +194,7 @@ export class File implements FileAttributes {
       deleted: this.deleted,
       deletedAt: this.deletedAt,
       userId: this.userId,
+      creationTime: this.creationTime,
       modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,

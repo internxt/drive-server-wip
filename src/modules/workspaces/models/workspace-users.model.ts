@@ -70,6 +70,9 @@ export class WorkspaceUserModel
   @Column(DataType.BOOLEAN)
   deactivated: boolean;
 
+  @Column(DataType.DATE)
+  lastUsageSyncAt: Date;
+
   @Column
   createdAt: Date;
 

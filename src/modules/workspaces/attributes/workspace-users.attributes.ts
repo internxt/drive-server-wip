@@ -9,6 +9,7 @@ export interface WorkspaceUserAttributes {
   driveUsage: number;
   backupsUsage: number;
   deactivated: boolean;
+  lastUsageSyncAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

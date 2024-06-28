@@ -263,6 +263,21 @@ export class SequelizeWorkspaceRepository {
     return total ?? 0;
   }
 
+  async getTotalDriveAndBackupUsageWorkspaceUsers(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<number> {
+    const [backupsUsageTotal, driveUsageTotal] = await Promise.all([
+      this.modelWorkspaceUser.sum('backupsUsage', {
+        where: { workspaceId },
+      }),
+      this.modelWorkspaceUser.sum('driveUsage', {
+        where: { workspaceId },
+      }),
+    ]);
+
+    return backupsUsageTotal + driveUsageTotal;
+  }
+
   async createInvite(
     invite: Omit<WorkspaceInvite, 'id'>,
   ): Promise<WorkspaceInvite | null> {
@@ -341,17 +356,17 @@ export class SequelizeWorkspaceRepository {
             [Op.or]: [
               {
                 '$member.name$': {
-                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                  [Op.substring]: search,
                 },
               },
               {
                 '$member.lastname$': {
-                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                  [Op.substring]: search,
                 },
               },
               {
                 '$member.email$': {
-                  [Op.like]: Sequelize.literal(`\'%${search}%\'`),
+                  [Op.substring]: search,
                 },
               },
             ],
@@ -419,6 +434,15 @@ export class SequelizeWorkspaceRepository {
   ): Promise<void> {
     await this.modelWorkspaceUser.update(update, {
       where: { id: workspaceUserId },
+    });
+  }
+
+  async updateWorkspaceUserBy(
+    where: Partial<WorkspaceUserAttributes>,
+    update: Partial<WorkspaceUserAttributes>,
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(update, {
+      where,
     });
   }
 
