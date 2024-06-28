@@ -2169,7 +2169,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
       });
 
-      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(4);
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(4);
       expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
         member.id,
         {
@@ -2204,7 +2206,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
       });
 
-      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(2);
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(2);
       expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
         member.id,
         {
@@ -2241,7 +2245,9 @@ describe('WorkspacesUsecases', () => {
         null,
       );
 
-      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(2);
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(2);
       expect(result).toEqual(300);
     });
 
@@ -2257,7 +2263,9 @@ describe('WorkspacesUsecases', () => {
         null,
       );
 
-      expect(fileUseCases.getWorkspaceFilesSizeSumByStatuses).toHaveBeenCalledTimes(1);
+      expect(
+        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
+      ).toHaveBeenCalledTimes(1);
       expect(result).toEqual(0);
     });
   });

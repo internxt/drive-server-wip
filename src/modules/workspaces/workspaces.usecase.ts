@@ -563,16 +563,17 @@ export class WorkspacesUsecases {
     let totalSize = 0;
 
     do {
-      const sizesChunk = await this.fileUseCases.getWorkspaceFilesSizeSumByStatuses(
-        userId,
-        workspaceId,
-        statuses,
-        {
-          limit: calculateUsageChunkSize,
-          offset,
-          [dateField]: dateFrom,
-        },
-      );
+      const sizesChunk =
+        await this.fileUseCases.getWorkspaceFilesSizeSumByStatuses(
+          userId,
+          workspaceId,
+          statuses,
+          {
+            limit: calculateUsageChunkSize,
+            offset,
+            [dateField]: dateFrom,
+          },
+        );
 
       filesFetched = sizesChunk.length;
 
@@ -1093,13 +1094,6 @@ export class WorkspacesUsecases {
 
     const spaceLeft =
       spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
-
-    console.log({
-      spaceLimit,
-      totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
-      spaceLeft,
-    });
 
     return spaceLeft;
   }
