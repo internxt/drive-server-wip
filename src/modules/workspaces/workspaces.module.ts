@@ -17,6 +17,7 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderModule } from '../folder/folder.module';
 import { FileModule } from '../file/file.module';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { FileModule } from '../file/file.module';
     forwardRef(() => UserModule),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
+    forwardRef(() => SharingModule),
     BridgeModule,
     MailerModule,
   ],
