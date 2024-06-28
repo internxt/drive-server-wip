@@ -256,8 +256,14 @@ describe('SequelizeWorkspaceRepository', () => {
         memberId: user2.uuid,
       });
       const mockWorkspaceUserModel = [
-        workspaceUser1,
-        workspaceUser2,
+        {
+          ...workspaceUser1,
+          toJSON: jest.fn().mockReturnValue(workspaceUser1),
+        },
+        {
+          ...workspaceUser2,
+          toJSON: jest.fn().mockReturnValue(workspaceUser2),
+        },
       ] as unknown as WorkspaceUserModel[];
 
       const spyWUM = jest
@@ -273,7 +279,10 @@ describe('SequelizeWorkspaceRepository', () => {
         include: expect.anything(),
       });
       expect(result[0].member).toBeInstanceOf(User);
-      expect(result).toMatchObject(mockWorkspaceUserModel);
+      expect(result).toEqual([
+        expect.objectContaining(workspaceUser1),
+        expect.objectContaining(workspaceUser2),
+      ]);
     });
 
     it('When passing the workspace id and a search value, it should return all users that match the search on username, email, or last name.', async () => {

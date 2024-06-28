@@ -58,11 +58,11 @@ import {
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import {
   generateTokenWithPlainSecret,
+  generateWithDefaultSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { SharingService } from '../sharing/sharing.service';
-import { generateWithDefaultSecret } from '../../lib/jwt';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 
 @Injectable()
@@ -1403,13 +1403,6 @@ export class WorkspacesUsecases {
 
     const spaceLeft =
       spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
-
-    console.log({
-      spaceLimit,
-      totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
-      spaceLeft,
-    });
 
     return spaceLeft;
   }
