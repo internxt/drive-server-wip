@@ -31,6 +31,8 @@ import {
 import { UserAttributes } from '../src/modules/user/user.attributes';
 import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
+import { UserNotificationTokens } from '../src/modules/user/user-notification-tokens.domain';
+import { UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -503,3 +505,21 @@ export function generateBase64PrivateKeyStub(): string {
   const base64privateKey = Buffer.from(stringPrivateKey).toString('base64');
   return base64privateKey;
 }
+
+export const newNotificationToken = (
+  params: { attributes: Partial<UserNotificationTokenAttributes> } = null,
+): UserNotificationTokens => {
+  const token = UserNotificationTokens.build({
+    id: v4(),
+    userId: v4(),
+    token: v4(),
+    type: 'macos',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      token[key] = params.attributes[key];
+    });
+  return token;
+};
