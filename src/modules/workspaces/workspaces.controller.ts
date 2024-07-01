@@ -69,6 +69,7 @@ import { WorkspaceTeam } from './domains/workspace-team.domain';
 import { GetItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-shared-folder.dto';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -144,6 +145,7 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Workspace invitation is valid',
   })
+  @Public()
   validateWorkspaceInvitation(
     @Param('inviteId', ValidateUUIDPipe)
     inviteId: WorkspaceInviteAttributes['id'],
