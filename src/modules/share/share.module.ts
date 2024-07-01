@@ -16,6 +16,7 @@ import { ShareUseCases } from './share.usecase';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from '../file/file.model';
+import { UserNotificationTokensModel } from '../user/user-notification-tokens.model';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { FileModel } from '../file/file.model';
       FolderModel,
       UserModel,
       ThumbnailModel,
+      UserNotificationTokensModel,
     ]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
