@@ -13,7 +13,9 @@ import { v4, validate as validateUuid } from 'uuid';
 import {
   Item,
   Role,
+  SharedWithType,
   Sharing,
+  SharingActionName,
   SharingAttributes,
   SharingInvite,
   SharingRole,
@@ -209,10 +211,19 @@ export class SharingService {
     private readonly userReferralsRepository: SequelizeUserReferralsRepository,
   ) {}
 
+  findSharingBy(where: Partial<Sharing>): Promise<Sharing | null> {
+    return this.sharingRepository.findOneSharingBy(where);
+  }
+
+  findSharingRoleBy(where: Partial<SharingRole>) {
+    return this.sharingRepository.findSharingRoleBy(where);
+  }
+
   async isItemBeingSharedAboveTheLimit(
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
     type: Sharing['type'],
+    sharedWithType = SharedWithType.Individual,
   ): Promise<boolean> {
     const [sharingsCountForThisItem, invitesCountForThisItem] =
       await Promise.all([
@@ -220,6 +231,7 @@ export class SharingService {
           itemId,
           itemType,
           type,
+          sharedWithType,
         }),
         this.sharingRepository.getInvitesCountBy({
           itemId,
@@ -863,6 +875,7 @@ export class SharingService {
       itemId: requestedFolderIsSharedRootFolder
         ? folderId
         : decoded.sharedRootFolderId,
+      sharedWithType: SharedWithType.Individual,
     });
 
     if (!sharing) {
@@ -905,6 +918,7 @@ export class SharingService {
       token: generateTokenWithPlainSecret(
         {
           sharedRootFolderId: sharing.itemId,
+          sharedWithType: SharedWithType.Individual,
           parentFolderId: parentFolder?.uuid || null,
           folder: {
             uuid: folder.uuid,
@@ -1025,6 +1039,7 @@ export class SharingService {
       itemId: requestedFolderIsSharedRootFolder
         ? folderId
         : decoded.sharedRootFolderId,
+      sharedWithType: SharedWithType.Individual,
     });
 
     if (!sharing) {
@@ -1064,6 +1079,7 @@ export class SharingService {
       token: generateTokenWithPlainSecret(
         {
           sharedRootFolderId: sharing.itemId,
+          sharedWithType: SharedWithType.Individual,
           parentFolderId: parentFolder?.uuid || null,
           folder: {
             uuid: folder.uuid,
@@ -1137,6 +1153,7 @@ export class SharingService {
         itemId: createInviteDto.itemId,
         itemType: createInviteDto.itemType,
         sharedWith: userJoining.uuid,
+        sharedWithType: SharedWithType.Individual,
       }),
     ]);
 
@@ -1159,7 +1176,9 @@ export class SharingService {
     const resourceIsOwnedByUser = item.isOwnedBy(user);
 
     if (!resourceIsOwnedByUser) {
-      throw new ForbiddenException();
+      throw new ForbiddenException(
+        'User does not have permission to share this item',
+      );
     }
 
     const expirationAt = new Date();
@@ -1326,6 +1345,7 @@ export class SharingService {
     itemType: Sharing['itemType'],
     itemId: Sharing['itemId'],
     type: Sharing['type'],
+    sharedWithType: SharedWithType = SharedWithType.Individual,
   ) {
     if (type === SharingType.Private) {
       await this.sharingRepository.deleteInvitesBy({
@@ -1338,6 +1358,7 @@ export class SharingService {
       itemId,
       itemType,
       type,
+      sharedWithType,
     });
   }
 
@@ -1440,6 +1461,7 @@ export class SharingService {
     user: User,
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
+    sharedWithType: SharedWithType = SharedWithType.Individual,
   ) {
     const sharing = await this.sharingRepository.findOneSharing({
       itemId,
@@ -1461,6 +1483,7 @@ export class SharingService {
     await this.sharingRepository.deleteSharingsBy({
       itemId,
       itemType,
+      sharedWithType,
     });
   }
 
@@ -1468,12 +1491,14 @@ export class SharingService {
     user: User,
     itemIds: Sharing['itemId'][],
     itemType: Sharing['itemType'],
+    sharedWithType: SharedWithType = SharedWithType.Individual,
   ) {
     await this.sharingRepository.bulkDeleteInvites(itemIds, itemType);
     await this.sharingRepository.bulkDeleteSharings(
       user.uuid,
       itemIds,
       itemType,
+      sharedWithType,
     );
   }
 
@@ -1760,6 +1785,106 @@ export class SharingService {
     };
   }
 
+  async getSharedFoldersInWorkspace(
+    user: User,
+    teamId: Sharing['sharedWith'],
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<GetItemsReponse> {
+    const foldersWithSharedInfo =
+      await this.sharingRepository.findFoldersByOwnerAndSharedWithTeamInworkspace(
+        teamId,
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+
+    const folders = (await Promise.all(
+      foldersWithSharedInfo.map(async (folderWithSharedInfo) => {
+        const avatar = folderWithSharedInfo.folder?.user?.avatar;
+        return {
+          ...folderWithSharedInfo.folder,
+          plainName:
+            folderWithSharedInfo.folder.plainName ||
+            this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
+              .plainName,
+          sharingId: folderWithSharedInfo.id,
+          encryptionKey: folderWithSharedInfo.encryptionKey,
+          dateShared: folderWithSharedInfo.createdAt,
+          sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
+          user: {
+            ...folderWithSharedInfo.folder.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+        };
+      }),
+    )) as FolderWithSharedInfo[];
+
+    return {
+      folders: folders,
+      files: [],
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+      role: 'OWNER',
+    };
+  }
+
+  async getSharedFilesInWorkspaces(
+    user: User,
+    teamId: Sharing['sharedWith'],
+    offset: number,
+    limit: number,
+    order: [string, string][],
+  ): Promise<GetItemsReponse> {
+    const filesWithSharedInfo =
+      await this.sharingRepository.findFilesByOwnerAndSharedWithTeamInworkspace(
+        teamId,
+        user.uuid,
+        offset,
+        limit,
+        order,
+      );
+
+    const files = (await Promise.all(
+      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
+        const avatar = fileWithSharedInfo.file?.user?.avatar;
+        return {
+          ...fileWithSharedInfo.file,
+          plainName:
+            fileWithSharedInfo.file.plainName ||
+            this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
+          sharingId: fileWithSharedInfo.id,
+          encryptionKey: fileWithSharedInfo.encryptionKey,
+          dateShared: fileWithSharedInfo.createdAt,
+          user: {
+            ...fileWithSharedInfo.file.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+        };
+      }),
+    )) as FileWithSharedInfo[];
+
+    return {
+      folders: [],
+      files: files,
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+      role: 'OWNER',
+    };
+  }
+
   async getItemSharedWith(
     user: User,
     itemId: Sharing['itemId'],
@@ -1977,6 +2102,21 @@ export class SharingService {
     }
   }
 
+  async canPerfomAction(
+    sharedWith: Sharing['sharedWith'],
+    resourceId: Sharing['itemId'],
+    action: SharingActionName,
+    sharedWithType = SharedWithType.Individual,
+  ) {
+    const permissions = await this.sharingRepository.findPermissionsInSharing(
+      sharedWith,
+      sharedWithType,
+      resourceId,
+    );
+
+    return permissions.some((p) => p.name === action);
+  }
+
   async notifyUserSharingRoleUpdated(
     sharing: Sharing,
     item: Item,
@@ -2043,6 +2183,7 @@ export class SharingService {
         itemType,
         type: SharingType.Public,
         ownerId: user.uuid,
+        sharedWithType: SharedWithType.Individual,
       });
     }
   }
@@ -2051,6 +2192,7 @@ export class SharingService {
     user: User,
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
+    sharedWithType = SharedWithType.Individual,
   ): Promise<Sharing> {
     const [publicSharing, privateSharing] = await Promise.all([
       this.sharingRepository.findOneByOwnerOrSharedWithItem(
@@ -2064,6 +2206,7 @@ export class SharingService {
         itemId,
         itemType,
         SharingType.Private,
+        sharedWithType,
       ),
     ]);
 
@@ -2090,5 +2233,21 @@ export class SharingService {
     }
 
     return this.folderUsecases.getFolderSizeByUuid(sharing.itemId, false);
+  }
+
+  async createSharing(
+    sharing: Sharing,
+    roleId: SharingRole['roleId'],
+  ): Promise<Sharing> {
+    const createdSharing = await this.sharingRepository.createSharing(sharing);
+
+    await this.sharingRepository.createSharingRole({
+      roleId,
+      sharingId: createdSharing.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return createdSharing;
   }
 }

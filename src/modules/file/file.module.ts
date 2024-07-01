@@ -12,6 +12,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SharingModule } from '../sharing/sharing.module';
     forwardRef(() => FolderModule),
     forwardRef(() => ThumbnailModule),
     forwardRef(() => SharingModule),
+    forwardRef(() => WorkspacesModule),
     BridgeModule,
     CryptoModule,
   ],

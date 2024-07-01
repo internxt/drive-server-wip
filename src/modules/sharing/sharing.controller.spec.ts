@@ -8,10 +8,12 @@ import { newSharing } from '../../../test/fixtures';
 describe('SharingController', () => {
   let controller: SharingController;
   let sharingService: SharingService;
+
   let sharing: Sharing;
 
   beforeEach(async () => {
     sharingService = createMock<SharingService>();
+
     controller = new SharingController(sharingService);
     sharing = newSharing({});
   });

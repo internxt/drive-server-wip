@@ -100,6 +100,8 @@ export class UserController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+
     try {
       const response = await this.userUseCases.createUser(createUserDto);
       const keys = await this.keyServerUseCases.addKeysToUser(
@@ -139,6 +141,9 @@ export class UserController {
         user: {
           ...response.user,
           root_folder_id: response.user.rootFolderId,
+          ...(isDriveWeb
+            ? { rootFolderId: response.user.rootFolderUuid }
+            : null),
           ...keys,
         },
         token: response.token,

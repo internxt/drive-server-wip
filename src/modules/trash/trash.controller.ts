@@ -44,6 +44,10 @@ import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import {
+  WorkspaceResourcesAction,
+  WorkspacesInBehalfGuard,
+} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -123,6 +127,10 @@ export class TrashController {
   })
   @ApiOkResponse({ description: 'All items moved to trash' })
   @ApiBadRequestResponse({ description: 'Any item id is invalid' })
+  @WorkspacesInBehalfGuard(
+    [{ sourceKey: 'body', fieldName: 'items' }],
+    WorkspaceResourcesAction.AddItemsToTrash,
+  )
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,

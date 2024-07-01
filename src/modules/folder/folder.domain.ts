@@ -8,6 +8,11 @@ export type SortableFolderAttributes = keyof Pick<
   'id' | 'name' | 'plainName' | 'updatedAt'
 >;
 
+export enum FolderStatus {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+}
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
   removed?: FolderAttributes['removed'];
@@ -88,6 +93,18 @@ export class Folder implements FolderAttributes {
   moveToTrash() {
     this.deleted = true;
     this.deletedAt = new Date();
+  }
+
+  getFolderStatus() {
+    let folderStatus = FolderStatus.EXISTS;
+
+    if (this.removed) {
+      folderStatus = FolderStatus.DELETED;
+    } else if (this.deleted) {
+      folderStatus = FolderStatus.TRASHED;
+    }
+
+    return folderStatus;
   }
 
   removeFromTrash() {

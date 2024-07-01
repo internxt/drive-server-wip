@@ -1,3 +1,4 @@
+import { UserToJsonDto } from './dto/user-to-json.dto';
 import { UserAttributes } from './user.attributes';
 export class User implements UserAttributes {
   id: number;
@@ -97,7 +98,7 @@ export class User implements UserAttributes {
     return this.email !== this.bridgeUser;
   }
 
-  toJSON() {
+  toJSON(): UserToJsonDto {
     return {
       id: this.id,
       userId: this.userId,

@@ -22,6 +22,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { HttpClientModule } from '../../externals/http/http.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { HttpClientModule } from '../../externals/http/http.module';
     ]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
+    forwardRef(() => WorkspacesModule),
     BridgeModule,
     AppSumoModule,
     forwardRef(() => UserModule),
