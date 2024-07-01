@@ -8,6 +8,8 @@ import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
 import { Op } from 'sequelize';
+import { UserNotificationTokensModel } from './user-notification-tokens.model';
+import { UserNotificationTokens } from './user-notification-tokens.domain';
 
 export interface UserRepository {
   findById(id: number): Promise<User | null>;
@@ -31,6 +33,8 @@ export interface UserRepository {
   getMeetClosedBetaUsers(): Promise<string[]>;
   setRoomToBetaUser(room: string, user: User): Promise<void>;
   getBetaUserFromRoom(room: string): Promise<User | null>;
+  getNotificationTokens(userId: string): Promise<UserNotificationTokens[]>;
+  getNotificationTokenCount(userId: string): Promise<number>;
 }
 
 @Injectable()
@@ -38,6 +42,8 @@ export class SequelizeUserRepository implements UserRepository {
   constructor(
     @InjectModel(UserModel)
     private modelUser: typeof UserModel,
+    @InjectModel(UserNotificationTokensModel)
+    private modelUserNotificationTokens: typeof UserNotificationTokensModel,
   ) {}
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
@@ -184,6 +190,33 @@ export class SequelizeUserRepository implements UserRepository {
       return user ? this.toDomain(user) : null;
     }
     return null;
+  }
+
+  async getNotificationTokens(
+    userId: string,
+    where?: Partial<Omit<UserNotificationTokens, 'userId'>>,
+  ): Promise<UserNotificationTokens[]> {
+    const tokens = await this.modelUserNotificationTokens.findAll({
+      where: { userId, ...where },
+    });
+
+    return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
+  }
+
+  async addNotificationToken(
+    userId: string,
+    token: string,
+    type: UserNotificationTokens['type'],
+  ): Promise<void> {
+    await this.modelUserNotificationTokens.create({
+      userId,
+      token,
+      type,
+    });
+  }
+
+  async getNotificationTokenCount(userId: string): Promise<number> {
+    return this.modelUserNotificationTokens.count({ where: { userId } });
   }
 
   toDomain(model: UserModel): User {
