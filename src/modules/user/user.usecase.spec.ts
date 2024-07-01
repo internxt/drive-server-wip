@@ -23,9 +23,18 @@ import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { AttemptChangeEmailHasExpiredException } from './exception/attempt-change-email-has-expired.exception';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
-import { newMailLimit } from '../../../test/fixtures';
+import {
+  newMailLimit,
+  newNotificationToken,
+  newUser,
+} from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
+import {
+  DeviceType,
+  RegisterNotificationTokenDto,
+} from './dto/register-notification-token.dto';
+import { UserNotificationTokens } from './user-notification-tokens.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -591,6 +600,75 @@ describe('User use cases', () => {
       await expect(
         userUseCases.acceptAttemptChangeEmail('encryptedId'),
       ).rejects.toThrowError('Change email failed');
+    });
+  });
+
+  describe('registerUserNotificationToken', () => {
+    const body: RegisterNotificationTokenDto = {
+      token: 'token',
+      type: DeviceType.macos,
+    };
+    it('When registering a notification token where the user has 10 tokens, Then it should throw a BadRequestException', async () => {
+      const user = newUser();
+
+      jest
+        .spyOn(userRepository, 'getNotificationTokenCount')
+        .mockResolvedValue(10);
+
+      await expect(
+        userUseCases.registerUserNotificationToken(user, body),
+      ).rejects.toThrow(BadRequestException);
+    });
+    it('When registering a notification token that already exists, Then it should throw a BadRequestException', async () => {
+      const user = newUser();
+
+      jest
+        .spyOn(userRepository, 'getNotificationTokenCount')
+        .mockResolvedValue(0);
+      jest
+        .spyOn(userRepository, 'getNotificationTokens')
+        .mockResolvedValueOnce([newNotificationToken()]);
+
+      await expect(
+        userUseCases.registerUserNotificationToken(user, body),
+      ).rejects.toThrow(BadRequestException);
+    });
+    it('When registering a notification token, Then it should call userRepository.addNotificationToken', async () => {
+      const user = newUser();
+
+      jest
+        .spyOn(userRepository, 'getNotificationTokenCount')
+        .mockResolvedValue(0);
+      jest.spyOn(userRepository, 'addNotificationToken');
+
+      await userUseCases.registerUserNotificationToken(user, body);
+
+      expect(userRepository.addNotificationToken).toHaveBeenCalledWith(
+        user.uuid,
+        body.token,
+        body.type,
+      );
+    });
+  });
+
+  describe('getUserNotificationTokens', () => {
+    it("When getting notification tokens, Then it should return the user's tokens", async () => {
+      const user = newUser();
+      const mockTokens: UserNotificationTokens[] = [
+        newNotificationToken(),
+        newNotificationToken(),
+      ];
+
+      jest
+        .spyOn(userRepository, 'getNotificationTokens')
+        .mockResolvedValueOnce(mockTokens);
+
+      const tokens = await userUseCases.getUserNotificationTokens(user);
+
+      expect(userRepository.getNotificationTokens).toHaveBeenCalledWith(
+        user.uuid,
+      );
+      expect(tokens).toEqual(mockTokens);
     });
   });
 });

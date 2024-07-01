@@ -69,6 +69,8 @@ import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { UserNotificationTokens } from './user-notification-tokens.domain';
+import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -1078,5 +1080,40 @@ export class UserUseCases {
 
   getBetaUserFromRoom(room: string) {
     return this.userRepository.getBetaUserFromRoom(room);
+  }
+
+  async registerUserNotificationToken(
+    user: User,
+    registerTokenDto: RegisterNotificationTokenDto,
+  ): Promise<void> {
+    const tokenCount = await this.userRepository.getNotificationTokenCount(
+      user.uuid,
+    );
+
+    if (tokenCount >= 10) {
+      throw new BadRequestException('Max token limit reached');
+    }
+
+    const tokenExists = await this.userRepository.getNotificationTokens(
+      user.uuid,
+      {
+        token: registerTokenDto.token,
+        type: registerTokenDto.type,
+      },
+    );
+
+    if (tokenExists.length > 0) {
+      throw new BadRequestException('Token already exists');
+    }
+
+    return this.userRepository.addNotificationToken(
+      user.uuid,
+      registerTokenDto.token,
+      registerTokenDto.type,
+    );
+  }
+
+  getUserNotificationTokens(user: User): Promise<UserNotificationTokens[]> {
+    return this.userRepository.getNotificationTokens(user.uuid);
   }
 }
