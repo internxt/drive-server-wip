@@ -332,7 +332,7 @@ export class FileUseCases {
     return {
       ...file.toJSON(),
       fileId,
-      size,
+      size: parseInt(size.toString()),
     };
   }
 

@@ -525,11 +525,12 @@ export class SequelizeFileRepository implements FileRepository {
       ...model.toJSON(),
       folder: model.folder ? Folder.build(model.folder) : null,
       user: model.user ? User.build(model.user) : null,
+      size: model.size,
     });
     return file;
   }
 
   private toModel(domain: File): Partial<FileAttributes> {
-    return domain.toJSON();
+    return { ...domain.toJSON() };
   }
 }
