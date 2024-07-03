@@ -264,25 +264,38 @@ export class TrashController {
     //     'Items to remove from the trash are limited to 50',
     //   );
     // }
+    const { items } = deleteItemsDto;
+    const fileItems = items.filter((item) => item.type === DeleteItemType.FILE);
+    const folderItems = items.filter(
+      (item) => item.type === DeleteItemType.FOLDER,
+    );
 
-    const filesIds = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FILE)
-      .map((item) => parseInt(item.id));
-
-    const foldersIds = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FOLDER)
-      .map((item) => parseInt(item.id));
-
+    const filesIds = fileItems.map((item) => parseInt(item.id));
+    const filesUuids = fileItems.map((item) => item.uuid);
     const files =
       filesIds.length > 0
         ? await this.fileUseCases.getFilesByIds(user, filesIds)
         : [];
+    const filesByUuid =
+      filesUuids.length > 0
+        ? await this.fileUseCases.getByUuids(filesUuids)
+        : [];
+
+    const foldersIds = folderItems.map((item) => parseInt(item.id));
+    const foldersUuids = folderItems.map((item) => item.uuid);
     const folders =
       foldersIds.length > 0
         ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
         : [];
+    const foldersByUuid =
+      foldersUuids.length > 0
+        ? await this.folderUseCases.getByUuids(foldersUuids)
+        : [];
 
-    await this.trashUseCases.deleteItems(user, files, folders);
+    const allFiles = [...files, ...filesByUuid];
+    const allFolders = [...folders, ...foldersByUuid];
+
+    await this.trashUseCases.deleteItems(user, allFiles, allFolders);
   }
 
   @Delete('/file/:fileId')
