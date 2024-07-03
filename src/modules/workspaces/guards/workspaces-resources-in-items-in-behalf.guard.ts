@@ -45,6 +45,8 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
   protected actionHandlers: ActionHandlers = {
     [WorkspaceResourcesAction.AddItemsToTrash]:
       this.hasUserTrashPermissions.bind(this),
+    [WorkspaceResourcesAction.DeleteItemsFromTrash]:
+      this.hasUserTrashPermissions.bind(this),
     [WorkspaceResourcesAction.Default]: this.hasUserPermissions.bind(this),
   };
 

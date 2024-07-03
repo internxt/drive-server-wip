@@ -51,6 +51,13 @@ export class FileUseCases {
     return this.fileRepository.findById(uuid);
   }
 
+  getByUuidsAndUser(
+    user: User,
+    uuids: FileAttributes['uuid'][],
+  ): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids, { userId: user.id });
+  }
+
   getByUserExceptParents(arg: any): Promise<File[]> {
     throw new Error('Method not implemented.');
   }
