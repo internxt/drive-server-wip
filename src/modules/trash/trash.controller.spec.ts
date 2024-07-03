@@ -8,6 +8,10 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { newUser } from '../../../test/fixtures';
 import { BadRequestException } from '@nestjs/common';
 import { ItemType } from './dto/controllers/move-items-to-trash.dto';
+import {
+  DeleteItemType,
+  DeleteItemsDto,
+} from './dto/controllers/delete-item.dto';
 
 const user = newUser();
 
@@ -109,5 +113,60 @@ describe('TrashController', () => {
       [parseInt(folderItems[0].id)],
       [folderItems[1].uuid],
     );
+  });
+
+  describe('deleteItems', () => {
+    it('When array is empty, then it should not get items', async () => {
+      const deleteItemsDto: DeleteItemsDto = { items: [] };
+
+      await controller.deleteItems(deleteItemsDto, user);
+      expect(fileUseCases.getFilesByIds).not.toHaveBeenCalled();
+      expect(folderUseCases.getFoldersByIds).not.toHaveBeenCalled();
+      expect(trashUseCases.deleteItems).toHaveBeenCalled();
+    });
+
+    it('When items are passed, then items should be deleted with their respective uuid or id', async () => {
+      const fileItems = [
+        {
+          id: '2',
+          uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
+          type: DeleteItemType.FILE,
+        },
+      ];
+      const folderItems = [
+        {
+          id: '1',
+          uuid: '9af7dca1-fd68-4864-9b60-ef36b77d0903',
+          type: DeleteItemType.FOLDER,
+        },
+      ];
+      const deleteItemsDto: DeleteItemsDto = {
+        items: [...fileItems, ...folderItems],
+      };
+
+      jest.spyOn(fileUseCases, 'getFilesByIds').mockResolvedValue([]);
+      jest.spyOn(fileUseCases, 'getByUuids').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getFoldersByIds').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getByUuids').mockResolvedValue([]);
+      jest.spyOn(trashUseCases, 'deleteItems').mockResolvedValue();
+
+      await controller.deleteItems(deleteItemsDto, user);
+
+      expect(fileUseCases.getFilesByIds).toHaveBeenCalledWith(user, [
+        parseInt(fileItems[0].id),
+      ]);
+      expect(fileUseCases.getByUuids).toHaveBeenCalledWith([fileItems[0].uuid]);
+      expect(folderUseCases.getFoldersByIds).toHaveBeenCalledWith(user, [
+        parseInt(folderItems[0].id),
+      ]);
+      expect(folderUseCases.getByUuids).toHaveBeenCalledWith([
+        folderItems[0].uuid,
+      ]);
+      expect(trashUseCases.deleteItems).toHaveBeenCalledWith(
+        user,
+        expect.any(Array),
+        expect.any(Array),
+      );
+    });
   });
 });
