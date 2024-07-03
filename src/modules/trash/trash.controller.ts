@@ -254,6 +254,10 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes items from user's trash",
   })
+  @WorkspacesInBehalfGuard(
+    [{ sourceKey: 'body', fieldName: 'items' }],
+    WorkspaceResourcesAction.DeleteItemsFromTrash,
+  )
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
