@@ -269,32 +269,34 @@ export class TrashController {
     //   );
     // }
     const { items } = deleteItemsDto;
-    const fileItems = items.filter((item) => item.type === DeleteItemType.FILE);
-    const folderItems = items.filter(
-      (item) => item.type === DeleteItemType.FOLDER,
-    );
 
-    const filesIds = fileItems.map((item) => parseInt(item.id));
-    const filesUuids = fileItems.map((item) => item.uuid);
-    const files =
+    const filesIds: File['id'][] = [];
+    const filesUuids: File['uuid'][] = [];
+    const foldersIds: Folder['id'][] = [];
+    const foldersUuids: Folder['uuid'][] = [];
+
+    for (const item of items) {
+      if (item.type === DeleteItemType.FILE) {
+        if (item.id) filesIds.push(parseInt(item.id, 10));
+        if (item.uuid) filesUuids.push(item.uuid);
+      } else if (item.type === DeleteItemType.FOLDER) {
+        if (item.id) foldersIds.push(parseInt(item.id, 10));
+        if (item.uuid) foldersUuids.push(item.uuid);
+      }
+    }
+
+    const [files, filesByUuid, folders, foldersByUuid] = await Promise.all([
       filesIds.length > 0
-        ? await this.fileUseCases.getFilesByIds(user, filesIds)
-        : [];
-    const filesByUuid =
-      filesUuids.length > 0
-        ? await this.fileUseCases.getByUuids(filesUuids)
-        : [];
-
-    const foldersIds = folderItems.map((item) => parseInt(item.id));
-    const foldersUuids = folderItems.map((item) => item.uuid);
-    const folders =
+        ? this.fileUseCases.getFilesByIds(user, filesIds)
+        : [],
+      filesUuids.length > 0 ? this.fileUseCases.getByUuids(filesUuids) : [],
       foldersIds.length > 0
-        ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
-        : [];
-    const foldersByUuid =
+        ? this.folderUseCases.getFoldersByIds(user, foldersIds)
+        : [],
       foldersUuids.length > 0
-        ? await this.folderUseCases.getByUuids(foldersUuids)
-        : [];
+        ? this.folderUseCases.getByUuids(foldersUuids)
+        : [],
+    ]);
 
     const allFiles = [...files, ...filesByUuid];
     const allFolders = [...folders, ...foldersByUuid];
