@@ -7,8 +7,6 @@ import { BadRequestException } from '@nestjs/common';
 
 const { avatar: avatarConfig } = configuration();
 
-console.log('[DEBUG | avatarConfig]:', JSON.stringify(avatarConfig, null, 2));
-
 export const avatarStorageS3Config: MulterOptions = {
   storage: multerS3({
     s3: new S3Client({
