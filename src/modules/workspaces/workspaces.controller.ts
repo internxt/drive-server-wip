@@ -443,7 +443,7 @@ export class WorkspacesController {
     description: 'Members in the workspace along with members quantity',
   })
   @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getWorkspaceMembers(
     @Param('workspaceId') workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
