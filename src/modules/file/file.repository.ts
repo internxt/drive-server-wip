@@ -484,6 +484,27 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async getFilesByFolderUuid(
+    folderUuid: Folder['uuid'],
+    status: FileStatus,
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        folderUuid,
+        status,
+      },
+      include: [
+        {
+          model: this.thumbnailModel,
+          as: 'thumbnails',
+          required: false,
+        },
+      ],
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllByUserIdExceptFolderIds(
     userId: FileAttributes['userId'],
     exceptFolderIds: FileAttributes['folderId'][],

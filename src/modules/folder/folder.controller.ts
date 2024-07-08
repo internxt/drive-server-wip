@@ -584,6 +584,21 @@ export class FolderController {
     return this.folderUseCases.getFolderAncestors(user, folderUuid);
   }
 
+  @Get('/:uuid/tree')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async getFolderTree(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: Folder['uuid'],
+  ) {
+    const folderWithTree = await this.folderUseCases.getFolderTree(
+      user,
+      folderUuid,
+    );
+    return { tree: folderWithTree };
+  }
+
   @Get('/:id/metadata')
   async getFolderById(
     @UserDecorator() user: User,

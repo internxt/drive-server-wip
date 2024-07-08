@@ -27,6 +27,8 @@ import { InvalidParentFolderException } from './exception/invalid-parent-folder'
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { FileUseCases } from '../file/file.usecase';
+import { File, FileStatus } from '../file/file.domain';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -39,6 +41,8 @@ export class FolderUseCases {
     private userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => SharingService))
     private sharingUsecases: SharingService,
+    @Inject(forwardRef(() => FileUseCases))
+    private fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -84,6 +88,58 @@ export class FolderUseCases {
     }
 
     return folder;
+  }
+
+  async getFolderTree(
+    user: User,
+    rootFolderUuid: FolderAttributes['uuid'],
+    deleted = false,
+  ) {
+    const rootElements = [];
+    const pendingFolders = [
+      {
+        folderUuid: rootFolderUuid,
+        elements: rootElements,
+      },
+    ];
+
+    while (pendingFolders.length) {
+      const { folderUuid, elements } = pendingFolders.shift();
+
+      const folder: Folder & { files?: File[]; children?: Folder[] } =
+        await this.folderRepository.findByUuid(folderUuid);
+
+      if (!folder) {
+        throw new NotFoundException('Folder does not exist!');
+      }
+
+      if (!folder.isOwnedBy(user)) {
+        throw new ForbiddenException('Folder does not belong to you!');
+      }
+
+      folder.files = await this.fileUsecases.getFilesByFolderUuid(
+        folder.uuid,
+        deleted ? FileStatus.TRASHED : FileStatus.EXISTS,
+      );
+
+      folder.children = [];
+
+      const folders = await this.folderRepository.findAllByParentUuid(
+        folderUuid,
+        deleted,
+      );
+
+      folders.forEach((f) => {
+        pendingFolders.push({
+          folderUuid: f.uuid,
+          elements: folder.children,
+        });
+      });
+
+      elements.push(folder);
+    }
+
+    return rootElements[0];
   }
 
   async getFolderByUserId(

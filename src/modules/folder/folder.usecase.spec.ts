@@ -18,11 +18,18 @@ import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { User } from '../user/user.domain';
-import { newFolder, newUser, newWorkspace } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { FileUseCases } from '../file/file.usecase';
+import { FileStatus } from '../file/file.domain';
 
 const folderId = 4;
 const user = newUser();
@@ -32,6 +39,7 @@ describe('FolderUseCases', () => {
   let folderRepository: FolderRepository;
   let cryptoService: CryptoService;
   let sharingService: SharingService;
+  let fileUsecases: FileUseCases;
 
   const userMocked = User.build({
     id: 1,
@@ -75,6 +83,7 @@ describe('FolderUseCases', () => {
     folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
+    fileUsecases = module.get<FileUseCases>(FileUseCases);
   });
 
   it('should be defined', () => {
@@ -1126,6 +1135,127 @@ describe('FolderUseCases', () => {
         { plainName: newFolderMetadata.plainName, name: encryptedName },
       );
       expect(result).toEqual(updatedFolder);
+    });
+  });
+
+  describe('getFolderTree', () => {
+    const user = newUser();
+    const rootFolder = newFolder({ attributes: { userId: user.id } });
+    const childFolder = newFolder({
+      attributes: { userId: user.id, parentId: rootFolder.id },
+    });
+    const fileInRootFolder = newFile({
+      attributes: { folderId: rootFolder.id, userId: user.id },
+    });
+
+    it('When retrieving the folder tree, then it should return the folder tree structure', async () => {
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childFolder]);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getFolderTree(user, rootFolder.uuid);
+
+      expect(result).toEqual({
+        ...rootFolder,
+        files: [fileInRootFolder],
+        children: [{ ...childFolder, files: [], children: [] }],
+      });
+    });
+
+    it('When the root folder does not belong to the user, then it should throw an error', async () => {
+      const anotherUser = newUser();
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+
+      await expect(
+        service.getFolderTree(anotherUser, rootFolder.uuid),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When a folder has no children, then it should return the folder tree without children', async () => {
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getFolderTree(user, rootFolder.uuid);
+
+      expect(result).toEqual({
+        ...rootFolder,
+        files: [fileInRootFolder],
+        children: [],
+      });
+    });
+
+    it('When a folder tree is requested including removed folders and files, then should look for trashed files', async () => {
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
+
+      await service.getFolderTree(user, rootFolder.uuid, true);
+
+      expect(fileUsecases.getFilesByFolderUuid).toHaveBeenCalledWith(
+        rootFolder.uuid,
+        FileStatus.TRASHED,
+      );
+    });
+
+    it('When the root folder is not found, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getFolderTree(user, rootFolder.uuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder has children folders, then it should return the folder with children', async () => {
+      const loopedFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([loopedFolder]);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([rootFolder]);
+
+      const result = await service.getFolderTree(user, rootFolder.uuid);
+
+      expect(result).toEqual({
+        ...rootFolder,
+        files: [fileInRootFolder],
+        children: [{ ...loopedFolder, files: [], children: [] }],
+      });
     });
   });
 });

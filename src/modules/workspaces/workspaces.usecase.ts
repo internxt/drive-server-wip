@@ -1553,7 +1553,7 @@ export class WorkspacesUsecases {
     });
 
     if (!item) {
-      throw new NotFoundException('Item does not exist');
+      throw new NotFoundException('Item does not exist in workspace');
     }
 
     return item.isOwnedBy(requester);

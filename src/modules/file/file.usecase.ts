@@ -184,6 +184,13 @@ export class FileUseCases {
     };
   }
 
+  async getFilesByFolderUuid(
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileStatus,
+  ) {
+    return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
+  }
+
   async getFilesByFolderId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
