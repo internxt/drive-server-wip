@@ -453,11 +453,7 @@ export class WorkspacesController {
       throw new BadRequestException('Invalid workspace ID');
     }
 
-    return this.workspaceUseCases.getWorkspaceMembers(
-      workspaceId,
-      user,
-      search,
-    );
+    return this.workspaceUseCases.getWorkspaceMembers(workspaceId, search);
   }
 
   @Post('/:workspaceId/members/invite')

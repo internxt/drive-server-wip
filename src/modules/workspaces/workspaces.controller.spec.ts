@@ -352,7 +352,6 @@ describe('Workspace Controller', () => {
 
       expect(workspacesUsecases.getWorkspaceMembers).toHaveBeenCalledWith(
         workspace.id,
-        owner,
         undefined,
       );
     });
@@ -395,11 +394,7 @@ describe('Workspace Controller', () => {
         search,
       );
       expect(data).toEqual(mockResolvedValues);
-      expect(workspaceUsecase).toHaveBeenCalledWith(
-        workspace.id,
-        owner,
-        search,
-      );
+      expect(workspaceUsecase).toHaveBeenCalledWith(workspace.id, search);
     });
 
     describe('GET /invitations/:inviteId/validate', () => {
