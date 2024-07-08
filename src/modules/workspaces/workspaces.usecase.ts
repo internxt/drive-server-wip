@@ -1592,11 +1592,9 @@ export class WorkspacesUsecases {
 
   async getWorkspaceMembers(
     workspaceId: WorkspaceAttributes['id'],
-    user: User,
     search?: string,
   ) {
     const workspace = await this.workspaceRepository.findOne({
-      ownerId: user.uuid,
       id: workspaceId,
     });
     if (!workspace) {
