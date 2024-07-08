@@ -1854,7 +1854,7 @@ export class WorkspacesUsecases {
       throw new BadRequestException('This user is not part of workspace');
     }
 
-    if (workspace.isUserOwner(user)) {
+    if (workspace.ownerId === workspaceUser.memberId) {
       throw new BadRequestException(
         'You can not deactivate the owner of the workspace',
       );
