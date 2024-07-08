@@ -1367,9 +1367,7 @@ describe('WorkspacesUsecases', () => {
       const workspaceId = 'not-exist-uuid';
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(
-        service.getWorkspaceMembers(workspaceId, owner),
-      ).rejects.toThrow();
+      await expect(service.getWorkspaceMembers(workspaceId)).rejects.toThrow();
     });
 
     it('When there are no members then return an object with empty data', async () => {
@@ -1378,7 +1376,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue([]);
 
       await expect(
-        service.getWorkspaceMembers(workspace.id, owner),
+        service.getWorkspaceMembers(workspace.id),
       ).resolves.toStrictEqual({
         activatedUsers: [],
         disabledUsers: [],
@@ -1407,7 +1405,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue([workspaceUserOwner, workspaceUser]);
 
       await expect(
-        service.getWorkspaceMembers(workspace.id, owner),
+        service.getWorkspaceMembers(workspace.id),
       ).resolves.toMatchObject({
         activatedUsers: [
           {
@@ -1445,10 +1443,7 @@ describe('WorkspacesUsecases', () => {
         .spyOn(teamRepository, 'getTeamsInWorkspace')
         .mockResolvedValue([workspaceTeam]);
 
-      const fnGetMembers = await service.getWorkspaceMembers(
-        workspace.id,
-        owner,
-      );
+      const fnGetMembers = await service.getWorkspaceMembers(workspace.id);
       expect(fnGetMembers).toMatchObject({
         activatedUsers: [
           {
@@ -1494,10 +1489,7 @@ describe('WorkspacesUsecases', () => {
         disabledUsers: [],
       };
 
-      const fnGetMembers = await service.getWorkspaceMembers(
-        workspace.id,
-        owner,
-      );
+      const fnGetMembers = await service.getWorkspaceMembers(workspace.id);
 
       expect(fnGetMembers).toStrictEqual(mockWorkspaceUsers);
       expect(fnGetMembers).toMatchObject({
@@ -1556,7 +1548,7 @@ describe('WorkspacesUsecases', () => {
         disabledUsers: [],
       };
 
-      const getMembers = await service.getWorkspaceMembers(workspace.id, owner);
+      const getMembers = await service.getWorkspaceMembers(workspace.id);
 
       expect(getMembers).toStrictEqual(workspaceMembers);
       expect(getMembers).toMatchObject({
