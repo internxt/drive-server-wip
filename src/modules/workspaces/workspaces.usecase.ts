@@ -1442,7 +1442,7 @@ export class WorkspacesUsecases {
     ]);
 
     const spaceAssigned =
-      totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
+      totalSpaceLimitAssigned + totalSpaceAssignedInInvitations;
 
     return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
