@@ -1359,6 +1359,142 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('changeUserAssignedSpace', () => {
+    const workspaceId = v4();
+    const memberId = v4();
+    const changeAssignedSpace = { spaceLimit: 1000 };
+
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.changeUserAssignedSpace(
+          workspaceId,
+          memberId,
+          changeAssignedSpace,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When member does not exist in the workspace, then it should throw', async () => {
+      const workspace = newWorkspace();
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.changeUserAssignedSpace(
+          workspaceId,
+          memberId,
+          changeAssignedSpace,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When new assigned space is greater than assignable space, then it should throw', async () => {
+      const workspace = newWorkspace();
+      const member = newWorkspaceUser({ attributes: { spaceLimit: 300 } });
+      const workspaceUser = newUser();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValue(500);
+
+      await expect(
+        service.changeUserAssignedSpace(
+          workspaceId,
+          memberId,
+          changeAssignedSpace,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("When new space to be assigned is less than the user's used space, then it should throw", async () => {
+      const workspace = newWorkspace();
+      const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
+      const workspaceUser = newUser();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValue(1000);
+      jest.spyOn(member, 'getUsedSpace').mockReturnValue(1500);
+
+      await expect(
+        service.changeUserAssignedSpace(
+          workspaceId,
+          memberId,
+          changeAssignedSpace,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When new space to be assigned is valid, then it should update the space', async () => {
+      const workspace = newWorkspace();
+      const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
+      const workspaceUser = newUser();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValue(2000);
+      jest.spyOn(member, 'getUsedSpace').mockReturnValue(400);
+
+      const updatedMember = await service.changeUserAssignedSpace(
+        workspaceId,
+        memberId,
+        changeAssignedSpace,
+      );
+
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+        member.id,
+        member,
+      );
+      expect(updatedMember).toEqual(member.toJSON());
+    });
+  });
+
+  describe('getWorkspaceUsage', () => {
+    const workspace = newWorkspace();
+
+    it('When there is space assigned and pending to be assigned in invitations, assigned space should sum them up', async () => {
+      const workspaceUser = newUser();
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(workspaceUser);
+      jest.spyOn(networkService, 'getLimit').mockResolvedValue(1000000);
+      jest
+        .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
+        .mockResolvedValue(700000);
+      jest
+        .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
+        .mockResolvedValue(200000);
+      jest
+        .spyOn(workspaceRepository, 'getTotalDriveAndBackupUsageWorkspaceUsers')
+        .mockResolvedValue(400000);
+
+      const workspaceUsage = await service.getWorkspaceUsage(workspace);
+
+      expect(workspaceUsage).toEqual({
+        totalWorkspaceSpace: 1000000,
+        spaceAssigned: 900000,
+        spaceUsed: 400000,
+      });
+    });
+  });
+
   describe('getWorkspaceMembers', () => {
     const owner = newUser();
     const workspace = newWorkspace({ owner });
