@@ -7,6 +7,7 @@ import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { BridgeService } from '../../externals/bridge/bridge.service';
+import { User } from '../user/user.domain';
 
 @Injectable()
 export class GatewayUseCases {
@@ -58,5 +59,13 @@ export class GatewayUseCases {
       throw new NotFoundException('Workspace not found');
     }
     await this.workspaceUseCases.deleteWorkspaceContent(workspace.id, owner);
+  }
+
+  async getUserByEmail(email: string): Promise<User> {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 }
