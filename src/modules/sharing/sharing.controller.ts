@@ -58,6 +58,7 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -604,6 +605,10 @@ export class SharingController {
     dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
   })
   @UseGuards(FeatureLimit) */
+  @WorkspacesInBehalfGuard([
+    { sourceKey: 'body', fieldName: 'itemId' },
+    { sourceKey: 'body', fieldName: 'itemType' },
+  ])
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,

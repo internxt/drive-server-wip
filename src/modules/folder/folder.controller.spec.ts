@@ -2,7 +2,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder } from '../../../test/fixtures';
+import { newFile, newFolder, newUser } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import {
   BadRequestInvalidOffsetException,
@@ -87,6 +87,31 @@ describe('FolderController', () => {
       await expect(folderController.getFolderSize(folder.uuid)).rejects.toThrow(
         CalculateFolderSizeTimeoutException,
       );
+    });
+  });
+
+  describe('getFolderTree', () => {
+    it('When folder tree is requested, then it should return the tree', async () => {
+      const user = newUser();
+      const folder = newFolder();
+      const mockFolderTree = {
+        ...folder,
+        children: [
+          {
+            ...newFolder({
+              attributes: { parentUuid: folder.uuid, parentId: folder.id },
+            }),
+          },
+        ],
+        files: [],
+      };
+
+      jest
+        .spyOn(folderUseCases, 'getFolderTree')
+        .mockResolvedValue(mockFolderTree);
+
+      const result = await folderController.getFolderTree(user, folder.uuid);
+      expect(result).toEqual({ tree: mockFolderTree });
     });
   });
 
