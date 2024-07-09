@@ -125,20 +125,24 @@ export class MailerService {
       acceptUrl: string;
       declineUrl: string;
     },
-    avatar?: {
-      pictureUrl: string;
-      initials: string;
+    optionals: {
+      avatar?: {
+        pictureUrl: string;
+        initials: string;
+      };
+      message?: string;
     },
   ): Promise<void> {
     const context = {
       sender_name: senderName,
       workspace_name: workspaceName,
       avatar: {
-        picture_url: avatar.pictureUrl,
-        initials: avatar.initials,
+        picture_url: optionals?.avatar?.pictureUrl,
+        initials: optionals?.avatar?.initials,
       },
       accept_url: mailInfo.acceptUrl,
       decline_url: mailInfo.declineUrl,
+      message: optionals?.message,
     };
     await this.send(
       invitedUserEmail,
@@ -152,19 +156,23 @@ export class MailerService {
     invitedUserEmail: User['email'],
     workspaceName: Workspace['name'],
     signUpUrl: string,
-    avatar?: {
-      pictureUrl: string;
-      initials: string;
+    optionals: {
+      avatar?: {
+        pictureUrl: string;
+        initials: string;
+      };
+      message?: string;
     },
   ): Promise<void> {
     const context = {
       sender_name: senderName,
       workspace_name: workspaceName,
       avatar: {
-        picture_url: avatar.pictureUrl,
-        initials: avatar.initials,
+        picture_url: optionals?.avatar?.pictureUrl,
+        initials: optionals?.avatar?.initials,
       },
       signup_url: signUpUrl,
+      message: optionals?.message,
     };
     await this.send(
       invitedUserEmail,
