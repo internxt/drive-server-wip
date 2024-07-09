@@ -3,16 +3,16 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
-  ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { GatewayUseCases } from './gateway.usecase';
@@ -69,17 +69,17 @@ export class GatewayController {
     return this.gatewayUseCases.destroyWorkspace(deleteWorkspaceDto.ownerId);
   }
 
-  @Get('/users/:email')
+  @Get('/users')
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get user details by email',
+    summary: 'Get user details',
   })
-  @ApiParam({ name: 'email', type: String, required: true })
+  @ApiQuery({ name: 'email', type: String, required: true })
   @ApiOkResponse({
     description: 'Details of the user',
   })
   @UseGuards(GatewayGuard)
-  async getUserByEmail(@Param('email') email: User['email']) {
+  async getUserByEmail(@Query('email') email: User['email']) {
     return this.gatewayUseCases.getUserByEmail(email);
   }
 }

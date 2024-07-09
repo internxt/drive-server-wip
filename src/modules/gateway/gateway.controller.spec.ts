@@ -109,4 +109,27 @@ describe('Gateway Controller', () => {
       );
     });
   });
+
+  describe('GET /users', () => {
+    const user = newUser();
+
+    it('When user is not found, then it should throw.', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'getUserByEmail')
+        .mockRejectedValueOnce(new BadRequestException());
+      await expect(
+        gatewayController.getUserByEmail(user.email),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user exists, then it is returned', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByEmail').mockResolvedValueOnce(user);
+
+      await expect(
+        gatewayController.getUserByEmail(user.email),
+      ).resolves.toStrictEqual(user);
+
+      expect(gatewayUsecases.getUserByEmail).toHaveBeenCalledWith(user.email);
+    });
+  });
 });
