@@ -28,6 +28,12 @@ export class CreateWorkspaceInviteDto {
   encryptionKey: WorkspaceInvite['encryptionKey'];
 
   @ApiProperty({
+    example: 'Hello, join to my workspace',
+    description: 'Message to include in the invitation.',
+  })
+  message?: string;
+
+  @ApiProperty({
     example: 'aes-256-gcm',
     description: 'Encryption algorithm used to encrypt the encryption key.',
   })

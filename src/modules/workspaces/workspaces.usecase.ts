@@ -387,7 +387,13 @@ export class WorkspacesUsecases {
           )}/workspace-guest?invitation=${
             newInvite.id
           }&email=${encodedUserEmail}`,
-          { initials: user.name[0] + user.lastname[0], pictureUrl: null },
+          {
+            avatar: {
+              initials: user.name[0] + user.lastname[0],
+              pictureUrl: null,
+            },
+            message: createInviteDto.message,
+          },
         );
       } catch (error) {
         Logger.error(
@@ -414,7 +420,13 @@ export class WorkspacesUsecases {
               'clients.drive.web',
             )}/workspaces/${newInvite.id}/decline?token=${authToken}`,
           },
-          { initials: user.name[0] + user.lastname[0], pictureUrl: null },
+          {
+            avatar: {
+              initials: user.name[0] + user.lastname[0],
+              pictureUrl: null,
+            },
+            message: createInviteDto.message,
+          },
         );
       } catch (error) {
         Logger.error(
