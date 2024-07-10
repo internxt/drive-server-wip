@@ -171,4 +171,26 @@ describe('GatewayUseCases', () => {
       });
     });
   });
+
+  describe('users', () => {
+    describe('getUserByEmail', () => {
+      const user = newUser();
+
+      it('When user is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(null);
+
+        await expect(service.getUserByEmail(user.email)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+
+      it('When user exists, then it is returned ', async () => {
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(user);
+
+        await expect(service.getUserByEmail(user.email)).resolves.toStrictEqual(
+          user,
+        );
+      });
+    });
+  });
 });
