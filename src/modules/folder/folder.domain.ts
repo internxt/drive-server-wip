@@ -39,6 +39,7 @@ export class Folder implements FolderAttributes {
   updatedAt: Date;
   size: number;
   sharings?: Sharing[];
+  depth?: number;
 
   private constructor({
     id,
@@ -59,6 +60,7 @@ export class Folder implements FolderAttributes {
     removed,
     removedAt,
     sharings,
+    depth,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -80,6 +82,7 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.sharings = sharings;
+    this.depth = depth;
   }
 
   static build(folder: FolderAttributes): Folder {
@@ -166,6 +169,7 @@ export class Folder implements FolderAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       sharings: this.sharings,
+      depth: this.depth,
     };
   }
 }

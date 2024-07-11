@@ -643,4 +643,17 @@ export class FolderUseCases {
       includeTrashedFiles,
     );
   }
+
+  getFoldersByDepthAndName(
+    userId: FolderAttributes['userId'],
+    depth: FolderAttributes['depth'],
+    name: FolderAttributes['name'],
+  ): Promise<Folder[] | []> {
+    return this.folderRepository.findAll({
+      userId,
+      depth,
+      plainName: name,
+      deleted: false,
+    });
+  }
 }
