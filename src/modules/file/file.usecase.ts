@@ -227,49 +227,60 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number; sort?: SortParams },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
+    const where: Partial<FileAttributes> = {};
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      {
-        status: FileStatus.EXISTS,
-      },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      { status: FileStatus.DELETED },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      { status: FileStatus.TRASHED },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   async getFilesUpdatedAfter(

@@ -170,6 +170,7 @@ export class FileController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: (typeof filesStatuses)[number],
+    @Query('bucket') bucket?: File['bucket'],
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
@@ -217,6 +218,7 @@ export class FileController {
       user.id,
       new Date(updatedAt || 1),
       { limit, offset, sort: sort && order && [[sort, order]] },
+      bucket,
     );
 
     return files.map((f) => {
