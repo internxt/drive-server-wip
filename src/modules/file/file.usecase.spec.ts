@@ -419,7 +419,7 @@ describe('FileUseCases', () => {
       fileId: '4fda5d98-e5b4-56da-a4f2-000084ac0678',
       name: 'Myanmar',
       type: 'type',
-      size: BigInt(60),
+      size: 60,
       bucket: 'bucket',
       folderId,
       folder: null,

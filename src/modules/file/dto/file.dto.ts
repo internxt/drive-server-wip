@@ -10,7 +10,7 @@ export class FileDto {
   fileId: string;
   name: string;
   type: string;
-  size: bigint;
+  size: number;
   bucket: string;
   folderId: number;
   folder: FolderDto;
