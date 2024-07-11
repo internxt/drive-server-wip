@@ -35,6 +35,8 @@ async function bootstrap() {
         'internxt-mnemonic',
         'x-share-password',
         'X-Internxt-Captcha',
+        'x-internxt-workspace',
+        'internxt-resources-token',
       ],
       exposedHeaders: ['sessionId'],
       origin: '*',
@@ -68,6 +70,7 @@ async function bootstrap() {
     .setDescription('Drive API')
     .setVersion('1.0')
     .addBearerAuth()
+    .addBearerAuth(undefined, 'gateway')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
