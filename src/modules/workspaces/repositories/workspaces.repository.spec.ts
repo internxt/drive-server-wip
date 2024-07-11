@@ -15,7 +15,7 @@ import {
 } from '../../../../test/fixtures';
 import { Workspace } from '../domains/workspaces.domain';
 import { User } from '../../user/user.domain';
-import { Op, Sequelize } from 'sequelize';
+import { Op } from 'sequelize';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;

@@ -64,7 +64,7 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @HasOne(() => FolderModel, 'uuid')
   rootFolder: FolderModel;
 
-  @BelongsTo(() => UserModel, {
+  @BelongsTo(() => WorkspaceTeamModel, {
     foreignKey: 'defaultTeamId',
     targetKey: 'id',
     as: 'defaultTeam',

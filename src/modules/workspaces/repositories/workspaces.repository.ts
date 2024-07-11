@@ -12,7 +12,7 @@ import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attrib
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
-import { Op, Sequelize } from 'sequelize';
+import { Op } from 'sequelize';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import {
   WorkspaceItemType,
