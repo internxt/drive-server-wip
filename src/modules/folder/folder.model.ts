@@ -87,4 +87,9 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
   sharings: Sharing[];
+
+  @Index
+  @AllowNull
+  @Column
+  depth: number;
 }

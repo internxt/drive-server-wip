@@ -558,6 +558,7 @@ describe('FolderUseCases', () => {
       plainName: 'name',
       removed: false,
       removedAt: null,
+      depth: undefined,
     };
 
     it('returns folder json data with the name decrypted', () => {
@@ -579,11 +580,12 @@ describe('FolderUseCases', () => {
       const expectedResult = {
         ...folderAtributes,
         size: 0,
+        sharings: undefined,
       };
       delete expectedResult.parentId;
       delete expectedResult.parentUuid;
 
-      expect(result).toStrictEqual({ ...expectedResult, sharings: undefined });
+      expect(result).toStrictEqual(expectedResult);
     });
 
     it('fails when the folder name is not encrypted', () => {
