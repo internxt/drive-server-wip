@@ -20,7 +20,7 @@ export class GatewayUseCases {
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
     Logger.log(
-      `Initializing workspace with owner: ${initializeWorkspaceDto.ownerId}`,
+      `Initializing workspace with owner id: ${initializeWorkspaceDto.ownerId}`,
     );
     const { ownerId, maxSpaceBytes, address } = initializeWorkspaceDto;
 
