@@ -5,6 +5,8 @@ import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
 import { newFolder } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
+import { v4 } from 'uuid';
+import { Op } from 'sequelize';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -105,6 +107,44 @@ describe('SequelizeFolderRepository', () => {
       await expect(repository.calculateFolderSize(folder.uuid)).rejects.toThrow(
         CalculateFolderSizeTimeoutException,
       );
+    });
+  });
+
+  describe('findByParentUuid', () => {
+    const parentUuid = v4();
+    const plainNames = ['Document', 'Image'];
+
+    it('When folders are searched with names, then it should handle the call with names', async () => {
+      await repository.findByParentUuid(parentUuid, {
+        plainName: plainNames,
+        deleted: false,
+        removed: false,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          parentUuid: parentUuid,
+          plainName: { [Op.in]: plainNames },
+          deleted: false,
+          removed: false,
+        },
+      });
+    });
+
+    it('When called without specific criteria, then it should handle the call', async () => {
+      await repository.findByParentUuid(parentUuid, {
+        plainName: [],
+        deleted: false,
+        removed: false,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          parentUuid: parentUuid,
+          deleted: false,
+          removed: false,
+        },
+      });
     });
   });
 });

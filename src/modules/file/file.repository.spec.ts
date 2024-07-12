@@ -6,6 +6,7 @@ import { FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
 import { Op } from 'sequelize';
+import { v4 } from 'uuid';
 
 describe('FileRepository', () => {
   let repository: FileRepository;
@@ -91,6 +92,27 @@ describe('FileRepository', () => {
         }),
       );
       expect(result).toEqual(fileSizes);
+    });
+  });
+
+  describe('findFileByFolderUuid', () => {
+    const folderUuid = v4();
+
+    it('When a file is searched, then it should handle the dynamic input', async () => {
+      const searchCriteria = { plainName: ['Report'], type: 'pdf' };
+
+      await repository.findFileByFolderUuid(folderUuid, searchCriteria);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          folderUuid,
+          plainName: {
+            [Op.in]: searchCriteria.plainName,
+          },
+          type: searchCriteria.type,
+          status: FileStatus.EXISTS,
+        }),
+      });
     });
   });
 });

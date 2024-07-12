@@ -32,6 +32,7 @@ import { v4 } from 'uuid';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { Folder } from '../folder/folder.domain';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -136,6 +137,19 @@ export class FileUseCases {
     });
 
     return newFile;
+  }
+
+  async searchFilesInFolder(
+    folderUuid: Folder['uuid'],
+    {
+      plainNames,
+      type,
+    }: { plainNames: File['plainName'][]; type?: File['type'] },
+  ): Promise<File[]> {
+    return this.fileRepository.findFileByFolderUuid(folderUuid, {
+      plainName: plainNames,
+      type,
+    });
   }
 
   async updateFileMetaData(

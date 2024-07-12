@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
-import { FindOptions, Op, Sequelize } from 'sequelize';
+import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
 import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
@@ -43,6 +43,10 @@ export interface FileRepository {
     where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
     nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
   ): Promise<File | null>;
+  findFileByFolderUuid(
+    folderUuid: Folder['uuid'],
+    searchBy: { plainName: File['plainName'][]; type?: File['type'] },
+  ): Promise<File[]>;
   findByNameAndFolderUuid(
     name: FileAttributes['name'],
     type: FileAttributes['type'],
@@ -561,6 +565,27 @@ export class SequelizeFileRepository implements FileRepository {
       },
     });
     return file ? this.toDomain(file) : null;
+  }
+
+  async findFileByFolderUuid(
+    folderUuid: Folder['uuid'],
+    searchBy: { plainName: File['plainName'][]; type?: File['type'] },
+  ): Promise<File[]> {
+    const where: WhereOptions<File> = {
+      folderUuid,
+      ...(searchBy?.type ? { type: searchBy.type } : null),
+      status: FileStatus.EXISTS,
+    };
+
+    if (searchBy?.plainName?.length) {
+      where.plainName = { [Op.in]: searchBy.plainName };
+    }
+
+    const files = await this.fileModel.findAll({
+      where,
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async updateByFieldIdAndUserId(

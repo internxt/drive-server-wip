@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Sequelize } from 'sequelize';
+import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
@@ -51,6 +51,14 @@ export interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findByParentUuid(
+    parentUuid: Folder['uuid'],
+    searchBy: {
+      plainName: Folder['plainName'][];
+      deleted: boolean;
+      removed: boolean;
+    },
+  ): Promise<Folder[]>;
   findByNameAndParentUuid(
     name: FolderAttributes['name'],
     plainName: FolderAttributes['plainName'],
@@ -122,6 +130,31 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
 
     return newOrder;
+  }
+
+  async findByParentUuid(
+    parentUuid: Folder['uuid'],
+    searchBy: {
+      plainName: Folder['plainName'][];
+      deleted: boolean;
+      removed: boolean;
+    },
+  ): Promise<Folder[]> {
+    const where: WhereOptions<Folder> = {
+      parentUuid,
+      removed: searchBy.removed,
+      deleted: searchBy.deleted,
+    };
+
+    if (searchBy && searchBy.plainName.length > 0) {
+      where.plainName = { [Op.in]: searchBy.plainName };
+    }
+
+    const folders = await this.folderModel.findAll({
+      where,
+    });
+
+    return folders.map(this.toDomain.bind(this));
   }
 
   async findAllCursor(

@@ -531,6 +531,29 @@ export class FolderUseCases {
     );
   }
 
+  async searchFoldersInFolder(
+    user: User,
+    folderUuid: Folder['uuid'],
+    { plainNames }: { plainNames: Folder['plainName'][] },
+  ): Promise<Folder[]> {
+    const parentFolder = await this.folderRepository.findOne({
+      userId: user.id,
+      uuid: folderUuid,
+      removed: false,
+      deleted: false,
+    });
+
+    if (!parentFolder) {
+      throw new BadRequestException('Folder not valid!');
+    }
+
+    return this.folderRepository.findByParentUuid(parentFolder.uuid, {
+      plainName: plainNames,
+      deleted: false,
+      removed: false,
+    });
+  }
+
   getFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,

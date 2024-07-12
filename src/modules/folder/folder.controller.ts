@@ -46,6 +46,9 @@ import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
+import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
+import { InvalidParentFolderException } from './exception/invalid-parent-folder';
+import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -333,6 +336,56 @@ export class FolderController {
         return { ...f, status: folderStatus };
       }),
     };
+  }
+
+  @Get('/content/:uuid/folders/existence')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async checkFoldersExistenceInFolder(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: string,
+    @Query() query: CheckFoldersExistenceDto,
+  ) {
+    const { plainName } = query;
+
+    const folders = await this.folderUseCases.searchFoldersInFolder(
+      user,
+      folderUuid,
+      {
+        plainNames: plainName,
+      },
+    );
+
+    return { existentFolders: folders };
+  }
+
+  @Get('/content/:uuid/files/existence')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async checkFilesExistenceInFolder(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: string,
+    @Query() query: CheckFileExistenceInFolderDto,
+  ) {
+    const { plainName, type } = query;
+
+    const parentFolder = await this.folderUseCases.getFolderByUuidAndUser(
+      folderUuid,
+      user,
+    );
+
+    if (!parentFolder) {
+      throw new InvalidParentFolderException('Parent folder not valid!');
+    }
+
+    const files = await this.fileUseCases.searchFilesInFolder(
+      parentFolder.uuid,
+      { plainNames: plainName, type },
+    );
+
+    return { existentFiles: files };
   }
 
   @Get('/content/:uuid')
