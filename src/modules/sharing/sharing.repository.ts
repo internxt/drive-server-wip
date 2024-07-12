@@ -221,13 +221,17 @@ export class SequelizeSharingRepository implements SharingRepository {
     type?: SharingType,
     sharedWithType?: SharedWithType,
   ): Promise<Sharing> {
+    const optionalWhere = {
+      ...(type ? { type } : null),
+      ...(sharedWithType ? { sharedWithType } : null),
+    };
+
     const raw = await this.sharings.findOne({
       where: {
         itemId,
         itemType,
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
-        type,
-        sharedWithType,
+        ...optionalWhere,
       },
     });
 
