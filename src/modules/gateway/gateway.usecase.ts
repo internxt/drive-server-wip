@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
@@ -18,6 +19,9 @@ export class GatewayUseCases {
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
+    Logger.log(
+      `Initializing workspace with owner id: ${initializeWorkspaceDto.ownerId}`,
+    );
     const { ownerId, maxSpaceBytes, address } = initializeWorkspaceDto;
 
     return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes, {
