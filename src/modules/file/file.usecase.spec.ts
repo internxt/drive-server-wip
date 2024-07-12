@@ -3,7 +3,9 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
+  ConflictException,
   ForbiddenException,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { File, FileAttributes, FileStatus } from './file.domain';
@@ -15,11 +17,18 @@ import {
   FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
-import { newFile, newFolder } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { CreateFileDto } from './dto/create-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -628,6 +637,231 @@ describe('FileUseCases', () => {
       ).rejects.toThrow(
         'A file with the same name already exists in destination folder',
       );
+    });
+  });
+
+  describe('createFile', () => {
+    const newFileDto: CreateFileDto = {
+      name: 'Test File',
+      bucket: 'test-bucket',
+      fileId: 'file-id',
+      encryptVersion: 'v1',
+      folderUuid: 'folder-uuid',
+      size: BigInt(100),
+      plainName: 'test-file.txt',
+      type: 'text/plain',
+      modificationTime: new Date(),
+      date: new Date(),
+    };
+
+    it('When folder does not exist, then it should throw', async () => {
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(null);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When folder is not owned by user, then it should throw', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id + 1 } });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When file with same name already exists in folder, then it should throw', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+      const existingFile = newFile({
+        attributes: {
+          folderId: folder.id,
+          name: newFileDto.name,
+          plainName: newFileDto.plainName,
+        },
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(existingFile);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('When file is created successfully, then it should return the new file', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(null);
+
+      const createdFile = newFile({
+        attributes: {
+          ...newFileDto,
+          id: 1,
+          folderId: folder.id,
+          folderUuid: folder.uuid,
+          userId: userMocked.id,
+          uuid: v4(),
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+      const result = await service.createFile(userMocked, newFileDto);
+
+      expect(result).toEqual(createdFile);
+    });
+  });
+
+  describe('updateFileMetaData', () => {
+    const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+
+    it('When file is not owned by user, then it should fail', async () => {
+      const mockFile = newFile();
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
+
+      await expect(
+        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When a file with the same name already exists in the folder, then it should fail', async () => {
+      const mockFile = newFile({ owner: userMocked });
+      const fileWithSameName = newFile({
+        owner: userMocked,
+        attributes: { name: mockFile.name, plainName: mockFile.plainName },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(mockFile)
+        .mockResolvedValueOnce(fileWithSameName);
+
+      await expect(
+        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When a file is updated successfully, it should update and return updated file', async () => {
+      const mockFile = newFile({ owner: userMocked });
+
+      const encryptedName = 'encrypted-name';
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          plainName: newFileMeta.plainName,
+          name: encryptedName,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
+        {
+          folderId: mockFile.folderId,
+          type: mockFile.type,
+          status: FileStatus.EXISTS,
+        },
+        { name: encryptedName, plainName: newFileMeta.plainName },
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        { plainName: newFileMeta.plainName, name: encryptedName },
+      );
+      expect(result).toEqual(updatedFile);
+    });
+  });
+
+  describe('getWorkspaceFilesSizeSumByStatuses', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When called with specific statuses and options, then it should use them to fetch files', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const fileSizes = [{ size: '100' }, { size: '200' }];
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
+        .mockResolvedValue(fileSizes);
+
+      const createdFrom = new Date('2023-01-01');
+
+      const options = {
+        limit: 100,
+        offset: 0,
+        createdFrom,
+      };
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+        options,
+      );
+
+      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+        statuses,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          order: [['uuid', 'ASC']],
+          createdFrom: createdFrom,
+          removedFrom: undefined,
+        },
+      );
+      expect(result).toEqual(fileSizes);
+    });
+
+    it('When there are no file sizes, then it should return an empty array', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const options = {
+        limit: 100,
+        offset: 0,
+      };
+      const fileSizes: { size: string }[] = [];
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
+        .mockResolvedValue(fileSizes);
+
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+        { ...options, order: [['uuid', 'ASC']] },
+      );
+
+      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
+        user.uuid,
+        workspace.id,
+        statuses,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          order: [['uuid', 'ASC']],
+          createdFrom: undefined,
+          removedFrom: undefined,
+        },
+      );
+      expect(result).toEqual(fileSizes);
     });
   });
 });

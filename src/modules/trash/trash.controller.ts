@@ -44,6 +44,10 @@ import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import {
+  WorkspaceResourcesAction,
+  WorkspacesInBehalfGuard,
+} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -123,6 +127,10 @@ export class TrashController {
   })
   @ApiOkResponse({ description: 'All items moved to trash' })
   @ApiBadRequestResponse({ description: 'Any item id is invalid' })
+  @WorkspacesInBehalfGuard(
+    [{ sourceKey: 'body', fieldName: 'items' }],
+    WorkspaceResourcesAction.AddItemsToTrash,
+  )
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
@@ -246,6 +254,10 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes items from user's trash",
   })
+  @WorkspacesInBehalfGuard(
+    [{ sourceKey: 'body', fieldName: 'items' }],
+    WorkspaceResourcesAction.DeleteItemsFromTrash,
+  )
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
@@ -256,25 +268,40 @@ export class TrashController {
     //     'Items to remove from the trash are limited to 50',
     //   );
     // }
+    const { items } = deleteItemsDto;
 
-    const filesIds = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FILE)
-      .map((item) => parseInt(item.id));
+    const filesIds: File['id'][] = [];
+    const filesUuids: File['uuid'][] = [];
+    const foldersIds: Folder['id'][] = [];
+    const foldersUuids: Folder['uuid'][] = [];
 
-    const foldersIds = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FOLDER)
-      .map((item) => parseInt(item.id));
+    for (const item of items) {
+      if (item.type === DeleteItemType.FILE) {
+        if (item.id) filesIds.push(parseInt(item.id, 10));
+        if (item.uuid) filesUuids.push(item.uuid);
+      } else if (item.type === DeleteItemType.FOLDER) {
+        if (item.id) foldersIds.push(parseInt(item.id, 10));
+        if (item.uuid) foldersUuids.push(item.uuid);
+      }
+    }
 
-    const files =
+    const [files, filesByUuid, folders, foldersByUuid] = await Promise.all([
       filesIds.length > 0
-        ? await this.fileUseCases.getFilesByIds(user, filesIds)
-        : [];
-    const folders =
+        ? this.fileUseCases.getFilesByIds(user, filesIds)
+        : [],
+      filesUuids.length > 0 ? this.fileUseCases.getByUuids(filesUuids) : [],
       foldersIds.length > 0
-        ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
-        : [];
+        ? this.folderUseCases.getFoldersByIds(user, foldersIds)
+        : [],
+      foldersUuids.length > 0
+        ? this.folderUseCases.getByUuids(foldersUuids)
+        : [],
+    ]);
 
-    await this.trashUseCases.deleteItems(user, files, folders);
+    const allFiles = [...files, ...filesByUuid];
+    const allFolders = [...folders, ...foldersByUuid];
+
+    await this.trashUseCases.deleteItems(user, allFiles, allFolders);
   }
 
   @Delete('/file/:fileId')

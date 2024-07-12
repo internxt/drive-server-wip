@@ -10,10 +10,18 @@ import {
   NotImplementedException,
   Param,
   Patch,
+  Post,
+  Put,
   Query,
   UseFilters,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -33,6 +41,11 @@ import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
+
+import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { CreateFolderDto } from './dto/create-folder.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -78,6 +91,24 @@ export class FolderController {
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
   ) {}
+
+  @Post('/')
+  @ApiOperation({
+    summary: 'Create Folder',
+  })
+  @ApiBearerAuth()
+  async createFolder(
+    @UserDecorator() user: User,
+    @Body() createFolderDto: CreateFolderDto,
+  ) {
+    const { plainName, parentFolderUuid } = createFolderDto;
+    const folder = await this.folderUseCases.createFolder(
+      user,
+      plainName,
+      parentFolderUuid,
+    );
+    return folder;
+  }
 
   @Get('/count')
   async getFolderCount(
@@ -304,6 +335,50 @@ export class FolderController {
     };
   }
 
+  @Get('/content/:uuid')
+  @ApiOperation({
+    summary: 'Gets folder content',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'uuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Current folder with children folders and files',
+  })
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async getFolderContent(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+  ) {
+    const [currentFolder, childrenFolders, files] = await Promise.all([
+      this.folderUseCases.getFolderByUuidAndUser(folderUuid, user),
+      this.folderUseCases.getFolders(user.id, {
+        parentUuid: folderUuid,
+        deleted: false,
+        removed: false,
+      }),
+      this.fileUseCases.getFiles(user.id, {
+        folderUuid: folderUuid,
+        status: FileStatus.EXISTS,
+      }),
+    ]);
+
+    if (!currentFolder) {
+      throw new BadRequestException();
+    }
+
+    return {
+      ...currentFolder,
+      status: currentFolder.getFolderStatus(),
+      children: childrenFolders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      })),
+      files,
+    };
+  }
+
   @Get(':id/folders')
   async getFolderFolders(
     @UserDecorator() user: User,
@@ -446,6 +521,9 @@ export class FolderController {
   }
 
   @Get('/:uuid/meta')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -492,6 +570,9 @@ export class FolderController {
   }
 
   @Get('/:uuid/ancestors')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async getFolderAncestors(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -501,6 +582,21 @@ export class FolderController {
     }
 
     return this.folderUseCases.getFolderAncestors(user, folderUuid);
+  }
+
+  @Get('/:uuid/tree')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async getFolderTree(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: Folder['uuid'],
+  ) {
+    const folderWithTree = await this.folderUseCases.getFolderTree(
+      user,
+      folderUuid,
+    );
+    return { tree: folderWithTree };
   }
 
   @Get('/:id/metadata')
@@ -534,6 +630,23 @@ export class FolderController {
         }`,
       });
     }
+  }
+
+  @Put('/:uuid/meta')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
+  async updateFolderMetadata(
+    @Param('uuid', ValidateUUIDPipe)
+    folderUuid: Folder['uuid'],
+    @UserDecorator() user: User,
+    @Body() updateFolderMetaDto: UpdateFolderMetaDto,
+  ) {
+    return this.folderUseCases.updateFolderMetaData(
+      user,
+      folderUuid,
+      updateFolderMetaDto,
+    );
   }
 
   @UseFilters(new HttpExceptionFilter())

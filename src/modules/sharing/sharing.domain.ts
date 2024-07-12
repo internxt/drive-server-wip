@@ -62,7 +62,7 @@ export interface RoleAttributes {
 export interface PermissionAttributes {
   id: string;
   roleId: RoleAttributes['id'];
-  name: string;
+  name: SharingActionName;
 }
 
 export interface SharingInviteAttributes
@@ -205,7 +205,7 @@ export class Role implements RoleWithTimeStamps {
 export class Permission implements PermissionAttributes {
   id: string;
   roleId: RoleAttributes['id'];
-  name: string;
+  name: SharingActionName;
 
   constructor(attributes: PermissionAttributes) {
     this.id = attributes.id;

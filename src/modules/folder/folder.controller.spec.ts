@@ -2,7 +2,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder } from '../../../test/fixtures';
+import { newFile, newFolder, newUser } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import {
   BadRequestInvalidOffsetException,
@@ -58,7 +58,9 @@ describe('FolderController', () => {
         { provide: FolderUseCases, useValue: createMock() },
         { provide: FileUseCases, useValue: createMock() },
       ],
-    }).compile();
+    })
+      .useMocker(createMock)
+      .compile();
 
     folderController = module.get<FolderController>(FolderController);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
@@ -85,6 +87,31 @@ describe('FolderController', () => {
       await expect(folderController.getFolderSize(folder.uuid)).rejects.toThrow(
         CalculateFolderSizeTimeoutException,
       );
+    });
+  });
+
+  describe('getFolderTree', () => {
+    it('When folder tree is requested, then it should return the tree', async () => {
+      const user = newUser();
+      const folder = newFolder();
+      const mockFolderTree = {
+        ...folder,
+        children: [
+          {
+            ...newFolder({
+              attributes: { parentUuid: folder.uuid, parentId: folder.id },
+            }),
+          },
+        ],
+        files: [],
+      };
+
+      jest
+        .spyOn(folderUseCases, 'getFolderTree')
+        .mockResolvedValue(mockFolderTree);
+
+      const result = await folderController.getFolderTree(user, folder.uuid);
+      expect(result).toEqual({ tree: mockFolderTree });
     });
   });
 
@@ -270,6 +297,58 @@ describe('FolderController', () => {
           destinationFolder: 'invaliduuid',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getFolderContent', () => {
+    it('When folde content is requested and the current folder is not found, then it should throw', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(null);
+
+      expect(
+        folderController.getFolderContent(userMocked, v4()),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder content is requested, then children folders and files should be returned', async () => {
+      const currentFolder = newFolder();
+
+      const expectedSubfiles = [
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+      ];
+
+      const expectedSubfolders = [
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+      ];
+
+      const mappedSubfolders = expectedSubfolders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      }));
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(currentFolder);
+
+      jest
+        .spyOn(folderUseCases, 'getFolders')
+        .mockResolvedValue(expectedSubfolders);
+
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedSubfiles);
+
+      const result = await folderController.getFolderContent(userMocked, v4());
+
+      expect(result).toEqual({
+        ...currentFolder,
+        status: currentFolder.getFolderStatus(),
+        children: mappedSubfolders,
+        files: expectedSubfiles,
+      });
     });
   });
 });
