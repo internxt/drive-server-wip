@@ -2200,6 +2200,7 @@ export class SharingService {
         itemId,
         itemType,
         SharingType.Public,
+        sharedWithType,
       ),
       this.sharingRepository.findOneByOwnerOrSharedWithItem(
         user.uuid,
