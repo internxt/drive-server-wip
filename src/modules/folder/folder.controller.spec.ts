@@ -14,6 +14,7 @@ import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
+import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 
 describe('FolderController', () => {
   let folderController: FolderController;
@@ -349,6 +350,113 @@ describe('FolderController', () => {
         children: mappedSubfolders,
         files: expectedSubfiles,
       });
+    });
+  });
+
+  describe('checkFoldersExistenceInFolder', () => {
+    const user = newUser();
+    const folderUuid = v4();
+    const plainNames = ['Documents', 'Photos'];
+
+    it('When valid folderUuid and plainNames are provided, then it should return existent folders', async () => {
+      const mockFolders = [
+        newFolder({ attributes: { plainName: 'Documents', userId: user.id } }),
+        newFolder({ attributes: { plainName: 'Photos', userId: user.id } }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'searchFoldersInFolder')
+        .mockResolvedValue(mockFolders);
+
+      const result = await folderController.checkFoldersExistenceInFolder(
+        user,
+        folderUuid,
+        { plainName: plainNames },
+      );
+
+      expect(result).toEqual({ existentFolders: mockFolders });
+      expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
+        user,
+        folderUuid,
+        { plainNames },
+      );
+    });
+
+    it('When folders are not found, then it should return an empty array', async () => {
+      jest.spyOn(folderUseCases, 'searchFoldersInFolder').mockResolvedValue([]);
+
+      const result = await folderController.checkFoldersExistenceInFolder(
+        user,
+        folderUuid,
+        { plainName: plainNames },
+      );
+
+      expect(result).toEqual({ existentFolders: [] });
+      expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
+        user,
+        folderUuid,
+        { plainNames },
+      );
+    });
+  });
+
+  describe('checkFilesExistenceInFolder', () => {
+    const user = newUser();
+    const folderUuid = v4();
+    const plainName = ['Report.pdf', 'Image.png'];
+    const type = 'document';
+
+    it('When files exist matching the criteria, then it should return the files', async () => {
+      const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
+      const mockFiles = [
+        newFile({ attributes: { plainName: 'Report.pdf', type: 'document' } }),
+        newFile({ attributes: { plainName: 'Image.png', type: 'image' } }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(parentFolder);
+      jest
+        .spyOn(fileUseCases, 'searchFilesInFolder')
+        .mockResolvedValue(mockFiles);
+
+      const result = await folderController.checkFilesExistenceInFolder(
+        user,
+        folderUuid,
+        { plainName, type },
+      );
+
+      expect(result).toEqual({ existentFiles: mockFiles });
+    });
+
+    it('When no files match the criteria, then it should return an empty array', async () => {
+      const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(parentFolder);
+      jest.spyOn(fileUseCases, 'searchFilesInFolder').mockResolvedValue([]);
+
+      const result = await folderController.checkFilesExistenceInFolder(
+        user,
+        folderUuid,
+        { plainName, type },
+      );
+
+      expect(result).toEqual({ existentFiles: [] });
+    });
+
+    it('When the parent folder does not exist, then it should throw', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        folderController.checkFilesExistenceInFolder(user, folderUuid, {
+          plainName,
+          type,
+        }),
+      ).rejects.toThrow(InvalidParentFolderException);
     });
   });
 });

@@ -994,6 +994,77 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('searchFoldersInFolder', () => {
+    const user = newUser();
+    const folderUuid = v4();
+    const plainNames = ['Documents', 'Photos'];
+
+    it('When the parent folder is not valid, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.searchFoldersInFolder(user, folderUuid, { plainNames }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folders match the specified plainNames, then it should return the folders', async () => {
+      const mockParentFolder = newFolder({
+        attributes: { uuid: folderUuid, userId: user.id, plainName: 'Root' },
+      });
+
+      const mockFolders = [
+        newFolder({ attributes: { plainName: 'Documents', userId: user.id } }),
+        newFolder({ attributes: { plainName: 'Photos', userId: user.id } }),
+      ];
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValue(mockParentFolder);
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValue(mockFolders);
+
+      const result = await service.searchFoldersInFolder(user, folderUuid, {
+        plainNames,
+      });
+
+      expect(result).toEqual(mockFolders);
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockParentFolder.uuid,
+        {
+          plainName: plainNames,
+          removed: false,
+          deleted: false,
+        },
+      );
+    });
+
+    it('When no folders match the specified plainNames, then it should return an empty array', async () => {
+      const mockParentFolder = newFolder({
+        attributes: { uuid: folderUuid, userId: user.id, plainName: 'Root' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValue(mockParentFolder);
+      jest.spyOn(folderRepository, 'findByParentUuid').mockResolvedValue([]);
+
+      const result = await service.searchFoldersInFolder(user, folderUuid, {
+        plainNames,
+      });
+
+      expect(result).toEqual([]);
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockParentFolder.uuid,
+        {
+          plainName: plainNames,
+          removed: false,
+          deleted: false,
+        },
+      );
+    });
+  });
+
   describe('getFoldersInWorkspace', () => {
     const createdBy = userMocked.uuid;
     const workspace = newWorkspace();
