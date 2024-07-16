@@ -326,16 +326,16 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<{ size: string }[]> {
     const statusesFilter = statuses.map((value) => ({ status: value }));
 
-    const fileDateFilters: any = {};
+    const fileDateFilters: WhereOptions<FileModel> = {};
     if (options?.removedFrom) {
-      fileDateFilters.removed_at = {
+      fileDateFilters.removedAt = {
         [Op.gte]: options?.removedFrom,
       };
     }
 
-    const workspaceItemDateFilters: any = {};
+    const workspaceItemDateFilters: WhereOptions<WorkspaceItemUserModel> = {};
     if (options?.createdFrom) {
-      workspaceItemDateFilters.created_at = {
+      workspaceItemDateFilters.createdAt = {
         [Op.gte]: options.createdFrom,
       };
     }

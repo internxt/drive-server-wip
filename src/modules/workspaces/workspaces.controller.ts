@@ -518,7 +518,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
-  @Get('/:workspaceId/usage')
+  @Get('/:workspaceId/usage/member')
   @ApiOperation({
     summary: 'User usage in drive',
   })
