@@ -57,7 +57,7 @@ describe('FileRepository', () => {
             where: expect.objectContaining({
               createdBy: user.uuid,
               workspaceId: workspace.id,
-              created_at: { [Op.gte]: options.createdFrom },
+              createdAt: { [Op.gte]: options.createdFrom },
             }),
           }),
         }),
@@ -87,7 +87,7 @@ describe('FileRepository', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             [Op.or]: expect.arrayContaining([{ status: statuses[0] }]),
-            removed_at: { [Op.gte]: options.removedFrom },
+            removedAt: { [Op.gte]: options.removedFrom },
           }),
         }),
       );
