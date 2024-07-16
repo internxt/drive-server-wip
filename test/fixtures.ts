@@ -313,6 +313,7 @@ export const newWorkspace = (params?: {
     defaultTeamId: v4(),
     workspaceUserId: v4(),
     setupCompleted: true,
+    numberOfSeats: 20,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({

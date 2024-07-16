@@ -17,10 +17,18 @@ export class InitializeWorkspaceDto {
   address?: string;
 
   @ApiProperty({
-    example: '312321312',
+    example: 312321312,
     description: 'Workspace max space in bytes',
   })
   @IsNotEmpty()
   @IsNumber()
   maxSpaceBytes: number;
+
+  @ApiProperty({
+    example: 20,
+    description: 'Workspace max number of users',
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  numberOfSeats: number;
 }

@@ -56,6 +56,7 @@ describe('GatewayUseCases', () => {
         ownerId: owner.uuid,
         maxSpaceBytes,
         address: workspaceAddress,
+        numberOfSeats: 20,
       };
 
       await expect(
@@ -79,6 +80,7 @@ describe('GatewayUseCases', () => {
         ownerId: owner.uuid,
         maxSpaceBytes,
         address: workspaceAddress,
+        numberOfSeats: 20,
       };
       await expect(
         service.initializeWorkspace(initializeWorkspaceDto),
