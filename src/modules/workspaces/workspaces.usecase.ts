@@ -84,7 +84,7 @@ export class WorkspacesUsecases {
   async initiateWorkspace(
     ownerId: UserAttributes['uuid'],
     maxSpaceBytes: number,
-    workspaceData: { address?: string },
+    workspaceData: { address?: string; numberOfSeats: number },
   ) {
     const owner = await this.userRepository.findByUuid(ownerId);
 
@@ -128,6 +128,7 @@ export class WorkspacesUsecases {
       ownerId: owner.uuid,
       name: 'My Workspace',
       address: workspaceData?.address,
+      numberOfSeats: workspaceData.numberOfSeats,
       avatar: null,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
@@ -199,11 +200,14 @@ export class WorkspacesUsecases {
           workspace.rootFolderId,
         );
 
+        const fixedSpaceLimit =
+          await this.getWorkspaceFixedStoragePerUser(workspace);
+
         const workspaceUser = WorkspaceUser.build({
           id: v4(),
           workspaceId: workspace.id,
           memberId: user.uuid,
-          spaceLimit: 0,
+          spaceLimit: fixedSpaceLimit,
           driveUsage: 0,
           backupsUsage: 0,
           key: setupWorkspaceDto.encryptedMnemonic,
@@ -295,6 +299,12 @@ export class WorkspacesUsecases {
     }
   }
 
+  async getWorkspaceFixedStoragePerUser(workspace: Workspace) {
+    const workspaceTotalLimit = await this.getWorkspaceNetworkLimit(workspace);
+
+    return Math.floor(workspaceTotalLimit / workspace.numberOfSeats);
+  }
+
   async inviteUserToWorkspace(
     user: User,
     workspaceId: Workspace['id'],
@@ -338,7 +348,7 @@ export class WorkspacesUsecases {
       throw new BadRequestException('User is already invited to workspace');
     }
 
-    const isWorkspaceFull = await this.isWorkspaceFull(workspaceId);
+    const isWorkspaceFull = await this.isWorkspaceFull(workspace);
 
     if (isWorkspaceFull) {
       throw new BadRequestException(
@@ -355,7 +365,10 @@ export class WorkspacesUsecases {
       workspaceUser,
     );
 
-    if (createInviteDto.spaceLimit > spaceLeft) {
+    const fixedSpaceLimit =
+      await this.getWorkspaceFixedStoragePerUser(workspace);
+
+    if (fixedSpaceLimit > spaceLeft) {
       throw new BadRequestException(
         'Space limit set for the invitation is superior to the space assignable in workspace',
       );
@@ -367,7 +380,7 @@ export class WorkspacesUsecases {
       invitedUser: userJoining.uuid,
       encryptionAlgorithm: createInviteDto.encryptionAlgorithm,
       encryptionKey: createInviteDto.encryptionKey,
-      spaceLimit: createInviteDto.spaceLimit,
+      spaceLimit: fixedSpaceLimit,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -1213,6 +1226,29 @@ export class WorkspacesUsecases {
       return userAlreadyInWorkspace.toJSON();
     }
 
+    const isWorkspaceFull = await this.isWorkspaceFull(workspace);
+
+    if (isWorkspaceFull) {
+      throw new BadRequestException(
+        'This workspace is full and it does not accept more users',
+      );
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(
+      workspace,
+      workspaceUser,
+    );
+
+    if (invite.spaceLimit > spaceLeft) {
+      throw new BadRequestException(
+        'The space assigned to this user is greater than the space available, invalid invitation',
+      );
+    }
+
     try {
       const rootFolder = await this.initiateWorkspacePersonalRootFolder(
         workspace.workspaceUserId,
@@ -1403,37 +1439,40 @@ export class WorkspacesUsecases {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
+      //totalSpaceAssignedInInvitations,
     ] = await Promise.all([
       this.networkService.getLimit(
         workpaceDefaultUser.bridgeUser,
         workpaceDefaultUser.userId,
       ),
       this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
-      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+      //this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
     ]);
 
-    const spaceLeft =
-      spaceLimit - totalSpaceLimitAssigned - totalSpaceAssignedInInvitations;
+    const spaceLeft = spaceLimit - totalSpaceLimitAssigned;
 
     return spaceLeft;
   }
 
-  async getWorkspaceUsage(workspace: Workspace) {
+  async getWorkspaceNetworkLimit(workspace: Workspace) {
     const workpaceDefaultUser = await this.userRepository.findByUuid(
       workspace.workspaceUserId,
     );
 
+    return this.networkService.getLimit(
+      workpaceDefaultUser.bridgeUser,
+      workpaceDefaultUser.userId,
+    );
+  }
+
+  async getWorkspaceUsage(workspace: Workspace) {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
       totalSpaceAssignedInInvitations,
       spaceUsed,
     ] = await Promise.all([
-      this.networkService.getLimit(
-        workpaceDefaultUser.bridgeUser,
-        workpaceDefaultUser.userId,
-      ),
+      this.getWorkspaceNetworkLimit(workspace),
       this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
       this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
       this.workspaceRepository.getTotalDriveAndBackupUsageWorkspaceUsers(
@@ -1447,16 +1486,14 @@ export class WorkspacesUsecases {
     return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
 
-  async isWorkspaceFull(workspaceId: Workspace['id']): Promise<boolean> {
-    const [workspaceUsersCount, workspaceInvitationsCount] = await Promise.all([
-      this.workspaceRepository.getWorkspaceUsersCount(workspaceId),
-      this.workspaceRepository.getWorkspaceInvitationsCount(workspaceId),
-    ]);
+  async isWorkspaceFull(workspace: Workspace): Promise<boolean> {
+    const [workspaceUsersCount /* workspaceInvitationsCount */] =
+      await Promise.all([
+        this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
+        //  this.workspaceRepository.getWorkspaceInvitationsCount(workspaceId),
+      ]);
 
-    const limit = 10; // Temporal limit
-    const count = workspaceUsersCount + workspaceInvitationsCount;
-
-    return count >= limit;
+    return workspace.isWorkspaceFull(workspaceUsersCount);
   }
 
   async createTeam(

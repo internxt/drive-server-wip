@@ -27,6 +27,7 @@ describe('Gateway Controller', () => {
       ownerId: owner.uuid,
       maxSpaceBytes: 1000000,
       address: '123 Main St',
+      numberOfSeats: 20,
     };
 
     it('When workspace is created successfully, then return', async () => {

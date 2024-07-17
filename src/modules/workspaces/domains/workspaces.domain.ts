@@ -13,6 +13,7 @@ export class Workspace implements WorkspaceAttributes {
   defaultTeamId: string;
   workspaceUserId: string;
   setupCompleted: boolean;
+  numberOfSeats: number;
   createdAt: Date;
   updatedAt: Date;
 
@@ -27,6 +28,7 @@ export class Workspace implements WorkspaceAttributes {
     workspaceUserId,
     setupCompleted,
     avatar,
+    numberOfSeats,
     createdAt,
     updatedAt,
   }: WorkspaceAttributes) {
@@ -40,6 +42,7 @@ export class Workspace implements WorkspaceAttributes {
     this.workspaceUserId = workspaceUserId;
     this.setupCompleted = setupCompleted;
     this.rootFolderId = rootFolderId;
+    this.numberOfSeats = numberOfSeats;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -54,6 +57,10 @@ export class Workspace implements WorkspaceAttributes {
 
   isWorkspaceReady() {
     return this.setupCompleted === true;
+  }
+
+  isWorkspaceFull(currentUsersCount: number) {
+    return this.numberOfSeats <= currentUsersCount;
   }
 
   isDefaultTeam(team: WorkspaceTeam) {

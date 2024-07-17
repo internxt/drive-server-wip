@@ -163,6 +163,11 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
         .mockResolvedValueOnce(6000000);
+
+      jest
+        .spyOn(service, 'getWorkspaceFixedStoragePerUser')
+        .mockResolvedValueOnce(1024);
+
       jest.spyOn(configService, 'get').mockResolvedValueOnce('secret' as never);
       jest
         .spyOn(mailerService, 'sendWorkspaceUserExternalInvitation')
@@ -171,7 +176,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: 1024,
           encryptionKey: '',
           encryptionAlgorithm: '',
         }),
@@ -203,6 +207,10 @@ describe('WorkspacesUsecases', () => {
         .spyOn(service, 'getAssignableSpaceInWorkspace')
         .mockResolvedValueOnce(6000000);
       jest
+        .spyOn(service, 'getWorkspaceFixedStoragePerUser')
+        .mockResolvedValueOnce(1024);
+
+      jest
         .spyOn(mailerService, 'sendWorkspaceUserInvitation')
         .mockResolvedValueOnce(undefined);
       jest.spyOn(configService, 'get').mockResolvedValue('secret' as never);
@@ -210,7 +218,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.inviteUserToWorkspace(user, 'workspace-id', {
           invitedUser: 'test@example.com',
-          spaceLimit: 1024,
           encryptionKey: '',
           encryptionAlgorithm: '',
         }),
@@ -401,6 +408,10 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValueOnce(null);
 
+      jest
+        .spyOn(service, 'getWorkspaceFixedStoragePerUser')
+        .mockResolvedValueOnce(50000);
+
       await service.setupWorkspace(owner, 'workspace-id', {
         name: 'Test Workspace',
         encryptedMnemonic: 'encryptedMnemonic',
@@ -568,8 +579,11 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('isWorkspaceFull', () => {
-    const workspaceId = 'workspace-id';
     it('When workspace has slots left, then workspace is not full', async () => {
+      const notFullWorkspace = newWorkspace({
+        attributes: { numberOfSeats: 10 },
+      });
+
       jest
         .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
         .mockResolvedValue(5);
@@ -577,10 +591,14 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'getWorkspaceInvitationsCount')
         .mockResolvedValue(4);
 
-      const isFull = await service.isWorkspaceFull(workspaceId);
+      const isFull = await service.isWorkspaceFull(notFullWorkspace);
       expect(isFull).toBe(false);
     });
     it('When workspace does not have slots left, then workspace is full', async () => {
+      const fullWorkspace = newWorkspace({
+        attributes: { numberOfSeats: 10 },
+      });
+
       jest
         .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
         .mockResolvedValue(10);
@@ -588,7 +606,7 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'getWorkspaceInvitationsCount')
         .mockResolvedValue(0);
 
-      const isFull = await service.isWorkspaceFull(workspaceId);
+      const isFull = await service.isWorkspaceFull(fullWorkspace);
       expect(isFull).toBe(true);
     });
   });
@@ -990,7 +1008,7 @@ describe('WorkspacesUsecases', () => {
       });
     });
 
-    it('When invite is valid, then add user to workspace with respective space limit', async () => {
+    it('When invite is valid but there are not enough slots in the workspace, then it should throw', async () => {
       const workspace = newWorkspace();
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
@@ -1002,6 +1020,63 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(true);
+
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invite is valid but there is no enough free storage left, then it should throw', async () => {
+      const workspaceUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceUser.uuid },
+      });
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+        attributes: { spaceLimit: 4000 },
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(3000);
+
+      await expect(
+        service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invite is valid, then add user to workspace with respective space limit', async () => {
+      const workspaceUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceUser.uuid },
+      });
+      const invite = newWorkspaceInvite({
+        invitedUser: invitedUser.uuid,
+        workspaceId: workspace.id,
+        attributes: { spaceLimit: 1000 },
+      });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(3000);
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
@@ -1014,16 +1089,27 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When invite is valid, then add user to default team', async () => {
-      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceUser.uuid },
+      });
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
+        attributes: { spaceLimit: 1000 },
       });
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(3000);
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
@@ -1034,10 +1120,14 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When invite is valid and an error is thrown while setting user in team, then it should rollback and throw', async () => {
-      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceUser.uuid },
+      });
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
+        attributes: { spaceLimit: 1000 },
       });
 
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
@@ -1045,6 +1135,13 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(3000);
       jest
         .spyOn(teamRepository, 'addUserToTeam')
         .mockRejectedValueOnce(
@@ -1066,10 +1163,14 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When invite is valid and an error is thrown while setting user in workspace, then it should rollback and throw', async () => {
-      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceUser.uuid },
+      });
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
+        attributes: { spaceLimit: 1000 },
       });
 
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
@@ -1077,6 +1178,13 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(3000);
       jest
         .spyOn(workspaceRepository, 'addUserToWorkspace')
         .mockRejectedValueOnce(
@@ -1098,16 +1206,27 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When invite is accepted, then it should be deleted aftewards', async () => {
-      const workspace = newWorkspace();
+      const workspaceUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceUser.uuid },
+      });
       const invite = newWorkspaceInvite({
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
+        attributes: { spaceLimit: 1000 },
       });
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
         .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(3000);
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
@@ -1347,15 +1466,15 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
         .mockResolvedValue(500000);
-      jest
+      /* jest
         .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
-        .mockResolvedValue(200000);
+        .mockResolvedValue(200000); */
 
       const assignableSpace = await service.getAssignableSpaceInWorkspace(
         workspace,
         workspaceDefaultUser,
       );
-      expect(assignableSpace).toBe(300000);
+      expect(assignableSpace).toBe(500000);
     });
   });
 
@@ -3188,7 +3307,7 @@ describe('WorkspacesUsecases', () => {
   describe('initiateWorkspace', () => {
     const owner = newUser();
     const maxSpaceBytes = 1000000;
-    const workspaceData = { address: '123 Main St' };
+    const workspaceData = { address: '123 Main St', numberOfSeats: 20 };
 
     it('When owner does not exist, then it should throw', async () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);

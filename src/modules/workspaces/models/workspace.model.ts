@@ -61,6 +61,9 @@ export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @Column(DataType.UUID)
   rootFolderId?: string;
 
+  @Column(DataType.INTEGER)
+  numberOfSeats: number;
+
   @HasOne(() => FolderModel, 'uuid')
   rootFolder: FolderModel;
 

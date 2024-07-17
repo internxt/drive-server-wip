@@ -22,10 +22,12 @@ export class GatewayUseCases {
     Logger.log(
       `Initializing workspace with owner id: ${initializeWorkspaceDto.ownerId}`,
     );
-    const { ownerId, maxSpaceBytes, address } = initializeWorkspaceDto;
+    const { ownerId, maxSpaceBytes, address, numberOfSeats } =
+      initializeWorkspaceDto;
 
     return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes, {
       address,
+      numberOfSeats,
     });
   }
 
