@@ -864,4 +864,44 @@ describe('FileUseCases', () => {
       expect(result).toEqual(fileSizes);
     });
   });
+
+  describe('getFiles', () => {
+    const userId = userMocked.id;
+
+    it('When limit and offset are specified, then it should use them', async () => {
+      const limit = 10;
+      const offset = 5;
+
+      await service.getFiles(userId, {}, { limit, offset });
+
+      expect(fileRepository.findAllCursorWithThumbnails).toHaveBeenCalledWith(
+        { userId },
+        limit,
+        offset,
+        undefined,
+      );
+    });
+
+    it('When ignorePagination is true, then it should ignore limit and offset', async () => {
+      await service.getFiles(userId, {}, { ignorePagination: true });
+
+      expect(fileRepository.findAllCursorWithThumbnails).toHaveBeenCalledWith(
+        { userId },
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
+
+    it('When sorting is specified, then it should use the specified sort', async () => {
+      await service.getFiles(userId, {}, { sort: [['name', 'ASC']] });
+
+      expect(fileRepository.findAllCursorWithThumbnails).toHaveBeenCalledWith(
+        { userId },
+        20,
+        0,
+        [['name', 'ASC']],
+      );
+    });
+  });
 });
