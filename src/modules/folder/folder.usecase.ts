@@ -575,25 +575,15 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: {
-      limit?: number;
-      offset?: number;
-      sort?: SortParams;
-      ignorePagination?: boolean;
-    } = {
+    options: { limit: number; offset: number; sort?: SortParams } = {
       limit: 20,
       offset: 0,
-      ignorePagination: false,
     },
   ): Promise<Folder[]> {
-    const { limit: optionsLimit = 20, offset: optionsOffsets = 0 } = options;
-    const limit = options.ignorePagination ? undefined : optionsLimit;
-    const offset = options.ignorePagination ? undefined : optionsOffsets;
-
     const foldersWithMaybePlainName = await this.folderRepository.findAllCursor(
       { ...where, userId },
-      limit,
-      offset,
+      options.limit,
+      options.offset,
       options.sort,
     );
 
