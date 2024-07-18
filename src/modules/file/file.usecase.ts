@@ -319,34 +319,29 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     options: {
-      limit?: number;
-      offset?: number;
+      limit: number;
+      offset: number;
       sort?: SortParams;
       withoutThumbnails?: boolean;
-      ignorePagination?: boolean;
     } = {
       limit: 20,
       offset: 0,
     },
   ): Promise<File[]> {
-    const { limit: optionsLimit = 20, offset: optionsOffsets = 0 } = options;
-    const limit = options.ignorePagination ? undefined : optionsLimit;
-    const offset = options.ignorePagination ? undefined : optionsOffsets;
-
     let filesWithMaybePlainName;
     if (options?.withoutThumbnails)
       filesWithMaybePlainName = await this.fileRepository.findAllCursor(
         { ...where, userId },
-        limit,
-        offset,
+        options.limit,
+        options.offset,
         options.sort,
       );
     else
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnails(
           { ...where, userId },
-          limit,
-          offset,
+          options.limit,
+          options.offset,
           options.sort,
         );
 
