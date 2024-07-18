@@ -64,6 +64,7 @@ import {
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { SharingService } from '../sharing/sharing.service';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
+import { EditBillingAddressDto } from './dto/edit-billing-address.dto';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -167,6 +168,41 @@ export class WorkspacesUsecases {
       );
       throw error;
     }
+  }
+
+  async getWorkspaceBillingAddress(user: User, workspaceId: Workspace['id']) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    return workspace.address;
+  }
+
+  async editWorkspaceBillingAddress(
+    user: User,
+    workspaceId: Workspace['id'],
+    editBillingAddressDto: EditBillingAddressDto,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.isUserOwner(user)) {
+      throw new ForbiddenException('You are not the owner of this workspace');
+    }
+
+    await this.workspaceRepository.updateBy(
+      { id: workspaceId },
+      { address: editBillingAddressDto.address },
+    );
   }
 
   async setupWorkspace(

@@ -383,6 +383,106 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getWokspaceBillingAddress', () => {
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getWorkspaceBillingAddress(newUser(), v4()),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not the owner of the workspace, then it should throw', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.getWorkspaceBillingAddress(user, workspace.id),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When the user is the owner of the workspace, then it should return the billing address', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({
+        owner: user,
+        attributes: {
+          address: 'Test Address',
+        },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      const billingAddress = 'Test Address';
+
+      const result = await service.getWorkspaceBillingAddress(
+        user,
+        workspace.id,
+      );
+
+      expect(result).toBe(billingAddress);
+    });
+  });
+
+  describe('editWorkspaceBillingAddress', () => {
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.editWorkspaceBillingAddress(newUser(), v4(), {
+          address: 'Test Address',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not the owner of the workspace, then it should throw', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.editWorkspaceBillingAddress(user, workspace.id, {
+          address: 'Test Address',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When the user is the owner of the workspace, then it should update the address', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+      const editBillingAddressDto = {
+        address: 'Test Address',
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      await expect(
+        service.editWorkspaceBillingAddress(
+          user,
+          workspace.id,
+          editBillingAddressDto,
+        ),
+      ).resolves.not.toThrow();
+
+      expect(workspaceRepository.updateBy).toHaveBeenCalledWith(
+        {
+          id: workspace.id,
+        },
+        editBillingAddressDto,
+      );
+    });
+  });
+
   describe('setupWorkspace', () => {
     const user = newUser();
 
