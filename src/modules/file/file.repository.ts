@@ -18,6 +18,18 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
+  findAllCursor(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWithThumbnails(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,

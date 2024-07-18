@@ -38,6 +38,12 @@ export interface FolderRepository {
     newFolder: Omit<FolderAttributes, 'id'>,
   ): Promise<Folder>;
   findAll(): Promise<Array<Folder> | []>;
+  findAllCursor(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
     userId: FolderAttributes['userId'],

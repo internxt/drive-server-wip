@@ -406,15 +406,23 @@ export class FolderController {
   ) {
     const [currentFolder, childrenFolders, files] = await Promise.all([
       this.folderUseCases.getFolderByUuidAndUser(folderUuid, user),
-      this.folderUseCases.getFolders(user.id, {
-        parentUuid: folderUuid,
-        deleted: false,
-        removed: false,
-      }),
-      this.fileUseCases.getFiles(user.id, {
-        folderUuid: folderUuid,
-        status: FileStatus.EXISTS,
-      }),
+      this.folderUseCases.getFolders(
+        user.id,
+        {
+          parentUuid: folderUuid,
+          deleted: false,
+          removed: false,
+        },
+        { ignorePagination: true },
+      ),
+      this.fileUseCases.getFiles(
+        user.id,
+        {
+          folderUuid: folderUuid,
+          status: FileStatus.EXISTS,
+        },
+        { ignorePagination: true },
+      ),
     ]);
 
     if (!currentFolder) {
