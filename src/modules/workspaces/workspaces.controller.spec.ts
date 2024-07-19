@@ -256,13 +256,18 @@ describe('Workspace Controller', () => {
         workspacesController.editWorkspaceDetails(workspace.id, user, {
           name: 'new name',
           description: 'new description',
+          address: 'new address',
         }),
       ).resolves.toBeUndefined();
 
       expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
         workspace.id,
         user,
-        { name: 'new name' },
+        {
+          name: 'new name',
+          description: 'new description',
+          address: 'new address',
+        },
       );
     });
   });
@@ -588,6 +593,21 @@ describe('Workspace Controller', () => {
         workspaceId,
         createFolderDto,
       );
+    });
+  });
+
+  describe('GET /:workspaceId', () => {
+    it('When a workspace is requested, then it should return the workspace data', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceDetails')
+        .mockResolvedValueOnce(workspace.toJSON());
+
+      await expect(
+        workspacesController.getWorkspaceDetails(workspace.id, user),
+      ).resolves.toEqual(workspace.toJSON());
     });
   });
 });

@@ -21,4 +21,8 @@ export class EditWorkspaceDetailsDto {
   @IsString()
   @Length(0, 150)
   description?: Workspace['description'];
+  @IsOptional()
+  @IsString()
+  @Length(5, 255)
+  address?: Workspace['address'];
 }

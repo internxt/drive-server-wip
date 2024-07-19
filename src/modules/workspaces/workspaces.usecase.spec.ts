@@ -340,12 +340,34 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getWorkspaceDetails', () => {
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(service.getWorkspaceDetails(v4())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When workspace exists, then it should return the workspace details', async () => {
+      const workspace = newWorkspace();
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      const result = await service.getWorkspaceDetails(workspace.id);
+
+      expect(result).toEqual(workspace.toJSON());
+    });
+  });
+
   describe('editWorkspaceDetails', () => {
     const user = newUser();
     const workspace = newWorkspace({ owner: user });
     const editWorkspaceDto: EditWorkspaceDetailsDto = {
       name: 'Test Workspace',
       description: 'Workspace description',
+      address: 'Workspace Address',
     };
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);

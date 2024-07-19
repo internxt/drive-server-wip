@@ -958,4 +958,23 @@ export class WorkspacesController {
       workspaceId,
     );
   }
+
+  @Get(':workspaceId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get workspace details',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Workspace details',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceDetails(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+  ) {
+    return this.workspaceUseCases.getWorkspaceDetails(workspaceId);
+  }
 }

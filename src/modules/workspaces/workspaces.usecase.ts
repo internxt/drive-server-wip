@@ -169,6 +169,16 @@ export class WorkspacesUsecases {
     }
   }
 
+  async getWorkspaceDetails(workspaceId: Workspace['id']) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    return workspace.toJSON();
+  }
+
   async setupWorkspace(
     user: User,
     workspaceId: WorkspaceAttributes['id'],
