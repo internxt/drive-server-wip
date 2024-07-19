@@ -78,6 +78,7 @@ export class Workspace implements WorkspaceAttributes {
       defaultTeamId: this.defaultTeamId,
       avatar: this.avatar,
       workspaceUserId: this.workspaceUserId,
+      numberOfSeats: this.numberOfSeats,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

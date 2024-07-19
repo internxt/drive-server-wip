@@ -176,7 +176,7 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace not found');
     }
 
-    return workspace;
+    return workspace.toJSON();
   }
 
   async setupWorkspace(
