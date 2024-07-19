@@ -603,11 +603,11 @@ describe('Workspace Controller', () => {
 
       jest
         .spyOn(workspacesUsecases, 'getWorkspaceDetails')
-        .mockResolvedValueOnce(workspace);
+        .mockResolvedValueOnce(workspace.toJSON());
 
       await expect(
         workspacesController.getWorkspaceDetails(workspace.id, user),
-      ).resolves.toEqual(workspace);
+      ).resolves.toEqual(workspace.toJSON());
     });
   });
 });
