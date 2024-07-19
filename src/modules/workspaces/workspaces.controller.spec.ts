@@ -15,7 +15,6 @@ import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
-import { EditBillingAddressDto } from './dto/edit-billing-address.dto';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
@@ -257,13 +256,18 @@ describe('Workspace Controller', () => {
         workspacesController.editWorkspaceDetails(workspace.id, user, {
           name: 'new name',
           description: 'new description',
+          address: 'new address',
         }),
       ).resolves.toBeUndefined();
 
       expect(workspacesUsecases.editWorkspaceDetails).toHaveBeenCalledWith(
         workspace.id,
         user,
-        { name: 'new name' },
+        {
+          name: 'new name',
+          description: 'new description',
+          address: 'new address',
+        },
       );
     });
   });
@@ -592,44 +596,18 @@ describe('Workspace Controller', () => {
     });
   });
 
-  describe('PATCH /:workspaceId/billing-address', () => {
-    it('When workspace billing address is updated successfully, then it should return', async () => {
+  describe('GET /:workspaceId', () => {
+    it('When a workspace is requested, then it should return the workspace data', async () => {
       const user = newUser();
-      const workspace = newWorkspace({ owner: user });
-      const address: EditBillingAddressDto = {
-        address: 'Test Address',
-      };
+      const workspace = newWorkspace();
 
       jest
-        .spyOn(workspacesUsecases, 'editWorkspaceBillingAddress')
-        .mockResolvedValueOnce(Promise.resolve());
+        .spyOn(workspacesUsecases, 'getWorkspaceDetails')
+        .mockResolvedValueOnce(workspace);
 
       await expect(
-        workspacesController.changeBillingAddress(workspace.id, user, address),
-      ).resolves.toBeUndefined();
-
-      expect(
-        workspacesUsecases.editWorkspaceBillingAddress,
-      ).toHaveBeenCalledWith(user, workspace.id, address);
-    });
-  });
-
-  describe('GET /:workspaceId/billing-address', () => {
-    it('When workspace billing address is requested, then it should return', async () => {
-      const user = newUser();
-      const workspace = newWorkspace({ owner: user });
-
-      jest
-        .spyOn(workspacesUsecases, 'getWorkspaceBillingAddress')
-        .mockResolvedValueOnce('Test Address');
-
-      await expect(
-        workspacesController.getBillingAddress(workspace.id, user),
-      ).resolves.toBe('Test Address');
-
-      expect(
-        workspacesUsecases.getWorkspaceBillingAddress,
-      ).toHaveBeenCalledWith(user, workspace.id);
+        workspacesController.getWorkspaceDetails(workspace.id, user),
+      ).resolves.toEqual(workspace);
     });
   });
 });

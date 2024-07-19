@@ -70,7 +70,6 @@ import { GetItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-share
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { Public } from '../auth/decorators/public.decorator';
-import { EditBillingAddressDto } from './dto/edit-billing-address.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -960,46 +959,22 @@ export class WorkspacesController {
     );
   }
 
-  @Patch(':workspaceId/billing-address')
+  @Get(':workspaceId')
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Change workspace billing address',
+    summary: 'Get workspace details',
   })
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: 'Workspace billing address changed',
+    description: 'Workspace details',
   })
   @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async changeBillingAddress(
-    @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
-    @UserDecorator() user: User,
-    @Body() editBillingAddressDto: EditBillingAddressDto,
-  ) {
-    return this.workspaceUseCases.editWorkspaceBillingAddress(
-      user,
-      workspaceId,
-      editBillingAddressDto,
-    );
-  }
-
-  @Get(':workspaceId/billing-address')
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Get workspace billing address',
-  })
-  @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @ApiOkResponse({
-    description: 'Workspace billing address',
-  })
-  @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
-  async getBillingAddress(
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceDetails(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
   ) {
-    return this.workspaceUseCases.getWorkspaceBillingAddress(user, workspaceId);
+    return this.workspaceUseCases.getWorkspaceDetails(user, workspaceId);
   }
 }
