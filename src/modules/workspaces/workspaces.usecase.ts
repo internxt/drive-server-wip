@@ -1923,6 +1923,24 @@ export class WorkspacesUsecases {
     );
   }
 
+  async activateWorkspaceUser(
+    memberId: WorkspaceUserAttributes['memberId'],
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      memberId,
+      workspaceId,
+    });
+
+    if (!workspaceUser) {
+      throw new BadRequestException('This user is not part of workspace');
+    }
+
+    await this.workspaceRepository.updateWorkspaceUser(workspaceUser.id, {
+      deactivated: false,
+    });
+  }
+
   async changeTeamManager(
     teamId: WorkspaceTeam['id'],
     managerId: User['uuid'],

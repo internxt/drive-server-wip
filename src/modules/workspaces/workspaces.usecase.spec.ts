@@ -3503,6 +3503,44 @@ describe('WorkspacesUsecases', () => {
       });
     });
 
+    describe('activateWorkspaceUser', () => {
+      it('When user is not valid or it is not part of workspace, then it should throw', async () => {
+        const workspace = newWorkspace();
+        const workspaceUser = newWorkspaceUser({ workspaceId: workspace.id });
+
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(null);
+
+        await expect(
+          service.activateWorkspaceUser(workspaceUser.memberId, workspace.id),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When user is valid, then it is activated', async () => {
+        const member = newUser();
+        const workspace = newWorkspace();
+        const workspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          memberId: member.uuid,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+
+        await service.activateWorkspaceUser(
+          workspaceUser.memberId,
+          workspace.id,
+        );
+
+        expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
+          workspaceUser.id,
+          { deactivated: false },
+        );
+      });
+    });
+
     describe('teams', () => {
       describe('createTeam', () => {
         it('When workspace is not found, then fail', async () => {

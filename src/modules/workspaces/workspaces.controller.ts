@@ -959,6 +959,27 @@ export class WorkspacesController {
     );
   }
 
+  @Patch(':workspaceId/members/:memberId/activate')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Activate workspace user',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'User successfully activated',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async activateWorkspaceMember(
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+  ) {
+    return this.workspaceUseCases.activateWorkspaceUser(memberId, workspaceId);
+  }
+
   @Get(':workspaceId')
   @ApiBearerAuth()
   @ApiOperation({
