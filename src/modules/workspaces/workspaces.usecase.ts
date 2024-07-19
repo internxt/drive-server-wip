@@ -169,7 +169,7 @@ export class WorkspacesUsecases {
     }
   }
 
-  async getWorkspaceDetails(user: User, workspaceId: Workspace['id']) {
+  async getWorkspaceDetails(workspaceId: Workspace['id']) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
     if (!workspace) {

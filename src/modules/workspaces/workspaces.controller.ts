@@ -975,6 +975,6 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
   ) {
-    return this.workspaceUseCases.getWorkspaceDetails(user, workspaceId);
+    return this.workspaceUseCases.getWorkspaceDetails(workspaceId);
   }
 }
