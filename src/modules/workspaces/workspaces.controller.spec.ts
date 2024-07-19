@@ -58,6 +58,22 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('PATCH /:workspaceId/members/:memberId/activate', () => {
+    it('When user is activated, then it should activate the correct user ', async () => {
+      const userUuid = v4();
+      const workspaceId = v4();
+
+      await expect(
+        workspacesController.activateWorkspaceMember(userUuid, workspaceId),
+      ).resolves.toBeTruthy();
+
+      expect(workspacesUsecases.activateWorkspaceUser).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+      );
+    });
+  });
+
   describe('PATCH /:workspaceId/setup', () => {
     const user = newUser();
     const workspaceDatDto = {
