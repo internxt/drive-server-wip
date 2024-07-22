@@ -711,6 +711,9 @@ export class FolderController {
   }
 
   @Patch('/:uuid')
+  @WorkspacesInBehalfValidationFolder([
+    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  ])
   async moveFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
