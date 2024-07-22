@@ -425,6 +425,31 @@ describe('WorkspacesUsecases', () => {
         },
       );
     });
+    it('When address or phoneNumber are provided and payments service for some reason fails, it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(paymentsService, 'updateBillingInfo')
+        .mockRejectedValueOnce(new Error());
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, {
+          address: 'new address',
+          phoneNumber: 'new phone number',
+        }),
+      ).rejects.toThrow(InternalServerErrorException);
+
+      expect(paymentsService.updateBillingInfo).toHaveBeenCalledWith(
+        user.uuid,
+        {
+          address: 'new address',
+          phoneNumber: 'new phone number',
+        },
+      );
+
+      expect(workspaceRepository.updateBy).not.toHaveBeenCalled();
+    });
   });
 
   describe('setupWorkspace', () => {
