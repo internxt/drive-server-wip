@@ -83,11 +83,13 @@ export class WorkspaceGuard implements CanActivate {
       role === WorkspaceRole.OWNER && !workspace.isUserOwner(user);
     const isWorkspaceNotSetupAndUserNotOwner =
       !workspace.isWorkspaceReady() && !workspace.isUserOwner(user);
+    const isUserDeactivated = workspaceUser?.deactivated;
 
     if (
       !isUserPartOfWorkspace ||
       isOwnerRoleRequiredButNotMet ||
-      isWorkspaceNotSetupAndUserNotOwner
+      isWorkspaceNotSetupAndUserNotOwner ||
+      isUserDeactivated
     ) {
       Logger.log(
         `[WORKSPACES/GUARD]: Access denied. ID: ${workspaceId}, User UUID: ${user.uuid}`,
@@ -114,10 +116,20 @@ export class WorkspaceGuard implements CanActivate {
       throw new NotFoundException('Team not found');
     }
 
-    const workspace = await this.workspaceUseCases.findById(team.workspaceId);
+    const { workspace, workspaceUser } =
+      await this.workspaceUseCases.findUserAndWorkspace(
+        user.uuid,
+        team.workspaceId,
+      );
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspaceUser || workspaceUser?.deactivated) {
+      throw new ForbiddenException(
+        'You do not have the required access to this workspace.',
+      );
     }
 
     if (workspace.isUserOwner(user)) {

@@ -265,6 +265,8 @@ describe('WorkspaceGuard', () => {
 
     it('When Team does not exist, then throw', async () => {
       const user = newUser();
+      const workspaceMember = newWorkspaceUser({ memberId: user.uuid });
+
       jest.spyOn(reflector, 'get').mockReturnValue({
         requiredRole: WorkspaceRole.MANAGER,
         accessContext: AccessContext.TEAM,
@@ -275,6 +277,8 @@ describe('WorkspaceGuard', () => {
         team: null,
         teamUser: null,
       });
+
+      workspaceUseCases.findUserInWorkspace.mockResolvedValue(workspaceMember);
 
       const context = createMockExecutionContext(user, {
         params: { teamId: v4() },
@@ -290,9 +294,18 @@ describe('WorkspaceGuard', () => {
     it('When user is team member, then grant access', async () => {
       const user = newUser();
       const workspace = newWorkspace({ owner: user });
+      const workspaceMember = newWorkspaceUser({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
       const team = newWorkspaceTeam({
         workspaceId: workspace.id,
         manager: user,
+      });
+
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: workspaceMember,
       });
 
       jest.spyOn(reflector, 'get').mockReturnValue({
@@ -318,11 +331,20 @@ describe('WorkspaceGuard', () => {
       const member = newUser();
       const team = newWorkspaceTeam({ manager });
       const workspace = newWorkspace();
+      const workspaceMember = newWorkspaceUser({
+        memberId: member.uuid,
+        workspaceId: workspace.id,
+      });
 
       jest.spyOn(reflector, 'get').mockReturnValue({
         requiredRole: WorkspaceRole.MANAGER,
         accessContext: AccessContext.TEAM,
         idSource: 'params',
+      });
+
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: workspaceMember,
       });
 
       workspaceUseCases.findUserInTeam.mockResolvedValue({
@@ -344,11 +366,20 @@ describe('WorkspaceGuard', () => {
       const nonMemberUser = newUser();
       const team = newWorkspaceTeam();
       const workspace = newWorkspace();
+      const workspaceMember = newWorkspaceUser({
+        memberId: nonMemberUser.uuid,
+        workspaceId: workspace.id,
+      });
 
       jest.spyOn(reflector, 'get').mockReturnValue({
         requiredRole: WorkspaceRole.MEMBER,
         accessContext: AccessContext.TEAM,
         idSource: 'params',
+      });
+
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: workspaceMember,
       });
 
       workspaceUseCases.findById.mockResolvedValue(workspace);
@@ -366,14 +397,49 @@ describe('WorkspaceGuard', () => {
       );
     });
 
-    it('When team workspace does not exist, then throw', async () => {
+    it('When user is deactivated, it should throw', async () => {
       const nonMemberUser = newUser();
       const team = newWorkspaceTeam();
+      const workspace = newWorkspace();
+      const workspaceMember = newWorkspaceUser({
+        memberId: nonMemberUser.uuid,
+        workspaceId: workspace.id,
+        attributes: { deactivated: true },
+      });
 
       jest.spyOn(reflector, 'get').mockReturnValue({
         requiredRole: WorkspaceRole.MEMBER,
         accessContext: AccessContext.TEAM,
         idSource: 'params',
+      });
+
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: workspaceMember,
+      });
+      const context = createMockExecutionContext(nonMemberUser, {
+        params: { teamId: team.id },
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When team workspace does not exist, then throw', async () => {
+      const nonMemberUser = newUser();
+      const team = newWorkspaceTeam();
+      const workspaceMember = newWorkspaceUser();
+
+      jest.spyOn(reflector, 'get').mockReturnValue({
+        requiredRole: WorkspaceRole.MEMBER,
+        accessContext: AccessContext.TEAM,
+        idSource: 'params',
+      });
+
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace: null,
+        workspaceUser: workspaceMember,
       });
 
       workspaceUseCases.findById.mockResolvedValue(null);
