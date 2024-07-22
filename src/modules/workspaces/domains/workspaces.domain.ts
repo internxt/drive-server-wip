@@ -14,6 +14,7 @@ export class Workspace implements WorkspaceAttributes {
   workspaceUserId: string;
   setupCompleted: boolean;
   numberOfSeats: number;
+  phoneNumber?: string;
   createdAt: Date;
   updatedAt: Date;
 
@@ -29,6 +30,7 @@ export class Workspace implements WorkspaceAttributes {
     setupCompleted,
     avatar,
     numberOfSeats,
+    phoneNumber,
     createdAt,
     updatedAt,
   }: WorkspaceAttributes) {
@@ -43,6 +45,7 @@ export class Workspace implements WorkspaceAttributes {
     this.setupCompleted = setupCompleted;
     this.rootFolderId = rootFolderId;
     this.numberOfSeats = numberOfSeats;
+    this.phoneNumber = phoneNumber;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -79,6 +82,7 @@ export class Workspace implements WorkspaceAttributes {
       avatar: this.avatar,
       workspaceUserId: this.workspaceUserId,
       numberOfSeats: this.numberOfSeats,
+      phoneNumber: this.phoneNumber,
       setupCompleted: this.setupCompleted,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,

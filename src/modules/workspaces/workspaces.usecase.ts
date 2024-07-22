@@ -84,7 +84,11 @@ export class WorkspacesUsecases {
   async initiateWorkspace(
     ownerId: UserAttributes['uuid'],
     maxSpaceBytes: number,
-    workspaceData: { address?: string; numberOfSeats: number },
+    workspaceData: {
+      address?: string;
+      numberOfSeats: number;
+      phoneNumber?: string;
+    },
   ) {
     const owner = await this.userRepository.findByUuid(ownerId);
 
@@ -129,6 +133,7 @@ export class WorkspacesUsecases {
       name: 'My Workspace',
       address: workspaceData?.address,
       numberOfSeats: workspaceData.numberOfSeats,
+      phoneNumber: workspaceData?.phoneNumber,
       avatar: null,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,

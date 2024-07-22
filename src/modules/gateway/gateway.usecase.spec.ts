@@ -46,6 +46,7 @@ describe('GatewayUseCases', () => {
     const owner = newUser();
     const maxSpaceBytes = 1000000;
     const workspaceAddress = '123 Main St';
+    const workspacePhoneNumber = '+1 (123) 456-7890';
 
     it('When owner does not exist, then it should throw', async () => {
       jest
@@ -56,6 +57,7 @@ describe('GatewayUseCases', () => {
         ownerId: owner.uuid,
         maxSpaceBytes,
         address: workspaceAddress,
+        phoneNumber: workspacePhoneNumber,
         numberOfSeats: 20,
       };
 
@@ -71,6 +73,7 @@ describe('GatewayUseCases', () => {
         attributes: {
           defaultTeamId: newDefaultTeam.id,
           address: workspaceAddress,
+          phoneNumber: workspacePhoneNumber,
         },
       });
       jest
@@ -80,6 +83,7 @@ describe('GatewayUseCases', () => {
         ownerId: owner.uuid,
         maxSpaceBytes,
         address: workspaceAddress,
+        phoneNumber: workspacePhoneNumber,
         numberOfSeats: 20,
       };
       await expect(
