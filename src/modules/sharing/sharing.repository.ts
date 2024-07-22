@@ -480,6 +480,7 @@ export class SequelizeSharingRepository implements SharingRepository {
             {
               model: WorkspaceItemUserModel,
               as: 'workspaceUser',
+              required: true,
               include: [
                 {
                   model: UserModel,
@@ -549,6 +550,7 @@ export class SequelizeSharingRepository implements SharingRepository {
           include: [
             {
               model: WorkspaceItemUserModel,
+              required: true,
               include: [
                 {
                   model: UserModel,
