@@ -28,6 +28,7 @@ describe('SharingRepository', () => {
   describe('findFilesByOwnerAndSharedWithTeamInworkspace', () => {
     it('When files are searched by owner and team in workspace, then it should return the shared files', async () => {
       const teamId = v4();
+      const workspaceId = v4();
       const ownerId = v4();
       const offset = 0;
       const limit = 10;
@@ -54,6 +55,7 @@ describe('SharingRepository', () => {
 
       const result =
         await repository.findFilesByOwnerAndSharedWithTeamInworkspace(
+          workspaceId,
           teamId,
           ownerId,
           offset,
@@ -68,6 +70,7 @@ describe('SharingRepository', () => {
   });
 
   describe('findFoldersByOwnerAndSharedWithTeamInworkspace', () => {
+    const workspaceId = v4();
     it('When folders are searched by owner and team in workspace, then it should return the shared folders', async () => {
       const teamId = v4();
       const ownerId = v4();
@@ -92,6 +95,7 @@ describe('SharingRepository', () => {
 
       const result =
         await repository.findFoldersByOwnerAndSharedWithTeamInworkspace(
+          workspaceId,
           teamId,
           ownerId,
           offset,

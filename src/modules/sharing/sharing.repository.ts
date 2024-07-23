@@ -30,6 +30,7 @@ import { PreCreatedUserAttributes } from '../user/pre-created-users.attributes';
 import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -443,6 +444,7 @@ export class SequelizeSharingRepository implements SharingRepository {
   }
 
   async findFilesByOwnerAndSharedWithTeamInworkspace(
+    workspaceId: WorkspaceAttributes['id'],
     teamId: WorkspaceTeamAttributes['id'],
     ownerId: WorkspaceItemUserAttributes['createdBy'],
     offset: number,
@@ -481,6 +483,9 @@ export class SequelizeSharingRepository implements SharingRepository {
               model: WorkspaceItemUserModel,
               as: 'workspaceUser',
               required: true,
+              where: {
+                workspaceId,
+              },
               include: [
                 {
                   model: UserModel,
@@ -513,6 +518,7 @@ export class SequelizeSharingRepository implements SharingRepository {
   }
 
   async findFoldersByOwnerAndSharedWithTeamInworkspace(
+    workspaceId: WorkspaceAttributes['id'],
     teamId: WorkspaceTeamAttributes['id'],
     ownerId: WorkspaceItemUserAttributes['createdBy'],
     offset: number,
@@ -551,6 +557,9 @@ export class SequelizeSharingRepository implements SharingRepository {
             {
               model: WorkspaceItemUserModel,
               required: true,
+              where: {
+                workspaceId,
+              },
               include: [
                 {
                   model: UserModel,

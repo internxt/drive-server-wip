@@ -52,6 +52,7 @@ import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -1787,6 +1788,7 @@ export class SharingService {
 
   async getSharedFoldersInWorkspace(
     user: User,
+    workspaceId: Workspace['id'],
     teamId: Sharing['sharedWith'],
     offset: number,
     limit: number,
@@ -1794,6 +1796,7 @@ export class SharingService {
   ): Promise<GetItemsReponse> {
     const foldersWithSharedInfo =
       await this.sharingRepository.findFoldersByOwnerAndSharedWithTeamInworkspace(
+        workspaceId,
         teamId,
         user.uuid,
         offset,
@@ -1838,6 +1841,7 @@ export class SharingService {
 
   async getSharedFilesInWorkspaces(
     user: User,
+    workspaceId: Workspace['id'],
     teamId: Sharing['sharedWith'],
     offset: number,
     limit: number,
@@ -1845,6 +1849,7 @@ export class SharingService {
   ): Promise<GetItemsReponse> {
     const filesWithSharedInfo =
       await this.sharingRepository.findFilesByOwnerAndSharedWithTeamInworkspace(
+        workspaceId,
         teamId,
         user.uuid,
         offset,

@@ -492,6 +492,7 @@ describe('Sharing Use Cases', () => {
   describe('getSharedFilesInWorkspaces', () => {
     const user = newUser();
     const teamId = v4();
+    const workspaceId = v4();
     const offset = 0;
     const limit = 10;
     const order: [string, string][] = [['name', 'asc']];
@@ -517,6 +518,7 @@ describe('Sharing Use Cases', () => {
 
       const result = await sharingService.getSharedFilesInWorkspaces(
         user,
+        workspaceId,
         teamId,
         offset,
         limit,
@@ -554,6 +556,7 @@ describe('Sharing Use Cases', () => {
 
       const result = await sharingService.getSharedFilesInWorkspaces(
         user,
+        workspaceId,
         teamId,
         offset,
         limit,
@@ -585,6 +588,7 @@ describe('Sharing Use Cases', () => {
       await expect(
         sharingService.getSharedFilesInWorkspaces(
           user,
+          workspaceId,
           teamId,
           offset,
           limit,
@@ -597,6 +601,7 @@ describe('Sharing Use Cases', () => {
   describe('getSharedFoldersInWorkspace', () => {
     const user = newUser();
     const teamId = v4();
+    const workspaceId = v4();
     const offset = 0;
     const limit = 10;
     const order: [string, string][] = [['name', 'asc']];
@@ -623,6 +628,7 @@ describe('Sharing Use Cases', () => {
 
       const result = await sharingService.getSharedFoldersInWorkspace(
         user,
+        workspaceId,
         teamId,
         offset,
         limit,
@@ -660,6 +666,7 @@ describe('Sharing Use Cases', () => {
 
       const result = await sharingService.getSharedFoldersInWorkspace(
         user,
+        workspaceId,
         teamId,
         offset,
         limit,
@@ -691,6 +698,7 @@ describe('Sharing Use Cases', () => {
       await expect(
         sharingService.getSharedFoldersInWorkspace(
           user,
+          workspaceId,
           teamId,
           offset,
           limit,

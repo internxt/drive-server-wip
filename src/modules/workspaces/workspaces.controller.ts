@@ -594,6 +594,8 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getSharedFiles(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceTeamAttributes['id'],
     @Param('teamId', ValidateUUIDPipe)
     teamId: WorkspaceTeamAttributes['id'],
     @UserDecorator() user: User,
@@ -607,6 +609,7 @@ export class WorkspacesController {
 
     return this.sharingUseCases.getSharedFilesInWorkspaces(
       user,
+      workspaceId,
       teamId,
       page,
       perPage,
@@ -621,6 +624,8 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MEMBER)
   async getSharedFolders(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceTeamAttributes['id'],
     @Param('teamId', ValidateUUIDPipe)
     teamId: WorkspaceTeamAttributes['id'],
     @UserDecorator() user: User,
@@ -634,6 +639,7 @@ export class WorkspacesController {
 
     return this.sharingUseCases.getSharedFoldersInWorkspace(
       user,
+      workspaceId,
       teamId,
       page,
       perPage,

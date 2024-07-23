@@ -507,12 +507,14 @@ describe('Workspace Controller', () => {
     it('When shared files are requested, then it should call the service with the respective arguments', async () => {
       const user = newUser();
       const teamId = v4();
+      const workspaceId = v4();
       const orderBy = 'createdAt:ASC';
       const page = 1;
       const perPage = 50;
       const order = [['createdAt', 'ASC']];
 
       await workspacesController.getSharedFiles(
+        workspaceId,
         teamId,
         user,
         orderBy,
@@ -522,6 +524,7 @@ describe('Workspace Controller', () => {
 
       expect(sharingUseCases.getSharedFilesInWorkspaces).toHaveBeenCalledWith(
         user,
+        workspaceId,
         teamId,
         page,
         perPage,
@@ -534,12 +537,14 @@ describe('Workspace Controller', () => {
     it('When shared folders are requested, then it should call the service with the respective arguments', async () => {
       const user = newUser();
       const teamId = v4();
+      const workspaceId = v4();
       const orderBy = 'createdAt:ASC';
       const page = 1;
       const perPage = 50;
       const order = [['createdAt', 'ASC']];
 
       await workspacesController.getSharedFolders(
+        workspaceId,
         teamId,
         user,
         orderBy,
@@ -549,6 +554,7 @@ describe('Workspace Controller', () => {
 
       expect(sharingUseCases.getSharedFoldersInWorkspace).toHaveBeenCalledWith(
         user,
+        workspaceId,
         teamId,
         page,
         perPage,
