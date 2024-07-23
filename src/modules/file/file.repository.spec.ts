@@ -29,20 +29,15 @@ describe('FileRepository', () => {
   describe('getSumSizeOfFilesByStatuses', () => {
     it('When called with specific statuses and options, then it should fetch file sizes', async () => {
       const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
-      const options = {
-        limit: 100,
-        offset: 0,
-        createdFrom: new Date('2023-01-01'),
-      };
-      const fileSizes = [{ size: '100' }, { size: '200' }];
+      const totalUsage = 100;
+      const sizesSum = [{ total: totalUsage }];
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(fileSizes as any);
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
 
-      const result = await repository.getSumSizeOfFilesByStatuses(
+      const result = await repository.getSumSizeOfFilesInWorkspaceByStatuses(
         user.uuid,
         workspace.id,
         statuses,
-        options,
       );
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
@@ -57,41 +52,35 @@ describe('FileRepository', () => {
             where: expect.objectContaining({
               createdBy: user.uuid,
               workspaceId: workspace.id,
-              createdAt: { [Op.gte]: options.createdFrom },
             }),
           }),
         }),
       );
-      expect(result).toEqual(fileSizes);
+      expect(result).toEqual(totalUsage);
     });
 
     it('When files removed from a specific date are fetch, then it should include the date in the query', async () => {
       const statuses = [FileStatus.DELETED];
-      const options = {
-        limit: 100,
-        offset: 0,
-        removedFrom: new Date('2023-01-01'),
-      };
-      const fileSizes = [{ size: '100' }, { size: '200' }];
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(fileSizes as any);
+      const totalUsage = 100;
+      const sizesSum = [{ total: totalUsage }];
 
-      const result = await repository.getSumSizeOfFilesByStatuses(
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
+
+      const result = await repository.getSumSizeOfFilesInWorkspaceByStatuses(
         user.uuid,
         workspace.id,
         statuses,
-        options,
       );
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             [Op.or]: expect.arrayContaining([{ status: statuses[0] }]),
-            removedAt: { [Op.gte]: options.removedFrom },
           }),
         }),
       );
-      expect(result).toEqual(fileSizes);
+      expect(result).toEqual(totalUsage);
     });
   });
 

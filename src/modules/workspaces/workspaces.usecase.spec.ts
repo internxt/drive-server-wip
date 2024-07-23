@@ -2972,16 +2972,7 @@ describe('WorkspacesUsecases', () => {
     });
 
     it('When fetching file sizes, then it should correctly sum the file sizes and update the member usage', async () => {
-      const existingDriveUsage = 500;
-
-      const member = newWorkspaceUser({
-        attributes: {
-          driveUsage: existingDriveUsage,
-          spaceLimit: existingDriveUsage * 10,
-        },
-      });
-
-      const fileSizes = [{ size: '100' }, { size: '200' }];
+      const member = newWorkspaceUser();
 
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUser')
@@ -2989,10 +2980,7 @@ describe('WorkspacesUsecases', () => {
 
       jest
         .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
-        .mockResolvedValueOnce(fileSizes)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(fileSizes)
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce(1100);
 
       const result = await service.getUserUsageInWorkspace(user, workspace.id);
 
@@ -3001,13 +2989,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
       });
 
-      expect(
-        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
-      ).toHaveBeenCalledTimes(4);
       expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
         member.id,
         {
-          ...member,
           driveUsage: 1100,
           lastUsageSyncAt: expect.any(Date),
         },
@@ -3019,43 +3003,6 @@ describe('WorkspacesUsecases', () => {
         spaceLimit: member.spaceLimit,
       });
     });
-
-    it('When there are no files, then it should not update the drive usage', async () => {
-      const member = newWorkspaceUser();
-
-      jest
-        .spyOn(workspaceRepository, 'findWorkspaceUser')
-        .mockResolvedValue(member);
-
-      jest
-        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
-        .mockResolvedValue([]);
-
-      const result = await service.getUserUsageInWorkspace(user, workspace.id);
-
-      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
-        memberId: user.uuid,
-        workspaceId: workspace.id,
-      });
-
-      expect(
-        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
-      ).toHaveBeenCalledTimes(2);
-      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledWith(
-        member.id,
-        {
-          ...member,
-          driveUsage: 0,
-          lastUsageSyncAt: expect.any(Date),
-        },
-      );
-
-      expect(result).toEqual({
-        driveUsage: 0,
-        backupsUsage: member.backupsUsage,
-        spaceLimit: member.spaceLimit,
-      });
-    });
   });
 
   describe('calculateFilesSizeSum', () => {
@@ -3063,42 +3010,17 @@ describe('WorkspacesUsecases', () => {
     const workspace = newWorkspace();
 
     it('When calculating file sizes, then it should correctly sum the sizes in chunks', async () => {
-      const fileSizes = [{ size: '100' }, { size: '200' }];
-
       jest
         .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
-        .mockResolvedValueOnce(fileSizes)
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce(300);
 
       const result = await service.calculateFilesSizeSum(
         user.uuid,
         workspace.id,
         [FileStatus.EXISTS, FileStatus.TRASHED],
-        null,
       );
 
-      expect(
-        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
-      ).toHaveBeenCalledTimes(2);
       expect(result).toEqual(300);
-    });
-
-    it('When there are no files, then it should return zero', async () => {
-      jest
-        .spyOn(fileUseCases, 'getWorkspaceFilesSizeSumByStatuses')
-        .mockResolvedValue([]);
-
-      const result = await service.calculateFilesSizeSum(
-        user.uuid,
-        workspace.id,
-        [FileStatus.EXISTS, FileStatus.TRASHED],
-        null,
-      );
-
-      expect(
-        fileUseCases.getWorkspaceFilesSizeSumByStatuses,
-      ).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(0);
     });
   });
 
