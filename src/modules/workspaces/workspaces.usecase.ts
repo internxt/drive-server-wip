@@ -2111,6 +2111,16 @@ export class WorkspacesUsecases {
     return this.teamRepository.getTeamUserAndTeamByTeamId(userUuid, teamId);
   }
 
+  findUserInWorkspace(
+    userUuid: User['uuid'],
+    workspaceId: Workspace['id'],
+  ): Promise<WorkspaceUser | null> {
+    return this.workspaceRepository.findWorkspaceUser({
+      workspaceId,
+      memberId: userUuid,
+    });
+  }
+
   async deleteWorkspaceContent(
     workspaceId: Workspace['id'],
     user: User,

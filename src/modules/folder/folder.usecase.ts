@@ -711,7 +711,18 @@ export class FolderUseCases {
     folderUuid: Folder['uuid'],
     destinationUuid: Folder['uuid'],
   ): Promise<Folder> {
-    const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+    const folder = await this.folderRepository.findOne({
+      uuid: folderUuid,
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Folder does not exist');
+    }
+
+    if (!folder.isOwnedBy(user)) {
+      throw new ForbiddenException();
+    }
+
     if (folder.isRootFolder()) {
       throw new UnprocessableEntityException(
         'The root folder can not be moved',
