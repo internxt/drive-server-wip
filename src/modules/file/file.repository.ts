@@ -53,18 +53,11 @@ export interface FileRepository {
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
-  getSumSizeOfFilesByStatuses(
+  getSumSizeOfFilesInWorkspaceByStatuses(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
     statuses: FileStatus[],
-    options?: {
-      createdFrom?: Date;
-      removedFrom?: Date;
-      limit: number;
-      offset: number;
-      order?: Array<[keyof File, string]>;
-    },
-  ): Promise<{ size: string }[]>;
+  ): Promise<number>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -312,51 +305,27 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async getSumSizeOfFilesByStatuses(
+  async getSumSizeOfFilesInWorkspaceByStatuses(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
     statuses: FileStatus[],
-    options?: {
-      createdFrom?: Date;
-      removedFrom?: Date;
-      limit: number;
-      offset: number;
-      order?: Array<[keyof File, string]>;
-    },
-  ): Promise<{ size: string }[]> {
+  ): Promise<number> {
     const statusesFilter = statuses.map((value) => ({ status: value }));
 
-    const fileDateFilters: WhereOptions<FileModel> = {};
-    if (options?.removedFrom) {
-      fileDateFilters.removedAt = {
-        [Op.gte]: options?.removedFrom,
-      };
-    }
-
-    const workspaceItemDateFilters: WhereOptions<WorkspaceItemUserModel> = {};
-    if (options?.createdFrom) {
-      workspaceItemDateFilters.createdAt = {
-        [Op.gte]: options.createdFrom,
-      };
-    }
-
     const sizes = await this.fileModel.findAll({
-      attributes: ['size'],
-      limit: options?.limit,
-      offset: options?.offset,
+      attributes: [[Sequelize.fn('sum', Sequelize.col('size')), 'total']],
+      raw: true,
       where: {
         [Op.or]: statusesFilter,
-        ...fileDateFilters,
       },
       include: {
         model: WorkspaceItemUserModel,
         attributes: [],
-        where: { createdBy, workspaceId, ...workspaceItemDateFilters },
+        where: { createdBy, workspaceId },
       },
-      order: options?.order,
     });
 
-    return sizes as unknown as { size: string }[];
+    return sizes[0]['total'] as unknown as number;
   }
 
   async findAllCursorWithThumbnails(

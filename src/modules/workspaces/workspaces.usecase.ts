@@ -574,28 +574,19 @@ export class WorkspacesUsecases {
 
     const syncStartedAt = new Date();
 
-    const [totalUsedDrive, totalDeletedSize] = await Promise.all([
-      this.calculateFilesSizeSum(
-        user.uuid,
-        workspaceId,
-        [FileStatus.EXISTS, FileStatus.TRASHED],
-        member.lastUsageSyncAt,
-      ),
-      this.calculateFilesSizeSum(
-        user.uuid,
-        workspaceId,
-        [FileStatus.DELETED],
-        member.lastUsageSyncAt,
-        'removedFrom',
-      ),
-    ]);
+    const totalUsedDrive = await this.calculateFilesSizeSum(
+      user.uuid,
+      workspaceId,
+      [FileStatus.EXISTS, FileStatus.TRASHED],
+    );
 
-    member.driveUsage =
-      Math.max(member.driveUsage - totalDeletedSize, 0) + totalUsedDrive;
-
+    member.driveUsage = totalUsedDrive;
     member.lastUsageSyncAt = syncStartedAt;
 
-    await this.workspaceRepository.updateWorkspaceUser(member.id, member);
+    await this.workspaceRepository.updateWorkspaceUser(member.id, {
+      driveUsage: member.driveUsage,
+      lastUsageSyncAt: member.lastUsageSyncAt,
+    });
 
     return {
       driveUsage: member.driveUsage,
@@ -608,38 +599,13 @@ export class WorkspacesUsecases {
     userId: User['uuid'],
     workspaceId: WorkspaceAttributes['id'],
     statuses: FileStatus[],
-    dateFrom: Date | null,
-    dateField: 'createdFrom' | 'removedFrom' = 'createdFrom',
   ): Promise<number> {
-    const calculateUsageChunkSize = 100;
-    let filesFetched;
-
-    let offset = 0;
-    let totalSize = 0;
-
-    do {
-      const sizesChunk =
-        await this.fileUseCases.getWorkspaceFilesSizeSumByStatuses(
-          userId,
-          workspaceId,
-          statuses,
-          {
-            limit: calculateUsageChunkSize,
-            offset,
-            [dateField]: dateFrom,
-          },
-        );
-
-      filesFetched = sizesChunk.length;
-
-      const filesSize = sizesChunk.reduce(
-        (sum, file) => sum + Number(file.size),
-        0,
+    const totalSize =
+      await this.fileUseCases.getWorkspaceFilesSizeSumByStatuses(
+        userId,
+        workspaceId,
+        statuses,
       );
-
-      totalSize += filesSize;
-      offset += calculateUsageChunkSize;
-    } while (filesFetched !== 0);
 
     return totalSize;
   }

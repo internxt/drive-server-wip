@@ -795,73 +795,22 @@ describe('FileUseCases', () => {
 
     it('When called with specific statuses and options, then it should use them to fetch files', async () => {
       const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
-      const fileSizes = [{ size: '100' }, { size: '200' }];
+      const totalSum = 100;
 
       jest
-        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
-        .mockResolvedValue(fileSizes);
-
-      const createdFrom = new Date('2023-01-01');
-
-      const options = {
-        limit: 100,
-        offset: 0,
-        createdFrom,
-      };
-      const result = await service.getWorkspaceFilesSizeSumByStatuses(
-        user.uuid,
-        workspace.id,
-        statuses,
-        options,
-      );
-
-      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
-        user.uuid,
-        workspace.id,
-        statuses,
-        {
-          limit: options.limit,
-          offset: options.offset,
-          order: [['uuid', 'ASC']],
-          createdFrom: createdFrom,
-          removedFrom: undefined,
-        },
-      );
-      expect(result).toEqual(fileSizes);
-    });
-
-    it('When there are no file sizes, then it should return an empty array', async () => {
-      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
-      const options = {
-        limit: 100,
-        offset: 0,
-      };
-      const fileSizes: { size: string }[] = [];
-
-      jest
-        .spyOn(fileRepository, 'getSumSizeOfFilesByStatuses')
-        .mockResolvedValue(fileSizes);
+        .spyOn(fileRepository, 'getSumSizeOfFilesInWorkspaceByStatuses')
+        .mockResolvedValue(totalSum);
 
       const result = await service.getWorkspaceFilesSizeSumByStatuses(
         user.uuid,
         workspace.id,
         statuses,
-        { ...options, order: [['uuid', 'ASC']] },
       );
 
-      expect(fileRepository.getSumSizeOfFilesByStatuses).toHaveBeenCalledWith(
-        user.uuid,
-        workspace.id,
-        statuses,
-        {
-          limit: options.limit,
-          offset: options.offset,
-          order: [['uuid', 'ASC']],
-          createdFrom: undefined,
-          removedFrom: undefined,
-        },
-      );
-      expect(result).toEqual(fileSizes);
+      expect(
+        fileRepository.getSumSizeOfFilesInWorkspaceByStatuses,
+      ).toHaveBeenCalledWith(user.uuid, workspace.id, statuses);
+      expect(result).toEqual(totalSum);
     });
   });
 });
