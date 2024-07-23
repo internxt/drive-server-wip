@@ -64,6 +64,7 @@ import {
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { SharingService } from '../sharing/sharing.service';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
+import { PaymentsService } from '../../externals/payments/payments.service';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -71,6 +72,7 @@ export class WorkspacesUsecases {
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
     private readonly sharingUseCases: SharingService,
+    private readonly paymentService: PaymentsService,
     private networkService: BridgeService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
@@ -84,7 +86,11 @@ export class WorkspacesUsecases {
   async initiateWorkspace(
     ownerId: UserAttributes['uuid'],
     maxSpaceBytes: number,
-    workspaceData: { address?: string; numberOfSeats: number },
+    workspaceData: {
+      address?: string;
+      numberOfSeats: number;
+      phoneNumber?: string;
+    },
   ) {
     const owner = await this.userRepository.findByUuid(ownerId);
 
@@ -129,6 +135,7 @@ export class WorkspacesUsecases {
       name: 'My Workspace',
       address: workspaceData?.address,
       numberOfSeats: workspaceData.numberOfSeats,
+      phoneNumber: workspaceData?.phoneNumber,
       avatar: null,
       defaultTeamId: newDefaultTeam.id,
       workspaceUserId: workspaceUser.uuid,
@@ -2068,6 +2075,26 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('You are not the owner of this workspace');
     }
 
+    if (
+      editWorkspaceDetailsDto.phoneNumber ||
+      editWorkspaceDetailsDto.address
+    ) {
+      try {
+        await this.paymentService.updateBillingInfo(workspace.ownerId, {
+          phoneNumber: editWorkspaceDetailsDto.phoneNumber,
+          address: editWorkspaceDetailsDto.address,
+        });
+      } catch (error) {
+        Logger.error(
+          `[WORKSPACE/EDIT_DETAILS]: Error while updating billing information ${
+            (error as Error).message
+          }`,
+        );
+        throw new InternalServerErrorException(
+          'Error while updating billing information',
+        );
+      }
+    }
     await this.workspaceRepository.updateBy(
       { id: workspaceId },
       editWorkspaceDetailsDto,

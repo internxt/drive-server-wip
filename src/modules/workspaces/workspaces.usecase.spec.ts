@@ -49,6 +49,7 @@ import {
 import { Role } from '../sharing/sharing.domain';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import * as jwtUtils from '../../lib/jwt';
+import { PaymentsService } from '../../externals/payments/payments.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -75,6 +76,7 @@ describe('WorkspacesUsecases', () => {
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let sharingUseCases: SharingService;
+  let paymentsService: PaymentsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -101,6 +103,7 @@ describe('WorkspacesUsecases', () => {
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
     sharingUseCases = module.get<SharingService>(SharingService);
+    paymentsService = module.get<PaymentsService>(PaymentsService);
   });
 
   it('should be defined', () => {
@@ -402,6 +405,50 @@ describe('WorkspacesUsecases', () => {
         },
         editWorkspaceDto,
       );
+    });
+    it('When address or phoneNumber are provided, then it should call payments service', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(paymentsService, 'updateBillingInfo').mockResolvedValueOnce();
+
+      await service.editWorkspaceDetails(workspace.id, user, {
+        address: 'new address',
+        phoneNumber: 'new phone number',
+      });
+
+      expect(paymentsService.updateBillingInfo).toHaveBeenCalledWith(
+        user.uuid,
+        {
+          address: 'new address',
+          phoneNumber: 'new phone number',
+        },
+      );
+    });
+    it('When address or phoneNumber are provided and payments service for some reason fails, it should throw', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(paymentsService, 'updateBillingInfo')
+        .mockRejectedValueOnce(new Error());
+
+      await expect(
+        service.editWorkspaceDetails(workspace.id, user, {
+          address: 'new address',
+          phoneNumber: 'new phone number',
+        }),
+      ).rejects.toThrow(InternalServerErrorException);
+
+      expect(paymentsService.updateBillingInfo).toHaveBeenCalledWith(
+        user.uuid,
+        {
+          address: 'new address',
+          phoneNumber: 'new phone number',
+        },
+      );
+
+      expect(workspaceRepository.updateBy).not.toHaveBeenCalled();
     });
   });
 
