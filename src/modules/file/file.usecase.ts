@@ -107,6 +107,11 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
     });
 
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFileDto.plainName,
+      folder.id,
+    );
+
     const fileAlreadyExists = !!maybeAlreadyExistentFile;
 
     if (fileAlreadyExists) {
@@ -115,7 +120,7 @@ export class FileUseCases {
 
     const newFile = await this.fileRepository.create({
       uuid: v4(),
-      name: newFileDto.name,
+      name: cryptoFileName,
       plainName: newFileDto.plainName,
       type: newFileDto.type,
       size: newFileDto.size,

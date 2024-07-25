@@ -65,6 +65,7 @@ import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { SharingService } from '../sharing/sharing.service';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { PaymentsService } from '../../externals/payments/payments.service';
+import { CryptoService } from '../../externals/crypto/crypto.service';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -74,6 +75,7 @@ export class WorkspacesUsecases {
     private readonly sharingUseCases: SharingService,
     private readonly paymentService: PaymentsService,
     private networkService: BridgeService,
+    private cryptoService: CryptoService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
     private configService: ConfigService,
@@ -700,7 +702,11 @@ export class WorkspacesUsecases {
       itemType: WorkspaceItemType.Folder,
     });
 
-    if (!parentFolder) {
+    const folder = await this.folderUseCases.getByUuid(
+      createFileDto.folderUuid,
+    );
+
+    if (!parentFolder || !folder) {
       throw new BadRequestException('Parent folder is not valid');
     }
 
@@ -715,10 +721,15 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const createdFile = await this.fileUseCases.createFile(
-      networkUser,
-      createFileDto,
+    const cryptoFileName = this.cryptoService.encryptName(
+      createFileDto.plainName,
+      folder.id,
     );
+
+    const createdFile = await this.fileUseCases.createFile(networkUser, {
+      ...createFileDto,
+      name: cryptoFileName,
+    });
 
     const createdItemFile = await this.workspaceRepository.createItem({
       itemId: createdFile.uuid,
