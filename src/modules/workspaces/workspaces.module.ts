@@ -20,6 +20,7 @@ import { FileModule } from '../file/file.module';
 import { SharingModule } from '../sharing/sharing.module';
 import { PaymentsService } from 'src/externals/payments/payments.service';
 import { HttpClientModule } from 'src/externals/http/http.module';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { HttpClientModule } from 'src/externals/http/http.module';
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
     forwardRef(() => SharingModule),
+    CryptoModule,
     BridgeModule,
     MailerModule,
     HttpClientModule,
