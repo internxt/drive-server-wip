@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -31,6 +32,9 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
+import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../sharing/sharing.domain';
+import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -44,6 +48,8 @@ export class FileController {
     summary: 'Create File',
   })
   @ApiBearerAuth()
+  @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @UseGuards(SharingPermissionsGuard)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
@@ -146,6 +152,7 @@ export class FileController {
     required: true,
     description: 'file uuid',
   })
+  @RequiredSharingPermissions(SharingActionName.RenameItems)
   @WorkspacesInBehalfValidationFile([
     { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
   ])

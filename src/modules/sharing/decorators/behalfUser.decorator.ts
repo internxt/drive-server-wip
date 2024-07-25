@@ -4,6 +4,6 @@ export const BehalfUserDecorator = createParamDecorator(
   async (_, ctx: ExecutionContext) => {
     const req = ctx.switchToHttp().getRequest();
 
-    return req.behalfUser;
+    return req?.behalfUser;
   },
 );

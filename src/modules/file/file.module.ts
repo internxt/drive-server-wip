@@ -13,6 +13,7 @@ import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     forwardRef(() => WorkspacesModule),
     BridgeModule,
     CryptoModule,
+    UserModule,
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],

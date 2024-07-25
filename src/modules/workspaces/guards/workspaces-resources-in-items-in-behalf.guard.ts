@@ -19,7 +19,7 @@ import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { isUUID } from 'class-validator';
 
-export interface DecodedToken {
+export interface DecodedWorkspaceToken {
   workspaceId: string;
 }
 
@@ -88,7 +88,11 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
 
     const actionHandler = this.getActionHandler(action);
 
-    const canUserPerformAction = await actionHandler(requester, extractedData);
+    const bypassActionCheck = request.isSharedItem;
+
+    const canUserPerformAction = bypassActionCheck
+      ? true
+      : await actionHandler(requester, extractedData);
 
     if (!canUserPerformAction) {
       throw new ForbiddenException(
@@ -176,9 +180,9 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     return extractedData;
   }
 
-  private decodeWorkspaceToken(token: string): DecodedToken {
+  private decodeWorkspaceToken(token: string): DecodedWorkspaceToken {
     try {
-      const decoded = verifyWithDefaultSecret(token) as DecodedToken;
+      const decoded = verifyWithDefaultSecret(token) as DecodedWorkspaceToken;
       if (!decoded?.workspaceId) {
         throw new Error();
       }
