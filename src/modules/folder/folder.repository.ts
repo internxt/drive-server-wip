@@ -229,6 +229,11 @@ export class SequelizeFolderRepository implements FolderRepository {
             workspaceId,
           },
         },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
       ],
       limit,
       offset,
