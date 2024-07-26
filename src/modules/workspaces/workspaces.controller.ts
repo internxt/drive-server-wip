@@ -62,7 +62,6 @@ import { OrderBy } from '../../common/order.type';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
-import { BehalfUserDecorator } from '../sharing/decorators/behalfUser.decorator';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { SharingService } from '../sharing/sharing.service';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
@@ -552,15 +551,10 @@ export class WorkspacesController {
   async createFile(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-    @BehalfUserDecorator() behalfUser: User,
     @UserDecorator() user: User,
     @Body() createFileDto: CreateWorkspaceFileDto,
   ) {
-    return this.workspaceUseCases.createFile(
-      behalfUser ?? user,
-      workspaceId,
-      createFileDto,
-    );
+    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
   }
 
   @Post('/:workspaceId/shared/')
@@ -1000,7 +994,6 @@ export class WorkspacesController {
   async getWorkspaceDetails(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-    @UserDecorator() user: User,
   ) {
     return this.workspaceUseCases.getWorkspaceDetails(workspaceId);
   }

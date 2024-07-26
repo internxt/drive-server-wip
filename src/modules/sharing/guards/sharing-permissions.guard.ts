@@ -38,7 +38,6 @@ export class SharingPermissionsGuard implements CanActivate {
       PermissionsMetadataName,
       context.getHandler(),
     );
-    const { action } = permissionsOptions;
 
     const request = context.switchToHttp().getRequest();
     const requester = request?.user as User;
@@ -49,9 +48,15 @@ export class SharingPermissionsGuard implements CanActivate {
 
     const resourcesToken = request.headers['internxt-resources-token'];
 
-    if (!resourcesToken || typeof resourcesToken !== 'string') {
+    if (
+      !resourcesToken ||
+      typeof resourcesToken !== 'string' ||
+      !permissionsOptions
+    ) {
       return true;
     }
+
+    const { action } = permissionsOptions;
 
     const decoded = verifyWithDefaultSecret(resourcesToken) as
       | {
@@ -100,7 +105,8 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new NotFoundException('Resource owner not found');
     }
 
-    request.behalfUser = resourceOwner;
+    request.user = resourceOwner;
+    request.isSharedItem = true;
 
     return true;
   }

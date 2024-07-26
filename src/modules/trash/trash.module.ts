@@ -10,6 +10,7 @@ import { ShareModule } from '../share/share.module';
 import { ShareModel } from '../share/share.repository';
 import { FileModel } from '../file/file.model';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     forwardRef(() => FileModule),
     forwardRef(() => ShareModule),
     forwardRef(() => WorkspacesModule),
+    forwardRef(() => SharingModule),
     FolderModule,
     NotificationModule,
     UserModule,
