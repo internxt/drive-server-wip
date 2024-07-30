@@ -620,7 +620,6 @@ describe('Workspace Controller', () => {
 
   describe('GET /:workspaceId', () => {
     it('When a workspace is requested, then it should return the workspace data', async () => {
-      const user = newUser();
       const workspace = newWorkspace();
 
       jest
@@ -628,7 +627,7 @@ describe('Workspace Controller', () => {
         .mockResolvedValueOnce(workspace.toJSON());
 
       await expect(
-        workspacesController.getWorkspaceDetails(workspace.id, user),
+        workspacesController.getWorkspaceDetails(workspace.id),
       ).resolves.toEqual(workspace.toJSON());
     });
   });

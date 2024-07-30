@@ -49,6 +49,8 @@ import { CreateFolderDto } from './dto/create-folder.dto';
 import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
+import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../sharing/sharing.domain';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -689,6 +691,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder([
     { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
   ])
+  @RequiredSharingPermissions(SharingActionName.RenameItems)
   async updateFolderMetadata(
     @Param('uuid', ValidateUUIDPipe)
     folderUuid: Folder['uuid'],
