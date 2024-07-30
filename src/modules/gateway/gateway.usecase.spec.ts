@@ -95,7 +95,7 @@ describe('GatewayUseCases', () => {
       it('When user is not found, then it should throw', async () => {
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
         await expect(
-          service.updateWorkspaceStorage(v4(), maxSpaceBytes),
+          service.updateWorkspaceStorage(v4(), maxSpaceBytes, 4),
         ).rejects.toThrow(BadRequestException);
       });
 
@@ -104,7 +104,7 @@ describe('GatewayUseCases', () => {
         jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValueOnce(null);
 
         await expect(
-          service.updateWorkspaceStorage(owner.uuid, maxSpaceBytes),
+          service.updateWorkspaceStorage(owner.uuid, maxSpaceBytes, 4),
         ).rejects.toThrow(NotFoundException);
       });
 
@@ -117,6 +117,7 @@ describe('GatewayUseCases', () => {
             bridgeUser: workspaceUserEmail,
           },
         });
+        const numberOfSeats = 4;
         const workspace = newWorkspace({
           owner,
           attributes: {
@@ -134,12 +135,20 @@ describe('GatewayUseCases', () => {
           .spyOn(workspaceUseCases, 'findOne')
           .mockResolvedValueOnce(workspace);
 
-        await service.updateWorkspaceStorage(owner.uuid, maxSpaceBytes);
+        await service.updateWorkspaceStorage(
+          owner.uuid,
+          maxSpaceBytes,
+          numberOfSeats,
+        );
 
         expect(networkService.setStorage).toHaveBeenCalledWith(
           workspaceUserEmail,
           maxSpaceBytes,
         );
+
+        expect(
+          workspaceUseCases.changeWorkspaceMembersStorageLimit,
+        ).toHaveBeenCalledWith(workspace.id, maxSpaceBytes / numberOfSeats);
       });
     });
 

@@ -470,6 +470,22 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async changeWorkspaceMembersStorageLimit(
+    workspaceId: Workspace['id'],
+    newSpaceLimit: number,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace does not exist');
+    }
+
+    await this.workspaceRepository.updateWorkspaceUserBy(
+      { workspaceId: workspace.id },
+      { spaceLimit: newSpaceLimit },
+    );
+  }
+
   async changeUserAssignedSpace(
     workspaceId: Workspace['id'],
     memberId: WorkspaceUser['memberId'],
