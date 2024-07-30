@@ -1547,6 +1547,30 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('updateWorkspaceMemberCount', () => {
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.updateWorkspaceMemberCount('workspaceId', 9),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace exists, then it should update the member count', async () => {
+      const workspace = newWorkspace();
+      const numberOfSeats = 9;
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(workspaceRepository, 'updateById');
+
+      await service.updateWorkspaceMemberCount(workspace.id, numberOfSeats);
+
+      expect(workspaceRepository.updateById).toHaveBeenCalledWith(
+        workspace.id,
+        { numberOfSeats: numberOfSeats },
+      );
+    });
+  });
+
   describe('changeWorkspaceMembersStorageLimit', () => {
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);

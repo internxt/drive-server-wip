@@ -46,9 +46,18 @@ export class GatewayUseCases {
       ownerId: owner.uuid,
       setupCompleted: true,
     });
+
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
+
+    if (workspace.numberOfSeats !== numberOfSeats) {
+      await this.workspaceUseCases.updateWorkspaceMemberCount(
+        workspace.id,
+        numberOfSeats,
+      );
+    }
+
     const { username } = await this.userRepository.findByUuid(
       workspace.workspaceUserId,
     );

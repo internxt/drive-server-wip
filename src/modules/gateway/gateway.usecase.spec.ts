@@ -123,6 +123,7 @@ describe('GatewayUseCases', () => {
           attributes: {
             ownerId: owner.uuid,
             workspaceUserId: workspaceUser.uuid,
+            numberOfSeats,
           },
         });
 
@@ -145,6 +146,58 @@ describe('GatewayUseCases', () => {
           workspaceUserEmail,
           maxSpaceBytes,
         );
+
+        expect(
+          workspaceUseCases.changeWorkspaceMembersStorageLimit,
+        ).toHaveBeenCalledWith(workspace.id, maxSpaceBytes / numberOfSeats);
+      });
+
+      it('When owner and workspaces are found and a diferent number of seats is received, then it should update the workspaces completed', async () => {
+        const workspaceUserEmail = 'user@workspace.com';
+        const workspaceUser = newUser({
+          attributes: {
+            email: workspaceUserEmail,
+            username: workspaceUserEmail,
+            bridgeUser: workspaceUserEmail,
+          },
+        });
+        const numberOfSeats = 4;
+        const workspace = newWorkspace({
+          owner,
+          attributes: {
+            ownerId: owner.uuid,
+            workspaceUserId: workspaceUser.uuid,
+            numberOfSeats: 3,
+          },
+        });
+
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(owner)
+          .mockResolvedValueOnce(workspaceUser);
+
+        jest
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
+
+        jest
+          .spyOn(workspaceUseCases, 'updateWorkspaceMemberCount')
+          .mockResolvedValueOnce();
+
+        await service.updateWorkspaceStorage(
+          owner.uuid,
+          maxSpaceBytes,
+          numberOfSeats,
+        );
+
+        expect(networkService.setStorage).toHaveBeenCalledWith(
+          workspaceUserEmail,
+          maxSpaceBytes,
+        );
+
+        expect(
+          workspaceUseCases.updateWorkspaceMemberCount,
+        ).toHaveBeenCalledWith(workspace.id, numberOfSeats);
 
         expect(
           workspaceUseCases.changeWorkspaceMembersStorageLimit,
