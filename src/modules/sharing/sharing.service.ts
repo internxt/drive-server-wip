@@ -1462,7 +1462,6 @@ export class SharingService {
     user: User,
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
-    sharedWithType: SharedWithType = SharedWithType.Individual,
   ) {
     const sharing = await this.sharingRepository.findOneSharing({
       itemId,
@@ -1484,7 +1483,6 @@ export class SharingService {
     await this.sharingRepository.deleteSharingsBy({
       itemId,
       itemType,
-      sharedWithType,
     });
   }
 

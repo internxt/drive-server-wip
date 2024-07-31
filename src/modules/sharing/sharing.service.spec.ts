@@ -26,6 +26,7 @@ import { SequelizeUserReferralsRepository } from '../user/user-referrals.reposit
 import {
   SharedWithType,
   SharingActionName,
+  SharingItemType,
   SharingType,
 } from './sharing.domain';
 import { FileStatus } from '../file/file.domain';
@@ -595,6 +596,56 @@ describe('Sharing Use Cases', () => {
           order,
         ),
       ).rejects.toThrow(error);
+    });
+  });
+
+  describe('removeSharing', () => {
+    const owner = newUser();
+    const itemFile = newFile();
+    const itemId = itemFile.uuid;
+    const itemType = SharingItemType.File;
+    const sharing = newSharing({ owner, item: itemFile });
+
+    it('When sharing exists and user is owner, then it removes invites and sharings', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await sharingService.removeSharing(owner, itemId, itemType);
+
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+      expect(sharingRepository.deleteInvitesBy).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+      expect(sharingRepository.deleteSharingsBy).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+    });
+
+    it('When sharing does not exist, then it does nothing', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await sharingService.removeSharing(owner, itemId, itemType);
+
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+      expect(sharingRepository.deleteInvitesBy).not.toHaveBeenCalled();
+      expect(sharingRepository.deleteSharingsBy).not.toHaveBeenCalled();
+    });
+
+    it('When user is not owner, then it throws', async () => {
+      const otherUser = newUser();
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.removeSharing(otherUser, itemId, itemType),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
