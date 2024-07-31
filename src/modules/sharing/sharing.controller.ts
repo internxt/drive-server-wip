@@ -632,6 +632,10 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Item removed from sharing' })
   @ApiBearerAuth()
+  @WorkspacesInBehalfGuard([
+    { sourceKey: 'params', fieldName: 'itemId' },
+    { sourceKey: 'params', fieldName: 'itemType' },
+  ])
   removeSharing(
     @UserDecorator() user: User,
     @Param('itemType') itemType: Sharing['itemType'],
