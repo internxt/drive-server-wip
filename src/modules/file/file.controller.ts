@@ -152,7 +152,13 @@ export class FileController {
     required: true,
     description: 'file uuid',
   })
-  @RequiredSharingPermissions(SharingActionName.RenameItems)
+  @RequiredSharingPermissions(SharingActionName.RenameItems, [
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+  ])
   @WorkspacesInBehalfValidationFile([
     { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
   ])

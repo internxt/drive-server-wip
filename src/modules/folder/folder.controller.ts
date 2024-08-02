@@ -576,6 +576,13 @@ export class FolderController {
   }
 
   @Get('/:uuid/meta')
+  @RequiredSharingPermissions(SharingActionName.GetItems, [
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+  ])
   @WorkspacesInBehalfValidationFolder([
     { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
   ])
@@ -625,6 +632,13 @@ export class FolderController {
   }
 
   @Get('/:uuid/ancestors')
+  @RequiredSharingPermissions(SharingActionName.GetItems, [
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+  ])
   @WorkspacesInBehalfValidationFolder([
     { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
   ])

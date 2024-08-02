@@ -28,6 +28,7 @@ export enum SharedWithType {
 export enum SharingActionName {
   UploadFile = 'UPLOAD_FILE',
   RenameItems = 'RENAME_ITEMS',
+  GetItems = 'GET_ITEMs',
 }
 
 export interface SharingAttributes {
