@@ -1651,7 +1651,6 @@ export class WorkspacesUsecases {
 
   async getWorkspaceTeams(user: User, workspaceId: WorkspaceAttributes['id']) {
     const workspace = await this.workspaceRepository.findOne({
-      ownerId: user.uuid,
       id: workspaceId,
     });
 
@@ -1664,7 +1663,11 @@ export class WorkspacesUsecases {
         workspace.id,
       );
 
-    return teamsWithMemberCount;
+    const teamsWithouDefaultTeam = teamsWithMemberCount.filter(
+      (teamAndMembers) => workspace.defaultTeamId !== teamAndMembers.team.id,
+    );
+
+    return teamsWithouDefaultTeam;
   }
 
   async getWorkspaceMembers(
