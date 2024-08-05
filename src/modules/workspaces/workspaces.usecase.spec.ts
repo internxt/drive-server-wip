@@ -4191,6 +4191,68 @@ describe('WorkspacesUsecases', () => {
       });
     });
 
+    describe('removeMemberFromWorkspace', () => {
+      it('When member is not found, then it should throw', async () => {
+        const workspaceId = v4();
+        const memberId = v4();
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(null);
+
+        await expect(
+          service.removeWorkspaceMember(workspaceId, memberId),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When member is the owner of the workspace, then it should throw', async () => {
+        const owner = newUser();
+        const workspace = newWorkspace({ owner });
+        const workspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          memberId: owner.uuid,
+          member: owner,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+
+        await expect(
+          service.removeWorkspaceMember(workspace.id, owner.uuid),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When member is not the owner of the workspace, then it should remove the member', async () => {
+        const owner = newUser();
+        const member = newUser();
+        const workspace = newWorkspace({ owner });
+        const workspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          memberId: member.uuid,
+          member,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+        jest.spyOn(workspaceRepository, 'deleteUserFromWorkspace');
+
+        expect(
+          await service.removeWorkspaceMember(workspace.id, member.uuid),
+        ).toBeUndefined();
+
+        expect(
+          workspaceRepository.deleteUserFromWorkspace,
+        ).toHaveBeenCalledWith(member.uuid, workspace.id);
+      });
+    });
+
     describe('leaveWorkspace', () => {
       it('When workspace is not found, then it should throw', async () => {
         const workspaceId = v4();
