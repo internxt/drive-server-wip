@@ -995,4 +995,25 @@ export class WorkspacesController {
   ) {
     return this.workspaceUseCases.getWorkspaceDetails(workspaceId);
   }
+
+  @Delete(':workspaceId/members/:memberId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Remove member from workspace',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Member removed from workspace',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async removeWorkspaceMember(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+  ) {
+    return this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
+  }
 }

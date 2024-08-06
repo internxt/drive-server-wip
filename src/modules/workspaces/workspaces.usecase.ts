@@ -2247,6 +2247,26 @@ export class WorkspacesUsecases {
     await this.folderUseCases.renameFolder(movedFolder, user.username);
   }
 
+  async removeWorkspaceMember(
+    workspaceId: Workspace['id'],
+    memberId: User['uuid'],
+  ): Promise<void> {
+    const workspaceUserToRemove =
+      await this.workspaceRepository.findWorkspaceUser(
+        {
+          workspaceId,
+          memberId,
+        },
+        true,
+      );
+
+    if (!workspaceUserToRemove) {
+      throw new NotFoundException('User not found in workspace');
+    }
+
+    await this.leaveWorkspace(workspaceId, workspaceUserToRemove.member);
+  }
+
   async leaveWorkspace(
     workspaceId: Workspace['id'],
     user: User,
@@ -2280,6 +2300,7 @@ export class WorkspacesUsecases {
       workspaceId,
     );
   }
+
   async validateWorkspaceInvite(
     inviteId: WorkspaceInvite['id'],
   ): Promise<string> {

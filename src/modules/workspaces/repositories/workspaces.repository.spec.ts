@@ -125,6 +125,25 @@ describe('SequelizeWorkspaceRepository', () => {
       const result = await repository.findWorkspaceUser({ memberId: '1' });
       expect(result).toBeNull();
     });
+
+    it('When a workspace user is searched with a user include, then it should return the user', async () => {
+      const user = newUser();
+      const mockWorworkspaceUserkspaceUser = newWorkspaceUser({
+        memberId: user.uuid,
+        member: user,
+      });
+
+      jest
+        .spyOn(workspaceUserModel, 'findOne')
+        .mockResolvedValueOnce(mockWorworkspaceUserkspaceUser as any);
+
+      const result = await repository.findWorkspaceUser(
+        { memberId: '1' },
+        true,
+      );
+      expect(result).toBeInstanceOf(WorkspaceUser);
+      expect(result.member).toBeInstanceOf(User);
+    });
   });
 
   describe('getSpaceLimitInInvitations', () => {
