@@ -124,9 +124,11 @@ export class SequelizeWorkspaceRepository {
 
   async findWorkspaceUser(
     where: Partial<WorkspaceUserAttributes>,
+    includeUser = false,
   ): Promise<WorkspaceUser> {
     const workspaceUser = await this.modelWorkspaceUser.findOne({
       where,
+      include: includeUser ? [{ model: UserModel, as: 'member' }] : [],
     });
 
     return workspaceUser ? this.workspaceUserToDomain(workspaceUser) : null;
