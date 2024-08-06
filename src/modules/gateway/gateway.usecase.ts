@@ -35,8 +35,10 @@ export class GatewayUseCases {
   async updateWorkspaceStorage(
     ownerId: string,
     maxSpaceBytes: number,
+    numberOfSeats: number,
   ): Promise<void> {
     const owner = await this.userRepository.findByUuid(ownerId);
+    const spacePerSeat = maxSpaceBytes / numberOfSeats;
     if (!owner) {
       throw new BadRequestException();
     }
@@ -44,13 +46,26 @@ export class GatewayUseCases {
       ownerId: owner.uuid,
       setupCompleted: true,
     });
+
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
+
+    if (workspace.numberOfSeats !== numberOfSeats) {
+      await this.workspaceUseCases.updateWorkspaceMemberCount(
+        workspace.id,
+        numberOfSeats,
+      );
+    }
+
     const { username } = await this.userRepository.findByUuid(
       workspace.workspaceUserId,
     );
     await this.networkService.setStorage(username, maxSpaceBytes);
+    await this.workspaceUseCases.changeWorkspaceMembersStorageLimit(
+      workspace.id,
+      spacePerSeat,
+    );
   }
 
   async destroyWorkspace(ownerId: string): Promise<void> {

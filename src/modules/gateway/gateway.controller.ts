@@ -55,6 +55,7 @@ export class GatewayController {
     return this.gatewayUseCases.updateWorkspaceStorage(
       updateWorkspaceStorageDto.ownerId,
       updateWorkspaceStorageDto.maxSpaceBytes,
+      updateWorkspaceStorageDto.numberOfSeats,
     );
   }
 
