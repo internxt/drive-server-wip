@@ -505,15 +505,13 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Teams in the workspace along with its members quantity',
   })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getWorkspaceTeams(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
   ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
