@@ -204,7 +204,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
   }
 
-  @Delete('/teams/:teamId')
+  @Delete('/:workspaceId/teams/:teamId')
   @ApiOperation({
     summary: 'Deletes a team in a workspace',
   })
@@ -263,7 +263,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
-  @Patch('/teams/:teamId/manager')
+  @Patch('/:workspaceId/teams/:teamId/manager')
   @ApiOperation({
     summary: 'Changes the manager of a team',
   })

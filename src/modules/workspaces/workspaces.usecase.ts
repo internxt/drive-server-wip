@@ -1658,16 +1658,22 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Not valid workspace');
     }
 
-    const teamsWithMemberCount =
-      await this.teamRepository.getTeamsAndMembersCountByWorkspace(
-        workspace.id,
-      );
+    const [teamsWithMemberCount, teamsUserBelongsTo] = await Promise.all([
+      this.teamRepository.getTeamsAndMembersCountByWorkspace(workspace.id),
+      this.teamRepository.getTeamsUserBelongsTo(user.uuid, workspace.id),
+    ]);
 
-    const teamsWithouDefaultTeam = teamsWithMemberCount.filter(
-      (teamAndMembers) => workspace.defaultTeamId !== teamAndMembers.team.id,
-    );
+    const isUserOwner = workspace.isUserOwner(user);
+    const userTeamsSet = new Set(teamsUserBelongsTo.map((team) => team.id));
 
-    return teamsWithouDefaultTeam;
+    const filteredTeams = teamsWithMemberCount.filter((teamAndMembers) => {
+      const isDefaultTeam = workspace.defaultTeamId === teamAndMembers.team.id;
+      const isUserTeamMember = userTeamsSet.has(teamAndMembers.team.id);
+
+      return !isDefaultTeam && (isUserOwner || isUserTeamMember);
+    });
+
+    return filteredTeams;
   }
 
   async getWorkspaceMembers(
