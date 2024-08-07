@@ -51,6 +51,7 @@ import { InvalidParentFolderException } from './exception/invalid-parent-folder'
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -341,9 +342,18 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/folders/existence')
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
+  @WorkspacesInBehalfValidationFolder()
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
@@ -363,9 +373,18 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/files/existence')
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
+  @WorkspacesInBehalfValidationFolder()
   async checkFilesExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
@@ -399,9 +418,18 @@ export class FolderController {
   @ApiOkResponse({
     description: 'Current folder with children folders and files',
   })
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
+  @WorkspacesInBehalfValidationFolder()
   async getFolderContent(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
@@ -576,16 +604,19 @@ export class FolderController {
   }
 
   @Get('/:uuid/meta')
-  @RequiredSharingPermissions(SharingActionName.GetItems, [
+  @GetDataFromRequest([
     {
       sourceKey: 'params',
       fieldName: 'uuid',
       newFieldName: 'itemId',
     },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
-  ])
+  @RequiredSharingPermissions(SharingActionName.GetItems)
+  @WorkspacesInBehalfValidationFolder()
   async getFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -632,16 +663,19 @@ export class FolderController {
   }
 
   @Get('/:uuid/ancestors')
-  @RequiredSharingPermissions(SharingActionName.GetItems, [
+  @GetDataFromRequest([
     {
       sourceKey: 'params',
       fieldName: 'uuid',
       newFieldName: 'itemId',
     },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
-  ])
+  @RequiredSharingPermissions(SharingActionName.GetItems)
+  @WorkspacesInBehalfValidationFolder()
   async getFolderAncestors(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -654,9 +688,18 @@ export class FolderController {
   }
 
   @Get('/:uuid/tree')
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
+  @WorkspacesInBehalfValidationFolder()
   async getFolderTree(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
@@ -702,9 +745,18 @@ export class FolderController {
   }
 
   @Put('/:uuid/meta')
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
+  @WorkspacesInBehalfValidationFolder()
   @RequiredSharingPermissions(SharingActionName.RenameItems)
   async updateFolderMetadata(
     @Param('uuid', ValidateUUIDPipe)
@@ -728,9 +780,18 @@ export class FolderController {
   }
 
   @Patch('/:uuid')
-  @WorkspacesInBehalfValidationFolder([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
   ])
+  @WorkspacesInBehalfValidationFolder()
   async moveFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],

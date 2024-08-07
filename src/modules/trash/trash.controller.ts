@@ -48,6 +48,7 @@ import {
   WorkspaceResourcesAction,
   WorkspacesInBehalfGuard,
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -127,10 +128,8 @@ export class TrashController {
   })
   @ApiOkResponse({ description: 'All items moved to trash' })
   @ApiBadRequestResponse({ description: 'Any item id is invalid' })
-  @WorkspacesInBehalfGuard(
-    [{ sourceKey: 'body', fieldName: 'items' }],
-    WorkspaceResourcesAction.AddItemsToTrash,
-  )
+  @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.AddItemsToTrash)
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
@@ -254,10 +253,8 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes items from user's trash",
   })
-  @WorkspacesInBehalfGuard(
-    [{ sourceKey: 'body', fieldName: 'items' }],
-    WorkspaceResourcesAction.DeleteItemsFromTrash,
-  )
+  @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.DeleteItemsFromTrash)
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,

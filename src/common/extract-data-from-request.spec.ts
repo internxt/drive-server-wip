@@ -1,11 +1,19 @@
-import { BadRequestException, Logger } from '@nestjs/common';
 import {
-  DataSource,
+  BadRequestException,
+  ExecutionContext,
+  Logger,
+  SetMetadata,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import {
   extractDataFromRequest,
-} from './extract-data-from-request';
+  DataSource,
+} from './extract-data-from-request'; // Update with actual path
 
 describe('extractDataFromRequest', () => {
   let request;
+  let reflector: Reflector;
+  let context: ExecutionContext;
 
   beforeEach(() => {
     request = {
@@ -14,7 +22,14 @@ describe('extractDataFromRequest', () => {
       params: { field3: 'value3' },
       headers: { field4: 'value4' },
     };
+
+    reflector = new Reflector();
+    context = {
+      getHandler: jest.fn(),
+    } as unknown as ExecutionContext;
+
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    jest.spyOn(reflector, 'get').mockImplementation();
   });
 
   it('When all fields are present, then it should extract data correctly', () => {
@@ -29,7 +44,10 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'headers', fieldName: 'field4' },
     ];
 
-    const result = extractDataFromRequest(request, dataSources);
+    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
+    (context.getHandler as jest.Mock).mockReturnValue('handler');
+
+    const result = extractDataFromRequest(request, reflector, context);
 
     expect(result).toEqual({
       field1: 'value1',
@@ -44,7 +62,10 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'body', fieldName: 'missingField' },
     ];
 
-    expect(() => extractDataFromRequest(request, dataSources)).toThrow(
+    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
+    (context.getHandler as jest.Mock).mockReturnValue('handler');
+
+    expect(() => extractDataFromRequest(request, reflector, context)).toThrow(
       BadRequestException,
     );
     expect(Logger.prototype.error).toHaveBeenCalledWith(
@@ -57,7 +78,10 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'body', fieldName: 'field1', value: 'providedValue' },
     ];
 
-    const result = extractDataFromRequest(request, dataSources);
+    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
+    (context.getHandler as jest.Mock).mockReturnValue('handler');
+
+    const result = extractDataFromRequest(request, reflector, context);
 
     expect(result).toEqual({
       field1: 'providedValue',
@@ -69,7 +93,10 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'body', fieldName: 'field1', value: null },
     ];
 
-    expect(() => extractDataFromRequest(request, dataSources)).toThrow(
+    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
+    (context.getHandler as jest.Mock).mockReturnValue('handler');
+
+    expect(() => extractDataFromRequest(request, reflector, context)).toThrow(
       BadRequestException,
     );
     expect(Logger.prototype.error).toHaveBeenCalledWith(
@@ -82,7 +109,10 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'query', fieldName: 'field2', newFieldName: 'newField2' },
     ];
 
-    const result = extractDataFromRequest(request, dataSources);
+    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
+    (context.getHandler as jest.Mock).mockReturnValue('handler');
+
+    const result = extractDataFromRequest(request, reflector, context);
 
     expect(result).toEqual({
       newField2: 'value2',
@@ -95,7 +125,10 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'query', fieldName: 'field2' },
     ];
 
-    const result = extractDataFromRequest(request, dataSources);
+    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
+    (context.getHandler as jest.Mock).mockReturnValue('handler');
+
+    const result = extractDataFromRequest(request, reflector, context);
 
     expect(result).toEqual({
       field1: 'value1',

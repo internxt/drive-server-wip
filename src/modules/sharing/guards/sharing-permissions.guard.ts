@@ -23,10 +23,7 @@ import { Workspace } from '../../workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../../workspaces/domains/workspace-team.domain';
 import { Folder } from '../../folder/folder.domain';
 import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
-import {
-  DataSource,
-  extractDataFromRequest,
-} from '../../../common/extract-data-from-request';
+import { extractDataFromRequest } from '../../../common/extract-data-from-request';
 
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {
@@ -60,7 +57,7 @@ export class SharingPermissionsGuard implements CanActivate {
       return true;
     }
 
-    const { action, dataSources } = permissionsOptions;
+    const { action } = permissionsOptions;
 
     const decoded = verifyWithDefaultSecret(resourcesToken) as
       | {
@@ -84,7 +81,7 @@ export class SharingPermissionsGuard implements CanActivate {
     let userIsAllowedToPerfomAction = false;
 
     const sharedItemId = decoded?.isRootToken
-      ? this.getSharedItemIdFromRequest(request, dataSources)
+      ? this.getSharedItemIdFromRequest(request, this.reflector, context)
       : decoded.sharedRootFolderId;
 
     if (decoded.workspace) {
@@ -155,8 +152,16 @@ export class SharingPermissionsGuard implements CanActivate {
     return userIsAllowedToPerfomAction;
   }
 
-  getSharedItemIdFromRequest(request: Request, dataSources: DataSource[]) {
-    const extractedData = extractDataFromRequest(request, dataSources) as any;
+  getSharedItemIdFromRequest(
+    request: Request,
+    reflector: Reflector,
+    context: ExecutionContext,
+  ) {
+    const extractedData = extractDataFromRequest(
+      request,
+      reflector,
+      context,
+    ) as any;
 
     return extractedData.itemId;
   }

@@ -1,4 +1,15 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ExecutionContext,
+  Logger,
+  SetMetadata,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+const extractDataFromRequestMetaName = 'dataFromRequest';
+
+export const GetDataFromRequest = (dataSources: DataSource[]) =>
+  SetMetadata(extractDataFromRequestMetaName, { dataSources });
 
 export interface DataSource {
   sourceKey?: 'body' | 'query' | 'params' | 'headers';
@@ -9,8 +20,16 @@ export interface DataSource {
 
 export const extractDataFromRequest = (
   request: Request,
-  dataSources: DataSource[],
+  reflector: Reflector,
+  context: ExecutionContext,
 ) => {
+  const metadataOptions = reflector.get<{ dataSources: DataSource[] }>(
+    extractDataFromRequestMetaName,
+    context.getHandler(),
+  );
+
+  const { dataSources } = metadataOptions;
+
   const extractedData = {};
 
   for (const { sourceKey, fieldName, value, newFieldName } of dataSources) {
