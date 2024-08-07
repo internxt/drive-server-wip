@@ -212,6 +212,21 @@ export class SequelizeWorkspaceTeamRepository {
     return teams.map((team) => this.toDomain(team));
   }
 
+  async getTeamsUserBelongsTo(
+    memberId: WorkspaceTeamUserAttributes['memberId'],
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<WorkspaceTeam[]> {
+    const results = await this.teamUserModel.findAll({
+      where: { memberId },
+      include: {
+        model: WorkspaceTeamModel,
+        where: { workspaceId },
+      },
+    });
+
+    return results.map((teamUser) => this.toDomain(teamUser.team));
+  }
+
   toDomain(model: WorkspaceTeamModel): WorkspaceTeam {
     return WorkspaceTeam.build({
       ...model.toJSON(),

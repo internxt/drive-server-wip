@@ -4056,6 +4056,108 @@ describe('WorkspacesUsecases', () => {
           expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
         });
       });
+
+      describe('getWorkspaceTeams', () => {
+        it('When workspace is not found, then fail', async () => {
+          const user = newUser();
+          const workspaceId = v4();
+
+          jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+          await expect(
+            service.getWorkspaceTeams(user, workspaceId),
+          ).rejects.toThrow(BadRequestException);
+        });
+
+        it('When user is the workspace owner, then retrieve all teams except default', async () => {
+          const user = newUser();
+          const workspace = newWorkspace({ owner: user });
+          const teams = [
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+          ];
+          const teamsWithMemberCount = [
+            { team: teams[0], membersCount: 5 },
+            { team: teams[1], membersCount: 10 },
+            { team: teams[2], membersCount: 7 },
+          ];
+          const teamsUserBelongsTo = [teams[1]];
+          workspace.defaultTeamId = teams[0].id;
+
+          jest
+            .spyOn(workspaceRepository, 'findOne')
+            .mockResolvedValue(workspace);
+          jest
+            .spyOn(teamRepository, 'getTeamsAndMembersCountByWorkspace')
+            .mockResolvedValue(teamsWithMemberCount);
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValue(teamsUserBelongsTo);
+
+          const result = await service.getWorkspaceTeams(user, workspace.id);
+
+          expect(result).toEqual([
+            teamsWithMemberCount[1],
+            teamsWithMemberCount[2],
+          ]);
+        });
+
+        it('When user is not the owner and belongs to a team, then retrieve user teams except default', async () => {
+          const owner = newUser();
+          const user = newUser();
+          const workspace = newWorkspace({ owner });
+          const teams = [
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+          ];
+          const teamsWithMemberCount = [
+            { team: teams[0], membersCount: 5 },
+            { team: teams[1], membersCount: 10 },
+            { team: teams[2], membersCount: 7 },
+          ];
+          const teamsUserBelongsTo = [teams[1]];
+          workspace.defaultTeamId = teams[0].id;
+
+          jest
+            .spyOn(workspaceRepository, 'findOne')
+            .mockResolvedValue(workspace);
+          jest
+            .spyOn(teamRepository, 'getTeamsAndMembersCountByWorkspace')
+            .mockResolvedValue(teamsWithMemberCount);
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValue(teamsUserBelongsTo);
+
+          const result = await service.getWorkspaceTeams(user, workspace.id);
+
+          expect(result).toEqual([teamsWithMemberCount[1]]);
+        });
+
+        it('When user is not the owner and does not belong to any team, then return empty array', async () => {
+          const owner = newUser();
+          const user = newUser();
+          const workspace = newWorkspace({ owner });
+          const teams = [newWorkspaceTeam({ workspaceId: workspace.id })];
+          const teamsWithMemberCount = [{ team: teams[0], membersCount: 5 }];
+          workspace.defaultTeamId = teams[0].id;
+
+          jest
+            .spyOn(workspaceRepository, 'findOne')
+            .mockResolvedValue(workspace);
+          jest
+            .spyOn(teamRepository, 'getTeamsAndMembersCountByWorkspace')
+            .mockResolvedValue(teamsWithMemberCount);
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValue([]);
+
+          const result = await service.getWorkspaceTeams(user, workspace.id);
+
+          expect(result).toEqual([]);
+        });
+      });
     });
 
     describe('deleteWorkspaceContent', () => {
