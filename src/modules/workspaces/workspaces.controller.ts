@@ -273,7 +273,7 @@ export class WorkspacesController {
     description: 'Team manager changed',
   })
   @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MANAGER)
   async changeTeamManager(
     @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
     @Body('managerId', ValidateUUIDPipe) managerId: UserAttributes['uuid'],
