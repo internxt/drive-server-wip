@@ -23,6 +23,7 @@ import { Workspace } from '../../workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../../workspaces/domains/workspace-team.domain';
 import { Folder } from '../../folder/folder.domain';
 import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
+import { extractDataFromRequest } from '../../../common/extract-data-from-request';
 
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {
@@ -60,6 +61,7 @@ export class SharingPermissionsGuard implements CanActivate {
 
     const decoded = verifyWithDefaultSecret(resourcesToken) as
       | {
+          isRootToken?: boolean;
           owner?: {
             uuid?: User['uuid'];
           };
@@ -78,17 +80,21 @@ export class SharingPermissionsGuard implements CanActivate {
 
     let userIsAllowedToPerfomAction = false;
 
+    const sharedItemId = decoded?.isRootToken
+      ? this.getSharedItemIdFromRequest(request, this.reflector, context)
+      : decoded.sharedRootFolderId;
+
     if (decoded.workspace) {
       userIsAllowedToPerfomAction = await this.isTeamMemberAbleToPerformAction(
         requester,
         decoded.workspace.teamId,
-        decoded.sharedRootFolderId,
+        sharedItemId,
         action,
       );
     } else {
       userIsAllowedToPerfomAction = await this.isUserAbleToPerfomAction(
         requester,
-        decoded.sharedRootFolderId,
+        sharedItemId,
         action,
       );
     }
@@ -144,5 +150,19 @@ export class SharingPermissionsGuard implements CanActivate {
       );
 
     return userIsAllowedToPerfomAction;
+  }
+
+  getSharedItemIdFromRequest(
+    request: Request,
+    reflector: Reflector,
+    context: ExecutionContext,
+  ) {
+    const extractedData = extractDataFromRequest(
+      request,
+      reflector,
+      context,
+    ) as any;
+
+    return extractedData.itemId;
   }
 }

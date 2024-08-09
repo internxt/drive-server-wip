@@ -35,6 +35,7 @@ import { CreateFileDto } from './dto/create-file.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -80,9 +81,18 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
-  @WorkspacesInBehalfValidationFile([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
   ])
+  @WorkspacesInBehalfValidationFile()
   async getFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -112,9 +122,18 @@ export class FileController {
   }
 
   @Put('/:uuid')
-  @WorkspacesInBehalfValidationFile([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
   ])
+  @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -152,10 +171,19 @@ export class FileController {
     required: true,
     description: 'file uuid',
   })
-  @RequiredSharingPermissions(SharingActionName.RenameItems)
-  @WorkspacesInBehalfValidationFile([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
   ])
+  @RequiredSharingPermissions(SharingActionName.RenameItems)
+  @WorkspacesInBehalfValidationFile()
   async updateFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe)
@@ -241,9 +269,18 @@ export class FileController {
   }
 
   @Patch('/:uuid')
-  @WorkspacesInBehalfValidationFile([
-    { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
   ])
+  @WorkspacesInBehalfValidationFile()
   async moveFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
