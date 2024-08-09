@@ -2242,15 +2242,22 @@ export class WorkspacesUsecases {
 
     await this.workspaceRepository.updateItemBy(
       {
-        createdBy: ownerWorkspaceUser.memberId,
+        createdBy: memberWorkspaceUser.memberId,
+        workspaceId,
       },
       {
-        workspaceId,
-        itemId: memberRootFolder.uuid,
+        createdBy: workspace.ownerId,
       },
     );
 
-    await this.folderUseCases.renameFolder(movedFolder, user.username);
+    const shortMemberIdentifier = Buffer.from(memberWorkspaceUser.id)
+      .toString('base64')
+      .substring(0, 6);
+
+    await this.folderUseCases.renameFolder(
+      movedFolder,
+      `${user.username} - ${shortMemberIdentifier}`,
+    );
   }
 
   async removeWorkspaceMember(

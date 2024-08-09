@@ -4328,6 +4328,10 @@ describe('WorkspacesUsecases', () => {
           .spyOn(folderUseCases, 'renameFolder')
           .mockResolvedValueOnce(resultingRenamedFolder);
 
+        const shortIdentifier = Buffer.from(memberWorkspaceUser.id)
+          .toString('base64')
+          .substring(0, 6);
+
         await expect(
           service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
         ).resolves.toBeUndefined();
@@ -4338,7 +4342,7 @@ describe('WorkspacesUsecases', () => {
         );
         expect(folderUseCases.renameFolder).toHaveBeenCalledWith(
           resultingFolder,
-          member.username,
+          `${member.username} - ${shortIdentifier}`,
         );
       });
     });
