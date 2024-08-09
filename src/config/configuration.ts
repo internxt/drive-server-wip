@@ -69,6 +69,13 @@ export default () => ({
       url: process.env.PAYMENTS_API_URL,
     },
   },
+  apn: {
+    url: process.env.APN_URL,
+    secret: process.env.APN_SECRET,
+    keyId: 'Z33KSJJSSG',
+    teamId: process.env.APN_TEAM_ID,
+    bundleId: process.env.APN_BUNDLE_ID,
+  },
   clients: {
     drive: {
       web: process.env.HOST_DRIVE_WEB,

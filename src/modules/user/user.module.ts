@@ -47,6 +47,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
+import { ApnService } from 'src/externals/apn/apn.service';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { UserNotificationTokensModel } from './user-notification-tokens.model';
     AppSumoUseCase,
     SharingService,
     MailerService,
+    ApnService,
   ],
   exports: [
     UserUseCases,

@@ -203,6 +203,16 @@ export class SequelizeUserRepository implements UserRepository {
     return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
   }
 
+  async getNotificationTokensByUserUuids(
+    userIds: string[],
+  ): Promise<UserNotificationTokens[]> {
+    const tokens = await this.modelUserNotificationTokens.findAll({
+      where: { userId: { [Op.in]: userIds } },
+    });
+
+    return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
+  }
+
   async addNotificationToken(
     userId: string,
     token: string,
