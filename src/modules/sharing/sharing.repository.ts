@@ -92,22 +92,32 @@ export class SequelizeSharingRepository implements SharingRepository {
   }
 
   async findPermissionsInSharing(
-    sharedWith: Sharing['sharedWith'],
+    sharedWith: Sharing['sharedWith'] | Sharing['sharedWith'][],
     sharedWithType: Sharing['sharedWithType'],
     itemId: Sharing['itemId'],
   ) {
+    const sharedWithFilter = Array.isArray(sharedWith)
+      ? { [Op.in]: sharedWith }
+      : sharedWith;
+
     const permissions = await this.permissions.findAll({
+      group: 'PermissionModel.id',
       include: [
         {
           model: RoleModel,
+          required: true,
+          attributes: [],
           include: [
             {
               model: SharingRolesModel,
+              required: true,
+              attributes: [],
               include: [
                 {
                   model: SharingModel,
+                  attributes: [],
                   where: {
-                    sharedWith,
+                    sharedWith: sharedWithFilter,
                     itemId,
                     sharedWithType,
                   },

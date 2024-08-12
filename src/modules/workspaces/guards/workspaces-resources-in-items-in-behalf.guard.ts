@@ -4,20 +4,18 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
-  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { WorkspacesUsecases } from '../workspaces.usecase';
 import { User } from '../../user/user.domain';
 import {
-  WORKSPACE_IN_BEHALF_SOURCES_META_KEY,
-  DataSource,
   WORKSPACE_IN_BEHALF_ACTION_META_KEY,
   WorkspaceResourcesAction,
 } from './workspaces-resources-in-behalf.decorator';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { isUUID } from 'class-validator';
+import { extractDataFromRequest } from '../../../common/extract-data-from-request';
 
 export interface DecodedWorkspaceToken {
   workspaceId: string;
@@ -47,16 +45,14 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
       this.hasUserTrashPermissions.bind(this),
     [WorkspaceResourcesAction.DeleteItemsFromTrash]:
       this.hasUserTrashPermissions.bind(this),
+    [WorkspaceResourcesAction.ModifySharingById]:
+      this.hasUserAccessToSharing.bind(this),
     [WorkspaceResourcesAction.Default]: this.hasUserPermissions.bind(this),
   };
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    const dataSources = this.reflector.get<DataSource[]>(
-      WORKSPACE_IN_BEHALF_SOURCES_META_KEY,
-      context.getHandler(),
-    );
     const action = this.reflector.get<WorkspaceResourcesAction>(
       WORKSPACE_IN_BEHALF_ACTION_META_KEY,
       context.getHandler(),
@@ -74,7 +70,11 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
 
     const decodedToken = this.decodeWorkspaceToken(workspaceHeaderToken);
     const requester = User.build({ ...request.user });
-    const extractedData = this.extractDataFromRequest(request, dataSources);
+    const extractedData = extractDataFromRequest(
+      request,
+      this.reflector,
+      context,
+    );
 
     const { workspace, workspaceUser } =
       await this.workspaceUseCases.findUserAndWorkspace(
@@ -155,29 +155,13 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     return isCreator;
   }
 
-  extractDataFromRequest(request: Request, dataSources: DataSource[]) {
-    const extractedData = {};
+  async hasUserAccessToSharing(requester: User, data: any): Promise<boolean> {
+    const { sharingId } = data;
 
-    for (const { sourceKey, fieldName, value, newFieldName } of dataSources) {
-      const extractedValue =
-        value !== undefined ? value : request[sourceKey][fieldName];
+    const item =
+      await this.workspaceUseCases.getWorkspaceItemBySharingId(sharingId);
 
-      const isValueUndefined =
-        extractedValue === undefined || extractedValue === null;
-
-      if (isValueUndefined) {
-        new Logger().error(
-          `[WORKSPACES_BEHALF_GUARD]: Missing required field to validate user access to resource! field: ${fieldName}`,
-        );
-        throw new BadRequestException(`Missing required field: ${fieldName}`);
-      }
-
-      const targetFieldName = newFieldName ? newFieldName : fieldName;
-
-      extractedData[targetFieldName] = extractedValue;
-    }
-
-    return extractedData;
+    return !!item?.isOwnedBy(requester);
   }
 
   private decodeWorkspaceToken(token: string): DecodedWorkspaceToken {

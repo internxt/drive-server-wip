@@ -3560,6 +3560,30 @@ describe('WorkspacesUsecases', () => {
       });
     });
 
+    describe('getWorkspaceItemBySharingId', () => {
+      it('When sharing is not valid, then it should throw', async () => {
+        const sharingId = v4();
+
+        jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(null);
+
+        await expect(
+          service.getWorkspaceItemBySharingId(sharingId),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When sharing is valid, then it should return item', async () => {
+        const sharing = newSharing();
+        const item = newWorkspaceItemUser();
+
+        jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(sharing);
+        jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValue(item);
+
+        const result = await service.getWorkspaceItemBySharingId(sharing.id);
+
+        expect(result).toBe(item);
+      });
+    });
+
     describe('teams', () => {
       describe('createTeam', () => {
         it('When workspace is not found, then fail', async () => {

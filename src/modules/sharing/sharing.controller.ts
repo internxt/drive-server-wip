@@ -58,7 +58,11 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import {
+  WorkspaceResourcesAction,
+  WorkspacesInBehalfGuard,
+} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -120,6 +124,8 @@ export class SharingController {
     description: 'Id of the sharing',
     type: String,
   })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   @ApiOkResponse({ description: 'Sets/edit password for public sharings' })
   async setPublicSharingPassword(
     @UserDecorator() user: User,
@@ -144,6 +150,8 @@ export class SharingController {
     type: String,
   })
   @ApiOkResponse({ description: 'Remove ' })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   async removePublicSharingPassword(
     @UserDecorator() user: User,
     @Param('sharingId') sharingId: Sharing['id'],
@@ -605,10 +613,11 @@ export class SharingController {
     dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
   })
   @UseGuards(FeatureLimit) */
-  @WorkspacesInBehalfGuard([
+  @GetDataFromRequest([
     { sourceKey: 'body', fieldName: 'itemId' },
     { sourceKey: 'body', fieldName: 'itemType' },
   ])
+  @WorkspacesInBehalfGuard()
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,
@@ -632,10 +641,11 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Item removed from sharing' })
   @ApiBearerAuth()
-  @WorkspacesInBehalfGuard([
+  @GetDataFromRequest([
     { sourceKey: 'params', fieldName: 'itemId' },
     { sourceKey: 'params', fieldName: 'itemType' },
   ])
+  @WorkspacesInBehalfGuard()
   removeSharing(
     @UserDecorator() user: User,
     @Param('itemType') itemType: Sharing['itemType'],

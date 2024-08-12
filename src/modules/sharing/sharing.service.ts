@@ -2106,7 +2106,7 @@ export class SharingService {
   }
 
   async canPerfomAction(
-    sharedWith: Sharing['sharedWith'],
+    sharedWith: Sharing['sharedWith'] | Sharing['sharedWith'][],
     resourceId: Sharing['itemId'],
     action: SharingActionName,
     sharedWithType = SharedWithType.Individual,

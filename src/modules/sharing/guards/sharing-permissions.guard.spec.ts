@@ -25,7 +25,6 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceTeam,
-  newWorkspaceTeamUser,
 } from '../../../../test/fixtures';
 import { v4 } from 'uuid';
 
@@ -98,7 +97,7 @@ describe('SharingPermissionsGuard', () => {
     }));
 
     jest
-      .spyOn(guard, 'isTeamMemberAbleToPerformAction')
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
       .mockResolvedValue(true);
     jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(user);
 
@@ -123,7 +122,7 @@ describe('SharingPermissionsGuard', () => {
     }));
 
     jest
-      .spyOn(guard, 'isTeamMemberAbleToPerformAction')
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
       .mockResolvedValue(false);
 
     await expect(guard.canActivate(context)).resolves.toBe(false);
@@ -148,7 +147,7 @@ describe('SharingPermissionsGuard', () => {
     }));
 
     jest
-      .spyOn(guard, 'isTeamMemberAbleToPerformAction')
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
       .mockResolvedValue(true);
     jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(null);
 
@@ -175,66 +174,63 @@ describe('SharingPermissionsGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  describe('isTeamMemberAbleToPerformAction', () => {
-    it('When team is able to perfom action and user is part of team, it should return true', async () => {
-      const teamId = v4();
+  describe('isWorkspaceMemberAbleToPerfomAction', () => {
+    it('When workspace member is part of a team that allows the action, it should return true', async () => {
+      const workspaceId = v4();
       const sharedRootFolderId = v4();
       const action = SharingActionName.UploadFile;
+      const team = newWorkspaceTeam();
+
+      workspaceUseCases.getTeamsUserBelongsTo.mockResolvedValue([team]);
 
       sharingUseCases.canPerfomAction.mockResolvedValue(true);
-      workspaceUseCases.findUserInTeam.mockResolvedValue({
-        teamUser: newWorkspaceTeamUser(),
-        team: newWorkspaceTeam(),
-      });
 
-      const result = await guard.isTeamMemberAbleToPerformAction(
+      const result = await guard.isWorkspaceMemberAbleToPerfomAction(
         user,
-        teamId,
+        workspaceId,
         sharedRootFolderId,
         action,
       );
 
       expect(result).toBe(true);
       expect(sharingUseCases.canPerfomAction).toHaveBeenCalledWith(
-        user.uuid,
+        [team.id],
         sharedRootFolderId,
         action,
         SharedWithType.WorkspaceTeam,
       );
-      expect(workspaceUseCases.findUserInTeam).toHaveBeenCalledWith(
+      expect(workspaceUseCases.getTeamsUserBelongsTo).toHaveBeenCalledWith(
         user.uuid,
-        teamId,
+        workspaceId,
       );
     });
 
-    it('When team is able to perform action but user is not part of team, it should return false', async () => {
-      const teamId = v4();
+    it('When workspace member is not part of a team that allows the action, it should return true', async () => {
+      const workspaceId = v4();
       const sharedRootFolderId = v4();
       const action = SharingActionName.UploadFile;
+      const team = newWorkspaceTeam();
 
-      sharingUseCases.canPerfomAction.mockResolvedValue(true);
-      workspaceUseCases.findUserInTeam.mockResolvedValue({
-        teamUser: null,
-        team: newWorkspaceTeam(),
-      });
+      workspaceUseCases.getTeamsUserBelongsTo.mockResolvedValue([team]);
+      sharingUseCases.canPerfomAction.mockResolvedValue(false);
 
-      const result = await guard.isTeamMemberAbleToPerformAction(
+      const result = await guard.isWorkspaceMemberAbleToPerfomAction(
         user,
-        teamId,
+        workspaceId,
         sharedRootFolderId,
         action,
       );
 
       expect(result).toBe(false);
       expect(sharingUseCases.canPerfomAction).toHaveBeenCalledWith(
-        user.uuid,
+        [team.id],
         sharedRootFolderId,
         action,
         SharedWithType.WorkspaceTeam,
       );
-      expect(workspaceUseCases.findUserInTeam).toHaveBeenCalledWith(
+      expect(workspaceUseCases.getTeamsUserBelongsTo).toHaveBeenCalledWith(
         user.uuid,
-        teamId,
+        workspaceId,
       );
     });
   });

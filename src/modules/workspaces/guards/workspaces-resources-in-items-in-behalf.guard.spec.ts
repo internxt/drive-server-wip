@@ -17,9 +17,14 @@ import {
 } from '../../../../test/fixtures';
 import { v4 } from 'uuid';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
+import { extractDataFromRequest } from '../../../common/extract-data-from-request';
 
 jest.mock('../../../lib/jwt', () => ({
   verifyWithDefaultSecret: jest.fn(),
+}));
+
+jest.mock('../../../common/extract-data-from-request', () => ({
+  extractDataFromRequest: jest.fn(),
 }));
 
 describe('WorkspacesResourcesItemsInBehalfGuard', () => {
@@ -129,12 +134,11 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       );
       workspaceUseCases.isUserCreatorOfItem.mockResolvedValue(false);
 
-      jest
-        .spyOn(reflector, 'get')
-        .mockReturnValueOnce([
-          { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
-        ])
-        .mockReturnValueOnce(undefined);
+      jest.spyOn(reflector, 'get').mockReturnValueOnce(undefined);
+
+      (extractDataFromRequest as jest.Mock).mockReturnValue({
+        itemId: workspaceItem.itemId,
+      });
 
       await expect(guard.canActivate(excutionContext)).rejects.toThrow(
         ForbiddenException,
@@ -166,12 +170,11 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
         behalfUser,
       );
 
-      jest
-        .spyOn(reflector, 'get')
-        .mockReturnValueOnce([
-          { sourceKey: 'params', fieldName: 'uuid', newFieldName: 'itemId' },
-        ])
-        .mockReturnValueOnce(undefined);
+      jest.spyOn(reflector, 'get').mockReturnValueOnce(undefined);
+
+      (extractDataFromRequest as jest.Mock).mockReturnValue({
+        itemId: v4(),
+      });
 
       const spyOnDefaultHandler = jest
         .spyOn(guard['actionHandlers'], WorkspaceResourcesAction.Default)
@@ -220,7 +223,6 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       });
       jest
         .spyOn(reflector, 'get')
-        .mockReturnValueOnce([{ sourceKey: 'body', fieldName: 'items' }])
         .mockReturnValueOnce(WorkspaceResourcesAction.AddItemsToTrash);
 
       workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
@@ -230,6 +232,19 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       workspaceUseCases.findWorkspaceResourceOwner.mockResolvedValue(
         behalfUser,
       );
+
+      (extractDataFromRequest as jest.Mock).mockReturnValue({
+        items: [
+          {
+            itemId: '6c63b34c-0396-4018-820b-cae3457217e0',
+            itemType: 'folder',
+          },
+          {
+            itemId: '61f9f35f-285e-40f1-87b8-b5d55db34be5',
+            itemType: 'file',
+          },
+        ],
+      });
 
       const spyOnDefaultHandler = jest.spyOn(
         guard['actionHandlers'],
@@ -308,56 +323,32 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
     });
   });
 
-  describe('extractDataFromRequest', () => {
-    it('When correct data is passed, then it should return the extracted data', () => {
-      const request = {
-        params: { id: '123' },
-        query: { search: 'test' },
-      } as any;
-      const dataSources = [
-        { sourceKey: 'params', fieldName: 'id' },
-        { sourceKey: 'query', fieldName: 'search' },
-      ] as any;
+  describe('hasUserAccessToSharing', () => {
+    it('When sharing item is found and creator is requester, it should return true', async () => {
+      const user = newUser();
 
-      const extractedData = guard.extractDataFromRequest(request, dataSources);
-
-      expect(extractedData).toEqual({
-        id: '123',
-        search: 'test',
-      });
-    });
-
-    it('When required field is missing, then it should fail', () => {
-      const request = {
-        params: { id: '123' },
-        query: {},
-      } as any;
-      const dataSources = [
-        { sourceKey: 'params', fieldName: 'id' },
-        { sourceKey: 'query', fieldName: 'search' },
-      ] as any;
-
-      expect(() => guard.extractDataFromRequest(request, dataSources)).toThrow(
-        BadRequestException,
+      workspaceUseCases.getWorkspaceItemBySharingId.mockResolvedValue(
+        newWorkspaceItemUser({ createdBy: user.uuid }),
       );
+
+      const hasPermissions = await guard.hasUserAccessToSharing(user, {
+        sharingId: v4(),
+      });
+      expect(hasPermissions).toBeTruthy();
     });
 
-    it('When a field is being renamed, it should return with object renamed', () => {
-      const request = {
-        params: { id: '123' },
-        query: { search: 'test' },
-      } as any;
-      const dataSources = [
-        { sourceKey: 'params', fieldName: 'id', newFieldName: 'newId' },
-        { sourceKey: 'query', fieldName: 'search' },
-      ] as any;
+    it('When sharing item is found and creator is not requester, it should return false', async () => {
+      const user = newUser();
+      const notCreator = newUser();
 
-      const extractedData = guard.extractDataFromRequest(request, dataSources);
+      workspaceUseCases.getWorkspaceItemBySharingId.mockResolvedValue(
+        newWorkspaceItemUser({ createdBy: user.uuid }),
+      );
 
-      expect(extractedData).toEqual({
-        newId: '123',
-        search: 'test',
+      const hasPermissions = await guard.hasUserAccessToSharing(notCreator, {
+        sharingId: v4(),
       });
+      expect(hasPermissions).toBeFalsy();
     });
   });
 });
