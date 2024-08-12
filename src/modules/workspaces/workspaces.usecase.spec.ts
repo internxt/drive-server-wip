@@ -4241,6 +4241,9 @@ describe('WorkspacesUsecases', () => {
           workspaceId: workspace.id,
           member: workspaceOwner,
           memberId: workspaceOwner.uuid,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
         });
 
         jest
@@ -4248,8 +4251,8 @@ describe('WorkspacesUsecases', () => {
           .mockResolvedValueOnce(workspace);
         jest
           .spyOn(workspaceRepository, 'findWorkspaceUser')
-          .mockResolvedValueOnce(memberWorkspaceUser)
-          .mockResolvedValueOnce(ownerWorkspaceUser);
+          .mockResolvedValueOnce(ownerWorkspaceUser)
+          .mockResolvedValueOnce(memberWorkspaceUser);
         jest
           .spyOn(userRepository, 'findByUuid')
           .mockResolvedValueOnce(workspaceNetworkUser);
@@ -4262,11 +4265,64 @@ describe('WorkspacesUsecases', () => {
         jest
           .spyOn(folderUseCases, 'getFoldersInWorkspace')
           .mockResolvedValueOnce([]);
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(0)
+          .mockResolvedValueOnce(483183820800); // 450 GB
 
         await expect(
           service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
         ).resolves.toBeUndefined();
         expect(folderUseCases.moveFolder).not.toHaveBeenCalled();
+      });
+
+      it("When owner doesn't have enough free space then it shoudl throw", async () => {
+        const workspaceOwner = newUser();
+        const workspaceNetworkUser = newUser();
+        const member = newUser();
+        const workspace = newWorkspace({
+          owner: workspaceOwner,
+        });
+        const folderToMove = newFolder();
+        const memberWorkspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: member,
+          memberId: member.uuid,
+          attributes: {
+            rootFolderId: folderToMove.uuid,
+          },
+        });
+        const ownerWorkspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          memberId: workspaceOwner.uuid,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValueOnce(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValueOnce(ownerWorkspaceUser)
+          .mockResolvedValueOnce(memberWorkspaceUser);
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(workspaceNetworkUser);
+        jest
+          .spyOn(folderUseCases, 'getByUuid')
+          .mockResolvedValueOnce(folderToMove);
+
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(483183820800) // 450GB
+          .mockResolvedValueOnce(644245094400); // 600 GB
+
+        await expect(
+          service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
+        ).rejects.toThrow(BadRequestException);
       });
 
       it("When user is not the owner of the workspace, then it should move the member's root folder to the workspace owner's root folder", async () => {
@@ -4289,6 +4345,9 @@ describe('WorkspacesUsecases', () => {
           workspaceId: workspace.id,
           member: workspaceOwner,
           memberId: workspaceOwner.uuid,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
         });
         const resultingFolder = Object.assign(newFolder(), folderToMove, {
           parentUuid: ownerWorkspaceUser.rootFolderId,
@@ -4307,8 +4366,8 @@ describe('WorkspacesUsecases', () => {
           .mockResolvedValueOnce(workspace);
         jest
           .spyOn(workspaceRepository, 'findWorkspaceUser')
-          .mockResolvedValueOnce(memberWorkspaceUser)
-          .mockResolvedValueOnce(ownerWorkspaceUser);
+          .mockResolvedValueOnce(ownerWorkspaceUser)
+          .mockResolvedValueOnce(memberWorkspaceUser);
         jest
           .spyOn(userRepository, 'findByUuid')
           .mockResolvedValueOnce(workspaceNetworkUser);
@@ -4327,6 +4386,10 @@ describe('WorkspacesUsecases', () => {
         jest
           .spyOn(folderUseCases, 'renameFolder')
           .mockResolvedValueOnce(resultingRenamedFolder);
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(483183820800) // 450 GB
+          .mockResolvedValueOnce(483183820800); // 450 GB
 
         const shortIdentifier = Buffer.from(memberWorkspaceUser.id)
           .toString('base64')
@@ -4389,6 +4452,9 @@ describe('WorkspacesUsecases', () => {
           workspaceId: workspace.id,
           memberId: member.uuid,
           member,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
         });
 
         jest
@@ -4398,6 +4464,10 @@ describe('WorkspacesUsecases', () => {
           .spyOn(workspaceRepository, 'findById')
           .mockResolvedValue(workspace);
         jest.spyOn(workspaceRepository, 'deleteUserFromWorkspace');
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(483183820800) // 450 GB
+          .mockResolvedValueOnce(483183820800); // 450 GB
 
         expect(
           await service.removeWorkspaceMember(workspace.id, member.uuid),
@@ -4438,6 +4508,9 @@ describe('WorkspacesUsecases', () => {
         const workspaceUser = newWorkspaceUser({
           memberId: user.uuid,
           workspaceId: workspace.id,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
         });
         jest
           .spyOn(workspaceRepository, 'findById')
@@ -4446,6 +4519,10 @@ describe('WorkspacesUsecases', () => {
           .spyOn(workspaceRepository, 'findWorkspaceUser')
           .mockResolvedValue(workspaceUser);
         jest.spyOn(service, 'transferPersonalItemsToWorkspaceOwner');
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(483183820800) // 450 GB
+          .mockResolvedValueOnce(483183820800); // 450 GB
 
         await service.leaveWorkspace(workspace.id, user);
 
@@ -4461,6 +4538,9 @@ describe('WorkspacesUsecases', () => {
         const workspaceUser = newWorkspaceUser({
           memberId: user.uuid,
           workspaceId: workspace.id,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
         });
         const team = newWorkspaceTeam({
           workspaceId: workspace.id,
@@ -4476,6 +4556,10 @@ describe('WorkspacesUsecases', () => {
         jest
           .spyOn(teamRepository, 'getTeamsWhereUserIsManagerByWorkspaceId')
           .mockResolvedValue([team]);
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(483183820800) // 450 GB
+          .mockResolvedValueOnce(483183820800); // 450 GB
 
         await service.leaveWorkspace(workspace.id, user);
 
@@ -4492,28 +4576,37 @@ describe('WorkspacesUsecases', () => {
           workspaceRepository.deleteUserFromWorkspace,
         ).toHaveBeenCalledWith(user.uuid, workspace.id);
       });
-    });
 
-    it('When user is not a manager of any teams and has no items in the workspace, then they should leave the workspace', async () => {
-      const user = newUser();
-      const workspace = newWorkspace();
-      const workspaceUser = newWorkspaceUser({
-        memberId: user.uuid,
-        workspaceId: workspace.id,
+      it('When user is not a manager of any teams and has no items in the workspace, then they should leave the workspace', async () => {
+        const user = newUser();
+        const workspace = newWorkspace();
+        const workspaceUser = newWorkspaceUser({
+          memberId: user.uuid,
+          workspaceId: workspace.id,
+          attributes: {
+            spaceLimit: 1099511627776, // 1TB
+          },
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(service, 'calculateFilesSizeSum')
+          .mockResolvedValueOnce(0) // 450 GB
+          .mockResolvedValueOnce(483183820800); // 450 GB
+
+        await service.leaveWorkspace(workspace.id, user);
+
+        expect(
+          workspaceRepository.deleteUserFromWorkspace,
+        ).toHaveBeenCalledWith(user.uuid, workspace.id);
       });
-
-      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
-      jest
-        .spyOn(workspaceRepository, 'findWorkspaceUser')
-        .mockResolvedValue(workspaceUser);
-
-      await service.leaveWorkspace(workspace.id, user);
-
-      expect(workspaceRepository.deleteUserFromWorkspace).toHaveBeenCalledWith(
-        user.uuid,
-        workspace.id,
-      );
     });
+
     describe('upload workspace Avatar', () => {
       const newAvatarKey = v4();
       const newAvatarURL = `http://localhost:9000/${newAvatarKey}`;
