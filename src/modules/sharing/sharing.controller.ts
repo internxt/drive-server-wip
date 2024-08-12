@@ -58,7 +58,10 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import {
+  WorkspaceResourcesAction,
+  WorkspacesInBehalfGuard,
+} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 
 @ApiTags('Sharing')
@@ -121,6 +124,8 @@ export class SharingController {
     description: 'Id of the sharing',
     type: String,
   })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   @ApiOkResponse({ description: 'Sets/edit password for public sharings' })
   async setPublicSharingPassword(
     @UserDecorator() user: User,
@@ -145,6 +150,8 @@ export class SharingController {
     type: String,
   })
   @ApiOkResponse({ description: 'Remove ' })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   async removePublicSharingPassword(
     @UserDecorator() user: User,
     @Param('sharingId') sharingId: Sharing['id'],

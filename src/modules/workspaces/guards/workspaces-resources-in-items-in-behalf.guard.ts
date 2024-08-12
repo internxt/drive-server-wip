@@ -45,6 +45,8 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
       this.hasUserTrashPermissions.bind(this),
     [WorkspaceResourcesAction.DeleteItemsFromTrash]:
       this.hasUserTrashPermissions.bind(this),
+    [WorkspaceResourcesAction.ModifySharingById]:
+      this.hasUserAccessToSharing.bind(this),
     [WorkspaceResourcesAction.Default]: this.hasUserPermissions.bind(this),
   };
 
@@ -151,6 +153,15 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     );
 
     return isCreator;
+  }
+
+  async hasUserAccessToSharing(requester: User, data: any): Promise<boolean> {
+    const { sharingId } = data;
+
+    const item =
+      await this.workspaceUseCases.getWorkspaceItemBySharingId(sharingId);
+
+    return !!item?.isOwnedBy(requester);
   }
 
   private decodeWorkspaceToken(token: string): DecodedWorkspaceToken {

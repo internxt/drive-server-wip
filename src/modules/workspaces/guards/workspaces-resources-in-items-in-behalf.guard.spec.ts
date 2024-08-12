@@ -322,6 +322,35 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       expect(hasPermissions).toBeTruthy();
     });
   });
+
+  describe('hasUserAccessToSharing', () => {
+    it('When sharing item is found and creator is requester, it should return true', async () => {
+      const user = newUser();
+
+      workspaceUseCases.getWorkspaceItemBySharingId.mockResolvedValue(
+        newWorkspaceItemUser({ createdBy: user.uuid }),
+      );
+
+      const hasPermissions = await guard.hasUserAccessToSharing(user, {
+        sharingId: v4(),
+      });
+      expect(hasPermissions).toBeTruthy();
+    });
+
+    it('When sharing item is found and creator is not requester, it should return false', async () => {
+      const user = newUser();
+      const notCreator = newUser();
+
+      workspaceUseCases.getWorkspaceItemBySharingId.mockResolvedValue(
+        newWorkspaceItemUser({ createdBy: user.uuid }),
+      );
+
+      const hasPermissions = await guard.hasUserAccessToSharing(notCreator, {
+        sharingId: v4(),
+      });
+      expect(hasPermissions).toBeFalsy();
+    });
+  });
 });
 
 const createMockExecutionContext = (

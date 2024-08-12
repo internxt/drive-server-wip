@@ -615,7 +615,6 @@ export class FolderController {
       value: 'folder',
     },
   ])
-  @RequiredSharingPermissions(SharingActionName.GetItems)
   @WorkspacesInBehalfValidationFolder()
   async getFolder(
     @UserDecorator() user: User,
@@ -674,7 +673,6 @@ export class FolderController {
       value: 'folder',
     },
   ])
-  @RequiredSharingPermissions(SharingActionName.GetItems)
   @WorkspacesInBehalfValidationFolder()
   async getFolderAncestors(
     @UserDecorator() user: User,

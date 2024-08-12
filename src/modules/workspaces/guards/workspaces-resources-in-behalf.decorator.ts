@@ -11,6 +11,7 @@ export interface ValidationOptions {
 export enum WorkspaceResourcesAction {
   AddItemsToTrash = 'addItemsToTrash',
   DeleteItemsFromTrash = 'deleteItemsFromTrash',
+  ModifySharingById = 'modifySharingById',
   Default = 'default',
 }
 

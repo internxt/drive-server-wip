@@ -8,7 +8,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { User } from '../../user/user.domain';
 import { UserUseCases } from '../../user/user.usecase';
-import { FolderAttributes } from '../../folder/folder.attributes';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { SharingService } from '../../sharing/sharing.service';
 import {
@@ -20,10 +19,10 @@ import {
   PermissionsOptions,
 } from './sharing-permissions.decorator';
 import { Workspace } from '../../workspaces/domains/workspaces.domain';
-import { WorkspaceTeam } from '../../workspaces/domains/workspace-team.domain';
 import { Folder } from '../../folder/folder.domain';
 import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';
+import { SharingAccessTokenData } from './sharings-token.interface';
 
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {
@@ -60,18 +59,7 @@ export class SharingPermissionsGuard implements CanActivate {
     const { action } = permissionsOptions;
 
     const decoded = verifyWithDefaultSecret(resourcesToken) as
-      | {
-          isRootToken?: boolean;
-          owner?: {
-            uuid?: User['uuid'];
-          };
-          sharedRootFolderId?: FolderAttributes['uuid'];
-          sharedWithType: SharedWithType;
-          workspace?: {
-            workspaceId: Workspace['id'];
-            teamId: WorkspaceTeam['id'];
-          };
-        }
+      | SharingAccessTokenData
       | string;
 
     if (typeof decoded === 'string') {
@@ -80,17 +68,16 @@ export class SharingPermissionsGuard implements CanActivate {
 
     let userIsAllowedToPerfomAction = false;
 
-    const sharedItemId = decoded?.isRootToken
-      ? this.getSharedItemIdFromRequest(request, this.reflector, context)
-      : decoded.sharedRootFolderId;
+    const sharedItemId = decoded.sharedRootFolderId;
 
     if (decoded.workspace) {
-      userIsAllowedToPerfomAction = await this.isTeamMemberAbleToPerformAction(
-        requester,
-        decoded.workspace.teamId,
-        sharedItemId,
-        action,
-      );
+      userIsAllowedToPerfomAction =
+        await this.isWorkspaceMemberAbleToPerfomAction(
+          requester,
+          decoded.workspace.workspaceId,
+          sharedItemId,
+          action,
+        );
     } else {
       userIsAllowedToPerfomAction = await this.isUserAbleToPerfomAction(
         requester,
@@ -117,23 +104,29 @@ export class SharingPermissionsGuard implements CanActivate {
     return true;
   }
 
-  async isTeamMemberAbleToPerformAction(
+  async isWorkspaceMemberAbleToPerfomAction(
     requester: User,
-    teamId: WorkspaceTeam['id'],
+    workspaceId: Workspace['id'],
     sharedRootFolderId: Folder['uuid'],
     action: SharingActionName,
   ) {
-    const [userIsAllowedToPerfomAction, isUserPartOfTeam] = await Promise.all([
-      this.sharingUseCases.canPerfomAction(
+    const teamsUserBelongsTo =
+      await this.workspaceUseCases.getTeamsUserBelongsTo(
         requester.uuid,
+        workspaceId,
+      );
+
+    const teamsIds = teamsUserBelongsTo.map((team) => team.id);
+
+    const userIsAllowedToPerfomAction =
+      await this.sharingUseCases.canPerfomAction(
+        teamsIds,
         sharedRootFolderId,
         action,
         SharedWithType.WorkspaceTeam,
-      ),
-      this.workspaceUseCases.findUserInTeam(requester.uuid, teamId),
-    ]);
+      );
 
-    return userIsAllowedToPerfomAction && !!isUserPartOfTeam?.teamUser;
+    return userIsAllowedToPerfomAction;
   }
 
   async isUserAbleToPerfomAction(

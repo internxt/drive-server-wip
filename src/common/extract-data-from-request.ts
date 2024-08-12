@@ -46,7 +46,7 @@ export const extractDataFromRequest = (
       throw new BadRequestException(`Missing required field: ${fieldName}`);
     }
 
-    const targetFieldName = newFieldName ? newFieldName : fieldName;
+    const targetFieldName = newFieldName ?? fieldName;
 
     extractedData[targetFieldName] = extractedValue;
   }
