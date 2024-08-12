@@ -34,6 +34,7 @@ import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import getEnv from '../../config/configuration';
 import {
   generateTokenWithPlainSecret,
+  generateWithDefaultSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import {
@@ -53,6 +54,8 @@ import { Environment } from '@internxt/inxt-js';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -214,6 +217,18 @@ export class SharingService {
 
   findSharingBy(where: Partial<Sharing>): Promise<Sharing | null> {
     return this.sharingRepository.findOneSharingBy(where);
+  }
+
+  findSharingsBySharedWithAndAttributes(
+    sharedWithValues: Sharing['sharedWith'][],
+    filters: Omit<Partial<Sharing>, 'sharedWith'> = {},
+    options?: { offset: number; limit: number },
+  ): Promise<Sharing[]> {
+    return this.sharingRepository.findSharingsBySharedWithAndAttributes(
+      sharedWithValues,
+      filters,
+      options,
+    );
   }
 
   findSharingRoleBy(where: Partial<SharingRole>) {
@@ -1825,6 +1840,110 @@ export class SharingService {
       }),
     )) as FolderWithSharedInfo[];
 
+    const sharedRootToken = generateWithDefaultSecret(
+      {
+        isRootToken: true,
+        workspace: {
+          workspaceId,
+        },
+        owner: {
+          uuid: user.uuid,
+        },
+      },
+      '1d',
+    );
+
+    return {
+      folders: folders,
+      files: [],
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: sharedRootToken,
+      role: 'OWNER',
+    };
+  }
+
+  async getSharedFilesInWorkspaceByTeams(
+    user: User,
+    workspaceId: Workspace['id'],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; orderBy?: [string, string][] },
+  ): Promise<GetItemsReponse> {
+    const filesWithSharedInfo =
+      await this.sharingRepository.findFilesSharedInWorkspaceByOwnerAndTeams(
+        user.uuid,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+    const files = (await Promise.all(
+      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
+        const avatar = fileWithSharedInfo.file?.user?.avatar;
+        return {
+          ...fileWithSharedInfo.file,
+          plainName: fileWithSharedInfo.file.plainName,
+          sharingId: fileWithSharedInfo.id,
+          encryptionKey: fileWithSharedInfo.encryptionKey,
+          dateShared: fileWithSharedInfo.createdAt,
+          user: {
+            ...fileWithSharedInfo.file.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+        };
+      }),
+    )) as FileWithSharedInfo[];
+
+    return {
+      folders: [],
+      files: files,
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+      role: 'OWNER',
+    };
+  }
+
+  async getSharedFoldersInWorkspaceByTeams(
+    user: User,
+    workspaceId: Workspace['id'],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; orderBy?: [string, string][] },
+  ): Promise<GetItemsReponse> {
+    const foldersWithSharedInfo =
+      await this.sharingRepository.findFoldersSharedInWorkspaceByOwnerAndTeams(
+        user.uuid,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+    const folders = (await Promise.all(
+      foldersWithSharedInfo.map(async (folderWithSharedInfo) => {
+        const avatar = folderWithSharedInfo.folder?.user?.avatar;
+        return {
+          ...folderWithSharedInfo.folder,
+          plainName: folderWithSharedInfo.folder.plainName,
+          sharingId: folderWithSharedInfo.id,
+          encryptionKey: folderWithSharedInfo.encryptionKey,
+          dateShared: folderWithSharedInfo.createdAt,
+          sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
+          user: {
+            ...folderWithSharedInfo.folder.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+        };
+      }),
+    )) as FolderWithSharedInfo[];
+
     return {
       folders: folders,
       files: [],
@@ -1876,6 +1995,20 @@ export class SharingService {
       }),
     )) as FileWithSharedInfo[];
 
+    const sharedRootToken = generateWithDefaultSecret(
+      {
+        isRootToken: true,
+        workspace: {
+          workspaceId,
+        },
+        owner: {
+          id: user.id,
+          uuid: user.uuid,
+        },
+      },
+      '1d',
+    );
+
     return {
       folders: [],
       files: files,
@@ -1883,7 +2016,7 @@ export class SharingService {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
       },
-      token: '',
+      token: sharedRootToken,
       role: 'OWNER',
     };
   }

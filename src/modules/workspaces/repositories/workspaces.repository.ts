@@ -40,6 +40,31 @@ export class SequelizeWorkspaceRepository {
     const workspace = await this.modelWorkspace.findByPk(id);
     return workspace ? this.toDomain(workspace) : null;
   }
+
+  async findWorkspaceAndDefaultUser(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<{ workspaceUser: User; workspace: Workspace } | null> {
+    const workspaceAndDefaultUser = await this.modelWorkspace.findOne({
+      where: { id: workspaceId },
+      include: {
+        model: UserModel,
+        as: 'workpaceUser',
+        required: true,
+      },
+    });
+
+    if (!workspaceAndDefaultUser) {
+      return null;
+    }
+
+    return {
+      workspaceUser: User.build({
+        ...workspaceAndDefaultUser.workpaceUser.get({ plain: true }),
+      }),
+      workspace: this.toDomain(workspaceAndDefaultUser),
+    };
+  }
+
   async findByOwner(ownerId: Workspace['ownerId']): Promise<Workspace[]> {
     const workspaces = await this.modelWorkspace.findAll({
       where: { ownerId },

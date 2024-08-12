@@ -579,6 +579,118 @@ export class WorkspacesController {
     );
   }
 
+  @Get(':workspaceId/shared/files')
+  @ApiOperation({
+    summary: 'Get shared files in teams',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getSharedFilesInWorkspace(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getSharedFilesInWorkspace(user, workspaceId, {
+      offset: page,
+      limit: perPage,
+      orderBy: order,
+    });
+  }
+
+  @Get(':workspaceId/shared/folders')
+  @ApiOperation({
+    summary: 'Get shared files in teams',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getSharedFoldersInWorkspace(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceTeamAttributes['id'],
+    @UserDecorator() user: User,
+    @Query('orderBy') orderBy: OrderBy,
+    @Query('page') page = 0,
+    @Query('perPage') perPage = 50,
+  ) {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getSharedFoldersInWorkspace(
+      user,
+      workspaceId,
+      {
+        offset: page,
+        limit: perPage,
+        orderBy: order,
+      },
+    );
+  }
+
+  @Get(':workspaceId/shared/:sharedFolderId/folders')
+  @ApiOperation({
+    summary: 'Get all folders inside a shared folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFoldersInSharingFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
+    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
+  ) {
+    const { orderBy, token, page, perPage } = queryDto;
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getItemsInSharedFolder(
+      workspaceId,
+      user,
+      sharedFolderId,
+      WorkspaceItemType.Folder,
+      token,
+      { page, perPage, order },
+    );
+  }
+
+  @Get(':workspaceId/shared/:sharedFolderId/files')
+  @ApiOperation({
+    summary: 'Get files inside a shared folder',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFilesInSharingFolder(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
+    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
+  ) {
+    const { orderBy, token, page, perPage } = queryDto;
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.getItemsInSharedFolder(
+      workspaceId,
+      user,
+      sharedFolderId,
+      WorkspaceItemType.File,
+      token,
+      { page, perPage, order },
+    );
+  }
+
   @Get(':workspaceId/teams/:teamId/shared/files')
   @ApiOperation({
     summary: 'Get shared files with a team',
@@ -662,7 +774,6 @@ export class WorkspacesController {
 
     return this.workspaceUseCases.getItemsInSharedFolder(
       workspaceId,
-      teamId,
       user,
       sharedFolderId,
       WorkspaceItemType.Folder,
@@ -694,7 +805,6 @@ export class WorkspacesController {
 
     return this.workspaceUseCases.getItemsInSharedFolder(
       workspaceId,
-      teamId,
       user,
       sharedFolderId,
       WorkspaceItemType.File,
