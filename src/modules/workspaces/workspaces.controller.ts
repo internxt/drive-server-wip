@@ -204,7 +204,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.editTeamData(teamId, editTeamBody);
   }
 
-  @Delete('/teams/:teamId')
+  @Delete('/:workspaceId/teams/:teamId')
   @ApiOperation({
     summary: 'Deletes a team in a workspace',
   })
@@ -263,7 +263,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
-  @Patch('/teams/:teamId/manager')
+  @Patch('/:workspaceId/teams/:teamId/manager')
   @ApiOperation({
     summary: 'Changes the manager of a team',
   })
@@ -273,7 +273,7 @@ export class WorkspacesController {
     description: 'Team manager changed',
   })
   @UseGuards(WorkspaceGuard)
-  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  @WorkspaceRequiredAccess(AccessContext.TEAM, WorkspaceRole.MANAGER)
   async changeTeamManager(
     @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
     @Body('managerId', ValidateUUIDPipe) managerId: UserAttributes['uuid'],
@@ -505,15 +505,13 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Teams in the workspace along with its members quantity',
   })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getWorkspaceTeams(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
   ) {
-    if (!workspaceId || !isUUID(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
     return this.workspaceUseCases.getWorkspaceTeams(user, workspaceId);
   }
 
@@ -996,5 +994,26 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
   ) {
     return this.workspaceUseCases.getWorkspaceDetails(workspaceId);
+  }
+
+  @Delete(':workspaceId/members/:memberId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Remove member from workspace',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'memberId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Member removed from workspace',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async removeWorkspaceMember(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('memberId', ValidateUUIDPipe)
+    memberId: WorkspaceTeamAttributes['id'],
+  ) {
+    return this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
   }
 }

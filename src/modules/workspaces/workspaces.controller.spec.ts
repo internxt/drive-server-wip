@@ -631,4 +631,24 @@ describe('Workspace Controller', () => {
       ).resolves.toEqual(workspace.toJSON());
     });
   });
+
+  describe('DELETE /:workspaceId/members/:memberId', () => {
+    it('When a member is removed from the workspace, then it should call the service with the respective arguments', async () => {
+      const workspaceId = v4();
+      const memberId = v4();
+
+      jest
+        .spyOn(workspacesUsecases, 'removeWorkspaceMember')
+        .mockResolvedValue(Promise.resolve());
+
+      await expect(
+        workspacesController.removeWorkspaceMember(workspaceId, memberId),
+      ).resolves.toBeUndefined();
+
+      expect(workspacesUsecases.removeWorkspaceMember).toHaveBeenCalledWith(
+        workspaceId,
+        memberId,
+      );
+    });
+  });
 });

@@ -51,6 +51,7 @@ describe('Gateway Controller', () => {
     const updateWorkspaceStorageDto: UpdateWorkspaceStorageDto = {
       ownerId: v4(),
       maxSpaceBytes: 1000000,
+      numberOfSeats: 5,
     };
 
     it('When owner passed is not found, then it should throw.', async () => {
@@ -76,6 +77,7 @@ describe('Gateway Controller', () => {
       expect(gatewayUsecases.updateWorkspaceStorage).toHaveBeenCalledWith(
         updateWorkspaceStorageDto.ownerId,
         updateWorkspaceStorageDto.maxSpaceBytes,
+        updateWorkspaceStorageDto.numberOfSeats,
       );
     });
   });

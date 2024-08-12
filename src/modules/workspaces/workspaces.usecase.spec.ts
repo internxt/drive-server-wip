@@ -1547,6 +1547,56 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('updateWorkspaceMemberCount', () => {
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.updateWorkspaceMemberCount('workspaceId', 9),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace exists, then it should update the member count', async () => {
+      const workspace = newWorkspace();
+      const numberOfSeats = 9;
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest.spyOn(workspaceRepository, 'updateById');
+
+      await service.updateWorkspaceMemberCount(workspace.id, numberOfSeats);
+
+      expect(workspaceRepository.updateById).toHaveBeenCalledWith(
+        workspace.id,
+        { numberOfSeats: numberOfSeats },
+      );
+    });
+  });
+
+  describe('changeWorkspaceMembersStorageLimit', () => {
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.changeWorkspaceMembersStorageLimit('workspaceId', 1000),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace exists, then it should update the storage limit', async () => {
+      const workspace = newWorkspace();
+      const spaceLimit = 1099511627776;
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+
+      await service.changeWorkspaceMembersStorageLimit(
+        workspace.id,
+        spaceLimit,
+      );
+
+      expect(workspaceRepository.updateWorkspaceUserBy).toHaveBeenCalledWith(
+        { workspaceId: workspace.id },
+        { spaceLimit },
+      );
+    });
+  });
+
   describe('changeUserAssignedSpace', () => {
     const workspaceId = v4();
     const memberId = v4();
@@ -4006,6 +4056,108 @@ describe('WorkspacesUsecases', () => {
           expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
         });
       });
+
+      describe('getWorkspaceTeams', () => {
+        it('When workspace is not found, then fail', async () => {
+          const user = newUser();
+          const workspaceId = v4();
+
+          jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(null);
+
+          await expect(
+            service.getWorkspaceTeams(user, workspaceId),
+          ).rejects.toThrow(BadRequestException);
+        });
+
+        it('When user is the workspace owner, then retrieve all teams except default', async () => {
+          const user = newUser();
+          const workspace = newWorkspace({ owner: user });
+          const teams = [
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+          ];
+          const teamsWithMemberCount = [
+            { team: teams[0], membersCount: 5 },
+            { team: teams[1], membersCount: 10 },
+            { team: teams[2], membersCount: 7 },
+          ];
+          const teamsUserBelongsTo = [teams[1]];
+          workspace.defaultTeamId = teams[0].id;
+
+          jest
+            .spyOn(workspaceRepository, 'findOne')
+            .mockResolvedValue(workspace);
+          jest
+            .spyOn(teamRepository, 'getTeamsAndMembersCountByWorkspace')
+            .mockResolvedValue(teamsWithMemberCount);
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValue(teamsUserBelongsTo);
+
+          const result = await service.getWorkspaceTeams(user, workspace.id);
+
+          expect(result).toEqual([
+            teamsWithMemberCount[1],
+            teamsWithMemberCount[2],
+          ]);
+        });
+
+        it('When user is not the owner and belongs to a team, then retrieve user teams except default', async () => {
+          const owner = newUser();
+          const user = newUser();
+          const workspace = newWorkspace({ owner });
+          const teams = [
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+            newWorkspaceTeam({ workspaceId: workspace.id }),
+          ];
+          const teamsWithMemberCount = [
+            { team: teams[0], membersCount: 5 },
+            { team: teams[1], membersCount: 10 },
+            { team: teams[2], membersCount: 7 },
+          ];
+          const teamsUserBelongsTo = [teams[1]];
+          workspace.defaultTeamId = teams[0].id;
+
+          jest
+            .spyOn(workspaceRepository, 'findOne')
+            .mockResolvedValue(workspace);
+          jest
+            .spyOn(teamRepository, 'getTeamsAndMembersCountByWorkspace')
+            .mockResolvedValue(teamsWithMemberCount);
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValue(teamsUserBelongsTo);
+
+          const result = await service.getWorkspaceTeams(user, workspace.id);
+
+          expect(result).toEqual([teamsWithMemberCount[1]]);
+        });
+
+        it('When user is not the owner and does not belong to any team, then return empty array', async () => {
+          const owner = newUser();
+          const user = newUser();
+          const workspace = newWorkspace({ owner });
+          const teams = [newWorkspaceTeam({ workspaceId: workspace.id })];
+          const teamsWithMemberCount = [{ team: teams[0], membersCount: 5 }];
+          workspace.defaultTeamId = teams[0].id;
+
+          jest
+            .spyOn(workspaceRepository, 'findOne')
+            .mockResolvedValue(workspace);
+          jest
+            .spyOn(teamRepository, 'getTeamsAndMembersCountByWorkspace')
+            .mockResolvedValue(teamsWithMemberCount);
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValue([]);
+
+          const result = await service.getWorkspaceTeams(user, workspace.id);
+
+          expect(result).toEqual([]);
+        });
+      });
     });
 
     describe('deleteWorkspaceContent', () => {
@@ -4176,6 +4328,10 @@ describe('WorkspacesUsecases', () => {
           .spyOn(folderUseCases, 'renameFolder')
           .mockResolvedValueOnce(resultingRenamedFolder);
 
+        const shortIdentifier = Buffer.from(memberWorkspaceUser.id)
+          .toString('base64')
+          .substring(0, 6);
+
         await expect(
           service.transferPersonalItemsToWorkspaceOwner(workspace.id, member),
         ).resolves.toBeUndefined();
@@ -4186,8 +4342,70 @@ describe('WorkspacesUsecases', () => {
         );
         expect(folderUseCases.renameFolder).toHaveBeenCalledWith(
           resultingFolder,
-          member.username,
+          `${member.username} - ${shortIdentifier}`,
         );
+      });
+    });
+
+    describe('removeMemberFromWorkspace', () => {
+      it('When member is not found, then it should throw', async () => {
+        const workspaceId = v4();
+        const memberId = v4();
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(null);
+
+        await expect(
+          service.removeWorkspaceMember(workspaceId, memberId),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When member is the owner of the workspace, then it should throw', async () => {
+        const owner = newUser();
+        const workspace = newWorkspace({ owner });
+        const workspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          memberId: owner.uuid,
+          member: owner,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+
+        await expect(
+          service.removeWorkspaceMember(workspace.id, owner.uuid),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When member is not the owner of the workspace, then it should remove the member', async () => {
+        const owner = newUser();
+        const member = newUser();
+        const workspace = newWorkspace({ owner });
+        const workspaceUser = newWorkspaceUser({
+          workspaceId: workspace.id,
+          memberId: member.uuid,
+          member,
+        });
+
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUser')
+          .mockResolvedValue(workspaceUser);
+        jest
+          .spyOn(workspaceRepository, 'findById')
+          .mockResolvedValue(workspace);
+        jest.spyOn(workspaceRepository, 'deleteUserFromWorkspace');
+
+        expect(
+          await service.removeWorkspaceMember(workspace.id, member.uuid),
+        ).toBeUndefined();
+
+        expect(
+          workspaceRepository.deleteUserFromWorkspace,
+        ).toHaveBeenCalledWith(member.uuid, workspace.id);
       });
     });
 

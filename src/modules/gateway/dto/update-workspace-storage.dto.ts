@@ -16,4 +16,12 @@ export class UpdateWorkspaceStorageDto {
   @IsNotEmpty()
   @IsNumber()
   maxSpaceBytes: number;
+
+  @ApiProperty({
+    example: '5',
+    description: 'Number of seats in the workspace',
+  })
+  @IsNotEmpty()
+  @IsNumber()
+  numberOfSeats: number;
 }

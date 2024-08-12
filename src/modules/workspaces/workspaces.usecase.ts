@@ -470,6 +470,40 @@ export class WorkspacesUsecases {
     return newInvite.toJSON();
   }
 
+  async updateWorkspaceMemberCount(
+    workspaceId: Workspace['id'],
+    newMemberCount: number,
+  ) {
+    if (newMemberCount < 1) {
+      throw new BadRequestException('Member count must be at least 1');
+    }
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace does not exist');
+    }
+
+    await this.workspaceRepository.updateById(workspaceId, {
+      numberOfSeats: newMemberCount,
+    });
+  }
+
+  async changeWorkspaceMembersStorageLimit(
+    workspaceId: Workspace['id'],
+    newSpaceLimit: number,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace does not exist');
+    }
+
+    await this.workspaceRepository.updateWorkspaceUserBy(
+      { workspaceId: workspace.id },
+      { spaceLimit: newSpaceLimit },
+    );
+  }
+
   async changeUserAssignedSpace(
     workspaceId: Workspace['id'],
     memberId: WorkspaceUser['memberId'],
@@ -1617,7 +1651,6 @@ export class WorkspacesUsecases {
 
   async getWorkspaceTeams(user: User, workspaceId: WorkspaceAttributes['id']) {
     const workspace = await this.workspaceRepository.findOne({
-      ownerId: user.uuid,
       id: workspaceId,
     });
 
@@ -1625,12 +1658,22 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Not valid workspace');
     }
 
-    const teamsWithMemberCount =
-      await this.teamRepository.getTeamsAndMembersCountByWorkspace(
-        workspace.id,
-      );
+    const [teamsWithMemberCount, teamsUserBelongsTo] = await Promise.all([
+      this.teamRepository.getTeamsAndMembersCountByWorkspace(workspace.id),
+      this.teamRepository.getTeamsUserBelongsTo(user.uuid, workspace.id),
+    ]);
 
-    return teamsWithMemberCount;
+    const isUserOwner = workspace.isUserOwner(user);
+    const userTeamsSet = new Set(teamsUserBelongsTo.map((team) => team.id));
+
+    const filteredTeams = teamsWithMemberCount.filter((teamAndMembers) => {
+      const isDefaultTeam = workspace.defaultTeamId === teamAndMembers.team.id;
+      const isUserTeamMember = userTeamsSet.has(teamAndMembers.team.id);
+
+      return !isDefaultTeam && (isUserOwner || isUserTeamMember);
+    });
+
+    return filteredTeams;
   }
 
   async getWorkspaceMembers(
@@ -2199,15 +2242,42 @@ export class WorkspacesUsecases {
 
     await this.workspaceRepository.updateItemBy(
       {
-        createdBy: ownerWorkspaceUser.memberId,
+        createdBy: memberWorkspaceUser.memberId,
+        workspaceId,
       },
       {
-        workspaceId,
-        itemId: memberRootFolder.uuid,
+        createdBy: workspace.ownerId,
       },
     );
 
-    await this.folderUseCases.renameFolder(movedFolder, user.username);
+    const shortMemberIdentifier = Buffer.from(memberWorkspaceUser.id)
+      .toString('base64')
+      .substring(0, 6);
+
+    await this.folderUseCases.renameFolder(
+      movedFolder,
+      `${user.username} - ${shortMemberIdentifier}`,
+    );
+  }
+
+  async removeWorkspaceMember(
+    workspaceId: Workspace['id'],
+    memberId: User['uuid'],
+  ): Promise<void> {
+    const workspaceUserToRemove =
+      await this.workspaceRepository.findWorkspaceUser(
+        {
+          workspaceId,
+          memberId,
+        },
+        true,
+      );
+
+    if (!workspaceUserToRemove) {
+      throw new NotFoundException('User not found in workspace');
+    }
+
+    await this.leaveWorkspace(workspaceId, workspaceUserToRemove.member);
   }
 
   async leaveWorkspace(
@@ -2243,6 +2313,7 @@ export class WorkspacesUsecases {
       workspaceId,
     );
   }
+
   async validateWorkspaceInvite(
     inviteId: WorkspaceInvite['id'],
   ): Promise<string> {

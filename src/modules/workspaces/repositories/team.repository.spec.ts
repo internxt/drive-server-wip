@@ -216,4 +216,46 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       ]);
     });
   });
+
+  describe('getTeamsUserBelongsTo', () => {
+    it('When teams are not found, then return an empty array', async () => {
+      const memberId = v4();
+      const workspaceId = v4();
+
+      jest.spyOn(workspaceTeamUserModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.getTeamsUserBelongsTo(
+        memberId,
+        workspaceId,
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('When teams are found, then return the teams the user belongs to', async () => {
+      const memberId = v4();
+      const workspaceId = v4();
+      const team = newWorkspaceTeam({ workspaceId });
+      const teamUser = newWorkspaceTeamUser({ memberId, teamId: team.id });
+
+      jest.spyOn(workspaceTeamUserModel, 'findAll').mockResolvedValueOnce([
+        {
+          ...teamUser.toJSON(),
+          toJSON: jest.fn().mockReturnValue(teamUser),
+          team: {
+            ...team.toJSON(),
+            toJSON: jest.fn().mockReturnValue(team),
+          },
+        },
+      ] as any);
+
+      const result = await repository.getTeamsUserBelongsTo(
+        memberId,
+        workspaceId,
+      );
+
+      expect(result).toEqual([expect.any(WorkspaceTeam)]);
+      expect(result[0].id).toEqual(team.id);
+    });
+  });
 });
