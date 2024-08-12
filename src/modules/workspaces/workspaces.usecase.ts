@@ -1619,6 +1619,20 @@ export class WorkspacesUsecases {
     return this.workspaceRepository.findWorkspaceResourcesOwner(workspace.id);
   }
 
+  async getWorkspaceItemBySharingId(sharingId: Sharing['id']) {
+    const sharing = await this.sharingUseCases.findSharingBy({ id: sharingId });
+
+    if (!sharing) {
+      throw new BadRequestException('Sharing does not exist');
+    }
+
+    const item = await this.workspaceRepository.getItemBy({
+      itemId: sharing.itemId,
+    });
+
+    return item;
+  }
+
   async isUserCreatorOfItem(
     requester: User,
     itemId: WorkspaceItemUser['itemId'],
@@ -2119,6 +2133,13 @@ export class WorkspacesUsecases {
       { id: workspaceId },
       editWorkspaceDetailsDto,
     );
+  }
+
+  getTeamsUserBelongsTo(
+    userUuid: string,
+    workspaceId: string,
+  ): Promise<WorkspaceTeam[]> {
+    return this.teamRepository.getTeamsUserBelongsTo(userUuid, workspaceId);
   }
 
   findUserInTeam(
