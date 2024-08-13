@@ -2212,7 +2212,7 @@ export class WorkspacesUsecases {
     const ownerUsage = await this.calculateFilesSizeSum(
       workspace.ownerId,
       workspace.id,
-      [FileStatus.EXISTS],
+      [FileStatus.EXISTS, FileStatus.TRASHED],
     );
 
     const combinedUsage = Number(memberUsage) + Number(ownerUsage);
