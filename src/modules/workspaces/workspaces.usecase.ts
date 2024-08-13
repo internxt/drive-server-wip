@@ -2251,7 +2251,6 @@ export class WorkspacesUsecases {
         },
         { limit: 1, offset: 0 },
       );
-
     const filesInPersonalRootFolder =
       await this.fileUseCases.getFilesInWorkspace(
         user.uuid,
