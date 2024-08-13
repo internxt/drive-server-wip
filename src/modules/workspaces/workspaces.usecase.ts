@@ -2206,7 +2206,7 @@ export class WorkspacesUsecases {
     const memberUsage = await this.calculateFilesSizeSum(
       user.uuid,
       workspace.id,
-      [FileStatus.EXISTS],
+      [FileStatus.EXISTS, FileStatus.TRASHED],
     );
 
     const ownerUsage = await this.calculateFilesSizeSum(
