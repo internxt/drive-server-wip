@@ -2203,6 +2203,33 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('You are the owner of this workspace');
     }
 
+    const memberUsage = await this.calculateFilesSizeSum(
+      user.uuid,
+      workspace.id,
+      [FileStatus.EXISTS, FileStatus.TRASHED],
+    );
+
+    const ownerUsage = await this.calculateFilesSizeSum(
+      workspace.ownerId,
+      workspace.id,
+      [FileStatus.EXISTS, FileStatus.TRASHED],
+    );
+
+    const combinedUsage = Number(memberUsage) + Number(ownerUsage);
+
+    const ownerWorkspaceUser = await this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId,
+        memberId: workspace.ownerId,
+      },
+    );
+
+    if (Number(ownerWorkspaceUser.spaceLimit) < combinedUsage) {
+      throw new BadRequestException(
+        'Owner does not have enough space to receive the files',
+      );
+    }
+
     const memberWorkspaceUser =
       await this.workspaceRepository.findWorkspaceUser({
         workspaceId,
@@ -2224,7 +2251,6 @@ export class WorkspacesUsecases {
         },
         { limit: 1, offset: 0 },
       );
-
     const filesInPersonalRootFolder =
       await this.fileUseCases.getFilesInWorkspace(
         user.uuid,
@@ -2246,13 +2272,6 @@ export class WorkspacesUsecases {
 
     const workspaceNetworkUser = await this.userRepository.findByUuid(
       workspace.workspaceUserId,
-    );
-
-    const ownerWorkspaceUser = await this.workspaceRepository.findWorkspaceUser(
-      {
-        workspaceId,
-        memberId: workspace.ownerId,
-      },
     );
 
     const movedFolder = await this.folderUseCases.moveFolder(
