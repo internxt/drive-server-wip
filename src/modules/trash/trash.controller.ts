@@ -171,7 +171,9 @@ export class TrashController {
         }
       }
       await Promise.all([
-        this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids),
+        fileIds.length > 0 || fileUuids.length > 0
+          ? this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids)
+          : Promise.resolve(),
         this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
       ]);
 
