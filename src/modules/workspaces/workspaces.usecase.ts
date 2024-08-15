@@ -384,10 +384,11 @@ export class WorkspacesUsecases {
       workspaceUser,
     );
 
-    const fixedSpaceLimit =
-      await this.getWorkspaceFixedStoragePerUser(workspace);
+    const spaceToAssign =
+      createInviteDto.spaceLimit ??
+      (await this.getWorkspaceFixedStoragePerUser(workspace));
 
-    if (fixedSpaceLimit > spaceLeft) {
+    if (spaceToAssign > spaceLeft) {
       throw new BadRequestException(
         'Space limit set for the invitation is superior to the space assignable in workspace',
       );
@@ -399,7 +400,7 @@ export class WorkspacesUsecases {
       invitedUser: userJoining.uuid,
       encryptionAlgorithm: createInviteDto.encryptionAlgorithm,
       encryptionKey: createInviteDto.encryptionKey,
-      spaceLimit: fixedSpaceLimit,
+      spaceLimit: spaceToAssign,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -1461,17 +1462,18 @@ export class WorkspacesUsecases {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
-      //totalSpaceAssignedInInvitations,
+      totalSpaceAssignedInInvitations,
     ] = await Promise.all([
       this.networkService.getLimit(
         workpaceDefaultUser.bridgeUser,
         workpaceDefaultUser.userId,
       ),
       this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
-      //this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
     ]);
 
-    const spaceLeft = spaceLimit - totalSpaceLimitAssigned;
+    const spaceLeft =
+      spaceLimit - (totalSpaceLimitAssigned + totalSpaceAssignedInInvitations);
 
     return spaceLeft;
   }
@@ -1509,13 +1511,15 @@ export class WorkspacesUsecases {
   }
 
   async isWorkspaceFull(workspace: Workspace): Promise<boolean> {
-    const [workspaceUsersCount /* workspaceInvitationsCount */] =
-      await Promise.all([
-        this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
-        //  this.workspaceRepository.getWorkspaceInvitationsCount(workspaceId),
-      ]);
+    const [workspaceUsersCount, workspaceInvitationsCount] = await Promise.all([
+      this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
+      this.workspaceRepository.getWorkspaceInvitationsCount(workspace.id),
+    ]);
 
-    return workspace.isWorkspaceFull(workspaceUsersCount);
+    return workspace.isWorkspaceFull(
+      workspaceUsersCount,
+      workspaceInvitationsCount,
+    );
   }
 
   async createTeam(

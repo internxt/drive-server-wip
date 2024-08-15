@@ -1531,19 +1531,25 @@ describe('WorkspacesUsecases', () => {
     const workspace = newWorkspace();
     const workspaceDefaultUser = newUser();
     it('When there is space left, then it should return the correct space left', async () => {
-      jest.spyOn(networkService, 'getLimit').mockResolvedValue(1000000);
+      const limit = 1000000;
+      const usedInUsers = 500000;
+      const assignedInInvitations = 200000;
+
+      jest.spyOn(networkService, 'getLimit').mockResolvedValue(limit);
       jest
         .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
-        .mockResolvedValue(500000);
-      /* jest
+        .mockResolvedValue(usedInUsers);
+      jest
         .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
-        .mockResolvedValue(200000); */
+        .mockResolvedValue(assignedInInvitations);
 
       const assignableSpace = await service.getAssignableSpaceInWorkspace(
         workspace,
         workspaceDefaultUser,
       );
-      expect(assignableSpace).toBe(500000);
+      expect(assignableSpace).toBe(
+        limit - (usedInUsers + assignedInInvitations),
+      );
     });
   });
 
