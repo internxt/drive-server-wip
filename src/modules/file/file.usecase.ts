@@ -98,19 +98,19 @@ export class FileUseCases {
       throw new ForbiddenException('Folder is not yours');
     }
 
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFileDto.plainName,
+      folder.id,
+    );
+
     const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
-      name: newFileDto.name,
+      name: cryptoFileName,
       plainName: newFileDto.plainName,
       folderId: folder.id,
       ...(newFileDto.type ? { type: newFileDto.type } : null),
       userId: user.id,
       status: FileStatus.EXISTS,
     });
-
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFileDto.plainName,
-      folder.id,
-    );
 
     const fileAlreadyExists = !!maybeAlreadyExistentFile;
 

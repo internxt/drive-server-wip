@@ -9,13 +9,6 @@ import {
 
 export class CreateFileDto {
   @ApiProperty({
-    description: 'The name of the file',
-    example: 'example',
-  })
-  @IsString()
-  name: string;
-
-  @ApiProperty({
     description: 'The bucket where the file is stored',
     example: 'my-bucket',
   })
