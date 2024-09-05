@@ -2018,7 +2018,6 @@ describe('WorkspacesUsecases', () => {
   describe('createFile', () => {
     const workspace = newWorkspace();
     const createFileDto: CreateWorkspaceFileDto = {
-      name: 'New File',
       bucket: 'bucket-id',
       fileId: 'file-id',
       encryptVersion: 'v1',

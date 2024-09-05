@@ -140,10 +140,6 @@ export class SequelizeWorkspaceRepository {
     await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
   }
 
-  async createFile(inviteId: WorkspaceInviteAttributes['id']): Promise<void> {
-    await this.modelWorkspaceInvite.destroy({ where: { id: inviteId } });
-  }
-
   async createItem(
     item: Omit<WorkspaceItemUserAttributes, 'id'>,
   ): Promise<WorkspaceItemUser | null> {

@@ -642,7 +642,6 @@ describe('FileUseCases', () => {
 
   describe('createFile', () => {
     const newFileDto: CreateFileDto = {
-      name: 'Test File',
       bucket: 'test-bucket',
       fileId: 'file-id',
       encryptVersion: 'v1',
@@ -676,7 +675,6 @@ describe('FileUseCases', () => {
       const existingFile = newFile({
         attributes: {
           folderId: folder.id,
-          name: newFileDto.name,
           plainName: newFileDto.plainName,
         },
       });

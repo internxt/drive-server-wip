@@ -755,14 +755,8 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      createFileDto.plainName,
-      folder.id,
-    );
-
     const createdFile = await this.fileUseCases.createFile(networkUser, {
       ...createFileDto,
-      name: cryptoFileName,
     });
 
     const createdItemFile = await this.workspaceRepository.createItem({
