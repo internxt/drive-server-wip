@@ -52,6 +52,8 @@ import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.d
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Client } from '../auth/decorators/client.decorator';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -96,6 +98,7 @@ export class FolderController {
   constructor(
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
+    private readonly storageNotificationService: StorageNotificationService,
   ) {}
 
   @Post('/')
@@ -106,6 +109,7 @@ export class FolderController {
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
+    @Client() clientId: string,
   ) {
     const { plainName, parentFolderUuid } = createFolderDto;
     const folder = await this.folderUseCases.createFolder(
@@ -113,6 +117,13 @@ export class FolderController {
       plainName,
       parentFolderUuid,
     );
+
+    this.storageNotificationService.folderCreated({
+      payload: folder,
+      user: user,
+      clientId,
+    });
+
     return folder;
   }
 
@@ -761,12 +772,21 @@ export class FolderController {
     folderUuid: Folder['uuid'],
     @UserDecorator() user: User,
     @Body() updateFolderMetaDto: UpdateFolderMetaDto,
+    @Client() clientId: string,
   ) {
-    return this.folderUseCases.updateFolderMetaData(
+    const folderUpdated = await this.folderUseCases.updateFolderMetaData(
       user,
       folderUuid,
       updateFolderMetaDto,
     );
+
+    this.storageNotificationService.folderUpdated({
+      payload: folderUpdated,
+      user: user,
+      clientId,
+    });
+
+    return folderUpdated;
   }
 
   @UseFilters(new HttpExceptionFilter())
@@ -794,6 +814,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
     @Body() moveFolderData: MoveFolderDto,
+    @Client() clientId: string,
   ) {
     if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -803,6 +824,13 @@ export class FolderController {
       folderUuid,
       moveFolderData.destinationFolder,
     );
+
+    this.storageNotificationService.folderUpdated({
+      payload: folder,
+      user: user,
+      clientId,
+    });
+
     return folder;
   }
 }

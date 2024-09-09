@@ -23,6 +23,7 @@ import { SharingModule } from '../sharing/sharing.module';
     NotificationModule,
     UserModule,
     ShareModule,
+    NotificationModule,
   ],
   controllers: [TrashController],
   providers: [Logger, TrashUseCases],

@@ -36,13 +36,18 @@ import { RequiredSharingPermissions } from '../sharing/guards/sharing-permission
 import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Client } from '../auth/decorators/client.decorator';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  constructor(private readonly fileUseCases: FileUseCases) {}
+  constructor(
+    private readonly fileUseCases: FileUseCases,
+    private readonly storageNotificationService: StorageNotificationService,
+  ) {}
 
   @Post('/')
   @ApiOperation({
@@ -54,8 +59,15 @@ export class FileController {
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
+    @Client() clientId: string,
   ) {
-    return this.fileUseCases.createFile(user, createFileDto);
+    const result = await this.fileUseCases.createFile(user, createFileDto);
+
+    this.storageNotificationService.fileCreated({
+      payload: result,
+      user: user,
+      clientId,
+    });
   }
 
   @Get('/count')
@@ -138,6 +150,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
     @Body() fileData: ReplaceFileDto,
+    @Client() clientId: string,
   ) {
     try {
       const file = await this.fileUseCases.replaceFile(
@@ -145,6 +158,12 @@ export class FileController {
         fileUuid,
         fileData,
       );
+
+      this.storageNotificationService.fileUpdated({
+        payload: file,
+        user: user,
+        clientId,
+      });
 
       return file;
     } catch (error) {
@@ -189,12 +208,21 @@ export class FileController {
     @Param('uuid', ValidateUUIDPipe)
     fileUuid: File['uuid'],
     @Body() updateFileMetaDto: UpdateFileMetaDto,
+    @Client() clientId: string,
   ) {
-    return this.fileUseCases.updateFileMetaData(
+    const result = await this.fileUseCases.updateFileMetaData(
       user,
       fileUuid,
       updateFileMetaDto,
     );
+
+    this.storageNotificationService.fileUpdated({
+      payload: result,
+      user: user,
+      clientId,
+    });
+
+    return result;
   }
 
   @Get('/')
@@ -285,6 +313,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
     @Body() moveFileData: MoveFileDto,
+    @Client() clientId: string,
   ) {
     if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -294,6 +323,13 @@ export class FileController {
       fileUuid,
       moveFileData.destinationFolder,
     );
+
+    this.storageNotificationService.fileUpdated({
+      payload: file,
+      user: user,
+      clientId,
+    });
+
     return file;
   }
 }

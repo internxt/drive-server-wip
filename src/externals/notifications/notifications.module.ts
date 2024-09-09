@@ -9,18 +9,20 @@ import { AnalyticsListener } from './listeners/analytics.listener';
 import { ShareLinkListener } from './listeners/share-link.listener';
 import { AuthListener } from './listeners/auth.listener';
 import { NewsletterService } from '../newsletter';
+import { StorageNotificationService } from './storage.notifications.service';
 @Module({
   imports: [ConfigModule, HttpClientModule, MailerModule],
   controllers: [],
   providers: [
     NotificationService,
     NotificationListener,
+    StorageNotificationService,
     AnalyticsListener,
     SendLinkListener,
     ShareLinkListener,
     AuthListener,
     NewsletterService,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, StorageNotificationService],
 })
 export class NotificationModule {}
