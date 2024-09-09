@@ -11,6 +11,7 @@ import { UserModel } from '../user/user.model';
 import { UserModule } from '../user/user.module';
 import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     CryptoModule,
     forwardRef(() => SharingModule),
     forwardRef(() => WorkspacesModule),
+    NotificationModule,
   ],
   controllers: [FolderController],
   providers: [SequelizeFolderRepository, CryptoService, FolderUseCases],

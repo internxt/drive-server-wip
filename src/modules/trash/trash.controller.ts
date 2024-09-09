@@ -30,8 +30,6 @@ import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
-import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
-import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
 import { TrashUseCases } from './trash.usecase';
 import {
@@ -49,6 +47,7 @@ import {
   WorkspacesInBehalfGuard,
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -57,7 +56,7 @@ export class TrashController {
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
-    private notificationService: NotificationService,
+    private readonly storageNotificationService: StorageNotificationService,
     private trashUseCases: TrashUseCases,
   ) {}
 
@@ -180,17 +179,13 @@ export class TrashController {
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach(
-            ({ email, uuid }: { email: string; uuid: string }) => {
-              const itemsToTrashEvent = new ItemsToTrashEvent(
-                moveItemsDto.items,
-                email,
-                clientId,
-                uuid,
-              );
-              this.notificationService.add(itemsToTrashEvent);
-            },
-          );
+          members.forEach((member) => {
+            this.storageNotificationService.itemsTrashed({
+              payload: moveItemsDto.items,
+              user: member,
+              clientId,
+            });
+          });
         })
         .catch((err) => {
           // no op
