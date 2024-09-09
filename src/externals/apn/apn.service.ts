@@ -77,7 +77,12 @@ export class ApnService {
     return client;
   }
 
-  async sendNotification(deviceToken: string, payload: ApnAlert) {
+  async sendNotification(
+    deviceToken: string,
+    payload: ApnAlert,
+    userUuid?: string,
+    isStorageNotification = false,
+  ) {
     return new Promise((resolve, reject) => {
       if (!this.client || this.client.closed) {
         this.client = this.connectToAPN();
@@ -99,13 +104,23 @@ export class ApnService {
 
       req.setEncoding('utf8');
 
-      req.write(
-        JSON.stringify({
-          aps: {
-            alert: this.generateAlertBody(payload),
-          },
-        }),
-      );
+      if (isStorageNotification && userUuid) {
+        req.write(
+          JSON.stringify({
+            'container-identifier':
+              'NSFileProviderWorkingSetContainerItemIdentifier',
+            domain: userUuid,
+          }),
+        );
+      } else {
+        req.write(
+          JSON.stringify({
+            aps: {
+              alert: this.generateAlertBody(payload),
+            },
+          }),
+        );
+      }
 
       req.end();
 
