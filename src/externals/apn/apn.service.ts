@@ -14,10 +14,37 @@ export class ApnService {
   private reconnectDelay = 1000;
   private jwt: string | null = null;
   private jwtGeneratedAt = 0;
+  private lastActivity = Date.now();
+  private readonly pingInterval = 3600 * 1000;
+  private pingIntervalId: NodeJS.Timeout | null = null;
+  private topic: string;
 
-  constructor(configService: ConfigService) {
+  private apnSecret: string;
+  private apnKeyId: string;
+  private apnTeamId: string;
+
+  constructor(
+    {
+      topic,
+      secret,
+      keyId,
+      teamId,
+    }: {
+      topic: string;
+      secret: string;
+      keyId: string;
+      teamId: string;
+    },
+    configService: ConfigService,
+  ) {
     this.configService = configService;
     this.client = this.connectToAPN();
+    this.schedulePing();
+
+    this.topic = topic;
+    this.apnSecret = secret;
+    this.apnKeyId = keyId;
+    this.apnTeamId = teamId;
   }
 
   private connectToAPN(): http2.ClientHttp2Session {
@@ -25,8 +52,6 @@ export class ApnService {
     const apnKeyId = this.configService.get('apn.keyId');
     const apnTeamId = this.configService.get('apn.teamId');
     const apnUrl = this.configService.get('apn.url');
-
-    console.log('apnSecret', apnUrl);
 
     if (!apnSecret || !apnKeyId || !apnTeamId || !apnUrl) {
       Logger.warn('APN env variables are not defined');
@@ -45,6 +70,7 @@ export class ApnService {
     });
     client.on('connect', () => {
       this.reconnectAttempts = 0;
+      this.lastActivity = Date.now();
       Logger.log('Connected to APN');
     });
 
@@ -54,23 +80,22 @@ export class ApnService {
   async sendNotification(deviceToken: string, payload: ApnAlert) {
     return new Promise((resolve, reject) => {
       if (!this.client || this.client.closed) {
-        this.connectToAPN();
+        this.client = this.connectToAPN();
       }
 
       const headers: http2.OutgoingHttpHeaders = {
         [http2.constants.HTTP2_HEADER_METHOD]: 'POST',
         [http2.constants.HTTP2_HEADER_PATH]: `/3/device/${deviceToken}`,
         [http2.constants.HTTP2_HEADER_SCHEME]: 'https',
-        [http2.constants.HTTP2_HEADER_AUTHORITY]: 'api.push.apple.com',
+        [http2.constants.HTTP2_HEADER_AUTHORITY]:
+          this.configService.get('apn.url'),
         [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'application/json',
         [http2.constants.HTTP2_HEADER_AUTHORIZATION]:
           `bearer ${this.generateJwt()}`,
-        'apns-topic': `${this.configService.get('apn.bundleId')}`,
+        'apns-topic': this.topic,
       };
 
-      const req = this.client.request({
-        ...headers,
-      });
+      const req = this.client.request({ ...headers });
 
       req.setEncoding('utf8');
 
@@ -96,7 +121,6 @@ export class ApnService {
       });
 
       req.on('end', () => {
-        console.log('statusCode', statusCode);
         if (statusCode > 399) {
           reject(new Error(JSON.parse(data).reason));
         } else {
@@ -107,40 +131,27 @@ export class ApnService {
   }
 
   private generateJwt(): string {
-    const apnSecret = this.configService.get('apn.secret');
-    const apnKeyId = this.configService.get('apn.keyId');
-    const apnTeamId = this.configService.get('apn.teamId');
-    console.log('apnSecret', apnSecret);
-    console.log('apnKeyId', apnKeyId);
-    console.log('apnTeamId', apnTeamId);
-    if (!apnSecret || !apnKeyId || !apnTeamId) {
-      throw new Error(
-        'Undefined APN env variables, necessary for JWT generation',
-      );
-    }
-    if (this.jwt && Date.now() - this.jwtGeneratedAt < 3600 * 1000) {
+    if (this.jwt && Date.now() - this.jwtGeneratedAt < 3500 * 1000) {
       return this.jwt;
     }
 
     this.jwt = jwt.sign(
       {
-        iss: apnTeamId,
+        iss: this.apnTeamId,
         iat: Math.floor(Date.now() / 1000),
       },
-      Buffer.from(apnSecret, 'base64').toString('utf8'),
+      Buffer.from(this.apnSecret, 'base64').toString('utf8'),
       {
         algorithm: 'ES256',
         header: {
           alg: 'ES256',
-          kid: apnKeyId,
+          kid: this.apnKeyId,
           typ: undefined,
         } as JwtHeader,
       },
     );
 
     this.jwtGeneratedAt = Date.now();
-
-    console.log('jwt', this.jwt);
 
     return this.jwt;
   }
@@ -152,13 +163,47 @@ export class ApnService {
           Logger.log(
             `Attempting to reconnect to APN (#${this.reconnectAttempts + 1})`,
           );
-          this.connectToAPN();
+          if (this.client && !this.client.closed) {
+            this.client.close();
+          }
+          this.client = this.connectToAPN();
           this.reconnectAttempts++;
         },
         this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
       );
     } else {
       Logger.error('Maximum APN reconnection attempts reached');
+    }
+  }
+
+  private schedulePing() {
+    this.pingIntervalId = setInterval(() => {
+      if (Date.now() - this.lastActivity >= this.pingInterval) {
+        this.sendPing();
+      }
+    }, this.pingInterval);
+  }
+
+  private sendPing() {
+    if (this.client && !this.client.closed) {
+      this.client.ping((err) => {
+        if (err) {
+          Logger.error('APN PING error', err);
+        } else {
+          Logger.log('APN PING sent successfully');
+          this.lastActivity = Date.now();
+        }
+      });
+    }
+  }
+
+  public close() {
+    if (this.pingIntervalId) {
+      clearInterval(this.pingIntervalId);
+      this.pingIntervalId = null;
+    }
+    if (this.client && !this.client.closed) {
+      this.client.close();
     }
   }
 
