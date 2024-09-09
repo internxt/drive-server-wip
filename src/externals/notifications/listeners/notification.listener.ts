@@ -15,7 +15,6 @@ export class NotificationListener {
 
   @OnEvent('notification.*')
   async handleNotificationEvent(event: NotificationEvent) {
-    Logger.log(`event ${event.name} handled`, this.constructor.name);
     const apiNotificationURL: string = this.configService.get(
       'apis.notifications.url',
     );
