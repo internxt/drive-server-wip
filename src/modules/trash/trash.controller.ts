@@ -30,8 +30,6 @@ import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
-import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
-import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
 import { TrashUseCases } from './trash.usecase';
 import {

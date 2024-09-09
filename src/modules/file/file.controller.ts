@@ -61,13 +61,15 @@ export class FileController {
     @Body() createFileDto: CreateFileDto,
     @Client() clientId: string,
   ) {
-    const result = await this.fileUseCases.createFile(user, createFileDto);
+    const file = await this.fileUseCases.createFile(user, createFileDto);
 
     this.storageNotificationService.fileCreated({
-      payload: result,
+      payload: file,
       user: user,
       clientId,
     });
+
+    return file;
   }
 
   @Get('/count')

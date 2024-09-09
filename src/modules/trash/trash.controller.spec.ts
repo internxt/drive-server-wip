@@ -4,7 +4,6 @@ import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from './trash.usecase';
-import { NotificationService } from '../../externals/notifications/notification.service';
 import { newUser } from '../../../test/fixtures';
 import { BadRequestException } from '@nestjs/common';
 import { ItemType } from './dto/controllers/move-items-to-trash.dto';
@@ -12,6 +11,7 @@ import {
   DeleteItemType,
   DeleteItemsDto,
 } from './dto/controllers/delete-item.dto';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 const user = newUser();
 
@@ -21,19 +21,19 @@ describe('TrashController', () => {
   let fileUseCases: FileUseCases;
   let userUseCases: UserUseCases;
   let trashUseCases: TrashUseCases;
-  let notificationService: NotificationService;
+  let storageNotificationService: StorageNotificationService;
 
   beforeEach(async () => {
     folderUseCases = createMock<FolderUseCases>();
     fileUseCases = createMock<FileUseCases>();
     userUseCases = createMock<UserUseCases>();
     trashUseCases = createMock<TrashUseCases>();
-    notificationService = createMock<NotificationService>();
+    storageNotificationService = createMock<StorageNotificationService>();
     controller = new TrashController(
       fileUseCases,
       folderUseCases,
       userUseCases,
-      notificationService,
+      storageNotificationService,
       trashUseCases,
     );
   });

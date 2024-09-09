@@ -264,6 +264,8 @@ describe('FolderController', () => {
   });
 
   describe('move folder', () => {
+    const clientId = 'drive-web';
+
     it('When move folder is requested with valid params, then the folder is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
       const expectedFolder = newFolder({
@@ -282,21 +284,32 @@ describe('FolderController', () => {
         userMocked,
         folder.uuid,
         { destinationFolder: destinationFolder.uuid },
+        clientId,
       );
       expect(result).toEqual(expectedFolder);
     });
 
     it('When move folder is requested with invalid params, then it should throw an error', () => {
       expect(
-        folderController.moveFolder(userMocked, 'invaliduuid', {
-          destinationFolder: v4(),
-        }),
+        folderController.moveFolder(
+          userMocked,
+          'invaliduuid',
+          {
+            destinationFolder: v4(),
+          },
+          clientId,
+        ),
       ).rejects.toThrow(BadRequestException);
 
       expect(
-        folderController.moveFolder(userMocked, v4(), {
-          destinationFolder: 'invaliduuid',
-        }),
+        folderController.moveFolder(
+          userMocked,
+          v4(),
+          {
+            destinationFolder: 'invaliduuid',
+          },
+          clientId,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
