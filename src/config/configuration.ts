@@ -72,7 +72,7 @@ export default () => ({
   apn: {
     url: process.env.APN_URL,
     secret: process.env.APN_SECRET,
-    keyId: process.env.APN_KEYID,
+    keyId: process.env.APN_KEY_ID,
     teamId: process.env.APN_TEAM_ID,
     bundleId: process.env.APN_BUNDLE_ID,
   },

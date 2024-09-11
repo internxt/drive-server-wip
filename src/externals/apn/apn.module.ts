@@ -1,4 +1,3 @@
-// src/externals/apn/apn.module.ts
 import { Module } from '@nestjs/common';
 import { ApnService } from './apn.service';
 import { ConfigModule } from '@nestjs/config';

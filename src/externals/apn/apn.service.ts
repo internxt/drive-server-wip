@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as http2 from 'http2';
 import jwt, { JwtHeader } from 'jsonwebtoken';
@@ -6,8 +6,8 @@ import { ApnAlert } from './apn.types';
 
 @Injectable()
 export class ApnService {
-  private static instance: ApnService;
-  private configService: ConfigService;
+  private readonly logger = new Logger(ApnService.name);
+
   private client: http2.ClientHttp2Session;
   private readonly maxReconnectAttempts = 3;
   private reconnectAttempts = 0;
@@ -22,56 +22,44 @@ export class ApnService {
   private apnSecret: string;
   private apnKeyId: string;
   private apnTeamId: string;
+  private bundleId: string;
+  private apnUrl: string;
 
   constructor(
-    {
-      topic,
-      secret,
-      keyId,
-      teamId,
-    }: {
-      topic: string;
-      secret: string;
-      keyId: string;
-      teamId: string;
-    },
-    configService: ConfigService,
+    @Inject(ConfigService)
+    private configService: ConfigService,
   ) {
-    this.configService = configService;
+    this.apnSecret = this.configService.get('apn.secret');
+    this.apnKeyId = this.configService.get('apn.keyId');
+    this.apnTeamId = this.configService.get('apn.teamId');
+    this.bundleId = this.configService.get('apn.bundleId');
+    this.apnUrl = this.configService.get('apn.url');
+
     this.client = this.connectToAPN();
     this.schedulePing();
-
-    this.topic = topic;
-    this.apnSecret = secret;
-    this.apnKeyId = keyId;
-    this.apnTeamId = teamId;
   }
 
   private connectToAPN(): http2.ClientHttp2Session {
-    const apnSecret = this.configService.get('apn.secret');
-    const apnKeyId = this.configService.get('apn.keyId');
-    const apnTeamId = this.configService.get('apn.teamId');
-    const apnUrl = this.configService.get('apn.url');
-
-    if (!apnSecret || !apnKeyId || !apnTeamId || !apnUrl) {
-      Logger.warn('APN env variables are not defined');
+    if (!this.apnSecret || !this.apnKeyId || !this.apnTeamId || !this.apnUrl) {
+      this.logger.warn('APN env variables are not defined');
+      return null;
     }
 
-    const client = http2.connect(apnUrl);
+    const client = http2.connect(this.apnUrl);
 
     client.on('error', (err) => {
-      Logger.error('APN connection error:', err.message);
-      Logger.error('Error stack:', err.stack);
-      Logger.error('Full error object:', err);
+      this.logger.error('APN connection error:', err.message);
+      this.logger.error('Error stack:', err.stack);
+      this.logger.error('Full error object:', err);
     });
     client.on('close', () => {
-      Logger.warn('APN connection was closed');
+      this.logger.warn('APN connection was closed');
       this.handleReconnect();
     });
     client.on('connect', () => {
       this.reconnectAttempts = 0;
       this.lastActivity = Date.now();
-      Logger.log('Connected to APN');
+      this.logger.log('Connected to APN');
     });
 
     return client;
@@ -82,9 +70,15 @@ export class ApnService {
     payload: ApnAlert,
     userUuid?: string,
     isStorageNotification = false,
-  ) {
+  ): Promise<{
+    statusCode: number;
+    body: string;
+  } | null> {
     return new Promise((resolve, reject) => {
       if (!this.client || this.client.closed) {
+        this.logger.warn(
+          'APN client session is closed, attempting to reconnect',
+        );
         this.client = this.connectToAPN();
       }
 
@@ -92,12 +86,11 @@ export class ApnService {
         [http2.constants.HTTP2_HEADER_METHOD]: 'POST',
         [http2.constants.HTTP2_HEADER_PATH]: `/3/device/${deviceToken}`,
         [http2.constants.HTTP2_HEADER_SCHEME]: 'https',
-        [http2.constants.HTTP2_HEADER_AUTHORITY]:
-          this.configService.get('apn.url'),
+        [http2.constants.HTTP2_HEADER_AUTHORITY]: this.apnUrl,
         [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'application/json',
         [http2.constants.HTTP2_HEADER_AUTHORIZATION]:
           `bearer ${this.generateJwt()}`,
-        'apns-topic': this.topic,
+        'apns-topic': `${this.bundleId}.pushkit.fileprovider`,
       };
 
       const req = this.client.request({ ...headers });
@@ -147,6 +140,7 @@ export class ApnService {
 
   private generateJwt(): string {
     if (this.jwt && Date.now() - this.jwtGeneratedAt < 3500 * 1000) {
+      // 3500 seconds to add buffer
       return this.jwt;
     }
 
@@ -175,7 +169,7 @@ export class ApnService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       setTimeout(
         () => {
-          Logger.log(
+          this.logger.log(
             `Attempting to reconnect to APN (#${this.reconnectAttempts + 1})`,
           );
           if (this.client && !this.client.closed) {
@@ -187,7 +181,7 @@ export class ApnService {
         this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
       );
     } else {
-      Logger.error('Maximum APN reconnection attempts reached');
+      this.logger.error('Maximum APN reconnection attempts reached');
     }
   }
 
@@ -203,9 +197,9 @@ export class ApnService {
     if (this.client && !this.client.closed) {
       this.client.ping((err) => {
         if (err) {
-          Logger.error('APN PING error', err);
+          this.logger.error('APN PING error', err);
         } else {
-          Logger.log('APN PING sent successfully');
+          this.logger.log('APN PING sent successfully');
           this.lastActivity = Date.now();
         }
       });
