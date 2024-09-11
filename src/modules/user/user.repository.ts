@@ -33,7 +33,14 @@ export interface UserRepository {
   getMeetClosedBetaUsers(): Promise<string[]>;
   setRoomToBetaUser(room: string, user: User): Promise<void>;
   getBetaUserFromRoom(room: string): Promise<User | null>;
-  getNotificationTokens(userId: string): Promise<UserNotificationTokens[]>;
+  getNotificationTokens(
+    userId: string,
+    where?: Partial<Omit<UserNotificationTokens, 'userId'>>,
+  ): Promise<UserNotificationTokens[]>;
+  deleteUserNotificationTokens(
+    userUuid: UserAttributes['uuid'],
+    tokens: string[],
+  ): Promise<void>;
   getNotificationTokenCount(userId: string): Promise<number>;
 }
 
@@ -201,6 +208,30 @@ export class SequelizeUserRepository implements UserRepository {
     });
 
     return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
+  }
+
+  async getNotificationTokensByUserUuids(
+    userIds: string[],
+  ): Promise<UserNotificationTokens[]> {
+    const tokens = await this.modelUserNotificationTokens.findAll({
+      where: { userId: { [Op.in]: userIds } },
+    });
+
+    return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
+  }
+
+  async deleteUserNotificationTokens(
+    userUuid: UserAttributes['uuid'],
+    tokens: string[],
+  ) {
+    await this.modelUserNotificationTokens.destroy({
+      where: {
+        userId: userUuid,
+        token: {
+          [Op.in]: tokens,
+        },
+      },
+    });
   }
 
   async addNotificationToken(
