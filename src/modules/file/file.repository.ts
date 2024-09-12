@@ -45,7 +45,7 @@ export interface FileRepository {
   ): Promise<File | null>;
   findFileByFolderUuid(
     folderUuid: Folder['uuid'],
-    searchBy: { plainName: File['plainName'][]; type?: File['type'] },
+    searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
   findByNameAndFolderUuid(
     name: FileAttributes['name'],
@@ -73,6 +73,16 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
+  findFilesWithPagination(
+    folderUuid: Folder['uuid'],
+    limit: number,
+    page: number,
+  ): Promise<{
+    files: File[];
+    totalPages: number;
+    currentPage: number;
+    nextPage: number | null;
+  }>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
   updateFilesStatusToTrashed(
@@ -538,16 +548,18 @@ export class SequelizeFileRepository implements FileRepository {
 
   async findFileByFolderUuid(
     folderUuid: Folder['uuid'],
-    searchBy: { plainName: File['plainName'][]; type?: File['type'] },
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
     const where: WhereOptions<File> = {
       folderUuid,
-      ...(searchBy?.type ? { type: searchBy.type } : null),
       status: FileStatus.EXISTS,
     };
 
-    if (searchBy?.plainName?.length) {
-      where.plainName = { [Op.in]: searchBy.plainName };
+    if (searchFilter.length) {
+      where[Op.or] = searchFilter.map((criteria) => ({
+        plainName: criteria.plainName,
+        ...(criteria.type ? { type: criteria.type } : {}),
+      }));
     }
 
     const files = await this.fileModel.findAll({
@@ -555,6 +567,42 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async findFilesWithPagination(
+    folderUuid: Folder['uuid'],
+    limit: number,
+    page: number,
+  ): Promise<{
+    files: File[];
+    totalPages: number;
+    currentPage: number;
+    nextPage: number | null;
+  }> {
+    const offset = (page - 1) * limit;
+
+    const result = await this.fileModel.findAndCountAll({
+      where: {
+        folderUuid,
+        status: FileStatus.EXISTS,
+      },
+      limit,
+      offset,
+      order: [['id', 'ASC']],
+    });
+
+    const { count, rows } = result;
+
+    const totalPages = Math.ceil(count / limit);
+
+    const nextPage = page < totalPages ? page + 1 : null;
+
+    return {
+      files: rows.map(this.toDomain.bind(this)),
+      totalPages,
+      currentPage: page,
+      nextPage,
+    };
   }
 
   async updateByFieldIdAndUserId(
