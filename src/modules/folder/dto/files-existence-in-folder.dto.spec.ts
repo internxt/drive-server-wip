@@ -26,7 +26,7 @@ describe('CheckFileExistenceInFolderDto', () => {
   });
 
   it('When files array exceeds max size, then it should fail', async () => {
-    const files = Array.from({ length: 1991 }, (_, i) => ({
+    const files = Array.from({ length: 201 }, (_, i) => ({
       plainName: `file${i + 1}`,
       type: 'txt',
     }));

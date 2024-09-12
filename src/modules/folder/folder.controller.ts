@@ -410,8 +410,8 @@ export class FolderController {
       throw new InvalidParentFolderException('Parent folder not valid!');
     }
 
-    const files = await this.fileUseCases.checkMultipleFilesExistence(
-      parentFolder.uuid,
+    const files = await this.fileUseCases.searchFilesInFolder(
+      parentFolder,
       query.files,
     );
 

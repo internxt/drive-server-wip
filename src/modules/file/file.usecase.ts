@@ -148,67 +148,10 @@ export class FileUseCases {
     folder: Folder,
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
-    return this.fileRepository.findFileByFolderUuid(folder.uuid, searchFilter);
-  }
-
-  async findFilesWithPagination(
-    folderUuid: Folder['uuid'],
-    limit: number,
-    page: number,
-  ) {
-    return this.fileRepository.findFilesWithPagination(folderUuid, limit, page);
-  }
-
-  async checkMultipleFilesExistence(
-    folderUuid: Folder['uuid'],
-    dtoFiles: { plainName: string; type?: string }[],
-  ): Promise<File[]> {
-    const limit = 1000;
-    let page = 1;
-    const allExistentFiles: File[] = [];
-    let nextPage: number | null = null;
-
-    let remainingFiles = [...dtoFiles];
-
-    do {
-      const { files, nextPage: newNextPage } =
-        await this.findFilesWithPagination(folderUuid, limit, page);
-
-      const matchingFiles = files.filter((file) =>
-        remainingFiles.some(
-          (dtoFile) =>
-            file.plainName === dtoFile.plainName &&
-            (!dtoFile.type || file.type === dtoFile.type),
-        ),
-      );
-
-      allExistentFiles.push(...matchingFiles);
-
-      remainingFiles = remainingFiles.filter(
-        (dtoFile) =>
-          !matchingFiles.some(
-            (file) =>
-              file.plainName === dtoFile.plainName &&
-              (!dtoFile.type || file.type === dtoFile.type),
-          ),
-      );
-
-      if (remainingFiles.length === 0) {
-        break;
-      }
-
-      nextPage = newNextPage;
-      page++;
-    } while (nextPage);
-
-    return allExistentFiles;
-  }
-
-  async getFilesInFolder(
-    folder: Folder,
-    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
-  ): Promise<File[]> {
-    return this.fileRepository.findFileByFolderUuid(folder.uuid, searchFilter);
+    return this.fileRepository.findFilesInFolderByName(
+      folder.uuid,
+      searchFilter,
+    );
   }
 
   async updateFileMetaData(

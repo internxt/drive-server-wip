@@ -43,8 +43,8 @@ export interface FileRepository {
     where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
     nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
   ): Promise<File | null>;
-  findFileByFolderUuid(
-    folderUuid: Folder['uuid'],
+  findFilesInFolderByName(
+    folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
   findByNameAndFolderUuid(
@@ -73,16 +73,6 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  findFilesWithPagination(
-    folderUuid: Folder['uuid'],
-    limit: number,
-    page: number,
-  ): Promise<{
-    files: File[];
-    totalPages: number;
-    currentPage: number;
-    nextPage: number | null;
-  }>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
   updateFilesStatusToTrashed(
@@ -546,12 +536,12 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findFileByFolderUuid(
-    folderUuid: Folder['uuid'],
+  async findFilesInFolderByName(
+    folderId: Folder['uuid'],
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
     const where: WhereOptions<File> = {
-      folderUuid,
+      folderUuid: folderId,
       status: FileStatus.EXISTS,
     };
 
@@ -567,42 +557,6 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
-  }
-
-  async findFilesWithPagination(
-    folderUuid: Folder['uuid'],
-    limit: number,
-    page: number,
-  ): Promise<{
-    files: File[];
-    totalPages: number;
-    currentPage: number;
-    nextPage: number | null;
-  }> {
-    const offset = (page - 1) * limit;
-
-    const result = await this.fileModel.findAndCountAll({
-      where: {
-        folderUuid,
-        status: FileStatus.EXISTS,
-      },
-      limit,
-      offset,
-      order: [['id', 'ASC']],
-    });
-
-    const { count, rows } = result;
-
-    const totalPages = Math.ceil(count / limit);
-
-    const nextPage = page < totalPages ? page + 1 : null;
-
-    return {
-      files: rows.map(this.toDomain.bind(this)),
-      totalPages,
-      currentPage: page,
-      nextPage,
-    };
   }
 
   async updateByFieldIdAndUserId(

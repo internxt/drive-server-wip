@@ -431,7 +431,7 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'getFolderByUuidAndUser')
         .mockResolvedValue(parentFolder);
       jest
-        .spyOn(fileUseCases, 'checkMultipleFilesExistence')
+        .spyOn(fileUseCases, 'searchFilesInFolder')
         .mockResolvedValue(mockFiles);
 
       const result = await folderController.checkFilesExistenceInFolder(
@@ -449,9 +449,7 @@ describe('FolderController', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuidAndUser')
         .mockResolvedValue(parentFolder);
-      jest
-        .spyOn(fileUseCases, 'checkMultipleFilesExistence')
-        .mockResolvedValue([]);
+      jest.spyOn(fileUseCases, 'searchFilesInFolder').mockResolvedValue([]);
 
       const result = await folderController.checkFilesExistenceInFolder(
         user,

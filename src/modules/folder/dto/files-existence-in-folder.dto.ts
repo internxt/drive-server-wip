@@ -35,7 +35,7 @@ export class CheckFileExistenceInFolderDto {
     description: 'Array of files with names and types',
   })
   @ArrayMinSize(1)
-  @ArrayMaxSize(1000)
+  @ArrayMaxSize(200)
   @ValidateNested()
   @Type(() => FilesNameAndType)
   files: FilesNameAndType[];
