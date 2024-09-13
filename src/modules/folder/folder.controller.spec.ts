@@ -416,8 +416,9 @@ describe('FolderController', () => {
   describe('checkFilesExistenceInFolder', () => {
     const user = newUser();
     const folderUuid = v4();
-    const plainName = ['Report.pdf', 'Image.png'];
+    const plainName = 'Report.pdf';
     const type = 'document';
+    const query = { files: [{ plainName, type }] };
 
     it('When files exist matching the criteria, then it should return the files', async () => {
       const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
@@ -436,7 +437,7 @@ describe('FolderController', () => {
       const result = await folderController.checkFilesExistenceInFolder(
         user,
         folderUuid,
-        { plainName, type },
+        query,
       );
 
       expect(result).toEqual({ existentFiles: mockFiles });
@@ -453,7 +454,7 @@ describe('FolderController', () => {
       const result = await folderController.checkFilesExistenceInFolder(
         user,
         folderUuid,
-        { plainName, type },
+        query,
       );
 
       expect(result).toEqual({ existentFiles: [] });
@@ -465,10 +466,7 @@ describe('FolderController', () => {
         .mockResolvedValue(null);
 
       await expect(
-        folderController.checkFilesExistenceInFolder(user, folderUuid, {
-          plainName,
-          type,
-        }),
+        folderController.checkFilesExistenceInFolder(user, folderUuid, query),
       ).rejects.toThrow(InvalidParentFolderException);
     });
   });

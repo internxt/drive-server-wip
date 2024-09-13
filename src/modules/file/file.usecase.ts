@@ -145,16 +145,13 @@ export class FileUseCases {
   }
 
   async searchFilesInFolder(
-    folderUuid: Folder['uuid'],
-    {
-      plainNames,
-      type,
-    }: { plainNames: File['plainName'][]; type?: File['type'] },
+    folder: Folder,
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
-    return this.fileRepository.findFileByFolderUuid(folderUuid, {
-      plainName: plainNames,
-      type,
-    });
+    return this.fileRepository.findFilesInFolderByName(
+      folder.uuid,
+      searchFilter,
+    );
   }
 
   async updateFileMetaData(

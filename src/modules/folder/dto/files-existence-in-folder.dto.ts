@@ -1,9 +1,17 @@
-import { Transform } from 'class-transformer';
-import { IsString, ArrayMaxSize, IsArray, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsString,
+  ArrayMaxSize,
+  IsOptional,
+  IsNotEmpty,
+  ValidateNested,
+  arrayMinSize,
+  ArrayMinSize,
+} from 'class-validator';
 import { FileAttributes } from '../../file/file.domain';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CheckFileExistenceInFolderDto {
+export class FilesNameAndType {
   @ApiProperty({
     description: 'Type of file',
     example: 'pdf',
@@ -17,16 +25,18 @@ export class CheckFileExistenceInFolderDto {
     description: 'Plain name of file',
     example: 'example',
   })
-  @IsArray()
-  @ArrayMaxSize(50, {
-    message: 'Names parameter cannot contain more than 50 names',
+  @IsString()
+  plainName: FileAttributes['plainName'];
+}
+
+export class CheckFileExistenceInFolderDto {
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Array of files with names and types',
   })
-  @IsString({ each: true })
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return [value];
-    }
-    return value;
-  })
-  plainName: FileAttributes['plainName'][];
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested()
+  @Type(() => FilesNameAndType)
+  files: FilesNameAndType[];
 }

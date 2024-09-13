@@ -43,9 +43,9 @@ export interface FileRepository {
     where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
     nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
   ): Promise<File | null>;
-  findFileByFolderUuid(
-    folderUuid: Folder['uuid'],
-    searchBy: { plainName: File['plainName'][]; type?: File['type'] },
+  findFilesInFolderByName(
+    folderId: Folder['uuid'],
+    searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
   findByNameAndFolderUuid(
     name: FileAttributes['name'],
@@ -536,18 +536,20 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findFileByFolderUuid(
-    folderUuid: Folder['uuid'],
-    searchBy: { plainName: File['plainName'][]; type?: File['type'] },
+  async findFilesInFolderByName(
+    folderId: Folder['uuid'],
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
     const where: WhereOptions<File> = {
-      folderUuid,
-      ...(searchBy?.type ? { type: searchBy.type } : null),
+      folderUuid: folderId,
       status: FileStatus.EXISTS,
     };
 
-    if (searchBy?.plainName?.length) {
-      where.plainName = { [Op.in]: searchBy.plainName };
+    if (searchFilter.length) {
+      where[Op.or] = searchFilter.map((criteria) => ({
+        plainName: criteria.plainName,
+        ...(criteria.type ? { type: criteria.type } : {}),
+      }));
     }
 
     const files = await this.fileModel.findAll({

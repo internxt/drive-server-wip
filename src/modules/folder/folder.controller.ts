@@ -383,7 +383,7 @@ export class FolderController {
     return { existentFolders: folders };
   }
 
-  @Get('/content/:uuid/files/existence')
+  @Post('/content/:uuid/files/existence')
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -399,10 +399,8 @@ export class FolderController {
   async checkFilesExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
-    @Query() query: CheckFileExistenceInFolderDto,
+    @Body() query: CheckFileExistenceInFolderDto,
   ) {
-    const { plainName, type } = query;
-
     const parentFolder = await this.folderUseCases.getFolderByUuidAndUser(
       folderUuid,
       user,
@@ -413,8 +411,8 @@ export class FolderController {
     }
 
     const files = await this.fileUseCases.searchFilesInFolder(
-      parentFolder.uuid,
-      { plainNames: plainName, type },
+      parentFolder,
+      query.files,
     );
 
     return { existentFiles: files };

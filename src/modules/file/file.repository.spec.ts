@@ -84,22 +84,49 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findFileByFolderUuid', () => {
+  describe('findFilesInFolderByName', () => {
     const folderUuid = v4();
 
-    it('When a file is searched, then it should handle the dynamic input', async () => {
-      const searchCriteria = { plainName: ['Report'], type: 'pdf' };
+    it('When multiple files are searched, it should handle an array of search filters', async () => {
+      const searchCriteria = [
+        { plainName: 'Report', type: 'pdf' },
+        { plainName: 'Summary', type: 'doc' },
+      ];
 
-      await repository.findFileByFolderUuid(folderUuid, searchCriteria);
+      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
-          plainName: {
-            [Op.in]: searchCriteria.plainName,
-          },
-          type: searchCriteria.type,
           status: FileStatus.EXISTS,
+          [Op.or]: [
+            {
+              plainName: 'Report',
+              type: 'pdf',
+            },
+            {
+              plainName: 'Summary',
+              type: 'doc',
+            },
+          ],
+        }),
+      });
+    });
+
+    it('When a file is searched with only plainName, it should handle the missing type', async () => {
+      const searchCriteria = [{ plainName: 'Report' }];
+
+      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          folderUuid,
+          status: FileStatus.EXISTS,
+          [Op.or]: [
+            {
+              plainName: 'Report',
+            },
+          ],
         }),
       });
     });
