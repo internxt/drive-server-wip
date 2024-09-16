@@ -83,8 +83,6 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         [Sequelize.literal('"exactMatch"'), 'DESC'], // Prioritize exact matches
         [Sequelize.literal('"rank"'), 'ASC'],
         [Sequelize.literal('"similarity"'), 'DESC'],
-        [Sequelize.col('file.created_at'), 'DESC'],
-        [Sequelize.col('folder.created_at'), 'DESC'],
       ],
       limit: 5,
       offset: offset,
@@ -92,20 +90,12 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       include: [
         {
           model: FileModel,
-          attributes: [
-            'type',
-            'id',
-            'size',
-            'bucket',
-            'fileId',
-            'plainName',
-            'createdAt',
-          ],
+          attributes: ['type', 'id', 'size', 'bucket', 'fileId', 'plainName'],
           as: 'file',
         },
         {
           model: FolderModel,
-          attributes: ['id', 'createdAt'],
+          attributes: ['id'],
           as: 'folder',
         },
       ],
@@ -113,14 +103,6 @@ export class SequelizeLookUpRepository implements LookUpRepository {
 
     return result.map((index) => {
       const raw = index.toJSON();
-      let createdAt = null;
-
-      if (raw.file) {
-        createdAt = raw.file.createdAt;
-      } else if (raw.folder) {
-        createdAt = raw.folder.createdAt;
-      }
-
       const base = {
         id: raw.id,
         itemId: raw.itemId,
@@ -129,7 +111,6 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         name: raw.name,
         rank: raw.rank,
         similarity: raw.similarity,
-        createdAt: createdAt,
       };
       if (raw.file) {
         return { ...base, item: raw.file };
