@@ -45,7 +45,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         include: [
           [
             Sequelize.literal(
-              'nullif(ts_rank("tokenized_name", to_tsquery(:partialName)), 0)',
+              'nullif(ts_rank("tokenized_name", to_tsquery(:partialName)), 1)',
             ),
             'rank',
           ],
@@ -56,6 +56,12 @@ export class SequelizeLookUpRepository implements LookUpRepository {
               partialName,
             ),
             'similarity',
+          ],
+          [
+            Sequelize.literal(
+              `CASE WHEN "LookUpModel"."name" = :partialName THEN 1 ELSE 0 END`,
+            ),
+            'exactMatch',
           ],
         ],
       },
@@ -69,13 +75,16 @@ export class SequelizeLookUpRepository implements LookUpRepository {
               Sequelize.col('LookUpModel.name'),
               partialName,
             ),
-            { [Op.gt]: 0 },
+            { [Op.gt]: 0.0 },
           ),
         ],
       },
       order: [
+        [Sequelize.literal('"exactMatch"'), 'DESC'], // Prioritize exact matches
         [Sequelize.literal('"rank"'), 'ASC'],
         [Sequelize.literal('"similarity"'), 'DESC'],
+        [Sequelize.col('file.created_at'), 'DESC'],
+        [Sequelize.col('folder.created_at'), 'DESC'],
       ],
       limit: 5,
       offset: offset,
@@ -83,12 +92,20 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       include: [
         {
           model: FileModel,
-          attributes: ['type', 'id', 'size', 'bucket', 'fileId', 'plainName'],
+          attributes: [
+            'type',
+            'id',
+            'size',
+            'bucket',
+            'fileId',
+            'plainName',
+            'createdAt',
+          ],
           as: 'file',
         },
         {
           model: FolderModel,
-          attributes: ['id'],
+          attributes: ['id', 'createdAt'],
           as: 'folder',
         },
       ],
@@ -96,6 +113,14 @@ export class SequelizeLookUpRepository implements LookUpRepository {
 
     return result.map((index) => {
       const raw = index.toJSON();
+      let createdAt = null;
+
+      if (raw.file) {
+        createdAt = raw.file.createdAt;
+      } else if (raw.folder) {
+        createdAt = raw.folder.createdAt;
+      }
+
       const base = {
         id: raw.id,
         itemId: raw.itemId,
@@ -104,6 +129,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         name: raw.name,
         rank: raw.rank,
         similarity: raw.similarity,
+        createdAt: createdAt,
       };
       if (raw.file) {
         return { ...base, item: raw.file };
