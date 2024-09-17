@@ -81,7 +81,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       },
       order: [
         [Sequelize.literal('"exactMatch"'), 'DESC'], // Prioritize exact matches
-        [Sequelize.literal('"rank"'), 'ASC'],
+        [Sequelize.literal('"rank"'), 'DESC'],
         [Sequelize.literal('"similarity"'), 'DESC'],
       ],
       limit: 5,
