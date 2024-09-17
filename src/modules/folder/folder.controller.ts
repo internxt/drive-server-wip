@@ -352,7 +352,7 @@ export class FolderController {
     };
   }
 
-  @Get('/content/:uuid/folders/existence')
+  @Post('/content/:uuid/folders/existence')
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -368,15 +368,15 @@ export class FolderController {
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
-    @Query() query: CheckFoldersExistenceDto,
+    @Body() query: CheckFoldersExistenceDto,
   ) {
-    const { plainName } = query;
+    const { plainNames } = query;
 
     const folders = await this.folderUseCases.searchFoldersInFolder(
       user,
       folderUuid,
       {
-        plainNames: plainName,
+        plainNames,
       },
     );
 

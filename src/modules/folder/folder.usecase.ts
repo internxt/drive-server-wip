@@ -544,10 +544,10 @@ export class FolderUseCases {
     });
 
     if (!parentFolder) {
-      throw new BadRequestException('Folder not valid!');
+      throw new BadRequestException('Parent folder not valid');
     }
 
-    return this.folderRepository.findByParentUuid(parentFolder.uuid, {
+    return this.folderRepository.findByParent(parentFolder.id, {
       plainName: plainNames,
       deleted: false,
       removed: false,

@@ -384,7 +384,7 @@ describe('FolderController', () => {
       const result = await folderController.checkFoldersExistenceInFolder(
         user,
         folderUuid,
-        { plainName: plainNames },
+        { plainNames: plainNames },
       );
 
       expect(result).toEqual({ existentFolders: mockFolders });
@@ -401,7 +401,7 @@ describe('FolderController', () => {
       const result = await folderController.checkFoldersExistenceInFolder(
         user,
         folderUuid,
-        { plainName: plainNames },
+        { plainNames: plainNames },
       );
 
       expect(result).toEqual({ existentFolders: [] });
