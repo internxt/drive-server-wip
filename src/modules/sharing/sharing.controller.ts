@@ -56,7 +56,7 @@ import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
-import { UuidDto } from '../../common/uuid.dto';
+import { UuidDto } from '../../common/dto/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import {
   WorkspaceResourcesAction,
