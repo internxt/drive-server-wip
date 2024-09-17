@@ -5,7 +5,6 @@ import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
 import { newFolder } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
-import { v4 } from 'uuid';
 import { Op } from 'sequelize';
 
 jest.mock('./folder.model', () => ({
@@ -111,11 +110,11 @@ describe('SequelizeFolderRepository', () => {
   });
 
   describe('findByParentUuid', () => {
-    const parentUuid = v4();
+    const parentId = 1;
     const plainNames = ['Document', 'Image'];
 
     it('When folders are searched with names, then it should handle the call with names', async () => {
-      await repository.findByParentUuid(parentUuid, {
+      await repository.findByParent(parentId, {
         plainName: plainNames,
         deleted: false,
         removed: false,
@@ -123,7 +122,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
-          parentUuid: parentUuid,
+          parentId,
           plainName: { [Op.in]: plainNames },
           deleted: false,
           removed: false,
@@ -132,7 +131,7 @@ describe('SequelizeFolderRepository', () => {
     });
 
     it('When called without specific criteria, then it should handle the call', async () => {
-      await repository.findByParentUuid(parentUuid, {
+      await repository.findByParent(parentId, {
         plainName: [],
         deleted: false,
         removed: false,
@@ -140,7 +139,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
-          parentUuid: parentUuid,
+          parentId,
           deleted: false,
           removed: false,
         },
