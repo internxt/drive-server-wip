@@ -52,7 +52,6 @@ import {
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { PaginationQueryDto } from './dto/pagination.dto';
 import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
@@ -69,6 +68,7 @@ import { GetItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-share
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { Public } from '../auth/decorators/public.decorator';
+import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -742,7 +742,7 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
-    @Query() pagination: PaginationQueryDto,
+    @Query() pagination: BasicPaginationDto,
     @Query('type') type: WorkspaceItemType,
   ) {
     const { limit, offset } = pagination;
@@ -794,7 +794,7 @@ export class WorkspacesController {
     @Param('folderUuid', ValidateUUIDPipe)
     folderUuid: FolderAttributes['uuid'],
     @UserDecorator() user: User,
-    @Query() pagination: PaginationQueryDto,
+    @Query() pagination: BasicPaginationDto,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
   ) {
@@ -828,7 +828,7 @@ export class WorkspacesController {
     @Param('folderUuid', ValidateUUIDPipe)
     folderUuid: FolderAttributes['uuid'],
     @UserDecorator() user: User,
-    @Query() pagination: PaginationQueryDto,
+    @Query() pagination: BasicPaginationDto,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
   ) {

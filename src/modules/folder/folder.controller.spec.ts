@@ -321,7 +321,10 @@ describe('FolderController', () => {
         .mockResolvedValue(null);
 
       expect(
-        folderController.getFolderContent(userMocked, v4()),
+        folderController.getFolderContent(userMocked, v4(), {
+          limit: 10,
+          offset: 20,
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -355,7 +358,10 @@ describe('FolderController', () => {
 
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedSubfiles);
 
-      const result = await folderController.getFolderContent(userMocked, v4());
+      const result = await folderController.getFolderContent(userMocked, v4(), {
+        limit: 10,
+        offset: 20,
+      });
 
       expect(result).toEqual({
         ...currentFolder,
@@ -384,7 +390,7 @@ describe('FolderController', () => {
       const result = await folderController.checkFoldersExistenceInFolder(
         user,
         folderUuid,
-        { plainName: plainNames },
+        { plainNames: plainNames },
       );
 
       expect(result).toEqual({ existentFolders: mockFolders });
@@ -401,7 +407,7 @@ describe('FolderController', () => {
       const result = await folderController.checkFoldersExistenceInFolder(
         user,
         folderUuid,
-        { plainName: plainNames },
+        { plainNames: plainNames },
       );
 
       expect(result).toEqual({ existentFolders: [] });

@@ -54,6 +54,7 @@ import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
+import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -352,7 +353,7 @@ export class FolderController {
     };
   }
 
-  @Get('/content/:uuid/folders/existence')
+  @Post('/content/:uuid/folders/existence')
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -368,15 +369,15 @@ export class FolderController {
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
-    @Query() query: CheckFoldersExistenceDto,
+    @Body() query: CheckFoldersExistenceDto,
   ) {
-    const { plainName } = query;
+    const { plainNames } = query;
 
     const folders = await this.folderUseCases.searchFoldersInFolder(
       user,
       folderUuid,
       {
-        plainNames: plainName,
+        plainNames,
       },
     );
 
@@ -442,18 +443,27 @@ export class FolderController {
   async getFolderContent(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+    @Query() query: BasicPaginationDto,
   ) {
     const [currentFolder, childrenFolders, files] = await Promise.all([
       this.folderUseCases.getFolderByUuidAndUser(folderUuid, user),
-      this.folderUseCases.getFolders(user.id, {
-        parentUuid: folderUuid,
-        deleted: false,
-        removed: false,
-      }),
-      this.fileUseCases.getFiles(user.id, {
-        folderUuid: folderUuid,
-        status: FileStatus.EXISTS,
-      }),
+      this.folderUseCases.getFolders(
+        user.id,
+        {
+          parentUuid: folderUuid,
+          deleted: false,
+          removed: false,
+        },
+        { limit: query.limit, offset: query.offset },
+      ),
+      this.fileUseCases.getFiles(
+        user.id,
+        {
+          folderUuid: folderUuid,
+          status: FileStatus.EXISTS,
+        },
+        { limit: query.limit, offset: query.offset },
+      ),
     ]);
 
     if (!currentFolder) {

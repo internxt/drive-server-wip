@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, Max, Min } from 'class-validator';
 
-export class PaginationQueryDto {
+export class BasicPaginationDto {
   @ApiProperty({
     description: 'Items per page',
     example: 3,
