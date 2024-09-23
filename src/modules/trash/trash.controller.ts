@@ -36,8 +36,8 @@ import {
   DeleteItemsDto,
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
-import { Folder } from '../folder/folder.domain';
-import { File, FileStatus } from '../file/file.domain';
+import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
+import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { Response } from 'express';
@@ -48,6 +48,7 @@ import {
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { BasicPaginationDto } from 'src/common/dto/basic-pagination.dto';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -68,12 +69,12 @@ export class TrashController {
   @ApiOkResponse({ description: 'Files on trash for a given folder' })
   async getTrashedFilesPaginated(
     @UserDecorator() user: User,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
+    @Query() pagination: BasicPaginationDto,
     @Query('type') type: 'files' | 'folders',
-    @Res({ passthrough: true }) res: Response,
+    @Query('sort') sort?: SortableFolderAttributes | SortableFileAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
-    if (!limit || offset === undefined || !type) {
+    if (!pagination.limit || pagination.offset === undefined || !type) {
       throw new BadRequestException();
     }
 
@@ -81,7 +82,7 @@ export class TrashController {
       throw new BadRequestException();
     }
 
-    if (limit < 1 || limit > 50) {
+    if (pagination.limit < 1 || pagination.limit > 50) {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
@@ -92,13 +93,21 @@ export class TrashController {
         result = await this.fileUseCases.getFiles(
           user.id,
           { status: FileStatus.TRASHED },
-          { limit, offset },
+          {
+            limit: pagination.limit,
+            offset: pagination.offset,
+            sort: sort && order && [[sort, order]],
+          },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
           { deleted: true, removed: false },
-          { limit, offset },
+          {
+            limit: pagination.limit,
+            offset: pagination.offset,
+            sort: sort && order && [[sort as SortableFolderAttributes, order]],
+          },
         );
       }
 
@@ -113,9 +122,8 @@ export class TrashController {
           uuid,
         })} STACK: ${(error as Error).stack}`,
       );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
 
-      return { error: 'Internal Server Error' };
+      throw new InternalServerErrorException();
     }
   }
 
