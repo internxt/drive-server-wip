@@ -40,7 +40,6 @@ import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
 import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
-import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import {
   WorkspaceResourcesAction,
@@ -48,7 +47,7 @@ import {
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { BasicPaginationDto } from 'src/common/dto/basic-pagination.dto';
+import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
