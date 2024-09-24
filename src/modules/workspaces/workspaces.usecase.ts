@@ -65,7 +65,7 @@ import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
 import { SharingService } from '../sharing/sharing.service';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { CryptoService } from '../../externals/crypto/crypto.service';
+import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -75,7 +75,6 @@ export class WorkspacesUsecases {
     private readonly sharingUseCases: SharingService,
     private readonly paymentService: PaymentsService,
     private networkService: BridgeService,
-    private cryptoService: CryptoService,
     private userRepository: SequelizeUserRepository,
     private userUsecases: UserUseCases,
     private configService: ConfigService,
@@ -1021,21 +1020,7 @@ export class WorkspacesUsecases {
         options,
       );
 
-    const sharedRootToken = generateWithDefaultSecret(
-      {
-        isRootToken: true,
-        workspace: {
-          workspaceId,
-        },
-        owner: {
-          id: user.id,
-          uuid: user.uuid,
-        },
-      },
-      '1d',
-    );
-
-    return { ...response, token: sharedRootToken };
+    return { ...response, token: '' };
   }
 
   async getSharedFoldersInWorkspace(
@@ -1058,21 +1043,7 @@ export class WorkspacesUsecases {
         options,
       );
 
-    const sharedRootToken = generateWithDefaultSecret(
-      {
-        isRootToken: true,
-        workspace: {
-          workspaceId,
-        },
-        owner: {
-          id: user.id,
-          uuid: user.uuid,
-        },
-      },
-      '1d',
-    );
-
-    return { ...response, token: sharedRootToken };
+    return { ...response, token: '' };
   }
 
   async getItemsInSharedFolder(
@@ -1152,64 +1123,52 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Item not found in workspace');
     }
 
-    const folder = await this.folderUseCases.getByUuid(folderUuid);
+    const currentFolder = await this.folderUseCases.getByUuid(folderUuid);
 
-    if (folder.isTrashed()) {
+    if (currentFolder.isTrashed()) {
       throw new BadRequestException('This folder is trashed');
     }
 
-    if (folder.isRemoved()) {
+    if (currentFolder.isRemoved()) {
       throw new BadRequestException('This folder is removed');
     }
 
-    const parentFolder = folder.parentUuid
-      ? await this.folderUseCases.getByUuid(folder.parentUuid)
-      : null;
+    const parentFolder =
+      currentFolder.parentUuid &&
+      (await this.folderUseCases.getByUuid(currentFolder.parentUuid));
 
     if (itemFolder.isOwnedBy(user)) {
-      const itemsInFolder =
+      const getItemsFromFolder =
         itemsType === WorkspaceItemType.Folder
-          ? await getFoldersFromFolder(itemFolder.createdBy, folder.uuid)
-          : await getFilesFromFolder(itemFolder.createdBy, folder.uuid);
+          ? getFoldersFromFolder
+          : getFilesFromFolder;
+
+      const itemsInFolder = await getItemsFromFolder(
+        itemFolder.createdBy,
+        currentFolder.uuid,
+      );
 
       return {
         items: itemsInFolder,
-        name: folder.plainName,
+        name: currentFolder.plainName,
         bucket: '',
         encryptionKey: null,
         token: '',
         parent: {
-          uuid: parentFolder?.uuid || null,
-          name: parentFolder?.plainName || null,
+          uuid: parentFolder?.uuid ?? null,
+          name: parentFolder?.plainName ?? null,
         },
         role: 'OWNER',
       };
     }
 
-    const requestedFolderIsSharedRootFolder = !token;
+    const isSharedRootFolderRequest = !token;
 
-    const decoded = requestedFolderIsSharedRootFolder
+    const decodedAccessToken = isSharedRootFolderRequest
       ? null
-      : (verifyWithDefaultSecret(token) as
-          | {
-              sharedRootFolderId: Folder['uuid'];
-              sharedWithType: SharedWithType;
-              parentFolderId: Folder['parent']['uuid'];
-              folder: {
-                uuid: Folder['uuid'];
-                id: Folder['id'];
-              };
-              workspace: {
-                workspaceId: Workspace['id'];
-              };
-              owner: {
-                id: User['id'];
-                uuid: User['uuid'];
-              };
-            }
-          | string);
+      : (verifyWithDefaultSecret(token) as SharingAccessTokenData);
 
-    if (typeof decoded === 'string') {
+    if (typeof decodedAccessToken === 'string') {
       throw new ForbiddenException('Invalid token');
     }
 
@@ -1218,18 +1177,18 @@ export class WorkspacesUsecases {
       workspaceId,
     );
 
-    const teamsIds = teamsUserBelongsTo.map((team) => team.id);
+    const teamIds = teamsUserBelongsTo.map((team) => team.id);
 
     const itemSharedWithTeam =
       await this.sharingUseCases.findSharingsBySharedWithAndAttributes(
-        teamsIds,
+        teamIds,
         {
           sharedWithType: SharedWithType.WorkspaceTeam,
-          itemId: requestedFolderIsSharedRootFolder
+          itemId: isSharedRootFolderRequest
             ? folderUuid
-            : decoded.sharedRootFolderId,
+            : decodedAccessToken.sharedRootFolderId,
         },
-        { limit: 1, offset: 0 },
+        { limit: 1, offset: 0, givePriorityToRole: 'EDITOR' },
       );
 
     const sharing = itemSharedWithTeam[0];
@@ -1238,19 +1197,19 @@ export class WorkspacesUsecases {
       throw new ForbiddenException('Team does not have access to this folder');
     }
 
-    if (!requestedFolderIsSharedRootFolder) {
-      const navigationUp = folder.uuid === decoded.parentFolderId;
-      const navigationDown = folder.parentId === decoded.folder.id;
+    if (!isSharedRootFolderRequest) {
+      const {
+        folder: sourceFolder,
+        parentFolderId: sourceParentFolderId,
+        sharedRootFolderId,
+      } = decodedAccessToken;
+
+      const navigationUp = currentFolder.uuid === sourceParentFolderId;
+      const navigationDown = currentFolder.parentId === sourceFolder.id;
       const navigationUpFromSharedFolder =
-        navigationUp && decoded.sharedRootFolderId === decoded.folder.uuid;
+        navigationUp && sharedRootFolderId === sourceFolder.uuid;
 
-      if (navigationUpFromSharedFolder) {
-        throw new ForbiddenException(
-          'Team does not have access to this folder',
-        );
-      }
-
-      if (!navigationDown && !navigationUp) {
+      if (navigationUpFromSharedFolder || (!navigationDown && !navigationUp)) {
         throw new ForbiddenException(
           'Team does not have access to this folder',
         );
@@ -1260,19 +1219,21 @@ export class WorkspacesUsecases {
     const { workspaceUser, workspace } =
       await this.workspaceRepository.findWorkspaceAndDefaultUser(workspaceId);
 
-    const [ownerRootFolder, items, sharingRole] = await Promise.all([
-      this.folderUseCases.getFolderByUserId(
-        workspaceUser.rootFolderId,
-        workspaceUser.id,
-      ),
-      itemsType === WorkspaceItemType.Folder
-        ? await getFoldersFromFolder(itemFolder.createdBy, folder.uuid)
-        : await getFilesFromFolder(itemFolder.createdBy, folder.uuid),
-      this.sharingUseCases.findSharingRoleBy({ sharingId: sharing.id }),
-    ]);
+    const [ownerRootFolder, folderItems, sharingAccessRole] = await Promise.all(
+      [
+        this.folderUseCases.getFolderByUserId(
+          workspaceUser.rootFolderId,
+          workspaceUser.id,
+        ),
+        itemsType === WorkspaceItemType.Folder
+          ? await getFoldersFromFolder(itemFolder.createdBy, currentFolder.uuid)
+          : await getFilesFromFolder(itemFolder.createdBy, currentFolder.uuid),
+        this.sharingUseCases.findSharingRoleBy({ sharingId: sharing.id }),
+      ],
+    );
 
     return {
-      items,
+      items: folderItems,
       credentials: {
         networkPass: workspaceUser.userId,
         networkUser: workspaceUser.bridgeUser,
@@ -1283,8 +1244,8 @@ export class WorkspacesUsecases {
           sharedWithType: sharing.sharedWithType,
           parentFolderId: parentFolder?.uuid || null,
           folder: {
-            uuid: folder.uuid,
-            id: folder.id,
+            uuid: currentFolder.uuid,
+            id: currentFolder.id,
           },
           workspace: {
             workspaceId: workspace.id,
@@ -1301,8 +1262,8 @@ export class WorkspacesUsecases {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
       },
-      name: folder.plainName,
-      role: sharingRole.role.name,
+      name: currentFolder.plainName,
+      role: sharingAccessRole.role.name,
     };
   }
 

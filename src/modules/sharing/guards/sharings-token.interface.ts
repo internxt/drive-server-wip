@@ -4,12 +4,18 @@ import { Workspace } from '../../workspaces/domains/workspaces.domain';
 import { SharedWithType } from '../sharing.domain';
 
 export interface SharingAccessTokenData {
-  owner?: {
-    uuid?: User['uuid'];
-  };
   sharedRootFolderId?: FolderAttributes['uuid'];
   sharedWithType: SharedWithType;
+  parentFolderId?: FolderAttributes['parent']['uuid'];
+  owner?: {
+    uuid?: User['uuid'];
+    id?: User['id'];
+  };
   workspace?: {
     workspaceId: Workspace['id'];
+  };
+  folder?: {
+    uuid: FolderAttributes['uuid'];
+    id: FolderAttributes['id'];
   };
 }

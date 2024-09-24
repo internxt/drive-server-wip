@@ -456,7 +456,7 @@ export class SequelizeSharingRepository implements SharingRepository {
   async findSharingsBySharedWithAndAttributes(
     sharedWithValues: SharingAttributes['sharedWith'][],
     filters: Omit<Partial<SharingAttributes>, 'sharedWith'> = {},
-    options?: { offset: number; limit: number },
+    options?: { offset: number; limit: number; givePriorityToRole?: string },
   ): Promise<Sharing[]> {
     const where: WhereOptions<SharingAttributes> = {
       ...filters,
@@ -464,10 +464,28 @@ export class SequelizeSharingRepository implements SharingRepository {
         [Op.in]: sharedWithValues,
       },
     };
+
+    const queryOrder = [];
+    if (options?.givePriorityToRole) {
+      queryOrder.push([
+        sequelize.literal(
+          `CASE WHEN "role->role"."name" = '${options.givePriorityToRole}' THEN 1 ELSE 2 END`,
+        ),
+        'ASC',
+      ]);
+    }
+
     const sharings = await this.sharings.findAll({
       where,
+      include: [
+        {
+          model: SharingRolesModel,
+          include: [RoleModel],
+        },
+      ],
       limit: options.limit,
       offset: options.offset,
+      order: queryOrder,
     });
 
     return sharings.map((sharing) =>
@@ -493,14 +511,13 @@ export class SequelizeSharingRepository implements SharingRepository {
           },
         ],
       },
-      attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
+      attributes: ['createdAt'],
       group: [
         'file.id',
         'file->workspaceUser.id',
         'file->workspaceUser->creator.id',
         'SharingModel.item_id',
+        'SharingModel.id',
       ],
       include: [
         {

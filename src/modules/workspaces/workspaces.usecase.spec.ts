@@ -2454,7 +2454,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2473,7 +2472,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2491,7 +2489,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2522,7 +2519,6 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getItemsInSharedFolder(
         workspaceId,
-        teamId,
         user,
         folderUuid,
         itemsType,
@@ -2561,7 +2557,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2571,13 +2566,15 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When team does not have access to the folder, then it should throw', async () => {
+    it('When user team does not have access to the folder, then it should throw', async () => {
       const folder = newFolder();
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(folder);
       jest
         .spyOn(workspaceRepository, 'getItemBy')
         .mockResolvedValue(newWorkspaceItemUser());
-      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(null);
+      jest
+        .spyOn(sharingUseCases, 'findSharingsBySharedWithAndAttributes')
+        .mockResolvedValue([]);
 
       (verifyWithDefaultSecret as jest.Mock).mockReturnValue({
         sharedRootFolderId: v4(),
@@ -2586,7 +2583,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2636,7 +2632,6 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getItemsInSharedFolder(
         workspaceId,
-        teamId,
         user,
         folderUuid,
         itemsType,
@@ -2688,7 +2683,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2724,7 +2718,6 @@ describe('WorkspacesUsecases', () => {
       await expect(
         service.getItemsInSharedFolder(
           workspaceId,
-          teamId,
           user,
           folderUuid,
           itemsType,
@@ -2755,7 +2748,6 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getItemsInSharedFolder(
         workspaceId,
-        teamId,
         user,
         folderUuid,
         WorkspaceItemType.File,
@@ -2821,7 +2813,6 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.getItemsInSharedFolder(
         workspaceId,
-        teamId,
         user,
         folderUuid,
         WorkspaceItemType.File,

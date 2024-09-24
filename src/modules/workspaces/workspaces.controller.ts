@@ -791,8 +791,6 @@ export class WorkspacesController {
   async getFilesInsideSharedFolder(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-    @Param('teamId', ValidateUUIDPipe)
-    teamId: WorkspaceTeam['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,

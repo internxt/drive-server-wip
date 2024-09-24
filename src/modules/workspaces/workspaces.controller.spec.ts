@@ -567,7 +567,6 @@ describe('Workspace Controller', () => {
     it('When files inside a shared folder are requested, then it should call the service with the respective arguments', async () => {
       const user = newUser();
       const workspaceId = v4();
-      const teamId = v4();
       const sharedFolderId = v4();
       const orderBy = 'createdAt:ASC';
       const token = 'token';
@@ -577,7 +576,6 @@ describe('Workspace Controller', () => {
 
       await workspacesController.getFilesInsideSharedFolder(
         workspaceId,
-        teamId,
         user,
         sharedFolderId,
         { token, page, perPage, orderBy },
@@ -585,7 +583,6 @@ describe('Workspace Controller', () => {
 
       expect(workspacesUsecases.getItemsInSharedFolder).toHaveBeenCalledWith(
         workspaceId,
-        teamId,
         user,
         sharedFolderId,
         WorkspaceItemType.File,

@@ -222,7 +222,7 @@ export class SharingService {
   findSharingsBySharedWithAndAttributes(
     sharedWithValues: Sharing['sharedWith'][],
     filters: Omit<Partial<Sharing>, 'sharedWith'> = {},
-    options?: { offset: number; limit: number },
+    options?: { offset: number; limit: number; givePriorityToRole?: string },
   ): Promise<Sharing[]> {
     return this.sharingRepository.findSharingsBySharedWithAndAttributes(
       sharedWithValues,
@@ -1840,19 +1840,6 @@ export class SharingService {
       }),
     )) as FolderWithSharedInfo[];
 
-    const sharedRootToken = generateWithDefaultSecret(
-      {
-        isRootToken: true,
-        workspace: {
-          workspaceId,
-        },
-        owner: {
-          uuid: user.uuid,
-        },
-      },
-      '1d',
-    );
-
     return {
       folders: folders,
       files: [],
@@ -1860,7 +1847,7 @@ export class SharingService {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
       },
-      token: sharedRootToken,
+      token: '',
       role: 'OWNER',
     };
   }
@@ -1995,20 +1982,6 @@ export class SharingService {
       }),
     )) as FileWithSharedInfo[];
 
-    const sharedRootToken = generateWithDefaultSecret(
-      {
-        isRootToken: true,
-        workspace: {
-          workspaceId,
-        },
-        owner: {
-          id: user.id,
-          uuid: user.uuid,
-        },
-      },
-      '1d',
-    );
-
     return {
       folders: [],
       files: files,
@@ -2016,7 +1989,7 @@ export class SharingService {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
       },
-      token: sharedRootToken,
+      token: '',
       role: 'OWNER',
     };
   }
