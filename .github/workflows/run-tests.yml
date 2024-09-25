@@ -37,11 +37,6 @@ jobs:
       - run: echo //npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_ACCESS_TOKEN }} >> .npmrc
       - run: echo "always-auth=true" >> .npmrc
 
-      - name: Setup environment
-        uses: isbang/compose-action@v1.4.1
-        with:
-          compose-file: './infrastructure/docker-compose.yml'
-
       - name: Install dependencies
         run: yarn
 

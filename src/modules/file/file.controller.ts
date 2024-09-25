@@ -7,10 +7,17 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
@@ -21,6 +28,16 @@ import { File } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { CreateFileDto } from './dto/create-file.dto';
+import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../sharing/sharing.domain';
+import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Client } from '../auth/decorators/client.decorator';
 import { FolderUseCases } from '../folder/folder.usecase';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
@@ -30,8 +47,32 @@ const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 export class FileController {
   constructor(
     private readonly fileUseCases: FileUseCases,
+    private readonly storageNotificationService: StorageNotificationService,
     private readonly folderUseCases: FolderUseCases,
   ) {}
+
+  @Post('/')
+  @ApiOperation({
+    summary: 'Create File',
+  })
+  @ApiBearerAuth()
+  @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @UseGuards(SharingPermissionsGuard)
+  async createFile(
+    @UserDecorator() user: User,
+    @Body() createFileDto: CreateFileDto,
+    @Client() clientId: string,
+  ) {
+    const file = await this.fileUseCases.createFile(user, createFileDto);
+
+    this.storageNotificationService.fileCreated({
+      payload: file,
+      user: user,
+      clientId,
+    });
+
+    return file;
+  }
 
   @Get('/count')
   async getFileCount(
@@ -56,6 +97,18 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
   async getFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
@@ -85,10 +138,23 @@ export class FileController {
   }
 
   @Put('/:uuid')
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
     @Body() fileData: ReplaceFileDto,
+    @Client() clientId: string,
   ) {
     try {
       const file = await this.fileUseCases.replaceFile(
@@ -97,20 +163,70 @@ export class FileController {
         fileData,
       );
 
+      this.storageNotificationService.fileUpdated({
+        payload: file,
+        user: user,
+        clientId,
+      });
+
       return file;
     } catch (error) {
       const err = error as Error;
       const { email, uuid } = user;
       Logger.error(
-        `[SHARING/REPLACE] Error while replacing file. CONTEXT:${JSON.stringify(
-          {
-            user: { email, uuid },
-          },
-        )}}, STACK: ${err.stack || 'No stack trace'}`,
+        `[FILE/REPLACE] Error while replacing file. CONTEXT:${JSON.stringify({
+          user: { email, uuid },
+        })}}, STACK: ${err.stack || 'No stack trace'}`,
       );
 
       throw error;
     }
+  }
+
+  @Put('/:uuid/meta')
+  @ApiOperation({
+    summary: 'Update File data',
+  })
+  @ApiBearerAuth()
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'file uuid',
+  })
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @RequiredSharingPermissions(SharingActionName.RenameItems)
+  @WorkspacesInBehalfValidationFile()
+  async updateFileMetadata(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe)
+    fileUuid: File['uuid'],
+    @Body() updateFileMetaDto: UpdateFileMetaDto,
+    @Client() clientId: string,
+  ) {
+    const result = await this.fileUseCases.updateFileMetaData(
+      user,
+      fileUuid,
+      updateFileMetaDto,
+    );
+
+    this.storageNotificationService.fileUpdated({
+      payload: result,
+      user: user,
+      clientId,
+    });
+
+    return result;
   }
 
   @Get('/')
@@ -119,6 +235,7 @@ export class FileController {
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: (typeof filesStatuses)[number],
+    @Query('bucket') bucket?: File['bucket'],
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
@@ -166,6 +283,7 @@ export class FileController {
       user.id,
       new Date(updatedAt || 1),
       { limit, offset, sort: sort && order && [[sort, order]] },
+      bucket,
     );
 
     return files.map((f) => {
@@ -183,10 +301,23 @@ export class FileController {
   }
 
   @Patch('/:uuid')
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
   async moveFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
     @Body() moveFileData: MoveFileDto,
+    @Client() clientId: string,
   ) {
     if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -196,6 +327,13 @@ export class FileController {
       fileUuid,
       moveFileData.destinationFolder,
     );
+
+    this.storageNotificationService.fileUpdated({
+      payload: file,
+      user: user,
+      clientId,
+    });
+
     return file;
   }
 

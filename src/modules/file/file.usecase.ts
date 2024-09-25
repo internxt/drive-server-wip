@@ -24,12 +24,16 @@ import {
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { Folder } from '../folder/folder.domain';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import path from 'path';
+import { v4 } from 'uuid';
+import { CreateFileDto } from './dto/create-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { Folder } from '../folder/folder.domain';
 
 type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -47,6 +51,13 @@ export class FileUseCases {
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
     return this.fileRepository.findById(uuid);
+  }
+
+  getByUuidsAndUser(
+    user: User,
+    uuids: FileAttributes['uuid'][],
+  ): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids, { userId: user.id });
   }
 
   getByUserExceptParents(arg: any): Promise<File[]> {
@@ -73,6 +84,128 @@ export class FileUseCases {
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
     return this.fileRepository.findByUuids(uuids);
+  }
+
+  async createFile(user: User, newFileDto: CreateFileDto) {
+    const folder = await this.folderUsecases.getByUuid(newFileDto.folderUuid);
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const isTheFolderOwner = folder.isOwnedBy(user);
+
+    if (!isTheFolderOwner) {
+      throw new ForbiddenException('Folder is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFileDto.plainName,
+      folder.id,
+    );
+
+    const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
+      name: cryptoFileName,
+      plainName: newFileDto.plainName,
+      folderId: folder.id,
+      ...(newFileDto.type ? { type: newFileDto.type } : null),
+      userId: user.id,
+      status: FileStatus.EXISTS,
+    });
+
+    const fileAlreadyExists = !!maybeAlreadyExistentFile;
+
+    if (fileAlreadyExists) {
+      throw new ConflictException('File already exists');
+    }
+
+    const newFile = await this.fileRepository.create({
+      uuid: v4(),
+      name: cryptoFileName,
+      plainName: newFileDto.plainName,
+      type: newFileDto.type,
+      size: newFileDto.size,
+      folderId: folder.id,
+      fileId: newFileDto.fileId,
+      bucket: newFileDto.bucket,
+      encryptVersion: newFileDto.encryptVersion,
+      userId: user.id,
+      folderUuid: folder.uuid,
+      modificationTime: newFileDto.modificationTime || new Date(),
+      deleted: false,
+      deletedAt: null,
+      removed: false,
+      createdAt: newFileDto.date ?? new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      status: FileStatus.EXISTS,
+      creationTime: new Date(),
+    });
+
+    return newFile;
+  }
+
+  async searchFilesInFolder(
+    folder: Folder,
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
+  ): Promise<File[]> {
+    return this.fileRepository.findFilesInFolderByName(
+      folder.uuid,
+      searchFilter,
+    );
+  }
+
+  async updateFileMetaData(
+    user: User,
+    fileUuid: File['uuid'],
+    newFileMetada: UpdateFileMetaDto,
+  ) {
+    const file = await this.fileRepository.findOneBy({
+      uuid: fileUuid,
+      status: FileStatus.EXISTS,
+    });
+
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('This file is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFileMetada.plainName,
+      file.folderId,
+    );
+
+    const fileWithSameNameExists = await this.fileRepository.findFileByName(
+      {
+        folderId: file.folderId,
+        type: file.type,
+        status: FileStatus.EXISTS,
+      },
+      { name: cryptoFileName, plainName: newFileMetada.plainName },
+    );
+
+    if (fileWithSameNameExists) {
+      throw new ConflictException(
+        'A file with this name already exists in this location',
+      );
+    }
+
+    await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
+      plainName: newFileMetada.plainName,
+      name: cryptoFileName,
+    });
+
+    return {
+      ...file.toJSON(),
+      name: cryptoFileName,
+      plainName: newFileMetada.plainName,
+    };
+  }
+
+  async getFilesByFolderUuid(
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileStatus,
+  ) {
+    return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
   }
 
   async getFilesByFolderId(
@@ -111,49 +244,60 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number; sort?: SortParams },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
+    const where: Partial<FileAttributes> = {};
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      {
-        status: FileStatus.EXISTS,
-      },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      { status: FileStatus.DELETED },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      { status: FileStatus.TRASHED },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   async getFilesUpdatedAfter(
@@ -199,6 +343,63 @@ export class FileUseCases {
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnails(
           { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+
+    const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesWithThumbnailsModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getWorkspaceFilesSizeSumByStatuses(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+  ) {
+    return this.fileRepository.getSumSizeOfFilesInWorkspaceByStatuses(
+      createdBy,
+      workspaceId,
+      statuses,
+    );
+  }
+
+  async getFilesInWorkspace(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParams;
+      withoutThumbnails?: boolean;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    let filesWithMaybePlainName;
+    if (options?.withoutThumbnails)
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorInWorkspace(
+          createdBy,
+          workspaceId,
+          { ...where },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+    else
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorWithThumbnailsInWorkspace(
+          createdBy,
+          workspaceId,
+          { ...where },
           options.limit,
           options.offset,
           options.sort,

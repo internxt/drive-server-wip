@@ -42,6 +42,7 @@ describe('FileController', () => {
     hKey: undefined,
     secret_2FA: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
@@ -59,6 +60,7 @@ describe('FileController', () => {
   });
 
   describe('move file', () => {
+    const clientId = 'drive-web';
     it('When move file is requested with valid params, then the file is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
       const expectedFile = newFile({
@@ -73,23 +75,38 @@ describe('FileController', () => {
 
       jest.spyOn(fileUseCases, 'moveFile').mockResolvedValue(expectedFile);
 
-      const result = await fileController.moveFile(userMocked, file.uuid, {
-        destinationFolder: destinationFolder.uuid,
-      });
+      const result = await fileController.moveFile(
+        userMocked,
+        file.uuid,
+        {
+          destinationFolder: destinationFolder.uuid,
+        },
+        clientId,
+      );
       expect(result).toEqual(expectedFile);
     });
 
     it('When move file is requested with invalid params, then it should throw an error', () => {
       expect(
-        fileController.moveFile(userMocked, 'invaliduuid', {
-          destinationFolder: v4(),
-        }),
+        fileController.moveFile(
+          userMocked,
+          'invaliduuid',
+          {
+            destinationFolder: v4(),
+          },
+          clientId,
+        ),
       ).rejects.toThrow(BadRequestException);
 
       expect(
-        fileController.moveFile(userMocked, v4(), {
-          destinationFolder: 'invaliduuid',
-        }),
+        fileController.moveFile(
+          userMocked,
+          v4(),
+          {
+            destinationFolder: 'invaliduuid',
+          },
+          clientId,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });

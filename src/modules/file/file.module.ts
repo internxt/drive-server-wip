@@ -12,6 +12,9 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { UserModule } from '../user/user.module';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,8 +23,11 @@ import { SharingModule } from '../sharing/sharing.module';
     forwardRef(() => FolderModule),
     forwardRef(() => ThumbnailModule),
     forwardRef(() => SharingModule),
+    forwardRef(() => WorkspacesModule),
     BridgeModule,
     CryptoModule,
+    UserModule,
+    NotificationModule,
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],

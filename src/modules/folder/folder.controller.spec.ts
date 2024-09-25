@@ -2,7 +2,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder } from '../../../test/fixtures';
+import { newFile, newFolder, newUser } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import {
   BadRequestInvalidOffsetException,
@@ -14,6 +14,7 @@ import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
+import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 
 describe('FolderController', () => {
   let folderController: FolderController;
@@ -48,6 +49,7 @@ describe('FolderController', () => {
     hKey: undefined,
     secret_2FA: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
@@ -57,7 +59,9 @@ describe('FolderController', () => {
         { provide: FolderUseCases, useValue: createMock() },
         { provide: FileUseCases, useValue: createMock() },
       ],
-    }).compile();
+    })
+      .useMocker(createMock)
+      .compile();
 
     folderController = module.get<FolderController>(FolderController);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
@@ -84,6 +88,31 @@ describe('FolderController', () => {
       await expect(folderController.getFolderSize(folder.uuid)).rejects.toThrow(
         CalculateFolderSizeTimeoutException,
       );
+    });
+  });
+
+  describe('getFolderTree', () => {
+    it('When folder tree is requested, then it should return the tree', async () => {
+      const user = newUser();
+      const folder = newFolder();
+      const mockFolderTree = {
+        ...folder,
+        children: [
+          {
+            ...newFolder({
+              attributes: { parentUuid: folder.uuid, parentId: folder.id },
+            }),
+          },
+        ],
+        files: [],
+      };
+
+      jest
+        .spyOn(folderUseCases, 'getFolderTree')
+        .mockResolvedValue(mockFolderTree);
+
+      const result = await folderController.getFolderTree(user, folder.uuid);
+      expect(result).toEqual({ tree: mockFolderTree });
     });
   });
 
@@ -235,6 +264,8 @@ describe('FolderController', () => {
   });
 
   describe('move folder', () => {
+    const clientId = 'drive-web';
+
     it('When move folder is requested with valid params, then the folder is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
       const expectedFolder = newFolder({
@@ -253,22 +284,196 @@ describe('FolderController', () => {
         userMocked,
         folder.uuid,
         { destinationFolder: destinationFolder.uuid },
+        clientId,
       );
       expect(result).toEqual(expectedFolder);
     });
 
     it('When move folder is requested with invalid params, then it should throw an error', () => {
       expect(
-        folderController.moveFolder(userMocked, 'invaliduuid', {
-          destinationFolder: v4(),
-        }),
+        folderController.moveFolder(
+          userMocked,
+          'invaliduuid',
+          {
+            destinationFolder: v4(),
+          },
+          clientId,
+        ),
       ).rejects.toThrow(BadRequestException);
 
       expect(
-        folderController.moveFolder(userMocked, v4(), {
-          destinationFolder: 'invaliduuid',
+        folderController.moveFolder(
+          userMocked,
+          v4(),
+          {
+            destinationFolder: 'invaliduuid',
+          },
+          clientId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getFolderContent', () => {
+    it('When folde content is requested and the current folder is not found, then it should throw', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(null);
+
+      expect(
+        folderController.getFolderContent(userMocked, v4(), {
+          limit: 10,
+          offset: 20,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder content is requested, then children folders and files should be returned', async () => {
+      const currentFolder = newFolder();
+
+      const expectedSubfiles = [
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+        newFile({ attributes: { folderUuid: currentFolder.uuid } }),
+      ];
+
+      const expectedSubfolders = [
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+        newFolder({ attributes: { parentUuid: currentFolder.uuid } }),
+      ];
+
+      const mappedSubfolders = expectedSubfolders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      }));
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(currentFolder);
+
+      jest
+        .spyOn(folderUseCases, 'getFolders')
+        .mockResolvedValue(expectedSubfolders);
+
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedSubfiles);
+
+      const result = await folderController.getFolderContent(userMocked, v4(), {
+        limit: 10,
+        offset: 20,
+      });
+
+      expect(result).toEqual({
+        ...currentFolder,
+        status: currentFolder.getFolderStatus(),
+        children: mappedSubfolders,
+        files: expectedSubfiles,
+      });
+    });
+  });
+
+  describe('checkFoldersExistenceInFolder', () => {
+    const user = newUser();
+    const folderUuid = v4();
+    const plainNames = ['Documents', 'Photos'];
+
+    it('When valid folderUuid and plainNames are provided, then it should return existent folders', async () => {
+      const mockFolders = [
+        newFolder({ attributes: { plainName: 'Documents', userId: user.id } }),
+        newFolder({ attributes: { plainName: 'Photos', userId: user.id } }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'searchFoldersInFolder')
+        .mockResolvedValue(mockFolders);
+
+      const result = await folderController.checkFoldersExistenceInFolder(
+        user,
+        folderUuid,
+        { plainNames: plainNames },
+      );
+
+      expect(result).toEqual({ existentFolders: mockFolders });
+      expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
+        user,
+        folderUuid,
+        { plainNames },
+      );
+    });
+
+    it('When folders are not found, then it should return an empty array', async () => {
+      jest.spyOn(folderUseCases, 'searchFoldersInFolder').mockResolvedValue([]);
+
+      const result = await folderController.checkFoldersExistenceInFolder(
+        user,
+        folderUuid,
+        { plainNames: plainNames },
+      );
+
+      expect(result).toEqual({ existentFolders: [] });
+      expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
+        user,
+        folderUuid,
+        { plainNames },
+      );
+    });
+  });
+
+  describe('checkFilesExistenceInFolder', () => {
+    const user = newUser();
+    const folderUuid = v4();
+    const plainName = 'Report.pdf';
+    const type = 'document';
+    const query = { files: [{ plainName, type }] };
+
+    it('When files exist matching the criteria, then it should return the files', async () => {
+      const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
+      const mockFiles = [
+        newFile({ attributes: { plainName: 'Report.pdf', type: 'document' } }),
+        newFile({ attributes: { plainName: 'Image.png', type: 'image' } }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(parentFolder);
+      jest
+        .spyOn(fileUseCases, 'searchFilesInFolder')
+        .mockResolvedValue(mockFiles);
+
+      const result = await folderController.checkFilesExistenceInFolder(
+        user,
+        folderUuid,
+        query,
+      );
+
+      expect(result).toEqual({ existentFiles: mockFiles });
+    });
+
+    it('When no files match the criteria, then it should return an empty array', async () => {
+      const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(parentFolder);
+      jest.spyOn(fileUseCases, 'searchFilesInFolder').mockResolvedValue([]);
+
+      const result = await folderController.checkFilesExistenceInFolder(
+        user,
+        folderUuid,
+        query,
+      );
+
+      expect(result).toEqual({ existentFiles: [] });
+    });
+
+    it('When the parent folder does not exist, then it should throw', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        folderController.checkFilesExistenceInFolder(user, folderUuid, query),
+      ).rejects.toThrow(InvalidParentFolderException);
     });
   });
 });

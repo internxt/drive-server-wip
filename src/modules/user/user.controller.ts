@@ -28,6 +28,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -66,6 +67,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
+import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -98,6 +100,8 @@ export class UserController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+
     try {
       const response = await this.userUseCases.createUser(createUserDto);
       const keys = await this.keyServerUseCases.addKeysToUser(
@@ -137,6 +141,9 @@ export class UserController {
         user: {
           ...response.user,
           root_folder_id: response.user.rootFolderId,
+          ...(isDriveWeb
+            ? { rootFolderId: response.user.rootFolderUuid }
+            : null),
           ...keys,
         },
         token: response.token,
@@ -393,9 +400,10 @@ export class UserController {
     }
 
     const { token, newToken } = this.userUseCases.getAuthTokens(user);
+    const avatar = await this.userUseCases.getAvatarUrl(user.avatar);
 
     return {
-      user: await this.userUseCases.getUser(user.uuid),
+      user: { ...user, avatar },
       oldToken: token,
       newToken: newToken,
     };
@@ -778,5 +786,20 @@ export class UserController {
       const token = generateJitsiJWT(null, room, false);
       return { token };
     }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/notification-token')
+  @HttpCode(201)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Add a notification token',
+  })
+  @ApiResponse({ status: 201, description: 'Creates a notification token' })
+  async addNotificationToken(
+    @UserDecorator() user: User,
+    @Body() body: RegisterNotificationTokenDto,
+  ) {
+    return this.userUseCases.registerUserNotificationToken(user, body);
   }
 }

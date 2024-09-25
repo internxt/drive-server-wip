@@ -21,6 +21,7 @@ export class FileDto {
   deletedAt: Date;
   userId: number;
   plainName: string;
+  creationTime: Date;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;

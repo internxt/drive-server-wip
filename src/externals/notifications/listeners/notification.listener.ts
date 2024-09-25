@@ -15,7 +15,6 @@ export class NotificationListener {
 
   @OnEvent('notification.*')
   async handleNotificationEvent(event: NotificationEvent) {
-    Logger.log(`event ${event.name} handled`, 'NotificationListener');
     const apiNotificationURL: string = this.configService.get(
       'apis.notifications.url',
     );
@@ -23,7 +22,7 @@ export class NotificationListener {
       'X-API-KEY': this.configService.get('apis.notifications.key') as string,
     };
     const eventData = {
-      event: event.name,
+      event: event.event,
       payload: event.payload,
       email: event.email,
       clientId: event.clientId,
@@ -34,13 +33,19 @@ export class NotificationListener {
         headers,
       })
       .catch((err) => {
-        Logger.error(`eror in event ${event.name}`, err);
+        Logger.error(
+          `[NOTIFICATIONS_ERROR] Error in event ${event.name}: ${
+            err.message
+          } Data: ${JSON.stringify(eventData, null, null)}`,
+          this.constructor.name,
+        );
       });
     if (res && res.status !== 201) {
       Logger.warn(
         `Post to notifications service failed with status ${
           res.status
-        }. Data: ${JSON.stringify(eventData, null, 2)}`,
+        }. Data: ${JSON.stringify(eventData, null, null)}`,
+        this.constructor.name,
       );
     }
   }
