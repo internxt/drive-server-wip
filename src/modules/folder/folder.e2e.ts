@@ -42,6 +42,7 @@ const user = new User({
   sharedWorkspace: false,
   avatar: '',
   lastPasswordChangedAt: null,
+  emailVerified: false,
 });
 
 const wrongFolderIdException = new BadRequestWrongFolderIdException();

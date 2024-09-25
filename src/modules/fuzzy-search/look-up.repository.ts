@@ -45,7 +45,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         include: [
           [
             Sequelize.literal(
-              'nullif(ts_rank("tokenized_name", to_tsquery(:partialName)), 0)',
+              'nullif(ts_rank("tokenized_name", to_tsquery(:partialName)), 1)',
             ),
             'rank',
           ],
@@ -56,6 +56,12 @@ export class SequelizeLookUpRepository implements LookUpRepository {
               partialName,
             ),
             'similarity',
+          ],
+          [
+            Sequelize.literal(
+              `CASE WHEN "LookUpModel"."name" = :partialName THEN 1 ELSE 0 END`,
+            ),
+            'exactMatch',
           ],
         ],
       },
@@ -69,12 +75,13 @@ export class SequelizeLookUpRepository implements LookUpRepository {
               Sequelize.col('LookUpModel.name'),
               partialName,
             ),
-            { [Op.gt]: 0 },
+            { [Op.gt]: 0.0 },
           ),
         ],
       },
       order: [
-        [Sequelize.literal('"rank"'), 'ASC'],
+        [Sequelize.literal('"exactMatch"'), 'DESC'], // Prioritize exact matches
+        [Sequelize.literal('"rank"'), 'DESC'],
         [Sequelize.literal('"similarity"'), 'DESC'],
       ],
       limit: 5,

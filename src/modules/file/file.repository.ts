@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
-import { FindOptions, Op, Sequelize } from 'sequelize';
+import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
 import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
@@ -11,8 +11,12 @@ import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
+  create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
@@ -29,17 +33,31 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
+  findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
   findByUuid(
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
+  findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null>;
+  findFilesInFolderByName(
+    folderId: Folder['uuid'],
+    searchBy: { plainName: File['plainName']; type?: File['type'] }[],
+  ): Promise<File[]>;
   findByNameAndFolderUuid(
     name: FileAttributes['name'],
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
+  getSumSizeOfFilesInWorkspaceByStatuses(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+  ): Promise<number>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -93,6 +111,12 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
+    const raw = await this.fileModel.create(file);
+
+    return raw ? this.toDomain(raw) : null;
+  }
+
   async findByFileIds(
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
@@ -123,11 +147,15 @@ export class SequelizeFileRepository implements FileRepository {
     return this.toDomain(file);
   }
 
-  async findByUuids(uuids: File['uuid'][]): Promise<Array<File> | []> {
+  async findByUuids(
+    uuids: FileAttributes['uuid'][],
+    where: Partial<Omit<FileAttributes, 'uuid'>> = {},
+  ): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
       where: {
         uuid: {
           [Op.in]: uuids,
+          ...where,
         },
       },
     });
@@ -252,6 +280,54 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: {
+        model: WorkspaceItemUserModel,
+        where: { createdBy, workspaceId },
+      },
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async getSumSizeOfFilesInWorkspaceByStatuses(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+  ): Promise<number> {
+    const statusesFilter = statuses.map((value) => ({ status: value }));
+
+    const sizes = await this.fileModel.findAll({
+      attributes: [[Sequelize.fn('sum', Sequelize.col('size')), 'total']],
+      raw: true,
+      where: {
+        [Op.or]: statusesFilter,
+      },
+      include: {
+        model: WorkspaceItemUserModel,
+        attributes: [],
+        where: { createdBy, workspaceId },
+      },
+    });
+
+    return sizes[0]['total'] as unknown as number;
+  }
+
   async findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -286,6 +362,45 @@ export class SequelizeFileRepository implements FileRepository {
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnailsInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+          },
         },
       ],
       subQuery: false,
@@ -342,6 +457,27 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async getFilesByFolderUuid(
+    folderUuid: Folder['uuid'],
+    status: FileStatus,
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        folderUuid,
+        status,
+      },
+      include: [
+        {
+          model: this.thumbnailModel,
+          as: 'thumbnails',
+          required: false,
+        },
+      ],
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllByUserIdExceptFolderIds(
     userId: FileAttributes['userId'],
     exceptFolderIds: FileAttributes['folderId'][],
@@ -375,6 +511,52 @@ export class SequelizeFileRepository implements FileRepository {
       },
     });
     return file ? this.toDomain(file) : null;
+  }
+
+  async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where,
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        ...where,
+        [Op.or]: [
+          { name: nameFilter.name },
+          { plainName: nameFilter.plainName },
+        ],
+      },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findFilesInFolderByName(
+    folderId: Folder['uuid'],
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
+  ): Promise<File[]> {
+    const where: WhereOptions<File> = {
+      folderUuid: folderId,
+      status: FileStatus.EXISTS,
+    };
+
+    if (searchFilter.length) {
+      where[Op.or] = searchFilter.map((criteria) => ({
+        plainName: criteria.plainName,
+        ...(criteria.type ? { type: criteria.type } : {}),
+      }));
+    }
+
+    const files = await this.fileModel.findAll({
+      where,
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async updateByFieldIdAndUserId(

@@ -1,3 +1,4 @@
+import { UserToJsonDto } from './dto/user-to-json.dto';
 import { UserAttributes } from './user.attributes';
 export class User implements UserAttributes {
   id: number;
@@ -27,6 +28,8 @@ export class User implements UserAttributes {
   avatar: string;
   lastPasswordChangedAt: Date;
   tierId: string;
+  emailVerified: boolean;
+
   constructor({
     id,
     userId,
@@ -55,6 +58,7 @@ export class User implements UserAttributes {
     avatar,
     lastPasswordChangedAt,
     tierId,
+    emailVerified,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -83,6 +87,7 @@ export class User implements UserAttributes {
     this.avatar = avatar;
     this.lastPasswordChangedAt = lastPasswordChangedAt;
     this.tierId = tierId;
+    this.emailVerified = emailVerified;
   }
 
   static build(user: UserAttributes): User {
@@ -93,7 +98,7 @@ export class User implements UserAttributes {
     return this.email !== this.bridgeUser;
   }
 
-  toJSON() {
+  toJSON(): UserToJsonDto {
     return {
       id: this.id,
       userId: this.userId,

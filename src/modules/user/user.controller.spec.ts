@@ -15,6 +15,7 @@ import { SignWithCustomDuration } from '../../middlewares/passport';
 import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import { AccountTokenAction } from './user.domain';
 import { v4 } from 'uuid';
+import { DeviceType } from './dto/register-notification-token.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -189,6 +190,19 @@ describe('User Controller', () => {
       await expect(userController.getMeetTokenAnon(v4())).rejects.toThrow(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('POST /notification-token', () => {
+    const user = newUser();
+    it('When notification token is added, then it adds the token', async () => {
+      userUseCases.registerUserNotificationToken.mockResolvedValueOnce();
+      await expect(
+        userController.addNotificationToken(user, {
+          token: 'test',
+          type: DeviceType.macos,
+        }),
+      ).resolves.toBeUndefined();
     });
   });
 });

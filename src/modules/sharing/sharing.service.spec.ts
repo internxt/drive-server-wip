@@ -11,6 +11,7 @@ import { v4 } from 'uuid';
 import {
   newFile,
   newFolder,
+  newPermission,
   newSharing,
   newSharingRole,
   newUser,
@@ -22,7 +23,12 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
-import { SharingType } from './sharing.domain';
+import {
+  SharedWithType,
+  SharingActionName,
+  SharingItemType,
+  SharingType,
+} from './sharing.domain';
 import { FileStatus } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 
@@ -395,10 +401,363 @@ describe('Sharing Use Cases', () => {
         owner.uuid,
         itemIds,
         itemType,
+        SharedWithType.Individual,
       );
     });
   });
 
+  describe('canPerfomAction', () => {
+    const sharedWith = v4();
+    const resourceId = v4();
+    const action = SharingActionName.UploadFile;
+    const sharedWithType = SharedWithType.Individual;
+
+    it('When the permission exists, then it should return true', async () => {
+      const permissions = [
+        newPermission(),
+        newPermission({ name: SharingActionName.UploadFile }),
+      ];
+      jest
+        .spyOn(sharingRepository, 'findPermissionsInSharing')
+        .mockResolvedValue(permissions);
+
+      const result = await sharingService.canPerfomAction(
+        sharedWith,
+        resourceId,
+        action,
+        sharedWithType,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When the permission does not match, then it should return false', async () => {
+      const permissions = [
+        newPermission({ name: SharingActionName.UploadFile }),
+      ];
+      jest
+        .spyOn(sharingRepository, 'findPermissionsInSharing')
+        .mockResolvedValue(permissions);
+
+      const result = await sharingService.canPerfomAction(
+        sharedWith,
+        resourceId,
+        SharingActionName.RenameItems,
+        sharedWithType,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('When there are no permissions, then it should return false', async () => {
+      const permissions = [];
+      jest
+        .spyOn(sharingRepository, 'findPermissionsInSharing')
+        .mockResolvedValue(permissions);
+
+      const result = await sharingService.canPerfomAction(
+        sharedWith,
+        resourceId,
+        action,
+        sharedWithType,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('createSharing', () => {
+    const sharing = newSharing();
+    const roleId = v4();
+
+    it('When creating a sharing, then it should return the created sharing', async () => {
+      const createdSharing = newSharing();
+
+      jest
+        .spyOn(sharingRepository, 'createSharing')
+        .mockResolvedValue(createdSharing);
+
+      const result = await sharingService.createSharing(sharing, roleId);
+
+      expect(result).toEqual(createdSharing);
+      expect(sharingRepository.createSharing).toHaveBeenCalledWith(sharing);
+      expect(sharingRepository.createSharingRole).toHaveBeenCalledWith({
+        roleId,
+        sharingId: createdSharing.id,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      });
+    });
+  });
+
+  describe('getSharedFilesInWorkspaces', () => {
+    const user = newUser();
+    const teamId = v4();
+    const workspaceId = v4();
+    const offset = 0;
+    const limit = 10;
+    const order: [string, string][] = [['name', 'asc']];
+
+    it('When files are shared with the team, then it should return the files', async () => {
+      const sharing = newSharing();
+      sharing.file = newFile({ owner: newUser() });
+
+      const filesWithSharedInfo = [sharing];
+
+      jest
+        .spyOn(
+          sharingRepository,
+          'findFilesByOwnerAndSharedWithTeamInworkspace',
+        )
+        .mockResolvedValue(filesWithSharedInfo);
+
+      jest
+        .spyOn(fileUsecases, 'decrypFileName')
+        .mockReturnValue({ plainName: 'DecryptedFileName' });
+
+      jest.spyOn(usersUsecases, 'getAvatarUrl').mockResolvedValue('avatar-url');
+
+      const result = await sharingService.getSharedFilesInWorkspaces(
+        user,
+        workspaceId,
+        teamId,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          folders: [],
+          files: expect.arrayContaining([
+            expect.objectContaining({
+              plainName: sharing.file.plainName,
+              sharingId: sharing.id,
+              encryptionKey: sharing.encryptionKey,
+              dateShared: sharing.createdAt,
+            }),
+          ]),
+          credentials: {
+            networkPass: user.userId,
+            networkUser: user.bridgeUser,
+          },
+          token: '',
+          role: 'OWNER',
+        }),
+      );
+    });
+
+    it('When no files are shared with the team, then it should return nothing', async () => {
+      jest
+        .spyOn(
+          sharingRepository,
+          'findFilesByOwnerAndSharedWithTeamInworkspace',
+        )
+        .mockResolvedValue([]);
+
+      const result = await sharingService.getSharedFilesInWorkspaces(
+        user,
+        workspaceId,
+        teamId,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual({
+        folders: [],
+        files: [],
+        credentials: {
+          networkPass: user.userId,
+          networkUser: user.bridgeUser,
+        },
+        token: '',
+        role: 'OWNER',
+      });
+    });
+
+    it('When there is an error fetching shared files, then it should throw', async () => {
+      const error = new Error('Database error');
+
+      jest
+        .spyOn(
+          sharingRepository,
+          'findFilesByOwnerAndSharedWithTeamInworkspace',
+        )
+        .mockRejectedValue(error);
+
+      await expect(
+        sharingService.getSharedFilesInWorkspaces(
+          user,
+          workspaceId,
+          teamId,
+          offset,
+          limit,
+          order,
+        ),
+      ).rejects.toThrow(error);
+    });
+  });
+
+  describe('removeSharing', () => {
+    const owner = newUser();
+    const itemFile = newFile();
+    const itemId = itemFile.uuid;
+    const itemType = SharingItemType.File;
+    const sharing = newSharing({ owner, item: itemFile });
+
+    it('When sharing exists and user is owner, then it removes invites and sharings', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await sharingService.removeSharing(owner, itemId, itemType);
+
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+      expect(sharingRepository.deleteInvitesBy).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+      expect(sharingRepository.deleteSharingsBy).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+    });
+
+    it('When sharing does not exist, then it does nothing', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await sharingService.removeSharing(owner, itemId, itemType);
+
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId,
+        itemType,
+      });
+      expect(sharingRepository.deleteInvitesBy).not.toHaveBeenCalled();
+      expect(sharingRepository.deleteSharingsBy).not.toHaveBeenCalled();
+    });
+
+    it('When user is not owner, then it throws', async () => {
+      const otherUser = newUser();
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.removeSharing(otherUser, itemId, itemType),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getSharedFoldersInWorkspace', () => {
+    const user = newUser();
+    const teamId = v4();
+    const workspaceId = v4();
+    const offset = 0;
+    const limit = 10;
+    const order: [string, string][] = [['name', 'asc']];
+
+    it('When folders are shared with the team, then it should return the folders', async () => {
+      const sharing = newSharing();
+      const folder = newFolder();
+      folder.user = newUser();
+      sharing.folder = folder;
+      const foldersWithSharedInfo = [sharing];
+
+      jest
+        .spyOn(
+          sharingRepository,
+          'findFoldersByOwnerAndSharedWithTeamInworkspace',
+        )
+        .mockResolvedValue(foldersWithSharedInfo);
+
+      jest
+        .spyOn(folderUseCases, 'decryptFolderName')
+        .mockReturnValue({ plainName: 'DecryptedFolderName' });
+
+      jest.spyOn(usersUsecases, 'getAvatarUrl').mockResolvedValue('avatar-url');
+
+      const result = await sharingService.getSharedFoldersInWorkspace(
+        user,
+        workspaceId,
+        teamId,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          folders: expect.arrayContaining([
+            expect.objectContaining({
+              sharingId: sharing.id,
+              encryptionKey: sharing.encryptionKey,
+              dateShared: sharing.createdAt,
+              sharedWithMe: true,
+            }),
+          ]),
+          files: [],
+          credentials: {
+            networkPass: user.userId,
+            networkUser: user.bridgeUser,
+          },
+          token: '',
+          role: 'OWNER',
+        }),
+      );
+    });
+
+    it('When no folders are shared with the team, then it should return an empty folders array', async () => {
+      jest
+        .spyOn(
+          sharingRepository,
+          'findFoldersByOwnerAndSharedWithTeamInworkspace',
+        )
+        .mockResolvedValue([]);
+
+      const result = await sharingService.getSharedFoldersInWorkspace(
+        user,
+        workspaceId,
+        teamId,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual({
+        folders: [],
+        files: [],
+        credentials: {
+          networkPass: user.userId,
+          networkUser: user.bridgeUser,
+        },
+        token: '',
+        role: 'OWNER',
+      });
+    });
+
+    it('When there is an error fetching shared folders, then it should throw an error', async () => {
+      const error = new Error('Database error');
+
+      jest
+        .spyOn(
+          sharingRepository,
+          'findFoldersByOwnerAndSharedWithTeamInworkspace',
+        )
+        .mockRejectedValue(error);
+
+      await expect(
+        sharingService.getSharedFoldersInWorkspace(
+          user,
+          workspaceId,
+          teamId,
+          offset,
+          limit,
+          order,
+        ),
+      ).rejects.toThrow(error);
+    });
+  });
   describe('Access to public shared item info', () => {
     const owner = newUser();
     const otherUser = publicUser();

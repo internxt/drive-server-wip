@@ -7,6 +7,7 @@ import {
   Default,
   ForeignKey,
   HasMany,
+  HasOne,
   Index,
   Model,
   PrimaryKey,
@@ -16,6 +17,7 @@ import { UserModel } from '../user/user.model';
 import { FolderAttributes } from './folder.attributes';
 import { SharingModel } from '../sharing/models';
 import { Sharing } from '../sharing/sharing.domain';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 @Table({
   underscored: true,
@@ -87,6 +89,12 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
   sharings: Sharing[];
+
+  @HasOne(() => WorkspaceItemUserModel, {
+    foreignKey: 'itemId',
+    sourceKey: 'uuid',
+  })
+  workspaceUser: WorkspaceItemUserModel;
 
   @Index
   @AllowNull

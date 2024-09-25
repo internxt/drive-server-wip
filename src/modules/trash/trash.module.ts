@@ -9,16 +9,21 @@ import { TrashUseCases } from './trash.usecase';
 import { ShareModule } from '../share/share.module';
 import { ShareModel } from '../share/share.repository';
 import { FileModel } from '../file/file.model';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { SharingModule } from '../sharing/sharing.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([FileModel, ShareModel]),
     forwardRef(() => FileModule),
     forwardRef(() => ShareModule),
+    forwardRef(() => WorkspacesModule),
+    forwardRef(() => SharingModule),
     FolderModule,
     NotificationModule,
     UserModule,
     ShareModule,
+    NotificationModule,
   ],
   controllers: [TrashController],
   providers: [Logger, TrashUseCases],

@@ -176,6 +176,31 @@ export class BridgeService {
     }
   }
 
+  async setStorage(email: UserAttributes['email'], bytes: number) {
+    try {
+      const url = this.configService.get('apis.storage.url');
+      const username = this.configService.get('apis.storage.auth.username');
+      const password = this.configService.get('apis.storage.auth.password');
+
+      const params = {
+        headers: { 'Content-Type': 'application/json' },
+        auth: { username, password },
+      };
+
+      await this.httpClient.post(
+        `${url}/gateway/upgrade`,
+        { email, bytes },
+        params,
+      );
+    } catch (error) {
+      Logger.error(`
+      [BRIDGESERVICE/SETSTORAGE]: There was an error while trying to set user storage space Error: ${JSON.stringify(
+        error,
+      )}
+      `);
+    }
+  }
+
   async getLimit(
     networkUser: UserAttributes['bridgeUser'],
     networkPass: UserAttributes['userId'],
