@@ -469,7 +469,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     if (options?.givePriorityToRole) {
       queryOrder.push([
         sequelize.literal(
-          `CASE WHEN "role->role"."name" = '${options.givePriorityToRole}' THEN 1 ELSE 2 END`,
+          `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
         ),
         'ASC',
       ]);
@@ -486,6 +486,9 @@ export class SequelizeSharingRepository implements SharingRepository {
       limit: options.limit,
       offset: options.offset,
       order: queryOrder,
+      replacements: {
+        priorityRole: options?.givePriorityToRole,
+      },
     });
 
     return sharings.map((sharing) =>
@@ -497,7 +500,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     ownerId: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
     teamIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; orderBy?: [string, string][] },
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<Sharing[]> {
     const sharedFiles = await this.sharings.findAll({
       where: {
@@ -544,7 +547,7 @@ export class SequelizeSharingRepository implements SharingRepository {
           ],
         },
       ],
-      order: options.orderBy,
+      order: options.order,
       limit: options.limit,
       offset: options.offset,
     });
@@ -715,7 +718,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     ownerId: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
     teamsIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; orderBy?: [string, string][] },
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<Sharing[]> {
     const sharedFolders = await this.sharings.findAll({
       where: {
@@ -763,7 +766,7 @@ export class SequelizeSharingRepository implements SharingRepository {
           ],
         },
       ],
-      order: options.orderBy,
+      order: options.order,
       limit: options.limit,
       offset: options.offset,
     });

@@ -50,6 +50,10 @@ import { Role } from '../sharing/sharing.domain';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import * as jwtUtils from '../../lib/jwt';
 import { PaymentsService } from '../../externals/payments/payments.service';
+import {
+  FileWithSharedInfo,
+  FolderWithSharedInfo,
+} from '../sharing/dto/get-items-and-shared-folders.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -4068,6 +4072,151 @@ describe('WorkspacesUsecases', () => {
 
           await service.deleteTeam(team.id);
           expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
+        });
+      });
+
+      describe('getWorkspaceTeamsUserBelongsTo', () => {
+        it('When user teams are fetched, then it should return teams', async () => {
+          const userUuid = v4();
+          const workspaceId = v4();
+          const teams = [
+            newWorkspaceTeam({ workspaceId }),
+            newWorkspaceTeam({ workspaceId }),
+          ];
+
+          jest
+            .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+            .mockResolvedValueOnce(teams);
+
+          const result = await service.getTeamsUserBelongsTo(
+            userUuid,
+            workspaceId,
+          );
+
+          expect(teams).toBe(result);
+        });
+      });
+
+      describe('getSharedFoldersInWorkspace', () => {
+        const mockUser = newUser();
+        const mockWorkspace = newWorkspace({ owner: mockUser });
+        const mockTeams = [newWorkspaceTeam({ workspaceId: mockWorkspace.id })];
+        const mockFolder = newFolder({ owner: newUser() });
+        const mockSharing = newSharing({ item: mockFolder });
+
+        it('When folders shared with user teams are fetched, then it returns successfully', async () => {
+          const mockFolderWithSharedInfo = {
+            ...mockFolder,
+            encryptionKey: mockSharing.encryptionKey,
+            dateShared: mockSharing.createdAt,
+            sharedWithMe: false,
+            sharingId: mockSharing.id,
+            sharingType: mockSharing.type,
+            credentials: {
+              networkPass: mockUser.userId,
+              networkUser: mockUser.bridgeUser,
+            },
+          } as FolderWithSharedInfo;
+
+          jest
+            .spyOn(service, 'getWorkspaceTeamsUserBelongsTo')
+            .mockResolvedValue(mockTeams);
+          jest
+            .spyOn(sharingUseCases, 'getSharedFoldersInWorkspaceByTeams')
+            .mockResolvedValue({
+              folders: [mockFolderWithSharedInfo],
+              files: [],
+              credentials: {
+                networkPass: mockUser.userId,
+                networkUser: mockUser.bridgeUser,
+              },
+              token: '',
+              role: 'OWNER',
+            });
+
+          const result = await service.getSharedFoldersInWorkspace(
+            mockUser,
+            mockWorkspace.id,
+            {
+              offset: 0,
+              limit: 10,
+              order: [['createdAt', 'DESC']],
+            },
+          );
+
+          expect(service.getWorkspaceTeamsUserBelongsTo).toHaveBeenCalledWith(
+            mockUser.uuid,
+            mockWorkspace.id,
+          );
+          expect(result.folders[0]).toMatchObject({
+            plainName: mockFolder.plainName,
+            sharingId: mockSharing.id,
+            encryptionKey: mockSharing.encryptionKey,
+            dateShared: mockSharing.createdAt,
+            sharedWithMe: false,
+          });
+        });
+      });
+
+      describe('getSharedFilesInWorkspace', () => {
+        const mockUser = newUser();
+        const mockWorkspace = newWorkspace({ owner: mockUser });
+        const mockTeams = [newWorkspaceTeam({ workspaceId: mockWorkspace.id })];
+        const mockFile = newFile({ owner: newUser() });
+        const mockSharing = newSharing({ item: mockFile });
+
+        it('When files shared with user teams are fetched, then it returns successfully', async () => {
+          const mockFileWithSharedInfo = {
+            ...mockFile,
+            encryptionKey: mockSharing.encryptionKey,
+            dateShared: mockSharing.createdAt,
+            sharedWithMe: false,
+            sharingId: mockSharing.id,
+            sharingType: mockSharing.type,
+            credentials: {
+              networkPass: mockUser.userId,
+              networkUser: mockUser.bridgeUser,
+            },
+          } as FileWithSharedInfo;
+
+          jest
+            .spyOn(service, 'getWorkspaceTeamsUserBelongsTo')
+            .mockResolvedValue(mockTeams);
+          jest
+            .spyOn(sharingUseCases, 'getSharedFilesInWorkspaceByTeams')
+            .mockResolvedValue({
+              files: [mockFileWithSharedInfo],
+              folders: [],
+              credentials: {
+                networkPass: mockUser.userId,
+                networkUser: mockUser.bridgeUser,
+              },
+              token: '',
+              role: 'OWNER',
+            });
+
+          const result = await service.getSharedFilesInWorkspace(
+            mockUser,
+            mockWorkspace.id,
+            {
+              offset: 0,
+              limit: 10,
+              order: [['createdAt', 'DESC']],
+            },
+          );
+
+          expect(service.getWorkspaceTeamsUserBelongsTo).toHaveBeenCalledWith(
+            mockUser.uuid,
+            mockWorkspace.id,
+          );
+
+          expect(result.files[0]).toMatchObject({
+            name: mockFile.name,
+            sharingId: mockSharing.id,
+            encryptionKey: mockSharing.encryptionKey,
+            dateShared: mockSharing.createdAt,
+            sharedWithMe: false,
+          });
         });
       });
 

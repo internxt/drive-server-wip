@@ -592,6 +592,120 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('GET /:workspaceId/shared/files', () => {
+    it('When files shared with user teams are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const orderBy = 'createdAt:ASC';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getSharedFilesInWorkspace(
+        workspaceId,
+        user,
+        orderBy,
+        page,
+        perPage,
+      );
+
+      expect(workspacesUsecases.getSharedFilesInWorkspace).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        {
+          offset: page,
+          limit: perPage,
+          order,
+        },
+      );
+    });
+  });
+
+  describe('GET /:workspaceId/shared/folders', () => {
+    it('When folders shared with user teams are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const orderBy = 'createdAt:ASC';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getSharedFoldersInWorkspace(
+        workspaceId,
+        user,
+        orderBy,
+        page,
+        perPage,
+      );
+
+      expect(
+        workspacesUsecases.getSharedFoldersInWorkspace,
+      ).toHaveBeenCalledWith(user, workspaceId, {
+        offset: page,
+        limit: perPage,
+        order,
+      });
+    });
+  });
+
+  describe('GET /:workspaceId/shared/:sharedFolderId/files', () => {
+    it('When files inside a shared folder are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const sharedFolderId = v4();
+      const orderBy = 'createdAt:ASC';
+      const token = 'token';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getFilesInSharingFolder(
+        workspaceId,
+        user,
+        sharedFolderId,
+        { token, page, perPage, orderBy },
+      );
+
+      expect(workspacesUsecases.getItemsInSharedFolder).toHaveBeenCalledWith(
+        workspaceId,
+        user,
+        sharedFolderId,
+        WorkspaceItemType.File,
+        token,
+        { page, perPage, order },
+      );
+    });
+  });
+
+  describe('GET /:workspaceId/shared/:sharedFolderId/folders', () => {
+    it('When folders inside a shared folder are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const sharedFolderId = v4();
+      const orderBy = 'createdAt:ASC';
+      const token = 'token';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getFoldersInSharingFolder(
+        workspaceId,
+        user,
+        sharedFolderId,
+        { token, page, perPage, orderBy },
+      );
+
+      expect(workspacesUsecases.getItemsInSharedFolder).toHaveBeenCalledWith(
+        workspaceId,
+        user,
+        sharedFolderId,
+        WorkspaceItemType.Folder,
+        token,
+        { page, perPage, order },
+      );
+    });
+  });
+
   describe('POST /:workspaceId/folders', () => {
     it('When a folder is created successfully, then it should call the service with the respective arguments', async () => {
       const user = newUser();

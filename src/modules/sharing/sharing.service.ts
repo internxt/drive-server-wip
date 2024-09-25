@@ -34,7 +34,6 @@ import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import getEnv from '../../config/configuration';
 import {
   generateTokenWithPlainSecret,
-  generateWithDefaultSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import {
@@ -54,7 +53,6 @@ import { Environment } from '@internxt/inxt-js';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
-import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 
 export class InvalidOwnerError extends Error {
@@ -1856,7 +1854,7 @@ export class SharingService {
     user: User,
     workspaceId: Workspace['id'],
     teamIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; orderBy?: [string, string][] },
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<GetItemsReponse> {
     const filesWithSharedInfo =
       await this.sharingRepository.findFilesSharedInWorkspaceByOwnerAndTeams(
@@ -1901,7 +1899,7 @@ export class SharingService {
     user: User,
     workspaceId: Workspace['id'],
     teamIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; orderBy?: [string, string][] },
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<GetItemsReponse> {
     const foldersWithSharedInfo =
       await this.sharingRepository.findFoldersSharedInWorkspaceByOwnerAndTeams(

@@ -1003,7 +1003,7 @@ export class WorkspacesUsecases {
   async getSharedFilesInWorkspace(
     user: User,
     workspaceId: Workspace['id'],
-    options: { offset: number; limit: number; orderBy?: [string, string][] },
+    options: { offset: number; limit: number; order?: [string, string][] },
   ) {
     const teams = await this.getWorkspaceTeamsUserBelongsTo(
       user.uuid,
@@ -1026,7 +1026,7 @@ export class WorkspacesUsecases {
   async getSharedFoldersInWorkspace(
     user: User,
     workspaceId: Workspace['id'],
-    options: { offset: number; limit: number; orderBy?: [string, string][] },
+    options: { offset: number; limit: number; order?: [string, string][] },
   ) {
     const teams = await this.getWorkspaceTeamsUserBelongsTo(
       user.uuid,

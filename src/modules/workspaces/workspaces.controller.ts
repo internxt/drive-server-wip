@@ -600,7 +600,7 @@ export class WorkspacesController {
     return this.workspaceUseCases.getSharedFilesInWorkspace(user, workspaceId, {
       offset: page,
       limit: perPage,
-      orderBy: order,
+      order,
     });
   }
 
@@ -628,7 +628,7 @@ export class WorkspacesController {
       {
         offset: page,
         limit: perPage,
-        orderBy: order,
+        order,
       },
     );
   }
