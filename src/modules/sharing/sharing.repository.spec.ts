@@ -246,13 +246,14 @@ describe('SharingRepository', () => {
             },
           ],
         },
-        attributes: ['createdAt'],
+        attributes: [
+          [Sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
+        ],
         group: [
+          'SharingModel.item_id',
           'file.id',
           'file->workspaceUser.id',
           'file->workspaceUser->creator.id',
-          'SharingModel.item_id',
-          'SharingModel.id',
         ],
         include: [
           {
@@ -364,10 +365,10 @@ describe('SharingRepository', () => {
           [Sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
         ],
         group: [
+          'SharingModel.item_id',
           'folder.id',
           'folder->workspaceUser.id',
           'folder->workspaceUser->creator.id',
-          'SharingModel.item_id',
         ],
         include: [
           {

@@ -514,13 +514,14 @@ export class SequelizeSharingRepository implements SharingRepository {
           },
         ],
       },
-      attributes: ['createdAt'],
+      attributes: [
+        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+      ],
       group: [
+        'SharingModel.item_id',
         'file.id',
         'file->workspaceUser.id',
         'file->workspaceUser->creator.id',
-        'SharingModel.item_id',
-        'SharingModel.id',
       ],
       include: [
         {
@@ -567,6 +568,77 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async findFoldersSharedInWorkspaceByOwnerAndTeams(
+    ownerId: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    teamsIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; order?: [string, string][] },
+  ): Promise<Sharing[]> {
+    const sharedFolders = await this.sharings.findAll({
+      where: {
+        [Op.or]: [
+          {
+            sharedWith: { [Op.in]: teamsIds },
+            sharedWithType: SharedWithType.WorkspaceTeam,
+          },
+          {
+            '$folder->workspaceUser.created_by$': ownerId,
+          },
+        ],
+      },
+      attributes: [
+        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+      ],
+      group: [
+        'SharingModel.item_id',
+        'folder.id',
+        'folder->workspaceUser.id',
+        'folder->workspaceUser->creator.id',
+      ],
+      include: [
+        {
+          model: FolderModel,
+          where: {
+            deleted: false,
+            removed: false,
+          },
+          include: [
+            {
+              model: WorkspaceItemUserModel,
+              required: true,
+              where: {
+                workspaceId,
+              },
+              include: [
+                {
+                  model: UserModel,
+                  as: 'creator',
+                  attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: options.order,
+      limit: options.limit,
+      offset: options.offset,
+    });
+
+    return sharedFolders.map((shared) => {
+      const sharing = shared.get({ plain: true });
+      const user = sharing.folder.workspaceUser?.creator;
+
+      return Sharing.build({
+        ...sharing,
+        folder: Folder.build({
+          ...sharing.folder,
+          user: user ? User.build(user) : null,
+        }),
+      });
+    });
+  }
+
   async findFilesByOwnerAndSharedWithTeamInworkspace(
     workspaceId: WorkspaceAttributes['id'],
     teamId: WorkspaceTeamAttributes['id'],
@@ -591,10 +663,10 @@ export class SequelizeSharingRepository implements SharingRepository {
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
       group: [
+        'SharingModel.item_id',
         'file.id',
         'file->workspaceUser.id',
         'file->workspaceUser->creator.id',
-        'SharingModel.item_id',
       ],
       include: [
         {
@@ -665,10 +737,10 @@ export class SequelizeSharingRepository implements SharingRepository {
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
       group: [
+        'SharingModel.item_id',
         'folder.id',
         'folder->workspaceUser.id',
         'folder->workspaceUser->creator.id',
-        'SharingModel.item_id',
       ],
       include: [
         {
@@ -698,77 +770,6 @@ export class SequelizeSharingRepository implements SharingRepository {
       order: orderBy,
       limit,
       offset,
-    });
-
-    return sharedFolders.map((shared) => {
-      const sharing = shared.get({ plain: true });
-      const user = sharing.folder.workspaceUser?.creator;
-
-      return Sharing.build({
-        ...sharing,
-        folder: Folder.build({
-          ...sharing.folder,
-          user: user ? User.build(user) : null,
-        }),
-      });
-    });
-  }
-
-  async findFoldersSharedInWorkspaceByOwnerAndTeams(
-    ownerId: WorkspaceItemUserAttributes['createdBy'],
-    workspaceId: WorkspaceAttributes['id'],
-    teamsIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; order?: [string, string][] },
-  ): Promise<Sharing[]> {
-    const sharedFolders = await this.sharings.findAll({
-      where: {
-        [Op.or]: [
-          {
-            sharedWith: { [Op.in]: teamsIds },
-            sharedWithType: SharedWithType.WorkspaceTeam,
-          },
-          {
-            '$folder->workspaceUser.created_by$': ownerId,
-          },
-        ],
-      },
-      attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: [
-        'folder.id',
-        'folder->workspaceUser.id',
-        'folder->workspaceUser->creator.id',
-        'SharingModel.item_id',
-      ],
-      include: [
-        {
-          model: FolderModel,
-          where: {
-            deleted: false,
-            removed: false,
-          },
-          include: [
-            {
-              model: WorkspaceItemUserModel,
-              required: true,
-              where: {
-                workspaceId,
-              },
-              include: [
-                {
-                  model: UserModel,
-                  as: 'creator',
-                  attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      order: options.order,
-      limit: options.limit,
-      offset: options.offset,
     });
 
     return sharedFolders.map((shared) => {
