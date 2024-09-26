@@ -63,12 +63,11 @@ import { RequiredSharingPermissions } from '../sharing/guards/sharing-permission
 import { SharingActionName } from '../sharing/sharing.domain';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { SharingService } from '../sharing/sharing.service';
-import { WorkspaceTeam } from './domains/workspace-team.domain';
-import { GetItemsInsideSharedFolderDtoQuery } from './dto/get-items-inside-shared-folder.dto';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -590,16 +589,15 @@ export class WorkspacesController {
     workspaceId: WorkspaceTeamAttributes['id'],
     @UserDecorator() user: User,
     @Query('orderBy') orderBy: OrderBy,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query() pagination: GetSharedItemsDto,
   ) {
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
       : undefined;
 
     return this.workspaceUseCases.getSharedFilesInWorkspace(user, workspaceId, {
-      offset: page,
-      limit: perPage,
+      offset: pagination.page,
+      limit: pagination.perPage,
       order,
     });
   }
@@ -618,8 +616,7 @@ export class WorkspacesController {
     workspaceId: WorkspaceTeamAttributes['id'],
     @UserDecorator() user: User,
     @Query('orderBy') orderBy: OrderBy,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query() pagination: GetSharedItemsDto,
   ) {
     const order = orderBy
       ? [orderBy.split(':') as [string, string]]
@@ -629,8 +626,8 @@ export class WorkspacesController {
       user,
       workspaceId,
       {
-        offset: page,
-        limit: perPage,
+        offset: pagination.page,
+        limit: pagination.perPage,
         order,
       },
     );
@@ -650,7 +647,7 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
-    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
+    @Query() queryDto: GetSharedItemsDto,
   ) {
     const { orderBy, token, page, perPage } = queryDto;
 
@@ -682,7 +679,7 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
-    @Query() queryDto: GetItemsInsideSharedFolderDtoQuery,
+    @Query() queryDto: GetSharedItemsDto,
   ) {
     const { orderBy, token, page, perPage } = queryDto;
 

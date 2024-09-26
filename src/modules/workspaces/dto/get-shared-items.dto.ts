@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderBy } from '../../../common/order.type';
 
-export class GetItemsInsideSharedFolderDtoQuery {
+export class GetSharedItemsDto {
   @ApiPropertyOptional({
     description: 'Order by',
     example: 'name:asc',

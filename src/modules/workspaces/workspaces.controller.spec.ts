@@ -504,20 +504,19 @@ describe('Workspace Controller', () => {
   });
 
   describe('GET /:workspaceId/shared/files', () => {
-    it('When files shared with user teams are requested, then it should call the service with the respective arguments', async () => {
-      const user = newUser();
-      const workspaceId = v4();
-      const orderBy = 'createdAt:ASC';
-      const page = 1;
-      const perPage = 50;
-      const order = [['createdAt', 'ASC']];
+    const user = newUser();
+    const workspaceId = v4();
+    const orderBy = 'createdAt:ASC';
+    const page = 1;
+    const perPage = 50;
+    const order = [['createdAt', 'ASC']];
 
+    it('When files shared with user teams are requested, then it should call the service with the respective arguments', async () => {
       await workspacesController.getSharedFilesInWorkspace(
         workspaceId,
         user,
         orderBy,
-        page,
-        perPage,
+        { page, perPage },
       );
 
       expect(workspacesUsecases.getSharedFilesInWorkspace).toHaveBeenCalledWith(
@@ -533,20 +532,20 @@ describe('Workspace Controller', () => {
   });
 
   describe('GET /:workspaceId/shared/folders', () => {
-    it('When folders shared with user teams are requested, then it should call the service with the respective arguments', async () => {
-      const user = newUser();
-      const workspaceId = v4();
-      const orderBy = 'createdAt:ASC';
-      const page = 1;
-      const perPage = 50;
-      const order = [['createdAt', 'ASC']];
+    const user = newUser();
+    const workspaceId = v4();
+    const orderBy = 'createdAt:ASC';
+    const page = 1;
+    const perPage = 50;
+    const order = [['createdAt', 'ASC']];
 
+    it('When folders shared with user teams are requested, then it should call the service with the respective arguments', async () => {
       await workspacesController.getSharedFoldersInWorkspace(
         workspaceId,
         user,
         orderBy,
-        page,
-        perPage,
+        { page, perPage },
+
       );
 
       expect(

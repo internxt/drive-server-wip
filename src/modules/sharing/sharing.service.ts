@@ -1797,59 +1797,6 @@ export class SharingService {
     };
   }
 
-  async getSharedFoldersInWorkspace(
-    user: User,
-    workspaceId: Workspace['id'],
-    teamId: Sharing['sharedWith'],
-    offset: number,
-    limit: number,
-    order: [string, string][],
-  ): Promise<GetItemsReponse> {
-    const foldersWithSharedInfo =
-      await this.sharingRepository.findFoldersByOwnerAndSharedWithTeamInworkspace(
-        workspaceId,
-        teamId,
-        user.uuid,
-        offset,
-        limit,
-        order,
-      );
-
-    const folders = (await Promise.all(
-      foldersWithSharedInfo.map(async (folderWithSharedInfo) => {
-        const avatar = folderWithSharedInfo.folder?.user?.avatar;
-        return {
-          ...folderWithSharedInfo.folder,
-          plainName:
-            folderWithSharedInfo.folder.plainName ||
-            this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
-              .plainName,
-          sharingId: folderWithSharedInfo.id,
-          encryptionKey: folderWithSharedInfo.encryptionKey,
-          dateShared: folderWithSharedInfo.createdAt,
-          sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
-          user: {
-            ...folderWithSharedInfo.folder.user,
-            avatar: avatar
-              ? await this.usersUsecases.getAvatarUrl(avatar)
-              : null,
-          },
-        };
-      }),
-    )) as FolderWithSharedInfo[];
-
-    return {
-      folders: folders,
-      files: [],
-      credentials: {
-        networkPass: user.userId,
-        networkUser: user.bridgeUser,
-      },
-      token: '',
-      role: 'OWNER',
-    };
-  }
-
   async getSharedFilesInWorkspaceByTeams(
     user: User,
     workspaceId: Workspace['id'],
@@ -1932,57 +1879,6 @@ export class SharingService {
     return {
       folders: folders,
       files: [],
-      credentials: {
-        networkPass: user.userId,
-        networkUser: user.bridgeUser,
-      },
-      token: '',
-      role: 'OWNER',
-    };
-  }
-
-  async getSharedFilesInWorkspaces(
-    user: User,
-    workspaceId: Workspace['id'],
-    teamId: Sharing['sharedWith'],
-    offset: number,
-    limit: number,
-    order: [string, string][],
-  ): Promise<GetItemsReponse> {
-    const filesWithSharedInfo =
-      await this.sharingRepository.findFilesByOwnerAndSharedWithTeamInworkspace(
-        workspaceId,
-        teamId,
-        user.uuid,
-        offset,
-        limit,
-        order,
-      );
-
-    const files = (await Promise.all(
-      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
-        const avatar = fileWithSharedInfo.file?.user?.avatar;
-        return {
-          ...fileWithSharedInfo.file,
-          plainName:
-            fileWithSharedInfo.file.plainName ||
-            this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
-          sharingId: fileWithSharedInfo.id,
-          encryptionKey: fileWithSharedInfo.encryptionKey,
-          dateShared: fileWithSharedInfo.createdAt,
-          user: {
-            ...fileWithSharedInfo.file.user,
-            avatar: avatar
-              ? await this.usersUsecases.getAvatarUrl(avatar)
-              : null,
-          },
-        };
-      }),
-    )) as FileWithSharedInfo[];
-
-    return {
-      folders: [],
-      files: files,
       credentials: {
         networkPass: user.userId,
         networkUser: user.bridgeUser,
