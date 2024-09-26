@@ -28,13 +28,13 @@ import { FolderModel } from '../../folder/folder.model';
 export class SequelizeWorkspaceRepository {
   constructor(
     @InjectModel(WorkspaceModel)
-    private modelWorkspace: typeof WorkspaceModel,
+    private readonly modelWorkspace: typeof WorkspaceModel,
     @InjectModel(WorkspaceUserModel)
-    private modelWorkspaceUser: typeof WorkspaceUserModel,
+    private readonly modelWorkspaceUser: typeof WorkspaceUserModel,
     @InjectModel(WorkspaceInviteModel)
-    private modelWorkspaceInvite: typeof WorkspaceInviteModel,
+    private readonly modelWorkspaceInvite: typeof WorkspaceInviteModel,
     @InjectModel(WorkspaceItemUserModel)
-    private modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
+    private readonly modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
   ) {}
   async findById(id: WorkspaceAttributes['id']): Promise<Workspace | null> {
     const workspace = await this.modelWorkspace.findByPk(id);

@@ -12,23 +12,17 @@ import {
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
-import { SharingService } from '../sharing/sharing.service';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
-  let sharingUseCases: DeepMocked<SharingService>;
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
-    sharingUseCases = createMock<SharingService>();
 
-    workspacesController = new WorkspacesController(
-      workspacesUsecases,
-      sharingUseCases,
-    );
+    workspacesController = new WorkspacesController(workspacesUsecases);
   });
 
   it('should be defined', () => {
@@ -545,7 +539,6 @@ describe('Workspace Controller', () => {
         user,
         orderBy,
         { page, perPage },
-
       );
 
       expect(
