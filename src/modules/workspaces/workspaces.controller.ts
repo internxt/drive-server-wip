@@ -62,7 +62,6 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
-import { SharingService } from '../sharing/sharing.service';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { Public } from '../auth/decorators/public.decorator';
@@ -73,10 +72,7 @@ import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 @Controller('workspaces')
 @UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
-  constructor(
-    private workspaceUseCases: WorkspacesUsecases,
-    private sharingUseCases: SharingService,
-  ) {}
+  constructor(private readonly workspaceUseCases: WorkspacesUsecases) {}
 
   @Get('/')
   @ApiOperation({
