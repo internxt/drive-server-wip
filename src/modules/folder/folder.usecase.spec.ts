@@ -554,64 +554,31 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('decrypt folder name', () => {
-    const folderAtributes: FolderAttributes = {
-      id: 1,
-      parentId: null,
-      parentUuid: null,
-      parent: null,
-      name: 'name',
-      bucket: 'bucket',
-      userId: 1,
-      encryptVersion: '03-aes',
-      deleted: true,
-      deletedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      uuid: '',
-      plainName: 'name',
-      removed: false,
-      removedAt: null,
-    };
-
-    it('returns folder json data with the name decrypted', () => {
-      const parentId = 3385750628;
-
+  describe('decryptFolderName()', () => {
+    it('When the name is encrypted, then the decrypting works', () => {
+      const folder = newFolder();
       const encriptedName = cryptoService.encryptName(
-        folderAtributes['name'],
-        parentId,
+        folder.plainName,
+        folder.parentId,
       );
-
-      const folder = Folder.build({
-        ...folderAtributes,
-        name: encriptedName,
-        parentId,
-      });
+      folder.name = encriptedName;
 
       const result = service.decryptFolderName(folder);
 
-      const expectedResult = {
-        ...folderAtributes,
-        size: 0,
-      };
-      delete expectedResult.parentId;
-      delete expectedResult.parentUuid;
-
-      expect(result).toStrictEqual({ ...expectedResult, sharings: undefined });
+      expect(result instanceof Folder).toBeTruthy();
+      expect(result.name).toStrictEqual(folder.plainName);
     });
 
-    it('fails when the folder name is not encrypted', () => {
-      const name = 'not encrypted name';
-      const parentId = 2192829271;
+    it('When the name is not encrypted, then the decrypting fails', () => {
+      const folder = newFolder({
+        attributes: {
+          name: 'not encrypted name',
+        },
+      });
 
-      const folder = Folder.build({ ...folderAtributes, name, parentId });
-
-      try {
-        service.decryptFolderName(folder);
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(Error);
-        expect(err.message).toBe('Unable to decrypt folder name');
-      }
+      expect(() => service.decryptFolderName(folder)).toThrow(
+        new Error('Unable to decrypt folder name'),
+      );
     });
   });
 
