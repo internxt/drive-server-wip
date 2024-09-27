@@ -88,7 +88,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
 
     const actionHandler = this.getActionHandler(action);
 
-    const bypassActionCheck = request.isSharedItem;
+    const bypassActionCheck = request.query.isSharedItem;
 
     const canUserPerformAction = bypassActionCheck
       ? true
