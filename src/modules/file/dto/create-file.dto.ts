@@ -79,5 +79,14 @@ export class CreateFileDto {
   })
   @IsDateString()
   @IsOptional()
-  date: Date;
+  date?: Date;
+
+  @ApiProperty({
+    description: 'The date associated with the file (optional)',
+    required: false,
+    example: '2023-05-30T12:34:56.789Z',
+  })
+  @IsDateString()
+  @IsOptional()
+  creationTime?: Date;
 }
