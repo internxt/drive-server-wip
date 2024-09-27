@@ -40,12 +40,14 @@ export class SequelizeLookUpRepository implements LookUpRepository {
     partialName: string,
     offset = 0,
   ): Promise<LookUpResult> {
+    const partialNameFormatted = partialName.replace(/\s+/g, ' & ');
+
     const result = await this.model.findAll({
       attributes: {
         include: [
           [
             Sequelize.literal(
-              'nullif(ts_rank("tokenized_name", to_tsquery(:partialName)), 1)',
+              'nullif(ts_rank("tokenized_name", to_tsquery(:partialNameFormatted)), 1)',
             ),
             'rank',
           ],
@@ -68,7 +70,9 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       where: {
         user_id: userUuid,
         [Op.or]: [
-          Sequelize.literal(`to_tsquery(:partialName) @@ "tokenized_name"`),
+          Sequelize.literal(
+            `to_tsquery(:partialNameFormatted) @@ "tokenized_name"`,
+          ),
           Sequelize.where(
             Sequelize.fn(
               'similarity',
@@ -86,7 +90,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       ],
       limit: 5,
       offset: offset,
-      replacements: { partialName, userUuid },
+      replacements: { partialName, partialNameFormatted, userUuid },
       include: [
         {
           model: FileModel,
