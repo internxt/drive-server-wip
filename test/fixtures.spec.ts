@@ -565,4 +565,21 @@ describe('Testing fixtures tests', () => {
       expect(user.username).toBe(user.email);
     });
   });
+
+  describe("Role's fixture", () => {
+    it('When it generates a role, then the name should be random', () => {
+      const role = fixtures.newRole();
+      const otherRole = fixtures.newRole();
+
+      expect(role.name).toBeTruthy();
+      expect(role.name).not.toBe(otherRole.name);
+    });
+
+    it('When it generates a role and a name is provided, then that name should be set', () => {
+      const customName = 'CustomRoleName';
+      const role = fixtures.newRole(customName);
+
+      expect(role.name).toBe(customName);
+    });
+  });
 });

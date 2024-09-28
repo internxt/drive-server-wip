@@ -62,7 +62,7 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
-import { SharingService } from '../sharing/sharing.service';
+import { SharingInfo, SharingService } from '../sharing/sharing.service';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
@@ -1000,6 +1000,129 @@ export class WorkspacesUsecases {
 
     return createdSharing;
   }
+
+  async getItemSharedWith(
+    user: User,
+    workspaceId: string,
+    itemId: Sharing['itemId'],
+    itemType: WorkspaceItemType,
+  ) {
+    const [item, itemInWorkspace] = await Promise.all([
+      itemType === WorkspaceItemType.File
+        ? this.fileUseCases.getByUuid(itemId)
+        : this.folderUseCases.getByUuid(itemId),
+      this.workspaceRepository.getItemBy({
+        itemId,
+        itemType,
+      }),
+    ]);
+
+    if (!itemInWorkspace || !item) {
+      throw new NotFoundException('Item not found');
+    }
+
+    const sharingsWithRoles =
+      await this.sharingUseCases.findSharingsWithRolesByItem(item);
+
+    if (!sharingsWithRoles.length) {
+      throw new BadRequestException(
+        'This item is not being shared with anyone',
+      );
+    }
+
+    const sharedWithIndividuals = sharingsWithRoles.filter(
+      (s) => s.sharedWithType === SharedWithType.Individual,
+    );
+
+    const sharedWithTeams = sharingsWithRoles.filter(
+      (s) => s.sharedWithType === SharedWithType.WorkspaceTeam,
+    );
+
+    const [teams, users] = await Promise.all([
+      this.getWorkspaceTeamsUserBelongsTo(user.uuid, workspaceId),
+      this.userUsecases.findByUuids(
+        sharedWithIndividuals.map((s) => s.sharedWith),
+      ),
+    ]);
+
+    const teamsIds = teams.map((team) => team.id);
+
+    const isAnInvitedUser = sharedWithIndividuals.some(
+      (s) => s.sharedWith === user.uuid,
+    );
+    const isTheOwner = itemInWorkspace.isOwnedBy(user);
+    const belongsToSharedTeam = sharedWithTeams.some((s) =>
+      teamsIds.includes(s.sharedWith),
+    );
+
+    if (!isTheOwner && !isAnInvitedUser && !belongsToSharedTeam) {
+      throw new ForbiddenException();
+    }
+
+    const usersWithRoles = await Promise.all<SharingInfo>(
+      sharedWithIndividuals.map(async (sharingWithRole) => {
+        const user = users.find(
+          (user) =>
+            user.uuid === sharingWithRole.sharedWith &&
+            sharingWithRole.sharedWithType == SharedWithType.Individual,
+        );
+
+        return {
+          ...user,
+          sharingId: sharingWithRole.id,
+          avatar: user?.avatar
+            ? await this.userUsecases.getAvatarUrl(user.avatar)
+            : null,
+          role: sharingWithRole.role,
+        };
+      }),
+    );
+
+    const { createdBy } = itemInWorkspace;
+
+    const { name, lastname, email, avatar, uuid } =
+      createdBy === user.uuid
+        ? user
+        : await this.userUsecases.getUser(createdBy);
+
+    const ownerWithRole: SharingInfo = {
+      name,
+      lastname,
+      email,
+      sharingId: null,
+      avatar: avatar ? await this.userUsecases.getAvatarUrl(avatar) : null,
+      uuid,
+      role: {
+        id: 'NONE',
+        name: 'OWNER',
+        createdAt: item.createdAt,
+        updatedAt: item.createdAt,
+      },
+    };
+
+    usersWithRoles.push(ownerWithRole);
+
+    const workspaceTeams =
+      await this.teamRepository.getTeamsAndMembersCountByWorkspace(workspaceId);
+
+    const teamsWithRoles = sharedWithTeams.map((sharingWithRole) => {
+      const team = workspaceTeams.find(
+        (team) =>
+          team.team.id === sharingWithRole.sharedWith &&
+          sharingWithRole.sharedWithType == SharedWithType.WorkspaceTeam,
+      );
+
+      return {
+        ...team.team,
+        membersCount: team.membersCount,
+        sharingId: sharingWithRole.id,
+        role: sharingWithRole.role,
+      };
+    });
+
+    return { usersWithRoles, teamsWithRoles };
+  }
+
   async getSharedFilesInWorkspace(
     user: User,
     workspaceId: Workspace['id'],

@@ -11,6 +11,7 @@ import {
   newFile,
   newFolder,
   newPreCreatedUser,
+  newRole,
   newSharing,
   newSharingRole,
   newUser,
@@ -46,7 +47,7 @@ import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
-import { Role } from '../sharing/sharing.domain';
+import { Role, SharedWithType } from '../sharing/sharing.domain';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import * as jwtUtils from '../../lib/jwt';
 import { PaymentsService } from '../../externals/payments/payments.service';
@@ -4944,6 +4945,195 @@ describe('WorkspacesUsecases', () => {
           );
 
         await expect(service.deleteAvatar(workspace.id)).rejects.toThrow();
+      });
+    });
+  });
+
+  describe('getItemSharedWith', () => {
+    const user = newUser();
+    const workspace = newWorkspace({ owner: user });
+    const itemId = v4();
+    const itemType = WorkspaceItemType.File;
+
+    it('When item is not found in workspace, then it should throw', async () => {
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValueOnce(null);
+      jest.spyOn(workspaceRepository, 'getItemBy').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getItemSharedWith(user, workspace.id, itemId, itemType),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When item is not being shared, then it should throw', async () => {
+      const mockFile = newFile({ owner: user });
+      const mockWorkspaceFile = newWorkspaceItemUser({
+        itemId: mockFile.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValueOnce(mockFile);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValueOnce(mockWorkspaceFile);
+      jest
+        .spyOn(sharingUseCases, 'findSharingsWithRolesByItem')
+        .mockResolvedValueOnce([]);
+
+      await expect(
+        service.getItemSharedWith(user, workspace.id, itemId, itemType),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not the owner, invited or part of shared team, then it should throw', async () => {
+      const mockFile = newFile({ owner: newUser() });
+      const mockWorkspaceFile = newWorkspaceItemUser({
+        itemId: mockFile.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+      const mockRole = newRole();
+      const mockSharing = newSharing({
+        item: mockFile,
+      });
+
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValueOnce(mockFile);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValueOnce(mockWorkspaceFile);
+      jest
+        .spyOn(sharingUseCases, 'findSharingsWithRolesByItem')
+        .mockResolvedValueOnce([{ ...mockSharing, role: mockRole }]);
+      jest
+        .spyOn(service, 'getWorkspaceTeamsUserBelongsTo')
+        .mockResolvedValueOnce([]);
+
+      await expect(
+        service.getItemSharedWith(user, workspace.id, itemId, itemType),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user is owner, then it should return shared info', async () => {
+      const file = newFile();
+      const workspaceFile = newWorkspaceItemUser({
+        itemId: file.uuid,
+        itemType: WorkspaceItemType.File,
+        attributes: { createdBy: user.uuid },
+      });
+      const role = newRole();
+      const sharing = newSharing({
+        item: file,
+      });
+
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValueOnce(workspaceFile);
+      jest
+        .spyOn(sharingUseCases, 'findSharingsWithRolesByItem')
+        .mockResolvedValueOnce([{ ...sharing, role }]);
+      jest
+        .spyOn(service, 'getWorkspaceTeamsUserBelongsTo')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(userUsecases, 'findByUuids').mockResolvedValueOnce([user]);
+      jest
+        .spyOn(userUsecases, 'getAvatarUrl')
+        .mockResolvedValueOnce('avatar-url');
+
+      const result = await service.getItemSharedWith(
+        user,
+        workspace.id,
+        itemId,
+        itemType,
+      );
+
+      expect(result.usersWithRoles[1]).toMatchObject({
+        uuid: user.uuid,
+        role: {
+          id: 'NONE',
+          name: 'OWNER',
+          createdAt: file.createdAt,
+          updatedAt: file.createdAt,
+        },
+      });
+    });
+
+    it('When user is invited, then it should return shared info', async () => {
+      const invitedUser = newUser();
+      const file = newFile();
+      const workspaceFile = newWorkspaceItemUser({
+        itemId: file.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+      const role = newRole();
+      const sharing = newSharing({
+        item: file,
+      });
+      sharing.sharedWith = invitedUser.uuid;
+
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValueOnce(workspaceFile);
+      jest
+        .spyOn(sharingUseCases, 'findSharingsWithRolesByItem')
+        .mockResolvedValueOnce([{ ...sharing, role }]);
+      jest
+        .spyOn(service, 'getWorkspaceTeamsUserBelongsTo')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(userUsecases, 'findByUuids')
+        .mockResolvedValueOnce([invitedUser, user]);
+      jest
+        .spyOn(userUsecases, 'getAvatarUrl')
+        .mockResolvedValueOnce('avatar-url');
+
+      const result = await service.getItemSharedWith(
+        invitedUser,
+        workspace.id,
+        itemId,
+        itemType,
+      );
+
+      expect(result.usersWithRoles[0]).toMatchObject({
+        sharingId: sharing.id,
+        role: role,
+      });
+    });
+
+    it('When user belongs to a shared team, then it should return shared info', async () => {
+      const userAsignedToTeam = newUser();
+      const invitedTeam = newWorkspaceTeam();
+      const file = newFile();
+      const workspaceFile = newWorkspaceItemUser({
+        itemId: file.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+      const role = newRole();
+      const sharing = newSharing({
+        item: file,
+      });
+      sharing.sharedWith = invitedTeam.id;
+      sharing.sharedWithType = SharedWithType.WorkspaceTeam;
+
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValueOnce(file);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValueOnce(workspaceFile);
+      jest
+        .spyOn(sharingUseCases, 'findSharingsWithRolesByItem')
+        .mockResolvedValueOnce([{ ...sharing, role }]);
+      jest
+        .spyOn(service, 'getWorkspaceTeamsUserBelongsTo')
+        .mockResolvedValueOnce([invitedTeam]);
+
+      const result = await service.getItemSharedWith(
+        userAsignedToTeam,
+        workspace.id,
+        itemId,
+        itemType,
+      );
+
+      expect(result.teamsWithRoles[0]).toMatchObject({
+        sharingId: sharing.id,
+        role: role,
       });
     });
   });

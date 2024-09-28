@@ -67,6 +67,7 @@ import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto
 import { Public } from '../auth/decorators/public.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { GetSharedItemsDto } from './dto/get-shared-items.dto';
+import { GetSharedWithDto } from './dto/shared-with.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -690,6 +691,32 @@ export class WorkspacesController {
       WorkspaceItemType.File,
       token,
       { page, perPage, order },
+    );
+  }
+
+  @Get('/:workspaceId/shared/:itemType/:itemId/shared-with')
+  @ApiOperation({
+    summary: 'Get users and teams an item is shared with',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'itemType', type: String, required: true })
+  @ApiParam({ name: 'itemId', type: String, required: true })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getItemSharedWith(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param() sharedWithParams: GetSharedWithDto,
+  ) {
+    const { itemId, itemType } = sharedWithParams;
+
+    return this.workspaceUseCases.getItemSharedWith(
+      user,
+      workspaceId,
+      itemId,
+      itemType,
     );
   }
 

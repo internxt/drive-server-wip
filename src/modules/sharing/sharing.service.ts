@@ -174,7 +174,7 @@ export class PasswordNeededError extends ForbiddenException {
   }
 }
 
-type SharingInfo = Pick<
+export type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
 > & {
@@ -1888,12 +1888,14 @@ export class SharingService {
     };
   }
 
+  async findSharingsWithRolesByItem(item: File | Folder) {
+    return this.sharingRepository.findSharingsWithRolesByItem(item);
+  }
+
   async getItemSharedWith(
     user: User,
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
-    offset: number,
-    limit: number,
   ): Promise<SharingInfo[]> {
     let item: Item;
 
@@ -1909,8 +1911,7 @@ export class SharingService {
       throw new NotFoundException('Item not found');
     }
 
-    const sharingsWithRoles =
-      await this.sharingRepository.findSharingsWithRolesByItem(item);
+    const sharingsWithRoles = await this.findSharingsWithRolesByItem(item);
 
     if (sharingsWithRoles.length === 0) {
       throw new BadRequestException('This item is not being shared');
