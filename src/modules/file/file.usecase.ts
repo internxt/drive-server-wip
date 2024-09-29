@@ -188,15 +188,19 @@ export class FileUseCases {
       );
     }
 
+    const modificationTime = new Date();
+
     await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
       plainName: newFileMetada.plainName,
       name: cryptoFileName,
+      modificationTime: modificationTime,
     });
 
     return {
       ...file.toJSON(),
       name: cryptoFileName,
       plainName: newFileMetada.plainName,
+      modificationTime,
     };
   }
 

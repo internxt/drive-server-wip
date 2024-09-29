@@ -18,5 +18,7 @@ export interface FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   removedAt: Date;
+  creationTime: Date;
+  modificationTime: Date;
   sharings?: Sharing[];
 }

@@ -13,7 +13,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { Folder, FolderAttributes, FolderOptions } from './folder.domain';
+import { Folder, FolderOptions } from './folder.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -92,23 +92,7 @@ describe('FolderUseCases', () => {
 
   describe('move folder to trash use case', () => {
     it('calls moveFolderToTrash and return file', async () => {
-      const mockFolder = Folder.build({
-        id: 1,
-        parentId: null,
-        parentUuid: null,
-        name: 'name',
-        bucket: 'bucket',
-        userId: 1,
-        encryptVersion: '03-aes',
-        deleted: true,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '',
-        plainName: '',
-        removed: false,
-        removedAt: null,
-      });
+      const mockFolder = newFolder();
       jest
         .spyOn(folderRepository, 'updateByFolderId')
         .mockResolvedValue(mockFolder);
@@ -128,41 +112,23 @@ describe('FolderUseCases', () => {
 
   describe('move multiple folders to trash', () => {
     const rootFolderBucket = 'bucketRoot';
-    const mockFolder = Folder.build({
-      id: 1,
-      parentId: null,
-      parentUuid: null,
-      name: 'name',
-      bucket: rootFolderBucket,
-      userId: 1,
-      encryptVersion: '03-aes',
-      deleted: true,
-      deletedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      uuid: '2545feaf-4d6b-40d8-9bf8-550285268bd3',
-      plainName: '',
-      removed: false,
-      removedAt: null,
-    });
+    const mockFolder = newFolder();
 
     it('When uuid and id are passed and there is a backup and drive folder, then backups and drive folders should be updated', async () => {
-      const mockBackupFolder = Folder.build({
-        id: 1,
-        parentId: null,
-        parentUuid: null,
-        name: 'name',
-        bucket: 'bucketIdforBackup',
-        userId: 1,
-        encryptVersion: '03-aes',
-        deleted: true,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '656a3abb-36ab-47ee-8303-6e4198f2a32a',
-        plainName: '',
-        removed: false,
-        removedAt: null,
+      const mockBackupFolder = newFolder({
+        attributes: {
+          id: 1,
+          parentId: null,
+          parentUuid: null,
+          name: 'name',
+          bucket: 'bucketIdforBackup',
+          userId: 1,
+          encryptVersion: '03-aes',
+          deleted: true,
+          plainName: '',
+          removed: false,
+          removedAt: null,
+        },
       });
 
       jest
@@ -224,24 +190,14 @@ describe('FolderUseCases', () => {
 
   describe('get folder use case', () => {
     it('calls getFolder and return folder', async () => {
-      const mockFolder = Folder.build({
-        id: 1,
-        parentId: null,
-        parentUuid: null,
-        name: 'name',
-        bucket: 'bucket',
-        userId: 1,
-        encryptVersion: '03-aes',
-        deleted: true,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: null,
-        parent: null,
-        uuid: '',
-        plainName: '',
-        removed: false,
-        removedAt: null,
+      const mockFolder = newFolder({
+        attributes: {
+          bucket: 'bucket',
+          id: 1,
+          parent: null,
+          userId: 1,
+          deleted: true,
+        },
       });
       jest
         .spyOn(folderRepository, 'findById')
@@ -290,22 +246,15 @@ describe('FolderUseCases', () => {
       const nameEncrypted =
         'ONzgORtJ77qI28jDnr+GjwJn6xELsAEqsn3FKlKNYbHR7Z129AD/WOMkAChEKx6rm7hOER2drdmXmC296dvSXtE5y5os0XCS554YYc+dcCMIkot/v6Wu6rlBC5MPlngR+CkmvA==';
       const mockFolders = [
-        Folder.build({
-          id: 4,
-          parentId: 1,
-          parentUuid: v4(),
-          name: nameEncrypted,
-          bucket: 'bucket',
-          userId: 1,
-          encryptVersion: '03-aes',
-          deleted: true,
-          deletedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          uuid: '',
-          plainName: '',
-          removed: false,
-          removedAt: null,
+        newFolder({
+          attributes: {
+            name: nameEncrypted,
+            bucket: 'bucket',
+            parentId: 1,
+            id: 4,
+            deleted: true,
+            userId: 1,
+          },
         }),
       ];
       jest
@@ -364,24 +313,17 @@ describe('FolderUseCases', () => {
         emailVerified: false,
       });
       const folderId = 2713105696;
-      const folder = Folder.build({
-        id: folderId,
-        parentId: 3388762609,
-        parentUuid: v4(),
-        name: 'name',
-        bucket: 'bucket',
-        userId: 1,
-        encryptVersion: '03-aes',
-        deleted: true,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: userOwnerMock,
-        parent: null,
-        uuid: '',
-        plainName: '',
-        removed: false,
-        removedAt: null,
+      const folder = newFolder({
+        attributes: {
+          id: folderId,
+          parentId: 3388762609,
+          name: 'name',
+          bucket: 'bucket',
+          userId: 1,
+          encryptVersion: '03-aes',
+          deleted: true,
+          deletedAt: new Date(),
+        },
       });
 
       jest
@@ -424,26 +366,18 @@ describe('FolderUseCases', () => {
         emailVerified: false,
       });
       const folderId = 2713105696;
-      const folder = Folder.build({
-        id: folderId,
-        parentId: 3388762609,
-        parentUuid: v4(),
-        name: 'name',
-        bucket: 'bucket',
-        userId: 1,
-        encryptVersion: '03-aes',
-        deleted: false,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: userOwnerMock,
-        parent: null,
-        uuid: '',
-        plainName: '',
-        removed: false,
-        removedAt: null,
+      const folder = newFolder({
+        attributes: {
+          id: folderId,
+          parentId: 3388762609,
+          name: 'name',
+          bucket: 'bucket',
+          userId: 1,
+          encryptVersion: '03-aes',
+          deleted: false,
+          deletedAt: new Date(),
+        },
       });
-
       jest
         .spyOn(folderRepository, 'deleteById')
         .mockImplementationOnce(() => Promise.resolve());
@@ -489,24 +423,17 @@ describe('FolderUseCases', () => {
         emailVerified: false,
       });
       const folderId = 2713105696;
-      const folder = Folder.build({
-        id: folderId,
-        parentId: null,
-        parentUuid: null,
-        name: 'name',
-        bucket: 'bucket',
-        userId: 1,
-        encryptVersion: '03-aes',
-        deleted: false,
-        deletedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: userOwnerMock,
-        parent: null,
-        uuid: '',
-        plainName: '',
-        removed: false,
-        removedAt: null,
+      const folder = newFolder({
+        attributes: {
+          id: folderId,
+          parentId: null,
+          name: 'name',
+          bucket: 'bucket',
+          userId: 1,
+          encryptVersion: '03-aes',
+          deleted: true,
+          deletedAt: new Date(),
+        },
       });
 
       jest
@@ -895,7 +822,10 @@ describe('FolderUseCases', () => {
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
 
       await expect(
-        service.createFolder(userMocked, folderName, parentFolder.uuid),
+        service.createFolder(userMocked, {
+          plainName: folderName,
+          parentFolderUuid: parentFolder.uuid,
+        }),
       ).rejects.toThrow(InvalidParentFolderException);
     });
 
@@ -908,11 +838,17 @@ describe('FolderUseCases', () => {
         .mockResolvedValueOnce(parentFolder);
 
       await expect(
-        service.createFolder(userMocked, notValidName, parentFolder.uuid),
+        service.createFolder(userMocked, {
+          plainName: notValidName,
+          parentFolderUuid: parentFolder.uuid,
+        }),
       ).rejects.toThrow(BadRequestException);
 
       await expect(
-        service.createFolder(userMocked, 'Invalid/Name', parentFolder.uuid),
+        service.createFolder(userMocked, {
+          plainName: 'Invalid/Name',
+          parentFolderUuid: parentFolder.uuid,
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -930,7 +866,10 @@ describe('FolderUseCases', () => {
         .mockResolvedValueOnce(existingFolder);
 
       await expect(
-        service.createFolder(userMocked, folderName, parentFolder.uuid),
+        service.createFolder(userMocked, {
+          plainName: folderName,
+          parentFolderUuid: parentFolder.uuid,
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -944,6 +883,8 @@ describe('FolderUseCases', () => {
           parentUuid: parentFolder.uuid,
           name: encryptedFolderName,
           plainName: folderName,
+          creationTime: new Date('2024-09-08T12:00:00Z'),
+          modificationTime: new Date('2024-09-12T12:00:00Z'),
         },
       });
 
@@ -960,11 +901,12 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'createWithAttributes')
         .mockResolvedValueOnce(newFolderCreated);
 
-      const result = await service.createFolder(
-        userMocked,
-        folderName,
-        parentFolder.uuid,
-      );
+      const result = await service.createFolder(userMocked, {
+        plainName: folderName,
+        parentFolderUuid: parentFolder.uuid,
+        creationTime: new Date('2024-09-08T12:00:00Z'),
+        modificationTime: new Date('2024-09-12T12:00:00Z'),
+      });
 
       expect(result).toEqual(newFolderCreated);
     });
@@ -1160,6 +1102,7 @@ describe('FolderUseCases', () => {
         attributes: {
           name: encryptedName,
           plainName: newFolderMetadata.plainName,
+          modificationTime: new Date(),
         },
       });
 
@@ -1179,8 +1122,12 @@ describe('FolderUseCases', () => {
 
       expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
         mockFolder.id,
-        { plainName: newFolderMetadata.plainName, name: encryptedName },
+        expect.objectContaining({
+          plainName: newFolderMetadata.plainName,
+          name: encryptedName,
+        }),
       );
+
       expect(result).toEqual(updatedFolder);
     });
   });

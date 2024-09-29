@@ -753,6 +753,7 @@ describe('FileUseCases', () => {
           ...mockFile,
           plainName: newFileMeta.plainName,
           name: encryptedName,
+          modificationTime: new Date(),
         },
       });
 
@@ -781,7 +782,10 @@ describe('FileUseCases', () => {
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
-        { plainName: newFileMeta.plainName, name: encryptedName },
+        expect.objectContaining({
+          plainName: newFileMeta.plainName,
+          name: encryptedName,
+        }),
       );
       expect(result).toEqual(updatedFile);
     });

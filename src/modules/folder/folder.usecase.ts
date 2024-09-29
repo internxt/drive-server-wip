@@ -29,6 +29,7 @@ import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
+import { CreateFolderDto } from './dto/create-folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -339,7 +340,11 @@ export class FolderUseCases {
 
     const updatedFolder = await this.folderRepository.updateByFolderId(
       folder.id,
-      { plainName: newFolderMetadata.plainName, name: cryptoFileName },
+      {
+        plainName: newFolderMetadata.plainName,
+        name: cryptoFileName,
+        modificationTime: new Date(),
+      },
     );
 
     return updatedFolder;
@@ -347,8 +352,7 @@ export class FolderUseCases {
 
   async createFolder(
     creator: User,
-    name: FolderAttributes['plainName'],
-    parentFolderUuid: FolderAttributes['uuid'],
+    newFolderDto: CreateFolderDto,
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
     let user = creator;
@@ -363,7 +367,7 @@ export class FolderUseCases {
     }
 
     const parentFolder = await this.folderRepository.findOne({
-      uuid: parentFolderUuid,
+      uuid: newFolderDto.parentFolderUuid,
       userId: user.id,
     });
 
@@ -373,13 +377,16 @@ export class FolderUseCases {
       );
     }
 
-    if (name === '' || invalidName.test(name)) {
+    if (
+      newFolderDto.plainName === '' ||
+      invalidName.test(newFolderDto.plainName)
+    ) {
       throw new BadRequestException('Invalid folder name');
     }
 
     const nameAlreadyInUse = await this.folderRepository.findOne({
       parentId: parentFolder.id,
-      plainName: name,
+      plainName: newFolderDto.plainName,
       deleted: false,
     });
 
@@ -390,7 +397,7 @@ export class FolderUseCases {
     }
 
     const encryptedFolderName = this.cryptoService.encryptName(
-      name,
+      newFolderDto.plainName,
       parentFolder.id,
     );
 
@@ -398,7 +405,7 @@ export class FolderUseCases {
       uuid: v4(),
       userId: user.id,
       name: encryptedFolderName,
-      plainName: name,
+      plainName: newFolderDto.plainName,
       parentId: parentFolder.id,
       parentUuid: parentFolder.uuid,
       encryptVersion: '03-aes',
@@ -409,6 +416,8 @@ export class FolderUseCases {
       updatedAt: new Date(),
       removedAt: null,
       deletedAt: null,
+      modificationTime: newFolderDto.modificationTime || new Date(),
+      creationTime: newFolderDto.creationTime || new Date(),
     });
 
     return folder;
