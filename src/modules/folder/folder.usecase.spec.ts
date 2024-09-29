@@ -504,7 +504,7 @@ describe('FolderUseCases', () => {
       });
 
       expect(() => service.decryptFolderName(folder)).toThrow(
-        new Error('Unable to decrypt folder name'),
+        'Unable to decrypt folder name',
       );
     });
   });

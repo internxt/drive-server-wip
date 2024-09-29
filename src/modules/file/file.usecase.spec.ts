@@ -787,7 +787,19 @@ describe('FileUseCases', () => {
           name: encryptedName,
         }),
       );
-      expect(result).toEqual(updatedFile);
+      const {
+        modificationTime: _resultModificationTime,
+        ...resultWithoutModificationTime
+      } = result;
+      const {
+        modificationTime: updatedFileModificationTime,
+        ...updatedFileWithoutModificationTime
+      } = updatedFile;
+
+      expect(resultWithoutModificationTime).toEqual(
+        updatedFileWithoutModificationTime,
+      );
+      expect(mockFile).not.toBe(updatedFileModificationTime);
     });
   });
 
