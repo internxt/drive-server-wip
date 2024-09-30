@@ -219,14 +219,13 @@ export class WorkspacesUsecases {
           workspace.rootFolderId,
         );
 
-        const fixedSpaceLimit =
-          await this.getWorkspaceFixedStoragePerUser(workspace);
+        const assignableSpace = await this.getWorkspaceNetworkLimit(workspace);
 
         const workspaceUser = WorkspaceUser.build({
           id: v4(),
           workspaceId: workspace.id,
           memberId: user.uuid,
-          spaceLimit: fixedSpaceLimit,
+          spaceLimit: assignableSpace,
           driveUsage: 0,
           backupsUsage: 0,
           key: setupWorkspaceDto.encryptedMnemonic,
@@ -1217,6 +1216,56 @@ export class WorkspacesUsecases {
     };
   }
 
+  async adjustOwnerStorage(
+    workspaceId: Workspace['id'],
+    size: number,
+    behavior: 'DEDUCT' | 'ADD',
+  ): Promise<void> {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const owner = await this.workspaceRepository.findWorkspaceUser({
+      workspaceId,
+      memberId: workspace.ownerId,
+    });
+
+    const workspaceNetworkLimit =
+      await this.getWorkspaceNetworkLimit(workspace);
+
+    if (behavior === 'DEDUCT') {
+      const ownerUsage = await this.calculateFilesSizeSum(
+        workspace.ownerId,
+        workspace.id,
+        [FileStatus.EXISTS, FileStatus.TRASHED],
+      );
+
+      const availableSpace = workspaceNetworkLimit - ownerUsage;
+
+      if (availableSpace < size) {
+        throw new BadRequestException(
+          'Not enough space available to perform this operation',
+        );
+      }
+    } else {
+      if (owner.spaceLimit + size > workspaceNetworkLimit) {
+        throw new BadRequestException(
+          'Not enough space available to perform this operation',
+        );
+      }
+    }
+
+    const newSpaceLimit =
+      behavior === 'DEDUCT' ? owner.spaceLimit - size : owner.spaceLimit + size;
+
+    await this.workspaceRepository.updateWorkspaceUserBy(
+      { workspaceId, memberId: workspace.ownerId },
+      { spaceLimit: newSpaceLimit },
+    );
+  }
+
   async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
     const invite = await this.workspaceRepository.findInvite({
       id: inviteId,
@@ -1310,6 +1359,8 @@ export class WorkspacesUsecases {
       });
 
       await this.workspaceRepository.deleteInviteBy({ id: invite.id });
+
+      await this.adjustOwnerStorage(workspace.id, invite.spaceLimit, 'DEDUCT');
 
       return workspaceUser.toJSON();
     } catch (error) {
@@ -2345,6 +2396,18 @@ export class WorkspacesUsecases {
       });
       await this.teamRepository.deleteUserFromTeam(user.uuid, team.id);
     }
+
+    const workspaceUserToRemove =
+      await this.workspaceRepository.findWorkspaceUser({
+        workspaceId,
+        memberId: user.uuid,
+      });
+
+    await this.adjustOwnerStorage(
+      workspaceId,
+      workspaceUserToRemove.spaceLimit,
+      'ADD',
+    );
 
     await this.workspaceRepository.deleteUserFromWorkspace(
       user.uuid,
