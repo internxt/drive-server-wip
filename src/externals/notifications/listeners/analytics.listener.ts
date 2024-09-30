@@ -5,7 +5,7 @@ import { ShareLinkCreatedEvent } from '../events/share-link-created.event';
 import { RequestContext } from '../../../lib/request-context';
 import { InvitationAcceptedEvent } from '../events/invitation-accepted.event';
 import { ReferralRedeemedEvent } from '../events/referral-redeemed.event';
-import { SignUpEvent } from '../events/sign-up.event';
+import { SignUpSuccessEvent } from '../events/sign-up-success.event';
 
 import geoip from 'geoip-lite';
 import DeviceDetector from 'node-device-detector';
@@ -105,7 +105,7 @@ function getUTM(referrer: any) {
       'utm_content',
       'utm_id',
     ];
-    UTMS.map((utm) => {
+    UTMS.forEach((utm) => {
       if (searchParams.has(utm)) {
         campaign[utm] = searchParams.get(utm);
       }
@@ -233,8 +233,8 @@ export class AnalyticsListener {
       },
     });
   }
-  @OnEvent('signup')
-  async handleSignUp(event: SignUpEvent) {
+  @OnEvent(SignUpSuccessEvent.id)
+  async handleSignUp(event: SignUpSuccessEvent) {
     Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
 
     const { user, req } = event;

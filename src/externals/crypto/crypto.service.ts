@@ -5,6 +5,10 @@ import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
+export enum AsymmetricEncryptionAlgorithms {
+  EllipticCurve = 'ed25519',
+}
+
 @Injectable()
 export class CryptoService {
   private configService: ConfigService;
@@ -67,6 +71,27 @@ export class CryptoService {
 
   encryptText(textToEncrypt: string, salt?: number) {
     return this.encryptName(textToEncrypt, salt);
+  }
+
+  encryptTextWithKey(textToEncrypt: string, keyToEncrypt: string): string {
+    const bytes = CryptoJS.AES.encrypt(textToEncrypt, keyToEncrypt).toString();
+    const text64 = CryptoJS.enc.Base64.parse(bytes);
+
+    return text64.toString(CryptoJS.enc.Hex);
+  }
+
+  passToHash(password: string): { salt: string; hash: string } {
+    const salt = CryptoJS.lib.WordArray.random(128 / 8);
+    const hash = CryptoJS.PBKDF2(password, salt, {
+      keySize: 256 / 32,
+      iterations: 10000,
+    });
+    const hashedObjetc = {
+      salt: salt.toString(),
+      hash: hash.toString(),
+    };
+
+    return hashedObjetc;
   }
 
   /* DECRYPT */

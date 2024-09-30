@@ -1,93 +1,78 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File, FileAttributes } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class TrashUseCases {
+  async clearTrash(user: User) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
   ) {}
 
-  private async deleteFiles(files: Array<File>, user: User): Promise<void> {
-    for (const file of files) {
-      await this.fileUseCases
-        .deleteFilePermanently(file, user)
-        .catch((err) => Logger.error(err.message));
-    }
-  }
-
-  private async deleteFolders(
-    folders: Array<Folder>,
-    user: User,
-  ): Promise<void> {
-    if (folders.length === 0) {
-      return;
-    }
-
-    for (const folder of folders) {
-      await this.folderUseCases
-        .deleteFolderPermanently(folder, user)
-        .catch((err) => Logger.error(err.message));
-    }
-
-    await this.folderUseCases.deleteOrphansFolders(user.id);
-  }
-
-  public async clearTrash(user: User) {
-    const { id: userId } = user;
-
-    const foldersToDelete = await this.folderUseCases.getFoldersToUser(userId, {
-      deleted: true,
-    });
-
-    const foldersIdToDelete = foldersToDelete.map(
-      (folder: Folder) => folder.id,
+  /**
+   * Empties the trash of a given user
+   * @param trashOwner User whose trash is going to be emptied
+   */
+  async emptyTrash(trashOwner: User): Promise<void> {
+    const filesCount = await this.fileUseCases.getTrashFilesCount(
+      trashOwner.id,
     );
+    const foldersCount = await this.folderUseCases.getTrashFoldersCount(
+      trashOwner.id,
+    );
+    const emptyTrashChunkSize = 100;
+    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
+      const folders = await this.folderUseCases.getFolders(
+        trashOwner.id,
+        { deleted: true, removed: false },
+        { limit: emptyTrashChunkSize, offset: i },
+      );
 
-    const filesDeletion = this.fileUseCases
-      .getByUserExceptParents(userId, foldersIdToDelete, { deleted: true })
-      .then((files: Array<File>) => this.deleteFiles(files, user));
+      await this.folderUseCases.deleteByUser(trashOwner, folders);
+    }
 
-    const foldersDeletion = this.deleteFolders(foldersToDelete, user);
+    for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
+      const files = await this.fileUseCases.getFiles(
+        trashOwner.id,
+        { status: FileStatus.TRASHED },
+        { limit: emptyTrashChunkSize, offset: i },
+      );
 
-    await Promise.allSettled([filesDeletion, foldersDeletion]);
+      await this.fileUseCases.deleteByUser(trashOwner, files);
+    }
   }
 
-  public async deleteItems(
-    filesId: Array<FileAttributes['fileId']>,
-    foldersId: Array<FileAttributes['id']>,
+  /**
+   * Deletes items from the trash (permanently)
+   * @param user User whose items are going to be deleted
+   * @param filesIds Ids of the files to be deleted
+   * @param foldersIds Ids of the folders to be deleted
+   */
+  async deleteItems(
     user: User,
+    files: File[],
+    folders: Folder[],
   ): Promise<void> {
-    const files: Array<File> = [];
-    const folders: Array<Folder> = [];
+    const itemsDeletionChunkSize = 10;
 
-    for (const fileId of filesId) {
-      const file = await this.fileUseCases.getByFileIdAndUser(
-        Number(fileId),
-        user.id,
-        { deleted: true },
+    for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
+      await this.fileUseCases.deleteByUser(
+        user,
+        files.slice(i, i + itemsDeletionChunkSize),
       );
-      if (file === null) {
-        throw new NotFoundException(`file with id ${fileId} not found`);
-      }
-
-      files.push(file);
     }
 
-    for (const folderId of foldersId) {
-      const folder = await this.folderUseCases.getFolder(folderId, {
-        deleted: true,
-      });
-      folders.push(folder);
+    for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
+      await this.folderUseCases.deleteByUser(
+        user,
+        folders.slice(i, i + itemsDeletionChunkSize),
+      );
     }
-
-    const filesDeletion = this.deleteFiles(files, user);
-    const foldersDeletion = this.deleteFolders(folders, user);
-
-    await Promise.allSettled([filesDeletion, foldersDeletion]);
   }
 }

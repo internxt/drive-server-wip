@@ -1,16 +1,26 @@
-import { Inject, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  UnauthorizedException,
+  Logger,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
+import { isTokenIatGreaterThanDate } from '../../lib/jwt';
 
 export interface JwtPayload {
   email: string;
   bridgeUser: string;
 }
 
-export class JwtStrategy extends PassportStrategy(Strategy) {
+const strategyId = 'jwt.standard';
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
+  static id = strategyId;
+
   constructor(
     @Inject(UserUseCases)
     private userUseCases: UserUseCases,
@@ -23,11 +33,49 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload): Promise<User> {
-    const { username } = payload.payload;
-    const user = await this.userUseCases.getUserByUsername(username);
-    if (!user) {
+    try {
+      if (!payload.payload || !payload.payload.uuid) {
+        throw new UnauthorizedException('Old token version detected');
+      }
+      const { uuid } = payload.payload;
+      const user = await this.userUseCases.getUser(uuid);
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+
+      const userWithoutLastPasswordChangedAt =
+        user.lastPasswordChangedAt === null;
+
+      const tokenOlderThanLastPasswordChangedAt =
+        user.lastPasswordChangedAt &&
+        !isTokenIatGreaterThanDate(
+          new Date(user.lastPasswordChangedAt),
+          payload.iat,
+        );
+
+      if (
+        !userWithoutLastPasswordChangedAt &&
+        tokenOlderThanLastPasswordChangedAt
+      ) {
+        throw new UnauthorizedException();
+      }
+
+      if (user.isGuestOnSharedWorkspace()) {
+        return this.userUseCases.getUserByUsername(user.bridgeUser);
+      }
+
+      return user;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        throw err;
+      }
+
+      Logger.error(
+        `[AUTH/MIDDLEWARE] ERROR validating authorization ${
+          err.message
+        }, token payload ${payload}, STACK: ${(err as Error).stack},`,
+      );
       throw new UnauthorizedException();
     }
-    return user;
   }
 }

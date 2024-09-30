@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsEnum, IsNotEmpty } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsDefined,
+  IsEnum,
+  IsNotEmpty,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum DeleteItemType {
@@ -8,12 +15,21 @@ export enum DeleteItemType {
 }
 
 export class DeleteItem {
-  @IsNotEmpty()
   @ApiProperty({
     example: '4',
     description: 'Id of file or folder',
   })
-  id: string;
+  id?: string;
+
+  @ApiProperty({
+    example: '79a88429-b45a-4ae7-90f1-c351b6882670',
+    description: 'Uuid of file or folder',
+  })
+  uuid?: string;
+
+  @ValidateIf((item) => (!item.id && !item.uuid) || (item.id && item.uuid))
+  @IsDefined({ message: 'Provide either item id or uuid, and not both' })
+  readonly AreUuidAndIdDefined?: boolean;
 
   @IsEnum(DeleteItemType)
   @ApiProperty({
@@ -29,6 +45,7 @@ export class DeleteItemsDto {
     description: 'Array of items with files and folders ids',
   })
   @ArrayMaxSize(50)
+  @ValidateNested()
   @Type(() => DeleteItem)
   items: DeleteItem[];
 }

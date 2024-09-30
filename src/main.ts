@@ -2,23 +2,26 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
-import { ValidationPipe } from '@nestjs/common';
+import './newrelic';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
-// import { WinstonLogger } from './lib/winston-logger';
 import {
   DocumentBuilder,
   SwaggerCustomOptions,
   SwaggerModule,
 } from '@nestjs/swagger';
+import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerMiddleware } from './middlewares/requests-logger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AuthGuard } from './modules/auth/auth.guard';
 
-const APP_PORT = process.env.PORT || 3000;
+const config = configuration();
+const APP_PORT = config.port || 3000;
+
 async function bootstrap() {
   const logger = new Logger();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -32,6 +35,9 @@ async function bootstrap() {
         'internxt-client',
         'internxt-mnemonic',
         'x-share-password',
+        'X-Internxt-Captcha',
+        'x-internxt-workspace',
+        'internxt-resources-token',
       ],
       exposedHeaders: ['sessionId'],
       origin: '*',
@@ -41,12 +47,19 @@ async function bootstrap() {
     // logger: WinstonLogger.getLogger(),
   });
 
+  const enableTrustProxy = config.isProduction;
+
+  app.set('trust proxy', enableTrustProxy);
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
 
   app.use(helmet());
+  app.use(apiMetrics());
 
-  app.use(RequestLoggerMiddleware);
+  if (!config.isProduction) {
+    app.use(RequestLoggerMiddleware);
+  }
+
   app.setGlobalPrefix('api');
   app.disable('x-powered-by');
   app.enableShutdownHooks();
@@ -54,10 +67,11 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new AuthGuard(reflector));
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Drive Desktop')
-    .setDescription('Drive Desktop API')
+    .setTitle('Drive API')
+    .setDescription('Drive API')
     .setVersion('1.0')
     .addBearerAuth()
+    .addBearerAuth(undefined, 'gateway')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -71,5 +85,6 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document, customOptions);
   await app.listen(APP_PORT);
   logger.log(`Application listening on port: ${APP_PORT}`);
+  logger.log(`Trusting proxy enabled: ${enableTrustProxy ? 'yes' : 'no'}`);
 }
 bootstrap();

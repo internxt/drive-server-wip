@@ -7,7 +7,6 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
-  NotFoundException,
   Param,
   Post,
   Put,
@@ -15,6 +14,7 @@ import {
   Req,
   Headers,
   Res,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ShareUseCases } from './share.usecase';
@@ -34,6 +34,7 @@ import { File, FileAttributes } from '../file/file.domain';
 import { ShareDto } from './dto/share.dto';
 import { Folder } from '../folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
+import getEnv from '../../config/configuration';
 
 @ApiTags('Share')
 @Controller('storage/share')
@@ -45,6 +46,15 @@ export class ShareController {
     private userUseCases: UserUseCases,
     private notificationService: NotificationService,
   ) {}
+
+  @Get('/domains')
+  @Public()
+  @ApiOkResponse({
+    description: 'Get the domains for the sharing links',
+  })
+  getDomains() {
+    return { list: getEnv().apis.share.url.split(',') };
+  }
 
   @Get('/list')
   @HttpCode(200)
@@ -199,10 +209,8 @@ export class ShareController {
   }
 
   @Post('file/:fileId')
-  @ApiOperation({
-    summary: 'Generate Shared Token by file Id',
-  })
-  @ApiOkResponse({ description: 'Get Token of share' })
+  @ApiOperation({ summary: 'Create share for file' })
+  @ApiOkResponse({ description: 'The share of the file' })
   async generateSharedTokenToFile(
     @UserDecorator() user: User,
     @Param('fileId') fileId: FileAttributes['id'],
@@ -242,39 +250,53 @@ export class ShareController {
 
   @Post('folder/:folderId')
   @HttpCode(200)
-  @ApiOperation({
-    summary: 'Generate Shared Token by folder Id',
-  })
-  @ApiOkResponse({ description: 'Get token of share' })
-  async generateSharedTokenForFolder(
+  @ApiOperation({ summary: 'Create share for folder' })
+  @ApiOkResponse({ description: 'The share of the folder' })
+  async generateFolderShare(
     @UserDecorator() user: User,
     @Param('folderId') folderId: string,
     @Body() body: CreateShareDto,
     @Res() res: Response,
     @Req() req: Request,
   ) {
-    const { id, item, created, encryptedCode } =
-      await this.shareUseCases.createShareFolder(
+    new Logger().log(
+      `[SHARE/CREATE/FOLDER]: user ${user.uuid} payload -> ${JSON.stringify(
+        body,
+      )}`,
+    );
+
+    try {
+      const share = await this.shareUseCases.createShareFolder(
         parseInt(folderId),
         user,
         body,
       );
 
-    const shareLinkViewEvent = new ShareLinkCreatedEvent(
-      'share.created',
-      user,
-      item,
-      req,
-      {},
-    );
-    this.notificationService.add(shareLinkViewEvent);
+      res.status(share.created ? HttpStatus.CREATED : HttpStatus.OK).json({
+        id: share.id,
+        created: share.created,
+        token: share.item.token,
+        encryptedCode: share.encryptedCode,
+      });
 
-    res.status(created ? HttpStatus.CREATED : HttpStatus.OK).json({
-      id,
-      created,
-      token: item.token,
-      encryptedCode,
-    });
+      const shareLinkViewEvent = new ShareLinkCreatedEvent(
+        'share.created',
+        user,
+        share.item,
+        req,
+        {},
+      );
+      this.notificationService.add(shareLinkViewEvent);
+    } catch (err) {
+      new Logger().error(
+        `[SHARE/CREATE/FOLDER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({ ...body, user })}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
+    }
   }
 
   @Get('down/files')
@@ -285,45 +307,68 @@ export class ShareController {
   @ApiOkResponse({ description: 'Get all files' })
   @Public()
   async getDownFiles(
-    @UserDecorator() user: User,
     @Query() query: GetDownFilesDto,
     @Headers('x-share-password') password: string | null,
   ) {
-    const { token, folderId, code, page, perPage } = query;
-    user = await this.getUserWhenPublic(user);
-    const share = await this.shareUseCases.getShareByToken(
-      token,
-      null,
-      password,
-    );
-    share.decryptMnemonic(code);
-    const network = await this.userUseCases.getNetworkByUserId(
-      share.userId,
-      share.mnemonic,
-    );
-    const files = await this.fileUseCases.getByFolderAndUser(
-      folderId,
-      share.userId,
-      {
-        deleted: false,
-        page: parseInt(page),
-        perPage: parseInt(perPage),
-      },
-    );
+    try {
+      const { token, folderId, code, page, perPage } = query;
 
-    for (let file of files) {
-      file.encryptionKey =
-        await this.fileUseCases.getEncryptionKeyFileFromShare(
-          file.fileId,
-          network,
-          share,
-          code,
+      const share = await this.shareUseCases.getShareByToken(
+        token,
+        null,
+        password,
+      );
+
+      const isSharedRootFolderRequested = share.folderId === folderId;
+
+      if (!isSharedRootFolderRequested) {
+        const isFilesFolderBehindSharedFolder =
+          await this.folderUseCases.isFolderInsideFolder(
+            share.folderId,
+            folderId,
+            share.userId,
+          );
+
+        if (!isFilesFolderBehindSharedFolder) {
+          throw new ForbiddenException();
+        }
+      }
+
+      const network = await this.userUseCases.getNetworkByUserId(
+        share.userId,
+        share.mnemonic,
+      );
+      const files = await this.fileUseCases.getByFolderAndUser(
+        folderId,
+        share.userId,
+        {
+          deleted: false,
+          page: parseInt(page),
+          perPage: parseInt(perPage),
+        },
+      );
+
+      for (const file of files) {
+        const encryptionKey =
+          await this.fileUseCases.getEncryptionKeyFileFromShare(
+            file.fileId,
+            network,
+            share,
+            code,
+          );
+
+        const name = this.shareUseCases.decryptFilenameString(
+          file.name,
+          file.folderId,
         );
+        Object.assign(file, { encryptionKey, name });
+      }
 
-      file = this.decryptItem(file);
+      return { files, last: parseInt(perPage) > files.length };
+    } catch (err) {
+      Logger.error(`Error getting shared files: ${err}. Stack: ${err.stack}`);
+      throw err;
     }
-
-    return { files, last: parseInt(perPage) > files.length };
   }
 
   @Get('down/folders')
@@ -338,41 +383,47 @@ export class ShareController {
     @Query() query: GetDownFilesDto,
     @Headers('x-share-password') password: string | null,
   ) {
-    const { token, folderId, page, perPage } = query;
-    user = await this.getUserWhenPublic(user);
-    await this.shareUseCases.getShareByToken(token, null, password);
-    const folders = await this.folderUseCases.getFoldersByParent(
-      folderId,
-      parseInt(page),
-      parseInt(perPage),
-    );
-    const dectyptedFolders = folders.map((folder) => this.decryptItem(folder));
-    return {
-      folders: dectyptedFolders,
-      last: parseInt(perPage) > folders.length,
-    };
-  }
+    try {
+      const { token, folderId, page, perPage } = query;
+      const share = await this.shareUseCases.getShareByToken(
+        token,
+        null,
+        password,
+      );
 
-  @Get(':shareId/folder/:folderId/size')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get size of folder by folderId',
-  })
-  @ApiOkResponse({ description: 'Get size of folder' })
-  @Public()
-  async getShareFolderSize(
-    @Param('shareId') shareId: number,
-    @Param('folderId') folderId: number,
-  ) {
-    const share = await this.shareUseCases.getShareById(shareId);
-    if (!share) {
-      throw new NotFoundException(`share with id ${shareId} not found`);
+      const isSharedRootFolderRequested = share.folderId === folderId;
+
+      if (!isSharedRootFolderRequested) {
+        const isFoldersParentBehindSharedFolder =
+          await this.folderUseCases.isFolderInsideFolder(
+            share.folderId,
+            folderId,
+            share.userId,
+          );
+
+        if (!isFoldersParentBehindSharedFolder) {
+          throw new ForbiddenException();
+        }
+      }
+
+      const folders = await this.folderUseCases.getFoldersByParent(
+        folderId,
+        parseInt(page),
+        parseInt(perPage),
+      );
+      const decryptedFolders = folders.map((folder) =>
+        this.decryptItem(folder),
+      );
+      return {
+        folders: decryptedFolders,
+        last: parseInt(perPage) > folders.length,
+      };
+    } catch (err) {
+      Logger.error(
+        `Error getting shared folders: ${err.message}. Stack: ${err.stack}`,
+      );
+      throw err;
     }
-
-    const size = await this.folderUseCases.getFolderSize(folderId);
-    return {
-      size,
-    };
   }
 
   async getUserWhenPublic(user) {

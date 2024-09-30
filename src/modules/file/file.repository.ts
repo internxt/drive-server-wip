@@ -1,88 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { File, FileAttributes, FileOptions } from './file.domain';
-import sequelize, { FindOptions, Op } from 'sequelize';
-import { FolderModel } from '../folder/folder.repository';
+import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
+import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
+import { Literal } from 'sequelize/types/utils';
 
-import {
-  AllowNull,
-  BelongsTo,
-  Column,
-  DataType,
-  Default,
-  ForeignKey,
-  Index,
-  Model,
-  PrimaryKey,
-  Table,
-} from 'sequelize-typescript';
-import { UserModel } from '../user/user.repository';
 import { User } from '../user/user.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
-
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'files',
-})
-export class FileModel extends Model implements FileAttributes {
-  @PrimaryKey
-  @Column
-  id: number;
-
-  @Column(DataType.STRING(24))
-  fileId: string;
-
-  @Index
-  @Column
-  name: string;
-
-  @Column
-  type: string;
-
-  @Column(DataType.BIGINT.UNSIGNED)
-  size: bigint;
-
-  @Column(DataType.STRING(24))
-  bucket: string;
-
-  @ForeignKey(() => FolderModel)
-  @Column(DataType.INTEGER)
-  folderId: number;
-
-  @BelongsTo(() => FolderModel)
-  folder: FolderModel;
-
-  @Column
-  encryptVersion: string;
-
-  @Default(false)
-  @Column
-  deleted: boolean;
-
-  @AllowNull
-  @Column
-  deletedAt: Date;
-
-  @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
-
-  @BelongsTo(() => UserModel)
-  user: UserModel;
-
-  @Column
-  modificationTime: Date;
-
-  @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-}
+import { ShareModel } from '../share/share.repository';
+import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { FileModel } from './file.model';
+import { SharingModel } from '../sharing/models';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
+  create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
+  deleteByFileId(fileId: any): Promise<any>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -98,17 +33,60 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<File | null>;
+  findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
+  findByUuid(
+    fileUuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    where: FindOptions<FileAttributes>,
+  ): Promise<File | null>;
+  findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null>;
+  findFilesInFolderByName(
+    folderId: Folder['uuid'],
+    searchBy: { plainName: File['plainName']; type?: File['type'] }[],
+  ): Promise<File[]>;
+  findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File | null>;
+  getSumSizeOfFilesInWorkspaceByStatuses(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+  ): Promise<number>;
   updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<File>;
+  updateByUuidAndUserId(
+    uuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ): Promise<void>;
   updateManyByFieldIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  deleteByFileId(fileId: FileAttributes['fileId']): Promise<void>;
+  getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
+  getFilesCountWhere(where: Partial<File>): Promise<number>;
+  updateFilesStatusToTrashed(
+    user: User,
+    fileIds: File['fileId'][],
+  ): Promise<void>;
+  updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void>;
+  findByFileIds(
+    userId: User['id'],
+    fileIds: FileAttributes['fileId'][],
+  ): Promise<File[]>;
 }
 
 @Injectable()
@@ -116,7 +94,15 @@ export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
     private fileModel: typeof FileModel,
+    @InjectModel(ShareModel)
+    private shareModel: typeof ShareModel,
+    @InjectModel(ThumbnailModel)
+    private thumbnailModel: typeof ThumbnailModel,
   ) {}
+
+  async deleteByFileId(fileId: any): Promise<unknown> {
+    throw new Error('Method not implemented.');
+  }
 
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
@@ -125,12 +111,330 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
+  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
+    const raw = await this.fileModel.create(file);
+
+    return raw ? this.toDomain(raw) : null;
+  }
+
+  async findByFileIds(
+    userId: User['id'],
+    fileIds: FileAttributes['fileId'][],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        userId: userId,
+        fileId: {
+          [Op.in]: fileIds,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findById(
+    fileUuid: string,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        ...where,
+      },
+    });
+
+    return this.toDomain(file);
+  }
+
+  async findByUuids(
+    uuids: FileAttributes['uuid'][],
+    where: Partial<Omit<FileAttributes, 'uuid'>> = {},
+  ): Promise<Array<File> | []> {
+    const files = await this.fileModel.findAll({
+      where: {
+        uuid: {
+          [Op.in]: uuids,
+          ...where,
+        },
+      },
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findByUuid(
+    fileUuid: string,
+    userId: number,
+    where: FindOptions<FileAttributes> = {},
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        uuid: fileUuid,
+        userId,
+        ...where,
+      },
+    });
+
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        name: { [Op.eq]: name },
+        type: { [Op.eq]: type },
+        folderUuid: { [Op.eq]: folderUuid },
+        status: { [Op.eq]: status },
+      },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findAllCursorWhereUpdatedAfter(
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const files = await this.findAllCursor(
+      {
+        ...where,
+        updatedAt: { [Op.gt]: updatedAtAfter },
+      },
+      limit,
+      offset,
+      additionalOrders,
+    );
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllNotDeleted(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        ...where,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+      order,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  private applyCollateToPlainNameSort(
+    order: Array<[keyof FileModel, string]>,
+  ): Array<[keyof FileModel, string] | Literal> {
+    const plainNameIndex = order.findIndex(
+      ([field, _]) => field === 'plainName',
+    );
+    const isPlainNameSort = plainNameIndex !== -1;
+
+    if (!isPlainNameSort) {
+      return order;
+    }
+
+    const newOrder: Array<[keyof FileModel, string] | Literal> =
+      structuredClone(order);
+    const [, orderDirection] = order[plainNameIndex];
+    newOrder[plainNameIndex] = Sequelize.literal(
+      `plain_name COLLATE "custom_numeric" ${
+        orderDirection === 'ASC' ? 'ASC' : 'DESC'
+      }`,
+    );
+
+    return newOrder;
+  }
+
+  async findAllCursor(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: {
+        model: WorkspaceItemUserModel,
+        where: { createdBy, workspaceId },
+      },
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async getSumSizeOfFilesInWorkspaceByStatuses(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+  ): Promise<number> {
+    const statusesFilter = statuses.map((value) => ({ status: value }));
+
+    const sizes = await this.fileModel.findAll({
+      attributes: [[Sequelize.fn('sum', Sequelize.col('size')), 'total']],
+      raw: true,
+      where: {
+        [Op.or]: statusesFilter,
+      },
+      include: {
+        model: WorkspaceItemUserModel,
+        attributes: [],
+        where: { createdBy, workspaceId },
+      },
+    });
+
+    return sizes[0]['total'] as unknown as number;
+  }
+
+  async findAllCursorWithThumbnails(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.shareModel,
+          attributes: [
+            'id',
+            'active',
+            'hashed_password',
+            'code',
+            'token',
+            'is_folder',
+          ],
+          required: false,
+        },
+        {
+          separate: true,
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithThumbnailsInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+          },
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findByIdNotDeleted(id: number): Promise<File> {
     const file = await this.fileModel.findOne({
       where: { id, deleted: false },
     });
 
     return file ? this.toDomain(file) : null;
+  }
+
+  async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
+    const file = await this.fileModel.findOne({
+      where: { uuid, deleted: false },
+    });
+
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findByIds(
+    userId: FileAttributes['userId'],
+    ids: FileAttributes['id'][],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: { id: { [Op.in]: ids }, userId },
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findAllByFolderIdAndUserId(
@@ -151,6 +455,27 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
+  }
+
+  async getFilesByFolderUuid(
+    folderUuid: Folder['uuid'],
+    status: FileStatus,
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        folderUuid,
+        status,
+      },
+      include: [
+        {
+          model: this.thumbnailModel,
+          as: 'thumbnails',
+          required: false,
+        },
+      ],
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findAllByUserIdExceptFolderIds(
@@ -188,6 +513,52 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
+  async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where,
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findFileByName(
+    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
+    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
+  ): Promise<File | null> {
+    const file = await this.fileModel.findOne({
+      where: {
+        ...where,
+        [Op.or]: [
+          { name: nameFilter.name },
+          { plainName: nameFilter.plainName },
+        ],
+      },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
+  async findFilesInFolderByName(
+    folderId: Folder['uuid'],
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
+  ): Promise<File[]> {
+    const where: WhereOptions<File> = {
+      folderUuid: folderId,
+      status: FileStatus.EXISTS,
+    };
+
+    if (searchFilter.length) {
+      where[Op.or] = searchFilter.map((criteria) => ({
+        plainName: criteria.plainName,
+        ...(criteria.type ? { type: criteria.type } : {}),
+      }));
+    }
+
+    const files = await this.fileModel.findAll({
+      where,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async updateByFieldIdAndUserId(
     fileId: FileAttributes['fileId'],
     userId: FileAttributes['userId'],
@@ -223,23 +594,112 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async getTotalSizeByFolderId(folderId: FolderAttributes['id']) {
-    const result = (await this.fileModel.findAll({
-      attributes: [[sequelize.fn('sum', sequelize.col('size')), 'total']],
+  async updateByUuidAndUserId(
+    uuid: FileAttributes['uuid'],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ): Promise<void> {
+    await this.fileModel.update(update, {
       where: {
-        folderId,
-      },
-    })) as unknown as Promise<{ total: number }[]>;
-
-    return result[0].total;
-  }
-
-  async deleteByFileId(fileId: FileAttributes['fileId']): Promise<void> {
-    await this.fileModel.destroy({
-      where: {
-        fileId,
+        userId,
+        uuid,
       },
     });
+  }
+
+  async getFilesWhoseFolderIdDoesNotExist(
+    userId: File['userId'],
+  ): Promise<number> {
+    const { count } = await this.fileModel.findAndCountAll({
+      where: {
+        folderId: {
+          [Op.not]: null,
+          [Op.notIn]: this.fileModel.findAll({
+            where: { userId },
+          }),
+        },
+        userId,
+      },
+    });
+
+    return count;
+  }
+
+  async getFilesCountWhere(where: Partial<File>): Promise<number> {
+    const { count } = await this.fileModel.findAndCountAll({ where });
+
+    return count;
+  }
+
+  async updateFilesStatusToTrashed(
+    user: User,
+    fileIds: File['fileId'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        // Remove this after status is the main field
+        deleted: true,
+        deletedAt: new Date(),
+        //
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          fileId: {
+            [Op.in]: fileIds,
+          },
+          status: {
+            [Op.eq]: FileStatus.EXISTS,
+          },
+        },
+      },
+    );
+  }
+
+  async updateFilesStatusToTrashedByUuid(
+    user: User,
+    fileUuids: File['uuid'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        deleted: true,
+        deletedAt: new Date(),
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          uuid: {
+            [Op.in]: fileUuids,
+          },
+          status: {
+            [Op.eq]: FileStatus.EXISTS,
+          },
+        },
+      },
+    );
+  }
+
+  async deleteFilesByUser(user: User, files: File[]): Promise<void> {
+    await this.fileModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+        status: FileStatus.DELETED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          id: {
+            [Op.in]: files.map(({ id }) => id),
+          },
+        },
+      },
+    );
   }
 
   private toDomain(model: FileModel): File {

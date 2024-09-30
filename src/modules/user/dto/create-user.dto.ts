@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAttributes } from '../user.domain';
+import { UserAttributes } from '../user.attributes';
 
 export class CreateUserDto {
   @IsNotEmpty()

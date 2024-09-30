@@ -1,35 +1,5 @@
-import { Folder } from '../folder/folder.domain';
-
-export interface UserAttributes {
-  id: number;
-  userId: string;
-  name: string;
-  lastname: string;
-  email: string;
-  username: string;
-  bridgeUser: string;
-  password: string;
-  mnemonic: string;
-  rootFolderId: number;
-  rootFolder?: any;
-  hKey: Buffer;
-  secret_2FA: string;
-  errorLoginCount: number;
-  isEmailActivitySended: number;
-  referralCode: string;
-  referrer: string;
-  syncDate: Date;
-  uuid: string;
-  lastResend: Date;
-  credit: number;
-  welcomePack: boolean;
-  registerCompleted: boolean;
-  backupsBucket: string;
-  sharedWorkspace: boolean;
-  tempKey: string;
-  avatar: string;
-}
-
+import { UserToJsonDto } from './dto/user-to-json.dto';
+import { UserAttributes } from './user.attributes';
 export class User implements UserAttributes {
   id: number;
   userId: string;
@@ -41,8 +11,7 @@ export class User implements UserAttributes {
   password: string;
   mnemonic: string;
   rootFolderId: number;
-  _rootFolder: Folder;
-  hKey: Buffer;
+  hKey: Buffer | string;
   secret_2FA: string;
   errorLoginCount: number;
   isEmailActivitySended: number;
@@ -56,8 +25,11 @@ export class User implements UserAttributes {
   registerCompleted: boolean;
   backupsBucket: string;
   sharedWorkspace: boolean;
-  tempKey: string;
   avatar: string;
+  lastPasswordChangedAt: Date;
+  tierId: string;
+  emailVerified: boolean;
+
   constructor({
     id,
     userId,
@@ -69,7 +41,6 @@ export class User implements UserAttributes {
     password,
     mnemonic,
     rootFolderId,
-    rootFolder,
     hKey,
     secret_2FA,
     errorLoginCount,
@@ -84,8 +55,10 @@ export class User implements UserAttributes {
     registerCompleted,
     backupsBucket,
     sharedWorkspace,
-    tempKey,
     avatar,
+    lastPasswordChangedAt,
+    tierId,
+    emailVerified,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -97,7 +70,6 @@ export class User implements UserAttributes {
     this.password = password;
     this.mnemonic = mnemonic;
     this.rootFolderId = rootFolderId;
-    this.rootFolder = rootFolder;
     this.hKey = hKey;
     this.secret_2FA = secret_2FA;
     this.errorLoginCount = errorLoginCount;
@@ -112,29 +84,21 @@ export class User implements UserAttributes {
     this.registerCompleted = registerCompleted;
     this.backupsBucket = backupsBucket;
     this.sharedWorkspace = sharedWorkspace;
-    this.tempKey = tempKey;
     this.avatar = avatar;
+    this.lastPasswordChangedAt = lastPasswordChangedAt;
+    this.tierId = tierId;
+    this.emailVerified = emailVerified;
   }
 
   static build(user: UserAttributes): User {
     return new User(user);
   }
 
-  set rootFolder(rootFolder) {
-    if (rootFolder && !(rootFolder instanceof Folder)) {
-      throw Error('rootFolder folder invalid');
-    }
-    this._rootFolder = rootFolder;
-  }
-  get rootFolder() {
-    return this._rootFolder;
-  }
-
   isGuestOnSharedWorkspace(): boolean {
-    return !(this.email === this.bridgeUser);
+    return this.email !== this.bridgeUser;
   }
 
-  toJSON() {
+  toJSON(): UserToJsonDto {
     return {
       id: this.id,
       userId: this.userId,
@@ -157,6 +121,7 @@ export class User implements UserAttributes {
       backupsBucket: this.backupsBucket,
       sharedWorkspace: this.sharedWorkspace,
       avatar: this.avatar,
+      lastPasswordChangedAt: this.lastPasswordChangedAt,
     };
   }
 }
@@ -187,4 +152,9 @@ export interface UserReferralAttributes {
   referred: UserAttributes['email'];
   applied: boolean;
   startDate: Date;
+}
+
+export enum AccountTokenAction {
+  Unblock = 'unblock-account',
+  Recover = 'recover-account',
 }

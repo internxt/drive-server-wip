@@ -1,4 +1,5 @@
-FROM node:16-alpine
+FROM node:20.10-alpine
+LABEL author="internxt"
 
 WORKDIR /usr/app
 

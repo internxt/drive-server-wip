@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { UserAttributes } from 'src/modules/user/user.domain';
+import { UserAttributes } from '../../modules/user/user.attributes';
 import { HttpClient } from '../http/http.service';
 
 @Injectable()

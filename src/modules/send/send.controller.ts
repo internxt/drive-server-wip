@@ -7,6 +7,9 @@ import {
   Param,
   HttpStatus,
   Headers,
+  BadRequestException,
+  UseGuards,
+  Logger,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -15,7 +18,8 @@ import { User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSendLinkDto } from './dto/create-send-link.dto';
-
+import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { CaptchaGuard } from '../auth/captcha.guard';
 @ApiTags('Sends')
 @Controller('links')
 export class SendController {
@@ -24,6 +28,7 @@ export class SendController {
     private userUseCases: UserUseCases,
   ) {}
 
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -35,42 +40,51 @@ export class SendController {
     @UserDecorator() user: User | null,
     @Body() content: CreateSendLinkDto,
   ) {
-    user = await this.getUserWhenPublic(user);
-    const {
-      items,
-      code,
-      receivers,
-      sender,
-      title,
-      subject,
-      plainCode,
-      plainPassword,
-    } = content;
+    try {
+      user = await this.getUserWhenPublic(user);
+      const {
+        items,
+        code,
+        receivers,
+        sender,
+        title,
+        subject,
+        plainCode,
+        plainPassword,
+      } = content;
 
-    const sendLink = await this.sendUseCases.createSendLinks(
-      user,
-      items,
-      code,
-      receivers,
-      sender,
-      title,
-      subject,
-      plainCode,
-      plainPassword,
-    );
-    return {
-      id: sendLink.id,
-      title: sendLink.title,
-      subject: sendLink.subject,
-      code: sendLink.code,
-      views: sendLink.views,
-      userId: user ? user.id : null,
-      items: sendLink.items,
-      createdAt: sendLink.createdAt,
-      updatedAt: sendLink.updatedAt,
-      expirationAt: sendLink.expirationAt,
-      protected: sendLink.isProtected(),
-    };
+      if (receivers && receivers.length > 5) {
+        throw new BadRequestException();
+      }
+
+      const sendLink = await this.sendUseCases.createSendLinks(
+        user,
+        items,
+        code,
+        receivers,
+        sender,
+        title,
+        subject,
+        plainCode,
+        plainPassword,
+      );
+      return {
+        id: sendLink.id,
+        title: sendLink.title,
+        subject: sendLink.subject,
+        code: sendLink.code,
+        views: sendLink.views,
+        userId: user ? user.id : null,
+        items: sendLink.items,
+        createdAt: sendLink.createdAt,
+        updatedAt: sendLink.updatedAt,
+        expirationAt: sendLink.expirationAt,
+        protected: sendLink.isProtected(),
+      };
+    } catch (err) {
+      Logger.error('Error while creating send link:' + err.message);
+      throw err;
+    }
   }
 
   @Get('/:linkId')
