@@ -15,13 +15,15 @@ import {
   Table,
   Unique,
 } from 'sequelize-typescript';
-import { FileModel } from '../file/file.repository';
-import { User, UserAttributes } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
-import { FolderModel } from '../folder/folder.repository';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { User } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
+import { UserModel } from '../user/user.model';
+import { FolderModel } from '../folder/folder.model';
+import { Folder } from '../folder/folder.domain';
+import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
+import { FileModel } from '../file/file.model';
 
 @Table({
   underscored: true,
@@ -51,6 +53,10 @@ export class ShareModel extends Model {
   @ForeignKey(() => FileModel)
   @Column
   fileId: number;
+
+  @ForeignKey(() => FileModel)
+  @Column
+  fileUuid: string;
 
   @BelongsTo(() => FileModel, 'fileId')
   file: FileModel;
@@ -94,6 +100,11 @@ export class ShareModel extends Model {
   @AllowNull
   @Column(DataType.TEXT)
   hashedPassword: string;
+
+  @AllowNull
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
 }
 
 export interface ShareRepository {
@@ -122,27 +133,27 @@ export class SequelizeShareRepository implements ShareRepository {
   constructor(
     @InjectModel(ShareModel)
     private shareModel: typeof ShareModel,
-    @InjectModel(FileModel)
-    private fileModel: typeof FileModel,
-    @InjectModel(FolderModel)
-    private folderModel: typeof FolderModel,
-    @InjectModel(UserModel)
-    private userModel: typeof UserModel,
   ) {}
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  findAllByUserPaginated() {
+    // must be implemented
+    return {} as any;
+  }
 
   async findById(id: ShareAttributes['id']) {
     const share = await this.shareModel.findByPk(id, {
       include: [
-        this.userModel,
+        UserModel,
         {
-          model: this.fileModel,
+          model: FileModel,
           where: {
             deleted: false,
           },
           required: false,
         },
         {
-          model: this.folderModel,
+          model: FolderModel,
           where: {
             deleted: false,
           },
@@ -160,9 +171,9 @@ export class SequelizeShareRepository implements ShareRepository {
     const share = await this.shareModel.findOne({
       where: { fileId, userId },
       include: [
-        this.userModel,
+        UserModel,
         {
-          model: this.fileModel,
+          model: FileModel,
           where: {
             deleted: false,
           },
@@ -179,9 +190,9 @@ export class SequelizeShareRepository implements ShareRepository {
     const share = await this.shareModel.findOne({
       where: { folderId, userId },
       include: [
-        this.userModel,
+        UserModel,
         {
-          model: this.folderModel,
+          model: FolderModel,
           where: {
             deleted: false,
           },
@@ -204,8 +215,8 @@ export class SequelizeShareRepository implements ShareRepository {
   async create(share: Share): Promise<Share> {
     const shareModel = this.toModel(share);
     delete shareModel.id;
-    const { id } = await this.shareModel.create(shareModel);
-    return this.findById(id);
+    const model = await this.shareModel.create(shareModel);
+    return this.toDomain(model);
   }
 
   async update(share: Share): Promise<void> {
@@ -221,6 +232,16 @@ export class SequelizeShareRepository implements ShareRepository {
     await this.shareModel.destroy({ where: { id: shareId } });
   }
 
+  async deleteByUserAndFiles(user: User, files: File[]): Promise<void> {
+    await this.shareModel.destroy({
+      where: {
+        userId: user.id,
+        fileId: {
+          [Op.in]: files.map(({ id }) => id),
+        },
+      },
+    });
+  }
   async findAllByUsersPaginated(
     users: User[],
     page: number,
@@ -240,16 +261,16 @@ export class SequelizeShareRepository implements ShareRepository {
         },
       },
       include: [
-        this.userModel,
+        UserModel,
         {
-          model: this.fileModel,
+          model: FileModel,
           where: {
             deleted: false,
           },
           required: false,
         },
         {
-          model: this.folderModel,
+          model: FolderModel,
           where: {
             deleted: false,
           },
@@ -261,6 +282,10 @@ export class SequelizeShareRepository implements ShareRepository {
       order,
     });
     return shares.map(this.toDomain.bind(this));
+  }
+
+  async deleteByUserId(userId: User['id']): Promise<void> {
+    await this.shareModel.destroy({ where: { userId } });
   }
 
   private toDomain(model: ShareModel): Share {
@@ -285,8 +310,10 @@ export class SequelizeShareRepository implements ShareRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       fileId: model.fileId,
+      fileUuid: model.fileUuid,
       fileSize: model.isFolder ? null : (item as File)?.size,
       folderId: model.folderId,
+      folderUuid: model.folderUuid,
       hashedPassword: model.hashedPassword,
     });
 
@@ -300,6 +327,7 @@ export class SequelizeShareRepository implements ShareRepository {
     token,
     mnemonic,
     fileId,
+    fileUuid,
     fileSize,
     folderId,
     bucket,
@@ -320,6 +348,7 @@ export class SequelizeShareRepository implements ShareRepository {
       mnemonic,
       userId,
       fileId,
+      fileUuid,
       fileSize,
       folderId,
       encryptionKey: '',

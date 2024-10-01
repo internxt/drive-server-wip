@@ -1,12 +1,11 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { FileModel } from '../file/file.repository';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { SendLink } from './send-link.domain';
@@ -17,6 +16,7 @@ import {
   SequelizeSendRepository,
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';
+import { createMock } from '@golevelup/ts-jest';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases, notificationService, sendRepository;
@@ -46,7 +46,8 @@ describe('Send Use Cases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
+    lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
@@ -63,7 +64,9 @@ describe('Send Use Cases', () => {
         },
         {
           provide: getModelToken(SendLinkModel),
-          useValue: jest.fn(),
+          useValue: {
+            count: jest.fn(),
+          },
         },
         {
           provide: getModelToken(SendLinkItemModel),
@@ -74,15 +77,13 @@ describe('Send Use Cases', () => {
           useValue: jest.fn(),
         },
         {
-          provide: getModelToken(FileModel),
-          useValue: jest.fn(),
-        },
-        {
           provide: getModelToken(FolderModel),
           useValue: jest.fn(),
         },
       ],
-    }).compile();
+    })
+      .useMocker(() => createMock())
+      .compile();
 
     service = module.get<SendUseCases>(SendUseCases);
     notificationService = module.get<NotificationService>(NotificationService);
@@ -169,6 +170,8 @@ describe('Send Use Cases', () => {
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
     jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
     const sendLink = await service.createSendLinks(
       null,
       [],
@@ -182,7 +185,6 @@ describe('Send Use Cases', () => {
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
-    expect(sendRepository.findById).toHaveBeenCalledTimes(1);
     expect(sendLink).toMatchObject({
       user: null,
       code: 'code',
@@ -198,6 +200,8 @@ describe('Send Use Cases', () => {
       .spyOn(sendRepository, 'createSendLinkWithItems')
       .mockResolvedValue(undefined);
     jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
     const sendLink = await service.createSendLinks(
       userMock,
       [],
@@ -211,7 +215,6 @@ describe('Send Use Cases', () => {
     );
     expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
     expect(notificationService.add).toHaveBeenCalledTimes(1);
-    expect(sendRepository.findById).toHaveBeenCalledTimes(1);
     expect(sendLink).toMatchObject({
       user: userMock,
       code: 'code',
@@ -284,7 +287,7 @@ describe('Send Use Cases', () => {
       try {
         service.unlockLink(unprotectedSendLink, null);
       } catch (err: any) {
-        expect(err).toBeInstanceOf(UnauthorizedException);
+        expect(err).toBeInstanceOf(ForbiddenException);
       }
     });
 
@@ -308,7 +311,7 @@ describe('Send Use Cases', () => {
       try {
         service.unlockLink(unprotectedSendLink, 'password');
       } catch (err: any) {
-        expect(err).toBeInstanceOf(UnauthorizedException);
+        expect(err).toBeInstanceOf(ForbiddenException);
       }
     });
   });

@@ -34,11 +34,4 @@ export class GetDownFilesDto {
     description: 'Number of items per page',
   })
   perPage: string;
-
-  @IsNotEmpty()
-  @ApiProperty({
-    example: '125',
-    description: 'Parent Folder Id',
-  })
-  parentId: number;
 }

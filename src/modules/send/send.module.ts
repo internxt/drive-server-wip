@@ -3,11 +3,10 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FileModule } from '../file/file.module';
-import { FileModel } from '../file/file.repository';
 import { FolderModule } from '../folder/folder.module';
-import { FolderModel } from '../folder/folder.repository';
+import { FolderModel } from '../folder/folder.model';
 import { UserModule } from '../user/user.module';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import {
   SendLinkItemModel,
   SendLinkModel,
@@ -15,6 +14,8 @@ import {
 } from './send-link.repository';
 import { SendController } from './send.controller';
 import { SendUseCases } from './send.usecase';
+import { FileModel } from '../file/file.model';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
   imports: [
@@ -26,12 +27,12 @@ import { SendUseCases } from './send.usecase';
       FolderModel,
     ]),
     forwardRef(() => UserModule),
-    FileModule,
+    forwardRef(() => FileModule),
     FolderModule,
     NotificationModule,
     CryptoModule,
   ],
   controllers: [SendController],
-  providers: [SequelizeSendRepository, SendUseCases],
+  providers: [SequelizeSendRepository, SendUseCases, CaptchaService],
 })
 export class SendModule {}

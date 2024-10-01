@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { format } from 'sql-formatter';
 import { SentryModule } from '@ntegral/nestjs-sentry';
 import { FileModule } from './modules/file/file.module';
@@ -17,6 +18,13 @@ import { BridgeModule } from './externals/bridge/bridge.module';
 import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
+import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
+import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
+import { SharingModule } from './modules/sharing/sharing.module';
+import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
+import { PlanModule } from './modules/plan/plan.module';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { GatewayModule } from './modules/gateway/gateway.module';
 
 @Module({
   imports: [
@@ -62,6 +70,7 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
                 require: true,
                 rejectUnauthorized: false,
               },
+              application_name: 'drive-server-wip',
             }
           : {},
         logging: !configService.get('database.debug')
@@ -78,6 +87,18 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60,
+        limit: 5,
+      },
+      {
+        name: 'long',
+        ttl: 3600,
+        limit: 5,
+      },
+    ]),
     NotificationModule,
     FileModule,
     FolderModule,
@@ -90,6 +111,13 @@ import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.modul
     DeviceModule,
     CryptoModule,
     SharedWorkspaceModule,
+    ThumbnailModule,
+    FuzzySearchModule,
+    SharingModule,
+    AppSumoModule,
+    PlanModule,
+    WorkspacesModule,
+    GatewayModule,
   ],
   controllers: [],
   providers: [],

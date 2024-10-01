@@ -1,10 +1,27 @@
-import { Logger } from '@nestjs/common';
-import { Inject, Injectable } from '@nestjs/common';
+import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
+import { sign } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
-import { User, UserAttributes } from '../../modules/user/user.domain';
+import { User } from '../../modules/user/user.domain';
+import { UserAttributes } from '../../modules/user/user.attributes';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
+import { AxiosError } from 'axios';
+import { BridgeUserNotFoundException } from './exception/bridge-user-not-found.exception';
+import { BridgeException } from './exception/bridge.exception';
+import { BridgeUserEmailAlreadyInUseException } from './exception/bridge-user-email-already-in-use.exception';
+
+export function signToken(
+  duration: string,
+  secret: string,
+  isDevelopment?: boolean,
+) {
+  return sign({}, Buffer.from(secret, 'base64').toString('utf8'), {
+    algorithm: 'RS256',
+    expiresIn: duration,
+    ...(isDevelopment ? { allowInsecureKeySizes: true } : null),
+  });
+}
 
 @Injectable()
 export class BridgeService {
@@ -14,6 +31,17 @@ export class BridgeService {
     @Inject(ConfigService)
     private configService: ConfigService,
   ) {}
+
+  static handleUpdateUserEmailError(error: AxiosError) {
+    switch (error.response.status) {
+      case HttpStatus.CONFLICT:
+        throw new BridgeUserEmailAlreadyInUseException();
+      case HttpStatus.NOT_FOUND:
+        throw new BridgeUserNotFoundException();
+      default:
+        throw new BridgeException('Error updating user email');
+    }
+  }
 
   private authorizationHeaders(user: string, password: string | number) {
     const hashedPassword = this.cryptoService.hashSha256(password.toString());
@@ -52,8 +80,6 @@ export class BridgeService {
       },
     };
 
-    // log.info('[INXT createBucket]: User: %s, Bucket: %s', networkUser, name);
-
     const url = this.configService.get('apis.storage.url');
     const res = await this.httpClient.post(`${url}/buckets`, {}, params);
 
@@ -68,20 +94,31 @@ export class BridgeService {
     userId: UserAttributes['bridgeUser'];
     uuid: UserAttributes['uuid'];
   }> {
-    const bcryptId = await this.cryptoService.hashBcrypt(networkUserId);
+    const bcryptId = this.cryptoService.hashBcrypt(networkUserId);
     const networkPassword = this.cryptoService.hashSha256(bcryptId);
 
+    const jwt = signToken(
+      '5m',
+      this.configService.get('secrets.gateway'),
+      this.configService.get('isDevelopment'),
+    );
+
     const response = await this.httpClient.post(
-      `${this.networkUrl}/users`,
+      `${this.networkUrl}/v2/gateway/users`,
       { email: networkUserId, password: networkPassword },
-      { headers: { 'Content-Type': 'application/json' } },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
+      },
     );
 
     return { userId: bcryptId, uuid: response.data.uuid };
   }
 
   public async deleteFile(
-    user: User,
+    user: Pick<User, 'bridgeUser' | 'userId'>,
     bucket: FileAttributes['bucket'],
     bucketEntry: FileAttributes['fileId'],
   ): Promise<void> {
@@ -97,26 +134,71 @@ export class BridgeService {
       `[INXT removeFile]: User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
     );
 
-    await this.httpClient.delete(
-      `${url}/buckets/${bucket}/files/${bucketEntry}`,
-      params,
-    );
+    await this.httpClient
+      .delete(`${url}/buckets/${bucket}/files/${bucketEntry}`, params)
+      .catch((err) => {
+        if (err.response.status !== 500) {
+          Logger.log(
+            `[INXT removeFile]: Error User: ${user.bridgeUser}, Bucket: ${bucket}, File: ${bucketEntry}`,
+          );
+          return;
+        }
+        throw err;
+      });
   }
 
   async addStorage(uuid: UserAttributes['uuid'], bytes: number): Promise<void> {
-    const { GATEWAY_USER, GATEWAY_PASS } = process.env;
-    const url = this.configService.get('apis.storage.url');
+    try {
+      const url = this.configService.get('apis.storage.url');
+      const username = this.configService.get('apis.storage.auth.username');
+      const password = this.configService.get('apis.storage.auth.password');
 
-    const params = {
-      headers: { 'Content-Type': 'application/json' },
-      auth: { username: GATEWAY_USER, password: GATEWAY_PASS },
-    };
+      const params = {
+        headers: { 'Content-Type': 'application/json' },
+        auth: { username, password },
+      };
 
-    await this.httpClient.put(
-      `${url}/gateway/increment-storage-by-uuid`,
-      { uuid, bytes },
-      params,
-    );
+      await this.httpClient.put(
+        `${url}/gateway/increment-storage-by-uuid`,
+        { uuid, bytes },
+        params,
+      );
+    } catch (error) {
+      Logger.error(`
+      BridgeService/addStorage: 
+      
+      Params: 
+        uuid: ${uuid}
+        bytes: ${bytes}
+   
+      AddStorage Error: ${JSON.stringify(error)}
+      `);
+    }
+  }
+
+  async setStorage(email: UserAttributes['email'], bytes: number) {
+    try {
+      const url = this.configService.get('apis.storage.url');
+      const username = this.configService.get('apis.storage.auth.username');
+      const password = this.configService.get('apis.storage.auth.password');
+
+      const params = {
+        headers: { 'Content-Type': 'application/json' },
+        auth: { username, password },
+      };
+
+      await this.httpClient.post(
+        `${url}/gateway/upgrade`,
+        { email, bytes },
+        params,
+      );
+    } catch (error) {
+      Logger.error(`
+      [BRIDGESERVICE/SETSTORAGE]: There was an error while trying to set user storage space Error: ${JSON.stringify(
+        error,
+      )}
+      `);
+    }
   }
 
   async getLimit(
@@ -138,5 +220,34 @@ export class BridgeService {
         },
       })
       .then<number>((response) => response.data.maxSpaceBytes);
+  }
+
+  async updateUserEmail(userUUID: string, newEmail: string): Promise<any> {
+    try {
+      const jwt = signToken(
+        '5m',
+        this.configService.get('secrets.gateway'),
+        this.configService.get('isDevelopment'),
+      );
+
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
+      };
+
+      await this.httpClient.patch(
+        `${this.networkUrl}/v2/gateway/users/${userUUID}`,
+        { email: newEmail },
+        params,
+      );
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        BridgeService.handleUpdateUserEmailError(error);
+      }
+
+      throw error;
+    }
   }
 }

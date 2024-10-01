@@ -14,7 +14,10 @@ export class ShareLinkListener {
 
   @OnEvent('share.created')
   async handleShareLinkCreated(event: ShareLinkCreatedEvent) {
-    Logger.log(`event ${event.name} handled`, 'ShareLinkListener');
+    Logger.log(
+      `event ${event.name} for user ${event.user.uuid} handled, share id ${event.share.id}`,
+      'ShareLinkListener',
+    );
     const apiDriveURL: string = this.configService.get('apis.drive.url');
 
     const eventData = {

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
-import { UserModel } from '../user/user.repository';
+import { UserModel } from '../user/user.model';
 import { SendLink, SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
 
@@ -17,12 +17,8 @@ import {
   HasMany,
   Sequelize,
 } from 'sequelize-typescript';
-import {
-  getStringFromBinary,
-  convertStringToBinary,
-} from '../../lib/binary-converter';
+import { Op } from 'sequelize';
 
-const ENCRYPTION_DATE_RELEASE = new Date('2022-07-05 13:55:00');
 @Table({
   underscored: true,
   timestamps: true,
@@ -147,17 +143,8 @@ export class SequelizeSendRepository implements SendRepository {
 
   async createSendLinkWithItems(sendLink: SendLink): Promise<void> {
     const sendLinkModel = this.toModel(sendLink);
-    const transaction = await this.sequelize.transaction();
-    try {
-      await this.sendLinkModel.create(sendLinkModel, { transaction });
-      await this.sendLinkItemModel.bulkCreate(sendLinkModel.items, {
-        transaction,
-      });
-      await transaction.commit();
-    } catch (err) {
-      await transaction.rollback();
-      throw err;
-    }
+    await this.sendLinkModel.create(sendLinkModel);
+    await this.sendLinkItemModel.bulkCreate(sendLinkModel.items);
   }
 
   async update(sendLink: SendLink): Promise<void> {
@@ -169,16 +156,20 @@ export class SequelizeSendRepository implements SendRepository {
     await sendLinkModel.save();
   }
 
-  private toDomain(model: SendLinkModel): SendLink {
-    if (
-      model.title &&
-      model.subject &&
-      model.createdAt > ENCRYPTION_DATE_RELEASE
-    ) {
-      model.title = getStringFromBinary(atob(model.title));
-      model.subject = getStringFromBinary(atob(model.subject));
-    }
+  countBySendersToday(): Promise<number> {
+    return this.sendLinkModel.count({
+      where: {
+        sender: {
+          [Op.not]: null,
+        },
+        created_at: {
+          [Op.gt]: new Date(new Date().getTime() - 24 * 60 * 60 * 1000), // Subtracting 1 day from the current date
+        },
+      },
+    });
+  }
 
+  private toDomain(model: SendLinkModel): SendLink {
     const sendLink = SendLink.build({
       id: model.id,
       views: model.views,
@@ -214,10 +205,6 @@ export class SequelizeSendRepository implements SendRepository {
     updatedAt,
     hashedPassword,
   }) {
-    if (title && subject && createdAt > ENCRYPTION_DATE_RELEASE) {
-      title = btoa(convertStringToBinary(title));
-      subject = btoa(convertStringToBinary(subject));
-    }
     return {
       id,
       views,
@@ -235,9 +222,6 @@ export class SequelizeSendRepository implements SendRepository {
     };
   }
   private toDomainItem(model: SendLinkItemModel): SendLinkItem {
-    if (model.createdAt > ENCRYPTION_DATE_RELEASE) {
-      model.name = getStringFromBinary(atob(model.name));
-    }
     return SendLinkItem.build({
       id: model.id,
       type: model.type,
@@ -254,9 +238,6 @@ export class SequelizeSendRepository implements SendRepository {
   }
 
   private toModelItem(domain: SendLinkItem) {
-    if (domain.createdAt > ENCRYPTION_DATE_RELEASE) {
-      domain.name = btoa(convertStringToBinary(domain.name));
-    }
     return {
       id: domain.id,
       name: domain.name,

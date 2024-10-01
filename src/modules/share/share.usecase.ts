@@ -19,7 +19,6 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { File } from '../file/file.domain';
 
 @Injectable()
 export class ShareUseCases {
@@ -78,7 +77,6 @@ export class ShareUseCases {
 
   async getShareByToken(
     token: string,
-    //user: User,
     code?: string,
     password?: string,
   ): Promise<Share> {
@@ -124,13 +122,6 @@ export class ShareUseCases {
         share.encryptionKey = encryptionKey.toString('hex');
       }
     }
-
-    /*const isTheOwner = user && share.userId === user.id;
-
-    if (!isTheOwner) {
-      share.incrementView();
-      await this.shareRepository.update(share);
-    }*/
 
     return share;
   }
@@ -190,6 +181,10 @@ export class ShareUseCases {
         };
       }),
     };
+  }
+
+  async deleteByUser(user: User) {
+    await this.shareRepository.deleteByUserId(user.id);
   }
 
   async deleteShareById(id: number, user: User) {
@@ -268,6 +263,8 @@ export class ShareUseCases {
       bucket,
       fileToken: itemToken,
       folderId: null,
+      fileUuid: file.uuid,
+      folderUuid: null,
       isFolder: false,
       views: 0,
       timesValid,
@@ -300,7 +297,12 @@ export class ShareUseCases {
       encryptedMnemonic: mnemonic,
       encryptedCode: code,
     }: CreateShareDto,
-  ) {
+  ): Promise<{
+    id: number;
+    item: Share;
+    encryptedCode: string;
+    created: boolean;
+  }> {
     const folder = await this.foldersRepository.findById(folderId);
     if (!folder) {
       throw new NotFoundException(`Folder ${folderId} not found`);
@@ -353,7 +355,9 @@ export class ShareUseCases {
       bucket,
       fileToken: itemToken,
       fileId: null,
+      fileUuid: null,
       isFolder: true,
+      folderUuid: folder.uuid,
       views: 0,
       timesValid,
       active: true,

@@ -25,10 +25,9 @@ export default class Analytics {
   constructor() {
     this.logger = new Logger();
     try {
-      this.analytics = new AnalyticsRudder(
-        process.env.ANALYTICS_RUDDER_KEY,
-        process.env.ANALYTICS_RUDDER_PLAN_URL,
-      );
+      this.analytics = new AnalyticsRudder(process.env.ANALYTICS_RUDDER_KEY, {
+        dataPlaneUrl: process.env.ANALYTICS_RUDDER_PLAN_URL,
+      });
     } catch (err) {
       this.logger.error(`Error initializing analytics: ${err.message}`);
     }
