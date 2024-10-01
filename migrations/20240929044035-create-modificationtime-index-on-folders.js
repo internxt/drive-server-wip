@@ -6,12 +6,12 @@ const indexName = 'folders_modification_time_index';
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface) {
-    await queryInterface.addIndex(tableName, ['modification_time'], {
-      name: indexName,
-    });
+    await queryInterface.sequelize.query(
+      `CREATE INDEX CONCURRENTLY ${indexName} ON ${tableName} (modification_time);`,
+    );
   },
 
   async down(queryInterface) {
-    await queryInterface.removeIndex(tableName, indexName);
+    await queryInterface.sequelize.query(`DROP INDEX IF EXISTS ${indexName};`);
   },
 };
