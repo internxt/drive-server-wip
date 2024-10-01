@@ -955,6 +955,7 @@ export class UserUseCases {
       password: newPassword,
       hKey: Buffer.from(newSalt),
       mnemonic,
+      lastPasswordChangedAt: new Date(),
     });
 
     await this.keyServerRepository.findUserKeysOrCreate(user.id, {
