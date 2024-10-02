@@ -20,6 +20,7 @@ import { SequelizeShareRepository } from './share.repository';
 import { ShareUseCases } from './share.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { createMock } from '@golevelup/ts-jest';
+import { newFolder } from '../../../test/fixtures';
 
 describe('Share Use Cases', () => {
   let service: ShareUseCases;
@@ -87,21 +88,19 @@ describe('Share Use Cases', () => {
     lastPasswordChangedAt: new Date(),
     emailVerified: false,
   });
-  const mockFolder = Folder.build({
-    id: 1,
-    parentId: null,
-    name: 'name',
-    bucket: 'bucket',
-    userId: 1,
-    encryptVersion: '03-aes',
-    deleted: true,
-    deletedAt: new Date(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    uuid: '',
-    plainName: '',
-    removed: false,
-    removedAt: null,
+  const mockFolder = newFolder({
+    attributes: {
+      id: 1,
+      parentId: null,
+      name: 'name',
+      bucket: 'bucket',
+      userId: 1,
+      encryptVersion: '03-aes',
+      deleted: true,
+      plainName: '',
+      removed: false,
+      removedAt: null,
+    },
   });
   const mockFile = File.build({
     id: 1,
