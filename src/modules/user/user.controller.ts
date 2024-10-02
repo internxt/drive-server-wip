@@ -450,7 +450,9 @@ export class UserController {
         privateKey,
         encryptVersion,
       });
-      return { status: 'success' };
+      const { token, newToken } = this.userUseCases.getAuthTokens(user);
+
+      return { status: 'success', newToken, token };
     } catch (err) {
       let errorMessage = err.message;
 
