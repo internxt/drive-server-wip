@@ -38,6 +38,8 @@ export class Folder implements FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   size: number;
+  creationTime: Date;
+  modificationTime: Date;
   sharings?: Sharing[];
 
   private constructor({
@@ -59,6 +61,8 @@ export class Folder implements FolderAttributes {
     removed,
     removedAt,
     sharings,
+    creationTime,
+    modificationTime,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -80,6 +84,8 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.sharings = sharings;
+    this.creationTime = creationTime;
+    this.modificationTime = modificationTime;
   }
 
   static build(folder: FolderAttributes): Folder {

@@ -130,15 +130,15 @@ export class FileUseCases {
       encryptVersion: newFileDto.encryptVersion,
       userId: user.id,
       folderUuid: folder.uuid,
-      modificationTime: newFileDto.modificationTime || new Date(),
       deleted: false,
       deletedAt: null,
       removed: false,
-      createdAt: newFileDto.date ?? new Date(),
+      createdAt: new Date(),
       updatedAt: new Date(),
       removedAt: null,
       status: FileStatus.EXISTS,
-      creationTime: new Date(),
+      modificationTime: newFileDto.modificationTime || new Date(),
+      creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
     });
 
     return newFile;
@@ -188,15 +188,19 @@ export class FileUseCases {
       );
     }
 
+    const modificationTime = new Date();
+
     await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
       plainName: newFileMetada.plainName,
       name: cryptoFileName,
+      modificationTime: modificationTime,
     });
 
     return {
       ...file.toJSON(),
       name: cryptoFileName,
       plainName: newFileMetada.plainName,
+      modificationTime,
     };
   }
 

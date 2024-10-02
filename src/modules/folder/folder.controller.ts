@@ -112,11 +112,9 @@ export class FolderController {
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
   ) {
-    const { plainName, parentFolderUuid } = createFolderDto;
     const folder = await this.folderUseCases.createFolder(
       user,
-      plainName,
-      parentFolderUuid,
+      createFolderDto,
     );
 
     this.storageNotificationService.folderCreated({

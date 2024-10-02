@@ -809,11 +809,10 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const createdFolder = await this.folderUseCases.createFolder(
-      networkUser,
-      createFolderDto.name,
+    const createdFolder = await this.folderUseCases.createFolder(networkUser, {
+      plainName: createFolderDto.name,
       parentFolderUuid,
-    );
+    });
 
     const createdItemFolder = await this.workspaceRepository.createItem({
       itemId: createdFolder.uuid,
@@ -1341,8 +1340,7 @@ export class WorkspacesUsecases {
 
     const rootFolder = await this.folderUseCases.createFolder(
       workspaceNetworkUser,
-      v4(),
-      workspaceRootFolderId,
+      { plainName: v4(), parentFolderUuid: workspaceRootFolderId },
     );
 
     return rootFolder;

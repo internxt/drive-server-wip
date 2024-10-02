@@ -90,6 +90,12 @@ export const newFolder = (params?: NewFolderParams): Folder => {
     removed: false,
     deletedAt: undefined,
     removedAt: undefined,
+    creationTime: randomDataGenerator.date(),
+    modificationTime: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
   });
 
   params?.attributes &&
