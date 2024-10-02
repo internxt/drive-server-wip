@@ -28,18 +28,43 @@ import { FolderModel } from '../../folder/folder.model';
 export class SequelizeWorkspaceRepository {
   constructor(
     @InjectModel(WorkspaceModel)
-    private modelWorkspace: typeof WorkspaceModel,
+    private readonly modelWorkspace: typeof WorkspaceModel,
     @InjectModel(WorkspaceUserModel)
-    private modelWorkspaceUser: typeof WorkspaceUserModel,
+    private readonly modelWorkspaceUser: typeof WorkspaceUserModel,
     @InjectModel(WorkspaceInviteModel)
-    private modelWorkspaceInvite: typeof WorkspaceInviteModel,
+    private readonly modelWorkspaceInvite: typeof WorkspaceInviteModel,
     @InjectModel(WorkspaceItemUserModel)
-    private modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
+    private readonly modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
   ) {}
   async findById(id: WorkspaceAttributes['id']): Promise<Workspace | null> {
     const workspace = await this.modelWorkspace.findByPk(id);
     return workspace ? this.toDomain(workspace) : null;
   }
+
+  async findWorkspaceAndDefaultUser(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<{ workspaceUser: User; workspace: Workspace } | null> {
+    const workspaceAndDefaultUser = await this.modelWorkspace.findOne({
+      where: { id: workspaceId },
+      include: {
+        model: UserModel,
+        as: 'workpaceUser',
+        required: true,
+      },
+    });
+
+    if (!workspaceAndDefaultUser) {
+      return null;
+    }
+
+    return {
+      workspaceUser: User.build({
+        ...workspaceAndDefaultUser.workpaceUser.get({ plain: true }),
+      }),
+      workspace: this.toDomain(workspaceAndDefaultUser),
+    };
+  }
+
   async findByOwner(ownerId: Workspace['ownerId']): Promise<Workspace[]> {
     const workspaces = await this.modelWorkspace.findAll({
       where: { ownerId },

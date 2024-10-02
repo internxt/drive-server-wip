@@ -12,23 +12,17 @@ import {
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
-import { SharingService } from '../sharing/sharing.service';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
-  let sharingUseCases: DeepMocked<SharingService>;
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
-    sharingUseCases = createMock<SharingService>();
 
-    workspacesController = new WorkspacesController(
-      workspacesUsecases,
-      sharingUseCases,
-    );
+    workspacesController = new WorkspacesController(workspacesUsecases);
   });
 
   it('should be defined', () => {
@@ -503,71 +497,64 @@ describe('Workspace Controller', () => {
     });
   });
 
-  describe('GET /:workspaceId/teams/:teamId/shared/files', () => {
-    it('When shared files are requested, then it should call the service with the respective arguments', async () => {
-      const user = newUser();
-      const teamId = v4();
-      const workspaceId = v4();
-      const orderBy = 'createdAt:ASC';
-      const page = 1;
-      const perPage = 50;
-      const order = [['createdAt', 'ASC']];
+  describe('GET /:workspaceId/shared/files', () => {
+    const user = newUser();
+    const workspaceId = v4();
+    const orderBy = 'createdAt:ASC';
+    const page = 1;
+    const perPage = 50;
+    const order = [['createdAt', 'ASC']];
 
-      await workspacesController.getSharedFiles(
+    it('When files shared with user teams are requested, then it should call the service with the respective arguments', async () => {
+      await workspacesController.getSharedFilesInWorkspace(
         workspaceId,
-        teamId,
         user,
         orderBy,
-        page,
-        perPage,
+        { page, perPage },
       );
 
-      expect(sharingUseCases.getSharedFilesInWorkspaces).toHaveBeenCalledWith(
+      expect(workspacesUsecases.getSharedFilesInWorkspace).toHaveBeenCalledWith(
         user,
         workspaceId,
-        teamId,
-        page,
-        perPage,
-        order,
+        {
+          offset: page,
+          limit: perPage,
+          order,
+        },
       );
     });
   });
 
-  describe('GET /:workspaceId/teams/:teamId/shared/folders', () => {
-    it('When shared folders are requested, then it should call the service with the respective arguments', async () => {
-      const user = newUser();
-      const teamId = v4();
-      const workspaceId = v4();
-      const orderBy = 'createdAt:ASC';
-      const page = 1;
-      const perPage = 50;
-      const order = [['createdAt', 'ASC']];
+  describe('GET /:workspaceId/shared/folders', () => {
+    const user = newUser();
+    const workspaceId = v4();
+    const orderBy = 'createdAt:ASC';
+    const page = 1;
+    const perPage = 50;
+    const order = [['createdAt', 'ASC']];
 
-      await workspacesController.getSharedFolders(
+    it('When folders shared with user teams are requested, then it should call the service with the respective arguments', async () => {
+      await workspacesController.getSharedFoldersInWorkspace(
         workspaceId,
-        teamId,
         user,
         orderBy,
-        page,
-        perPage,
+        { page, perPage },
       );
 
-      expect(sharingUseCases.getSharedFoldersInWorkspace).toHaveBeenCalledWith(
-        user,
-        workspaceId,
-        teamId,
-        page,
-        perPage,
+      expect(
+        workspacesUsecases.getSharedFoldersInWorkspace,
+      ).toHaveBeenCalledWith(user, workspaceId, {
+        offset: page,
+        limit: perPage,
         order,
-      );
+      });
     });
   });
 
-  describe('GET /:workspaceId/teams/:teamId/shared/:sharedFolderId/files', () => {
+  describe('GET /:workspaceId/shared/:sharedFolderId/files', () => {
     it('When files inside a shared folder are requested, then it should call the service with the respective arguments', async () => {
       const user = newUser();
       const workspaceId = v4();
-      const teamId = v4();
       const sharedFolderId = v4();
       const orderBy = 'createdAt:ASC';
       const token = 'token';
@@ -575,9 +562,8 @@ describe('Workspace Controller', () => {
       const perPage = 50;
       const order = [['createdAt', 'ASC']];
 
-      await workspacesController.getFilesInsideSharedFolder(
+      await workspacesController.getFilesInSharingFolder(
         workspaceId,
-        teamId,
         user,
         sharedFolderId,
         { token, page, perPage, orderBy },
@@ -585,10 +571,38 @@ describe('Workspace Controller', () => {
 
       expect(workspacesUsecases.getItemsInSharedFolder).toHaveBeenCalledWith(
         workspaceId,
-        teamId,
         user,
         sharedFolderId,
         WorkspaceItemType.File,
+        token,
+        { page, perPage, order },
+      );
+    });
+  });
+
+  describe('GET /:workspaceId/shared/:sharedFolderId/folders', () => {
+    it('When folders inside a shared folder are requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const sharedFolderId = v4();
+      const orderBy = 'createdAt:ASC';
+      const token = 'token';
+      const page = 1;
+      const perPage = 50;
+      const order = [['createdAt', 'ASC']];
+
+      await workspacesController.getFoldersInSharingFolder(
+        workspaceId,
+        user,
+        sharedFolderId,
+        { token, page, perPage, orderBy },
+      );
+
+      expect(workspacesUsecases.getItemsInSharedFolder).toHaveBeenCalledWith(
+        workspaceId,
+        user,
+        sharedFolderId,
+        WorkspaceItemType.Folder,
         token,
         { page, perPage, order },
       );

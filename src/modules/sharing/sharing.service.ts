@@ -53,6 +53,7 @@ import { Environment } from '@internxt/inxt-js';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -173,7 +174,7 @@ export class PasswordNeededError extends ForbiddenException {
   }
 }
 
-type SharingInfo = Pick<
+export type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
 > & {
@@ -214,6 +215,18 @@ export class SharingService {
 
   findSharingBy(where: Partial<Sharing>): Promise<Sharing | null> {
     return this.sharingRepository.findOneSharingBy(where);
+  }
+
+  findSharingsBySharedWithAndAttributes(
+    sharedWithValues: Sharing['sharedWith'][],
+    filters: Omit<Partial<Sharing>, 'sharedWith'> = {},
+    options?: { offset: number; limit: number; givePriorityToRole?: string },
+  ): Promise<Sharing[]> {
+    return this.sharingRepository.findSharingsBySharedWithAndAttributes(
+      sharedWithValues,
+      filters,
+      options,
+    );
   }
 
   findSharingRoleBy(where: Partial<SharingRole>) {
@@ -1784,22 +1797,63 @@ export class SharingService {
     };
   }
 
-  async getSharedFoldersInWorkspace(
+  async getSharedFilesInWorkspaceByTeams(
     user: User,
     workspaceId: Workspace['id'],
-    teamId: Sharing['sharedWith'],
-    offset: number,
-    limit: number,
-    order: [string, string][],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; order?: [string, string][] },
+  ): Promise<GetItemsReponse> {
+    const filesWithSharedInfo =
+      await this.sharingRepository.findFilesSharedInWorkspaceByOwnerAndTeams(
+        user.uuid,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+    const files = (await Promise.all(
+      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
+        const avatar = fileWithSharedInfo.file?.user?.avatar;
+        return {
+          ...fileWithSharedInfo.file,
+          plainName: fileWithSharedInfo.file.plainName,
+          sharingId: fileWithSharedInfo.id,
+          encryptionKey: fileWithSharedInfo.encryptionKey,
+          dateShared: fileWithSharedInfo.createdAt,
+          user: {
+            ...fileWithSharedInfo.file.user,
+            avatar: avatar
+              ? await this.usersUsecases.getAvatarUrl(avatar)
+              : null,
+          },
+        };
+      }),
+    )) as FileWithSharedInfo[];
+
+    return {
+      folders: [],
+      files: files,
+      credentials: {
+        networkPass: user.userId,
+        networkUser: user.bridgeUser,
+      },
+      token: '',
+      role: 'OWNER',
+    };
+  }
+
+  async getSharedFoldersInWorkspaceByTeams(
+    user: User,
+    workspaceId: Workspace['id'],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<GetItemsReponse> {
     const foldersWithSharedInfo =
-      await this.sharingRepository.findFoldersByOwnerAndSharedWithTeamInworkspace(
-        workspaceId,
-        teamId,
+      await this.sharingRepository.findFoldersSharedInWorkspaceByOwnerAndTeams(
         user.uuid,
-        offset,
-        limit,
-        order,
+        workspaceId,
+        teamIds,
+        options,
       );
 
     const folders = (await Promise.all(
@@ -1807,10 +1861,7 @@ export class SharingService {
         const avatar = folderWithSharedInfo.folder?.user?.avatar;
         return {
           ...folderWithSharedInfo.folder,
-          plainName:
-            folderWithSharedInfo.folder.plainName ||
-            this.folderUsecases.decryptFolderName(folderWithSharedInfo.folder)
-              .plainName,
+          plainName: folderWithSharedInfo.folder.plainName,
           sharingId: folderWithSharedInfo.id,
           encryptionKey: folderWithSharedInfo.encryptionKey,
           dateShared: folderWithSharedInfo.createdAt,
@@ -1837,63 +1888,14 @@ export class SharingService {
     };
   }
 
-  async getSharedFilesInWorkspaces(
-    user: User,
-    workspaceId: Workspace['id'],
-    teamId: Sharing['sharedWith'],
-    offset: number,
-    limit: number,
-    order: [string, string][],
-  ): Promise<GetItemsReponse> {
-    const filesWithSharedInfo =
-      await this.sharingRepository.findFilesByOwnerAndSharedWithTeamInworkspace(
-        workspaceId,
-        teamId,
-        user.uuid,
-        offset,
-        limit,
-        order,
-      );
-
-    const files = (await Promise.all(
-      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
-        const avatar = fileWithSharedInfo.file?.user?.avatar;
-        return {
-          ...fileWithSharedInfo.file,
-          plainName:
-            fileWithSharedInfo.file.plainName ||
-            this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
-          sharingId: fileWithSharedInfo.id,
-          encryptionKey: fileWithSharedInfo.encryptionKey,
-          dateShared: fileWithSharedInfo.createdAt,
-          user: {
-            ...fileWithSharedInfo.file.user,
-            avatar: avatar
-              ? await this.usersUsecases.getAvatarUrl(avatar)
-              : null,
-          },
-        };
-      }),
-    )) as FileWithSharedInfo[];
-
-    return {
-      folders: [],
-      files: files,
-      credentials: {
-        networkPass: user.userId,
-        networkUser: user.bridgeUser,
-      },
-      token: '',
-      role: 'OWNER',
-    };
+  async findSharingsWithRolesByItem(item: File | Folder) {
+    return this.sharingRepository.findSharingsWithRolesByItem(item);
   }
 
   async getItemSharedWith(
     user: User,
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
-    offset: number,
-    limit: number,
   ): Promise<SharingInfo[]> {
     let item: Item;
 
@@ -1909,8 +1911,7 @@ export class SharingService {
       throw new NotFoundException('Item not found');
     }
 
-    const sharingsWithRoles =
-      await this.sharingRepository.findSharingsWithRolesByItem(item);
+    const sharingsWithRoles = await this.findSharingsWithRolesByItem(item);
 
     if (sharingsWithRoles.length === 0) {
       throw new BadRequestException('This item is not being shared');

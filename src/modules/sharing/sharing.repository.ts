@@ -453,19 +453,60 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async findFilesByOwnerAndSharedWithTeamInworkspace(
-    workspaceId: WorkspaceAttributes['id'],
-    teamId: WorkspaceTeamAttributes['id'],
+  async findSharingsBySharedWithAndAttributes(
+    sharedWithValues: SharingAttributes['sharedWith'][],
+    filters: Omit<Partial<SharingAttributes>, 'sharedWith'> = {},
+    options?: { offset: number; limit: number; givePriorityToRole?: string },
+  ): Promise<Sharing[]> {
+    const where: WhereOptions<SharingAttributes> = {
+      ...filters,
+      sharedWith: {
+        [Op.in]: sharedWithValues,
+      },
+    };
+
+    const queryOrder = [];
+    if (options?.givePriorityToRole) {
+      queryOrder.push([
+        sequelize.literal(
+          `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
+        ),
+        'ASC',
+      ]);
+    }
+
+    const sharings = await this.sharings.findAll({
+      where,
+      include: [
+        {
+          model: SharingRolesModel,
+          include: [RoleModel],
+        },
+      ],
+      limit: options.limit,
+      offset: options.offset,
+      order: queryOrder,
+      replacements: {
+        priorityRole: options?.givePriorityToRole,
+      },
+    });
+
+    return sharings.map((sharing) =>
+      Sharing.build(sharing.get({ plain: true })),
+    );
+  }
+
+  async findFilesSharedInWorkspaceByOwnerAndTeams(
     ownerId: WorkspaceItemUserAttributes['createdBy'],
-    offset: number,
-    limit: number,
-    orderBy?: [string, string][],
+    workspaceId: WorkspaceAttributes['id'],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<Sharing[]> {
     const sharedFiles = await this.sharings.findAll({
       where: {
         [Op.or]: [
           {
-            sharedWith: teamId,
+            sharedWith: { [Op.in]: teamIds },
             sharedWithType: SharedWithType.WorkspaceTeam,
           },
           {
@@ -477,10 +518,10 @@ export class SequelizeSharingRepository implements SharingRepository {
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
       group: [
+        'SharingModel.item_id',
         'file.id',
         'file->workspaceUser.id',
         'file->workspaceUser->creator.id',
-        'SharingModel.item_id',
       ],
       include: [
         {
@@ -507,9 +548,9 @@ export class SequelizeSharingRepository implements SharingRepository {
           ],
         },
       ],
-      order: orderBy,
-      limit,
-      offset,
+      order: options.order,
+      limit: options.limit,
+      offset: options.offset,
     });
 
     return sharedFiles.map((shared) => {
@@ -527,19 +568,17 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async findFoldersByOwnerAndSharedWithTeamInworkspace(
-    workspaceId: WorkspaceAttributes['id'],
-    teamId: WorkspaceTeamAttributes['id'],
+  async findFoldersSharedInWorkspaceByOwnerAndTeams(
     ownerId: WorkspaceItemUserAttributes['createdBy'],
-    offset: number,
-    limit: number,
-    orderBy?: [string, string][],
+    workspaceId: WorkspaceAttributes['id'],
+    teamsIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<Sharing[]> {
     const sharedFolders = await this.sharings.findAll({
       where: {
         [Op.or]: [
           {
-            sharedWith: teamId,
+            sharedWith: { [Op.in]: teamsIds },
             sharedWithType: SharedWithType.WorkspaceTeam,
           },
           {
@@ -551,10 +590,10 @@ export class SequelizeSharingRepository implements SharingRepository {
         [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
       ],
       group: [
+        'SharingModel.item_id',
         'folder.id',
         'folder->workspaceUser.id',
         'folder->workspaceUser->creator.id',
-        'SharingModel.item_id',
       ],
       include: [
         {
@@ -581,9 +620,9 @@ export class SequelizeSharingRepository implements SharingRepository {
           ],
         },
       ],
-      order: orderBy,
-      limit,
-      offset,
+      order: options.order,
+      limit: options.limit,
+      offset: options.offset,
     });
 
     return sharedFolders.map((shared) => {

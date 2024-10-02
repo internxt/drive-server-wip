@@ -18,6 +18,7 @@ import {
   Headers,
   Patch,
   UseFilters,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -919,39 +920,24 @@ export class SharingController {
   })
   async getItemsSharedsWith(
     @UserDecorator() user: User,
-    @Query('limit') limit = 0,
-    @Query('offset') offset = 50,
     @Param('itemId') itemId: Sharing['itemId'],
     @Param('itemType') itemType: Sharing['itemType'],
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<{ users: Array<any> } | { error: string }> {
+  ): Promise<{ users: Array<any> }> {
     try {
       const users = await this.sharingService.getItemSharedWith(
         user,
         itemId,
         itemType,
-        offset,
-        limit,
       );
 
       return { users };
     } catch (error) {
-      let errorMessage = error.message;
-
-      if (error instanceof InvalidSharedFolderError) {
-        res.status(HttpStatus.BAD_REQUEST);
-      } else if (error instanceof UserNotInvitedError) {
-        res.status(HttpStatus.FORBIDDEN);
-      } else {
-        Logger.error(
-          `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
-            user.uuid
-          }, ${error.stack || 'No stack trace'}`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal server error';
-      }
-      return { error: errorMessage };
+      Logger.error(
+        `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
+          user.uuid
+        }, ${error.stack || 'No stack trace'}`,
+      );
+      throw error;
     }
   }
 
