@@ -17,7 +17,11 @@ import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { File, FileAttributes } from '../file/file.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { SignWithCustomDuration } from '../../middlewares/passport';
+import {
+  Sign,
+  SignEmail,
+  SignWithCustomDuration,
+} from '../../middlewares/passport';
 import { getTokenDefaultIat } from '../../lib/jwt';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
@@ -600,7 +604,7 @@ describe('User use cases', () => {
       });
 
       jest.spyOn(userUseCases, 'getNewTokenPayload').mockReturnValue({} as any);
-      jest.spyOn(configService, 'get').mockReturnValue('a-secret-key');
+      jest.spyOn(configService, 'get').mockReturnValueOnce('a-secret-key');
 
       const result = await userUseCases.acceptAttemptChangeEmail(encryptedId);
 
@@ -738,6 +742,55 @@ describe('User use cases', () => {
         user.uuid,
       );
       expect(tokens).toEqual(mockTokens);
+    });
+  });
+
+  describe('getAuthTokens', () => {
+    const jwtSecret = 'secret-jwt';
+
+    beforeEach(() => {
+      jest.spyOn(configService, 'get').mockReturnValueOnce(jwtSecret);
+    });
+
+    it('When called, then it should return respective tokens', async () => {
+      const result = userUseCases.getAuthTokens(user);
+
+      expect(result).toEqual({
+        token: 'token',
+        newToken: 'newToken',
+      });
+    });
+
+    it('When called with custom iat, then it should create the tokens with custom iat', async () => {
+      const customIat = 1620000000;
+      userUseCases.getAuthTokens(user, customIat);
+
+      expect(SignEmail).toHaveBeenCalledWith(
+        user.email,
+        jwtSecret,
+        true,
+        customIat,
+      );
+
+      expect(Sign).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            email: user.email,
+            name: user.name,
+            lastname: user.lastname,
+            username: user.username,
+            sharedWorkspace: true,
+            networkCredentials: {
+              user: user.bridgeUser,
+              pass: user.userId,
+            },
+          },
+          iat: customIat,
+        },
+        jwtSecret,
+        true,
+      );
     });
   });
 });
