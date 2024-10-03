@@ -7,10 +7,13 @@ export function SignEmail(
   email: string,
   secret: string,
   expires = false,
+  customIat?: number,
 ): string {
+  const payload = { email, ...(customIat ? { iat: customIat } : null) };
+
   const token = expires
-    ? jwt.sign({ email }, secret, { expiresIn: '14d' })
-    : jwt.sign({ email }, secret);
+    ? jwt.sign(payload, secret, { expiresIn: '14d' })
+    : jwt.sign(payload, secret);
 
   return token;
 }
@@ -21,6 +24,10 @@ export function Sign(payload: object, secret: string, expires = false): string {
     : jwt.sign(payload, secret);
 
   return token;
+}
+
+export function getFutureIAT() {
+  return Math.floor(Date.now() / 1000) + 60;
 }
 
 export function SignWithCustomDuration(
