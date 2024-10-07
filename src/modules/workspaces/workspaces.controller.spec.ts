@@ -665,4 +665,38 @@ describe('Workspace Controller', () => {
       );
     });
   });
+
+  describe('GET /:workspaceId/trash', () => {
+    it('When the workspace trash is requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const offset = 1;
+      const limit = 50;
+      const sort = 'name';
+      const order = 'ASC';
+
+      await workspacesController.getUserTrashedItems(
+        workspaceId,
+        user,
+        {
+          limit,
+          offset,
+        },
+        WorkspaceItemType.File,
+        'name',
+        'ASC',
+      );
+
+      expect(
+        workspacesUsecases.getWorkspaceUserTrashedItems,
+      ).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        WorkspaceItemType.File,
+        limit,
+        offset,
+        [sort, order],
+      );
+    });
+  });
 });
