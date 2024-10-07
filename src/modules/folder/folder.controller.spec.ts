@@ -476,4 +476,66 @@ describe('FolderController', () => {
       ).rejects.toThrow(InvalidParentFolderException);
     });
   });
+
+  describe('getgetFolderAncestors', () => {
+    it('When get folder ancestors is requested with workspace query param as false, then it should return the ancestors', async () => {
+      const user = newUser();
+      const folder = newFolder({ owner: user });
+      const mockAncestors = [
+        newFolder({
+          attributes: { parentUuid: folder.parentUuid },
+          owner: user,
+        }),
+        newFolder({
+          attributes: { parentUuid: folder.parentUuid },
+          owner: user,
+        }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'getFolderAncestors')
+        .mockResolvedValue(mockAncestors);
+
+      const result = await folderController.getFolderAncestors(
+        user,
+        folder.uuid,
+        false,
+      );
+      expect(result).toEqual({ ancestors: mockAncestors });
+      expect(folderUseCases.getFolderAncestors).toHaveBeenCalledWith(
+        user,
+        folder.uuid,
+      );
+    });
+
+    it('When get folder ancestors is requested with workspace query param as true, then it should return the ancestors', async () => {
+      const user = newUser();
+      const folder = newFolder({ owner: user });
+      const mockAncestors = [
+        newFolder({
+          attributes: { parentUuid: folder.parentUuid },
+          owner: user,
+        }),
+        newFolder({
+          attributes: { parentUuid: folder.parentUuid },
+          owner: user,
+        }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'getFolderAncestors')
+        .mockResolvedValue(mockAncestors);
+
+      const result = await folderController.getFolderAncestors(
+        user,
+        folder.uuid,
+        true,
+      );
+      expect(result).toEqual({ ancestors: mockAncestors });
+      expect(folderUseCases.getFolderAncestorsInWorkspace).toHaveBeenCalledWith(
+        user,
+        folder.uuid,
+      );
+    });
+  });
 });
