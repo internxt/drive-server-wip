@@ -695,7 +695,7 @@ describe('Workspace Controller', () => {
         WorkspaceItemType.File,
         limit,
         offset,
-        [sort, order],
+        [[sort, order]],
       );
     });
   });
