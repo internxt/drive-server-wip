@@ -501,7 +501,7 @@ describe('FolderController', () => {
         folder.uuid,
         false,
       );
-      expect(result).toEqual({ ancestors: mockAncestors });
+      expect(result).toEqual(mockAncestors);
       expect(folderUseCases.getFolderAncestors).toHaveBeenCalledWith(
         user,
         folder.uuid,
@@ -523,7 +523,7 @@ describe('FolderController', () => {
       ];
 
       jest
-        .spyOn(folderUseCases, 'getFolderAncestors')
+        .spyOn(folderUseCases, 'getFolderAncestorsInWorkspace')
         .mockResolvedValue(mockAncestors);
 
       const result = await folderController.getFolderAncestors(
@@ -531,7 +531,7 @@ describe('FolderController', () => {
         folder.uuid,
         true,
       );
-      expect(result).toEqual({ ancestors: mockAncestors });
+      expect(result).toEqual(mockAncestors);
       expect(folderUseCases.getFolderAncestorsInWorkspace).toHaveBeenCalledWith(
         user,
         folder.uuid,
