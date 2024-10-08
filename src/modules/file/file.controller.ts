@@ -24,7 +24,7 @@ import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
-import { File } from './file.domain';
+import { File, FileStatus } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
@@ -333,5 +333,40 @@ export class FileController {
     });
 
     return file;
+  }
+
+  @Get('/recents')
+  async getRecentFiles(
+    @UserDecorator() user: User,
+    @Query('limit') limit?: number,
+  ) {
+    if (!limit || !isNumber(limit)) {
+      limit = API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND;
+    }
+
+    if (
+      limit < API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND ||
+      limit > API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'limit',
+        API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND,
+        API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
+      );
+    }
+
+    const files = this.fileUseCases.getFiles(
+      user.id,
+      {
+        status: FileStatus.EXISTS,
+      },
+      {
+        limit,
+        offset: 0,
+        sort: [['updatedAt', 'DESC']],
+      },
+    );
+
+    return files;
   }
 }
