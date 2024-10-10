@@ -3182,7 +3182,7 @@ describe('WorkspacesUsecases', () => {
         user.uuid,
         workspaceId,
         { status: FileStatus.TRASHED },
-        { limit, offset },
+        { limit, offset, sort: ['name', 'ASC'] },
       );
     });
 
@@ -3206,7 +3206,7 @@ describe('WorkspacesUsecases', () => {
         user.uuid,
         workspaceId,
         { deleted: true, removed: false },
-        { limit, offset },
+        { limit, offset, sort: ['name', 'ASC'] },
       );
     });
   });
