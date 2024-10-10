@@ -38,6 +38,8 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { getPathFileData } from '../../lib/path';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -47,6 +49,7 @@ export class FileController {
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
+    private readonly folderUseCases: FolderUseCases,
   ) {}
 
   @Post('/')
@@ -368,5 +371,61 @@ export class FileController {
     );
 
     return files;
+  }
+
+  @Get('/meta')
+  async getFileMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') encodedPath: string,
+  ) {
+    const filePath = Buffer.from(encodedPath, 'base64').toString('utf-8');
+    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    try {
+      const path = getPathFileData(filePath);
+      const fileExt = path.fileType.length > 0 ? path.fileType : null;
+
+      const rootFolder = await this.folderUseCases.getFolderByUserId(
+        user.rootFolderId,
+        user.id,
+      );
+      if (!rootFolder) {
+        throw new NotFoundException('Root Folder not found');
+      }
+
+      const folder = await this.folderUseCases.getFolderByPath(
+        user.id,
+        path.parentPath,
+        rootFolder.uuid,
+      );
+      if (!folder) {
+        throw new NotFoundException('Parent folders not found');
+      }
+
+      const file = await this.fileUseCases.findByNameAndFolderUuid(
+        path.fileName,
+        fileExt,
+        folder.uuid,
+      );
+      if (!file) {
+        throw new NotFoundException('File not found');
+      }
+      return { file };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATABYPATH] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
   }
 }

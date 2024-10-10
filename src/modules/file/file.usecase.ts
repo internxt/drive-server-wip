@@ -660,4 +660,17 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
     });
   }
+
+  async findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByNameAndFolderUuid(
+      name,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
 }
