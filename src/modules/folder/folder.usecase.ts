@@ -33,7 +33,9 @@ import { CreateFolderDto } from './dto/create-folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
-type SortParams = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
+export type SortParamsFolder = Array<
+  [SortableFolderAttributes, 'ASC' | 'DESC']
+>;
 
 @Injectable()
 export class FolderUseCases {
@@ -584,7 +586,7 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -604,7 +606,7 @@ export class FolderUseCases {
   async getFoldersWithParent(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -626,7 +628,7 @@ export class FolderUseCases {
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },

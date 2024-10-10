@@ -34,7 +34,7 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { Folder } from '../folder/folder.domain';
 
-type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
+export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FileUseCases {
@@ -214,7 +214,7 @@ export class FileUseCases {
   async getFilesByFolderId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFile } = {
       limit: 20,
       offset: 0,
     },
@@ -246,7 +246,7 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParamsFile },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = {};
@@ -307,9 +307,11 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParamsFile },
   ): Promise<File[]> {
-    const additionalOrders: SortParams = options.sort ?? [['updatedAt', 'ASC']];
+    const additionalOrders: SortParamsFile = options.sort ?? [
+      ['updatedAt', 'ASC'],
+    ];
 
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
@@ -327,7 +329,7 @@ export class FileUseCases {
     options: {
       limit: number;
       offset: number;
-      sort?: SortParams;
+      sort?: SortParamsFile;
       withoutThumbnails?: boolean;
     } = {
       limit: 20,
@@ -379,7 +381,7 @@ export class FileUseCases {
     options: {
       limit: number;
       offset: number;
-      sort?: SortParams;
+      sort?: SortParamsFile;
       withoutThumbnails?: boolean;
     } = {
       limit: 20,
