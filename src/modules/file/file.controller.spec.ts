@@ -7,6 +7,7 @@ import { FileUseCases } from './file.usecase';
 import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
+import API_LIMITS from '../../lib/http/limits';
 
 describe('FileController', () => {
   let fileController: FileController;
@@ -105,6 +106,54 @@ describe('FileController', () => {
           clientId,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getRecentFiles', () => {
+    it('When getRecentFiles is requested with valid params, then it should return the recent files', async () => {
+      const limit = 10;
+      const files = [
+        newFile({ owner: userMocked }),
+        newFile({ owner: userMocked }),
+      ];
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(files);
+
+      const result = await fileController.getRecentFiles(userMocked, limit);
+      expect(result).toEqual(files);
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        {
+          status: FileStatus.EXISTS,
+        },
+        {
+          limit,
+          offset: 0,
+          sort: [['updatedAt', 'DESC']],
+        },
+      );
+    });
+
+    it('When getRecentFiles is requested with no limit, then it should use upper bound limit', () => {
+      const files = [
+        newFile({ owner: userMocked }),
+        newFile({ owner: userMocked }),
+      ];
+
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(files);
+
+      fileController.getRecentFiles(userMocked, undefined);
+
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        {
+          status: FileStatus.EXISTS,
+        },
+        {
+          limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
+          offset: 0,
+          sort: [['updatedAt', 'DESC']],
+        },
+      );
     });
   });
 });
