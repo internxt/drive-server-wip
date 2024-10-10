@@ -20,6 +20,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
@@ -690,16 +691,24 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiQuery({
+    name: 'workspace',
+    description: 'If true, will return ancestors in workspace',
+    type: Boolean,
+  })
   @WorkspacesInBehalfValidationFolder()
   async getFolderAncestors(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: Folder['uuid'],
+    @Query('workspace') workspace: boolean,
   ) {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
 
-    return this.folderUseCases.getFolderAncestors(user, folderUuid);
+    return !workspace
+      ? this.folderUseCases.getFolderAncestors(user, folderUuid)
+      : this.folderUseCases.getFolderAncestorsInWorkspace(user, folderUuid);
   }
 
   @Get('/:uuid/tree')
