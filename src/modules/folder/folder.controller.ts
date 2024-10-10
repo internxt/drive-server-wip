@@ -839,4 +839,33 @@ export class FolderController {
 
     return folder;
   }
+
+  @Get('/meta')
+  async getFolderMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') encodedPath: string,
+  ) {
+    const folderPath = Buffer.from(encodedPath, 'base64').toString('utf-8');
+    if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    const rootFolder = await this.folderUseCases.getFolderByUserId(
+      user.rootFolderId,
+      user.id,
+    );
+    if (!rootFolder) {
+      throw new NotFoundException('Root Folder not found');
+    }
+
+    const folder = await this.folderUseCases.getFolderByPath(
+      user.id,
+      folderPath,
+      rootFolder.uuid,
+    );
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+    return { folder };
+  }
 }

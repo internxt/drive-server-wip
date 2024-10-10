@@ -688,6 +688,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     }
   }
 
+  async getFolderByPath(
+    userId: Folder['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null> {
+    const [[folder]] = await this.folderModel.sequelize.query(
+      'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+      {
+        replacements: { userId, path, rootFolderUuid },
+      },
+    );
+
+    return (folder as Folder) ?? null;
+  }
+
   private toDomain(model: FolderModel): Folder {
     return Folder.build({
       ...model.toJSON(),

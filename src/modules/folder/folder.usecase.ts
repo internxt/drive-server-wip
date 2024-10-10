@@ -860,4 +860,12 @@ export class FolderUseCases {
       includeTrashedFiles,
     );
   }
+
+  getFolderByPath(
+    userId: UserAttributes['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null> {
+    return this.folderRepository.getFolderByPath(userId, path, rootFolderUuid);
+  }
 }
