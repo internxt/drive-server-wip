@@ -1252,4 +1252,23 @@ describe('FolderUseCases', () => {
       });
     });
   });
+
+  describe('getFolderAncestorsInWorkspace', () => {
+    it('Should return the ancestors of a folder in a workspace', async () => {
+      const user = newUser();
+      const folder = newFolder({ attributes: { userId: user.id } });
+      const ancestors = [newFolder({ owner: user })];
+
+      jest
+        .spyOn(folderRepository, 'getFolderAncestorsInWorkspace')
+        .mockResolvedValueOnce(ancestors);
+
+      const result = await service.getFolderAncestorsInWorkspace(
+        user,
+        folder.uuid,
+      );
+
+      expect(result).toEqual(ancestors);
+    });
+  });
 });
