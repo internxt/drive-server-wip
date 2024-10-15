@@ -717,6 +717,16 @@ export class FolderUseCases {
     return this.folderRepository.getFolderAncestors(user, folderUuid);
   }
 
+  getFolderAncestorsInWorkspace(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    return this.folderRepository.getFolderAncestorsInWorkspace(
+      user,
+      folderUuid,
+    );
+  }
+
   async moveFolder(
     user: User,
     folderUuid: Folder['uuid'],
