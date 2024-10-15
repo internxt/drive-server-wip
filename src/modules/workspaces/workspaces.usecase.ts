@@ -33,12 +33,12 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases, SortParamsFolder } from '../folder/folder.usecase';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases, SortParamsFile } from '../file/file.usecase';
 import {
   Folder,
   FolderAttributes,
@@ -573,6 +573,7 @@ export class WorkspacesUsecases {
     itemType: WorkspaceItemUserAttributes['itemType'],
     limit = 50,
     offset = 0,
+    sort?: SortParamsFile | SortParamsFolder,
   ) {
     let result: File[] | Folder[];
 
@@ -586,6 +587,7 @@ export class WorkspacesUsecases {
         {
           limit,
           offset,
+          sort,
         },
       );
     } else {
@@ -599,6 +601,7 @@ export class WorkspacesUsecases {
         {
           limit,
           offset,
+          sort: sort as SortParamsFolder,
         },
       );
     }
