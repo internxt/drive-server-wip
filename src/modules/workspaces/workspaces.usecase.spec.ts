@@ -2189,8 +2189,8 @@ describe('WorkspacesUsecases', () => {
     const workspace = newWorkspace();
     const limit = 50;
     const offset = 0;
-    const sort = 'name';
-    const order = 'asc';
+    const sort: 'id' | 'updatedAt' | 'name' | 'size' | 'plainName' = 'name';
+    const order: 'ASC' | 'DESC' = 'ASC';
 
     it('When folder does not exist, then it should throw', async () => {
       const nonExistenFolderUuid = v4();
@@ -3174,6 +3174,7 @@ describe('WorkspacesUsecases', () => {
         WorkspaceItemType.File,
         limit,
         offset,
+        ['name', 'ASC'] as any,
       );
 
       expect(result).toEqual({ result: trashedFiles });
@@ -3181,7 +3182,7 @@ describe('WorkspacesUsecases', () => {
         user.uuid,
         workspaceId,
         { status: FileStatus.TRASHED },
-        { limit, offset },
+        { limit, offset, sort: ['name', 'ASC'] },
       );
     });
 
@@ -3197,6 +3198,7 @@ describe('WorkspacesUsecases', () => {
         WorkspaceItemType.Folder,
         limit,
         offset,
+        ['name', 'ASC'] as any,
       );
 
       expect(result).toEqual({ result: trashedFolders });
@@ -3204,7 +3206,7 @@ describe('WorkspacesUsecases', () => {
         user.uuid,
         workspaceId,
         { deleted: true, removed: false },
-        { limit, offset },
+        { limit, offset, sort: ['name', 'ASC'] },
       );
     });
   });

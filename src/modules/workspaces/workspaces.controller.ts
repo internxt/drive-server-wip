@@ -761,6 +761,8 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Query() pagination: BasicPaginationDto,
     @Query('type') type: WorkspaceItemType,
+    @Query('sort') sort?: SortableFolderAttributes | SortableFileAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
     const { limit, offset } = pagination;
 
@@ -770,6 +772,7 @@ export class WorkspacesController {
       type,
       limit,
       offset,
+      sort && order ? [[sort, order]] : undefined,
     );
   }
 
