@@ -847,7 +847,9 @@ export class FolderController {
   ) {
     const folderPath = Buffer.from(encodedPath, 'base64').toString('utf-8');
     if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
-      throw new BadRequestException('Invalid path provided');
+      throw new BadRequestException(
+        'Invalid path provided (it must be base64 encoded)',
+      );
     }
 
     const rootFolder = await this.folderUseCases.getFolderByUserId(
@@ -866,6 +868,6 @@ export class FolderController {
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
-    return { folder };
+    return folder;
   }
 }

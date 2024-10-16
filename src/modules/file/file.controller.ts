@@ -380,7 +380,9 @@ export class FileController {
   ) {
     const filePath = Buffer.from(encodedPath, 'base64').toString('utf-8');
     if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
-      throw new BadRequestException('Invalid path provided');
+      throw new BadRequestException(
+        'Invalid path provided (it must be base64 encoded)',
+      );
     }
 
     try {
@@ -397,7 +399,7 @@ export class FileController {
 
       const folder = await this.folderUseCases.getFolderByPath(
         user.id,
-        path.parentPath,
+        path.folderPath,
         rootFolder.uuid,
       );
       if (!folder) {
@@ -412,7 +414,7 @@ export class FileController {
       if (!file) {
         throw new NotFoundException('File not found');
       }
-      return { file };
+      return file;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
