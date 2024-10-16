@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { newFile, newFolder } from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
@@ -8,10 +8,12 @@ import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 describe('FileController', () => {
   let fileController: FileController;
   let fileUseCases: FileUseCases;
+  let folderUseCases: FolderUseCases;
   let file: File;
 
   const userMocked = User.build({
@@ -54,6 +56,7 @@ describe('FileController', () => {
 
     fileController = module.get<FileController>(FileController);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     file = newFile();
   });
 
@@ -154,6 +157,93 @@ describe('FileController', () => {
           sort: [['updatedAt', 'DESC']],
         },
       );
+    });
+  });
+
+  describe.only('get file by path', () => {
+    it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
+      const expectedFile = newFile();
+      const rootFolder = newFolder();
+      const parentFolderFile = newFolder();
+      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
+        'base64',
+      );
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByPath')
+        .mockResolvedValue(parentFolderFile);
+      jest
+        .spyOn(fileUseCases, 'findByNameAndFolderUuid')
+        .mockResolvedValue(expectedFile);
+
+      const result = await fileController.getFileMetaByPath(
+        userMocked,
+        filePath,
+      );
+      expect(result).toEqual(expectedFile);
+    });
+
+    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
+        'base64',
+      );
+      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+      const rootFolder = newFolder();
+      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
+        'base64',
+      );
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest.spyOn(folderUseCases, 'getFolderByPath').mockResolvedValue(null);
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+      const rootFolder = newFolder();
+      const parentFolderFile = newFolder();
+      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
+        'base64',
+      );
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByPath')
+        .mockResolvedValue(parentFolderFile);
+      jest
+        .spyOn(fileUseCases, 'findByNameAndFolderUuid')
+        .mockResolvedValue(null);
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
+      expect(
+        fileController.getFileMetaByPath(userMocked, 'invalidpath'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(fileController.getFileMetaByPath(userMocked, '')).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, '/path/notBase64Encoded'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
