@@ -56,6 +56,7 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { getPathDepth } from '../../lib/path';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -846,6 +847,32 @@ export class FolderController {
       clientId,
     });
 
+    return folder;
+  }
+
+  @Get('/meta')
+  async getFolderMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') encodedPath: string,
+  ) {
+    const folderPath = Buffer.from(encodedPath, 'base64').toString('utf-8');
+    if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
+      throw new BadRequestException(
+        'Invalid path provided (it must be base64 encoded)',
+      );
+    }
+
+    if (getPathDepth(folderPath) > 20) {
+      throw new BadRequestException('Path is too deep');
+    }
+
+    const folder = await this.folderUseCases.getFolderMetadataByPath(
+      user,
+      folderPath,
+    );
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
     return folder;
   }
 }

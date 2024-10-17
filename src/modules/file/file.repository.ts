@@ -187,7 +187,10 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
-        name: { [Op.eq]: name },
+        [Op.or]: [
+          { name: { [Op.eq]: name } },
+          { plainName: { [Op.eq]: name } },
+        ],
         type: { [Op.eq]: type },
         folderUuid: { [Op.eq]: folderUuid },
         status: { [Op.eq]: status },

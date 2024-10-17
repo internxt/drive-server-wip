@@ -827,4 +827,65 @@ describe('FileUseCases', () => {
       expect(result).toEqual(totalSum);
     });
   });
+
+  describe('get file by path', () => {
+    it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
+      const expectedFile = newFile();
+      const rootFolder = newFolder();
+      const parentFolderFile = newFolder();
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(parentFolderFile);
+      jest
+        .spyOn(service, 'findByNameAndFolderUuid')
+        .mockResolvedValue(expectedFile);
+
+      const result = await service.getFileMetadataByPath(userMocked, filePath);
+      expect(result).toEqual(expectedFile);
+    });
+
+    it('When get file metadata by path is requested with a valid path but the root folder doesnt exist, then it should throw a not found error', async () => {
+      const filePath = '/test/file.png';
+      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+
+      expect(
+        service.getFileMetadataByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with a valid path but the parent folders dont exist, then it should throw a not found error', async () => {
+      const rootFolder = newFolder();
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(null);
+
+      expect(
+        service.getFileMetadataByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with a valid path but the file doesnt exist, then it should return null', async () => {
+      const rootFolder = newFolder();
+      const parentFolderFile = newFolder();
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(parentFolderFile);
+      jest.spyOn(service, 'findByNameAndFolderUuid').mockResolvedValue(null);
+
+      const result = await service.getFileMetadataByPath(userMocked, filePath);
+      expect(result).toBeNull();
+    });
+  });
 });
