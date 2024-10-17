@@ -163,19 +163,11 @@ describe('FileController', () => {
   describe('get file by path', () => {
     it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
       const expectedFile = newFile();
-      const rootFolder = newFolder();
-      const parentFolderFile = newFolder();
       const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
         'base64',
       );
       jest
-        .spyOn(folderUseCases, 'getFolderByUserId')
-        .mockResolvedValue(rootFolder);
-      jest
-        .spyOn(folderUseCases, 'getFolderByPath')
-        .mockResolvedValue(parentFolderFile);
-      jest
-        .spyOn(fileUseCases, 'findByNameAndFolderUuid')
+        .spyOn(fileUseCases, 'getFileMetadataByPath')
         .mockResolvedValue(expectedFile);
 
       const result = await fileController.getFileMetaByPath(
@@ -183,53 +175,6 @@ describe('FileController', () => {
         filePath,
       );
       expect(result).toEqual(expectedFile);
-    });
-
-    it('When get file metadata by path is requested with a valid path but the root folder doesnt exists, then it should throw a not found error', async () => {
-      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
-        'base64',
-      );
-      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
-
-      expect(
-        fileController.getFileMetaByPath(userMocked, filePath),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When get file metadata by path is requested with a valid path but the parent folders dont exists, then it should throw a not found error', async () => {
-      const rootFolder = newFolder();
-      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
-        'base64',
-      );
-      jest
-        .spyOn(folderUseCases, 'getFolderByUserId')
-        .mockResolvedValue(rootFolder);
-      jest.spyOn(folderUseCases, 'getFolderByPath').mockResolvedValue(null);
-
-      expect(
-        fileController.getFileMetaByPath(userMocked, filePath),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When get file metadata by path is requested with a valid path but the file doesnt exists, then it should throw a not found error', async () => {
-      const rootFolder = newFolder();
-      const parentFolderFile = newFolder();
-      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
-        'base64',
-      );
-      jest
-        .spyOn(folderUseCases, 'getFolderByUserId')
-        .mockResolvedValue(rootFolder);
-      jest
-        .spyOn(folderUseCases, 'getFolderByPath')
-        .mockResolvedValue(parentFolderFile);
-      jest
-        .spyOn(fileUseCases, 'findByNameAndFolderUuid')
-        .mockResolvedValue(null);
-
-      expect(
-        fileController.getFileMetaByPath(userMocked, filePath),
-      ).rejects.toThrow(NotFoundException);
     });
 
     it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {

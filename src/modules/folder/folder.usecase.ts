@@ -873,11 +873,19 @@ export class FolderUseCases {
     );
   }
 
-  getFolderByPath(
-    userId: UserAttributes['id'],
+  async getFolderMetadataByPath(
+    user: UserAttributes,
     path: string,
-    rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null> {
-    return this.folderRepository.getFolderByPath(userId, path, rootFolderUuid);
+    const rootFolder = await this.getFolderByUserId(user.rootFolderId, user.id);
+    if (!rootFolder) {
+      throw new NotFoundException('Root Folder not found');
+    }
+
+    return this.folderRepository.getFolderByPath(
+      user.id,
+      path,
+      rootFolder.uuid,
+    );
   }
 }

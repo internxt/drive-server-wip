@@ -866,18 +866,9 @@ export class FolderController {
       throw new BadRequestException('Path is too deep');
     }
 
-    const rootFolder = await this.folderUseCases.getFolderByUserId(
-      user.rootFolderId,
-      user.id,
-    );
-    if (!rootFolder) {
-      throw new NotFoundException('Root Folder not found');
-    }
-
-    const folder = await this.folderUseCases.getFolderByPath(
-      user.id,
+    const folder = await this.folderUseCases.getFolderMetadataByPath(
+      user,
       folderPath,
-      rootFolder.uuid,
     );
     if (!folder) {
       throw new NotFoundException('Folder not found');

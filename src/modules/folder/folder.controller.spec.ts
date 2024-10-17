@@ -542,15 +542,11 @@ describe('FolderController', () => {
   describe('get folder by path', () => {
     it('When get folder metadata by path is requested with a valid path, then the folder is returned', async () => {
       const expectedFolder = newFolder();
-      const rootFolder = newFolder();
       const folderPath = Buffer.from('/folder1/folder2', 'utf-8').toString(
         'base64',
       );
       jest
-        .spyOn(folderUseCases, 'getFolderByUserId')
-        .mockResolvedValue(rootFolder);
-      jest
-        .spyOn(folderUseCases, 'getFolderByPath')
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(expectedFolder);
 
       const result = await folderController.getFolderMetaByPath(
@@ -561,25 +557,12 @@ describe('FolderController', () => {
     });
 
     it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
-      const rootFolder = newFolder();
       const folderPath = Buffer.from('/folder1/folder2', 'utf-8').toString(
         'base64',
       );
       jest
-        .spyOn(folderUseCases, 'getFolderByUserId')
-        .mockResolvedValue(rootFolder);
-      jest.spyOn(folderUseCases, 'getFolderByPath').mockResolvedValue(null);
-
-      expect(
-        folderController.getFolderMetaByPath(userMocked, folderPath),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When get folder metadata by path is requested with a valid path but the root folder doesnt exists, then it should throw a not found error', async () => {
-      const folderPath = Buffer.from('/folder1/folder2', 'utf-8').toString(
-        'base64',
-      );
-      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(null);
 
       expect(
         folderController.getFolderMetaByPath(userMocked, folderPath),

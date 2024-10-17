@@ -103,6 +103,11 @@ export interface FolderRepository {
     user: User,
     folderUuid: Folder['uuid'],
   ): Promise<Folder[]>;
+  getFolderByPath(
+    userId: Folder['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null>;
 }
 
 @Injectable()

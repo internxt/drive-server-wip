@@ -1271,4 +1271,44 @@ describe('FolderUseCases', () => {
       expect(result).toEqual(ancestors);
     });
   });
+
+  describe('get folder by path', () => {
+    it('When get folder metadata by path is requested with a valid path, then the folder is returned', async () => {
+      const expectedFolder = newFolder();
+      const rootFolder = newFolder();
+      const folderPath = '/folder1/folder2';
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderRepository, 'getFolderByPath')
+        .mockResolvedValue(expectedFolder);
+
+      const result = await service.getFolderMetadataByPath(
+        userMocked,
+        folderPath,
+      );
+      expect(result).toEqual(expectedFolder);
+    });
+
+    it('When get folder metadata by path is requested with a valid path that not exists, then it should return null', async () => {
+      const rootFolder = newFolder();
+      const folderPath = '/folder1/folder2';
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(rootFolder);
+      jest.spyOn(folderRepository, 'getFolderByPath').mockResolvedValue(null);
+
+      const result = await service.getFolderMetadataByPath(
+        userMocked,
+        folderPath,
+      );
+      expect(result).toBeNull();
+    });
+
+    it('When get folder metadata by path is requested with a valid path but the root folder doesnt exists, then it should throw a not found error', async () => {
+      const folderPath = '/folder1/folder2';
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(null);
+
+      expect(
+        service.getFolderMetadataByPath(userMocked, folderPath),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

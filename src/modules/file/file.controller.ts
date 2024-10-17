@@ -38,8 +38,7 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
-import { FolderUseCases } from '../folder/folder.usecase';
-import { getPathDepth, getPathFileData } from '../../lib/path';
+import { getPathDepth } from '../../lib/path';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -49,7 +48,6 @@ export class FileController {
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
-    private readonly folderUseCases: FolderUseCases,
   ) {}
 
   @Post('/')
@@ -388,30 +386,11 @@ export class FileController {
     if (getPathDepth(filePath) > 20) {
       throw new BadRequestException('Path is too deep');
     }
-    const path = getPathFileData(filePath);
 
     try {
-      const rootFolder = await this.folderUseCases.getFolderByUserId(
-        user.rootFolderId,
-        user.id,
-      );
-      if (!rootFolder) {
-        throw new NotFoundException('Root Folder not found');
-      }
-
-      const folder = await this.folderUseCases.getFolderByPath(
-        user.id,
-        path.folderPath,
-        rootFolder.uuid,
-      );
-      if (!folder) {
-        throw new NotFoundException('Parent folders not found');
-      }
-
-      const file = await this.fileUseCases.findByNameAndFolderUuid(
-        path.fileName,
-        path.fileType,
-        folder.uuid,
+      const file = await this.fileUseCases.getFileMetadataByPath(
+        user,
+        filePath,
       );
       if (!file) {
         throw new NotFoundException('File not found');
