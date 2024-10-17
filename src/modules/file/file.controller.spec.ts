@@ -177,6 +177,17 @@ describe('FileController', () => {
       expect(result).toEqual(expectedFile);
     });
 
+    it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
+        'base64',
+      );
+      jest.spyOn(fileUseCases, 'getFileMetadataByPath').mockResolvedValue(null);
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
     it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
       const invalidPath = Buffer.from('invalidpath', 'utf-8').toString(
         'base64',
