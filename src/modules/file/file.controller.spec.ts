@@ -8,12 +8,10 @@ import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
-import { FolderUseCases } from '../folder/folder.usecase';
 
 describe('FileController', () => {
   let fileController: FileController;
   let fileUseCases: FileUseCases;
-  let folderUseCases: FolderUseCases;
   let file: File;
 
   const userMocked = User.build({
@@ -56,7 +54,6 @@ describe('FileController', () => {
 
     fileController = module.get<FileController>(FileController);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
-    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     file = newFile();
   });
 
