@@ -160,7 +160,7 @@ describe('FileController', () => {
     });
   });
 
-  describe.only('get file by path', () => {
+  describe('get file by path', () => {
     it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
       const expectedFile = newFile();
       const rootFolder = newFolder();
@@ -185,7 +185,7 @@ describe('FileController', () => {
       expect(result).toEqual(expectedFile);
     });
 
-    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+    it('When get file metadata by path is requested with a valid path but the root folder doesnt exists, then it should throw a not found error', async () => {
       const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
         'base64',
       );
@@ -196,7 +196,7 @@ describe('FileController', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+    it('When get file metadata by path is requested with a valid path but the parent folders dont exists, then it should throw a not found error', async () => {
       const rootFolder = newFolder();
       const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
         'base64',
@@ -211,7 +211,7 @@ describe('FileController', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When get file metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+    it('When get file metadata by path is requested with a valid path but the file doesnt exists, then it should throw a not found error', async () => {
       const rootFolder = newFolder();
       const parentFolderFile = newFolder();
       const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
@@ -233,8 +233,11 @@ describe('FileController', () => {
     });
 
     it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
+      const invalidPath = Buffer.from('invalidpath', 'utf-8').toString(
+        'base64',
+      );
       expect(
-        fileController.getFileMetaByPath(userMocked, 'invalidpath'),
+        fileController.getFileMetaByPath(userMocked, invalidPath),
       ).rejects.toThrow(BadRequestException);
 
       expect(fileController.getFileMetaByPath(userMocked, '')).rejects.toThrow(

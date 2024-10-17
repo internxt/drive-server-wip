@@ -539,7 +539,7 @@ describe('FolderController', () => {
     });
   });
 
-  describe.only('get folder by path', () => {
+  describe('get folder by path', () => {
     it('When get folder metadata by path is requested with a valid path, then the folder is returned', async () => {
       const expectedFolder = newFolder();
       const rootFolder = newFolder();
@@ -575,7 +575,7 @@ describe('FolderController', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+    it('When get folder metadata by path is requested with a valid path but the root folder doesnt exists, then it should throw a not found error', async () => {
       const folderPath = Buffer.from('/folder1/folder2', 'utf-8').toString(
         'base64',
       );
@@ -587,8 +587,12 @@ describe('FolderController', () => {
     });
 
     it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
+      const invalidPath = Buffer.from('invalidpath', 'utf-8').toString(
+        'base64',
+      );
+
       expect(
-        folderController.getFolderMetaByPath(userMocked, 'invalidpath'),
+        folderController.getFolderMetaByPath(userMocked, invalidPath),
       ).rejects.toThrow(BadRequestException);
 
       expect(
