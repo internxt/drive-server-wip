@@ -39,7 +39,7 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { getPathFileData } from '../../lib/path';
+import { getPathDepth, getPathFileData } from '../../lib/path';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -385,10 +385,12 @@ export class FileController {
       );
     }
 
-    try {
-      const path = getPathFileData(filePath);
-      const fileExt = path.fileType.length > 0 ? path.fileType : null;
+    if (getPathDepth(filePath) > 20) {
+      throw new BadRequestException('Path is too deep');
+    }
+    const path = getPathFileData(filePath);
 
+    try {
       const rootFolder = await this.folderUseCases.getFolderByUserId(
         user.rootFolderId,
         user.id,
@@ -408,7 +410,7 @@ export class FileController {
 
       const file = await this.fileUseCases.findByNameAndFolderUuid(
         path.fileName,
-        fileExt,
+        path.fileType,
         folder.uuid,
       );
       if (!file) {

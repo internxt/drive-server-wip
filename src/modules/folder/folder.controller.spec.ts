@@ -602,5 +602,15 @@ describe('FolderController', () => {
         ),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('When get folder metadata by path is requested with a path deep > 20, then it should throw an error', () => {
+      const longPath =
+        '/' + Array.from({ length: 22 }, (_, i) => `folder${i}`).join('/');
+      const encodedLongPath = Buffer.from(longPath, 'utf-8').toString('base64');
+
+      expect(
+        folderController.getFolderMetaByPath(userMocked, encodedLongPath),
+      ).rejects.toThrow('Path is too deep');
+    });
   });
 });

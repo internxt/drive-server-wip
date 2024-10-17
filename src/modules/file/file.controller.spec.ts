@@ -245,5 +245,17 @@ describe('FileController', () => {
         fileController.getFileMetaByPath(userMocked, '/path/notBase64Encoded'),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('When get file metadata by path is requested with a path deep > 20, then it should throw an error', () => {
+      const longPath =
+        '/' +
+        Array.from({ length: 21 }, (_, i) => `folder${i}`).join('/') +
+        '/file.test';
+      const encodedLongPath = Buffer.from(longPath, 'utf-8').toString('base64');
+
+      expect(
+        fileController.getFileMetaByPath(userMocked, encodedLongPath),
+      ).rejects.toThrow('Path is too deep');
+    });
   });
 });
