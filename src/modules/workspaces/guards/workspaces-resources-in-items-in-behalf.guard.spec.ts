@@ -268,6 +268,9 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       expect(excutionContext.switchToHttp().getRequest().requester).toEqual(
         user,
       );
+      expect(excutionContext.switchToHttp().getRequest().workspace).toEqual(
+        workspace,
+      );
     });
   });
 
