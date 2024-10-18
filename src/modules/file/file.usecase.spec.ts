@@ -841,7 +841,7 @@ describe('FileUseCases', () => {
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(parentFolderFile);
       jest
-        .spyOn(service, 'findByNameAndFolderUuid')
+        .spyOn(service, 'findByPlainNameAndFolderUuid')
         .mockResolvedValue(expectedFile);
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
@@ -882,7 +882,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(parentFolderFile);
-      jest.spyOn(service, 'findByNameAndFolderUuid').mockResolvedValue(null);
+      jest
+        .spyOn(service, 'findByPlainNameAndFolderUuid')
+        .mockResolvedValue(null);
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
       expect(result).toBeNull();

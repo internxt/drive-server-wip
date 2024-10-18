@@ -677,6 +677,19 @@ export class FileUseCases {
     );
   }
 
+  async findByPlainNameAndFolderUuid(
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByPlainNameAndFolderUuid(
+      plainName,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
+
   async getFileMetadataByPath(
     user: UserAttributes,
     filePath: string,
@@ -691,7 +704,7 @@ export class FileUseCases {
       throw new NotFoundException('Parent folders not found');
     }
 
-    const file = await this.findByNameAndFolderUuid(
+    const file = await this.findByPlainNameAndFolderUuid(
       path.fileName,
       path.fileType,
       folder.uuid,

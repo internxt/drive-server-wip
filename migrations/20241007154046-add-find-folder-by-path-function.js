@@ -33,7 +33,7 @@ module.exports = {
             AND f.user_id = p_user_id
             AND f.deleted = false
             AND f.removed = false
-            AND (f.name = current_folder or f.plain_name = current_folder);
+            AND f.plain_name = current_folder;
 
           -- If no folder is found, return an empty result
           IF NOT FOUND THEN
