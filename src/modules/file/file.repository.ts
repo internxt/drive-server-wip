@@ -53,6 +53,12 @@ export interface FileRepository {
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
+  findByPlainNameAndFolderUuid(
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileAttributes['status'],
+  ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
