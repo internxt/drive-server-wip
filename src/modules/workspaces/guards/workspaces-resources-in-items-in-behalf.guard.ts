@@ -105,6 +105,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
 
     request.user = behalfUser;
     request.requester = requester;
+    request.workspace = workspace;
 
     return true;
   }

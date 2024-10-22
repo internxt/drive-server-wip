@@ -25,6 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
+import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import {
@@ -56,6 +57,7 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -699,8 +701,8 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async getFolderAncestors(
     @UserDecorator() user: User,
+    @WorkspaceDecorator() workspace: Workspace,
     @Param('uuid') folderUuid: Folder['uuid'],
-    @Query('workspace') workspace: boolean,
   ) {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
