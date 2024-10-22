@@ -2,7 +2,12 @@ import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder, newUser } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import {
   BadRequestInvalidOffsetException,
@@ -478,9 +483,10 @@ describe('FolderController', () => {
   });
 
   describe('getgetFolderAncestors', () => {
-    it('When get folder ancestors is requested with workspace query param as false, then it should return the ancestors', async () => {
+    it('When get folder ancestors is requested with workspace as undefined, then it should return the ancestors', async () => {
       const user = newUser();
       const folder = newFolder({ owner: user });
+      const workspace = undefined;
       const mockAncestors = [
         newFolder({
           attributes: { parentUuid: folder.parentUuid },
@@ -498,8 +504,8 @@ describe('FolderController', () => {
 
       const result = await folderController.getFolderAncestors(
         user,
+        workspace,
         folder.uuid,
-        false,
       );
       expect(result).toEqual(mockAncestors);
       expect(folderUseCases.getFolderAncestors).toHaveBeenCalledWith(
@@ -508,9 +514,10 @@ describe('FolderController', () => {
       );
     });
 
-    it('When get folder ancestors is requested with workspace query param as true, then it should return the ancestors', async () => {
+    it('When get folder ancestors is requested with a workspace, then it should return the ancestors', async () => {
       const user = newUser();
       const folder = newFolder({ owner: user });
+      const workspace = newWorkspace({ owner: user });
       const mockAncestors = [
         newFolder({
           attributes: { parentUuid: folder.parentUuid },
@@ -528,8 +535,8 @@ describe('FolderController', () => {
 
       const result = await folderController.getFolderAncestors(
         user,
+        workspace,
         folder.uuid,
-        true,
       );
       expect(result).toEqual(mockAncestors);
       expect(folderUseCases.getFolderAncestorsInWorkspace).toHaveBeenCalledWith(
