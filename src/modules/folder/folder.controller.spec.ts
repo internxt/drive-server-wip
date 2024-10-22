@@ -542,9 +542,7 @@ describe('FolderController', () => {
   describe('get folder by path', () => {
     it('When get folder metadata by path is requested with a valid path, then the folder is returned', async () => {
       const expectedFolder = newFolder();
-      const folderPath = Buffer.from('/folder1/folder2', 'utf-8').toString(
-        'base64',
-      );
+      const folderPath = '/folder1/folder2';
       jest
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(expectedFolder);
@@ -557,9 +555,7 @@ describe('FolderController', () => {
     });
 
     it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
-      const folderPath = Buffer.from('/folder1/folder2', 'utf-8').toString(
-        'base64',
-      );
+      const folderPath = '/folder1/folder2';
       jest
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(null);
@@ -570,33 +566,21 @@ describe('FolderController', () => {
     });
 
     it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
-      const invalidPath = Buffer.from('invalidpath', 'utf-8').toString(
-        'base64',
-      );
-
       expect(
-        folderController.getFolderMetaByPath(userMocked, invalidPath),
+        folderController.getFolderMetaByPath(userMocked, 'invalidpath'),
       ).rejects.toThrow(BadRequestException);
 
       expect(
         folderController.getFolderMetaByPath(userMocked, ''),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(
-        folderController.getFolderMetaByPath(
-          userMocked,
-          '/path/notBase64Encoded',
-        ),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When get folder metadata by path is requested with a path deep > 20, then it should throw an error', () => {
       const longPath =
         '/' + Array.from({ length: 22 }, (_, i) => `folder${i}`).join('/');
-      const encodedLongPath = Buffer.from(longPath, 'utf-8').toString('base64');
 
       expect(
-        folderController.getFolderMetaByPath(userMocked, encodedLongPath),
+        folderController.getFolderMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
     });
   });

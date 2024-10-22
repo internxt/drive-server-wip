@@ -160,9 +160,7 @@ describe('FileController', () => {
   describe('get file by path', () => {
     it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
       const expectedFile = newFile();
-      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
-        'base64',
-      );
+      const filePath = '/test/file.png';
       jest
         .spyOn(fileUseCases, 'getFileMetadataByPath')
         .mockResolvedValue(expectedFile);
@@ -175,9 +173,7 @@ describe('FileController', () => {
     });
 
     it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
-      const filePath = Buffer.from('/test/file.png', 'utf-8').toString(
-        'base64',
-      );
+      const filePath = '/test/file.png';
       jest.spyOn(fileUseCases, 'getFileMetadataByPath').mockResolvedValue(null);
 
       expect(
@@ -186,20 +182,13 @@ describe('FileController', () => {
     });
 
     it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
-      const invalidPath = Buffer.from('invalidpath', 'utf-8').toString(
-        'base64',
-      );
       expect(
-        fileController.getFileMetaByPath(userMocked, invalidPath),
+        fileController.getFileMetaByPath(userMocked, 'invalidpath'),
       ).rejects.toThrow(BadRequestException);
 
       expect(fileController.getFileMetaByPath(userMocked, '')).rejects.toThrow(
         BadRequestException,
       );
-
-      expect(
-        fileController.getFileMetaByPath(userMocked, '/path/notBase64Encoded'),
-      ).rejects.toThrow(BadRequestException);
     });
 
     it('When get file metadata by path is requested with a path deep > 20, then it should throw an error', () => {
@@ -207,10 +196,9 @@ describe('FileController', () => {
         '/' +
         Array.from({ length: 21 }, (_, i) => `folder${i}`).join('/') +
         '/file.test';
-      const encodedLongPath = Buffer.from(longPath, 'utf-8').toString('base64');
 
       expect(
-        fileController.getFileMetaByPath(userMocked, encodedLongPath),
+        fileController.getFileMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
     });
   });

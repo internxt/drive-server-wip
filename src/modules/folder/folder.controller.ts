@@ -853,13 +853,10 @@ export class FolderController {
   @Get('/meta')
   async getFolderMetaByPath(
     @UserDecorator() user: User,
-    @Query('path') encodedPath: string,
+    @Query('path') folderPath: string,
   ) {
-    const folderPath = Buffer.from(encodedPath, 'base64').toString('utf-8');
     if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
-      throw new BadRequestException(
-        'Invalid path provided (it must be base64 encoded)',
-      );
+      throw new BadRequestException('Invalid path provided');
     }
 
     if (getPathDepth(folderPath) > 20) {

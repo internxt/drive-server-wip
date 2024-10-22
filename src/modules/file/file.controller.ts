@@ -374,13 +374,10 @@ export class FileController {
   @Get('/meta')
   async getFileMetaByPath(
     @UserDecorator() user: User,
-    @Query('path') encodedPath: string,
+    @Query('path') filePath: string,
   ) {
-    const filePath = Buffer.from(encodedPath, 'base64').toString('utf-8');
     if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
-      throw new BadRequestException(
-        'Invalid path provided (it must be base64 encoded)',
-      );
+      throw new BadRequestException('Invalid path provided');
     }
 
     if (getPathDepth(filePath) > 20) {
