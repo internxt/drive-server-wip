@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import {
   newFile,
@@ -543,6 +543,52 @@ describe('FolderController', () => {
         user,
         folder.uuid,
       );
+    });
+  });
+
+  describe('get folder by path', () => {
+    it('When get folder metadata by path is requested with a valid path, then the folder is returned', async () => {
+      const expectedFolder = newFolder();
+      const folderPath = '/folder1/folder2';
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(expectedFolder);
+
+      const result = await folderController.getFolderMetaByPath(
+        userMocked,
+        folderPath,
+      );
+      expect(result).toEqual(expectedFolder);
+    });
+
+    it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {
+      const folderPath = '/folder1/folder2';
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(null);
+
+      expect(
+        folderController.getFolderMetaByPath(userMocked, folderPath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
+      expect(
+        folderController.getFolderMetaByPath(userMocked, 'invalidpath'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(
+        folderController.getFolderMetaByPath(userMocked, ''),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When get folder metadata by path is requested with a path deep > 20, then it should throw an error', () => {
+      const longPath =
+        '/' + Array.from({ length: 22 }, (_, i) => `folder${i}`).join('/');
+
+      expect(
+        folderController.getFolderMetaByPath(userMocked, longPath),
+      ).rejects.toThrow('Path is too deep');
     });
   });
 });

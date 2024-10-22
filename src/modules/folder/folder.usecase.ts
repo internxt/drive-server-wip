@@ -872,4 +872,20 @@ export class FolderUseCases {
       includeTrashedFiles,
     );
   }
+
+  async getFolderMetadataByPath(
+    user: UserAttributes,
+    path: string,
+  ): Promise<Folder | null> {
+    const rootFolder = await this.getFolderByUserId(user.rootFolderId, user.id);
+    if (!rootFolder) {
+      throw new NotFoundException('Root Folder not found');
+    }
+
+    return this.folderRepository.getFolderByPath(
+      user.id,
+      path,
+      rootFolder.uuid,
+    );
+  }
 }

@@ -33,6 +33,7 @@ import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { Folder } from '../folder/folder.domain';
+import { getPathFileData } from '../../lib/path';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -661,5 +662,53 @@ export class FileUseCases {
       userId,
       status: FileStatus.EXISTS,
     });
+  }
+
+  async findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByNameAndFolderUuid(
+      name,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
+
+  async findByPlainNameAndFolderUuid(
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByPlainNameAndFolderUuid(
+      plainName,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
+
+  async getFileMetadataByPath(
+    user: UserAttributes,
+    filePath: string,
+  ): Promise<File | null> {
+    const path = getPathFileData(filePath);
+
+    const folder = await this.folderUsecases.getFolderMetadataByPath(
+      user,
+      path.folderPath,
+    );
+    if (!folder) {
+      throw new NotFoundException('Parent folders not found');
+    }
+
+    const file = await this.findByPlainNameAndFolderUuid(
+      path.fileName,
+      path.fileType,
+      folder.uuid,
+    );
+    return file;
   }
 }

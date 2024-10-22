@@ -38,6 +38,7 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
+import { getPathDepth } from '../../lib/path';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -368,5 +369,43 @@ export class FileController {
     );
 
     return files;
+  }
+
+  @Get('/meta')
+  async getFileMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') filePath: string,
+  ) {
+    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    if (getPathDepth(filePath) > 20) {
+      throw new BadRequestException('Path is too deep');
+    }
+
+    try {
+      const file = await this.fileUseCases.getFileMetadataByPath(
+        user,
+        filePath,
+      );
+      if (!file) {
+        throw new NotFoundException('File not found');
+      }
+      return file;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATABYPATH] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
   }
 }

@@ -103,6 +103,11 @@ export interface FolderRepository {
     user: User,
     folderUuid: Folder['uuid'],
   ): Promise<Folder[]>;
+  getFolderByPath(
+    userId: Folder['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null>;
 }
 
 @Injectable()
@@ -709,6 +714,21 @@ export class SequelizeFolderRepository implements FolderRepository {
 
       throw error;
     }
+  }
+
+  async getFolderByPath(
+    userId: Folder['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null> {
+    const [[folder]] = await this.folderModel.sequelize.query(
+      'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+      {
+        replacements: { userId, path, rootFolderUuid },
+      },
+    );
+
+    return (folder as Folder) ?? null;
   }
 
   private toDomain(model: FolderModel): Folder {

@@ -58,6 +58,7 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { Client } from '../auth/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { getPathDepth } from '../../lib/path';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -848,6 +849,29 @@ export class FolderController {
       clientId,
     });
 
+    return folder;
+  }
+
+  @Get('/meta')
+  async getFolderMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') folderPath: string,
+  ) {
+    if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    if (getPathDepth(folderPath) > 20) {
+      throw new BadRequestException('Path is too deep');
+    }
+
+    const folder = await this.folderUseCases.getFolderMetadataByPath(
+      user,
+      folderPath,
+    );
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
     return folder;
   }
 }
