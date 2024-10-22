@@ -68,6 +68,7 @@ import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.d
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
+import { getFutureIAT } from '../../middlewares/passport';
 
 @ApiTags('User')
 @Controller('users')
@@ -450,7 +451,13 @@ export class UserController {
         privateKey,
         encryptVersion,
       });
-      return { status: 'success' };
+
+      const { token, newToken } = this.userUseCases.getAuthTokens(
+        user,
+        getFutureIAT(),
+      );
+
+      return { status: 'success', newToken, token };
     } catch (err) {
       let errorMessage = err.message;
 

@@ -29,10 +29,13 @@ import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
+import { CreateFolderDto } from './dto/create-folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
-type SortParams = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
+export type SortParamsFolder = Array<
+  [SortableFolderAttributes, 'ASC' | 'DESC']
+>;
 
 @Injectable()
 export class FolderUseCases {
@@ -339,7 +342,11 @@ export class FolderUseCases {
 
     const updatedFolder = await this.folderRepository.updateByFolderId(
       folder.id,
-      { plainName: newFolderMetadata.plainName, name: cryptoFileName },
+      {
+        plainName: newFolderMetadata.plainName,
+        name: cryptoFileName,
+        modificationTime: new Date(),
+      },
     );
 
     return updatedFolder;
@@ -347,8 +354,7 @@ export class FolderUseCases {
 
   async createFolder(
     creator: User,
-    name: FolderAttributes['plainName'],
-    parentFolderUuid: FolderAttributes['uuid'],
+    newFolderDto: CreateFolderDto,
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
     let user = creator;
@@ -363,7 +369,7 @@ export class FolderUseCases {
     }
 
     const parentFolder = await this.folderRepository.findOne({
-      uuid: parentFolderUuid,
+      uuid: newFolderDto.parentFolderUuid,
       userId: user.id,
     });
 
@@ -373,13 +379,16 @@ export class FolderUseCases {
       );
     }
 
-    if (name === '' || invalidName.test(name)) {
+    if (
+      newFolderDto.plainName === '' ||
+      invalidName.test(newFolderDto.plainName)
+    ) {
       throw new BadRequestException('Invalid folder name');
     }
 
     const nameAlreadyInUse = await this.folderRepository.findOne({
       parentId: parentFolder.id,
-      plainName: name,
+      plainName: newFolderDto.plainName,
       deleted: false,
     });
 
@@ -390,7 +399,7 @@ export class FolderUseCases {
     }
 
     const encryptedFolderName = this.cryptoService.encryptName(
-      name,
+      newFolderDto.plainName,
       parentFolder.id,
     );
 
@@ -398,7 +407,7 @@ export class FolderUseCases {
       uuid: v4(),
       userId: user.id,
       name: encryptedFolderName,
-      plainName: name,
+      plainName: newFolderDto.plainName,
       parentId: parentFolder.id,
       parentUuid: parentFolder.uuid,
       encryptVersion: '03-aes',
@@ -409,6 +418,8 @@ export class FolderUseCases {
       updatedAt: new Date(),
       removedAt: null,
       deletedAt: null,
+      modificationTime: newFolderDto.modificationTime || new Date(),
+      creationTime: newFolderDto.creationTime || new Date(),
     });
 
     return folder;
@@ -575,7 +586,7 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -595,7 +606,7 @@ export class FolderUseCases {
   async getFoldersWithParent(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -617,7 +628,7 @@ export class FolderUseCases {
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -704,6 +715,16 @@ export class FolderUseCases {
     folderUuid: Folder['uuid'],
   ): Promise<Folder[]> {
     return this.folderRepository.getFolderAncestors(user, folderUuid);
+  }
+
+  getFolderAncestorsInWorkspace(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    return this.folderRepository.getFolderAncestorsInWorkspace(
+      user,
+      folderUuid,
+    );
   }
 
   async moveFolder(
@@ -849,6 +870,22 @@ export class FolderUseCases {
     return this.folderRepository.calculateFolderSize(
       folderUuid,
       includeTrashedFiles,
+    );
+  }
+
+  async getFolderMetadataByPath(
+    user: UserAttributes,
+    path: string,
+  ): Promise<Folder | null> {
+    const rootFolder = await this.getFolderByUserId(user.rootFolderId, user.id);
+    if (!rootFolder) {
+      throw new NotFoundException('Root Folder not found');
+    }
+
+    return this.folderRepository.getFolderByPath(
+      user.id,
+      path,
+      rootFolder.uuid,
     );
   }
 }

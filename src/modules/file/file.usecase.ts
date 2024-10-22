@@ -33,8 +33,9 @@ import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { Folder } from '../folder/folder.domain';
+import { getPathFileData } from '../../lib/path';
 
-type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
+export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FileUseCases {
@@ -188,15 +189,19 @@ export class FileUseCases {
       );
     }
 
+    const modificationTime = new Date();
+
     await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
       plainName: newFileMetada.plainName,
       name: cryptoFileName,
+      modificationTime: modificationTime,
     });
 
     return {
       ...file.toJSON(),
       name: cryptoFileName,
       plainName: newFileMetada.plainName,
+      modificationTime,
     };
   }
 
@@ -210,7 +215,7 @@ export class FileUseCases {
   async getFilesByFolderId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFile } = {
       limit: 20,
       offset: 0,
     },
@@ -242,7 +247,7 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParamsFile },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = {};
@@ -303,9 +308,11 @@ export class FileUseCases {
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParamsFile },
   ): Promise<File[]> {
-    const additionalOrders: SortParams = options.sort ?? [['updatedAt', 'ASC']];
+    const additionalOrders: SortParamsFile = options.sort ?? [
+      ['updatedAt', 'ASC'],
+    ];
 
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
@@ -323,7 +330,7 @@ export class FileUseCases {
     options: {
       limit: number;
       offset: number;
-      sort?: SortParams;
+      sort?: SortParamsFile;
       withoutThumbnails?: boolean;
     } = {
       limit: 20,
@@ -375,7 +382,7 @@ export class FileUseCases {
     options: {
       limit: number;
       offset: number;
-      sort?: SortParams;
+      sort?: SortParamsFile;
       withoutThumbnails?: boolean;
     } = {
       limit: 20,
@@ -655,5 +662,53 @@ export class FileUseCases {
       userId,
       status: FileStatus.EXISTS,
     });
+  }
+
+  async findByNameAndFolderUuid(
+    name: FileAttributes['name'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByNameAndFolderUuid(
+      name,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
+
+  async findByPlainNameAndFolderUuid(
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderUuid: FileAttributes['folderUuid'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByPlainNameAndFolderUuid(
+      plainName,
+      type,
+      folderUuid,
+      FileStatus.EXISTS,
+    );
+  }
+
+  async getFileMetadataByPath(
+    user: UserAttributes,
+    filePath: string,
+  ): Promise<File | null> {
+    const path = getPathFileData(filePath);
+
+    const folder = await this.folderUsecases.getFolderMetadataByPath(
+      user,
+      path.folderPath,
+    );
+    if (!folder) {
+      throw new NotFoundException('Parent folders not found');
+    }
+
+    const file = await this.findByPlainNameAndFolderUuid(
+      path.fileName,
+      path.fileType,
+      folder.uuid,
+    );
+    return file;
   }
 }

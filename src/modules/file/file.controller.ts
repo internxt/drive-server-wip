@@ -24,7 +24,7 @@ import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
-import { File } from './file.domain';
+import { File, FileStatus } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
@@ -38,6 +38,7 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
+import { getPathDepth } from '../../lib/path';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -333,5 +334,78 @@ export class FileController {
     });
 
     return file;
+  }
+
+  @Get('/recents')
+  async getRecentFiles(
+    @UserDecorator() user: User,
+    @Query('limit') limit?: number,
+  ) {
+    if (!limit || !isNumber(limit)) {
+      limit = API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND;
+    }
+
+    if (
+      limit < API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND ||
+      limit > API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND
+    ) {
+      throw new BadRequestParamOutOfRangeException(
+        'limit',
+        API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND,
+        API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
+      );
+    }
+
+    const files = this.fileUseCases.getFiles(
+      user.id,
+      {
+        status: FileStatus.EXISTS,
+      },
+      {
+        limit,
+        offset: 0,
+        sort: [['updatedAt', 'DESC']],
+      },
+    );
+
+    return files;
+  }
+
+  @Get('/meta')
+  async getFileMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') filePath: string,
+  ) {
+    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    if (getPathDepth(filePath) > 20) {
+      throw new BadRequestException('Path is too deep');
+    }
+
+    try {
+      const file = await this.fileUseCases.getFileMetadataByPath(
+        user,
+        filePath,
+      );
+      if (!file) {
+        throw new NotFoundException('File not found');
+      }
+      return file;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      const { email, uuid } = user;
+      const err = error as Error;
+
+      new Logger().error(
+        `[FILE/METADATABYPATH] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
+          user: { email, uuid },
+        })} STACK: ${err.stack || 'NO STACK'}`,
+      );
+    }
   }
 }

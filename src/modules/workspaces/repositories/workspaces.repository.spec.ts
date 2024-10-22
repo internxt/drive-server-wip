@@ -337,4 +337,44 @@ describe('SequelizeWorkspaceRepository', () => {
       expect(response).toEqual([]);
     });
   });
+
+  describe('findWorkspaceAndDefaultUser', () => {
+    it('When workspace and default user are found, it should return successfully', async () => {
+      const mockWorkspace = newWorkspace();
+      const mockUser = newUser();
+      const mockWorkspaceWithUser = {
+        id: mockWorkspace.id,
+        workpaceUser: {
+          ...mockUser,
+          get: jest.fn().mockReturnValue(mockUser),
+        },
+        toJSON: jest.fn().mockReturnValue({
+          id: mockWorkspace.id,
+        }),
+      };
+
+      jest
+        .spyOn(workspaceModel, 'findOne')
+        .mockResolvedValueOnce(mockWorkspaceWithUser as any);
+
+      const result = await repository.findWorkspaceAndDefaultUser(
+        mockWorkspace.id,
+      );
+
+      expect(result).toEqual({
+        workspaceUser: expect.any(User),
+        workspace: expect.any(Workspace),
+      });
+      expect(result.workspace.id).toEqual(mockWorkspace.id);
+      expect(result.workspaceUser.uuid).toEqual(mockUser.uuid);
+    });
+
+    it('When workspace is not found, it should return null', async () => {
+      jest.spyOn(workspaceModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result =
+        await repository.findWorkspaceAndDefaultUser('non-existent-id');
+      expect(result).toBeNull();
+    });
+  });
 });

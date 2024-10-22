@@ -717,12 +717,16 @@ export class UserUseCases {
     return !hasBeenSubscribed;
   }
 
-  getAuthTokens(user: User): { token: string; newToken: string } {
+  getAuthTokens(
+    user: User,
+    customIat?: number,
+  ): { token: string; newToken: string } {
     const expires = true;
     const token = SignEmail(
       user.email,
       this.configService.get('secrets.jwt'),
       expires,
+      customIat,
     );
     const newToken = Sign(
       {
@@ -738,6 +742,7 @@ export class UserUseCases {
             pass: user.userId,
           },
         },
+        ...(customIat ? { iat: customIat } : null),
       },
       this.configService.get('secrets.jwt'),
       expires,
@@ -955,6 +960,7 @@ export class UserUseCases {
       password: newPassword,
       hKey: Buffer.from(newSalt),
       mnemonic,
+      lastPasswordChangedAt: new Date(),
     });
 
     await this.keyServerRepository.findUserKeysOrCreate(user.id, {

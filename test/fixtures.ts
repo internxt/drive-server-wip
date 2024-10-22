@@ -5,6 +5,7 @@ import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
 import {
   Permission,
+  Role,
   Sharing,
   SharingActionName,
   SharingRole,
@@ -90,6 +91,12 @@ export const newFolder = (params?: NewFolderParams): Folder => {
     removed: false,
     deletedAt: undefined,
     removedAt: undefined,
+    creationTime: randomDataGenerator.date(),
+    modificationTime: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
   });
 
   params?.attributes &&
@@ -260,6 +267,15 @@ export const newSharingRole = (bindTo?: {
     id: v4(),
     sharingId: bindTo?.sharingId,
     roleId: bindTo?.roleId,
+    createdAt: randomDataGenerator.date(),
+    updatedAt: randomDataGenerator.date(),
+  });
+};
+
+export const newRole = (name?: string): Role => {
+  return Role.build({
+    id: v4(),
+    name: name ?? randomDataGenerator.string(),
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
   });

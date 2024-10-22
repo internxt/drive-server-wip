@@ -20,10 +20,12 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
+import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import {
@@ -55,6 +57,8 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { getPathDepth } from '../../lib/path';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -112,11 +116,9 @@ export class FolderController {
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
   ) {
-    const { plainName, parentFolderUuid } = createFolderDto;
     const folder = await this.folderUseCases.createFolder(
       user,
-      plainName,
-      parentFolderUuid,
+      createFolderDto,
     );
 
     this.storageNotificationService.folderCreated({
@@ -692,16 +694,24 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiQuery({
+    name: 'workspace',
+    description: 'If true, will return ancestors in workspace',
+    type: Boolean,
+  })
   @WorkspacesInBehalfValidationFolder()
   async getFolderAncestors(
     @UserDecorator() user: User,
+    @WorkspaceDecorator() workspace: Workspace,
     @Param('uuid') folderUuid: Folder['uuid'],
   ) {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
 
-    return this.folderUseCases.getFolderAncestors(user, folderUuid);
+    return !workspace
+      ? this.folderUseCases.getFolderAncestors(user, folderUuid)
+      : this.folderUseCases.getFolderAncestorsInWorkspace(user, folderUuid);
   }
 
   @Get('/:uuid/tree')
@@ -839,6 +849,29 @@ export class FolderController {
       clientId,
     });
 
+    return folder;
+  }
+
+  @Get('/meta')
+  async getFolderMetaByPath(
+    @UserDecorator() user: User,
+    @Query('path') folderPath: string,
+  ) {
+    if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
+      throw new BadRequestException('Invalid path provided');
+    }
+
+    if (getPathDepth(folderPath) > 20) {
+      throw new BadRequestException('Path is too deep');
+    }
+
+    const folder = await this.folderUseCases.getFolderMetadataByPath(
+      user,
+      folderPath,
+    );
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
     return folder;
   }
 }

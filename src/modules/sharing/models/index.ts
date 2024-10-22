@@ -6,6 +6,7 @@ import {
   Default,
   ForeignKey,
   HasMany,
+  HasOne,
   Model,
   PrimaryKey,
   Table,
@@ -156,6 +157,12 @@ export class SharingModel extends Model implements SharingAttributes {
   @AllowNull(false)
   @Column(DataType.ENUM('public', 'private'))
   type: SharingAttributes['type'];
+
+  @HasOne(() => SharingRolesModel, {
+    foreignKey: 'sharingId',
+    sourceKey: 'id',
+  })
+  role: RoleModel;
 
   @Column
   createdAt: Date;

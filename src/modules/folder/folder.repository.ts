@@ -99,6 +99,15 @@ export interface FolderRepository {
     user: User,
     uuids: FolderAttributes['uuid'][],
   ): Promise<Folder[]>;
+  getFolderAncestorsInWorkspace(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]>;
+  getFolderByPath(
+    userId: Folder['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null>;
 }
 
 @Injectable()
@@ -501,6 +510,25 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders;
   }
 
+  async getFolderAncestorsInWorkspace(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    const [rawFolders] = await this.folderModel.sequelize.query(
+      'SELECT * FROM get_folder_ancestors_excluding_root_children(:folder_id, :user_id)',
+      {
+        replacements: { folder_id: folderUuid, user_id: user.id },
+      },
+    );
+
+    const camelCasedFolders = rawFolders.map(mapSnakeCaseToCamelCase);
+    const folders = this.folderModel
+      .bulkBuild(camelCasedFolders as any)
+      .map((folder) => this.toDomain(folder));
+
+    return folders;
+  }
+
   async clearOrphansFolders(
     userId: FolderAttributes['userId'],
   ): Promise<number> {
@@ -686,6 +714,21 @@ export class SequelizeFolderRepository implements FolderRepository {
 
       throw error;
     }
+  }
+
+  async getFolderByPath(
+    userId: Folder['id'],
+    path: string,
+    rootFolderUuid: Folder['uuid'],
+  ): Promise<Folder | null> {
+    const [[folder]] = await this.folderModel.sequelize.query(
+      'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+      {
+        replacements: { userId, path, rootFolderUuid },
+      },
+    );
+
+    return (folder as Folder) ?? null;
   }
 
   private toDomain(model: FolderModel): Folder {
