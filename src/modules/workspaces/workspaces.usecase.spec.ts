@@ -316,7 +316,7 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When invitation space limit exceeds the assignable space, then it should throw', async () => {
+    it('When invitation space limit is explicitly set and it exceeds the assignable space, then it should throw', async () => {
       const invitedUser = newUser();
       const workspace = newWorkspace();
       const invitedUserEmail = 'newUser@example.com';
@@ -341,6 +341,76 @@ describe('WorkspacesUsecases', () => {
         service.inviteUserToWorkspace(user, workspace.id, {
           invitedUser: invitedUserEmail,
           spaceLimit: spaceLeft + 1,
+          encryptionKey: 'encryptionKey',
+          encryptionAlgorithm: 'RSA',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invitation space limit is not explicitly set, then it should use getWorkspaceFixedStoragePerUser()', async () => {
+      const invitedUser = newUser();
+      const workspace = newWorkspace();
+      const invitedUserEmail = 'newUser@example.com';
+      const spaceLeft = 1024 * 1024 * 10;
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(userUsecases, 'findByEmail')
+        .mockResolvedValueOnce(invitedUser);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedByEmail')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(spaceLeft);
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
+      jest
+        .spyOn(service, 'getWorkspaceFixedStoragePerUser')
+        .mockResolvedValue(1024);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.inviteUserToWorkspace(user, workspace.id, {
+          invitedUser: invitedUserEmail,
+          encryptionKey: 'encryptionKey',
+          encryptionAlgorithm: 'RSA',
+        }),
+      ).resolves.not.toThrow();
+      expect(service.getWorkspaceFixedStoragePerUser).toHaveBeenCalled();
+    });
+
+    it('When invitation space limit is not explicitly set and it exceeds the assignable space, then it should throw', async () => {
+      const invitedUser = newUser();
+      const workspace = newWorkspace();
+      const invitedUserEmail = 'newUser@example.com';
+      const spaceLeft = 1024 * 1024 * 10;
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(userUsecases, 'findByEmail')
+        .mockResolvedValueOnce(invitedUser);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedByEmail')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValueOnce(spaceLeft);
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
+      jest
+        .spyOn(service, 'getWorkspaceFixedStoragePerUser')
+        .mockResolvedValue(spaceLeft + 1);
+
+      await expect(
+        service.inviteUserToWorkspace(user, workspace.id, {
+          invitedUser: invitedUserEmail,
           encryptionKey: 'encryptionKey',
           encryptionAlgorithm: 'RSA',
         }),
