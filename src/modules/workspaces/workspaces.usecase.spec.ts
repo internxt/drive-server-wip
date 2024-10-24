@@ -1705,28 +1705,45 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getOwnerAvailableSpace', () => {
+    it("Should return the owner's available space", async () => {
+      const owner = newUser();
+      const workspace = newWorkspace({ owner });
+      const ownerWorkspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: owner.uuid,
+        attributes: { spaceLimit: 1000 },
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(ownerWorkspaceUser);
+      jest.spyOn(service, 'calculateFilesSizeSum').mockResolvedValue(500);
+
+      const availableSpace = await service.getOwnerAvailableSpace(workspace);
+
+      expect(availableSpace).toBe(500);
+    });
+  });
+
   describe('getAssignableSpaceInWorkspace', () => {
     const workspace = newWorkspace();
-    const workspaceDefaultUser = newUser();
     it('When there is space left, then it should return the correct space left', async () => {
       const limit = 1000000;
-      const usedInUsers = 500000;
+      const usedByOwner = 500000;
       const assignedInInvitations = 200000;
 
-      jest.spyOn(networkService, 'getLimit').mockResolvedValue(limit);
       jest
-        .spyOn(workspaceRepository, 'getTotalSpaceLimitInWorkspaceUsers')
-        .mockResolvedValue(usedInUsers);
+        .spyOn(service, 'getOwnerAvailableSpace')
+        .mockResolvedValue(limit - usedByOwner);
       jest
         .spyOn(workspaceRepository, 'getSpaceLimitInInvitations')
         .mockResolvedValue(assignedInInvitations);
 
-      const assignableSpace = await service.getAssignableSpaceInWorkspace(
-        workspace,
-        workspaceDefaultUser,
-      );
+      const assignableSpace =
+        await service.getAssignableSpaceInWorkspace(workspace);
       expect(assignableSpace).toBe(
-        limit - (usedInUsers + assignedInInvitations),
+        limit - (usedByOwner + assignedInInvitations),
       );
     });
   });

@@ -385,14 +385,7 @@ export class WorkspacesUsecases {
       );
     }
 
-    const workspaceUser = await this.userRepository.findByUuid(
-      workspace.workspaceUserId,
-    );
-
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(
-      workspace,
-      workspaceUser,
-    );
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
 
     const spaceToAssign =
       createInviteDto.spaceLimit ??
@@ -535,14 +528,7 @@ export class WorkspacesUsecases {
       throw new BadRequestException('Member does not exist in this workspace');
     }
 
-    const workspaceUser = await this.userRepository.findByUuid(
-      workspace.workspaceUserId,
-    );
-
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(
-      workspace,
-      workspaceUser,
-    );
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
 
     const newSpaceLimit = changeAssignedSpace.spaceLimit;
     const currentSpaceLimit = member.spaceLimit;
@@ -1412,26 +1398,29 @@ export class WorkspacesUsecases {
     const workspaceNetworkLimit =
       await this.getWorkspaceNetworkLimit(workspace);
 
-    if (behavior === 'DEDUCT') {
-      const ownerUsage = await this.calculateFilesSizeSum(
-        workspace.ownerId,
-        workspace.id,
-        [FileStatus.EXISTS, FileStatus.TRASHED],
-      );
+    const ownerUsage = await this.calculateFilesSizeSum(
+      workspace.ownerId,
+      workspace.id,
+      [FileStatus.EXISTS, FileStatus.TRASHED],
+    );
 
-      const availableSpace = workspaceNetworkLimit - ownerUsage;
+    const availableSpace = workspaceNetworkLimit - ownerUsage;
 
-      if (availableSpace < size) {
-        throw new BadRequestException(
-          'Not enough space available to perform this operation',
-        );
-      }
-    } else {
-      if (owner.spaceLimit + size > workspaceNetworkLimit) {
-        throw new BadRequestException(
-          'Not enough space available to perform this operation',
-        );
-      }
+    switch (behavior) {
+      case 'DEDUCT':
+        if (availableSpace < size) {
+          throw new BadRequestException(
+            'Not enough space available to perform this operation',
+          );
+        }
+        break;
+      case 'ADD':
+        if (owner.spaceLimit + size > workspaceNetworkLimit) {
+          throw new BadRequestException(
+            'Not enough space available to perform this operation',
+          );
+        }
+        break;
     }
 
     const newSpaceLimit =
@@ -1475,7 +1464,7 @@ export class WorkspacesUsecases {
       return userAlreadyInWorkspace.toJSON();
     }
 
-    const isWorkspaceFull = await this.isWorkspaceFull(workspace);
+    const isWorkspaceFull = await this.isWorkspaceFull(workspace, true);
 
     if (isWorkspaceFull) {
       throw new BadRequestException(
@@ -1483,14 +1472,7 @@ export class WorkspacesUsecases {
       );
     }
 
-    const workspaceUser = await this.userRepository.findByUuid(
-      workspace.workspaceUserId,
-    );
-
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(
-      workspace,
-      workspaceUser,
-    );
+    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
 
     if (invite.spaceLimit > spaceLeft) {
       throw new BadRequestException(
@@ -1682,27 +1664,30 @@ export class WorkspacesUsecases {
     });
   }
 
-  async getAssignableSpaceInWorkspace(
-    workspace: Workspace,
-    workpaceDefaultUser: User,
-  ): Promise<number> {
-    const [
-      spaceLimit,
-      totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
-    ] = await Promise.all([
-      this.networkService.getLimit(
-        workpaceDefaultUser.bridgeUser,
-        workpaceDefaultUser.userId,
-      ),
-      this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
+  async getOwnerAvailableSpace(workspace: Workspace) {
+    const ownerUsedSpace = await this.calculateFilesSizeSum(
+      workspace.ownerId,
+      workspace.id,
+      [FileStatus.EXISTS, FileStatus.TRASHED],
+    );
+
+    const owner = await this.workspaceRepository.findWorkspaceUser({
+      workspaceId: workspace.id,
+      memberId: workspace.ownerId,
+    });
+
+    const availableSpace = owner.spaceLimit - ownerUsedSpace;
+
+    return availableSpace;
+  }
+
+  async getAssignableSpaceInWorkspace(workspace: Workspace): Promise<number> {
+    const [ownerAvailableSpace, totalInInvites] = await Promise.all([
+      this.getOwnerAvailableSpace(workspace),
       this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
     ]);
 
-    const spaceLeft =
-      spaceLimit - (totalSpaceLimitAssigned + totalSpaceAssignedInInvitations);
-
-    return spaceLeft;
+    return ownerAvailableSpace - totalInInvites;
   }
 
   async getWorkspaceNetworkLimit(workspace: Workspace) {
@@ -1737,7 +1722,10 @@ export class WorkspacesUsecases {
     return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
 
-  async isWorkspaceFull(workspace: Workspace): Promise<boolean> {
+  async isWorkspaceFull(
+    workspace: Workspace,
+    skipOneInvite = false,
+  ): Promise<boolean> {
     const [workspaceUsersCount, workspaceInvitationsCount] = await Promise.all([
       this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
       this.workspaceRepository.getWorkspaceInvitationsCount(workspace.id),
@@ -1745,7 +1733,7 @@ export class WorkspacesUsecases {
 
     return workspace.isWorkspaceFull(
       workspaceUsersCount,
-      workspaceInvitationsCount,
+      skipOneInvite ? workspaceInvitationsCount - 1 : workspaceInvitationsCount,
     );
   }
 
