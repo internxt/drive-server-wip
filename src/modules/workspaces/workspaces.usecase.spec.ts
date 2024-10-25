@@ -1772,12 +1772,12 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
-  describe('changeWorkspaceMembersStorageLimit', () => {
+  describe('bulkIncreaseMembersStorageLimit', () => {
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
 
       await expect(
-        service.changeWorkspaceMembersStorageLimit('workspaceId', 1000),
+        service.bulkIncreaseMembersStorageLimit('workspaceId', 1000),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -1786,10 +1786,7 @@ describe('WorkspacesUsecases', () => {
       const spaceLimit = 1099511627776;
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
 
-      await service.changeWorkspaceMembersStorageLimit(
-        workspace.id,
-        spaceLimit,
-      );
+      await service.bulkIncreaseMembersStorageLimit(workspace.id, spaceLimit);
 
       expect(workspaceRepository.updateWorkspaceUserBy).toHaveBeenCalledWith(
         { workspaceId: workspace.id },

@@ -148,7 +148,7 @@ describe('GatewayUseCases', () => {
         );
 
         expect(
-          workspaceUseCases.changeWorkspaceMembersStorageLimit,
+          workspaceUseCases.bulkIncreaseMembersStorageLimit,
         ).toHaveBeenCalledWith(workspace.id, maxSpaceBytes / numberOfSeats);
       });
 
@@ -200,7 +200,7 @@ describe('GatewayUseCases', () => {
         ).toHaveBeenCalledWith(workspace.id, numberOfSeats);
 
         expect(
-          workspaceUseCases.changeWorkspaceMembersStorageLimit,
+          workspaceUseCases.bulkIncreaseMembersStorageLimit,
         ).toHaveBeenCalledWith(workspace.id, maxSpaceBytes / numberOfSeats);
       });
     });
