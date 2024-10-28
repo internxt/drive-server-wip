@@ -357,6 +357,10 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/folders/existence')
+  @ApiOperation({
+    summary: 'Checks folders existence in folder (use POST request over this)',
+    deprecated: true,
+  })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -388,6 +392,9 @@ export class FolderController {
   }
 
   @Post('/content/:uuid/folders/existence')
+  @ApiOperation({
+    summary: 'Checks folders existence in folder',
+  })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -403,7 +410,7 @@ export class FolderController {
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
-    @Query() query: CheckFoldersExistenceDto,
+    @Body() query: CheckFoldersExistenceDto,
   ) {
     const { plainNames } = query;
 
