@@ -377,6 +377,53 @@ describe('FolderController', () => {
     });
   });
 
+  describe('checkFoldersExistenceInFolderOld', () => {
+    const user = newUser();
+    const folderUuid = v4();
+    const plainNames = ['Documents', 'Photos'];
+
+    it('When valid folderUuid and plainNames are provided, then it should return existent folders', async () => {
+      const mockFolders = [
+        newFolder({ attributes: { plainName: 'Documents', userId: user.id } }),
+        newFolder({ attributes: { plainName: 'Photos', userId: user.id } }),
+      ];
+
+      jest
+        .spyOn(folderUseCases, 'searchFoldersInFolder')
+        .mockResolvedValue(mockFolders);
+
+      const result = await folderController.checkFoldersExistenceInFolderOld(
+        user,
+        folderUuid,
+        { plainName: plainNames },
+      );
+
+      expect(result).toEqual({ existentFolders: mockFolders });
+      expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
+        user,
+        folderUuid,
+        { plainNames },
+      );
+    });
+
+    it('When folders are not found, then it should return an empty array', async () => {
+      jest.spyOn(folderUseCases, 'searchFoldersInFolder').mockResolvedValue([]);
+
+      const result = await folderController.checkFoldersExistenceInFolderOld(
+        user,
+        folderUuid,
+        { plainName: plainNames },
+      );
+
+      expect(result).toEqual({ existentFolders: [] });
+      expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
+        user,
+        folderUuid,
+        { plainNames },
+      );
+    });
+  });
+
   describe('checkFoldersExistenceInFolder', () => {
     const user = newUser();
     const folderUuid = v4();
