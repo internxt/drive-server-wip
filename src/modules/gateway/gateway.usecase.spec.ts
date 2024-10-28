@@ -142,14 +142,10 @@ describe('GatewayUseCases', () => {
           numberOfSeats,
         );
 
-        expect(networkService.setStorage).toHaveBeenCalledWith(
-          workspaceUserEmail,
+        expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
+          workspace.id,
           maxSpaceBytes,
         );
-
-        expect(
-          workspaceUseCases.bulkIncreaseMembersStorageLimit,
-        ).toHaveBeenCalledWith(workspace.id, maxSpaceBytes / numberOfSeats);
       });
 
       it('When owner and workspaces are found and a diferent number of seats is received, then it should update the workspaces completed', async () => {
@@ -190,18 +186,14 @@ describe('GatewayUseCases', () => {
           numberOfSeats,
         );
 
-        expect(networkService.setStorage).toHaveBeenCalledWith(
-          workspaceUserEmail,
-          maxSpaceBytes,
-        );
-
         expect(
           workspaceUseCases.updateWorkspaceMemberCount,
         ).toHaveBeenCalledWith(workspace.id, numberOfSeats);
 
-        expect(
-          workspaceUseCases.bulkIncreaseMembersStorageLimit,
-        ).toHaveBeenCalledWith(workspace.id, maxSpaceBytes / numberOfSeats);
+        expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
+          workspace.id,
+          maxSpaceBytes,
+        );
       });
     });
 

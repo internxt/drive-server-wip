@@ -492,7 +492,7 @@ export class WorkspacesUsecases {
     });
   }
 
-  async bulkIncreaseMembersStorageLimit(
+  async updateWorkspaceLimit(
     workspaceId: Workspace['id'],
     newWorkspaceSpaceLimit: number,
   ) {

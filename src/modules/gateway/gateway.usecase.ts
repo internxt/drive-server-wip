@@ -57,7 +57,7 @@ export class GatewayUseCases {
       );
     }
 
-    await this.workspaceUseCases.bulkIncreaseMembersStorageLimit(
+    await this.workspaceUseCases.updateWorkspaceLimit(
       workspace.id,
       maxSpaceBytes,
     );
