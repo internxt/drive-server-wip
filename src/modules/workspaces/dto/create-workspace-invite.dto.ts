@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsPositive } from 'class-validator';
 import { User } from '../../user/user.domain';
 import { WorkspaceInvite } from '../domains/workspace-invite.domain';
 
@@ -11,6 +11,13 @@ export class CreateWorkspaceInviteDto {
   @IsNotEmpty()
   invitedUser: User['email'];
 
+  @ApiProperty({
+    example: '1073741824',
+    description: 'Space assigned to user in bytes',
+    required: false,
+  })
+  @IsOptional()
+  @IsPositive()
   spaceLimit?: WorkspaceInvite['spaceLimit'];
 
   @ApiProperty({
