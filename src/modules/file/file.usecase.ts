@@ -203,11 +203,13 @@ export class FileUseCases {
       cryptoFileName = file.name;
     }
 
-    const type = !metadataHasType
-      ? file.type
-      : emptyType
-        ? null
-        : newFileMetadata.type;
+    let type: string;
+
+    if (metadataHasType) {
+      type = emptyType ? null : newFileMetadata.type;
+    } else {
+      type = file.type;
+    }
 
     const fileWithSameNameExists = await this.fileRepository.findFileByName(
       {
