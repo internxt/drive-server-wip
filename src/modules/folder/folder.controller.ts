@@ -59,6 +59,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { getPathDepth } from '../../lib/path';
+import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -355,7 +356,45 @@ export class FolderController {
     };
   }
 
+  @Get('/content/:uuid/folders/existence')
+  @ApiOperation({
+    summary: 'Checks folders existence in folder (use POST request over this)',
+    deprecated: true,
+  })
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
+  ])
+  @WorkspacesInBehalfValidationFolder()
+  async checkFoldersExistenceInFolderOld(
+    @UserDecorator() user: User,
+    @Param('uuid') folderUuid: string,
+    @Query() query: CheckFoldersExistenceOldDto,
+  ) {
+    const { plainName } = query;
+
+    const folders = await this.folderUseCases.searchFoldersInFolder(
+      user,
+      folderUuid,
+      {
+        plainNames: plainName,
+      },
+    );
+
+    return { existentFolders: folders };
+  }
+
   @Post('/content/:uuid/folders/existence')
+  @ApiOperation({
+    summary: 'Checks folders existence in folder',
+  })
   @GetDataFromRequest([
     {
       sourceKey: 'params',

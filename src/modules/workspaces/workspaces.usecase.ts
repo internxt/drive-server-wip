@@ -519,10 +519,13 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace does not exist');
     }
 
-    const member = await this.workspaceRepository.findWorkspaceUser({
-      memberId,
-      workspaceId,
-    });
+    const member = await this.workspaceRepository.findWorkspaceUser(
+      {
+        memberId,
+        workspaceId,
+      },
+      true,
+    );
 
     if (!member) {
       throw new BadRequestException('Member does not exist in this workspace');
