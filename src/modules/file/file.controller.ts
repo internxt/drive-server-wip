@@ -213,6 +213,9 @@ export class FileController {
     @Body() updateFileMetaDto: UpdateFileMetaDto,
     @Client() clientId: string,
   ) {
+    if (!updateFileMetaDto) {
+      throw new BadRequestException('Missing update file metadata');
+    }
     const result = await this.fileUseCases.updateFileMetaData(
       user,
       fileUuid,
