@@ -156,16 +156,9 @@ export class FileUseCases {
     );
   }
 
-  async updateFileMetaData(
-    user: User,
-    fileUuid: File['uuid'],
-    newFileMetadata: UpdateFileMetaDto,
-  ) {
+  checkUpdateFileMetaDto(newFileMetadata: UpdateFileMetaDto) {
     const metadataHasPlainName = 'plainName' in newFileMetadata;
     const metadataHasType = 'type' in newFileMetadata;
-    if (!metadataHasPlainName && !metadataHasType) {
-      throw new BadRequestException('Missing file metadata values');
-    }
 
     const emptyPlainName =
       newFileMetadata.plainName === null ||
@@ -176,6 +169,20 @@ export class FileUseCases {
 
     if (emptyPlainName && emptyType) {
       throw new BadRequestException('Filename can not be empty');
+    }
+    return { metadataHasPlainName, metadataHasType, emptyPlainName, emptyType };
+  }
+
+  async updateFileMetaData(
+    user: User,
+    fileUuid: File['uuid'],
+    newFileMetadata: UpdateFileMetaDto,
+  ) {
+    const { metadataHasPlainName, metadataHasType, emptyType } =
+      this.checkUpdateFileMetaDto(newFileMetadata);
+
+    if (!metadataHasPlainName && !metadataHasType) {
+      throw new BadRequestException('Missing file metadata values');
     }
 
     const file = await this.fileRepository.findOneBy({
@@ -210,6 +217,8 @@ export class FileUseCases {
     } else {
       type = file.type;
     }
+
+    this.checkUpdateFileMetaDto({ plainName, type });
 
     const fileWithSameNameExists = await this.fileRepository.findFileByName(
       {
