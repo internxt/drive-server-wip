@@ -3,6 +3,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -718,15 +719,6 @@ describe('FileUseCases', () => {
   describe('updateFileMetaData', () => {
     const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
 
-    it('When file is not owned by user, then it should fail', async () => {
-      const mockFile = newFile();
-      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
-
-      await expect(
-        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
     it('When a file with the same name already exists in the folder, then it should fail', async () => {
       const mockFile = newFile({ owner: userMocked });
       const fileWithSameName = newFile({
@@ -734,9 +726,10 @@ describe('FileUseCases', () => {
         attributes: { name: mockFile.name, plainName: mockFile.plainName },
       });
 
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+
       jest
-        .spyOn(fileRepository, 'findOneBy')
-        .mockResolvedValueOnce(mockFile)
+        .spyOn(fileRepository, 'findFileByName')
         .mockResolvedValueOnce(fileWithSameName);
 
       await expect(
@@ -744,7 +737,49 @@ describe('FileUseCases', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('When a file is updated successfully, it should update and return updated file', async () => {
+    it('When file is not found (it does not exist, or the user is not the owner), then it should fail', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+
+      await expect(
+        service.updateFileMetaData(userMocked, newFile().uuid, newFileMeta),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When updateFileMetadata has bad properties, then it should fail', async () => {
+      await expect(
+        service.updateFileMetaData(userMocked, newFile().uuid, {}),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: '',
+          plainName: '',
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: null,
+          plainName: null,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: '',
+          plainName: null,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: null,
+          plainName: '',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When the name of the file is updated successfully, then it should update and return updated file', async () => {
       const mockFile = newFile({ owner: userMocked });
 
       const encryptedName = 'encrypted-name';
@@ -753,7 +788,6 @@ describe('FileUseCases', () => {
           ...mockFile,
           plainName: newFileMeta.plainName,
           name: encryptedName,
-          modificationTime: new Date(),
         },
       });
 
@@ -769,6 +803,7 @@ describe('FileUseCases', () => {
 
       expect(fileRepository.findOneBy).toHaveBeenCalledWith({
         uuid: mockFile.uuid,
+        userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
       expect(fileRepository.findFileByName).toHaveBeenCalledWith(
@@ -788,7 +823,132 @@ describe('FileUseCases', () => {
         }),
       );
       const {
-        modificationTime: _resultModificationTime,
+        modificationTime: resultFileModificationTime,
+        ...resultWithoutModificationTime
+      } = result;
+      const {
+        modificationTime: updatedFileModificationTime,
+        ...updatedFileWithoutModificationTime
+      } = updatedFile;
+
+      expect(resultWithoutModificationTime).toEqual(
+        updatedFileWithoutModificationTime,
+      );
+      expect(mockFile).not.toBe(updatedFileModificationTime);
+    });
+
+    it('When the type of the file is updated successfully, then it should update and return updated file', async () => {
+      const mockFile = newFile({
+        owner: userMocked,
+        attributes: { type: 'jpg' },
+      });
+      const newTypeFileMeta: UpdateFileMetaDto = { type: 'png' };
+
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          type: newTypeFileMeta.type,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newTypeFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        userId: mockFile.userId,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
+        {
+          folderId: mockFile.folderId,
+          type: newTypeFileMeta.type,
+          status: FileStatus.EXISTS,
+        },
+        { name: mockFile.name, plainName: mockFile.plainName },
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          plainName: mockFile.plainName,
+          name: mockFile.name,
+          type: newTypeFileMeta.type,
+        }),
+      );
+      const {
+        modificationTime: resultFileModificationTime,
+        ...resultWithoutModificationTime
+      } = result;
+      const {
+        modificationTime: updatedFileModificationTime,
+        ...updatedFileWithoutModificationTime
+      } = updatedFile;
+
+      expect(resultWithoutModificationTime).toEqual(
+        updatedFileWithoutModificationTime,
+      );
+      expect(mockFile).not.toBe(updatedFileModificationTime);
+    });
+
+    it('When the type of the file is updated but it has not plainName, then it should update and return updated file', async () => {
+      const mockFile = newFile({
+        owner: userMocked,
+        attributes: { type: 'jpg', plainName: null },
+      });
+      const newTypeFileMeta: UpdateFileMetaDto = { type: 'png' };
+      const originalPlainName = 'original-plain-name';
+
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          type: newTypeFileMeta.type,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(originalPlainName);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newTypeFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        userId: mockFile.userId,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
+        {
+          folderId: mockFile.folderId,
+          type: newTypeFileMeta.type,
+          status: FileStatus.EXISTS,
+        },
+        { name: mockFile.name, plainName: originalPlainName },
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          plainName: mockFile.plainName,
+          name: mockFile.name,
+          type: newTypeFileMeta.type,
+        }),
+      );
+      const {
+        modificationTime: resultFileModificationTime,
         ...resultWithoutModificationTime
       } = result;
       const {

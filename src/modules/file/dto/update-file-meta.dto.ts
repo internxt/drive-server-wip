@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateFileMetaDto {
   @IsString()
@@ -7,5 +7,14 @@ export class UpdateFileMetaDto {
     example: 'New name',
     description: 'The name the file is going to be updated to',
   })
-  plainName: string;
+  @IsOptional()
+  plainName?: string;
+
+  @IsString()
+  @ApiProperty({
+    example: 'New type',
+    description: 'The new type that the file is going to have',
+  })
+  @IsOptional()
+  type?: string;
 }
