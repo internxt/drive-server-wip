@@ -699,4 +699,20 @@ describe('Workspace Controller', () => {
       );
     });
   });
+
+  describe('GET /:workspaceId/fuzzy/:search', () => {
+    it('When a fuzzy search is requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const search = 'search';
+
+      await workspacesController.searchWorkspace(workspaceId, user, search);
+
+      expect(workspacesUsecases.searchWorkspaceContent).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        search,
+      );
+    });
+  });
 });
