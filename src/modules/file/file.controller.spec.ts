@@ -8,6 +8,7 @@ import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 
 describe('FileController', () => {
   let fileController: FileController;
@@ -231,6 +232,31 @@ describe('FileController', () => {
           clientId,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When updateFileMetadata is requested with valid properties, then it should update the file', async () => {
+      const mockFile = newFile();
+      const newMetadataInfo: UpdateFileMetaDto = {
+        plainName: 'test',
+        type: 'png',
+      };
+
+      const expectedFile = {
+        ...mockFile,
+        ...newMetadataInfo,
+      };
+
+      jest
+        .spyOn(fileUseCases, 'updateFileMetaData')
+        .mockResolvedValue(expectedFile);
+
+      const result = await fileController.updateFileMetadata(
+        userMocked,
+        mockFile.uuid,
+        newMetadataInfo,
+        clientId,
+      );
+      expect(result).toEqual(expectedFile);
     });
   });
 });
