@@ -11,6 +11,7 @@ import { ItemType, LookUpAttributes } from './look-up.domain';
 import { FileModel } from '../file/file.model';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 @Table({
   underscored: true,
@@ -58,4 +59,11 @@ export class LookUpModel extends Model implements LookUpAttributes {
     as: 'folder',
   })
   folder: FolderModel;
+
+  @BelongsTo(() => WorkspaceItemUserModel, {
+    foreignKey: 'itemId',
+    targetKey: 'itemId',
+    as: 'workspaceItemUser',
+  })
+  workspaceItemUser: WorkspaceItemUserModel;
 }

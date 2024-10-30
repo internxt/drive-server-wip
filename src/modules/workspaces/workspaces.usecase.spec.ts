@@ -55,6 +55,8 @@ import {
   FileWithSharedInfo,
   FolderWithSharedInfo,
 } from '../sharing/dto/get-items-and-shared-folders.dto';
+import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -82,6 +84,7 @@ describe('WorkspacesUsecases', () => {
   let fileUseCases: FileUseCases;
   let sharingUseCases: SharingService;
   let paymentsService: PaymentsService;
+  let fuzzySearchUseCases: FuzzySearchUseCases;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -109,6 +112,7 @@ describe('WorkspacesUsecases', () => {
     fileUseCases = module.get<FileUseCases>(FileUseCases);
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
+    fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
   });
 
   it('should be defined', () => {
@@ -5341,6 +5345,54 @@ describe('WorkspacesUsecases', () => {
       expect(result.teamsWithRoles[0]).toMatchObject({
         sharingId: sharing.id,
         role: role,
+      });
+    });
+  });
+
+  describe('searchWorkspaceContent', () => {
+    it('when workspace is not found, then it should throw', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const query = 'query';
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.searchWorkspaceContent(user, workspaceId, query),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace is found, then it should search for content', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+      const query = 'query';
+      const files = [newFile()];
+
+      const searchResult: FuzzySearchResult[] = [
+        {
+          id: v4(),
+          itemId: files[0].uuid,
+          itemType: WorkspaceItemType.File,
+          name: files[0].name,
+          similarity: 0.8,
+          rank: 1,
+        },
+      ];
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(fuzzySearchUseCases, 'workspaceFuzzySearch')
+        .mockResolvedValue(searchResult);
+
+      const result = await service.searchWorkspaceContent(
+        user,
+        workspace.id,
+        query,
+      );
+
+      expect(result[0]).toMatchObject({
+        name: files[0].name,
+        similarity: 0.8,
       });
     });
   });

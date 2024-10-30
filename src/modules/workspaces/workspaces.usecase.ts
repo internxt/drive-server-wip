@@ -2676,21 +2676,10 @@ export class WorkspacesUsecases {
     workspaceId: Workspace['id'],
     search: string,
   ) {
-    const workspace = await this.workspaceRepository.findOne({
-      id: workspaceId,
-    });
+    const workspace = await this.workspaceRepository.findById(workspaceId);
 
     if (!workspace) {
-      throw new BadRequestException('Not valid workspace');
-    }
-
-    const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
-      workspaceId,
-      memberId: user.uuid,
-    });
-
-    if (!workspaceUser) {
-      throw new BadRequestException('User is not part of workspace');
+      throw new NotFoundException('Workspace not found');
     }
 
     const searchResults = await this.fuzzySearchUseCases.workspaceFuzzySearch(

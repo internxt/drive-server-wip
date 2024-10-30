@@ -188,8 +188,10 @@ export class SequelizeLookUpRepository implements LookUpRepository {
           ),
         ],
         [Op.and]: [
-          Sequelize.literal(`wiu.created_by = :userUuid`),
-          Sequelize.literal(`wiu.workspace_id = :workspaceId`),
+          Sequelize.literal(`"workspaceItemUser"."created_by" = :userUuid`),
+          Sequelize.literal(
+            `"workspaceItemUser"."workspace_id" = :workspaceId`,
+          ),
         ],
       },
       order: [
@@ -220,18 +222,13 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         {
           model: WorkspaceItemUserModel,
           attributes: [],
-          as: 'workspaceItemsUsers',
+          as: 'workspaceItemUser', // Corrected alias
           required: true,
           on: {
             col1: Sequelize.where(
               Sequelize.col('LookUpModel.item_id'),
               '=',
-              Sequelize.col('workspaceItemsUsers.item_id'),
-            ),
-            col2: Sequelize.where(
-              Sequelize.col('workspaceItemsUsers.workspace_id'),
-              '=',
-              Sequelize.col('LookUpModel.workspace_id'),
+              Sequelize.col('workspaceItemUser.item_id'),
             ),
           },
         },
