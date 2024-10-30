@@ -766,8 +766,8 @@ describe('FileUseCases', () => {
 
     it('When updateFileMetadata has bad properties, then it should fail', async () => {
       try {
-        await service.updateFileMetaData(userMocked, newFile().uuid, {}),
-          fail('Expected function to throw an error, but it did not.');
+        await service.updateFileMetaData(userMocked, newFile().uuid, {});
+        fail('Expected function to throw an error, but it did not.');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
         expect(error.message).toBe('Missing update file metadata');
@@ -777,8 +777,8 @@ describe('FileUseCases', () => {
         await service.updateFileMetaData(userMocked, newFile().uuid, {
           type: '',
           plainName: '',
-        }),
-          fail('Expected function to throw an error, but it did not.');
+        });
+        fail('Expected function to throw an error, but it did not.');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
         expect(error.message).toBe('Filename cannot be empty');
@@ -788,8 +788,8 @@ describe('FileUseCases', () => {
         await service.updateFileMetaData(userMocked, newFile().uuid, {
           type: null,
           plainName: null,
-        }),
-          fail('Expected function to throw an error, but it did not.');
+        });
+        fail('Expected function to throw an error, but it did not.');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
         expect(error.message).toBe('Filename cannot be empty');
@@ -799,8 +799,8 @@ describe('FileUseCases', () => {
         await service.updateFileMetaData(userMocked, newFile().uuid, {
           type: '',
           plainName: null,
-        }),
-          fail('Expected function to throw an error, but it did not.');
+        });
+        fail('Expected function to throw an error, but it did not.');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
         expect(error.message).toBe('Filename cannot be empty');
@@ -810,8 +810,8 @@ describe('FileUseCases', () => {
         await service.updateFileMetaData(userMocked, newFile().uuid, {
           type: null,
           plainName: '',
-        }),
-          fail('Expected function to throw an error, but it did not.');
+        });
+        fail('Expected function to throw an error, but it did not.');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
         expect(error.message).toBe('Filename cannot be empty');
