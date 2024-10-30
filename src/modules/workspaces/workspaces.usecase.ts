@@ -592,7 +592,7 @@ export class WorkspacesUsecases {
 
     this.workspaceRepository.updateWorkspaceUser(member.id, member);
 
-    return member.toJSON();
+    return { ...member.toJSON(), usedSpace: member.getUsedSpace() };
   }
 
   async getWorkspaceUserTrashedItems(
