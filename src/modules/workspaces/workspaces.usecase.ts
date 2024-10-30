@@ -567,7 +567,7 @@ export class WorkspacesUsecases {
 
     const newSpaceLimit = changeAssignedSpace.spaceLimit;
     const currentSpaceLimit = member.spaceLimit;
-    const limitDifference = currentSpaceLimit - newSpaceLimit;
+    const limitDifference = newSpaceLimit - currentSpaceLimit;
     const spaceLeftWithoutUser = spaceLeft + currentSpaceLimit;
 
     if (newSpaceLimit > spaceLeftWithoutUser) {
@@ -585,7 +585,7 @@ export class WorkspacesUsecases {
     await this.adjustOwnerStorage(
       workspaceId,
       Math.abs(limitDifference),
-      limitDifference > 0 ? 'ADD' : 'DEDUCT',
+      limitDifference > 0 ? 'DEDUCT' : 'ADD',
     );
 
     member.spaceLimit = changeAssignedSpace.spaceLimit;
