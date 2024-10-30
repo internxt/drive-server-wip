@@ -9,6 +9,8 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -35,6 +37,7 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
+import { isStringEmpty, trimEnd, trimStart } from '../../lib/validators';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -156,33 +159,24 @@ export class FileUseCases {
     );
   }
 
-  checkUpdateFileMetaDto(newFileMetadata: UpdateFileMetaDto) {
-    const metadataHasPlainName = 'plainName' in newFileMetadata;
-    const metadataHasType = 'type' in newFileMetadata;
-
-    const emptyPlainName =
-      newFileMetadata.plainName === null ||
-      newFileMetadata.plainName?.trim().length === 0;
-    const emptyType =
-      newFileMetadata.type === null ||
-      newFileMetadata.type?.trim().length === 0;
-
-    if (emptyPlainName && emptyType) {
-      throw new BadRequestException('Filename can not be empty');
-    }
-    return { metadataHasPlainName, metadataHasType, emptyPlainName, emptyType };
-  }
-
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+    }),
+  )
   async updateFileMetaData(
     user: User,
     fileUuid: File['uuid'],
     newFileMetadata: UpdateFileMetaDto,
   ) {
-    const { metadataHasPlainName, metadataHasType, emptyType } =
-      this.checkUpdateFileMetaDto(newFileMetadata);
-
-    if (!metadataHasPlainName && !metadataHasType) {
-      throw new BadRequestException('Missing file metadata values');
+    if (!newFileMetadata || Object.keys(newFileMetadata).length === 0) {
+      throw new BadRequestException('Missing update file metadata');
+    }
+    if (
+      isStringEmpty(newFileMetadata.plainName) &&
+      isStringEmpty(newFileMetadata.type)
+    ) {
+      throw new BadRequestException('Filename cannot be empty');
     }
 
     const file = await this.fileRepository.findOneBy({
@@ -190,35 +184,35 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
       userId: user.id,
     });
-
     if (!file) {
       throw new NotFoundException('File not found');
     }
 
-    let plainName: string;
-    let cryptoFileName: string;
-
-    if (metadataHasPlainName) {
-      // plainName is provided, so the new name has to be encrypted
-      plainName = newFileMetadata.plainName || '';
-      cryptoFileName = this.cryptoService.encryptName(plainName, file.folderId);
+    let plainName =
+      newFileMetadata.plainName ??
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
+    if (isStringEmpty(plainName)) {
+      plainName = '';
     } else {
-      // plainName is not provided, so the name remains unchanged
-      plainName =
-        file.plainName ??
-        this.cryptoService.decryptName(file.name, file.folderId);
-      cryptoFileName = file.name;
+      //space at the start of the file name is not allowed
+      plainName = trimStart(plainName);
+    }
+    const cryptoFileName = newFileMetadata.plainName
+      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
+      : file.name;
+
+    let type = newFileMetadata.type ?? file.type;
+    if (isStringEmpty(type)) {
+      type = null;
+    } else {
+      //space at the end of the file extension is not allowed
+      type = trimEnd(type);
     }
 
-    let type: string;
-
-    if (metadataHasType) {
-      type = emptyType ? null : newFileMetadata.type;
-    } else {
-      type = file.type;
+    if (isStringEmpty(plainName) && isStringEmpty(type)) {
+      throw new BadRequestException('Filename cannot be empty');
     }
-
-    this.checkUpdateFileMetaDto({ plainName, type });
 
     const fileWithSameNameExists = await this.fileRepository.findFileByName(
       {
