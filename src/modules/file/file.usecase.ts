@@ -9,8 +9,6 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -159,19 +157,11 @@ export class FileUseCases {
     );
   }
 
-  @UsePipes(
-    new ValidationPipe({
-      whitelist: true,
-    }),
-  )
   async updateFileMetaData(
     user: User,
     fileUuid: File['uuid'],
     newFileMetadata: UpdateFileMetaDto,
   ) {
-    if (!newFileMetadata || Object.keys(newFileMetadata).length === 0) {
-      throw new BadRequestException('Missing update file metadata');
-    }
     if (
       isStringEmpty(newFileMetadata.plainName) &&
       isStringEmpty(newFileMetadata.type)
@@ -194,9 +184,6 @@ export class FileUseCases {
       this.cryptoService.decryptName(file.name, file.folderId);
     if (isStringEmpty(plainName)) {
       plainName = '';
-    } else {
-      //space at the start of the file name is not allowed
-      plainName = plainName.trimStart();
     }
     const cryptoFileName = newFileMetadata.plainName
       ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
@@ -205,9 +192,6 @@ export class FileUseCases {
     let type = newFileMetadata.type ?? file.type;
     if (isStringEmpty(type)) {
       type = null;
-    } else {
-      //space at the end of the file extension is not allowed
-      type = type.trimEnd();
     }
 
     if (isStringEmpty(plainName) && isStringEmpty(type)) {

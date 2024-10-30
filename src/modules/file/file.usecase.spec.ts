@@ -770,7 +770,7 @@ describe('FileUseCases', () => {
         fail('Expected function to throw an error, but it did not.');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        expect(error.message).toBe('Missing update file metadata');
+        expect(error.message).toBe('Filename cannot be empty');
       }
 
       try {
