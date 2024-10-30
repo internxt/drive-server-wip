@@ -37,7 +37,7 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
-import { isStringEmpty, trimEnd, trimStart } from '../../lib/validators';
+import { isStringEmpty } from '../../lib/validators';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -196,7 +196,7 @@ export class FileUseCases {
       plainName = '';
     } else {
       //space at the start of the file name is not allowed
-      plainName = trimStart(plainName);
+      plainName = plainName.trimStart();
     }
     const cryptoFileName = newFileMetadata.plainName
       ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
@@ -207,7 +207,7 @@ export class FileUseCases {
       type = null;
     } else {
       //space at the end of the file extension is not allowed
-      type = trimEnd(type);
+      type = type.trimEnd();
     }
 
     if (isStringEmpty(plainName) && isStringEmpty(type)) {
