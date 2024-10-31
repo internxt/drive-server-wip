@@ -66,6 +66,7 @@ import { SharingInfo, SharingService } from '../sharing/sharing.service';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
+import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -82,6 +83,7 @@ export class WorkspacesUsecases {
     private readonly fileUseCases: FileUseCases,
     private readonly folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
+    private readonly fuzzySearchUseCases: FuzzySearchUseCases,
   ) {}
 
   async initiateWorkspace(
@@ -2706,5 +2708,25 @@ export class WorkspacesUsecases {
         throw new InternalServerErrorException();
       }
     }
+  }
+
+  async searchWorkspaceContent(
+    user: User,
+    workspaceId: Workspace['id'],
+    search: string,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const searchResults = await this.fuzzySearchUseCases.workspaceFuzzySearch(
+      user.uuid,
+      workspace,
+      search,
+    );
+
+    return searchResults;
   }
 }

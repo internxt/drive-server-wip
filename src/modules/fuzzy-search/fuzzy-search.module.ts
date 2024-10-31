@@ -8,13 +8,7 @@ import { FuzzySearchController } from './fuzzy-search.controller';
 @Module({
   imports: [SequelizeModule.forFeature([LookUpModel])],
   controllers: [FuzzySearchController],
-  providers: [
-    {
-      provide: 'Look_Up_Repository',
-      useValue: new SequelizeLookUpRepository(LookUpModel),
-    },
-    FuzzySearchUseCases,
-  ],
-  exports: [FuzzySearchUseCases],
+  providers: [SequelizeLookUpRepository, FuzzySearchUseCases],
+  exports: [FuzzySearchUseCases, SequelizeLookUpRepository],
 })
 export class FuzzySearchModule {}

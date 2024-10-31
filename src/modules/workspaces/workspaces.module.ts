@@ -21,6 +21,8 @@ import { SharingModule } from '../sharing/sharing.module';
 import { PaymentsService } from 'src/externals/payments/payments.service';
 import { HttpClientModule } from 'src/externals/http/http.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
 
 @Module({
   imports: [
@@ -40,6 +42,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
     BridgeModule,
     MailerModule,
     HttpClientModule,
+    FuzzySearchModule,
   ],
   controllers: [WorkspacesController],
   providers: [
@@ -50,6 +53,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
     WorkspaceGuard,
     AvatarService,
     PaymentsService,
+    FuzzySearchUseCases,
   ],
   exports: [WorkspacesUsecases, SequelizeModule],
 })
