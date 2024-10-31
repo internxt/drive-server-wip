@@ -584,6 +584,15 @@ export class WorkspacesUsecases {
       );
     }
 
+    const workspaceLimit = await this.getWorkspaceNetworkLimit(workspace);
+    const maxSpacePerUser = workspaceLimit / workspace.numberOfSeats;
+
+    if (newSpaceLimit > maxSpacePerUser) {
+      throw new BadRequestException(
+        `Space limit set for the user is superior to the space assignable per user in workspace. Max space per user: ${maxSpacePerUser}`,
+      );
+    }
+
     await this.adjustOwnerStorage(
       workspaceId,
       Math.abs(limitDifference),
