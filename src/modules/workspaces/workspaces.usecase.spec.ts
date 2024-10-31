@@ -1931,6 +1931,7 @@ describe('WorkspacesUsecases', () => {
       const workspace = newWorkspace();
       const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
       const workspaceUser = newUser();
+      const mockedUsedSpace = 400;
 
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest
@@ -1940,7 +1941,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
         .mockResolvedValue(2000);
-      jest.spyOn(member, 'getUsedSpace').mockReturnValue(400);
+      jest.spyOn(member, 'getUsedSpace').mockReturnValue(mockedUsedSpace);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
 
       const updatedMember = await service.changeUserAssignedSpace(
@@ -1953,7 +1954,10 @@ describe('WorkspacesUsecases', () => {
         member.id,
         member,
       );
-      expect(updatedMember).toEqual(member.toJSON());
+      expect(updatedMember).toEqual({
+        ...member.toJSON(),
+        usedSpace: mockedUsedSpace,
+      });
     });
   });
 
