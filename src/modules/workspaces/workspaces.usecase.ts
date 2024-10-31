@@ -492,9 +492,9 @@ export class WorkspacesUsecases {
     });
   }
 
-  async changeWorkspaceMembersStorageLimit(
+  async updateWorkspaceLimit(
     workspaceId: Workspace['id'],
-    newSpaceLimit: number,
+    newWorkspaceSpaceLimit: number,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -502,10 +502,42 @@ export class WorkspacesUsecases {
       throw new NotFoundException('Workspace does not exist');
     }
 
-    await this.workspaceRepository.updateWorkspaceUserBy(
-      { workspaceId: workspace.id },
-      { spaceLimit: newSpaceLimit },
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
     );
+
+    const currentWorkspaceSpaceLimit =
+      await this.getWorkspaceNetworkLimit(workspace);
+
+    const currentSpacePerUser =
+      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
+
+    const newSpacePerUser = newWorkspaceSpaceLimit / workspace.numberOfSeats;
+    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+
+    const workspaceUsers =
+      await this.workspaceRepository.findWorkspaceUsers(workspaceId);
+
+    for (const workspaceUser of workspaceUsers) {
+      workspaceUser.spaceLimit += spaceDifference;
+
+      await this.workspaceRepository.updateWorkspaceUser(
+        workspaceUser.id,
+        workspaceUser,
+      );
+    }
+
+    const unusedSpace =
+      newWorkspaceSpaceLimit -
+      currentWorkspaceSpaceLimit -
+      spaceDifference * workspaceUsers.length;
+
+    await this.networkService.setStorage(
+      workspaceNetworkUser.email,
+      newWorkspaceSpaceLimit,
+    );
+
+    await this.adjustOwnerStorage(workspaceId, unusedSpace, 'ADD');
   }
 
   async changeUserAssignedSpace(
@@ -535,6 +567,7 @@ export class WorkspacesUsecases {
 
     const newSpaceLimit = changeAssignedSpace.spaceLimit;
     const currentSpaceLimit = member.spaceLimit;
+    const limitDifference = newSpaceLimit - currentSpaceLimit;
     const spaceLeftWithoutUser = spaceLeft + currentSpaceLimit;
 
     if (newSpaceLimit > spaceLeftWithoutUser) {
@@ -549,11 +582,17 @@ export class WorkspacesUsecases {
       );
     }
 
+    await this.adjustOwnerStorage(
+      workspaceId,
+      Math.abs(limitDifference),
+      limitDifference > 0 ? 'DEDUCT' : 'ADD',
+    );
+
     member.spaceLimit = changeAssignedSpace.spaceLimit;
 
     this.workspaceRepository.updateWorkspaceUser(member.id, member);
 
-    return member.toJSON();
+    return { ...member.toJSON(), usedSpace: member.getUsedSpace() };
   }
 
   async getWorkspaceUserTrashedItems(
