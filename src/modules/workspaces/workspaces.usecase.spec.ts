@@ -1776,28 +1776,77 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
-  describe('changeWorkspaceMembersStorageLimit', () => {
+  describe('updateWorkspaceLimit', () => {
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
 
       await expect(
-        service.changeWorkspaceMembersStorageLimit('workspaceId', 1000),
+        service.updateWorkspaceLimit('workspaceId', 1000),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When workspace exists, then it should update the storage limit', async () => {
-      const workspace = newWorkspace();
-      const spaceLimit = 1099511627776;
-      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      const workspaceNetworkUser = newUser();
+      const workspaceOwner = newUser();
+      const workspace = newWorkspace({
+        owner: workspaceOwner,
+        attributes: {
+          workspaceUserId: workspaceNetworkUser.uuid,
+          numberOfSeats: 3,
+        },
+      });
+      const newSpaceLimit = 10995116277760;
+      const currentSpaceLimit = newSpaceLimit / 2;
+      const workspaceUsers = [
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          attributes: { spaceLimit: currentSpaceLimit / 2 },
+        }),
+      ];
 
-      await service.changeWorkspaceMembersStorageLimit(
-        workspace.id,
-        spaceLimit,
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(workspaceNetworkUser);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsers')
+        .mockResolvedValue(workspaceUsers);
+      jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
+      jest.spyOn(networkService, 'setStorage').mockResolvedValue();
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
+
+      const oldSpacePerUser = currentSpaceLimit / workspace.numberOfSeats;
+      const newSpacePerUser = newSpaceLimit / workspace.numberOfSeats;
+      const unusedSpace =
+        newSpaceLimit -
+        currentSpaceLimit -
+        (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
+
+      await service.updateWorkspaceLimit(workspace.id, newSpaceLimit);
+
+      expect(networkService.setStorage).toHaveBeenCalledWith(
+        workspaceNetworkUser.email,
+        newSpaceLimit,
       );
 
-      expect(workspaceRepository.updateWorkspaceUserBy).toHaveBeenCalledWith(
-        { workspaceId: workspace.id },
-        { spaceLimit },
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledTimes(3);
+
+      expect(service.adjustOwnerStorage).toHaveBeenCalledWith(
+        workspace.id,
+        unusedSpace,
+        'ADD',
       );
     });
   });
@@ -1886,6 +1935,7 @@ describe('WorkspacesUsecases', () => {
       const workspace = newWorkspace();
       const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
       const workspaceUser = newUser();
+      const mockedUsedSpace = 400;
 
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest
@@ -1895,7 +1945,8 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
         .mockResolvedValue(2000);
-      jest.spyOn(member, 'getUsedSpace').mockReturnValue(400);
+      jest.spyOn(member, 'getUsedSpace').mockReturnValue(mockedUsedSpace);
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
 
       const updatedMember = await service.changeUserAssignedSpace(
         workspaceId,
@@ -1907,7 +1958,10 @@ describe('WorkspacesUsecases', () => {
         member.id,
         member,
       );
-      expect(updatedMember).toEqual(member.toJSON());
+      expect(updatedMember).toEqual({
+        ...member.toJSON(),
+        usedSpace: mockedUsedSpace,
+      });
     });
   });
 
