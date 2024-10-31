@@ -16,12 +16,12 @@ export class FuzzySearchUseCases {
   }
 
   workspaceFuzzySearch(
-    user: string,
+    userUuid: string,
     workspace: Workspace,
     text: string,
   ): Promise<Array<FuzzySearchResult>> {
     return this.repository.workspaceSearch(
-      user,
+      userUuid,
       workspace.workspaceUserId,
       workspace.id,
       text,
