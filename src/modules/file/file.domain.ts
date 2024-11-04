@@ -114,7 +114,7 @@ export class File implements FileAttributes {
     this.folderId = folderId;
     this.setFolder(folder);
     this.name = name;
-    this.type = type;
+    this.setType(type);
     this.size = size;
     this.bucket = bucket;
     this.encryptVersion = encryptVersion;
@@ -128,13 +128,16 @@ export class File implements FileAttributes {
     this.updatedAt = updatedAt;
     this.folderUuid = folderUuid;
     this.uuid = uuid;
-    this.plainName = plainName;
+    this.setPlainName(plainName);
     this.removed = removed;
     this.removedAt = removedAt;
     this.status = status;
     this.shares = shares;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
+    if (!this.isFilenameValid()) {
+      throw new Error('Filename cannot be empty');
+    }
   }
 
   static build(file: FileAttributes): File {
@@ -183,6 +186,10 @@ export class File implements FileAttributes {
       newType = null;
     }
     this.type = newType;
+  }
+
+  isFilenameValid(): boolean {
+    return !isStringEmpty(this.plainName) && !isStringEmpty(this.type);
   }
 
   moveToTrash() {

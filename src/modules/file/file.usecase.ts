@@ -185,27 +185,26 @@ export class FileUseCases {
       newFileMetadata.plainName ??
       file.plainName ??
       this.cryptoService.decryptName(file.name, file.folderId);
-    file.setPlainName(plainName);
-
     const cryptoFileName = this.cryptoService.encryptName(
       file.plainName,
       file.folderId,
     );
-
     const type = newFileMetadata.type ?? file.type;
-    file.setType(type);
 
-    if (isStringEmpty(file.plainName) && isStringEmpty(file.type)) {
-      throw new BadRequestException('Filename cannot be empty');
-    }
+    const updatedFile = File.build({
+      ...file,
+      name: cryptoFileName,
+      plainName,
+      type,
+    });
 
     const fileWithSameNameExists = await this.fileRepository.findFileByName(
       {
-        folderId: file.folderId,
-        type: file.type,
+        folderId: updatedFile.folderId,
+        type: updatedFile.type,
         status: FileStatus.EXISTS,
       },
-      { name: cryptoFileName, plainName: file.plainName },
+      { name: updatedFile.name, plainName: updatedFile.plainName },
     );
 
     if (fileWithSameNameExists) {
@@ -216,16 +215,15 @@ export class FileUseCases {
 
     const modificationTime = new Date();
 
-    await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
-      plainName: file.plainName,
-      name: cryptoFileName,
-      type: file.type,
+    await this.fileRepository.updateByUuidAndUserId(updatedFile.uuid, user.id, {
+      plainName: updatedFile.plainName,
+      name: updatedFile.name,
+      type: updatedFile.type,
       modificationTime: modificationTime,
     });
 
     return {
-      ...file.toJSON(),
-      name: cryptoFileName,
+      ...updatedFile.toJSON(),
       modificationTime,
     };
   }
