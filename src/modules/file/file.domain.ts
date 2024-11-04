@@ -189,7 +189,7 @@ export class File implements FileAttributes {
   }
 
   isFilenameValid(): boolean {
-    return !isStringEmpty(this.plainName) && !isStringEmpty(this.type);
+    return !(isStringEmpty(this.plainName) && isStringEmpty(this.type));
   }
 
   moveToTrash() {

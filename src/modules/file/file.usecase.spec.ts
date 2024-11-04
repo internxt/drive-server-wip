@@ -104,7 +104,7 @@ describe('FileUseCases', () => {
       id: 1,
       fileId: '',
       name: '',
-      type: '',
+      type: 'jpg',
       size: null,
       bucket: '',
       folderId: 4,
@@ -120,7 +120,7 @@ describe('FileUseCases', () => {
       folderUuid: '',
       removed: false,
       removedAt: undefined,
-      plainName: '',
+      plainName: 'test',
       status: FileStatus.EXISTS,
     });
 
@@ -187,7 +187,7 @@ describe('FileUseCases', () => {
         id: 1,
         fileId: '',
         name: '',
-        type: '',
+        type: 'jpg',
         size: null,
         bucket: '',
         folderId: 4,
@@ -203,7 +203,7 @@ describe('FileUseCases', () => {
         folderUuid: '',
         removed: false,
         removedAt: undefined,
-        plainName: '',
+        plainName: 'test',
         status: FileStatus.EXISTS,
       });
       jest
