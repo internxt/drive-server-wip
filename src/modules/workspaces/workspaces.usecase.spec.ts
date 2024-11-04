@@ -1931,8 +1931,8 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When new space to be assigned is valid, then it should update the space', async () => {
-      const workspace = newWorkspace();
+    it('When new space to be assigned is higher than the max assignable space per user in the workspace, then it should throw', async () => {
+      const workspace = newWorkspace({ attributes: { numberOfSeats: 11 } });
       const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
       const workspaceUser = newUser();
       const mockedUsedSpace = 400;
@@ -1947,6 +1947,36 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue(2000);
       jest.spyOn(member, 'getUsedSpace').mockReturnValue(mockedUsedSpace);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValueOnce(10000);
+
+      await expect(
+        service.changeUserAssignedSpace(
+          workspaceId,
+          memberId,
+          changeAssignedSpace,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When new space to be assigned is valid, then it should update the space', async () => {
+      const workspace = newWorkspace({ attributes: { numberOfSeats: 5 } });
+      const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
+      const workspaceUser = newUser();
+      const mockedUsedSpace = 400;
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValue(member);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(workspaceUser);
+      jest
+        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .mockResolvedValue(2000);
+      jest.spyOn(member, 'getUsedSpace').mockReturnValue(mockedUsedSpace);
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
+      jest.spyOn(service, 'getWorkspaceNetworkLimit').mockResolvedValue(10000);
 
       const updatedMember = await service.changeUserAssignedSpace(
         workspaceId,
