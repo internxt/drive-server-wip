@@ -55,6 +55,8 @@ import {
   FileWithSharedInfo,
   FolderWithSharedInfo,
 } from '../sharing/dto/get-items-and-shared-folders.dto';
+import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -82,6 +84,7 @@ describe('WorkspacesUsecases', () => {
   let fileUseCases: FileUseCases;
   let sharingUseCases: SharingService;
   let paymentsService: PaymentsService;
+  let fuzzySearchUseCases: FuzzySearchUseCases;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -109,6 +112,7 @@ describe('WorkspacesUsecases', () => {
     fileUseCases = module.get<FileUseCases>(FileUseCases);
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
+    fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
   });
 
   it('should be defined', () => {
@@ -1772,28 +1776,77 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
-  describe('changeWorkspaceMembersStorageLimit', () => {
+  describe('updateWorkspaceLimit', () => {
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
 
       await expect(
-        service.changeWorkspaceMembersStorageLimit('workspaceId', 1000),
+        service.updateWorkspaceLimit('workspaceId', 1000),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When workspace exists, then it should update the storage limit', async () => {
-      const workspace = newWorkspace();
-      const spaceLimit = 1099511627776;
-      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      const workspaceNetworkUser = newUser();
+      const workspaceOwner = newUser();
+      const workspace = newWorkspace({
+        owner: workspaceOwner,
+        attributes: {
+          workspaceUserId: workspaceNetworkUser.uuid,
+          numberOfSeats: 3,
+        },
+      });
+      const newSpaceLimit = 10995116277760;
+      const currentSpaceLimit = newSpaceLimit / 2;
+      const workspaceUsers = [
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          attributes: { spaceLimit: currentSpaceLimit / 2 },
+        }),
+      ];
 
-      await service.changeWorkspaceMembersStorageLimit(
-        workspace.id,
-        spaceLimit,
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(workspaceNetworkUser);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsers')
+        .mockResolvedValue(workspaceUsers);
+      jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
+      jest.spyOn(networkService, 'setStorage').mockResolvedValue();
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
+
+      const oldSpacePerUser = currentSpaceLimit / workspace.numberOfSeats;
+      const newSpacePerUser = newSpaceLimit / workspace.numberOfSeats;
+      const unusedSpace =
+        newSpaceLimit -
+        currentSpaceLimit -
+        (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
+
+      await service.updateWorkspaceLimit(workspace.id, newSpaceLimit);
+
+      expect(networkService.setStorage).toHaveBeenCalledWith(
+        workspaceNetworkUser.email,
+        newSpaceLimit,
       );
 
-      expect(workspaceRepository.updateWorkspaceUserBy).toHaveBeenCalledWith(
-        { workspaceId: workspace.id },
-        { spaceLimit },
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledTimes(3);
+
+      expect(service.adjustOwnerStorage).toHaveBeenCalledWith(
+        workspace.id,
+        unusedSpace,
+        'ADD',
       );
     });
   });
@@ -1882,6 +1935,7 @@ describe('WorkspacesUsecases', () => {
       const workspace = newWorkspace();
       const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
       const workspaceUser = newUser();
+      const mockedUsedSpace = 400;
 
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest
@@ -1891,7 +1945,8 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(service, 'getAssignableSpaceInWorkspace')
         .mockResolvedValue(2000);
-      jest.spyOn(member, 'getUsedSpace').mockReturnValue(400);
+      jest.spyOn(member, 'getUsedSpace').mockReturnValue(mockedUsedSpace);
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
 
       const updatedMember = await service.changeUserAssignedSpace(
         workspaceId,
@@ -1903,7 +1958,10 @@ describe('WorkspacesUsecases', () => {
         member.id,
         member,
       );
-      expect(updatedMember).toEqual(member.toJSON());
+      expect(updatedMember).toEqual({
+        ...member.toJSON(),
+        usedSpace: mockedUsedSpace,
+      });
     });
   });
 
@@ -5341,6 +5399,54 @@ describe('WorkspacesUsecases', () => {
       expect(result.teamsWithRoles[0]).toMatchObject({
         sharingId: sharing.id,
         role: role,
+      });
+    });
+  });
+
+  describe('searchWorkspaceContent', () => {
+    it('when workspace is not found, then it should throw', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const query = 'query';
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.searchWorkspaceContent(user, workspaceId, query),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace is found, then it should search for content', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+      const query = 'query';
+      const files = [newFile()];
+
+      const searchResult: FuzzySearchResult[] = [
+        {
+          id: v4(),
+          itemId: files[0].uuid,
+          itemType: WorkspaceItemType.File,
+          name: files[0].name,
+          similarity: 0.8,
+          rank: 1,
+        },
+      ];
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(fuzzySearchUseCases, 'workspaceFuzzySearch')
+        .mockResolvedValue(searchResult);
+
+      const result = await service.searchWorkspaceContent(
+        user,
+        workspace.id,
+        query,
+      );
+
+      expect(result[0]).toMatchObject({
+        name: files[0].name,
+        similarity: 0.8,
       });
     });
   });

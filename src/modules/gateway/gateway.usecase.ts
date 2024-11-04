@@ -38,7 +38,6 @@ export class GatewayUseCases {
     numberOfSeats: number,
   ): Promise<void> {
     const owner = await this.userRepository.findByUuid(ownerId);
-    const spacePerSeat = maxSpaceBytes / numberOfSeats;
     if (!owner) {
       throw new BadRequestException();
     }
@@ -58,13 +57,9 @@ export class GatewayUseCases {
       );
     }
 
-    const { username } = await this.userRepository.findByUuid(
-      workspace.workspaceUserId,
-    );
-    await this.networkService.setStorage(username, maxSpaceBytes);
-    await this.workspaceUseCases.changeWorkspaceMembersStorageLimit(
+    await this.workspaceUseCases.updateWorkspaceLimit(
       workspace.id,
-      spacePerSeat,
+      maxSpaceBytes,
     );
   }
 

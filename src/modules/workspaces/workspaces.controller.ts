@@ -1036,4 +1036,29 @@ export class WorkspacesController {
   ) {
     return this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
   }
+
+  @Get(':workspaceId/fuzzy/:search')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Search by name inside workspace',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'search', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Search results',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async searchWorkspace(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('search') search: string,
+  ) {
+    return this.workspaceUseCases.searchWorkspaceContent(
+      user,
+      workspaceId,
+      search,
+    );
+  }
 }
