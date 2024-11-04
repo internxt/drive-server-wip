@@ -14,7 +14,6 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { File, FileAttributes } from '../file/file.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
