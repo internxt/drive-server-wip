@@ -574,13 +574,22 @@ export class WorkspacesUsecases {
 
     if (newSpaceLimit > spaceLeftWithoutUser) {
       throw new BadRequestException(
-        `Space limit set for the invitation is superior to the space assignable in workspace. Assignable space: ${spaceLeftWithoutUser}`,
+        `Space limit set for the user is superior to the space assignable in workspace. Assignable space: ${spaceLeftWithoutUser}`,
       );
     }
 
     if (member.getUsedSpace() >= newSpaceLimit) {
       throw new BadRequestException(
         'The space you are trying to assign to the user is less than the user already used space',
+      );
+    }
+
+    const workspaceLimit = await this.getWorkspaceNetworkLimit(workspace);
+    const maxSpacePerUser = workspaceLimit / workspace.numberOfSeats;
+
+    if (newSpaceLimit > maxSpacePerUser) {
+      throw new BadRequestException(
+        `Space limit set for the user is superior to the space assignable per user in workspace. Max space per user: ${maxSpacePerUser}`,
       );
     }
 
