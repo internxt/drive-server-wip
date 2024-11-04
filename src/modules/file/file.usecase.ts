@@ -177,6 +177,9 @@ export class FileUseCases {
     if (!file) {
       throw new NotFoundException('File not found');
     }
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('This file is not yours');
+    }
 
     const plainName =
       newFileMetadata.plainName ??
