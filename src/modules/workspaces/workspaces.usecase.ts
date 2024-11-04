@@ -574,7 +574,7 @@ export class WorkspacesUsecases {
 
     if (newSpaceLimit > spaceLeftWithoutUser) {
       throw new BadRequestException(
-        `Space limit set for the invitation is superior to the space assignable in workspace. Assignable space: ${spaceLeftWithoutUser}`,
+        `Space limit set for the user is superior to the space assignable in workspace. Assignable space: ${spaceLeftWithoutUser}`,
       );
     }
 
