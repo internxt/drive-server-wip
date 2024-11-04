@@ -4,6 +4,7 @@ import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
+import { isStringEmpty } from '../../lib/validators';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
@@ -162,12 +163,28 @@ export class File implements FileAttributes {
     }
     this.folder = folder;
   }
+
   setUser(user) {
     if (user && !(user instanceof User)) {
       throw Error('user invalid');
     }
     this.user = user;
   }
+
+  setPlainName(newPlainName?: string) {
+    if (isStringEmpty(newPlainName)) {
+      newPlainName = '';
+    }
+    this.plainName = newPlainName;
+  }
+
+  setType(newType?: string) {
+    if (isStringEmpty(newType)) {
+      newType = null;
+    }
+    this.type = newType;
+  }
+
   moveToTrash() {
     this.deleted = true;
     this.deletedAt = new Date();

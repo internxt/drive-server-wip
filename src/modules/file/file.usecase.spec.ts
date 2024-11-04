@@ -945,12 +945,14 @@ describe('FileUseCases', () => {
       });
       const newTypeFileMeta: UpdateFileMetaDto = { type: 'png' };
       const expectedPlainName = 'original-plain-name';
+      const expectedEncryptedName = 'original-encrypted-name';
 
       const updatedFile = newFile({
         attributes: {
           ...mockFile,
           type: newTypeFileMeta.type,
           plainName: expectedPlainName,
+          name: expectedEncryptedName,
         },
       });
 
@@ -959,6 +961,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(cryptoService, 'decryptName')
         .mockReturnValueOnce(expectedPlainName);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(expectedEncryptedName);
 
       const result = await service.updateFileMetaData(
         userMocked,
@@ -981,14 +986,14 @@ describe('FileUseCases', () => {
           type: newTypeFileMeta.type,
           status: FileStatus.EXISTS,
         },
-        { name: mockFile.name, plainName: expectedPlainName },
+        { name: expectedEncryptedName, plainName: expectedPlainName },
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
         expect.objectContaining({
           plainName: expectedPlainName,
-          name: mockFile.name,
+          name: expectedEncryptedName,
           type: newTypeFileMeta.type,
         }),
       );
