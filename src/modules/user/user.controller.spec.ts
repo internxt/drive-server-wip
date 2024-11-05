@@ -2,11 +2,16 @@ import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   ForbiddenException,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
-import { MailLimitReachedException, UserUseCases } from './user.usecase';
+import {
+  KeyServerNotFoundError,
+  MailLimitReachedException,
+  UserUseCases,
+} from './user.usecase';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -203,6 +208,60 @@ describe('User Controller', () => {
           type: DeviceType.macos,
         }),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('PATCH /password', () => {
+    const user = newUser();
+    const payload = {
+      newPassword: v4(),
+      newSalt: v4(),
+      mnemonic: v4(),
+      privateKey: v4(),
+      encryptVersion: null,
+    };
+    const mockTokens = {
+      newToken: v4(),
+      token: v4(),
+    };
+
+    it('When a new password is updated it should return the new tokens', async () => {
+      userUseCases.updatePassword.mockResolvedValueOnce();
+      userUseCases.getAuthTokens.mockReturnValueOnce(mockTokens);
+
+      await expect(
+        userController.updatePassword(payload, user),
+      ).resolves.toStrictEqual({ status: 'success', ...mockTokens });
+    });
+
+    it('should throw an error if password update fails', async () => {
+      userUseCases.updatePassword.mockRejectedValueOnce(
+        new UnauthorizedException(),
+      );
+
+      await expect(
+        userController.updatePassword(payload, user),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw an error if password update fails', async () => {
+      userUseCases.updatePassword.mockRejectedValueOnce(
+        new KeyServerNotFoundError(),
+      );
+
+      await expect(
+        userController.updatePassword(payload, user),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw an error if fails', async () => {
+      userUseCases.updatePassword.mockRejectedValueOnce(
+        new InternalServerErrorException(),
+      );
+
+      await expect(
+        userController.updatePassword(payload, user),
+      ).rejects.toThrow(InternalServerErrorException);
     });
   });
 });

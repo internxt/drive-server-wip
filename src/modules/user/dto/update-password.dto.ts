@@ -4,13 +4,6 @@ import { IsString } from 'class-validator';
 export class UpdatePasswordDto {
   @IsString()
   @ApiProperty({
-    example: 'currentPassword',
-    description: 'Current password',
-  })
-  currentPassword: string;
-
-  @IsString()
-  @ApiProperty({
     example: 'newPassword',
     description: 'New password',
   })

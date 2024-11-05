@@ -423,15 +423,10 @@ export class UserController {
   @Patch('password')
   @ApiBearerAuth()
   async updatePassword(
-    @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
-    @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
   ) {
     try {
-      const currentPassword = this.cryptoService.decryptText(
-        updatePasswordDto.currentPassword,
-      );
       const newPassword = this.cryptoService.decryptText(
         updatePasswordDto.newPassword,
       );
@@ -439,12 +434,7 @@ export class UserController {
 
       const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
 
-      if (user.password.toString() !== currentPassword) {
-        throw new UnauthorizedException();
-      }
-
-      await this.userUseCases.updatePassword(req.user, {
-        currentPassword,
+      await this.userUseCases.updatePassword(user, {
         newPassword,
         newSalt,
         mnemonic,
@@ -459,12 +449,10 @@ export class UserController {
 
       return { status: 'success', newToken, token };
     } catch (err) {
-      let errorMessage = err.message;
-
       if (err instanceof UnauthorizedException) {
-        res.status(HttpStatus.BAD_REQUEST);
+        throw new UnauthorizedException();
       } else if (err instanceof KeyServerNotFoundError) {
-        res.status(HttpStatus.NOT_FOUND);
+        throw new NotFoundException();
       } else {
         new Logger().error(
           `[AUTH/UPDATEPASSWORD] ERROR: ${
@@ -473,11 +461,8 @@ export class UserController {
             (err as Error).stack
           }`,
         );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
+        throw new InternalServerErrorException();
       }
-
-      return { error: errorMessage };
     }
   }
 
