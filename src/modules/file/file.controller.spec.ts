@@ -8,11 +8,13 @@ import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 
 describe('FileController', () => {
   let fileController: FileController;
   let fileUseCases: FileUseCases;
   let file: File;
+  const clientId = 'drive-web';
 
   const userMocked = User.build({
     id: 1,
@@ -58,7 +60,6 @@ describe('FileController', () => {
   });
 
   describe('move file', () => {
-    const clientId = 'drive-web';
     it('When move file is requested with valid params, then the file is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
       const expectedFile = newFile({
@@ -200,6 +201,62 @@ describe('FileController', () => {
       expect(
         fileController.getFileMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
+    });
+  });
+
+  describe('update File MetaData by uuid', () => {
+    it('When updateFileMetadata is missing properties, then it should fail', async () => {
+      await expect(
+        fileController.updateFileMetadata(
+          userMocked,
+          newFile().uuid,
+          null,
+          clientId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        fileController.updateFileMetadata(
+          userMocked,
+          newFile().uuid,
+          undefined,
+          clientId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        fileController.updateFileMetadata(
+          userMocked,
+          newFile().uuid,
+          {},
+          clientId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When updateFileMetadata is requested with valid properties, then it should update the file', async () => {
+      const mockFile = newFile();
+      const newMetadataInfo: UpdateFileMetaDto = {
+        plainName: 'test',
+        type: 'png',
+      };
+
+      const expectedFile = {
+        ...mockFile,
+        ...newMetadataInfo,
+      };
+
+      jest
+        .spyOn(fileUseCases, 'updateFileMetaData')
+        .mockResolvedValue(expectedFile);
+
+      const result = await fileController.updateFileMetadata(
+        userMocked,
+        mockFile.uuid,
+        newMetadataInfo,
+        clientId,
+      );
+      expect(result).toEqual(expectedFile);
     });
   });
 });

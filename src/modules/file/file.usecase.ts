@@ -1,6 +1,7 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   forwardRef,
@@ -34,6 +35,7 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
+import { isStringEmpty } from '../../lib/validators';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -158,29 +160,51 @@ export class FileUseCases {
   async updateFileMetaData(
     user: User,
     fileUuid: File['uuid'],
-    newFileMetada: UpdateFileMetaDto,
+    newFileMetadata: UpdateFileMetaDto,
   ) {
+    if (
+      isStringEmpty(newFileMetadata.plainName) &&
+      isStringEmpty(newFileMetadata.type)
+    ) {
+      throw new BadRequestException('Filename cannot be empty');
+    }
+
     const file = await this.fileRepository.findOneBy({
       uuid: fileUuid,
       status: FileStatus.EXISTS,
+      userId: user.id,
     });
-
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
     if (!file.isOwnedBy(user)) {
       throw new ForbiddenException('This file is not yours');
     }
 
+    const plainName =
+      newFileMetadata.plainName ??
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
     const cryptoFileName = this.cryptoService.encryptName(
-      newFileMetada.plainName,
+      file.plainName,
       file.folderId,
     );
+    const type = newFileMetadata.type ?? file.type;
+
+    const updatedFile = File.build({
+      ...file,
+      name: cryptoFileName,
+      plainName,
+      type,
+    });
 
     const fileWithSameNameExists = await this.fileRepository.findFileByName(
       {
-        folderId: file.folderId,
-        type: file.type,
+        folderId: updatedFile.folderId,
+        type: updatedFile.type,
         status: FileStatus.EXISTS,
       },
-      { name: cryptoFileName, plainName: newFileMetada.plainName },
+      { name: updatedFile.name, plainName: updatedFile.plainName },
     );
 
     if (fileWithSameNameExists) {
@@ -191,16 +215,15 @@ export class FileUseCases {
 
     const modificationTime = new Date();
 
-    await this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
-      plainName: newFileMetada.plainName,
-      name: cryptoFileName,
+    await this.fileRepository.updateByUuidAndUserId(updatedFile.uuid, user.id, {
+      plainName: updatedFile.plainName,
+      name: updatedFile.name,
+      type: updatedFile.type,
       modificationTime: modificationTime,
     });
 
     return {
-      ...file.toJSON(),
-      name: cryptoFileName,
-      plainName: newFileMetada.plainName,
+      ...updatedFile.toJSON(),
       modificationTime,
     };
   }

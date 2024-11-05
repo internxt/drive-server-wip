@@ -3,6 +3,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -11,8 +12,9 @@ import {
 import { File, FileAttributes, FileStatus } from './file.domain';
 import { User } from '../user/user.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { BridgeService } from '../../externals/bridge/bridge.service';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import { BridgeService } from '../../externals/bridge/bridge.service';
 import {
   FolderRepository,
   SequelizeFolderRepository,
@@ -74,7 +76,7 @@ describe('FileUseCases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [FileUseCases, FolderUseCases, SharingService],
     })
       .useMocker(() => createMock())
@@ -102,7 +104,7 @@ describe('FileUseCases', () => {
       id: 1,
       fileId: '',
       name: '',
-      type: '',
+      type: 'jpg',
       size: null,
       bucket: '',
       folderId: 4,
@@ -118,7 +120,7 @@ describe('FileUseCases', () => {
       folderUuid: '',
       removed: false,
       removedAt: undefined,
-      plainName: '',
+      plainName: 'test',
       status: FileStatus.EXISTS,
     });
 
@@ -185,7 +187,7 @@ describe('FileUseCases', () => {
         id: 1,
         fileId: '',
         name: '',
-        type: '',
+        type: 'jpg',
         size: null,
         bucket: '',
         folderId: 4,
@@ -201,7 +203,7 @@ describe('FileUseCases', () => {
         folderUuid: '',
         removed: false,
         removedAt: undefined,
-        plainName: '',
+        plainName: 'test',
         status: FileStatus.EXISTS,
       });
       jest
@@ -716,35 +718,108 @@ describe('FileUseCases', () => {
   });
 
   describe('updateFileMetaData', () => {
-    const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
-
-    it('When file is not owned by user, then it should fail', async () => {
-      const mockFile = newFile();
-      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
-
-      await expect(
-        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
     it('When a file with the same name already exists in the folder, then it should fail', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
       const mockFile = newFile({ owner: userMocked });
       const fileWithSameName = newFile({
         owner: userMocked,
         attributes: { name: mockFile.name, plainName: mockFile.plainName },
       });
 
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+
       jest
-        .spyOn(fileRepository, 'findOneBy')
-        .mockResolvedValueOnce(mockFile)
+        .spyOn(fileRepository, 'findFileByName')
         .mockResolvedValueOnce(fileWithSameName);
 
-      await expect(
-        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
-      ).rejects.toThrow(ConflictException);
+      try {
+        await service.updateFileMetaData(
+          userMocked,
+          mockFile.uuid,
+          newFileMeta,
+        );
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        expect(error.message).toBe(
+          'A file with this name already exists in this location',
+        );
+      }
     });
 
-    it('When a file is updated successfully, it should update and return updated file', async () => {
+    it('When file is not found (it does not exist, or the user is not the owner), then it should fail', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+
+      try {
+        await service.updateFileMetaData(
+          userMocked,
+          newFile().uuid,
+          newFileMeta,
+        );
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(NotFoundException);
+        expect(error.message).toBe('File not found');
+      }
+    });
+
+    it('When updateFileMetadata has bad properties, then it should fail', async () => {
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {});
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: '',
+          plainName: '',
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: null,
+          plainName: null,
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: '',
+          plainName: null,
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: null,
+          plainName: '',
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+    });
+
+    it('When the name of the file is updated successfully, then it should update and return updated file', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
       const mockFile = newFile({ owner: userMocked });
 
       const encryptedName = 'encrypted-name';
@@ -753,7 +828,6 @@ describe('FileUseCases', () => {
           ...mockFile,
           plainName: newFileMeta.plainName,
           name: encryptedName,
-          modificationTime: new Date(),
         },
       });
 
@@ -769,6 +843,7 @@ describe('FileUseCases', () => {
 
       expect(fileRepository.findOneBy).toHaveBeenCalledWith({
         uuid: mockFile.uuid,
+        userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
       expect(fileRepository.findFileByName).toHaveBeenCalledWith(
@@ -788,7 +863,7 @@ describe('FileUseCases', () => {
         }),
       );
       const {
-        modificationTime: _resultModificationTime,
+        modificationTime: resultFileModificationTime,
         ...resultWithoutModificationTime
       } = result;
       const {
@@ -800,6 +875,132 @@ describe('FileUseCases', () => {
         updatedFileWithoutModificationTime,
       );
       expect(mockFile).not.toBe(updatedFileModificationTime);
+    });
+
+    it('When the type of the file is updated successfully, then it should update and return updated file', async () => {
+      const mockFile = newFile({
+        owner: userMocked,
+        attributes: { type: 'jpg' },
+      });
+      const newTypeFileMeta: UpdateFileMetaDto = { type: 'png' };
+
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          type: newTypeFileMeta.type,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newTypeFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        userId: mockFile.userId,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
+        {
+          folderId: mockFile.folderId,
+          type: newTypeFileMeta.type,
+          status: FileStatus.EXISTS,
+        },
+        { name: mockFile.name, plainName: mockFile.plainName },
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          plainName: mockFile.plainName,
+          name: mockFile.name,
+          type: newTypeFileMeta.type,
+        }),
+      );
+      const {
+        modificationTime: resultFileModificationTime,
+        ...resultWithoutModificationTime
+      } = result;
+      const {
+        modificationTime: updatedFileModificationTime,
+        ...updatedFileWithoutModificationTime
+      } = updatedFile;
+
+      expect(resultWithoutModificationTime).toEqual(
+        updatedFileWithoutModificationTime,
+      );
+      expect(mockFile).not.toBe(updatedFileModificationTime);
+    });
+
+    it('When the type of the file is updated but it has not plainName, then it should be decrypted from its name and return the updated file', async () => {
+      const mockFile = newFile({
+        owner: userMocked,
+        attributes: { type: 'jpg', plainName: null },
+      });
+      const newTypeFileMeta: UpdateFileMetaDto = { type: 'png' };
+      const expectedPlainName = 'original-plain-name';
+      const expectedEncryptedName = 'original-encrypted-name';
+
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          type: newTypeFileMeta.type,
+          plainName: expectedPlainName,
+          name: expectedEncryptedName,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(expectedPlainName);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(expectedEncryptedName);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newTypeFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        userId: mockFile.userId,
+        status: FileStatus.EXISTS,
+      });
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        mockFile.name,
+        mockFile.folderId,
+      );
+      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
+        {
+          folderId: mockFile.folderId,
+          type: newTypeFileMeta.type,
+          status: FileStatus.EXISTS,
+        },
+        { name: expectedEncryptedName, plainName: expectedPlainName },
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          plainName: expectedPlainName,
+          name: expectedEncryptedName,
+          type: newTypeFileMeta.type,
+        }),
+      );
+
+      delete result.modificationTime;
+      delete updatedFile.modificationTime;
+      expect(result).toEqual(updatedFile);
     });
   });
 

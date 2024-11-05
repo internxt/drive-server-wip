@@ -11,6 +11,8 @@ import {
   Put,
   Query,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -206,6 +208,11 @@ export class FileController {
   ])
   @RequiredSharingPermissions(SharingActionName.RenameItems)
   @WorkspacesInBehalfValidationFile()
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+    }),
+  )
   async updateFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe)
@@ -213,6 +220,9 @@ export class FileController {
     @Body() updateFileMetaDto: UpdateFileMetaDto,
     @Client() clientId: string,
   ) {
+    if (!updateFileMetaDto || Object.keys(updateFileMetaDto).length === 0) {
+      throw new BadRequestException('Missing update file metadata');
+    }
     const result = await this.fileUseCases.updateFileMetaData(
       user,
       fileUuid,

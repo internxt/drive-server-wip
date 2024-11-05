@@ -14,7 +14,6 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { File, FileAttributes } from '../file/file.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
@@ -32,6 +31,7 @@ import {
   newUser,
   newWorkspaceInvite,
   newNotificationToken,
+  newFile,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -254,7 +254,7 @@ describe('User use cases', () => {
           const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
           const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
           const getFilesSpy = jest.spyOn(fileUseCases, 'getFilesNotDeleted');
-          const files = [File.build({} as FileAttributes)];
+          const files = [newFile(), newFile()];
           getFilesSpy.mockReturnValue(Promise.resolve(files));
 
           await userUseCases.resetUser(user, {
