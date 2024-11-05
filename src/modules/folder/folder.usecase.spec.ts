@@ -503,6 +503,8 @@ describe('FolderUseCases', () => {
         },
       });
 
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValueOnce('');
+
       expect(() => service.decryptFolderName(folder)).toThrow(
         'Unable to decrypt folder name',
       );
