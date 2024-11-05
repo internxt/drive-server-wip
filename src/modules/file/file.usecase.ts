@@ -36,6 +36,7 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
+import { Op } from 'sequelize';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -733,5 +734,50 @@ export class FileUseCases {
       folder.uuid,
     );
     return file;
+  }
+
+  async trashFilesByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+  ) {
+    return this.fileRepository.trashFilesByUserAndFolderUuids(
+      user,
+      folderUuids,
+    );
+  }
+
+  async updateManyByFileIdAndUserId(
+    fileIds: FileAttributes['fileId'][],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ) {
+    return this.fileRepository.updateManyByFileIdAndUserId(
+      fileIds,
+      userId,
+      update,
+    );
+  }
+
+  async filterFilesWithNonDeletedFolders(
+    user: User,
+    files: File[],
+  ): Promise<File[]> {
+    const extractFolderUuids = files
+      .filter(
+        (item, index, self) =>
+          index === self.findIndex((t) => t.folderUuid === item.folderUuid),
+      )
+      .map((item) => item.folderUuid);
+
+    const deletedFolders = await this.folderUsecases.getFolders(
+      user.id,
+      { deleted: true, removed: false, uuid: { [Op.in]: extractFolderUuids } },
+      { limit: 50, offset: 0 },
+    );
+
+    const deletedFoldersUuids = deletedFolders.map((f) => f.uuid);
+    return files.filter(
+      (file) => !deletedFoldersUuids.includes(file.folderUuid),
+    );
   }
 }

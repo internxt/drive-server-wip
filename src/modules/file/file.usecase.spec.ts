@@ -31,6 +31,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { Op } from 'sequelize';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -1089,6 +1090,96 @@ describe('FileUseCases', () => {
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('trashFilesByUserAndFolderUuids', () => {
+    const user = newUser();
+
+    it('When called, should update the status of files in the specified folder to TRASHED', async () => {
+      const folder = newFolder({ owner: user });
+
+      jest
+        .spyOn(fileRepository, 'trashFilesByUserAndFolderUuids')
+        .mockResolvedValueOnce();
+
+      await expect(
+        service.trashFilesByUserAndFolderUuids(user, [folder.uuid]),
+      ).resolves.not.toThrow();
+
+      expect(
+        fileRepository.trashFilesByUserAndFolderUuids,
+      ).toHaveBeenCalledWith(user, [folder.uuid]);
+    });
+  });
+
+  describe('updateManyByFileIdAndUserId', () => {
+    const user = newUser();
+    const fileIds = [v4(), v4()];
+    const updateData: Partial<File> = {
+      status: FileStatus.TRASHED,
+    };
+
+    it('When called, should update the specified files', async () => {
+      jest
+        .spyOn(fileRepository, 'updateManyByFileIdAndUserId')
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.updateManyByFileIdAndUserId(fileIds, user.id, updateData),
+      ).resolves.not.toThrow();
+
+      expect(fileRepository.updateManyByFileIdAndUserId).toHaveBeenCalledWith(
+        fileIds,
+        user.id,
+        updateData,
+      );
+    });
+  });
+
+  describe('filterFilesWithNonDeletedFolders', () => {
+    const user = newUser();
+
+    it('should filter out files belonging to deleted folders', async () => {
+      const folderDeleted = newFolder({
+        owner: user,
+        attributes: { deleted: true },
+      });
+      const folderNotDeleted = newFolder({ owner: user });
+      const extractFolderUuids = [folderDeleted.uuid, folderNotDeleted.uuid];
+
+      const fileWithFolderDeleted = newFile({
+        owner: user,
+        folder: folderDeleted,
+      });
+      const fileWithFolderNotDeleted = newFile({
+        owner: user,
+        folder: folderNotDeleted,
+      });
+
+      const files = [fileWithFolderDeleted, fileWithFolderNotDeleted];
+      const mockGetFolderResolved = [folderDeleted];
+      const mockResolved = [fileWithFolderNotDeleted];
+
+      jest
+        .spyOn(folderUseCases, 'getFolders')
+        .mockResolvedValue(mockGetFolderResolved);
+
+      const result = await service.filterFilesWithNonDeletedFolders(
+        user,
+        files,
+      );
+
+      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+        user.id,
+        {
+          deleted: true,
+          removed: false,
+          uuid: { [Op.in]: extractFolderUuids },
+        },
+        { limit: 50, offset: 0 },
+      );
+      expect(result).toEqual(mockResolved);
     });
   });
 });

@@ -74,7 +74,7 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  updateManyByFieldIdAndUserId(
+  updateManyByFileIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
@@ -93,6 +93,10 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
+  trashFilesByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -602,7 +606,7 @@ export class SequelizeFileRepository implements FileRepository {
     return this.toDomain(file);
   }
 
-  async updateManyByFieldIdAndUserId(
+  async updateManyByFileIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
@@ -700,6 +704,29 @@ export class SequelizeFileRepository implements FileRepository {
           },
           status: {
             [Op.eq]: FileStatus.EXISTS,
+          },
+        },
+      },
+    );
+  }
+
+  async trashFilesByUserAndFolderUuids(
+    user: User,
+    folderUuids: Folder['uuid'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        deleted: true,
+        deletedAt: new Date(),
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          removed: false,
+          folderUuid: {
+            [Op.in]: folderUuids,
           },
         },
       },

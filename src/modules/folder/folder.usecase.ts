@@ -445,6 +445,9 @@ export class FolderUseCases {
     ]);
 
     const folders = foldersById.concat(foldersByUuid);
+    const foldersUuids = folders.map((f) => f.uuid);
+
+    await this.fileUsecases.trashFilesByUserAndFolderUuids(user, foldersUuids);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
     const driveFolders = folders.filter(
@@ -585,7 +588,7 @@ export class FolderUseCases {
 
   async getFolders(
     userId: FolderAttributes['userId'],
-    where: Partial<FolderAttributes>,
+    where: Partial<Record<keyof FolderAttributes, any>>,
     options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
@@ -810,6 +813,24 @@ export class FolderUseCases {
       folder.id,
       updateData,
     );
+
+    const files = await this.fileUsecases.getFilesByFolderUuid(
+      folder.uuid,
+      FileStatus.TRASHED,
+    );
+    const fileIds = files.map((f) => f.fileId);
+    const updateFileData: Partial<File> = {
+      deleted: false,
+      deletedAt: null,
+      status: FileStatus.EXISTS,
+    };
+
+    await this.fileUsecases.updateManyByFileIdAndUserId(
+      fileIds,
+      user.id,
+      updateFileData,
+    );
+
     return updatedFolder;
   }
 

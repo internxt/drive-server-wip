@@ -89,7 +89,7 @@ export class TrashController {
       let result: File[] | Folder[];
 
       if (type === 'files') {
-        result = await this.fileUseCases.getFiles(
+        const files = await this.fileUseCases.getFiles(
           user.id,
           { status: FileStatus.TRASHED },
           {
@@ -97,6 +97,11 @@ export class TrashController {
             offset: pagination.offset,
             sort: sort && order && [[sort, order]],
           },
+        );
+
+        result = await this.fileUseCases.filterFilesWithNonDeletedFolders(
+          user,
+          files,
         );
       } else {
         result = await this.folderUseCases.getFolders(

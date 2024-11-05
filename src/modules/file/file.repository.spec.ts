@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import { newUser, newWorkspace } from '../../../test/fixtures';
-import { FileStatus } from './file.domain';
+import { File, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
 import { Op } from 'sequelize';
@@ -129,6 +129,58 @@ describe('FileRepository', () => {
           ],
         }),
       });
+    });
+  });
+
+  describe('updateManyByFileIdAndUserId', () => {
+    it('When params are passed, then it should update files', async () => {
+      const fileIds = [v4(), v4()];
+      const updateData: Partial<File> = {
+        deleted: false,
+        deletedAt: null,
+        status: FileStatus.EXISTS,
+      };
+
+      await repository.updateManyByFileIdAndUserId(
+        fileIds,
+        user.id,
+        updateData,
+      );
+
+      expect(fileModel.update).toHaveBeenCalledWith(updateData, {
+        where: {
+          userId: user.id,
+          fileId: {
+            [Op.in]: fileIds,
+          },
+        },
+      });
+    });
+  });
+
+  describe('trashFilesByUserAndFolderUuids', () => {
+    it('When params are passed, then it should update files', async () => {
+      const folderUuids = [v4(), v4()];
+
+      await repository.trashFilesByUserAndFolderUuids(user, folderUuids);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        {
+          deleted: true,
+          deletedAt: new Date(),
+          status: FileStatus.TRASHED,
+          updatedAt: new Date(),
+        },
+        {
+          where: {
+            userId: user.id,
+            removed: false,
+            folderUuid: {
+              [Op.in]: folderUuids,
+            },
+          },
+        },
+      );
     });
   });
 });

@@ -29,7 +29,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileUseCases } from '../file/file.usecase';
-import { FileStatus } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 
 const folderId = 4;
 const user = newUser();
@@ -148,6 +148,11 @@ describe('FolderUseCases', () => {
         [mockFolder.uuid],
       );
 
+      expect(fileUsecases.trashFilesByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
+      );
+
       expect(folderRepository.updateManyByFolderId).toHaveBeenCalledTimes(2);
       expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
         [mockFolder.id],
@@ -185,6 +190,10 @@ describe('FolderUseCases', () => {
       expect(service.getFoldersByIds).toHaveBeenCalledWith(user, [
         mockFolder.id,
       ]);
+      expect(fileUsecases.trashFilesByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        [mockFolder.uuid],
+      );
     });
   });
 
@@ -576,6 +585,26 @@ describe('FolderUseCases', () => {
         attributes: { userId: userMocked.id, removed: false },
       });
 
+      const mockTrashFiles = [
+        newFile({
+          owner: userMocked,
+          folder,
+          attributes: { status: FileStatus.TRASHED },
+        }),
+        newFile({
+          owner: userMocked,
+          folder,
+          attributes: { status: FileStatus.TRASHED },
+        }),
+      ];
+      const mockTrashFilesIds = mockTrashFiles.map((f) => f.fileId);
+
+      const updateTrashFiles: Partial<File> = {
+        deleted: false,
+        deletedAt: null,
+        status: FileStatus.EXISTS,
+      };
+
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
       jest
         .spyOn(folderRepository, 'findById')
@@ -600,6 +629,10 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'updateByFolderId')
         .mockResolvedValueOnce(expectedFolder);
 
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce(mockTrashFiles);
+
       const result = await service.moveFolder(
         userMocked,
         folder.uuid,
@@ -617,6 +650,11 @@ describe('FolderUseCases', () => {
           deleted: false,
           deletedAt: null,
         },
+      );
+      expect(fileUsecases.updateManyByFileIdAndUserId).toHaveBeenCalledWith(
+        mockTrashFilesIds,
+        userMocked.id,
+        updateTrashFiles,
       );
     });
 
