@@ -1525,7 +1525,7 @@ export class WorkspacesUsecases {
       );
     }
 
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
+    const spaceLeft = await this.getOwnerAvailableSpace(workspace);
 
     if (invite.spaceLimit > spaceLeft) {
       throw new BadRequestException(
