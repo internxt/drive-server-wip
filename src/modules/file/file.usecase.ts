@@ -185,10 +185,9 @@ export class FileUseCases {
       newFileMetadata.plainName ??
       file.plainName ??
       this.cryptoService.decryptName(file.name, file.folderId);
-    const cryptoFileName = this.cryptoService.encryptName(
-      file.plainName,
-      file.folderId,
-    );
+    const cryptoFileName = newFileMetadata.plainName
+      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
+      : file.name;
     const type = newFileMetadata.type ?? file.type;
 
     const updatedFile = File.build({
