@@ -1289,9 +1289,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
-      jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(3000);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
 
       await expect(
         service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
@@ -1317,9 +1315,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
-      jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(3000);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
@@ -1356,9 +1352,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
-      jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(3000);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
@@ -1389,9 +1383,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
-      jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(3000);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest
         .spyOn(teamRepository, 'addUserToTeam')
         .mockRejectedValueOnce(
@@ -1432,9 +1424,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
-      jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(3000);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest
         .spyOn(workspaceRepository, 'addUserToWorkspace')
         .mockRejectedValueOnce(
@@ -1474,9 +1464,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValueOnce(workspaceUser);
-      jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
-        .mockResolvedValueOnce(3000);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
