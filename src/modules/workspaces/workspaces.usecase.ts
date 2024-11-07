@@ -2626,6 +2626,15 @@ export class WorkspacesUsecases {
       'ADD',
     );
 
+    const teamsUserBelongsTo = await this.teamRepository.getTeamsUserBelongsTo(
+      user.uuid,
+      workspaceId,
+    );
+
+    for (const team of teamsUserBelongsTo) {
+      await this.teamRepository.deleteUserFromTeam(user.uuid, team.id);
+    }
+
     await this.workspaceRepository.deleteUserFromWorkspace(
       user.uuid,
       workspaceId,

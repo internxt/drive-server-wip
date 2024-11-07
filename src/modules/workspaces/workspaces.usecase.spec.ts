@@ -4894,6 +4894,9 @@ describe('WorkspacesUsecases', () => {
             spaceLimit: 1099511627776, // 1TB
           },
         });
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
 
         jest
           .spyOn(workspaceRepository, 'findWorkspaceUser')
@@ -4906,6 +4909,9 @@ describe('WorkspacesUsecases', () => {
           .spyOn(service, 'calculateFilesSizeSum')
           .mockResolvedValueOnce(483183820800) // 450 GB
           .mockResolvedValueOnce(483183820800); // 450 GB
+        jest
+          .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+          .mockResolvedValueOnce([team]);
         jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
 
         expect(
@@ -4915,6 +4921,11 @@ describe('WorkspacesUsecases', () => {
         expect(
           workspaceRepository.deleteUserFromWorkspace,
         ).toHaveBeenCalledWith(member.uuid, workspace.id);
+
+        expect(teamRepository.deleteUserFromTeam).toHaveBeenCalledWith(
+          member.uuid,
+          team.id,
+        );
       });
     });
 
