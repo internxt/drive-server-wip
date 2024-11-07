@@ -1530,6 +1530,7 @@ export class WorkspacesUsecases {
       const isWorkspaceFull = await this.isWorkspaceFull(workspace, true);
 
       if (isWorkspaceFull) {
+        await transaction.rollback();
         throw new BadRequestException(
           'This workspace is full and it does not accept more users',
         );
@@ -1538,6 +1539,7 @@ export class WorkspacesUsecases {
       const spaceLeft = await this.getOwnerAvailableSpace(workspace);
 
       if (invite.spaceLimit > spaceLeft) {
+        await transaction.rollback();
         throw new BadRequestException(
           'The space assigned to this user is greater than the space available, invalid invitation',
         );
@@ -1607,6 +1609,10 @@ export class WorkspacesUsecases {
           (error as Error).message
         }`,
       );
+
+      if (error instanceof BadRequestException) {
+        throw new BadRequestException(finalMessage);
+      }
 
       throw new InternalServerErrorException(finalMessage);
     }

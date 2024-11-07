@@ -1207,6 +1207,10 @@ describe('WorkspacesUsecases', () => {
 
   describe('acceptWorkspaceInvite', () => {
     const invitedUser = newUser();
+    const mockTransaction = {
+      commit: jest.fn(),
+      rollback: jest.fn(),
+    };
 
     it('When invite is not found, then fail', async () => {
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(null);
@@ -1236,6 +1240,9 @@ describe('WorkspacesUsecases', () => {
         invitedUser: invitedUser.uuid,
         workspaceId: workspace.id,
       });
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
 
@@ -1246,9 +1253,12 @@ describe('WorkspacesUsecases', () => {
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
       expect(workspaceRepository.addUserToWorkspace).not.toHaveBeenCalled();
-      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith({
-        id: invite.id,
-      });
+      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith(
+        {
+          id: invite.id,
+        },
+        { transaction: mockTransaction },
+      );
     });
 
     it('When invite is valid but there are not enough slots in the workspace, then it should throw', async () => {
@@ -1258,6 +1268,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         attributes: { spaceLimit: 1000 },
       });
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1280,6 +1293,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         attributes: { spaceLimit: 4000 },
       });
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1306,6 +1322,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         attributes: { spaceLimit: 1000 },
       });
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1325,11 +1344,13 @@ describe('WorkspacesUsecases', () => {
           memberId: invite.invitedUser,
           spaceLimit: invite.spaceLimit,
         }),
+        { transaction: mockTransaction },
       );
       expect(service.adjustOwnerStorage).toHaveBeenCalledWith(
         workspace.id,
         invite.spaceLimit,
         'DEDUCT',
+        { transaction: mockTransaction },
       );
     });
 
@@ -1343,6 +1364,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         attributes: { spaceLimit: 1000 },
       });
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1360,6 +1384,7 @@ describe('WorkspacesUsecases', () => {
       expect(teamRepository.addUserToTeam).toHaveBeenCalledWith(
         workspace.defaultTeamId,
         invitedUser.uuid,
+        { transaction: mockTransaction },
       );
     });
 
@@ -1374,6 +1399,9 @@ describe('WorkspacesUsecases', () => {
         attributes: { spaceLimit: 1000 },
       });
 
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1390,18 +1418,10 @@ describe('WorkspacesUsecases', () => {
           new Error('Error happened while adding user to team!'),
         );
 
-      const spyRollbackFunction = jest.spyOn(
-        service,
-        'rollbackUserAddedToWorkspace',
-      );
-
       await expect(
         service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
       ).rejects.toThrow(InternalServerErrorException);
-      expect(spyRollbackFunction).toHaveBeenCalledWith(
-        invitedUser.uuid,
-        workspace,
-      );
+      expect(mockTransaction.rollback).toHaveBeenCalled();
     });
 
     it('When invite is valid and an error is thrown while setting user in workspace, then it should rollback and throw', async () => {
@@ -1415,6 +1435,9 @@ describe('WorkspacesUsecases', () => {
         attributes: { spaceLimit: 1000 },
       });
 
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1431,18 +1454,10 @@ describe('WorkspacesUsecases', () => {
           new Error('Error happened while adding user to workspace!'),
         );
 
-      const spyRollbackFunction = jest.spyOn(
-        service,
-        'rollbackUserAddedToWorkspace',
-      );
-
       await expect(
         service.acceptWorkspaceInvite(invitedUser, 'anyUuid'),
       ).rejects.toThrow(InternalServerErrorException);
-      expect(spyRollbackFunction).toHaveBeenCalledWith(
-        invitedUser.uuid,
-        workspace,
-      );
+      expect(mockTransaction.rollback).toHaveBeenCalled();
     });
 
     it('When invite is accepted, then it should be deleted aftewards', async () => {
@@ -1455,6 +1470,9 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         attributes: { spaceLimit: 1000 },
       });
+      jest
+        .spyOn(workspaceRepository, 'createTransaction')
+        .mockResolvedValue(mockTransaction as any);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
       jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
@@ -1469,9 +1487,12 @@ describe('WorkspacesUsecases', () => {
 
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
-      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith({
-        id: invite.id,
-      });
+      expect(workspaceRepository.deleteInviteBy).toHaveBeenCalledWith(
+        {
+          id: invite.id,
+        },
+        { transaction: mockTransaction },
+      );
     });
   });
 
