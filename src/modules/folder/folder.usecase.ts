@@ -30,6 +30,7 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
+import { Transaction } from 'sequelize';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -355,6 +356,7 @@ export class FolderUseCases {
   async createFolder(
     creator: User,
     newFolderDto: CreateFolderDto,
+    options?: { transaction?: Transaction },
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
     let user = creator;
@@ -403,24 +405,27 @@ export class FolderUseCases {
       parentFolder.id,
     );
 
-    const folder = await this.folderRepository.createWithAttributes({
-      uuid: v4(),
-      userId: user.id,
-      name: encryptedFolderName,
-      plainName: newFolderDto.plainName,
-      parentId: parentFolder.id,
-      parentUuid: parentFolder.uuid,
-      encryptVersion: '03-aes',
-      bucket: null,
-      deleted: false,
-      removed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      removedAt: null,
-      deletedAt: null,
-      modificationTime: newFolderDto.modificationTime || new Date(),
-      creationTime: newFolderDto.creationTime || new Date(),
-    });
+    const folder = await this.folderRepository.createWithAttributes(
+      {
+        uuid: v4(),
+        userId: user.id,
+        name: encryptedFolderName,
+        plainName: newFolderDto.plainName,
+        parentId: parentFolder.id,
+        parentUuid: parentFolder.uuid,
+        encryptVersion: '03-aes',
+        bucket: null,
+        deleted: false,
+        removed: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        removedAt: null,
+        deletedAt: null,
+        modificationTime: newFolderDto.modificationTime || new Date(),
+        creationTime: newFolderDto.creationTime || new Date(),
+      },
+      options,
+    );
 
     return folder;
   }

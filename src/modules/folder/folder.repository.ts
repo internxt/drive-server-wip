@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
+import {
+  FindOptions,
+  Op,
+  Sequelize,
+  Transaction,
+  WhereOptions,
+} from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
@@ -441,8 +447,9 @@ export class SequelizeFolderRepository implements FolderRepository {
 
   async createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
+    options?: { transaction?: Transaction },
   ): Promise<Folder> {
-    const folder = await this.folderModel.create(newFolder);
+    const folder = await this.folderModel.create(newFolder, { ...options });
 
     return this.toDomain(folder);
   }

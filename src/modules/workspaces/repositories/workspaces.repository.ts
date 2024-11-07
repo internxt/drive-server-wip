@@ -133,8 +133,9 @@ export class SequelizeWorkspaceRepository {
 
   async deleteInviteBy(
     where: Partial<WorkspaceInviteAttributes>,
+    options?: { transaction: Transaction },
   ): Promise<void> {
-    await this.modelWorkspaceInvite.destroy({ where });
+    await this.modelWorkspaceInvite.destroy({ where, ...options });
   }
 
   async getWorkspaceInvitationsCount(
@@ -167,8 +168,11 @@ export class SequelizeWorkspaceRepository {
 
   async createItem(
     item: Omit<WorkspaceItemUserAttributes, 'id'>,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceItemUser | null> {
-    const newItem = await this.modelWorkspaceItemUser.create(item);
+    const newItem = await this.modelWorkspaceItemUser.create(item, {
+      ...options,
+    });
 
     return newItem ? this.workspaceItemUserToDomain(newItem) : null;
   }
@@ -413,8 +417,11 @@ export class SequelizeWorkspaceRepository {
 
   async addUserToWorkspace(
     workspaceUser: Omit<WorkspaceUser, 'id'>,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceUser> {
-    const user = await this.modelWorkspaceUser.create(workspaceUser);
+    const user = await this.modelWorkspaceUser.create(workspaceUser, {
+      ...options,
+    });
     return this.workspaceUserToDomain(user);
   }
 
@@ -463,9 +470,11 @@ export class SequelizeWorkspaceRepository {
   async updateWorkspaceUserBy(
     where: Partial<WorkspaceUserAttributes>,
     update: Partial<WorkspaceUserAttributes>,
+    options?: { transaction?: Transaction },
   ): Promise<void> {
     await this.modelWorkspaceUser.update(update, {
       where,
+      ...options,
     });
   }
 
