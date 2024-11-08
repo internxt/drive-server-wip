@@ -62,8 +62,8 @@ export class Workspace implements WorkspaceAttributes {
     return this.setupCompleted === true;
   }
 
-  isWorkspaceFull(currentUsersCount: number, numberOfInvites: number = 0) {
-    return this.numberOfSeats <= currentUsersCount + numberOfInvites;
+  isWorkspaceFull(currentUsersCount: number /*, numberOfInvites: number = 0*/) {
+    return this.numberOfSeats <= currentUsersCount /* + numberOfInvites*/;
   }
 
   isDefaultTeam(team: WorkspaceTeam) {
