@@ -173,7 +173,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .spyOn(service, 'getOwnerAvailableSpace')
         .mockResolvedValueOnce(6000000);
 
       jest
@@ -216,7 +216,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .spyOn(service, 'getOwnerAvailableSpace')
         .mockResolvedValueOnce(6000000);
       jest
         .spyOn(service, 'getWorkspaceFixedStoragePerUser')
@@ -368,7 +368,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(null);
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .spyOn(service, 'getOwnerAvailableSpace')
         .mockResolvedValueOnce(spaceLeft);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
       jest
@@ -2004,7 +2004,7 @@ describe('WorkspacesUsecases', () => {
 
       expect(workspaceUsage).toEqual({
         totalWorkspaceSpace: 1000000,
-        spaceAssigned: 900000,
+        spaceAssigned: 700000,
         spaceUsed: 400000,
       });
     });

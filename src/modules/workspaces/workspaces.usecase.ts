@@ -387,7 +387,7 @@ export class WorkspacesUsecases {
       );
     }
 
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
+    const spaceLeft = await this.getOwnerAvailableSpace(workspace);
 
     const spaceToAssign =
       createInviteDto.spaceLimit ??
@@ -1517,7 +1517,7 @@ export class WorkspacesUsecases {
       return userAlreadyInWorkspace.toJSON();
     }
 
-    const isWorkspaceFull = await this.isWorkspaceFull(workspace, true);
+    const isWorkspaceFull = await this.isWorkspaceFull(workspace);
 
     if (isWorkspaceFull) {
       throw new BadRequestException(
@@ -1758,35 +1758,35 @@ export class WorkspacesUsecases {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
+      //totalSpaceAssignedInInvitations,
       spaceUsed,
     ] = await Promise.all([
       this.getWorkspaceNetworkLimit(workspace),
       this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
-      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+      /*this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),*/
       this.workspaceRepository.getTotalDriveAndBackupUsageWorkspaceUsers(
         workspace.id,
       ),
     ]);
 
-    const spaceAssigned =
-      totalSpaceLimitAssigned + totalSpaceAssignedInInvitations;
+    const spaceAssigned = totalSpaceLimitAssigned;
 
     return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
 
   async isWorkspaceFull(
     workspace: Workspace,
-    skipOneInvite = false,
+    //skipOneInvite = false,
   ): Promise<boolean> {
-    const [workspaceUsersCount, workspaceInvitationsCount] = await Promise.all([
-      this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
-      this.workspaceRepository.getWorkspaceInvitationsCount(workspace.id),
-    ]);
+    const [workspaceUsersCount /*workspaceInvitationsCount*/] =
+      await Promise.all([
+        this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
+        //this.workspaceRepository.getWorkspaceInvitationsCount(workspace.id),
+      ]);
 
     return workspace.isWorkspaceFull(
       workspaceUsersCount,
-      skipOneInvite ? workspaceInvitationsCount - 1 : workspaceInvitationsCount,
+      /*skipOneInvite ? workspaceInvitationsCount - 1 : workspaceInvitationsCount,*/
     );
   }
 
