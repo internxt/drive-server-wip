@@ -84,16 +84,27 @@ export class SequelizeWorkspaceRepository {
 
   async findOne(
     where: Partial<WorkspaceAttributes>,
+    options?: { transaction?: Transaction },
   ): Promise<Workspace | null> {
-    const workspace = await this.modelWorkspace.findOne({ where });
+    const workspace = await this.modelWorkspace.findOne({ where, ...options });
 
     return workspace ? this.toDomain(workspace) : null;
   }
 
   async findInvite(
     where: Partial<WorkspaceInviteAttributes>,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceInvite | null> {
-    const invite = await this.modelWorkspaceInvite.findOne({ where });
+    const invite = await this.modelWorkspaceInvite.findOne({
+      where,
+      ...options,
+      lock: options?.transaction
+        ? {
+            level: options.transaction.LOCK.UPDATE,
+            of: this.modelWorkspaceInvite,
+          }
+        : undefined,
+    });
 
     return invite ? WorkspaceInvite.build(invite) : null;
   }
@@ -151,10 +162,18 @@ export class SequelizeWorkspaceRepository {
   async findWorkspaceUser(
     where: Partial<WorkspaceUserAttributes>,
     includeUser = false,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceUser> {
     const workspaceUser = await this.modelWorkspaceUser.findOne({
       where,
       include: includeUser ? [{ model: UserModel, as: 'member' }] : [],
+      ...options,
+      lock: options?.transaction
+        ? {
+            level: options.transaction.LOCK.UPDATE,
+            of: this.modelWorkspaceUser,
+          }
+        : undefined,
     });
 
     return workspaceUser ? this.workspaceUserToDomain(workspaceUser) : null;

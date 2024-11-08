@@ -1489,34 +1489,44 @@ export class WorkspacesUsecases {
   }
 
   async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
-    const invite = await this.workspaceRepository.findInvite({
-      id: inviteId,
-      invitedUser: user.uuid,
-    });
-
-    if (!invite) {
-      throw new BadRequestException('This invitation is not valid');
-    }
-
-    const workspace = await this.workspaceRepository.findOne({
-      id: invite.workspaceId,
-      setupCompleted: true,
-    });
-
-    if (!workspace) {
-      throw new BadRequestException(
-        'This invitation does not have a valid workspace',
-      );
-    }
-
     const transaction = await this.workspaceRepository.createTransaction();
 
     try {
+      const invite = await this.workspaceRepository.findInvite(
+        {
+          id: inviteId,
+          invitedUser: user.uuid,
+        },
+        { transaction },
+      );
+
+      if (!invite) {
+        throw new BadRequestException('This invitation is not valid');
+      }
+
+      const workspace = await this.workspaceRepository.findOne(
+        {
+          id: invite.workspaceId,
+          setupCompleted: true,
+        },
+        { transaction },
+      );
+
+      if (!workspace) {
+        throw new BadRequestException(
+          'This invitation does not have a valid workspace',
+        );
+      }
+
       const userAlreadyInWorkspace =
-        await this.workspaceRepository.findWorkspaceUser({
-          workspaceId: workspace.id,
-          memberId: user.uuid,
-        });
+        await this.workspaceRepository.findWorkspaceUser(
+          {
+            workspaceId: workspace.id,
+            memberId: user.uuid,
+          },
+          false,
+          { transaction },
+        );
 
       if (userAlreadyInWorkspace) {
         await this.workspaceRepository.deleteInviteBy(
@@ -1530,7 +1540,6 @@ export class WorkspacesUsecases {
       const isWorkspaceFull = await this.isWorkspaceFull(workspace);
 
       if (isWorkspaceFull) {
-        await transaction.rollback();
         throw new BadRequestException(
           'This workspace is full and it does not accept more users',
         );
@@ -1539,7 +1548,6 @@ export class WorkspacesUsecases {
       const spaceLeft = await this.getOwnerAvailableSpace(workspace);
 
       if (invite.spaceLimit > spaceLeft) {
-        await transaction.rollback();
         throw new BadRequestException(
           'The space assigned to this user is greater than the space available, invalid invitation',
         );
@@ -1741,17 +1749,24 @@ export class WorkspacesUsecases {
     });
   }
 
-  async getOwnerAvailableSpace(workspace: Workspace) {
+  async getOwnerAvailableSpace(
+    workspace: Workspace,
+    options: { transaction?: Transaction } = {},
+  ) {
     const ownerUsedSpace = await this.calculateFilesSizeSum(
       workspace.ownerId,
       workspace.id,
       [FileStatus.EXISTS, FileStatus.TRASHED],
     );
 
-    const owner = await this.workspaceRepository.findWorkspaceUser({
-      workspaceId: workspace.id,
-      memberId: workspace.ownerId,
-    });
+    const owner = await this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId: workspace.id,
+        memberId: workspace.ownerId,
+      },
+      false,
+      options,
+    );
 
     const availableSpace = owner.spaceLimit - ownerUsedSpace;
 
