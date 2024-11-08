@@ -173,7 +173,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .spyOn(service, 'getOwnerAvailableSpace')
         .mockResolvedValueOnce(6000000);
 
       jest
@@ -216,7 +216,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
       jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .spyOn(service, 'getOwnerAvailableSpace')
         .mockResolvedValueOnce(6000000);
       jest
         .spyOn(service, 'getWorkspaceFixedStoragePerUser')
@@ -368,7 +368,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(null);
       jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
       jest
-        .spyOn(service, 'getAssignableSpaceInWorkspace')
+        .spyOn(service, 'getOwnerAvailableSpace')
         .mockResolvedValueOnce(spaceLeft);
       jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
       jest
@@ -2025,7 +2025,7 @@ describe('WorkspacesUsecases', () => {
 
       expect(workspaceUsage).toEqual({
         totalWorkspaceSpace: 1000000,
-        spaceAssigned: 900000,
+        spaceAssigned: 700000,
         spaceUsed: 400000,
       });
     });
@@ -4915,6 +4915,9 @@ describe('WorkspacesUsecases', () => {
             spaceLimit: 1099511627776, // 1TB
           },
         });
+        const team = newWorkspaceTeam({
+          workspaceId: workspace.id,
+        });
 
         jest
           .spyOn(workspaceRepository, 'findWorkspaceUser')
@@ -4927,6 +4930,9 @@ describe('WorkspacesUsecases', () => {
           .spyOn(service, 'calculateFilesSizeSum')
           .mockResolvedValueOnce(483183820800) // 450 GB
           .mockResolvedValueOnce(483183820800); // 450 GB
+        jest
+          .spyOn(teamRepository, 'getTeamsUserBelongsTo')
+          .mockResolvedValueOnce([team]);
         jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
 
         expect(
@@ -4936,6 +4942,11 @@ describe('WorkspacesUsecases', () => {
         expect(
           workspaceRepository.deleteUserFromWorkspace,
         ).toHaveBeenCalledWith(member.uuid, workspace.id);
+
+        expect(teamRepository.deleteUserFromTeam).toHaveBeenCalledWith(
+          member.uuid,
+          team.id,
+        );
       });
     });
 
