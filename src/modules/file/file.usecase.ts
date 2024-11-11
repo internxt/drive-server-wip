@@ -106,11 +106,11 @@ export class FileUseCases {
       folder.id,
     );
 
-    const exists = await this.fileRepository.findByPlainNameAndFolderUuid(
+    const exists = await this.fileRepository.findByPlainNameAndFolderId(
       user.id,
       newFileDto.plainName,
       newFileDto.type,
-      folder.uuid,
+      folder.id,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -193,11 +193,11 @@ export class FileUseCases {
       type,
     });
 
-    const fileWithSameNameExists = await this.findByPlainNameAndFolderUuid(
+    const fileWithSameNameExists = await this.findByPlainNameAndFolderId(
       updatedFile.userId,
       updatedFile.plainName,
       updatedFile.type,
-      updatedFile.folderUuid,
+      updatedFile.folderId,
     );
     if (fileWithSameNameExists) {
       throw new ConflictException(
@@ -582,11 +582,11 @@ export class FileUseCases {
       );
     }
 
-    const exists = await this.fileRepository.findByPlainNameAndFolderUuid(
+    const exists = await this.fileRepository.findByPlainNameAndFolderId(
       file.userId,
       file.plainName,
       file.type,
-      destinationFolder.uuid,
+      destinationFolder.id,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -676,17 +676,17 @@ export class FileUseCases {
     });
   }
 
-  async findByPlainNameAndFolderUuid(
+  async findByPlainNameAndFolderId(
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
+    folderId: FileAttributes['folderId'],
   ): Promise<File | null> {
-    return this.fileRepository.findByPlainNameAndFolderUuid(
+    return this.fileRepository.findByPlainNameAndFolderId(
       userId,
       plainName,
       type,
-      folderUuid,
+      folderId,
       FileStatus.EXISTS,
     );
   }
@@ -705,11 +705,11 @@ export class FileUseCases {
       throw new NotFoundException('Parent folders not found');
     }
 
-    const file = await this.findByPlainNameAndFolderUuid(
+    const file = await this.findByPlainNameAndFolderId(
       user.id,
       path.fileName,
       path.fileType,
-      folder.uuid,
+      folder.id,
     );
     return file;
   }

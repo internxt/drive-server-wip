@@ -43,11 +43,11 @@ export interface FileRepository {
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
-  findByPlainNameAndFolderUuid(
+  findByPlainNameAndFolderId(
     userId: File['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
+    folderId: FileAttributes['folderId'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
@@ -176,11 +176,11 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findByPlainNameAndFolderUuid(
+  async findByPlainNameAndFolderId(
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
+    folderId: FileAttributes['folderId'],
     status: FileAttributes['status'],
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
@@ -188,7 +188,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId: { [Op.eq]: userId },
         plainName: { [Op.eq]: plainName },
         type: { [Op.eq]: type },
-        folderUuid: { [Op.eq]: folderUuid },
+        folderId: { [Op.eq]: folderId },
         status: { [Op.eq]: status },
       },
     });

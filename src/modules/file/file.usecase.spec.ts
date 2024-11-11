@@ -522,7 +522,7 @@ describe('FileUseCases', () => {
         .mockReturnValueOnce(expectedFile.name);
 
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
 
       jest
@@ -600,7 +600,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(destinationFolder);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(file);
 
       expect(
@@ -621,7 +621,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(destinationFolder);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(conflictFile);
 
       expect(
@@ -686,7 +686,7 @@ describe('FileUseCases', () => {
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
 
       const createdFile = newFile({
@@ -721,7 +721,7 @@ describe('FileUseCases', () => {
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
 
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(fileWithSameName);
 
       try {
@@ -825,7 +825,7 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
 
@@ -840,11 +840,11 @@ describe('FileUseCases', () => {
         userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findByPlainNameAndFolderUuid).toHaveBeenCalledWith(
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
         mockFile.userId,
         newFileMeta.plainName,
         mockFile.type,
-        mockFile.folderUuid,
+        mockFile.folderId,
         FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -886,7 +886,7 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
       jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
 
@@ -901,11 +901,11 @@ describe('FileUseCases', () => {
         userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findByPlainNameAndFolderUuid).toHaveBeenCalledWith(
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
         mockFile.userId,
         mockFile.plainName,
         newTypeFileMeta.type,
-        mockFile.folderUuid,
+        mockFile.folderId,
         FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -971,7 +971,7 @@ describe('FileUseCases', () => {
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(parentFolderFile);
       jest
-        .spyOn(service, 'findByPlainNameAndFolderUuid')
+        .spyOn(service, 'findByPlainNameAndFolderId')
         .mockResolvedValue(expectedFile);
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
@@ -1012,9 +1012,7 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(parentFolderFile);
-      jest
-        .spyOn(service, 'findByPlainNameAndFolderUuid')
-        .mockResolvedValue(null);
+      jest.spyOn(service, 'findByPlainNameAndFolderId').mockResolvedValue(null);
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
       expect(result).toBeNull();
