@@ -39,21 +39,12 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
-  findFileByName(
-    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
-    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
-  ): Promise<File | null>;
   findFilesInFolderByName(
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
-  findByNameAndFolderUuid(
-    name: FileAttributes['name'],
-    type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
-    status: FileAttributes['status'],
-  ): Promise<File | null>;
   findByPlainNameAndFolderUuid(
+    userId: File['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
@@ -185,24 +176,8 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findByNameAndFolderUuid(
-    name: FileAttributes['name'],
-    type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
-    status: FileAttributes['status'],
-  ): Promise<File | null> {
-    const file = await this.fileModel.findOne({
-      where: {
-        name: { [Op.eq]: name },
-        type: { [Op.eq]: type },
-        folderUuid: { [Op.eq]: folderUuid },
-        status: { [Op.eq]: status },
-      },
-    });
-    return file ? this.toDomain(file) : null;
-  }
-
   async findByPlainNameAndFolderUuid(
+    userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
@@ -210,6 +185,7 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
+        userId: { [Op.eq]: userId },
         plainName: { [Op.eq]: plainName },
         type: { [Op.eq]: type },
         folderUuid: { [Op.eq]: folderUuid },
@@ -539,22 +515,6 @@ export class SequelizeFileRepository implements FileRepository {
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where,
-    });
-    return file ? this.toDomain(file) : null;
-  }
-
-  async findFileByName(
-    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
-    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
-  ): Promise<File | null> {
-    const file = await this.fileModel.findOne({
-      where: {
-        ...where,
-        [Op.or]: [
-          { name: nameFilter.name },
-          { plainName: nameFilter.plainName },
-        ],
-      },
     });
     return file ? this.toDomain(file) : null;
   }

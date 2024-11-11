@@ -518,15 +518,11 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(destinationFolder);
 
       jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
-
-      jest
         .spyOn(cryptoService, 'encryptName')
         .mockReturnValueOnce(expectedFile.name);
 
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
         .mockResolvedValueOnce(null);
 
       jest
@@ -602,12 +598,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
         .mockResolvedValueOnce(file);
 
       expect(
@@ -626,12 +619,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
         .mockResolvedValueOnce(conflictFile);
 
       expect(
@@ -695,7 +685,9 @@ describe('FileUseCases', () => {
       const folder = newFolder({ attributes: { userId: userMocked.id } });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
-      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .mockResolvedValueOnce(null);
 
       const createdFile = newFile({
         attributes: {
@@ -729,7 +721,7 @@ describe('FileUseCases', () => {
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
 
       jest
-        .spyOn(fileRepository, 'findFileByName')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
         .mockResolvedValueOnce(fileWithSameName);
 
       try {
@@ -832,7 +824,9 @@ describe('FileUseCases', () => {
       });
 
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
-      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
 
       const result = await service.updateFileMetaData(
@@ -846,13 +840,12 @@ describe('FileUseCases', () => {
         userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
-        {
-          folderId: mockFile.folderId,
-          type: mockFile.type,
-          status: FileStatus.EXISTS,
-        },
-        { name: encryptedName, plainName: newFileMeta.plainName },
+      expect(fileRepository.findByPlainNameAndFolderUuid).toHaveBeenCalledWith(
+        mockFile.userId,
+        newFileMeta.plainName,
+        mockFile.type,
+        mockFile.folderUuid,
+        FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
@@ -892,7 +885,9 @@ describe('FileUseCases', () => {
       });
 
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
-      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderUuid')
+        .mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
 
       const result = await service.updateFileMetaData(
@@ -906,13 +901,12 @@ describe('FileUseCases', () => {
         userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
-        {
-          folderId: mockFile.folderId,
-          type: newTypeFileMeta.type,
-          status: FileStatus.EXISTS,
-        },
-        { name: mockFile.name, plainName: mockFile.plainName },
+      expect(fileRepository.findByPlainNameAndFolderUuid).toHaveBeenCalledWith(
+        mockFile.userId,
+        mockFile.plainName,
+        newTypeFileMeta.type,
+        mockFile.folderUuid,
+        FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,

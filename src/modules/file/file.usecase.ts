@@ -106,18 +106,14 @@ export class FileUseCases {
       folder.id,
     );
 
-    const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
-      name: cryptoFileName,
-      plainName: newFileDto.plainName,
-      folderId: folder.id,
-      ...(newFileDto.type ? { type: newFileDto.type } : null),
-      userId: user.id,
-      status: FileStatus.EXISTS,
-    });
-
-    const fileAlreadyExists = !!maybeAlreadyExistentFile;
-
-    if (fileAlreadyExists) {
+    const exists = await this.fileRepository.findByPlainNameAndFolderUuid(
+      user.id,
+      newFileDto.plainName,
+      newFileDto.type,
+      folder.uuid,
+      FileStatus.EXISTS,
+    );
+    if (exists) {
       throw new ConflictException('File already exists');
     }
 
@@ -197,15 +193,12 @@ export class FileUseCases {
       type,
     });
 
-    const fileWithSameNameExists = await this.fileRepository.findFileByName(
-      {
-        folderId: updatedFile.folderId,
-        type: updatedFile.type,
-        status: FileStatus.EXISTS,
-      },
-      { name: updatedFile.name, plainName: updatedFile.plainName },
+    const fileWithSameNameExists = await this.findByPlainNameAndFolderUuid(
+      updatedFile.userId,
+      updatedFile.plainName,
+      updatedFile.type,
+      updatedFile.folderUuid,
     );
-
     if (fileWithSameNameExists) {
       throw new ConflictException(
         'A file with this name already exists in this location',
@@ -589,17 +582,9 @@ export class FileUseCases {
       );
     }
 
-    const originalPlainName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      originalPlainName,
-      destinationFolder.id,
-    );
-
-    const exists = await this.fileRepository.findByNameAndFolderUuid(
-      destinationEncryptedName,
+    const exists = await this.fileRepository.findByPlainNameAndFolderUuid(
+      file.userId,
+      file.plainName,
       file.type,
       destinationFolder.uuid,
       FileStatus.EXISTS,
@@ -614,6 +599,11 @@ export class FileUseCases {
         'A file with the same name already exists in destination folder',
       );
     }
+
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      file.plainName,
+      destinationFolder.id,
+    );
 
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
@@ -686,25 +676,14 @@ export class FileUseCases {
     });
   }
 
-  async findByNameAndFolderUuid(
-    name: FileAttributes['name'],
-    type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
-  ): Promise<File | null> {
-    return this.fileRepository.findByNameAndFolderUuid(
-      name,
-      type,
-      folderUuid,
-      FileStatus.EXISTS,
-    );
-  }
-
   async findByPlainNameAndFolderUuid(
+    userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
   ): Promise<File | null> {
     return this.fileRepository.findByPlainNameAndFolderUuid(
+      userId,
       plainName,
       type,
       folderUuid,
@@ -727,6 +706,7 @@ export class FileUseCases {
     }
 
     const file = await this.findByPlainNameAndFolderUuid(
+      user.id,
       path.fileName,
       path.fileType,
       folder.uuid,
