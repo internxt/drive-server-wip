@@ -447,9 +447,8 @@ export class SequelizeFolderRepository implements FolderRepository {
 
   async createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
-    options?: { transaction?: Transaction },
   ): Promise<Folder> {
-    const folder = await this.folderModel.create(newFolder, { ...options });
+    const folder = await this.folderModel.create(newFolder);
 
     return this.toDomain(folder);
   }

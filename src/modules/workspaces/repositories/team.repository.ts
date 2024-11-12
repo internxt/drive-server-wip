@@ -142,7 +142,7 @@ export class SequelizeWorkspaceTeamRepository {
         teamId,
         memberId: userUuid,
       },
-      { ...options },
+      options,
     );
 
     return this.teamUserToDomain(teamUser);

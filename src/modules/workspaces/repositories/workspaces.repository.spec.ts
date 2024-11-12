@@ -62,6 +62,31 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const result = await repository.findInvite({ id: '1' });
       expect(result).toBeNull();
+      expect(workspaceInviteModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+        }),
+      );
+    });
+
+    it('When a workspace inivitation is searched with a transaction, it should return the respective invitation', async () => {
+      const mockInvite = newWorkspaceInvite();
+      const transaction = { LOCK: { UPDATE: 'UPDATE' } } as any;
+
+      jest
+        .spyOn(workspaceInviteModel, 'findOne')
+        .mockResolvedValueOnce(mockInvite as WorkspaceInviteModel);
+
+      const result = await repository.findInvite({ id: '1' }, { transaction });
+      expect(result).toBeInstanceOf(WorkspaceInvite);
+      expect(result.id).toEqual(mockInvite.id);
+      expect(workspaceInviteModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+          transaction,
+          lock: { level: 'UPDATE', of: workspaceInviteModel },
+        }),
+      );
     });
   });
 
@@ -143,6 +168,37 @@ describe('SequelizeWorkspaceRepository', () => {
       );
       expect(result).toBeInstanceOf(WorkspaceUser);
       expect(result.member).toBeInstanceOf(User);
+    });
+
+    it('When a workspace user is searched with a transaction, then it should return the user', async () => {
+      const transaction = { LOCK: { UPDATE: 'UPDATE' } } as any;
+      const workspaceUser = newWorkspaceUser();
+      const mockWorkspaceUser = {
+        memberId: workspaceUser.id,
+        workspaceId: workspaceUser.workspaceId,
+        ...workspaceUser.toJSON(),
+      };
+
+      jest.spyOn(workspaceUserModel, 'findOne').mockResolvedValueOnce({
+        ...mockWorkspaceUser,
+        toJSON: jest.fn().mockReturnValue(mockWorkspaceUser),
+      } as any);
+
+      const result = await repository.findWorkspaceUser(
+        { memberId: '1' },
+        false,
+        { transaction },
+      );
+      expect(result).toBeInstanceOf(WorkspaceUser);
+      expect(result.toJSON()).toMatchObject({
+        ...workspaceUser.toJSON(),
+      });
+      expect(workspaceUserModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { memberId: '1' },
+          transaction,
+        }),
+      );
     });
   });
 

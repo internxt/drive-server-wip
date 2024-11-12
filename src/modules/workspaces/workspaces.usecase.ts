@@ -1556,7 +1556,6 @@ export class WorkspacesUsecases {
       const rootFolder = await this.initiateWorkspacePersonalRootFolder(
         workspace.workspaceUserId,
         workspace.rootFolderId,
-        { transaction },
       );
 
       const workspaceUser = WorkspaceUser.build({
@@ -1629,7 +1628,6 @@ export class WorkspacesUsecases {
   async initiateWorkspacePersonalRootFolder(
     workspaceUserId: WorkspaceAttributes['workspaceUserId'],
     workspaceRootFolderId: WorkspaceAttributes['rootFolderId'],
-    options?: { transaction?: Transaction },
   ): Promise<Folder> {
     const workspaceNetworkUser =
       await this.userRepository.findByUuid(workspaceUserId);
@@ -1637,7 +1635,6 @@ export class WorkspacesUsecases {
     const rootFolder = await this.folderUseCases.createFolder(
       workspaceNetworkUser,
       { plainName: v4(), parentFolderUuid: workspaceRootFolderId },
-      options,
     );
 
     return rootFolder;
