@@ -25,11 +25,16 @@ export class GatewayUseCases {
     const { ownerId, maxSpaceBytes, address, numberOfSeats, phoneNumber } =
       initializeWorkspaceDto;
 
-    return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes, {
-      address,
-      numberOfSeats,
-      phoneNumber,
-    });
+    try {
+      return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes, {
+        address,
+        numberOfSeats,
+        phoneNumber,
+      });
+    } catch (error) {
+      Logger.error('[GATEWAY/WORKSPACE] Error initializing workspace', error);
+      throw new BadRequestException();
+    }
   }
 
   async updateWorkspaceStorage(
@@ -37,30 +42,39 @@ export class GatewayUseCases {
     maxSpaceBytes: number,
     numberOfSeats: number,
   ): Promise<void> {
-    const owner = await this.userRepository.findByUuid(ownerId);
-    if (!owner) {
+    try {
+      const owner = await this.userRepository.findByUuid(ownerId);
+      if (!owner) {
+        throw new BadRequestException();
+      }
+      const workspace = await this.workspaceUseCases.findOne({
+        ownerId: owner.uuid,
+        setupCompleted: true,
+      });
+
+      if (!workspace) {
+        throw new NotFoundException('Workspace not found');
+      }
+
+      await this.workspaceUseCases.updateWorkspaceLimit(
+        workspace.id,
+        maxSpaceBytes,
+        workspace.numberOfSeats !== numberOfSeats ? numberOfSeats : undefined,
+      );
+
+      if (workspace.numberOfSeats !== numberOfSeats) {
+        await this.workspaceUseCases.updateWorkspaceMemberCount(
+          workspace.id,
+          numberOfSeats,
+        );
+      }
+    } catch (error) {
+      Logger.error(
+        `[GATEWAY/WORKSPACE] Error updating workspace for owner ${ownerId}`,
+        error,
+      );
       throw new BadRequestException();
     }
-    const workspace = await this.workspaceUseCases.findOne({
-      ownerId: owner.uuid,
-      setupCompleted: true,
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (workspace.numberOfSeats !== numberOfSeats) {
-      await this.workspaceUseCases.updateWorkspaceMemberCount(
-        workspace.id,
-        numberOfSeats,
-      );
-    }
-
-    await this.workspaceUseCases.updateWorkspaceLimit(
-      workspace.id,
-      maxSpaceBytes,
-    );
   }
 
   async destroyWorkspace(ownerId: string): Promise<void> {

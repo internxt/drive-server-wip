@@ -497,6 +497,7 @@ export class WorkspacesUsecases {
   async updateWorkspaceLimit(
     workspaceId: Workspace['id'],
     newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -514,9 +515,11 @@ export class WorkspacesUsecases {
     const currentSpacePerUser =
       currentWorkspaceSpaceLimit / workspace.numberOfSeats;
 
-    const newSpacePerUser = newWorkspaceSpaceLimit / workspace.numberOfSeats;
+    const newSpacePerUser =
+      newWorkspaceSpaceLimit / (newNumberOfSeats ?? workspace.numberOfSeats);
     const spaceDifference = newSpacePerUser - currentSpacePerUser;
 
+    console.log('newWorkspaceSpaceLimit', newWorkspaceSpaceLimit);
     const workspaceUsers =
       await this.workspaceRepository.findWorkspaceUsers(workspaceId);
 
