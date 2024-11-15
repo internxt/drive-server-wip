@@ -68,6 +68,8 @@ import { Public } from '../auth/decorators/public.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 import { GetSharedWithDto } from './dto/shared-with.dto';
+import { LogAction } from './interceptors/workspacesLogs.interceptor';
+import { WorkspaceLogType } from './attributes/workspace-logs.attributes';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -542,6 +544,7 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @LogAction(WorkspaceLogType.UPLOAD_FILE)
   async createFile(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],

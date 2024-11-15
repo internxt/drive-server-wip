@@ -23,6 +23,8 @@ import { FileModel } from '../../file/file.model';
 import { FileAttributes } from '../../file/file.domain';
 import { FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
+import { WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
+import { WorkspaceLogModel } from '../models/workspace-logs.model';
 
 @Injectable()
 export class SequelizeWorkspaceRepository {
@@ -35,6 +37,8 @@ export class SequelizeWorkspaceRepository {
     private readonly modelWorkspaceInvite: typeof WorkspaceInviteModel,
     @InjectModel(WorkspaceItemUserModel)
     private readonly modelWorkspaceItemUser: typeof WorkspaceItemUserModel,
+    @InjectModel(WorkspaceLogModel)
+    private readonly modelWorkspaceLog: typeof WorkspaceLogModel,
   ) {}
   async findById(id: WorkspaceAttributes['id']): Promise<Workspace | null> {
     const workspace = await this.modelWorkspace.findByPk(id);
@@ -467,6 +471,10 @@ export class SequelizeWorkspaceRepository {
     await this.modelWorkspaceUser.update(update, {
       where,
     });
+  }
+
+  async registerLog(log: Omit<WorkspaceLogAttributes, 'id'>): Promise<void> {
+    await this.modelWorkspaceLog.create(log);
   }
 
   toDomain(model: WorkspaceModel): Workspace {
