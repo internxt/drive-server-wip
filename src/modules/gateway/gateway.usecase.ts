@@ -7,15 +7,13 @@ import {
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { BridgeService } from '../../externals/bridge/bridge.service';
 import { User } from '../user/user.domain';
 
 @Injectable()
 export class GatewayUseCases {
   constructor(
-    private workspaceUseCases: WorkspacesUsecases,
-    private userRepository: SequelizeUserRepository,
-    private networkService: BridgeService,
+    private readonly workspaceUseCases: WorkspacesUsecases,
+    private readonly userRepository: SequelizeUserRepository,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -26,14 +24,18 @@ export class GatewayUseCases {
       initializeWorkspaceDto;
 
     try {
-      return this.workspaceUseCases.initiateWorkspace(ownerId, maxSpaceBytes, {
-        address,
-        numberOfSeats,
-        phoneNumber,
-      });
+      return await this.workspaceUseCases.initiateWorkspace(
+        ownerId,
+        maxSpaceBytes,
+        {
+          address,
+          numberOfSeats,
+          phoneNumber,
+        },
+      );
     } catch (error) {
       Logger.error('[GATEWAY/WORKSPACE] Error initializing workspace', error);
-      throw new BadRequestException();
+      throw error;
     }
   }
 
@@ -73,7 +75,7 @@ export class GatewayUseCases {
         `[GATEWAY/WORKSPACE] Error updating workspace for owner ${ownerId}`,
         error,
       );
-      throw new BadRequestException();
+      throw error;
     }
   }
 

@@ -1837,6 +1837,75 @@ describe('WorkspacesUsecases', () => {
         'ADD',
       );
     });
+
+    it('When numberOfSeats is specified, then it should update the number of seats', async () => {
+      const workspaceNetworkUser = newUser();
+      const numberOfSeats = 6;
+      const newSpaceLimit = 10995116277760;
+      const currentSpaceLimit = newSpaceLimit / 2;
+      const workspaceOwner = newUser();
+      const workspace = newWorkspace({
+        owner: workspaceOwner,
+        attributes: {
+          workspaceUserId: workspaceNetworkUser.uuid,
+          numberOfSeats: 3,
+        },
+      });
+      const workspaceUsers = [
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          attributes: { spaceLimit: currentSpaceLimit / 2 },
+        }),
+      ];
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(workspaceNetworkUser);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsers')
+        .mockResolvedValue(workspaceUsers);
+      jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
+      jest.spyOn(networkService, 'setStorage').mockResolvedValue();
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
+
+      const oldSpacePerUser = currentSpaceLimit / workspace.numberOfSeats;
+      const newSpacePerUser = newSpaceLimit / numberOfSeats;
+      const unusedSpace =
+        newSpaceLimit -
+        currentSpaceLimit -
+        (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
+
+      await service.updateWorkspaceLimit(
+        workspace.id,
+        newSpaceLimit,
+        numberOfSeats,
+      );
+
+      expect(networkService.setStorage).toHaveBeenCalledWith(
+        workspaceNetworkUser.email,
+        newSpaceLimit,
+      );
+
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledTimes(3);
+
+      expect(service.adjustOwnerStorage).toHaveBeenCalledWith(
+        workspace.id,
+        unusedSpace,
+        'ADD',
+      );
+    });
   });
 
   describe('changeUserAssignedSpace', () => {

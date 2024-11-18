@@ -8,7 +8,6 @@ import {
   newWorkspaceTeam,
 } from '../../../test/fixtures';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { BridgeService } from '../../externals/bridge/bridge.service';
 import { v4 } from 'uuid';
 import { GatewayUseCases } from './gateway.usecase';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
@@ -17,7 +16,6 @@ describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
   let userRepository: SequelizeUserRepository;
   let workspaceUseCases: WorkspacesUsecases;
-  let networkService: BridgeService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -31,7 +29,6 @@ describe('GatewayUseCases', () => {
       SequelizeUserRepository,
     );
     workspaceUseCases = module.get<WorkspacesUsecases>(WorkspacesUsecases);
-    networkService = module.get<BridgeService>(BridgeService);
   });
 
   it('should be defined', () => {
@@ -145,6 +142,7 @@ describe('GatewayUseCases', () => {
         expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
           workspace.id,
           maxSpaceBytes,
+          undefined,
         );
       });
 
@@ -193,6 +191,7 @@ describe('GatewayUseCases', () => {
         expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
           workspace.id,
           maxSpaceBytes,
+          numberOfSeats,
         );
       });
     });

@@ -519,7 +519,6 @@ export class WorkspacesUsecases {
       newWorkspaceSpaceLimit / (newNumberOfSeats ?? workspace.numberOfSeats);
     const spaceDifference = newSpacePerUser - currentSpacePerUser;
 
-    console.log('newWorkspaceSpaceLimit', newWorkspaceSpaceLimit);
     const workspaceUsers =
       await this.workspaceRepository.findWorkspaceUsers(workspaceId);
 
