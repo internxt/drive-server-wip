@@ -91,10 +91,10 @@ describe('Gateway Controller', () => {
 
     it('When owner passed is not found, then it should throw.', async () => {
       jest
-        .spyOn(gatewayUsecases, 'precheckUpdateWorkspaceStorage')
+        .spyOn(gatewayUsecases, 'validateStorageForPlanChange')
         .mockRejectedValueOnce(new BadRequestException());
       await expect(
-        gatewayController.precheckUpdateWorkspaceStorage(
+        gatewayController.validateStorageForPlanChange(
           updateWorkspaceStorageDto,
         ),
       ).rejects.toThrow(BadRequestException);
@@ -102,22 +102,20 @@ describe('Gateway Controller', () => {
 
     it('When workspace is not found, then it should throw.', async () => {
       jest
-        .spyOn(gatewayUsecases, 'precheckUpdateWorkspaceStorage')
+        .spyOn(gatewayUsecases, 'validateStorageForPlanChange')
         .mockRejectedValueOnce(new NotFoundException());
       await expect(
-        gatewayController.precheckUpdateWorkspaceStorage(
+        gatewayController.validateStorageForPlanChange(
           updateWorkspaceStorageDto,
         ),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When correct data is passed and workspace completed is found, then it works.', async () => {
-      await gatewayController.precheckUpdateWorkspaceStorage(
+      await gatewayController.validateStorageForPlanChange(
         updateWorkspaceStorageDto,
       );
-      expect(
-        gatewayUsecases.precheckUpdateWorkspaceStorage,
-      ).toHaveBeenCalledWith(
+      expect(gatewayUsecases.validateStorageForPlanChange).toHaveBeenCalledWith(
         updateWorkspaceStorageDto.ownerId,
         updateWorkspaceStorageDto.maxSpaceBytes,
         updateWorkspaceStorageDto.numberOfSeats,

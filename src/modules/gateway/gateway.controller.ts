@@ -59,17 +59,17 @@ export class GatewayController {
     );
   }
 
-  @Post('/workspaces/storage/precheck')
+  @Post('/workspaces/:workspaceId/storage/upgrade-check')
   @ApiOperation({
     summary: 'Precheck for updating a workspace',
   })
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
   @ApiOkResponse({ description: 'Returns whether the update is possible' })
-  async precheckUpdateWorkspaceStorage(
+  async validateStorageForPlanChange(
     @Body() updateWorkspaceStorageDto: UpdateWorkspaceStorageDto,
   ) {
-    return this.gatewayUseCases.precheckUpdateWorkspaceStorage(
+    return this.gatewayUseCases.validateStorageForPlanChange(
       updateWorkspaceStorageDto.ownerId,
       updateWorkspaceStorageDto.maxSpaceBytes,
       updateWorkspaceStorageDto.numberOfSeats,

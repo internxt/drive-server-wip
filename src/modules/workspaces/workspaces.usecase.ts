@@ -521,7 +521,7 @@ export class WorkspacesUsecases {
     return { unusedSpace, spaceDifference };
   }
 
-  async precheckUpdateWorkspaceLimit(
+  async validateStorageForPlanChange(
     workspace: Workspace,
     newWorkspaceSpaceLimit: number,
     newNumberOfSeats?: number,

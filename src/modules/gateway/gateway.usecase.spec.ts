@@ -196,11 +196,11 @@ describe('GatewayUseCases', () => {
       });
     });
 
-    describe('precheckUpdateWorkspaceStorage', () => {
+    describe('validateStorageForPlanChange', () => {
       it('When user is not found, then it should throw', async () => {
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
         await expect(
-          service.precheckUpdateWorkspaceStorage(v4(), maxSpaceBytes, 4),
+          service.validateStorageForPlanChange(v4(), maxSpaceBytes, 4),
         ).rejects.toThrow(BadRequestException);
       });
 
@@ -209,11 +209,11 @@ describe('GatewayUseCases', () => {
         jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValueOnce(null);
 
         await expect(
-          service.precheckUpdateWorkspaceStorage(owner.uuid, maxSpaceBytes, 4),
+          service.validateStorageForPlanChange(owner.uuid, maxSpaceBytes, 4),
         ).rejects.toThrow(NotFoundException);
       });
 
-      it('When owner and workspaces are found, then it should call precheckUpdateWorkspaceLimit', async () => {
+      it('When owner and workspaces are found, then it should call validateStorageForPlanChange', async () => {
         const owner = newUser();
         const workspace = newWorkspace({ owner });
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
@@ -221,14 +221,14 @@ describe('GatewayUseCases', () => {
           .spyOn(workspaceUseCases, 'findOne')
           .mockResolvedValueOnce(workspace);
 
-        await service.precheckUpdateWorkspaceStorage(
+        await service.validateStorageForPlanChange(
           owner.uuid,
           maxSpaceBytes,
           4,
         );
 
         expect(
-          workspaceUseCases.precheckUpdateWorkspaceLimit,
+          workspaceUseCases.validateStorageForPlanChange,
         ).toHaveBeenCalledWith(workspace, maxSpaceBytes, 4);
       });
     });

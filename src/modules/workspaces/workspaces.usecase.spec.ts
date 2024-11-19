@@ -1852,7 +1852,7 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
-  describe('precheckUpdateWorkspaceLimit', () => {
+  describe('validateStorageForPlanChange', () => {
     it('should throw BadRequestException when owner has used up more space than available', async () => {
       const workspace = newWorkspace({ attributes: { numberOfSeats: 4 } });
       const newNumberOfSeats = 3;
@@ -1868,7 +1868,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue({ unusedSpace: -oneTb, spaceDifference: 0 });
 
       await expect(
-        service.precheckUpdateWorkspaceLimit(
+        service.validateStorageForPlanChange(
           workspace,
           newWorkspaceSpaceLimit,
           newNumberOfSeats,
@@ -1885,7 +1885,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue(5);
 
       await expect(
-        service.precheckUpdateWorkspaceLimit(workspace, 1000, newNumberOfSeats),
+        service.validateStorageForPlanChange(workspace, 1000, newNumberOfSeats),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -1906,7 +1906,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValue({ unusedSpace: oneTb * 5, spaceDifference: 0 });
 
       await expect(
-        service.precheckUpdateWorkspaceLimit(
+        service.validateStorageForPlanChange(
           workspace,
           newWorkspaceSpaceLimit,
           newNumberOfSeats,

@@ -79,7 +79,7 @@ export class GatewayUseCases {
     }
   }
 
-  async precheckUpdateWorkspaceStorage(
+  async validateStorageForPlanChange(
     ownerId: string,
     maxSpaceBytes: number,
     numberOfSeats: number,
@@ -97,7 +97,7 @@ export class GatewayUseCases {
       throw new NotFoundException('Workspace not found');
     }
 
-    await this.workspaceUseCases.precheckUpdateWorkspaceLimit(
+    await this.workspaceUseCases.validateStorageForPlanChange(
       workspace,
       maxSpaceBytes,
       workspace.numberOfSeats !== numberOfSeats ? numberOfSeats : undefined,
