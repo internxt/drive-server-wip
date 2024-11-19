@@ -526,15 +526,29 @@ export class WorkspacesUsecases {
     newWorkspaceSpaceLimit: number,
     newNumberOfSeats?: number,
   ) {
-    const ownerLimit = await this.getOwnerAvailableSpace(workspace);
-
-    const { unusedSpace } = await this.calculateWorkspaceLimits(
-      workspace,
-      newWorkspaceSpaceLimit,
-      newNumberOfSeats,
+    const memberCount = await this.workspaceRepository.getWorkspaceUsersCount(
+      workspace.id,
     );
 
-    if (unusedSpace < ownerLimit) {
+    if (newNumberOfSeats && newNumberOfSeats < memberCount) {
+      throw new BadRequestException(
+        'Number of seats must be equal or superior to the number of users in the workspace',
+      );
+    }
+
+    const ownerAvailableSpace = await this.getOwnerAvailableSpace(workspace);
+
+    const { unusedSpace, spaceDifference } =
+      await this.calculateWorkspaceLimits(
+        workspace,
+        newWorkspaceSpaceLimit,
+        newNumberOfSeats,
+      );
+
+    const ownerAvailableSpaceAfterUpdate =
+      ownerAvailableSpace + unusedSpace + spaceDifference;
+
+    if (ownerAvailableSpaceAfterUpdate < 0) {
       throw new BadRequestException('Insufficient space to update workspace');
     }
   }

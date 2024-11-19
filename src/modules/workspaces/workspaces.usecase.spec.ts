@@ -1853,15 +1853,19 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('precheckUpdateWorkspaceLimit', () => {
-    it('should throw BadRequestException if unused space is less than owner limit', async () => {
-      const workspace = newWorkspace();
-      const newWorkspaceSpaceLimit = 100;
-      const newNumberOfSeats = 10;
+    it('should throw BadRequestException when owner has used up more space than available', async () => {
+      const workspace = newWorkspace({ attributes: { numberOfSeats: 4 } });
+      const newNumberOfSeats = 3;
+      const oneTb = 1099511627776;
+      const newWorkspaceSpaceLimit = oneTb * 3;
 
-      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValue(50);
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(5);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValue(10000);
       jest
         .spyOn(service, 'calculateWorkspaceLimits')
-        .mockResolvedValue({ unusedSpace: 40, spaceDifference: 0 });
+        .mockResolvedValue({ unusedSpace: -oneTb, spaceDifference: 0 });
 
       await expect(
         service.precheckUpdateWorkspaceLimit(
@@ -1872,15 +1876,34 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should not throw an exception if unused space is greater than or equal to owner limit', async () => {
+    it('Should throw BadRequestException if numberOfSeats specified is less than the number of members in workspace', async () => {
+      const workspace = newWorkspace({ attributes: { numberOfSeats: 5 } });
+      const newNumberOfSeats = 4;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(5);
+
+      await expect(
+        service.precheckUpdateWorkspaceLimit(workspace, 1000, newNumberOfSeats),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not throw an exception if owner has sufficient space to accomodate the update', async () => {
       const workspace = newWorkspace();
-      const newWorkspaceSpaceLimit = 100;
+      const oneTb = 1099511627776;
+      const newWorkspaceSpaceLimit = oneTb * 5;
       const newNumberOfSeats = 10;
 
-      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValue(50);
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(5);
+      jest
+        .spyOn(service, 'getOwnerAvailableSpace')
+        .mockResolvedValue(oneTb * 4);
       jest
         .spyOn(service, 'calculateWorkspaceLimits')
-        .mockResolvedValue({ unusedSpace: 60, spaceDifference: 10 });
+        .mockResolvedValue({ unusedSpace: oneTb * 5, spaceDifference: 0 });
 
       await expect(
         service.precheckUpdateWorkspaceLimit(
