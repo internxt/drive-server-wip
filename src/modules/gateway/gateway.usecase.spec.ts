@@ -196,6 +196,43 @@ describe('GatewayUseCases', () => {
       });
     });
 
+    describe('precheckUpdateWorkspaceStorage', () => {
+      it('When user is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+        await expect(
+          service.precheckUpdateWorkspaceStorage(v4(), maxSpaceBytes, 4),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When the workspace is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+        jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValueOnce(null);
+
+        await expect(
+          service.precheckUpdateWorkspaceStorage(owner.uuid, maxSpaceBytes, 4),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When owner and workspaces are found, then it should call precheckUpdateWorkspaceLimit', async () => {
+        const owner = newUser();
+        const workspace = newWorkspace({ owner });
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+        jest
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
+
+        await service.precheckUpdateWorkspaceStorage(
+          owner.uuid,
+          maxSpaceBytes,
+          4,
+        );
+
+        expect(
+          workspaceUseCases.precheckUpdateWorkspaceLimit,
+        ).toHaveBeenCalledWith(workspace, maxSpaceBytes, 4);
+      });
+    });
+
     describe('destroyWorkspace', () => {
       it('When owner is not found, then it should throw', async () => {
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);

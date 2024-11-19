@@ -494,6 +494,51 @@ export class WorkspacesUsecases {
     });
   }
 
+  async calculateWorkspaceLimits(
+    workspace: Workspace,
+    newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
+  ) {
+    const currentWorkspaceSpaceLimit =
+      await this.getWorkspaceNetworkLimit(workspace);
+
+    const currentSpacePerUser =
+      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
+
+    const newSpacePerUser =
+      newWorkspaceSpaceLimit / (newNumberOfSeats ?? workspace.numberOfSeats);
+    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+
+    const memberCount = await this.workspaceRepository.getWorkspaceUsersCount(
+      workspace.id,
+    );
+
+    const unusedSpace =
+      newWorkspaceSpaceLimit -
+      currentWorkspaceSpaceLimit -
+      spaceDifference * memberCount;
+
+    return { unusedSpace, spaceDifference };
+  }
+
+  async precheckUpdateWorkspaceLimit(
+    workspace: Workspace,
+    newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
+  ) {
+    const ownerLimit = await this.getOwnerAvailableSpace(workspace);
+
+    const { unusedSpace } = await this.calculateWorkspaceLimits(
+      workspace,
+      newWorkspaceSpaceLimit,
+      newNumberOfSeats,
+    );
+
+    if (unusedSpace < ownerLimit) {
+      throw new BadRequestException('Insufficient space to update workspace');
+    }
+  }
+
   async updateWorkspaceLimit(
     workspaceId: Workspace['id'],
     newWorkspaceSpaceLimit: number,
@@ -509,15 +554,12 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const currentWorkspaceSpaceLimit =
-      await this.getWorkspaceNetworkLimit(workspace);
-
-    const currentSpacePerUser =
-      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
-
-    const newSpacePerUser =
-      newWorkspaceSpaceLimit / (newNumberOfSeats ?? workspace.numberOfSeats);
-    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+    const { unusedSpace, spaceDifference } =
+      await this.calculateWorkspaceLimits(
+        workspace,
+        newWorkspaceSpaceLimit,
+        newNumberOfSeats,
+      );
 
     const workspaceUsers =
       await this.workspaceRepository.findWorkspaceUsers(workspaceId);
@@ -530,11 +572,6 @@ export class WorkspacesUsecases {
         workspaceUser,
       );
     }
-
-    const unusedSpace =
-      newWorkspaceSpaceLimit -
-      currentWorkspaceSpaceLimit -
-      spaceDifference * workspaceUsers.length;
 
     await this.networkService.setStorage(
       workspaceNetworkUser.email,

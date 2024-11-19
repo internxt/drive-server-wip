@@ -79,6 +79,31 @@ export class GatewayUseCases {
     }
   }
 
+  async precheckUpdateWorkspaceStorage(
+    ownerId: string,
+    maxSpaceBytes: number,
+    numberOfSeats: number,
+  ): Promise<void> {
+    const owner = await this.userRepository.findByUuid(ownerId);
+    if (!owner) {
+      throw new BadRequestException();
+    }
+    const workspace = await this.workspaceUseCases.findOne({
+      ownerId: owner.uuid,
+      setupCompleted: true,
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    await this.workspaceUseCases.precheckUpdateWorkspaceLimit(
+      workspace,
+      maxSpaceBytes,
+      workspace.numberOfSeats !== numberOfSeats ? numberOfSeats : undefined,
+    );
+  }
+
   async destroyWorkspace(ownerId: string): Promise<void> {
     const owner = await this.userRepository.findByUuid(ownerId);
     if (!owner) {

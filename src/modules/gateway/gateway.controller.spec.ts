@@ -82,6 +82,49 @@ describe('Gateway Controller', () => {
     });
   });
 
+  describe('POST /workspaces/storage/precheck', () => {
+    const updateWorkspaceStorageDto: UpdateWorkspaceStorageDto = {
+      ownerId: v4(),
+      maxSpaceBytes: 1000000,
+      numberOfSeats: 5,
+    };
+
+    it('When owner passed is not found, then it should throw.', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'precheckUpdateWorkspaceStorage')
+        .mockRejectedValueOnce(new BadRequestException());
+      await expect(
+        gatewayController.precheckUpdateWorkspaceStorage(
+          updateWorkspaceStorageDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When workspace is not found, then it should throw.', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'precheckUpdateWorkspaceStorage')
+        .mockRejectedValueOnce(new NotFoundException());
+      await expect(
+        gatewayController.precheckUpdateWorkspaceStorage(
+          updateWorkspaceStorageDto,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When correct data is passed and workspace completed is found, then it works.', async () => {
+      await gatewayController.precheckUpdateWorkspaceStorage(
+        updateWorkspaceStorageDto,
+      );
+      expect(
+        gatewayUsecases.precheckUpdateWorkspaceStorage,
+      ).toHaveBeenCalledWith(
+        updateWorkspaceStorageDto.ownerId,
+        updateWorkspaceStorageDto.maxSpaceBytes,
+        updateWorkspaceStorageDto.numberOfSeats,
+      );
+    });
+  });
+
   describe('DELETE /workspaces', () => {
     const deleteWorkspaceDto: DeleteWorkspaceDto = {
       ownerId: v4(),

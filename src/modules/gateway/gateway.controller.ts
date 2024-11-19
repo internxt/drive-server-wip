@@ -59,6 +59,23 @@ export class GatewayController {
     );
   }
 
+  @Post('/workspaces/storage/precheck')
+  @ApiOperation({
+    summary: 'Precheck for updating a workspace',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({ description: 'Returns whether the update is possible' })
+  async precheckUpdateWorkspaceStorage(
+    @Body() updateWorkspaceStorageDto: UpdateWorkspaceStorageDto,
+  ) {
+    return this.gatewayUseCases.precheckUpdateWorkspaceStorage(
+      updateWorkspaceStorageDto.ownerId,
+      updateWorkspaceStorageDto.maxSpaceBytes,
+      updateWorkspaceStorageDto.numberOfSeats,
+    );
+  }
+
   @Delete('/workspaces')
   @ApiOperation({
     summary: 'Destroy a workspace',

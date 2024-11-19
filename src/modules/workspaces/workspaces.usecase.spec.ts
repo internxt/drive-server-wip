@@ -1764,6 +1764,134 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('calculateWorkspaceLimits', () => {
+    it('When a new limit is specified, calculate spaceDifference', async () => {
+      const memberCount = 5;
+      const workspace = newWorkspace({
+        attributes: {
+          numberOfSeats: memberCount,
+        },
+      });
+      const currentSpaceLimit = 10000;
+      const newSpaceLimit = currentSpaceLimit * 2;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(memberCount);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+
+      const { unusedSpace, spaceDifference } =
+        await service.calculateWorkspaceLimits(workspace, newSpaceLimit);
+
+      expect(unusedSpace).toBe(0);
+
+      expect(spaceDifference).toBe(
+        (newSpaceLimit - currentSpaceLimit) / memberCount,
+      );
+    });
+
+    it('When workspace is not full return unusedSpace diiferent than 0', async () => {
+      const memberCount = 5;
+      const numberOfSeats = 7;
+      const workspace = newWorkspace({
+        attributes: {
+          numberOfSeats,
+        },
+      });
+      const spacePerUser = 10000;
+      const currentSpaceLimit = spacePerUser * numberOfSeats;
+      const newSpaceLimit = currentSpaceLimit * 2;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(memberCount);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+
+      const { unusedSpace, spaceDifference } =
+        await service.calculateWorkspaceLimits(workspace, newSpaceLimit);
+
+      expect(unusedSpace).toBe(spacePerUser * (numberOfSeats - memberCount));
+
+      expect(spaceDifference).toBe(spacePerUser * 2 - spacePerUser);
+    });
+
+    it('When a different numberOfSeats is specified, spacedifference should vary', async () => {
+      const memberCount = 5;
+      const numberOfSeats = memberCount;
+      const newNumberOfSeats = numberOfSeats * 2;
+      const workspace = newWorkspace({
+        attributes: {
+          numberOfSeats,
+        },
+      });
+      const spacePerUser = 10000;
+      const currentSpaceLimit = spacePerUser * numberOfSeats;
+      const newSpaceLimit = spacePerUser * newNumberOfSeats;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(memberCount);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+
+      const { unusedSpace, spaceDifference } =
+        await service.calculateWorkspaceLimits(
+          workspace,
+          newSpaceLimit,
+          newNumberOfSeats,
+        );
+
+      expect(unusedSpace).toBe(spacePerUser * (newNumberOfSeats - memberCount));
+
+      expect(spaceDifference).toBe(0);
+    });
+  });
+
+  describe('precheckUpdateWorkspaceLimit', () => {
+    it('should throw BadRequestException if unused space is less than owner limit', async () => {
+      const workspace = newWorkspace();
+      const newWorkspaceSpaceLimit = 100;
+      const newNumberOfSeats = 10;
+
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValue(50);
+      jest
+        .spyOn(service, 'calculateWorkspaceLimits')
+        .mockResolvedValue({ unusedSpace: 40, spaceDifference: 0 });
+
+      await expect(
+        service.precheckUpdateWorkspaceLimit(
+          workspace,
+          newWorkspaceSpaceLimit,
+          newNumberOfSeats,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not throw an exception if unused space is greater than or equal to owner limit', async () => {
+      const workspace = newWorkspace();
+      const newWorkspaceSpaceLimit = 100;
+      const newNumberOfSeats = 10;
+
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValue(50);
+      jest
+        .spyOn(service, 'calculateWorkspaceLimits')
+        .mockResolvedValue({ unusedSpace: 60, spaceDifference: 10 });
+
+      await expect(
+        service.precheckUpdateWorkspaceLimit(
+          workspace,
+          newWorkspaceSpaceLimit,
+          newNumberOfSeats,
+        ),
+      ).resolves.not.toThrow();
+    });
+  });
+
   describe('updateWorkspaceLimit', () => {
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
@@ -1806,9 +1934,6 @@ describe('WorkspacesUsecases', () => {
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValue(workspaceNetworkUser);
       jest
-        .spyOn(service, 'getWorkspaceNetworkLimit')
-        .mockResolvedValue(currentSpaceLimit);
-      jest
         .spyOn(workspaceRepository, 'findWorkspaceUsers')
         .mockResolvedValue(workspaceUsers);
       jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
@@ -1821,6 +1946,11 @@ describe('WorkspacesUsecases', () => {
         newSpaceLimit -
         currentSpaceLimit -
         (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
+
+      jest.spyOn(service, 'calculateWorkspaceLimits').mockResolvedValue({
+        unusedSpace,
+        spaceDifference: newSpacePerUser - oldSpacePerUser,
+      });
 
       await service.updateWorkspaceLimit(workspace.id, newSpaceLimit);
 
@@ -1871,9 +2001,6 @@ describe('WorkspacesUsecases', () => {
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValue(workspaceNetworkUser);
       jest
-        .spyOn(service, 'getWorkspaceNetworkLimit')
-        .mockResolvedValue(currentSpaceLimit);
-      jest
         .spyOn(workspaceRepository, 'findWorkspaceUsers')
         .mockResolvedValue(workspaceUsers);
       jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
@@ -1886,6 +2013,11 @@ describe('WorkspacesUsecases', () => {
         newSpaceLimit -
         currentSpaceLimit -
         (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
+
+      jest.spyOn(service, 'calculateWorkspaceLimits').mockResolvedValue({
+        unusedSpace,
+        spaceDifference: newSpacePerUser - oldSpacePerUser,
+      });
 
       await service.updateWorkspaceLimit(
         workspace.id,
