@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
-import { Sequelize, Transaction } from 'sequelize';
+import { Sequelize } from 'sequelize';
 import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
@@ -11,6 +11,10 @@ import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes
 import { UserAttributes } from '../../user/user.attributes';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
+import {
+  SequelizeTransactionAdapter,
+  Transaction,
+} from '../../../externals/sequelize/sequelize-transaction';
 
 @Injectable()
 export class SequelizeWorkspaceTeamRepository {
@@ -137,12 +141,16 @@ export class SequelizeWorkspaceTeamRepository {
     userUuid: UserAttributes['uuid'],
     options?: { transaction: Transaction },
   ): Promise<WorkspaceTeamUser | null> {
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
     const teamUser = await this.teamUserModel.create(
       {
         teamId,
         memberId: userUuid,
       },
-      options,
+      { ...options, transaction: sequelizeTransaction },
     );
 
     return this.teamUserToDomain(teamUser);

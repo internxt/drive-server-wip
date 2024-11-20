@@ -67,7 +67,7 @@ import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
-import { Transaction } from 'sequelize';
+import { Transaction } from '../../externals/sequelize/sequelize-transaction';
 
 @Injectable()
 export class WorkspacesUsecases {
