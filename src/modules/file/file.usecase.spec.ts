@@ -31,6 +31,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { Op } from 'sequelize';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -1016,6 +1017,212 @@ describe('FileUseCases', () => {
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('trashFilesByUserAndFolderUuids', () => {
+    const user = newUser();
+
+    it('When called, should update the status of files in the specified folder to TRASHED', async () => {
+      const folder = newFolder({ owner: user });
+
+      jest
+        .spyOn(fileRepository, 'trashFilesByUserAndFolderUuids')
+        .mockResolvedValueOnce();
+
+      await expect(
+        service.trashFilesByUserAndFolderUuids(user, [folder.uuid]),
+      ).resolves.not.toThrow();
+
+      expect(
+        fileRepository.trashFilesByUserAndFolderUuids,
+      ).toHaveBeenCalledWith(user, [folder.uuid]);
+    });
+  });
+
+  describe('updateManyByFileIdAndUserId', () => {
+    const user = newUser();
+    const fileIds = [v4(), v4()];
+    const updateData: Partial<File> = {
+      status: FileStatus.TRASHED,
+    };
+
+    it('When called, should update the specified files', async () => {
+      jest
+        .spyOn(fileRepository, 'updateManyByFileIdAndUserId')
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.updateManyByFileIdAndUserId(fileIds, user.id, updateData),
+      ).resolves.not.toThrow();
+
+      expect(fileRepository.updateManyByFileIdAndUserId).toHaveBeenCalledWith(
+        fileIds,
+        user.id,
+        updateData,
+      );
+    });
+  });
+
+  describe('filterFilesWithNonDeletedFolders', () => {
+    const user = newUser();
+
+    it('should filter out files belonging to deleted folders', async () => {
+      const folderDeleted = newFolder({
+        owner: user,
+        attributes: { deleted: true },
+      });
+      const folderNotDeleted = newFolder({ owner: user });
+      const extractFolderUuids = [folderDeleted.uuid, folderNotDeleted.uuid];
+
+      const fileWithFolderDeleted = newFile({
+        owner: user,
+        folder: folderDeleted,
+      });
+      const fileWithFolderNotDeleted = newFile({
+        owner: user,
+        folder: folderNotDeleted,
+      });
+
+      const files = [fileWithFolderDeleted, fileWithFolderNotDeleted];
+      const mockGetFolderResolved = [folderDeleted];
+      const mockResolved = [fileWithFolderNotDeleted];
+
+      jest
+        .spyOn(folderUseCases, 'findUserFoldersByUuid')
+        .mockResolvedValue(mockGetFolderResolved);
+
+      const result = await service.filterFilesWithNonDeletedFolders(
+        user,
+        files,
+      );
+
+      expect(folderUseCases.findUserFoldersByUuid).toHaveBeenCalledWith(
+        user,
+        extractFolderUuids,
+        true,
+      );
+      expect(result).toEqual(mockResolved);
+    });
+  });
+
+  describe('update', () => {
+    const user = newUser();
+    const whereOptions: Partial<File> = {
+      status: FileStatus.TRASHED,
+    };
+    const updateData: Partial<File> = {
+      status: FileStatus.EXISTS,
+    };
+
+    it('should successfully update the specified files', async () => {
+      jest.spyOn(fileRepository, 'update').mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.update(user.id, whereOptions, updateData),
+      ).resolves.not.toThrow();
+
+      expect(fileRepository.update).toHaveBeenCalledWith(
+        user.id,
+        whereOptions,
+        updateData,
+      );
+    });
+
+    it('should throw an error if the update fails', async () => {
+      const errorMessage = 'Update failed';
+      jest
+        .spyOn(fileRepository, 'update')
+        .mockRejectedValueOnce(new Error(errorMessage));
+
+      await expect(
+        service.update(user.id, whereOptions, updateData),
+      ).rejects.toThrow(errorMessage);
+
+      expect(fileRepository.update).toHaveBeenCalledWith(
+        user.id,
+        whereOptions,
+        updateData,
+      );
+    });
+
+    it('should handle empty whereOptions gracefully', async () => {
+      const emptyWhereOptions: Partial<File> = {};
+      jest.spyOn(fileRepository, 'update').mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.update(user.id, emptyWhereOptions, updateData),
+      ).resolves.not.toThrow();
+
+      expect(fileRepository.update).toHaveBeenCalledWith(
+        user.id,
+        emptyWhereOptions,
+        updateData,
+      );
+    });
+  });
+
+  describe('findAllByUserAndFolderUuids', () => {
+    const user = newUser();
+    const folderUuids = [v4(), v4()];
+
+    it('should call fileRepository.findAllByUserAndFolderUuids with correct parameters', async () => {
+      const whereConditions = { deleted: false };
+      const mockFiles = [
+        newFile({ attributes: { folderUuid: folderUuids[0] } }),
+      ];
+
+      jest
+        .spyOn(fileRepository, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.findAllByUserAndFolderUuids(
+        user,
+        folderUuids,
+        whereConditions,
+      );
+
+      expect(fileRepository.findAllByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        whereConditions,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+
+    it('should call fileRepository.findAllByUserAndFolderUuids without where conditions', async () => {
+      const mockFiles = [
+        newFile({ attributes: { folderUuid: folderUuids[1] } }),
+      ];
+
+      jest
+        .spyOn(fileRepository, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.findAllByUserAndFolderUuids(
+        user,
+        folderUuids,
+      );
+
+      expect(fileRepository.findAllByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        undefined,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+
+    it('should return an empty array if no files are found', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue([]);
+
+      const result = await service.findAllByUserAndFolderUuids(
+        user,
+        folderUuids,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 });

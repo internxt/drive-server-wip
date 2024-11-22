@@ -12,6 +12,8 @@ import {
   DeleteItemsDto,
 } from './dto/controllers/delete-item.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { v4 } from 'uuid';
+import { BasicPaginationDto } from 'src/common/dto/basic-pagination.dto';
 
 const user = newUser();
 
@@ -113,6 +115,57 @@ describe('TrashController', () => {
       [parseInt(folderItems[0].id)],
       [folderItems[1].uuid],
     );
+  });
+
+  describe('GET /paginated', () => {
+    it('When pagination is empty, throw error', async () => {
+      const pagination: BasicPaginationDto = {};
+      const type: 'files' | 'folders' = 'files';
+
+      await expect(
+        controller.getTrashedFilesPaginated(user, pagination, type),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When type is invalid, throw error', async () => {
+      const pagination: BasicPaginationDto = {};
+      const type = 'file';
+
+      await expect(
+        controller.getTrashedFilesPaginated(
+          user,
+          pagination,
+          type as 'files' | 'folders',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When the limit is not in the range between 1 and 50, throw error', async () => {
+      const pagination: BasicPaginationDto = { limit: 51, offset: 0 };
+      const type: 'files' | 'folders' = 'files';
+
+      await expect(
+        controller.getTrashedFilesPaginated(user, pagination, type),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When arguments are passed and type "files", then should return files deleted', async () => {
+      const pagination: BasicPaginationDto = { limit: 50, offset: 0 };
+      const type: 'files' | 'folders' = 'files';
+
+      await expect(
+        controller.getTrashedFilesPaginated(user, pagination, type),
+      ).resolves.toBeTruthy();
+    });
+
+    it('When arguments are passed and type "folders", then should return folders deleted', async () => {
+      const pagination: BasicPaginationDto = { limit: 50, offset: 0 };
+      const type: 'files' | 'folders' = 'folders';
+
+      await expect(
+        controller.getTrashedFilesPaginated(user, pagination, type),
+      ).resolves.toBeTruthy();
+    });
   });
 
   describe('deleteItems', () => {

@@ -29,7 +29,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileUseCases } from '../file/file.usecase';
-import { FileStatus } from '../file/file.domain';
+import { File, FileStatus } from '../file/file.domain';
 
 const folderId = 4;
 const user = newUser();
@@ -140,12 +140,22 @@ describe('FolderUseCases', () => {
       jest.spyOn(service, 'getFolder').mockResolvedValue({
         bucket: rootFolderBucket,
       } as Folder);
+
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuidsAndUserId')
+        .mockResolvedValue([]);
+
       jest.spyOn(folderRepository, 'updateManyByFolderId');
 
       await service.moveFoldersToTrash(
         user,
         [mockBackupFolder.id],
         [mockFolder.uuid],
+      );
+
+      expect(fileUsecases.trashFilesByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
       );
 
       expect(folderRepository.updateManyByFolderId).toHaveBeenCalledTimes(2);
@@ -179,12 +189,19 @@ describe('FolderUseCases', () => {
       } as Folder);
       jest.spyOn(folderRepository, 'findUserFoldersByUuid');
       jest.spyOn(service, 'getFoldersByIds');
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuidsAndUserId')
+        .mockResolvedValue([]);
 
       await service.moveFoldersToTrash(user, [mockFolder.id]);
       expect(folderRepository.findUserFoldersByUuid).not.toHaveBeenCalled();
       expect(service.getFoldersByIds).toHaveBeenCalledWith(user, [
         mockFolder.id,
       ]);
+      expect(fileUsecases.trashFilesByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        [mockFolder.uuid],
+      );
     });
   });
 
@@ -503,6 +520,8 @@ describe('FolderUseCases', () => {
         },
       });
 
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValueOnce('');
+
       expect(() => service.decryptFolderName(folder)).toThrow(
         'Unable to decrypt folder name',
       );
@@ -600,6 +619,10 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'updateByFolderId')
         .mockResolvedValueOnce(expectedFolder);
 
+      jest
+        .spyOn(service, 'getChilds')
+        .mockResolvedValue({ folders: [], files: [] });
+
       const result = await service.moveFolder(
         userMocked,
         folder.uuid,
@@ -617,6 +640,11 @@ describe('FolderUseCases', () => {
           deleted: false,
           deletedAt: null,
         },
+      );
+      expect(service.getChilds).toHaveBeenCalledWith(
+        userMocked,
+        [folder.uuid],
+        true,
       );
     });
 
@@ -1309,6 +1337,220 @@ describe('FolderUseCases', () => {
       expect(
         service.getFolderMetadataByPath(userMocked, folderPath),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findUserFoldersByUuid', () => {
+    const user = newUser();
+    const deletedFolder = newFolder({
+      owner: user,
+      attributes: { deleted: true, removed: false },
+    });
+    const removedFolder = newFolder({
+      owner: user,
+      attributes: { deleted: false, removed: true },
+    });
+    const folderUuids = [deletedFolder.uuid, removedFolder.uuid];
+
+    it('When deleted is passed as true it should return the folders deleted', async () => {
+      const mockFolders = [deletedFolder];
+
+      jest
+        .spyOn(folderRepository, 'findUserFoldersByUuid')
+        .mockResolvedValueOnce(mockFolders);
+
+      const result = await service.findUserFoldersByUuid(
+        user,
+        folderUuids,
+        true,
+        false,
+      );
+
+      expect(result).toEqual(mockFolders);
+    });
+
+    it('When removed is passed as true it should return the folders removed', async () => {
+      const mockFolders = [removedFolder];
+
+      jest
+        .spyOn(folderRepository, 'findUserFoldersByUuid')
+        .mockResolvedValueOnce(mockFolders);
+
+      const result = await service.findUserFoldersByUuid(
+        user,
+        folderUuids,
+        false,
+        true,
+      );
+
+      expect(result).toEqual(mockFolders);
+    });
+  });
+
+  describe('filterFoldersByUndeletedParent', () => {
+    const user = newUser();
+    const deletedFolder = newFolder({
+      owner: user,
+      attributes: { deleted: true, removed: false },
+    });
+    const undeletedFolder = newFolder({
+      owner: user,
+      attributes: { deleted: false, removed: false },
+    });
+    const folderUuids = [deletedFolder.uuid, undeletedFolder.uuid];
+
+    it('should return only undeleted folders', async () => {
+      const mockFolders = [undeletedFolder];
+
+      jest
+        .spyOn(folderRepository, 'findUserFoldersByUuid')
+        .mockResolvedValueOnce(mockFolders);
+
+      const result = await service.findUserFoldersByUuid(user, folderUuids);
+
+      expect(result).toEqual(mockFolders);
+      expect(folderRepository.findUserFoldersByUuid).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        false,
+        false,
+      );
+    });
+
+    it('should return an empty array if all folders are deleted', async () => {
+      jest
+        .spyOn(folderRepository, 'findUserFoldersByUuid')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.findUserFoldersByUuid(user, folderUuids);
+
+      expect(result).toEqual([]);
+      expect(folderRepository.findUserFoldersByUuid).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        false,
+        false,
+      );
+    });
+
+    it('should return an empty array if no folders are found', async () => {
+      jest
+        .spyOn(folderRepository, 'findUserFoldersByUuid')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.findUserFoldersByUuid(user, folderUuids);
+
+      expect(result).toEqual([]);
+      expect(folderRepository.findUserFoldersByUuid).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        false,
+        false,
+      );
+    });
+  });
+
+  describe('restoreChilds', () => {
+    const user = newUser();
+    const folder = newFolder({ owner: user });
+    const folderChild = newFolder({
+      owner: user,
+      attributes: { parent: folder, deleted: true },
+    });
+    const fileChild = newFile({
+      folder,
+      owner: user,
+      attributes: { deleted: true },
+    });
+
+    it('should restore files and folders correctly', async () => {
+      const mockChilds = {
+        folders: [folderChild],
+        files: [fileChild],
+      };
+      const updateFileData: Partial<File> = {
+        deleted: false,
+        deletedAt: null,
+        status: FileStatus.EXISTS,
+      };
+      const updateFolderData: Partial<Folder> = {
+        deleted: false,
+        deletedAt: null,
+      };
+
+      jest.spyOn(service, 'getChilds').mockResolvedValue(mockChilds);
+
+      await service.restoreChilds(user, [folder.uuid]);
+
+      expect(fileUsecases.updateManyByFileIdAndUserId).toHaveBeenCalledWith(
+        [fileChild.fileId],
+        user.id,
+        updateFileData,
+      );
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [folderChild.id],
+        updateFolderData,
+      );
+    });
+
+    it('should not fail if there are no files or folders', async () => {
+      jest
+        .spyOn(service, 'getChilds')
+        .mockResolvedValue({ folders: [], files: [] });
+
+      await service.restoreChilds(user, [folder.uuid]);
+
+      expect(fileUsecases.updateManyByFileIdAndUserId).not.toHaveBeenCalled();
+      expect(folderRepository.updateManyByFolderId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getChilds', () => {
+    const user = newUser();
+    const folder = newFolder({ owner: user });
+    const folderChild = newFolder({
+      owner: user,
+      attributes: { parent: folder, deleted: true },
+    });
+    const fileChild = newFile({
+      folder,
+      owner: user,
+      attributes: { deleted: true },
+    });
+
+    it('should return folders and files found', async () => {
+      const mockFolders = [folderChild];
+      const mockFiles = [fileChild];
+
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuidsAndUserId')
+        .mockResolvedValue(mockFolders);
+      jest
+        .spyOn(fileUsecases, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.getChilds(user, [folder.uuid]);
+
+      expect(result).toEqual({ folders: mockFolders, files: mockFiles });
+    });
+
+    it('should return empty arrays if no folderUuids are provided', async () => {
+      const result = await service.getChilds(user, []);
+
+      expect(result).toEqual({ folders: [], files: [] });
+    });
+
+    it('should return empty arrays if no folders or files are found', async () => {
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuidsAndUserId')
+        .mockResolvedValue([]);
+      jest
+        .spyOn(fileUsecases, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue([]);
+
+      const result = await service.getChilds(user, [folder.uuid]);
+
+      expect(result).toEqual({ folders: [], files: [] });
     });
   });
 });

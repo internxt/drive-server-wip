@@ -65,7 +65,7 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
-  updateManyByFieldIdAndUserId(
+  updateManyByFileIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
@@ -84,6 +84,20 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
+  trashFilesByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+  ): Promise<void>;
+  findAllByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+    where?: Partial<File>,
+  ): Promise<File[]>;
+  update(
+    userId: FileAttributes['userId'],
+    where: Partial<File>,
+    updateData: Partial<File>,
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -562,7 +576,7 @@ export class SequelizeFileRepository implements FileRepository {
     return this.toDomain(file);
   }
 
-  async updateManyByFieldIdAndUserId(
+  async updateManyByFileIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
@@ -666,6 +680,47 @@ export class SequelizeFileRepository implements FileRepository {
     );
   }
 
+  async trashFilesByUserAndFolderUuids(
+    user: User,
+    folderUuids: Folder['uuid'][],
+  ): Promise<void> {
+    await this.fileModel.update(
+      {
+        deleted: true,
+        deletedAt: new Date(),
+        status: FileStatus.TRASHED,
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          removed: false,
+          folderUuid: {
+            [Op.in]: folderUuids,
+          },
+        },
+      },
+    );
+  }
+
+  async findAllByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+    where?: Partial<File>,
+  ) {
+    const files = await this.fileModel.findAll({
+      where: {
+        userId: user.id,
+        folderUuid: {
+          [Op.in]: folderUuids,
+        },
+        ...where,
+      },
+    });
+
+    return files.map((f) => this.toDomain(f));
+  }
+
   async deleteFilesByUser(user: User, files: File[]): Promise<void> {
     await this.fileModel.update(
       {
@@ -683,6 +738,14 @@ export class SequelizeFileRepository implements FileRepository {
         },
       },
     );
+  }
+
+  async update(
+    userId: FileAttributes['userId'],
+    where: Partial<File>,
+    updateData: Partial<File>,
+  ): Promise<void> {
+    await this.fileModel.update(updateData, { where: { userId, ...where } });
   }
 
   private toDomain(model: FileModel): File {

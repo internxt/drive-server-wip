@@ -98,6 +98,8 @@ export interface FolderRepository {
   findUserFoldersByUuid(
     user: User,
     uuids: FolderAttributes['uuid'][],
+    deleted: FolderAttributes['deleted'],
+    removed: FolderAttributes['removed'],
   ): Promise<Folder[]>;
   getFolderAncestorsInWorkspace(
     user: User,
@@ -108,6 +110,12 @@ export interface FolderRepository {
     path: string,
     rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null>;
+  findAllByParentUuidsAndUserId(
+    parentUuids: FolderAttributes['parentUuid'][],
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'],
+    removed: FolderAttributes['removed'],
+  ): Promise<Array<Folder> | []>;
 }
 
 @Injectable()
@@ -283,13 +291,18 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
-  async findUserFoldersByUuid(user: User, uuids: FolderAttributes['uuid'][]) {
+  async findUserFoldersByUuid(
+    user: User,
+    uuids: FolderAttributes['uuid'][],
+    deleted: FolderAttributes['deleted'] = false,
+    removed: FolderAttributes['removed'] = false,
+  ) {
     const folders = await this.folderModel.findAll({
       where: {
         uuid: { [Op.in]: uuids },
         userId: user.id,
-        deleted: false,
-        removed: false,
+        deleted,
+        removed,
       },
     });
     return folders.map((folder) => this.toDomain(folder));
@@ -371,6 +384,23 @@ export class SequelizeFolderRepository implements FolderRepository {
   ): Promise<Array<Folder> | []> {
     const folders = await this.folderModel.findAll({
       where: { parentId, userId, deleted },
+    });
+    return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findAllByParentUuidsAndUserId(
+    parentUuids: FolderAttributes['parentUuid'][],
+    userId: FolderAttributes['userId'],
+    deleted: FolderAttributes['deleted'] = false,
+    removed: FolderAttributes['removed'] = false,
+  ): Promise<Array<Folder> | []> {
+    const folders = await this.folderModel.findAll({
+      where: {
+        parentUuid: { [Op.in]: parentUuids },
+        userId,
+        deleted,
+        removed,
+      },
     });
     return folders.map((folder) => this.toDomain(folder));
   }

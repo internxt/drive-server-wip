@@ -713,4 +713,69 @@ export class FileUseCases {
     );
     return file;
   }
+
+  async trashFilesByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+  ) {
+    return this.fileRepository.trashFilesByUserAndFolderUuids(
+      user,
+      folderUuids,
+    );
+  }
+
+  async updateManyByFileIdAndUserId(
+    fileIds: FileAttributes['fileId'][],
+    userId: FileAttributes['userId'],
+    update: Partial<File>,
+  ) {
+    return this.fileRepository.updateManyByFileIdAndUserId(
+      fileIds,
+      userId,
+      update,
+    );
+  }
+
+  async filterFilesWithNonDeletedFolders(
+    user: User,
+    files: File[],
+  ): Promise<File[]> {
+    const extractFolderUuids = files
+      .filter(
+        (item, index, self) =>
+          index === self.findIndex((t) => t.folderUuid === item.folderUuid),
+      )
+      .map((item) => item.folderUuid);
+
+    const deletedFolders = await this.folderUsecases.findUserFoldersByUuid(
+      user,
+      extractFolderUuids,
+      true,
+    );
+
+    const deletedFoldersUuids = deletedFolders.map((f) => f.uuid);
+    return files.filter(
+      (file) => !deletedFoldersUuids.includes(file.folderUuid),
+    );
+  }
+
+  async update(
+    userId: FileAttributes['userId'],
+    whereOptions: Partial<File>,
+    updateData: Partial<File>,
+  ) {
+    return this.fileRepository.update(userId, whereOptions, updateData);
+  }
+
+  async findAllByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+    where?: Partial<File>,
+  ) {
+    return this.fileRepository.findAllByUserAndFolderUuids(
+      user,
+      folderUuids,
+      where,
+    );
+  }
 }
