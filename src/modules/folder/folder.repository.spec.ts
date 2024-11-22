@@ -3,9 +3,10 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
-import { newFolder } from '../../../test/fixtures';
+import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op } from 'sequelize';
+import { v4 } from 'uuid';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -144,6 +145,92 @@ describe('SequelizeFolderRepository', () => {
           removed: false,
         },
       });
+    });
+  });
+
+  describe('findUserFoldersByUuid', () => {
+    const user = newUser();
+    const folderUuids = [v4(), v4(), v4()];
+
+    const assertFindAllCalledWith = (deleted: boolean, removed: boolean) => {
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          uuid: { [Op.in]: folderUuids },
+          userId: user.id,
+          deleted,
+          removed,
+        },
+      });
+    };
+
+    it('should call findAll with deleted set to true when searching for deleted folders', async () => {
+      await repository.findUserFoldersByUuid(user, folderUuids, true);
+      assertFindAllCalledWith(true, false);
+    });
+
+    it('should call findAll with removed set to true when searching for removed folders', async () => {
+      await repository.findUserFoldersByUuid(user, folderUuids, false, true);
+      assertFindAllCalledWith(false, true);
+    });
+  });
+
+  describe('findAllByParentUuidsAndUserId', () => {
+    const user = newUser();
+    const parentUuids = [v4(), v4()];
+
+    it('should return folders deleted', async () => {
+      const mockFolders = [
+        newFolder({
+          owner: user,
+          attributes: { parentUuid: parentUuids[0], deleted: true },
+        }),
+        newFolder({
+          owner: user,
+          attributes: { parentUuid: parentUuids[1], deleted: true },
+        }),
+      ];
+
+      jest.spyOn(repository, 'findAll').mockResolvedValue(mockFolders);
+
+      const result = await repository.findAllByParentUuidsAndUserId(
+        parentUuids,
+        user.id,
+        true,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          parentUuid: { [Op.in]: parentUuids },
+          userId: user.id,
+          deleted: true,
+          removed: false,
+        },
+      });
+      expect(result).toEqual(mockFolders);
+    });
+
+    it('should call findAll with default deleted and removed values', async () => {
+      await repository.findAllByParentUuidsAndUserId(parentUuids, user.id);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          parentUuid: { [Op.in]: parentUuids },
+          userId: user.id,
+          deleted: false,
+          removed: false,
+        },
+      });
+    });
+
+    it('should return an empty array if no folders are found', async () => {
+      jest.spyOn(repository, 'findAll').mockResolvedValue([]);
+
+      const result = await repository.findAllByParentUuidsAndUserId(
+        parentUuids,
+        user.id,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 });

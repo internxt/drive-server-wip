@@ -1162,7 +1162,7 @@ describe('FileUseCases', () => {
       const mockResolved = [fileWithFolderNotDeleted];
 
       jest
-        .spyOn(folderUseCases, 'getFolders')
+        .spyOn(folderUseCases, 'findUserFoldersByUuid')
         .mockResolvedValue(mockGetFolderResolved);
 
       const result = await service.filterFilesWithNonDeletedFolders(
@@ -1170,16 +1170,132 @@ describe('FileUseCases', () => {
         files,
       );
 
-      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
-        user.id,
-        {
-          deleted: true,
-          removed: false,
-          uuid: { [Op.in]: extractFolderUuids },
-        },
-        { limit: 50, offset: 0 },
+      expect(folderUseCases.findUserFoldersByUuid).toHaveBeenCalledWith(
+        user,
+        extractFolderUuids,
+        true,
       );
       expect(result).toEqual(mockResolved);
+    });
+  });
+
+  describe('update', () => {
+    const user = newUser();
+    const whereOptions: Partial<File> = {
+      status: FileStatus.TRASHED,
+    };
+    const updateData: Partial<File> = {
+      status: FileStatus.EXISTS,
+    };
+
+    it('should successfully update the specified files', async () => {
+      jest.spyOn(fileRepository, 'update').mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.update(user.id, whereOptions, updateData),
+      ).resolves.not.toThrow();
+
+      expect(fileRepository.update).toHaveBeenCalledWith(
+        user.id,
+        whereOptions,
+        updateData,
+      );
+    });
+
+    it('should throw an error if the update fails', async () => {
+      const errorMessage = 'Update failed';
+      jest
+        .spyOn(fileRepository, 'update')
+        .mockRejectedValueOnce(new Error(errorMessage));
+
+      await expect(
+        service.update(user.id, whereOptions, updateData),
+      ).rejects.toThrow(errorMessage);
+
+      expect(fileRepository.update).toHaveBeenCalledWith(
+        user.id,
+        whereOptions,
+        updateData,
+      );
+    });
+
+    it('should handle empty whereOptions gracefully', async () => {
+      const emptyWhereOptions: Partial<File> = {};
+      jest.spyOn(fileRepository, 'update').mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.update(user.id, emptyWhereOptions, updateData),
+      ).resolves.not.toThrow();
+
+      expect(fileRepository.update).toHaveBeenCalledWith(
+        user.id,
+        emptyWhereOptions,
+        updateData,
+      );
+    });
+  });
+
+  describe('findAllByUserAndFolderUuids', () => {
+    const user = newUser();
+    const folderUuids = [v4(), v4()];
+
+    it('should call fileRepository.findAllByUserAndFolderUuids with correct parameters', async () => {
+      const whereConditions = { deleted: false };
+      const mockFiles = [
+        newFile({ attributes: { folderUuid: folderUuids[0] } }),
+      ];
+
+      jest
+        .spyOn(fileRepository, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.findAllByUserAndFolderUuids(
+        user,
+        folderUuids,
+        whereConditions,
+      );
+
+      expect(fileRepository.findAllByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        whereConditions,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+
+    it('should call fileRepository.findAllByUserAndFolderUuids without where conditions', async () => {
+      const mockFiles = [
+        newFile({ attributes: { folderUuid: folderUuids[1] } }),
+      ];
+
+      jest
+        .spyOn(fileRepository, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.findAllByUserAndFolderUuids(
+        user,
+        folderUuids,
+      );
+
+      expect(fileRepository.findAllByUserAndFolderUuids).toHaveBeenCalledWith(
+        user,
+        folderUuids,
+        undefined,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+
+    it('should return an empty array if no files are found', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllByUserAndFolderUuids')
+        .mockResolvedValue([]);
+
+      const result = await service.findAllByUserAndFolderUuids(
+        user,
+        folderUuids,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 });

@@ -97,6 +97,16 @@ export interface FileRepository {
     user: User,
     folderUuids: FileAttributes['folderUuid'][],
   ): Promise<void>;
+  findAllByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+    where?: Partial<File>,
+  ): Promise<File[]>;
+  update(
+    userId: FileAttributes['userId'],
+    where: Partial<File>,
+    updateData: Partial<File>,
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -733,6 +743,24 @@ export class SequelizeFileRepository implements FileRepository {
     );
   }
 
+  async findAllByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+    where?: Partial<File>,
+  ) {
+    const files = await this.fileModel.findAll({
+      where: {
+        userId: user.id,
+        folderUuid: {
+          [Op.in]: folderUuids,
+        },
+        ...where,
+      },
+    });
+
+    return files.map((f) => this.toDomain(f));
+  }
+
   async deleteFilesByUser(user: User, files: File[]): Promise<void> {
     await this.fileModel.update(
       {
@@ -750,6 +778,14 @@ export class SequelizeFileRepository implements FileRepository {
         },
       },
     );
+  }
+
+  async update(
+    userId: FileAttributes['userId'],
+    where: Partial<File>,
+    updateData: Partial<File>,
+  ): Promise<void> {
+    await this.fileModel.update(updateData, { where: { userId, ...where } });
   }
 
   private toDomain(model: FileModel): File {

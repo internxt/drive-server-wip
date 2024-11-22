@@ -36,7 +36,6 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
-import { Op } from 'sequelize';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -769,15 +768,35 @@ export class FileUseCases {
       )
       .map((item) => item.folderUuid);
 
-    const deletedFolders = await this.folderUsecases.getFolders(
-      user.id,
-      { deleted: true, removed: false, uuid: { [Op.in]: extractFolderUuids } },
-      { limit: 50, offset: 0 },
+    const deletedFolders = await this.folderUsecases.findUserFoldersByUuid(
+      user,
+      extractFolderUuids,
+      true,
     );
 
     const deletedFoldersUuids = deletedFolders.map((f) => f.uuid);
     return files.filter(
       (file) => !deletedFoldersUuids.includes(file.folderUuid),
+    );
+  }
+
+  async update(
+    userId: FileAttributes['userId'],
+    whereOptions: Partial<File>,
+    updateData: Partial<File>,
+  ) {
+    return this.fileRepository.update(userId, whereOptions, updateData);
+  }
+
+  async findAllByUserAndFolderUuids(
+    user: User,
+    folderUuids: FileAttributes['folderUuid'][],
+    where?: Partial<File>,
+  ) {
+    return this.fileRepository.findAllByUserAndFolderUuids(
+      user,
+      folderUuids,
+      where,
     );
   }
 }

@@ -104,7 +104,7 @@ export class TrashController {
           files,
         );
       } else {
-        result = await this.folderUseCases.getFolders(
+        const folders = await this.folderUseCases.getFolders(
           user.id,
           { deleted: true, removed: false },
           {
@@ -112,6 +112,11 @@ export class TrashController {
             offset: pagination.offset,
             sort: sort && order && [[sort as SortableFolderAttributes, order]],
           },
+        );
+
+        result = await this.folderUseCases.filterFoldersByUndeletedParent(
+          user,
+          folders,
         );
       }
 

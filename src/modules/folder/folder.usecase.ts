@@ -444,13 +444,31 @@ export class FolderUseCases {
         : Promise.resolve<Folder[]>([]),
     ]);
 
-    const folders = foldersById.concat(foldersByUuid);
-    const foldersUuids = folders.map((f) => f.uuid);
+    const foldersParent = [...foldersById, ...foldersByUuid];
+    let parentUuids = foldersParent.map((f) => f.uuid);
+    const foldersChild: Folder[] = [];
+
+    let hasChildFolders = true;
+    while (hasChildFolders) {
+      const childs = await this.folderRepository.findAllByParentUuidsAndUserId(
+        parentUuids,
+        user.id,
+      );
+      if (childs.length === 0) {
+        hasChildFolders = false;
+      } else {
+        foldersChild.push(...childs);
+        parentUuids = childs.map((f: Folder) => f.uuid);
+      }
+    }
+
+    const allFolders = [...foldersParent, ...foldersChild];
+    const foldersUuids = allFolders.map((f) => f.uuid);
 
     await this.fileUsecases.trashFilesByUserAndFolderUuids(user, foldersUuids);
 
-    const backups = folders.filter((f) => f.isBackup(driveRootFolder));
-    const driveFolders = folders.filter(
+    const backups = allFolders.filter((f) => f.isBackup(driveRootFolder));
+    const driveFolders = allFolders.filter(
       (f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId,
     );
 
@@ -477,7 +495,7 @@ export class FolderUseCases {
         : Promise.resolve(),
       this.sharingUsecases.bulkRemoveSharings(
         user,
-        folders.map((folder) => folder.uuid),
+        allFolders.map((folder) => folder.uuid),
         SharingItemType.Folder,
       ),
     ]);
@@ -814,24 +832,88 @@ export class FolderUseCases {
       updateData,
     );
 
-    const files = await this.fileUsecases.getFilesByFolderUuid(
-      folder.uuid,
-      FileStatus.TRASHED,
-    );
-    const fileIds = files.map((f) => f.fileId);
-    const updateFileData: Partial<File> = {
-      deleted: false,
-      deletedAt: null,
-      status: FileStatus.EXISTS,
-    };
-
-    await this.fileUsecases.updateManyByFileIdAndUserId(
-      fileIds,
-      user.id,
-      updateFileData,
-    );
-
+    await this.restoreChilds(user, [folderUuid]);
     return updatedFolder;
+  }
+
+  async restoreChilds(user: User, folderUuids: Folder['uuid'][]) {
+    const stack = [...folderUuids];
+    const processedFolders = new Set();
+
+    while (stack.length > 0) {
+      const currentFolderUuid = stack.pop();
+      const { folders, files } = await this.getChilds(
+        user,
+        [currentFolderUuid],
+        true,
+      );
+
+      if (files.length > 0) {
+        const updateFileData: Partial<File> = {
+          deleted: false,
+          deletedAt: null,
+          status: FileStatus.EXISTS,
+        };
+        const fileIds = files.map((f) => f.fileId);
+        await this.fileUsecases.updateManyByFileIdAndUserId(
+          fileIds,
+          user.id,
+          updateFileData,
+        );
+      }
+
+      if (folders.length > 0) {
+        const foldersChildIds = [];
+        const foldersChildUuids = [];
+
+        folders.forEach((f: Folder) => {
+          foldersChildIds.push(f.id);
+          foldersChildUuids.push(f.uuid);
+        });
+
+        const updateFolderData: Partial<Folder> = {
+          deleted: false,
+          deletedAt: null,
+        };
+
+        await this.folderRepository.updateManyByFolderId(
+          foldersChildIds,
+          updateFolderData,
+        );
+
+        for (const uuid of foldersChildUuids) {
+          if (!processedFolders.has(uuid)) {
+            processedFolders.add(uuid);
+            stack.push(uuid);
+          }
+        }
+      }
+    }
+  }
+
+  async getChilds(
+    user: User,
+    folderUuids: Folder['uuid'][],
+    deleted: boolean = false,
+    removed: boolean = false,
+  ) {
+    if (!folderUuids || folderUuids.length === 0) {
+      return { folders: [], files: [] };
+    }
+
+    const folders = await this.folderRepository.findAllByParentUuidsAndUserId(
+      folderUuids,
+      user.id,
+      deleted,
+      removed,
+    );
+    const files = await this.fileUsecases.findAllByUserAndFolderUuids(
+      user,
+      folderUuids,
+      { deleted, removed },
+    );
+
+    return { folders, files };
   }
 
   async renameFolder(folder: Folder, newName: string): Promise<Folder> {
@@ -907,6 +989,42 @@ export class FolderUseCases {
       user.id,
       path,
       rootFolder.uuid,
+    );
+  }
+
+  async findUserFoldersByUuid(
+    user: User,
+    folderUuids: FolderAttributes['uuid'][],
+    deleted: FolderAttributes['deleted'] = false,
+    removed: FolderAttributes['removed'] = false,
+  ) {
+    return this.folderRepository.findUserFoldersByUuid(
+      user,
+      folderUuids,
+      deleted,
+      removed,
+    );
+  }
+
+  async filterFoldersByUndeletedParent(
+    user: User,
+    folders: Folder[],
+  ): Promise<Folder[]> {
+    const extractParentUuids = folders
+      .filter(
+        (item, index, self) =>
+          index === self.findIndex((t) => t.parentUuid === item.parentUuid),
+      )
+      .map((item) => item.parentUuid);
+
+    const parentFoldersUndeleted = await this.findUserFoldersByUuid(
+      user,
+      extractParentUuids,
+    );
+
+    const parentFoldersDeletedUuids = parentFoldersUndeleted.map((f) => f.uuid);
+    return folders.filter((folder) =>
+      parentFoldersDeletedUuids.includes(folder.parentUuid),
     );
   }
 }
