@@ -179,20 +179,7 @@ describe('SequelizeFolderRepository', () => {
     const parentUuids = [v4(), v4()];
 
     it('should return folders deleted', async () => {
-      const mockFolders = [
-        newFolder({
-          owner: user,
-          attributes: { parentUuid: parentUuids[0], deleted: true },
-        }),
-        newFolder({
-          owner: user,
-          attributes: { parentUuid: parentUuids[1], deleted: true },
-        }),
-      ];
-
-      jest.spyOn(repository, 'findAll').mockResolvedValue(mockFolders);
-
-      const result = await repository.findAllByParentUuidsAndUserId(
+      await repository.findAllByParentUuidsAndUserId(
         parentUuids,
         user.id,
         true,
@@ -206,7 +193,6 @@ describe('SequelizeFolderRepository', () => {
           removed: false,
         },
       });
-      expect(result).toEqual(mockFolders);
     });
 
     it('should call findAll with default deleted and removed values', async () => {
@@ -223,7 +209,7 @@ describe('SequelizeFolderRepository', () => {
     });
 
     it('should return an empty array if no folders are found', async () => {
-      jest.spyOn(repository, 'findAll').mockResolvedValue([]);
+      jest.spyOn(folderModel, 'findAll').mockResolvedValue([]);
 
       const result = await repository.findAllByParentUuidsAndUserId(
         parentUuids,

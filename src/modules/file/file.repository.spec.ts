@@ -161,15 +161,16 @@ describe('FileRepository', () => {
   describe('trashFilesByUserAndFolderUuids', () => {
     it('When params are passed, then it should update files', async () => {
       const folderUuids = [v4(), v4()];
+      const dateAt = new Date();
 
       await repository.trashFilesByUserAndFolderUuids(user, folderUuids);
 
       expect(fileModel.update).toHaveBeenCalledWith(
         {
           deleted: true,
-          deletedAt: new Date(),
+          deletedAt: dateAt,
           status: FileStatus.TRASHED,
-          updatedAt: new Date(),
+          updatedAt: dateAt,
         },
         {
           where: {
