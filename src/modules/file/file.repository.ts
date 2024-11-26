@@ -101,6 +101,10 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
+  sumFileSizesSinceDate(
+    userId: FileAttributes['userId'],
+    sinceDate: Date,
+  ): Promise<number>;
 }
 
 @Injectable()
@@ -629,6 +633,50 @@ export class SequelizeFileRepository implements FileRepository {
         uuid,
       },
     });
+  }
+
+  async sumFileSizesSinceDate(
+    userId: FileAttributes['userId'],
+    sinceDate: Date,
+  ): Promise<number> {
+    const result = await this.fileModel.findAll({
+      attributes: [
+        [
+          Sequelize.literal(`
+            SUM(
+              CASE 
+                WHEN status = 'DELETED' AND date_trunc('day', created_at) = date_trunc('day', updated_at) THEN 0
+                WHEN status = 'DELETED' THEN -size
+                ELSE size
+              END
+            )
+          `),
+          'total',
+        ],
+      ],
+      where: {
+        userId,
+        [Op.or]: [
+          {
+            status: {
+              [Op.ne]: 'DELETED',
+            },
+            createdAt: {
+              [Op.gte]: sinceDate,
+            },
+          },
+          {
+            status: 'DELETED',
+            updatedAt: {
+              [Op.gte]: sinceDate,
+            },
+          },
+        ],
+      },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) as unknown as number;
   }
 
   async getFilesWhoseFolderIdDoesNotExist(

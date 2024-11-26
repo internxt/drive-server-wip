@@ -429,6 +429,11 @@ export class UserController {
     return this.userUseCases.getAuthTokens(user);
   }
 
+  @Get('/usage')
+  getUser(@UserDecorator() user: User) {
+    return this.userUseCases.getUserUsage(user);
+  }
+
   @Patch('password')
   @ApiBearerAuth()
   @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
