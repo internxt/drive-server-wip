@@ -72,6 +72,7 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
+import { UsageUseCases } from '../usage/usage.usecase';
 
 class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -150,6 +151,7 @@ export class UserUseCases {
     private readonly mailerService: MailerService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
+    private readonly usageUseCases: UsageUseCases,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -196,6 +198,10 @@ export class UserUseCases {
       encryptionKey: mnemonic,
       bridgeUrl: this.configService.get('apis.storage.url'),
     });
+  }
+
+  async getUserUsage(user: User) {
+    return this.usageUseCases.getUserUsage(user);
   }
 
   async applyReferral(
