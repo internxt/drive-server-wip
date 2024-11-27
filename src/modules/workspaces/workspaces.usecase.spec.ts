@@ -57,6 +57,7 @@ import {
 } from '../sharing/dto/get-items-and-shared-folders.dto';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
+import { FolderStatus } from '../folder/folder.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -5749,7 +5750,7 @@ describe('WorkspacesUsecases', () => {
         updatedAfter,
         {},
         {
-          limit: 100,
+          limit: 50,
           offset: 0,
         },
       );
@@ -5802,6 +5803,135 @@ describe('WorkspacesUsecases', () => {
           limit: options.limit,
           offset: options.offset,
           sort: [['name', 'ASC']],
+        },
+      );
+    });
+  });
+
+  describe('getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter', () => {
+    const userUuid = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const options = {
+      sort: 'name',
+      order: 'ASC',
+      limit: 10,
+      offset: 0,
+      status: FolderStatus.EXISTS,
+    };
+
+    it('When folders are found, then it should return those folders', async () => {
+      const folders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter')
+        .mockResolvedValue(folders);
+
+      const result =
+        await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+          userUuid,
+          workspaceId,
+          updatedAfter,
+          options as any,
+        );
+
+      expect(result).toEqual(folders);
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        { deleted: false, removed: false },
+        updatedAfter,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+
+    it('When no options are provided, it should use default values', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        undefined,
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(userUuid, workspaceId, {}, updatedAfter, {
+        limit: 50,
+        offset: 0,
+      });
+    });
+
+    it('When status is provided, it should filter using the correct folder status', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        options as any,
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        { deleted: false, removed: false },
+        updatedAfter,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+
+    it('When no status is provided, it should omit the status condition', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { ...options, status: undefined } as any,
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(userUuid, workspaceId, {}, updatedAfter, {
+        limit: options.limit,
+        offset: options.offset,
+        sort: [['name', 'ASC']],
+      });
+    });
+
+    it('When sort and order are not provided, it should not include sorting options', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { ...options, sort: undefined, order: undefined },
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        { deleted: false, removed: false },
+        updatedAfter,
+        {
+          limit: options.limit,
+          offset: options.offset,
         },
       );
     });

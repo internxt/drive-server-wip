@@ -13,7 +13,12 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { Folder, FolderOptions } from './folder.domain';
+import {
+  Folder,
+  FolderAttributes,
+  FolderOptions,
+  FolderStatus,
+} from './folder.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -1309,6 +1314,112 @@ describe('FolderUseCases', () => {
       expect(
         service.getFolderMetadataByPath(userMocked, folderPath),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getWorkspacesFoldersUpdatedAfter', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date('2023-01-01T00:00:00Z');
+    const whereClause = { deleted: false, removed: false };
+    const options = {
+      limit: 10,
+      offset: 0,
+      sort: [['updatedAt', 'ASC']] as Array<
+        [keyof FolderAttributes, 'ASC' | 'DESC']
+      >,
+    };
+
+    it('When folders are found, then it should return those folders', async () => {
+      const folders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderRepository, 'findAllCursorInWorkspaceWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getWorkspacesFoldersUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        options as any,
+      );
+
+      expect(result).toEqual(folders);
+      expect(
+        folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    });
+
+    it('When no sort options are provided, it should default to updatedAt ASC', async () => {
+      jest.spyOn(folderRepository, 'findAllCursorInWorkspaceWhereUpdatedAfter');
+
+      await service.getWorkspacesFoldersUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        { limit: 5, offset: 0 },
+      );
+
+      expect(
+        folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        5,
+        0,
+        [['updatedAt', 'ASC']],
+      );
+    });
+
+    it('When no folders are found, it should return an empty array', async () => {
+      jest
+        .spyOn(folderRepository, 'findAllCursorInWorkspaceWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getWorkspacesFoldersUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        options as any,
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('When the where clause is empty, it should call the repository with empty filters', async () => {
+      jest.spyOn(folderRepository, 'findAllCursorInWorkspaceWhereUpdatedAfter');
+
+      await service.getWorkspacesFoldersUpdatedAfter(
+        createdBy,
+        workspaceId,
+        {},
+        updatedAfter,
+        options as any,
+      );
+
+      expect(
+        folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {},
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
     });
   });
 });
