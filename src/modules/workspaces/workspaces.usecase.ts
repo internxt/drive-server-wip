@@ -35,13 +35,19 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases, SortParamsFolder } from '../folder/folder.usecase';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  File,
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileUseCases, SortParamsFile } from '../file/file.usecase';
 import {
   Folder,
   FolderAttributes,
+  FolderStatus,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
 import {
@@ -931,6 +937,79 @@ export class WorkspacesUsecases {
     });
 
     return { ...createdFolder, item: createdItemFolder };
+  }
+
+  async getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    options?: {
+      sort: SortableFileAttributes;
+      order;
+      limit: number;
+      offset: number;
+      status?: FileStatus;
+    },
+    bucket?: string,
+  ) {
+    const where: Partial<FileAttributes> = options?.status
+      ? { status: options.status }
+      : {};
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    const files = await this.fileUseCases.getWorkspaceFilesUpdatedAfter(
+      userUuid,
+      workspaceId,
+      updatedAfter,
+      {
+        ...where,
+      },
+      {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return files;
+  }
+
+  async getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    options?: {
+      sort: SortableFolderAttributes;
+      order;
+      limit: number;
+      offset: number;
+      status?: FolderStatus;
+    },
+  ) {
+    const where: Partial<FolderAttributes> = options?.status
+      ? Folder.getFilterByStatus(options.status)
+      : {};
+
+    const folders = await this.folderUseCases.getWorkspacesFoldersUpdatedAfter(
+      userUuid,
+      workspaceId,
+      {
+        ...where,
+      },
+      updatedAfter,
+      {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return folders;
   }
 
   async getPersonalWorkspaceFoldersInFolder(

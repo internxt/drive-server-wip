@@ -279,6 +279,30 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findAllCursorWhereUpdatedAfterInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.findAllCursorInWorkspace(
+      createdBy,
+      workspaceId,
+      {
+        ...where,
+        updatedAt: { [Op.gt]: updatedAtAfter },
+      },
+      limit,
+      offset,
+      additionalOrders,
+    );
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],

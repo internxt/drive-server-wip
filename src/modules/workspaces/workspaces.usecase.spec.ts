@@ -5703,4 +5703,107 @@ describe('WorkspacesUsecases', () => {
       });
     });
   });
+
+  describe('getPersonalWorkspaceFilesInWorkspaceUpdatedAfter', () => {
+    const userUuid = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const bucket = 'bucket-name';
+    const options = {
+      sort: 'name',
+      order: 'ASC',
+      limit: 10,
+      offset: 0,
+      status: 'EXISTS',
+    };
+
+    it('When files are found, then it should return those files', async () => {
+      const files = [newFile(), newFile()];
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesUpdatedAfter')
+        .mockResolvedValue(files);
+
+      const result =
+        await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+          userUuid,
+          workspaceId,
+          updatedAfter,
+          options as any,
+          bucket,
+        );
+
+      expect(result).toEqual(files);
+    });
+
+    it('When no options are provided, it should use default values', async () => {
+      await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        undefined,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        {},
+        {
+          limit: 100,
+          offset: 0,
+        },
+      );
+    });
+
+    it('When bucket is provided, it should filter using it', async () => {
+      const files = [newFile()];
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesUpdatedAfter')
+        .mockResolvedValue(files);
+
+      const result =
+        await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+          userUuid,
+          workspaceId,
+          updatedAfter,
+          options as any,
+          bucket,
+        );
+
+      expect(result).toEqual(files);
+      expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { status: 'EXISTS', bucket },
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+
+    it('When no status is provided, then the status condition should be omited', async () => {
+      await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { ...options, status: undefined } as any,
+        bucket,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { bucket },
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+  });
 });
