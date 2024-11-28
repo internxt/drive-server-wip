@@ -28,6 +28,23 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<Array<File> | []>;
+  findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWhereUpdatedAfterInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
   findOne(
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
@@ -300,7 +317,7 @@ export class SequelizeFileRepository implements FileRepository {
       additionalOrders,
     );
 
-    return files.map(this.toDomain.bind(this));
+    return files;
   }
 
   async findAllCursorInWorkspace(

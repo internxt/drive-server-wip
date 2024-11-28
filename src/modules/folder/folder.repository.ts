@@ -87,6 +87,15 @@ export interface FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder> | []>;
+  findAllCursorInWorkspaceWhereUpdatedAfter(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Array<Folder>>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
-import { FolderUseCases } from './folder.usecase';
+import { FolderUseCases, SortParamsFolder } from './folder.usecase';
 import {
   SequelizeFolderRepository,
   FolderRepository,
@@ -13,12 +13,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import {
-  Folder,
-  FolderAttributes,
-  FolderOptions,
-  FolderStatus,
-} from './folder.domain';
+import { Folder, FolderOptions } from './folder.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -1325,9 +1320,7 @@ describe('FolderUseCases', () => {
     const options = {
       limit: 10,
       offset: 0,
-      sort: [['updatedAt', 'ASC']] as Array<
-        [keyof FolderAttributes, 'ASC' | 'DESC']
-      >,
+      sort: [['updatedAt', 'ASC']] as SortParamsFolder,
     };
 
     it('When folders are found, then it should return those folders', async () => {
@@ -1341,7 +1334,7 @@ describe('FolderUseCases', () => {
         workspaceId,
         whereClause,
         updatedAfter,
-        options as any,
+        options,
       );
 
       expect(result).toEqual(folders);
@@ -1392,7 +1385,7 @@ describe('FolderUseCases', () => {
         workspaceId,
         whereClause,
         updatedAfter,
-        options as any,
+        options,
       );
 
       expect(result).toEqual([]);
@@ -1406,7 +1399,7 @@ describe('FolderUseCases', () => {
         workspaceId,
         {},
         updatedAfter,
-        options as any,
+        options,
       );
 
       expect(

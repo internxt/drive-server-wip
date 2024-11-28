@@ -6,6 +6,7 @@ import { Folder } from './folder.domain';
 import { newFolder } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op } from 'sequelize';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -144,6 +145,68 @@ describe('SequelizeFolderRepository', () => {
           removed: false,
         },
       });
+    });
+  });
+
+  describe('findAllCursorInWorkspaceWhereUpdatedAfter', () => {
+    const createdBy = 'user-uuid';
+    const workspaceId = 'workspace-id';
+    const updatedAfter = new Date('2023-01-01T00:00:00Z');
+    const whereClause = { deleted: false, removed: false };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [
+      ['updatedAt', 'ASC'],
+    ];
+
+    it('When no order is provided, it should default to nothing', async () => {
+      jest.spyOn(folderModel, 'findAll');
+
+      await repository.findAllCursorInWorkspaceWhereUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAfter },
+          parentId: { [Op.not]: null },
+        },
+        include: [
+          {
+            model: WorkspaceItemUserModel,
+            where: {
+              createdBy,
+              workspaceId,
+              itemType: 'folder',
+            },
+          },
+        ],
+        order: [],
+        limit,
+        offset,
+      });
+    });
+
+    it('When no folders are found, it should return nothing', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findAllCursorInWorkspaceWhereUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 });

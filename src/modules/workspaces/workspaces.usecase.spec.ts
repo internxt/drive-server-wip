@@ -5741,7 +5741,6 @@ describe('WorkspacesUsecases', () => {
         userUuid,
         workspaceId,
         updatedAfter,
-        undefined,
       );
 
       expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
@@ -5857,7 +5856,6 @@ describe('WorkspacesUsecases', () => {
         userUuid,
         workspaceId,
         updatedAfter,
-        undefined,
       );
 
       expect(
