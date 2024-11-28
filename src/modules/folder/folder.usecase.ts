@@ -583,6 +583,27 @@ export class FolderUseCases {
     );
   }
 
+  getWorkspacesFoldersUpdatedAfter(
+    createdBy: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FolderAttributes>,
+    updatedAfter: Date,
+    options: { limit: number; offset: number; sort?: SortParamsFolder },
+  ): Promise<Array<Folder>> {
+    const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> =
+      options.sort ?? [['updatedAt', 'ASC']];
+
+    return this.folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter(
+      createdBy,
+      workspaceId,
+      { ...where },
+      updatedAfter,
+      options.limit,
+      options.offset,
+      additionalOrders,
+    );
+  }
+
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,

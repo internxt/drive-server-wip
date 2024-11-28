@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import { newUser, newWorkspace } from '../../../test/fixtures';
-import { FileStatus } from './file.domain';
+import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
 import { Op } from 'sequelize';
@@ -129,6 +129,69 @@ describe('FileRepository', () => {
           ],
         }),
       });
+    });
+  });
+
+  describe('findAllCursorWhereUpdatedAfterInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const updatedAtAfter = new Date();
+    const limit = 10;
+    const offset = 0;
+    const additionalOrders = [['updatedAt', 'ASC']] as Array<
+      [keyof FileModel, string]
+    >;
+    const whereClause: Partial<FileAttributes> = { status: FileStatus.EXISTS };
+
+    it('When sort options are not provided, it should default to none', async () => {
+      jest.spyOn(repository, 'findAllCursorInWorkspace');
+
+      await repository.findAllCursorWhereUpdatedAfterInWorkspace(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+      );
+
+      expect(repository.findAllCursorInWorkspace).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+        },
+        limit,
+        offset,
+        [],
+      );
+    });
+
+    it('When sort options are provided, it should sort files', async () => {
+      jest.spyOn(repository, 'findAllCursorInWorkspace');
+
+      await repository.findAllCursorWhereUpdatedAfterInWorkspace(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        additionalOrders,
+      );
+
+      expect(repository.findAllCursorInWorkspace).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+        },
+        limit,
+        offset,
+        additionalOrders,
+      );
     });
   });
 });

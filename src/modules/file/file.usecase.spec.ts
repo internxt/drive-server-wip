@@ -9,7 +9,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { File, FileAttributes, FileStatus } from './file.domain';
+import {
+  File,
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from './file.domain';
 import { User } from '../user/user.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
@@ -1016,6 +1021,97 @@ describe('FileUseCases', () => {
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getWorkspaceFilesUpdatedAfter', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const where = { status: FileStatus.EXISTS };
+    const options = {
+      limit: 10,
+      offset: 0,
+      sort: [['updatedAt', 'ASC']] as Array<
+        [SortableFileAttributes, 'ASC' | 'DESC']
+      >,
+    };
+    const mockFiles = [newFile(), newFile()];
+
+    it('When files are found, then it should return those files', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        where,
+        options,
+      );
+
+      expect(result).toEqual(mockFiles);
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        where,
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    });
+
+    it('When no sort options are provided, it should default to updatedAt ASC', async () => {
+      const optionsWithoutSort = { limit: 10, offset: 0 };
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace');
+
+      await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        where,
+        optionsWithoutSort,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        where,
+        updatedAfter,
+        optionsWithoutSort.limit,
+        optionsWithoutSort.offset,
+        [['updatedAt', 'ASC']],
+      );
+    });
+
+    it('When called with no filters, it should handle empty where', async () => {
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace');
+
+      await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        {},
+        options,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {},
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
     });
   });
 });
