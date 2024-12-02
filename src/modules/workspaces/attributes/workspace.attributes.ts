@@ -10,6 +10,7 @@ export interface WorkspaceAttributes {
   setupCompleted: boolean;
   numberOfSeats: number;
   phoneNumber?: string;
+  email?: string;
   rootFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
