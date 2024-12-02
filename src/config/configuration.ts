@@ -114,8 +114,8 @@ export default () => ({
     },
   },
   newsletter: {
-    apiKey: process.env.MAILERLITE_API_KEY,
-    groupId: process.env.MAILERLITE_GROUP_ID,
+    apiKey: process.env.NEWSLETTER_API_KEY,
+    groupId: process.env.NEWSLETTER_GROUP_ID,
   },
   sentry: {
     dsn: process.env.SENTRY_DSN,
