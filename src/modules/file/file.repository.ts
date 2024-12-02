@@ -28,6 +28,23 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<Array<File> | []>;
+  findAllCursorInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWhereUpdatedAfterInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
   findOne(
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
@@ -39,24 +56,15 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
-  findFileByName(
-    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
-    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
-  ): Promise<File | null>;
   findFilesInFolderByName(
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
-  findByNameAndFolderUuid(
-    name: FileAttributes['name'],
-    type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
-    status: FileAttributes['status'],
-  ): Promise<File | null>;
-  findByPlainNameAndFolderUuid(
+  findByPlainNameAndFolderId(
+    userId: File['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
+    folderId: FileAttributes['folderId'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
@@ -185,34 +193,19 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findByNameAndFolderUuid(
-    name: FileAttributes['name'],
-    type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
-    status: FileAttributes['status'],
-  ): Promise<File | null> {
-    const file = await this.fileModel.findOne({
-      where: {
-        name: { [Op.eq]: name },
-        type: { [Op.eq]: type },
-        folderUuid: { [Op.eq]: folderUuid },
-        status: { [Op.eq]: status },
-      },
-    });
-    return file ? this.toDomain(file) : null;
-  }
-
-  async findByPlainNameAndFolderUuid(
+  async findByPlainNameAndFolderId(
+    userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
+    folderId: FileAttributes['folderId'],
     status: FileAttributes['status'],
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
+        userId: { [Op.eq]: userId },
         plainName: { [Op.eq]: plainName },
         type: { [Op.eq]: type },
-        folderUuid: { [Op.eq]: folderUuid },
+        folderId: { [Op.eq]: folderId },
         status: { [Op.eq]: status },
       },
     });
@@ -301,6 +294,30 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWhereUpdatedAfterInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.findAllCursorInWorkspace(
+      createdBy,
+      workspaceId,
+      {
+        ...where,
+        updatedAt: { [Op.gt]: updatedAtAfter },
+      },
+      limit,
+      offset,
+      additionalOrders,
+    );
+
+    return files;
   }
 
   async findAllCursorInWorkspace(
@@ -539,22 +556,6 @@ export class SequelizeFileRepository implements FileRepository {
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where,
-    });
-    return file ? this.toDomain(file) : null;
-  }
-
-  async findFileByName(
-    where: Partial<Omit<FileAttributes, 'name' | 'plainName'>>,
-    nameFilter: Pick<FileAttributes, 'name' | 'plainName'>,
-  ): Promise<File | null> {
-    const file = await this.fileModel.findOne({
-      where: {
-        ...where,
-        [Op.or]: [
-          { name: nameFilter.name },
-          { plainName: nameFilter.plainName },
-        ],
-      },
     });
     return file ? this.toDomain(file) : null;
   }

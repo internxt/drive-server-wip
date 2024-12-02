@@ -35,13 +35,19 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases, SortParamsFolder } from '../folder/folder.usecase';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  File,
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileUseCases, SortParamsFile } from '../file/file.usecase';
 import {
   Folder,
   FolderAttributes,
+  FolderStatus,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
 import {
@@ -495,9 +501,69 @@ export class WorkspacesUsecases {
     });
   }
 
+  async calculateWorkspaceLimits(
+    workspace: Workspace,
+    newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
+  ) {
+    const currentWorkspaceSpaceLimit =
+      await this.getWorkspaceNetworkLimit(workspace);
+
+    const currentSpacePerUser =
+      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
+
+    const newSpacePerUser =
+      newWorkspaceSpaceLimit / (newNumberOfSeats ?? workspace.numberOfSeats);
+    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+
+    const memberCount = await this.workspaceRepository.getWorkspaceUsersCount(
+      workspace.id,
+    );
+
+    const unusedSpace =
+      newWorkspaceSpaceLimit -
+      currentWorkspaceSpaceLimit -
+      spaceDifference * memberCount;
+
+    return { unusedSpace, spaceDifference };
+  }
+
+  async validateStorageForPlanChange(
+    workspace: Workspace,
+    newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
+  ) {
+    const memberCount = await this.workspaceRepository.getWorkspaceUsersCount(
+      workspace.id,
+    );
+
+    if (newNumberOfSeats && newNumberOfSeats < memberCount) {
+      throw new BadRequestException(
+        'Number of seats must be equal or superior to the number of users in the workspace',
+      );
+    }
+
+    const ownerAvailableSpace = await this.getOwnerAvailableSpace(workspace);
+
+    const { unusedSpace, spaceDifference } =
+      await this.calculateWorkspaceLimits(
+        workspace,
+        newWorkspaceSpaceLimit,
+        newNumberOfSeats,
+      );
+
+    const ownerAvailableSpaceAfterUpdate =
+      ownerAvailableSpace + unusedSpace + spaceDifference;
+
+    if (ownerAvailableSpaceAfterUpdate < 0) {
+      throw new BadRequestException('Insufficient space to update workspace');
+    }
+  }
+
   async updateWorkspaceLimit(
     workspaceId: Workspace['id'],
     newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -509,14 +575,12 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const currentWorkspaceSpaceLimit =
-      await this.getWorkspaceNetworkLimit(workspace);
-
-    const currentSpacePerUser =
-      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
-
-    const newSpacePerUser = newWorkspaceSpaceLimit / workspace.numberOfSeats;
-    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+    const { unusedSpace, spaceDifference } =
+      await this.calculateWorkspaceLimits(
+        workspace,
+        newWorkspaceSpaceLimit,
+        newNumberOfSeats,
+      );
 
     const workspaceUsers =
       await this.workspaceRepository.findWorkspaceUsers(workspaceId);
@@ -529,11 +593,6 @@ export class WorkspacesUsecases {
         workspaceUser,
       );
     }
-
-    const unusedSpace =
-      newWorkspaceSpaceLimit -
-      currentWorkspaceSpaceLimit -
-      spaceDifference * workspaceUsers.length;
 
     await this.networkService.setStorage(
       workspaceNetworkUser.email,
@@ -879,6 +938,79 @@ export class WorkspacesUsecases {
     });
 
     return { ...createdFolder, item: createdItemFolder };
+  }
+
+  async getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    options?: {
+      sort: SortableFileAttributes;
+      order;
+      limit: number;
+      offset: number;
+      status?: FileStatus;
+    },
+    bucket?: string,
+  ) {
+    const where: Partial<FileAttributes> = options?.status
+      ? { status: options.status }
+      : {};
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    const files = await this.fileUseCases.getWorkspaceFilesUpdatedAfter(
+      userUuid,
+      workspaceId,
+      updatedAfter,
+      {
+        ...where,
+      },
+      {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return files;
+  }
+
+  async getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    options?: {
+      sort: SortableFolderAttributes;
+      order;
+      limit: number;
+      offset: number;
+      status?: FolderStatus;
+    },
+  ) {
+    const where: Partial<FolderAttributes> = options?.status
+      ? Folder.getFilterByStatus(options.status)
+      : {};
+
+    const folders = await this.folderUseCases.getWorkspacesFoldersUpdatedAfter(
+      userUuid,
+      workspaceId,
+      {
+        ...where,
+      },
+      updatedAfter,
+      {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return folders;
   }
 
   async getPersonalWorkspaceFoldersInFolder(

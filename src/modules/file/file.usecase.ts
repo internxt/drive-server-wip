@@ -36,6 +36,7 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
+import { FileModel } from './file.model';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -106,18 +107,14 @@ export class FileUseCases {
       folder.id,
     );
 
-    const maybeAlreadyExistentFile = await this.fileRepository.findOneBy({
-      name: cryptoFileName,
-      plainName: newFileDto.plainName,
-      folderId: folder.id,
-      ...(newFileDto.type ? { type: newFileDto.type } : null),
-      userId: user.id,
-      status: FileStatus.EXISTS,
-    });
-
-    const fileAlreadyExists = !!maybeAlreadyExistentFile;
-
-    if (fileAlreadyExists) {
+    const exists = await this.fileRepository.findByPlainNameAndFolderId(
+      user.id,
+      newFileDto.plainName,
+      newFileDto.type,
+      folder.id,
+      FileStatus.EXISTS,
+    );
+    if (exists) {
       throw new ConflictException('File already exists');
     }
 
@@ -197,15 +194,12 @@ export class FileUseCases {
       type,
     });
 
-    const fileWithSameNameExists = await this.fileRepository.findFileByName(
-      {
-        folderId: updatedFile.folderId,
-        type: updatedFile.type,
-        status: FileStatus.EXISTS,
-      },
-      { name: updatedFile.name, plainName: updatedFile.plainName },
+    const fileWithSameNameExists = await this.findByPlainNameAndFolderId(
+      updatedFile.userId,
+      updatedFile.plainName,
+      updatedFile.type,
+      updatedFile.folderId,
     );
-
     if (fileWithSameNameExists) {
       throw new ConflictException(
         'A file with this name already exists in this location',
@@ -344,6 +338,35 @@ export class FileUseCases {
       additionalOrders,
     );
     return files.map((file) => file.toJSON());
+  }
+
+  async getWorkspaceFilesUpdatedAfter(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<File[]> {
+    const additionalOrders: Array<[keyof FileModel, string]> = options.sort ?? [
+      ['updatedAt', 'ASC'],
+    ];
+
+    const files =
+      await this.fileRepository.findAllCursorWhereUpdatedAfterInWorkspace(
+        createdBy,
+        workspaceId,
+        { ...where },
+        updatedAfter,
+        options.limit,
+        options.offset,
+        additionalOrders,
+      );
+
+    return files;
   }
 
   async getFiles(
@@ -589,19 +612,11 @@ export class FileUseCases {
       );
     }
 
-    const originalPlainName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      originalPlainName,
-      destinationFolder.id,
-    );
-
-    const exists = await this.fileRepository.findByNameAndFolderUuid(
-      destinationEncryptedName,
+    const exists = await this.fileRepository.findByPlainNameAndFolderId(
+      file.userId,
+      file.plainName,
       file.type,
-      destinationFolder.uuid,
+      destinationFolder.id,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -614,6 +629,11 @@ export class FileUseCases {
         'A file with the same name already exists in destination folder',
       );
     }
+
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      file.plainName,
+      destinationFolder.id,
+    );
 
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
@@ -686,28 +706,17 @@ export class FileUseCases {
     });
   }
 
-  async findByNameAndFolderUuid(
-    name: FileAttributes['name'],
-    type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
-  ): Promise<File | null> {
-    return this.fileRepository.findByNameAndFolderUuid(
-      name,
-      type,
-      folderUuid,
-      FileStatus.EXISTS,
-    );
-  }
-
-  async findByPlainNameAndFolderUuid(
+  async findByPlainNameAndFolderId(
+    userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderUuid: FileAttributes['folderUuid'],
+    folderId: FileAttributes['folderId'],
   ): Promise<File | null> {
-    return this.fileRepository.findByPlainNameAndFolderUuid(
+    return this.fileRepository.findByPlainNameAndFolderId(
+      userId,
       plainName,
       type,
-      folderUuid,
+      folderId,
       FileStatus.EXISTS,
     );
   }
@@ -726,10 +735,11 @@ export class FileUseCases {
       throw new NotFoundException('Parent folders not found');
     }
 
-    const file = await this.findByPlainNameAndFolderUuid(
+    const file = await this.findByPlainNameAndFolderId(
+      user.id,
       path.fileName,
       path.fileType,
-      folder.uuid,
+      folder.id,
     );
     return file;
   }

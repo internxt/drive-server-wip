@@ -9,7 +9,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { File, FileAttributes, FileStatus } from './file.domain';
+import {
+  File,
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from './file.domain';
 import { User } from '../user/user.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
@@ -518,15 +523,11 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(destinationFolder);
 
       jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
-
-      jest
         .spyOn(cryptoService, 'encryptName')
         .mockReturnValueOnce(expectedFile.name);
 
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
 
       jest
@@ -602,12 +603,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(file);
 
       expect(
@@ -626,12 +624,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(conflictFile);
 
       expect(
@@ -695,7 +690,9 @@ describe('FileUseCases', () => {
       const folder = newFolder({ attributes: { userId: userMocked.id } });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
-      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
 
       const createdFile = newFile({
         attributes: {
@@ -729,7 +726,7 @@ describe('FileUseCases', () => {
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
 
       jest
-        .spyOn(fileRepository, 'findFileByName')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(fileWithSameName);
 
       try {
@@ -832,7 +829,9 @@ describe('FileUseCases', () => {
       });
 
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
-      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
 
       const result = await service.updateFileMetaData(
@@ -846,13 +845,12 @@ describe('FileUseCases', () => {
         userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
-        {
-          folderId: mockFile.folderId,
-          type: mockFile.type,
-          status: FileStatus.EXISTS,
-        },
-        { name: encryptedName, plainName: newFileMeta.plainName },
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
+        mockFile.userId,
+        newFileMeta.plainName,
+        mockFile.type,
+        mockFile.folderId,
+        FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
@@ -892,7 +890,9 @@ describe('FileUseCases', () => {
       });
 
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
-      jest.spyOn(fileRepository, 'findFileByName').mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
 
       const result = await service.updateFileMetaData(
@@ -906,13 +906,12 @@ describe('FileUseCases', () => {
         userId: mockFile.userId,
         status: FileStatus.EXISTS,
       });
-      expect(fileRepository.findFileByName).toHaveBeenCalledWith(
-        {
-          folderId: mockFile.folderId,
-          type: newTypeFileMeta.type,
-          status: FileStatus.EXISTS,
-        },
-        { name: mockFile.name, plainName: mockFile.plainName },
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
+        mockFile.userId,
+        mockFile.plainName,
+        newTypeFileMeta.type,
+        mockFile.folderId,
+        FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
@@ -977,7 +976,7 @@ describe('FileUseCases', () => {
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(parentFolderFile);
       jest
-        .spyOn(service, 'findByPlainNameAndFolderUuid')
+        .spyOn(service, 'findByPlainNameAndFolderId')
         .mockResolvedValue(expectedFile);
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
@@ -1018,12 +1017,101 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(parentFolderFile);
-      jest
-        .spyOn(service, 'findByPlainNameAndFolderUuid')
-        .mockResolvedValue(null);
+      jest.spyOn(service, 'findByPlainNameAndFolderId').mockResolvedValue(null);
 
       const result = await service.getFileMetadataByPath(userMocked, filePath);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getWorkspaceFilesUpdatedAfter', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const where = { status: FileStatus.EXISTS };
+    const options = {
+      limit: 10,
+      offset: 0,
+      sort: [['updatedAt', 'ASC']] as Array<
+        [SortableFileAttributes, 'ASC' | 'DESC']
+      >,
+    };
+    const mockFiles = [newFile(), newFile()];
+
+    it('When files are found, then it should return those files', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        where,
+        options,
+      );
+
+      expect(result).toEqual(mockFiles);
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        where,
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    });
+
+    it('When no sort options are provided, it should default to updatedAt ASC', async () => {
+      const optionsWithoutSort = { limit: 10, offset: 0 };
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace');
+
+      await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        where,
+        optionsWithoutSort,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        where,
+        updatedAfter,
+        optionsWithoutSort.limit,
+        optionsWithoutSort.offset,
+        [['updatedAt', 'ASC']],
+      );
+    });
+
+    it('When called with no filters, it should handle empty where', async () => {
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace');
+
+      await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        {},
+        options,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {},
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
     });
   });
 });

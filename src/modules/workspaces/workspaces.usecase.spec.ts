@@ -57,6 +57,7 @@ import {
 } from '../sharing/dto/get-items-and-shared-folders.dto';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
+import { FolderStatus } from '../folder/folder.domain';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1785,6 +1786,157 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('calculateWorkspaceLimits', () => {
+    it('When a new limit is specified, calculate spaceDifference', async () => {
+      const memberCount = 5;
+      const workspace = newWorkspace({
+        attributes: {
+          numberOfSeats: memberCount,
+        },
+      });
+      const currentSpaceLimit = 10000;
+      const newSpaceLimit = currentSpaceLimit * 2;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(memberCount);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+
+      const { unusedSpace, spaceDifference } =
+        await service.calculateWorkspaceLimits(workspace, newSpaceLimit);
+
+      expect(unusedSpace).toBe(0);
+
+      expect(spaceDifference).toBe(
+        (newSpaceLimit - currentSpaceLimit) / memberCount,
+      );
+    });
+
+    it('When workspace is not full return unusedSpace diiferent than 0', async () => {
+      const memberCount = 5;
+      const numberOfSeats = 7;
+      const workspace = newWorkspace({
+        attributes: {
+          numberOfSeats,
+        },
+      });
+      const spacePerUser = 10000;
+      const currentSpaceLimit = spacePerUser * numberOfSeats;
+      const newSpaceLimit = currentSpaceLimit * 2;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(memberCount);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+
+      const { unusedSpace, spaceDifference } =
+        await service.calculateWorkspaceLimits(workspace, newSpaceLimit);
+
+      expect(unusedSpace).toBe(spacePerUser * (numberOfSeats - memberCount));
+
+      expect(spaceDifference).toBe(spacePerUser * 2 - spacePerUser);
+    });
+
+    it('When a different numberOfSeats is specified, spacedifference should vary', async () => {
+      const memberCount = 5;
+      const numberOfSeats = memberCount;
+      const newNumberOfSeats = numberOfSeats * 2;
+      const workspace = newWorkspace({
+        attributes: {
+          numberOfSeats,
+        },
+      });
+      const spacePerUser = 10000;
+      const currentSpaceLimit = spacePerUser * numberOfSeats;
+      const newSpaceLimit = spacePerUser * newNumberOfSeats;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(memberCount);
+      jest
+        .spyOn(service, 'getWorkspaceNetworkLimit')
+        .mockResolvedValue(currentSpaceLimit);
+
+      const { unusedSpace, spaceDifference } =
+        await service.calculateWorkspaceLimits(
+          workspace,
+          newSpaceLimit,
+          newNumberOfSeats,
+        );
+
+      expect(unusedSpace).toBe(spacePerUser * (newNumberOfSeats - memberCount));
+
+      expect(spaceDifference).toBe(0);
+    });
+  });
+
+  describe('validateStorageForPlanChange', () => {
+    it('should throw BadRequestException when owner has used up more space than available', async () => {
+      const workspace = newWorkspace({ attributes: { numberOfSeats: 4 } });
+      const newNumberOfSeats = 3;
+      const oneTb = 1099511627776;
+      const newWorkspaceSpaceLimit = oneTb * 3;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(5);
+      jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValue(10000);
+      jest
+        .spyOn(service, 'calculateWorkspaceLimits')
+        .mockResolvedValue({ unusedSpace: -oneTb, spaceDifference: 0 });
+
+      await expect(
+        service.validateStorageForPlanChange(
+          workspace,
+          newWorkspaceSpaceLimit,
+          newNumberOfSeats,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('Should throw BadRequestException if numberOfSeats specified is less than the number of members in workspace', async () => {
+      const workspace = newWorkspace({ attributes: { numberOfSeats: 5 } });
+      const newNumberOfSeats = 4;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(5);
+
+      await expect(
+        service.validateStorageForPlanChange(workspace, 1000, newNumberOfSeats),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not throw an exception if owner has sufficient space to accomodate the update', async () => {
+      const workspace = newWorkspace();
+      const oneTb = 1099511627776;
+      const newWorkspaceSpaceLimit = oneTb * 5;
+      const newNumberOfSeats = 10;
+
+      jest
+        .spyOn(workspaceRepository, 'getWorkspaceUsersCount')
+        .mockResolvedValue(5);
+      jest
+        .spyOn(service, 'getOwnerAvailableSpace')
+        .mockResolvedValue(oneTb * 4);
+      jest
+        .spyOn(service, 'calculateWorkspaceLimits')
+        .mockResolvedValue({ unusedSpace: oneTb * 5, spaceDifference: 0 });
+
+      await expect(
+        service.validateStorageForPlanChange(
+          workspace,
+          newWorkspaceSpaceLimit,
+          newNumberOfSeats,
+        ),
+      ).resolves.not.toThrow();
+    });
+  });
+
   describe('updateWorkspaceLimit', () => {
     it('When workspace does not exist, then it should throw', async () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
@@ -1827,9 +1979,6 @@ describe('WorkspacesUsecases', () => {
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValue(workspaceNetworkUser);
       jest
-        .spyOn(service, 'getWorkspaceNetworkLimit')
-        .mockResolvedValue(currentSpaceLimit);
-      jest
         .spyOn(workspaceRepository, 'findWorkspaceUsers')
         .mockResolvedValue(workspaceUsers);
       jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
@@ -1843,7 +1992,83 @@ describe('WorkspacesUsecases', () => {
         currentSpaceLimit -
         (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
 
+      jest.spyOn(service, 'calculateWorkspaceLimits').mockResolvedValue({
+        unusedSpace,
+        spaceDifference: newSpacePerUser - oldSpacePerUser,
+      });
+
       await service.updateWorkspaceLimit(workspace.id, newSpaceLimit);
+
+      expect(networkService.setStorage).toHaveBeenCalledWith(
+        workspaceNetworkUser.email,
+        newSpaceLimit,
+      );
+
+      expect(workspaceRepository.updateWorkspaceUser).toHaveBeenCalledTimes(3);
+
+      expect(service.adjustOwnerStorage).toHaveBeenCalledWith(
+        workspace.id,
+        unusedSpace,
+        'ADD',
+      );
+    });
+
+    it('When numberOfSeats is specified, then it should update the number of seats', async () => {
+      const workspaceNetworkUser = newUser();
+      const numberOfSeats = 6;
+      const newSpaceLimit = 10995116277760;
+      const currentSpaceLimit = newSpaceLimit / 2;
+      const workspaceOwner = newUser();
+      const workspace = newWorkspace({
+        owner: workspaceOwner,
+        attributes: {
+          workspaceUserId: workspaceNetworkUser.uuid,
+          numberOfSeats: 3,
+        },
+      });
+      const workspaceUsers = [
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          attributes: { spaceLimit: currentSpaceLimit / 4 },
+        }),
+        newWorkspaceUser({
+          workspaceId: workspace.id,
+          member: workspaceOwner,
+          attributes: { spaceLimit: currentSpaceLimit / 2 },
+        }),
+      ];
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(workspaceNetworkUser);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsers')
+        .mockResolvedValue(workspaceUsers);
+      jest.spyOn(workspaceRepository, 'updateWorkspaceUser');
+      jest.spyOn(networkService, 'setStorage').mockResolvedValue();
+      jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValue();
+
+      const oldSpacePerUser = currentSpaceLimit / workspace.numberOfSeats;
+      const newSpacePerUser = newSpaceLimit / numberOfSeats;
+      const unusedSpace =
+        newSpaceLimit -
+        currentSpaceLimit -
+        (newSpacePerUser - oldSpacePerUser) * workspaceUsers.length;
+
+      jest.spyOn(service, 'calculateWorkspaceLimits').mockResolvedValue({
+        unusedSpace,
+        spaceDifference: newSpacePerUser - oldSpacePerUser,
+      });
+
+      await service.updateWorkspaceLimit(
+        workspace.id,
+        newSpaceLimit,
+        numberOfSeats,
+      );
 
       expect(networkService.setStorage).toHaveBeenCalledWith(
         workspaceNetworkUser.email,
@@ -5498,6 +5723,236 @@ describe('WorkspacesUsecases', () => {
         name: files[0].name,
         similarity: 0.8,
       });
+    });
+  });
+
+  describe('getPersonalWorkspaceFilesInWorkspaceUpdatedAfter', () => {
+    const userUuid = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const bucket = 'bucket-name';
+    const options = {
+      sort: 'name',
+      order: 'ASC',
+      limit: 10,
+      offset: 0,
+      status: 'EXISTS',
+    };
+
+    it('When files are found, then it should return those files', async () => {
+      const files = [newFile(), newFile()];
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesUpdatedAfter')
+        .mockResolvedValue(files);
+
+      const result =
+        await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+          userUuid,
+          workspaceId,
+          updatedAfter,
+          options as any,
+          bucket,
+        );
+
+      expect(result).toEqual(files);
+    });
+
+    it('When no options are provided, it should use default values', async () => {
+      await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        {},
+        {
+          limit: 50,
+          offset: 0,
+        },
+      );
+    });
+
+    it('When bucket is provided, it should filter using it', async () => {
+      const files = [newFile()];
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesUpdatedAfter')
+        .mockResolvedValue(files);
+
+      const result =
+        await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+          userUuid,
+          workspaceId,
+          updatedAfter,
+          options as any,
+          bucket,
+        );
+
+      expect(result).toEqual(files);
+      expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { status: 'EXISTS', bucket },
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+
+    it('When no status is provided, then the status condition should be omited', async () => {
+      await service.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { ...options, status: undefined } as any,
+        bucket,
+      );
+
+      expect(fileUseCases.getWorkspaceFilesUpdatedAfter).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { bucket },
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+  });
+
+  describe('getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter', () => {
+    const userUuid = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const options = {
+      sort: 'name',
+      order: 'ASC',
+      limit: 10,
+      offset: 0,
+      status: FolderStatus.EXISTS,
+    };
+
+    it('When folders are found, then it should return those folders', async () => {
+      const folders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter')
+        .mockResolvedValue(folders);
+
+      const result =
+        await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+          userUuid,
+          workspaceId,
+          updatedAfter,
+          options as any,
+        );
+
+      expect(result).toEqual(folders);
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        { deleted: false, removed: false },
+        updatedAfter,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+
+    it('When no options are provided, it should use default values', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(userUuid, workspaceId, {}, updatedAfter, {
+        limit: 50,
+        offset: 0,
+      });
+    });
+
+    it('When status is provided, it should filter using the correct folder status', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        options as any,
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        { deleted: false, removed: false },
+        updatedAfter,
+        {
+          limit: options.limit,
+          offset: options.offset,
+          sort: [['name', 'ASC']],
+        },
+      );
+    });
+
+    it('When no status is provided, it should omit the status condition', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { ...options, status: undefined } as any,
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(userUuid, workspaceId, {}, updatedAfter, {
+        limit: options.limit,
+        offset: options.offset,
+        sort: [['name', 'ASC']],
+      });
+    });
+
+    it('When sort and order are not provided, it should not include sorting options', async () => {
+      jest.spyOn(folderUseCases, 'getWorkspacesFoldersUpdatedAfter');
+
+      await service.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        userUuid,
+        workspaceId,
+        updatedAfter,
+        { ...options, sort: undefined, order: undefined },
+      );
+
+      expect(
+        folderUseCases.getWorkspacesFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        userUuid,
+        workspaceId,
+        { deleted: false, removed: false },
+        updatedAfter,
+        {
+          limit: options.limit,
+          offset: options.offset,
+        },
+      );
     });
   });
 });
