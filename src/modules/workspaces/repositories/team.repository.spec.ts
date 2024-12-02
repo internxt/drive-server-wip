@@ -37,6 +37,55 @@ describe('SequelizeWorkspaceTeamRepository', () => {
     );
   });
 
+  describe('addUserToTeam', () => {
+    it('should add user to team', async () => {
+      const team = newWorkspaceTeam();
+      const user = newUser();
+      const teamUser = newWorkspaceTeamUser({
+        teamId: team.id,
+        memberId: user.uuid,
+      });
+
+      jest.spyOn(workspaceTeamUserModel, 'create').mockResolvedValueOnce({
+        toJSON: jest.fn().mockReturnValue({ ...teamUser.toJSON() }),
+      } as any);
+
+      const teamUserCreated = await repository.addUserToTeam(
+        team.id,
+        user.uuid,
+      );
+
+      expect(teamUserCreated.id).toEqual(teamUser.id);
+    });
+
+    it('When a transaction is passed, then it should use it', async () => {
+      const team = newWorkspaceTeam();
+      const user = newUser();
+      const teamUser = newWorkspaceTeamUser({
+        teamId: team.id,
+        memberId: user.uuid,
+      });
+
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest.spyOn(workspaceTeamUserModel, 'create').mockResolvedValueOnce({
+        toJSON: jest.fn().mockReturnValue({ ...teamUser.toJSON() }),
+      } as any);
+
+      await repository.addUserToTeam(team.id, user.uuid, {
+        transaction: mockTransaction,
+      });
+
+      expect(workspaceTeamUserModel.create).toHaveBeenCalledWith(
+        {
+          teamId: team.id,
+          memberId: user.uuid,
+        },
+        { transaction: mockTransaction.getSequelizeTransaction() },
+      );
+    });
+  });
+
   describe('createTeam', () => {
     it('should create a team', async () => {
       const team = newWorkspaceTeam();
