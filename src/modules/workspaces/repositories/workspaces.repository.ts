@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOrCreateOptions, Transaction } from 'sequelize/types';
+import { FindOrCreateOptions } from 'sequelize/types';
 import { WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Workspace } from '../domains/workspaces.domain';
 import { WorkspaceModel } from '../models/workspace.model';
@@ -23,6 +23,10 @@ import { FileModel } from '../../file/file.model';
 import { FileAttributes } from '../../file/file.domain';
 import { FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
+import {
+  SequelizeTransactionAdapter,
+  Transaction,
+} from '../../../externals/sequelize/sequelize-transaction';
 
 @Injectable()
 export class SequelizeWorkspaceRepository {
@@ -72,8 +76,9 @@ export class SequelizeWorkspaceRepository {
     return workspaces.map((workspace) => this.toDomain(workspace));
   }
 
-  createTransaction(): Promise<Transaction> {
-    return this.modelWorkspace.sequelize.transaction();
+  async createTransaction(): Promise<Transaction> {
+    const transaction = await this.modelWorkspace.sequelize.transaction();
+    return new SequelizeTransactionAdapter(transaction);
   }
 
   findOrCreate(
@@ -84,16 +89,41 @@ export class SequelizeWorkspaceRepository {
 
   async findOne(
     where: Partial<WorkspaceAttributes>,
+    options?: { transaction?: Transaction },
   ): Promise<Workspace | null> {
-    const workspace = await this.modelWorkspace.findOne({ where });
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
+    const workspace = await this.modelWorkspace.findOne({
+      where,
+      ...options,
+      transaction: sequelizeTransaction,
+    });
 
     return workspace ? this.toDomain(workspace) : null;
   }
 
   async findInvite(
     where: Partial<WorkspaceInviteAttributes>,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceInvite | null> {
-    const invite = await this.modelWorkspaceInvite.findOne({ where });
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
+
+    const invite = await this.modelWorkspaceInvite.findOne({
+      where,
+      ...options,
+      transaction: sequelizeTransaction,
+      lock: sequelizeTransaction
+        ? {
+            level: sequelizeTransaction.LOCK.UPDATE,
+            of: this.modelWorkspaceInvite,
+          }
+        : undefined,
+    });
 
     return invite ? WorkspaceInvite.build(invite) : null;
   }
@@ -133,8 +163,17 @@ export class SequelizeWorkspaceRepository {
 
   async deleteInviteBy(
     where: Partial<WorkspaceInviteAttributes>,
+    options?: { transaction: Transaction },
   ): Promise<void> {
-    await this.modelWorkspaceInvite.destroy({ where });
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
+    await this.modelWorkspaceInvite.destroy({
+      where,
+      ...options,
+      transaction: sequelizeTransaction,
+    });
   }
 
   async getWorkspaceInvitationsCount(
@@ -150,10 +189,23 @@ export class SequelizeWorkspaceRepository {
   async findWorkspaceUser(
     where: Partial<WorkspaceUserAttributes>,
     includeUser = false,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceUser> {
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
     const workspaceUser = await this.modelWorkspaceUser.findOne({
       where,
       include: includeUser ? [{ model: UserModel, as: 'member' }] : [],
+      ...options,
+      transaction: sequelizeTransaction,
+      lock: sequelizeTransaction
+        ? {
+            level: sequelizeTransaction.LOCK.UPDATE,
+            of: this.modelWorkspaceUser,
+          }
+        : undefined,
     });
 
     return workspaceUser ? this.workspaceUserToDomain(workspaceUser) : null;
@@ -167,8 +219,16 @@ export class SequelizeWorkspaceRepository {
 
   async createItem(
     item: Omit<WorkspaceItemUserAttributes, 'id'>,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceItemUser | null> {
-    const newItem = await this.modelWorkspaceItemUser.create(item);
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
+    const newItem = await this.modelWorkspaceItemUser.create(item, {
+      ...options,
+      transaction: sequelizeTransaction,
+    });
 
     return newItem ? this.workspaceItemUserToDomain(newItem) : null;
   }
@@ -413,8 +473,16 @@ export class SequelizeWorkspaceRepository {
 
   async addUserToWorkspace(
     workspaceUser: Omit<WorkspaceUser, 'id'>,
+    options?: { transaction?: Transaction },
   ): Promise<WorkspaceUser> {
-    const user = await this.modelWorkspaceUser.create(workspaceUser);
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
+    const user = await this.modelWorkspaceUser.create(workspaceUser, {
+      ...options,
+      transaction: sequelizeTransaction,
+    });
     return this.workspaceUserToDomain(user);
   }
 
@@ -436,7 +504,10 @@ export class SequelizeWorkspaceRepository {
     update: Partial<WorkspaceAttributes>,
     transaction?: Transaction,
   ): Promise<void> {
-    await this.modelWorkspace.update(update, { where: { id }, transaction });
+    await this.modelWorkspace.update(update, {
+      where: { id },
+      transaction: transaction?.getSequelizeTransaction(),
+    });
   }
 
   async updateBy(
@@ -444,7 +515,10 @@ export class SequelizeWorkspaceRepository {
     update: Partial<WorkspaceAttributes>,
     transaction?: Transaction,
   ): Promise<void> {
-    await this.modelWorkspace.update(update, { where, transaction });
+    await this.modelWorkspace.update(update, {
+      where,
+      transaction: transaction?.getSequelizeTransaction(),
+    });
   }
 
   async deleteById(id: WorkspaceAttributes['id']): Promise<void> {
@@ -463,9 +537,16 @@ export class SequelizeWorkspaceRepository {
   async updateWorkspaceUserBy(
     where: Partial<WorkspaceUserAttributes>,
     update: Partial<WorkspaceUserAttributes>,
+    options?: { transaction?: Transaction },
   ): Promise<void> {
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
     await this.modelWorkspaceUser.update(update, {
       where,
+      ...options,
+      transaction: sequelizeTransaction,
     });
   }
 

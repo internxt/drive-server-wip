@@ -71,6 +71,7 @@ import { GatewayModule } from './modules/gateway/gateway.module';
                 rejectUnauthorized: false,
               },
               application_name: 'drive-server-wip',
+              idle_in_transaction_session_timeout: 60000,
             }
           : {},
         logging: !configService.get('database.debug')

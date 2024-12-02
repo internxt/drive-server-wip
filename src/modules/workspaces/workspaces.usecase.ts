@@ -73,6 +73,7 @@ import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { Transaction } from '../../externals/sequelize/sequelize-transaction';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -1568,6 +1569,7 @@ export class WorkspacesUsecases {
     workspaceId: Workspace['id'],
     size: number,
     behavior: 'DEDUCT' | 'ADD',
+    options?: { transaction?: Transaction },
   ): Promise<void> {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -1614,58 +1616,75 @@ export class WorkspacesUsecases {
     await this.workspaceRepository.updateWorkspaceUserBy(
       { workspaceId, memberId: workspace.ownerId },
       { spaceLimit: newSpaceLimit },
+      options,
     );
   }
 
   async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
-    const invite = await this.workspaceRepository.findInvite({
-      id: inviteId,
-      invitedUser: user.uuid,
-    });
-
-    if (!invite) {
-      throw new BadRequestException('This invitation is not valid');
-    }
-
-    const workspace = await this.workspaceRepository.findOne({
-      id: invite.workspaceId,
-      setupCompleted: true,
-    });
-
-    if (!workspace) {
-      throw new BadRequestException(
-        'This invitation does not have a valid workspace',
-      );
-    }
-
-    const userAlreadyInWorkspace =
-      await this.workspaceRepository.findWorkspaceUser({
-        workspaceId: workspace.id,
-        memberId: user.uuid,
-      });
-
-    if (userAlreadyInWorkspace) {
-      await this.workspaceRepository.deleteInviteBy({ id: invite.id });
-      return userAlreadyInWorkspace.toJSON();
-    }
-
-    const isWorkspaceFull = await this.isWorkspaceFull(workspace);
-
-    if (isWorkspaceFull) {
-      throw new BadRequestException(
-        'This workspace is full and it does not accept more users',
-      );
-    }
-
-    const spaceLeft = await this.getOwnerAvailableSpace(workspace);
-
-    if (invite.spaceLimit > spaceLeft) {
-      throw new BadRequestException(
-        'The space assigned to this user is greater than the space available, invalid invitation',
-      );
-    }
+    const transaction = await this.workspaceRepository.createTransaction();
 
     try {
+      const invite = await this.workspaceRepository.findInvite(
+        {
+          id: inviteId,
+          invitedUser: user.uuid,
+        },
+        { transaction },
+      );
+
+      if (!invite) {
+        throw new BadRequestException('This invitation is not valid');
+      }
+
+      const workspace = await this.workspaceRepository.findOne(
+        {
+          id: invite.workspaceId,
+          setupCompleted: true,
+        },
+        { transaction },
+      );
+
+      if (!workspace) {
+        throw new BadRequestException(
+          'This invitation does not have a valid workspace',
+        );
+      }
+
+      const userAlreadyInWorkspace =
+        await this.workspaceRepository.findWorkspaceUser(
+          {
+            workspaceId: workspace.id,
+            memberId: user.uuid,
+          },
+          false,
+          { transaction },
+        );
+
+      if (userAlreadyInWorkspace) {
+        await this.workspaceRepository.deleteInviteBy(
+          { id: invite.id },
+          { transaction },
+        );
+        await transaction.commit();
+        return userAlreadyInWorkspace.toJSON();
+      }
+
+      const isWorkspaceFull = await this.isWorkspaceFull(workspace);
+
+      if (isWorkspaceFull) {
+        throw new BadRequestException(
+          'This workspace is full and it does not accept more users',
+        );
+      }
+
+      const spaceLeft = await this.getOwnerAvailableSpace(workspace);
+
+      if (invite.spaceLimit > spaceLeft) {
+        throw new BadRequestException(
+          'The space assigned to this user is greater than the space available, invalid invitation',
+        );
+      }
+
       const rootFolder = await this.initiateWorkspacePersonalRootFolder(
         workspace.workspaceUserId,
         workspace.rootFolderId,
@@ -1685,44 +1704,54 @@ export class WorkspacesUsecases {
         updatedAt: new Date(),
       });
 
-      await this.workspaceRepository.addUserToWorkspace(workspaceUser);
+      await this.workspaceRepository.addUserToWorkspace(workspaceUser, {
+        transaction,
+      });
 
       await this.teamRepository.addUserToTeam(
         workspace.defaultTeamId,
         user.uuid,
+        { transaction },
       );
 
-      await this.workspaceRepository.createItem({
-        itemId: rootFolder.uuid,
-        workspaceId: workspace.id,
-        itemType: WorkspaceItemType.Folder,
-        context: WorkspaceItemContext.Drive,
-        createdBy: user.uuid,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      await this.workspaceRepository.createItem(
+        {
+          itemId: rootFolder.uuid,
+          workspaceId: workspace.id,
+          itemType: WorkspaceItemType.Folder,
+          context: WorkspaceItemContext.Drive,
+          createdBy: user.uuid,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        { transaction },
+      );
+
+      await this.workspaceRepository.deleteInviteBy(
+        { id: invite.id },
+        { transaction },
+      );
+
+      await this.adjustOwnerStorage(workspace.id, invite.spaceLimit, 'DEDUCT', {
+        transaction,
       });
 
-      await this.workspaceRepository.deleteInviteBy({ id: invite.id });
-
-      await this.adjustOwnerStorage(workspace.id, invite.spaceLimit, 'DEDUCT');
+      await transaction.commit();
 
       return workspaceUser.toJSON();
     } catch (error) {
-      let finalMessage = 'There was a problem accepting this invite! ';
-      const rollbackError = await this.rollbackUserAddedToWorkspace(
-        user.uuid,
-        workspace,
-      );
-
-      finalMessage += rollbackError
-        ? rollbackError.message
-        : 'rollback applied successfully';
+      await transaction.rollback();
+      const finalMessage = 'There was a problem accepting this invite!';
 
       Logger.error(
         `[WORKSPACE/ACEPT_INVITE]: Error while accepting user invitation! ${
           (error as Error).message
         }`,
       );
+
+      if (error instanceof BadRequestException) {
+        throw new BadRequestException(finalMessage);
+      }
 
       throw new InternalServerErrorException(finalMessage);
     }
@@ -1849,17 +1878,24 @@ export class WorkspacesUsecases {
     });
   }
 
-  async getOwnerAvailableSpace(workspace: Workspace) {
+  async getOwnerAvailableSpace(
+    workspace: Workspace,
+    options: { transaction?: Transaction } = {},
+  ) {
     const ownerUsedSpace = await this.calculateFilesSizeSum(
       workspace.ownerId,
       workspace.id,
       [FileStatus.EXISTS, FileStatus.TRASHED],
     );
 
-    const owner = await this.workspaceRepository.findWorkspaceUser({
-      workspaceId: workspace.id,
-      memberId: workspace.ownerId,
-    });
+    const owner = await this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId: workspace.id,
+        memberId: workspace.ownerId,
+      },
+      false,
+      options,
+    );
 
     const availableSpace = owner.spaceLimit - ownerUsedSpace;
 
