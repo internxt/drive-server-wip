@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { SequelizeUsageRepository } from './usage.repository';
+import { File } from '../file/file.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { User } from '../user/user.domain';
+import { Usage, UsageType } from './usage.domain';
+import { v4 } from 'uuid';
+import { Time } from '../../lib/time';
 
 @Injectable()
 export class UsageUseCases {
@@ -37,5 +41,82 @@ export class UsageUseCases {
         totalStorageChanged,
       id: user.email,
     };
+  }
+
+  async createDailyUsage(userUuid: User['uuid'], period: Date, delta: number) {
+    const dailyUsage = Usage.build({
+      id: v4(),
+      userId: userUuid,
+      period,
+      delta,
+      type: UsageType.Daily,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const createdDailyUsage = await this.usageRepository.create(dailyUsage);
+
+    return createdDailyUsage;
+  }
+
+  /*   async addDailyUsageChangeOnFileSizeChange(
+    user: User,
+    oldFileData: File,
+    newFileData: File,
+  ) {
+    const mostRecentDailyUsage = await this.usageRepository.getUsage(
+      {
+        type: UsageType.Daily,
+        userId: user.uuid,
+      },
+      [['createdAt', 'DESC']],
+    );
+
+    let calculateChangesSince: Date = mostRecentDailyUsage?.createdAt;
+    const now = new Date();
+
+    if (
+      !calculateChangesSince ||
+      new Date(calculateChangesSince).toDateString() !== now.toDateString()
+    ) {
+      calculateChangesSince = new Date(now);
+      calculateChangesSince.setUTCHours(0, 0, 0, 0);
+    }
+
+    const totalStorageChanged = await this.fileRepository.sumFileSizesSinceDate(
+      user.id,
+      calculateChangesSince,
+    );
+
+    if (newFileData.createdAt.toDateString() !== now.toDateString()) {
+      const delta =
+        Number(newFileData.size) -
+        Number(oldFileData.size) +
+        totalStorageChanged;
+
+      return this.createDailyUsage(user.uuid, new Date(), delta);
+    }
+
+    const delta = totalStorageChanged;
+
+    console.log({ totalStorageChanged, delta });
+
+    return this.createDailyUsage(user.uuid, new Date(), delta);
+  } */
+
+  async addDailyUsageChangeOnFileSizeChange(
+    user: User,
+    oldFileData: File,
+    newFileData: File,
+  ) {
+    const isFileCreatedToday = Time.isToday(newFileData.createdAt);
+
+    if (isFileCreatedToday) {
+      return;
+    }
+
+    const delta = Number(newFileData.size) - Number(oldFileData.size);
+
+    return this.createDailyUsage(user.uuid, new Date(), delta);
   }
 }

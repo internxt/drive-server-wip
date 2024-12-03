@@ -1,9 +1,14 @@
+export enum UsageType {
+  Daily = 'daily',
+  Monthly = 'monthly',
+  Yearly = 'yearly',
+}
 export interface UsageAttributes {
   id: string;
   userId: string;
   delta: number;
   period: Date;
-  type: string;
+  type: UsageType;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,7 +18,7 @@ export class Usage implements UsageAttributes {
   userId: string;
   delta: number;
   period: Date;
-  type: string;
+  type: UsageType;
   createdAt: Date;
   updatedAt: Date;
 
@@ -29,7 +34,7 @@ export class Usage implements UsageAttributes {
     this.id = id;
     this.userId = userId;
     this.delta = delta;
-    this.period = period;
+    this.period = new Date(period);
     this.type = type;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -40,11 +45,15 @@ export class Usage implements UsageAttributes {
   }
 
   isYearly(): boolean {
-    return this.type === 'yearly';
+    return this.type === UsageType.Yearly;
   }
 
   isMonthly(): boolean {
-    return this.type === 'monthly';
+    return this.type === UsageType.Monthly;
+  }
+
+  isDaily(): boolean {
+    return this.type === UsageType.Daily;
   }
 
   toJSON(): Partial<UsageAttributes> {
