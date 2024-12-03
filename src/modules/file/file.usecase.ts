@@ -37,6 +37,7 @@ import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
 import { FileModel } from './file.model';
+import { UsageUseCases } from '../usage/usage.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -50,6 +51,7 @@ export class FileUseCases {
     private sharingUsecases: SharingService,
     private network: BridgeService,
     private cryptoService: CryptoService,
+    private usageUsecases: UsageUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -570,7 +572,7 @@ export class FileUseCases {
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
-    if (!file) {
+    if (!file || file?.status != FileStatus.EXISTS) {
       throw new NotFoundException(`File ${fileUuid} not found`);
     }
 
@@ -581,7 +583,17 @@ export class FileUseCases {
       fileId,
       size,
     });
-    await this.network.deleteFile(user, bucket, oldFileId);
+
+    const newFile = File.build({ ...file, size, fileId });
+
+    await Promise.all([
+      this.network.deleteFile(user, bucket, oldFileId),
+      this.usageUsecases.addDailyUsageChangeOnFileSizeChange(
+        user,
+        file,
+        newFile,
+      ),
+    ]);
 
     return {
       ...file.toJSON(),

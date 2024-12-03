@@ -638,7 +638,13 @@ export class SequelizeFileRepository implements FileRepository {
   async sumFileSizesSinceDate(
     userId: FileAttributes['userId'],
     sinceDate: Date,
+    untilDate?: Date,
   ): Promise<number> {
+    const timeCondition = {
+      [Op.gte]: sinceDate,
+      ...(untilDate ? { [Op.lte]: untilDate } : null),
+    };
+
     const result = await this.fileModel.findAll({
       attributes: [
         [
@@ -661,19 +667,16 @@ export class SequelizeFileRepository implements FileRepository {
             status: {
               [Op.ne]: 'DELETED',
             },
-            createdAt: {
-              [Op.gte]: sinceDate,
-            },
+            createdAt: timeCondition,
           },
           {
             status: 'DELETED',
-            updatedAt: {
-              [Op.gte]: sinceDate,
-            },
+            updatedAt: timeCondition,
           },
         ],
       },
       raw: true,
+      logging: console.log,
     });
 
     return Number(result[0]['total']) as unknown as number;

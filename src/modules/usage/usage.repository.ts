@@ -18,10 +18,28 @@ export class SequelizeUsageRepository {
     return usages.map((usage) => this.toDomain(usage));
   }
 
+  public async create(usage: Omit<Usage, 'id'>) {
+    const newUsage = await this.usageModel.create(usage);
+
+    return this.toDomain(newUsage);
+  }
+
   public async getMostRecentUsage(userUuid: string): Promise<Usage | null> {
     const mostRecentUsage = await this.usageModel.findOne({
       where: { userId: userUuid },
       order: [['period', 'DESC']],
+    });
+
+    return mostRecentUsage ? this.toDomain(mostRecentUsage) : null;
+  }
+
+  public async getUsage(
+    where: Partial<Usage>,
+    order?: Array<[keyof Usage, 'ASC' | 'DESC']>,
+  ): Promise<Usage | null> {
+    const mostRecentUsage = await this.usageModel.findOne({
+      where: { ...where },
+      order: order,
     });
 
     return mostRecentUsage ? this.toDomain(mostRecentUsage) : null;
