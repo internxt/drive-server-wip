@@ -18,7 +18,7 @@ module.exports = {
             WHERE
                 period >= date_trunc('year', CURRENT_DATE) - INTERVAL '1 year'
                 AND period < date_trunc('year', CURRENT_DATE)
-                AND type = 'monthly'
+                AND type IN ('monthly', 'daily')
             GROUP BY
                 user_id
         )
@@ -46,7 +46,7 @@ module.exports = {
         WHERE
             period >= date_trunc('year', CURRENT_DATE) - INTERVAL '1 year'
             AND period < date_trunc('year', CURRENT_DATE)
-            AND type = 'monthly';
+            AND type IN ('monthly', 'daily');
     END;
     $$;
   `);

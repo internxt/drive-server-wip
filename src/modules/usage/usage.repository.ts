@@ -1,7 +1,8 @@
 import { InjectModel } from '@nestjs/sequelize';
 import { Injectable } from '@nestjs/common';
 import { UsageModel } from './usage.model';
-import { Usage } from './usage.domain';
+import { Usage, UsageType } from './usage.domain';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class SequelizeUsageRepository {
@@ -24,9 +25,14 @@ export class SequelizeUsageRepository {
     return this.toDomain(newUsage);
   }
 
-  public async getMostRecentUsage(userUuid: string): Promise<Usage | null> {
+  public async getMostRecentMonthlyOrYearlyUsage(
+    userUuid: string,
+  ): Promise<Usage | null> {
     const mostRecentUsage = await this.usageModel.findOne({
-      where: { userId: userUuid },
+      where: {
+        userId: userUuid,
+        [Op.or]: [{ type: UsageType.Monthly }, { type: UsageType.Yearly }],
+      },
       order: [['period', 'DESC']],
     });
 
@@ -45,7 +51,7 @@ export class SequelizeUsageRepository {
     return mostRecentUsage ? this.toDomain(mostRecentUsage) : null;
   }
 
-  public async addFirstDailyUsage(userUuid: string): Promise<Usage> {
+  public async addFirstMonthlyUsage(userUuid: string): Promise<Usage> {
     const query = `
       INSERT INTO public.usages (id, user_id, delta, period, type, created_at, updated_at)
       SELECT
@@ -79,66 +85,85 @@ export class SequelizeUsageRepository {
   public async getUserUsage(userUuid: string) {
     const query = `
         WITH yearly_sums AS (
-        SELECT
-            date_trunc('year', period) AS year,
-            SUM(delta) AS total_delta
-        FROM
-            public.usages
-        WHERE
-            type = 'yearly'
-            AND user_id = :userUuid
-        GROUP BY
-            date_trunc('year', period)
-        ),
-        monthly_sums AS (
-            SELECT
-                date_trunc('year', period) AS year,
-                SUM(delta) AS total_delta
-            FROM
-                public.usages
-            WHERE
-                type = 'monthly'
-                AND user_id = :userUuid
-            GROUP BY
-                date_trunc('year', period)
-        ),
-        filtered_monthly_sums AS (
-            SELECT
-                m.year,
-                m.total_delta
-            FROM
-                monthly_sums m
-            LEFT JOIN yearly_sums y ON m.year = y.year
-            WHERE y.year IS NULL
-        ),
-        combined_sums AS (
-            SELECT
-                year,
-                total_delta
-            FROM
-                yearly_sums
-            UNION ALL
-            SELECT
-                year,
-                total_delta
-            FROM
-                filtered_monthly_sums
-        )
-        SELECT
-            SUM(
-                CASE
-                    WHEN year < date_trunc('year', CURRENT_DATE) THEN total_delta
-                    ELSE 0
-                END
-            ) AS total_yearly_delta,
-            SUM(
-                CASE
-                    WHEN year = date_trunc('year', CURRENT_DATE) THEN total_delta
-                    ELSE 0
-                END
-            ) AS total_monthly_delta
-        FROM
-            combined_sums;
+          SELECT
+              date_trunc('year', period) AS year,
+              SUM(delta) AS total_delta
+          FROM
+              public.usages
+          WHERE
+              type = 'yearly'
+              AND user_id = :userUuid
+          GROUP BY
+              date_trunc('year', period)
+          ),
+          monthly_sums AS (
+              SELECT
+                  date_trunc('year', period) AS year,
+                  date_trunc('month', period) AS month,
+                  SUM(delta) AS total_delta
+              FROM
+                  public.usages
+              WHERE
+                  type = 'monthly'
+                  AND user_id = :userUuid
+              GROUP BY
+                  date_trunc('year', period), date_trunc('month', period)
+          ),
+          daily_sums AS (
+              SELECT
+                  date_trunc('year', period) AS year,
+                  date_trunc('month', period) AS month,
+                  SUM(delta) AS total_delta
+              FROM
+                  public.usages
+              WHERE
+                  type = 'daily'
+                  AND user_id = :userUuid
+              GROUP BY
+                  date_trunc('year', period), date_trunc('month', period)
+          ),
+          combined_monthly_and_daily AS (
+              SELECT
+                  COALESCE(m.year, d.year) AS year,
+                  COALESCE(m.month, d.month) AS month,
+                  COALESCE(m.total_delta, 0) + COALESCE(d.total_delta, 0) AS total_delta
+              FROM
+                  monthly_sums m
+                  FULL JOIN daily_sums d ON m.year = d.year AND m.month = d.month
+          ),
+          combined_sums AS (
+              SELECT
+                  y.year,
+                  NULL AS month,
+                  y.total_delta AS total_delta
+              FROM
+                  yearly_sums y
+              UNION ALL
+              SELECT
+                  cmd.year,
+                  cmd.month,
+                  cmd.total_delta
+              FROM
+                  combined_monthly_and_daily cmd
+                  LEFT JOIN yearly_sums ys ON cmd.year = ys.year
+              WHERE
+                  ys.year IS NULL -- Exclude months and days where a yearly row exists
+          )
+          SELECT
+              SUM(
+                  CASE
+                      WHEN year < date_trunc('year', CURRENT_DATE) THEN total_delta
+                      ELSE 0
+                  END
+              ) AS total_yearly_delta,
+              SUM(
+                  CASE
+                      WHEN year = date_trunc('year', CURRENT_DATE) THEN total_delta
+                      ELSE 0
+                  END
+              ) AS total_monthly_delta
+          FROM
+              combined_sums;
     `;
 
     const [result] = (await this.usageModel.sequelize.query(query, {
