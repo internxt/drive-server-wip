@@ -18,18 +18,28 @@ export class UsageUseCases {
     const userUuid = user.uuid;
 
     let mostRecentUsage =
-      await this.usageRepository.getMostRecentUsage(userUuid);
+      await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(userUuid);
 
     if (!mostRecentUsage) {
-      mostRecentUsage = await this.usageRepository.addFirstDailyUsage(userUuid);
+      mostRecentUsage =
+        await this.usageRepository.addFirstMonthlyUsage(userUuid);
     }
 
-    const mostRecentUsageNextDay = new Date(mostRecentUsage.period);
-    mostRecentUsageNextDay.setUTCDate(mostRecentUsageNextDay.getUTCDate() + 1);
+    const calculateSizeChangesSince = new Date(mostRecentUsage.period);
+
+    if (mostRecentUsage.isYearly()) {
+      calculateSizeChangesSince.setUTCFullYear(
+        calculateSizeChangesSince.getUTCFullYear() + 1,
+      );
+    } else {
+      calculateSizeChangesSince.setUTCDate(
+        calculateSizeChangesSince.getUTCDate() + 1,
+      );
+    }
 
     const totalStorageChanged = await this.fileRepository.sumFileSizesSinceDate(
       user.id,
-      mostRecentUsageNextDay,
+      calculateSizeChangesSince,
     );
 
     const totalUsage = await this.usageRepository.getUserUsage(userUuid);
@@ -108,14 +118,22 @@ export class UsageUseCases {
     user: User,
     oldFileData: File,
     newFileData: File,
-  ) {
-    const isFileCreatedToday = Time.isToday(newFileData.createdAt);
+  ): Promise<Usage | null> {
+    const maybeExistentUsage =
+      await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(user.uuid);
 
-    if (isFileCreatedToday) {
-      return;
+    if (!maybeExistentUsage) {
+      return null;
     }
 
     const delta = Number(newFileData.size) - Number(oldFileData.size);
+
+    // Files created the same day are going to be included in the next cronjob run
+    const isFileCreatedToday = Time.isToday(newFileData.createdAt);
+
+    if (delta === 0 || isFileCreatedToday) {
+      return null;
+    }
 
     return this.createDailyUsage(user.uuid, new Date(), delta);
   }

@@ -55,16 +55,4 @@ export class Usage implements UsageAttributes {
   isDaily(): boolean {
     return this.type === UsageType.Daily;
   }
-
-  toJSON(): Partial<UsageAttributes> {
-    return {
-      id: this.id,
-      userId: this.userId,
-      delta: this.delta,
-      period: this.period,
-      type: this.type,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
-  }
 }

@@ -28,7 +28,7 @@ module.exports = {
         JOIN users u ON u.id = f.user_id
         LEFT JOIN (
             SELECT user_id, MAX(period) AS last_period
-            FROM public.usages
+            FROM public.usages WHERE type = 'monthly'
             GROUP BY user_id
         ) mru
         ON u.uuid::uuid = mru.user_id::uuid
@@ -38,8 +38,6 @@ module.exports = {
                 (f.status != 'DELETED' AND f.created_at BETWEEN CURRENT_DATE - INTERVAL '1 day' AND CURRENT_DATE - INTERVAL '1 millisecond')
                 OR
                 (f.status = 'DELETED' AND f.updated_at BETWEEN CURRENT_DATE - INTERVAL '1 day' AND CURRENT_DATE - INTERVAL '1 millisecond')
-                OR
-                (f.status != 'DELETED' AND f.modification_time BETWEEN CURRENT_DATE - INTERVAL '1 day' AND CURRENT_DATE - INTERVAL '1 millisecond')
             )
         GROUP BY
             u.uuid;
