@@ -34,6 +34,7 @@ import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-i
 import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 import { UserNotificationTokens } from '../src/modules/user/user-notification-tokens.domain';
 import { UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
+import { Usage, UsageType } from '../src/modules/usage/usage.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -539,4 +540,30 @@ export const newNotificationToken = (
       token[key] = params.attributes[key];
     });
   return token;
+};
+
+export const newUsage = (params?: { attributes?: Partial<Usage> }): Usage => {
+  const randomCreatedAt = randomDataGenerator.date();
+  const randomPeriod = randomDataGenerator.date();
+
+  const usage = Usage.build({
+    id: v4(),
+    userId: v4(),
+    delta: randomDataGenerator.integer({ min: 0, max: 1000 }),
+    period: randomPeriod,
+    type: UsageType.Daily,
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+  });
+
+  params?.attributes &&
+    Object.keys(params.attributes).forEach((key) => {
+      usage[key] = params.attributes[key];
+    });
+
+  return usage;
 };
