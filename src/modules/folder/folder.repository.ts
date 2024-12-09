@@ -54,6 +54,10 @@ export interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
+  findByUuidAndUser(
+    folderUuid: FolderAttributes['uuid'],
+    userId: FolderAttributes['userId'],
+  ): Promise<Folder | null>;
   findByParent(
     parentId: Folder['id'],
     searchBy: {
@@ -328,6 +332,16 @@ export class SequelizeFolderRepository implements FolderRepository {
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({
       where: { uuid, deleted, removed: false },
+    });
+    return folder ? this.toDomain(folder) : null;
+  }
+
+  async findByUuidAndUser(
+    uuid: FolderAttributes['uuid'],
+    userId: FolderAttributes['userId'],
+  ): Promise<Folder> {
+    const folder = await this.folderModel.findOne({
+      where: { uuid, userId, removed: false },
     });
     return folder ? this.toDomain(folder) : null;
   }
