@@ -519,7 +519,7 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValueOnce(destinationFolder);
 
       jest
@@ -573,7 +573,7 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValueOnce(mockDestinationFolder);
 
       expect(
@@ -591,7 +591,7 @@ describe('FileUseCases', () => {
     it('When a file is moved to a non existent folder, then it should throw a not found error', () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValueOnce(null);
       expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),

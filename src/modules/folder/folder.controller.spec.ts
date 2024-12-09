@@ -322,7 +322,7 @@ describe('FolderController', () => {
   describe('getFolderContent', () => {
     it('When folde content is requested and the current folder is not found, then it should throw', async () => {
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValue(null);
 
       expect(
@@ -354,7 +354,7 @@ describe('FolderController', () => {
       }));
 
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValue(currentFolder);
 
       jest
@@ -486,7 +486,7 @@ describe('FolderController', () => {
       ];
 
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValue(parentFolder);
       jest
         .spyOn(fileUseCases, 'searchFilesInFolder')
@@ -505,7 +505,7 @@ describe('FolderController', () => {
       const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
 
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValue(parentFolder);
       jest.spyOn(fileUseCases, 'searchFilesInFolder').mockResolvedValue([]);
 
@@ -520,7 +520,7 @@ describe('FolderController', () => {
 
     it('When the parent folder does not exist, then it should throw', async () => {
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuidAndUserAndNotDeleted')
         .mockResolvedValue(null);
 
       await expect(

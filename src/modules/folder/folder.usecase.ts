@@ -77,6 +77,23 @@ export class FolderUseCases {
   }
 
   async getFolderByUuidAndUser(
+    uuid: FolderAttributes['uuid'],
+    user: User,
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuidAndUser(uuid, user.id);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    if (folder.userId !== user.id) {
+      throw new ForbiddenException();
+    }
+
+    return folder;
+  }
+
+  async getFolderByUuidAndUserAndNotDeleted(
     folderUuid: FolderAttributes['uuid'],
     user: User,
   ): Promise<Folder> {
@@ -783,7 +800,7 @@ export class FolderUseCases {
       );
     }
 
-    const destinationFolder = await this.getFolderByUuidAndUser(
+    const destinationFolder = await this.getFolderByUuidAndUserAndNotDeleted(
       destinationUuid,
       user,
     );

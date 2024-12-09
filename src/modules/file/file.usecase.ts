@@ -602,10 +602,11 @@ export class FileUseCases {
       );
     }
 
-    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
-      destinationUuid,
-      user,
-    );
+    const destinationFolder =
+      await this.folderUsecases.getFolderByUuidAndUserAndNotDeleted(
+        destinationUuid,
+        user,
+      );
     if (!destinationFolder || destinationFolder.removed === true) {
       throw new UnprocessableEntityException(
         `File can not be moved to ${destinationUuid}`,
