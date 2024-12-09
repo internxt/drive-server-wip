@@ -69,51 +69,6 @@ export class UsageUseCases {
     return createdDailyUsage;
   }
 
-  /*   async addDailyUsageChangeOnFileSizeChange(
-    user: User,
-    oldFileData: File,
-    newFileData: File,
-  ) {
-    const mostRecentDailyUsage = await this.usageRepository.getUsage(
-      {
-        type: UsageType.Daily,
-        userId: user.uuid,
-      },
-      [['createdAt', 'DESC']],
-    );
-
-    let calculateChangesSince: Date = mostRecentDailyUsage?.createdAt;
-    const now = new Date();
-
-    if (
-      !calculateChangesSince ||
-      new Date(calculateChangesSince).toDateString() !== now.toDateString()
-    ) {
-      calculateChangesSince = new Date(now);
-      calculateChangesSince.setUTCHours(0, 0, 0, 0);
-    }
-
-    const totalStorageChanged = await this.fileRepository.sumFileSizesSinceDate(
-      user.id,
-      calculateChangesSince,
-    );
-
-    if (newFileData.createdAt.toDateString() !== now.toDateString()) {
-      const delta =
-        Number(newFileData.size) -
-        Number(oldFileData.size) +
-        totalStorageChanged;
-
-      return this.createDailyUsage(user.uuid, new Date(), delta);
-    }
-
-    const delta = totalStorageChanged;
-
-    console.log({ totalStorageChanged, delta });
-
-    return this.createDailyUsage(user.uuid, new Date(), delta);
-  } */
-
   async addDailyUsageChangeOnFileSizeChange(
     user: User,
     oldFileData: File,
