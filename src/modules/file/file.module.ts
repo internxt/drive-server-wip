@@ -15,6 +15,7 @@ import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserModule } from '../user/user.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
+import { UsageModule } from '../usage/usage.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
     CryptoModule,
     UserModule,
     NotificationModule,
+    UsageModule,
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],
