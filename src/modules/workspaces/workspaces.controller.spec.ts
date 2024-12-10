@@ -14,15 +14,22 @@ import { v4 } from 'uuid';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
+  let storageNotificationService: DeepMocked<StorageNotificationService>;
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
+    storageNotificationService = createMock<StorageNotificationService>();
 
-    workspacesController = new WorkspacesController(workspacesUsecases);
+    workspacesController = new WorkspacesController(
+      workspacesUsecases,
+      storageNotificationService,
+    );
   });
 
   it('should be defined', () => {
@@ -621,6 +628,7 @@ describe('Workspace Controller', () => {
       await workspacesController.createFolder(
         workspaceId,
         user,
+        'clientId',
         createFolderDto,
       );
 
@@ -628,6 +636,36 @@ describe('Workspace Controller', () => {
         user,
         workspaceId,
         createFolderDto,
+      );
+    });
+  });
+
+  describe('POST /:workspaceId/files', () => {
+    it('When a file is created successfully, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const createFileDto: CreateWorkspaceFileDto = {
+        plainName: 'New File',
+        folderUuid: v4(),
+        bucket: v4(),
+        fileId: v4(),
+        encryptVersion: '',
+        size: BigInt(100),
+        type: 'pdf',
+        modificationTime: new Date(),
+      };
+
+      await workspacesController.createFile(
+        workspaceId,
+        user,
+        'clientId',
+        createFileDto,
+      );
+
+      expect(workspacesUsecases.createFile).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        createFileDto,
       );
     });
   });

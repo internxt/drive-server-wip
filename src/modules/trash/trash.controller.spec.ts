@@ -14,6 +14,7 @@ import {
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 const user = newUser();
+const requester = newUser();
 
 describe('TrashController', () => {
   let controller: TrashController;
@@ -55,6 +56,7 @@ describe('TrashController', () => {
         },
         user,
         'anyid',
+        requester,
       ),
     ).rejects.toThrow(BadRequestException);
   });
@@ -63,7 +65,7 @@ describe('TrashController', () => {
     const body = { items: [] };
     jest.spyOn(fileUseCases, 'moveFilesToTrash');
 
-    await controller.moveItemsToTrash(body, user, '');
+    await controller.moveItemsToTrash(body, user, '', requester);
     expect(fileUseCases.moveFilesToTrash).not.toHaveBeenCalled();
   });
 
@@ -101,6 +103,7 @@ describe('TrashController', () => {
       },
       user,
       '',
+      requester,
     );
 
     expect(fileUseCases.moveFilesToTrash).toHaveBeenCalledWith(

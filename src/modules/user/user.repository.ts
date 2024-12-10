@@ -104,7 +104,7 @@ export class SequelizeUserRepository implements UserRepository {
     return user ? this.toDomain(user) : null;
   }
 
-  async findAllBy(where: any): Promise<Array<User> | []> {
+  async findAllBy(where: any): Promise<Array<User>> {
     const users = await this.modelUser.findAll({ where });
     return users.map((user) => this.toDomain(user));
   }

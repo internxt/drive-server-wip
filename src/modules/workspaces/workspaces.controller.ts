@@ -70,12 +70,17 @@ import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 import { GetSharedWithDto } from './dto/shared-with.dto';
 import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
 import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Client } from '../auth/decorators/client.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
 @UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
-  constructor(private readonly workspaceUseCases: WorkspacesUsecases) {}
+  constructor(
+    private readonly workspaceUseCases: WorkspacesUsecases,
+    private readonly storageNotificationService: StorageNotificationService,
+  ) {}
 
   @Get('/')
   @ApiOperation({
@@ -615,9 +620,22 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() createFileDto: CreateWorkspaceFileDto,
   ) {
-    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+    const file = await this.workspaceUseCases.createFile(
+      user,
+      workspaceId,
+      createFileDto,
+    );
+
+    this.storageNotificationService.fileCreated({
+      payload: file,
+      user,
+      clientId,
+    });
+
+    return file;
   }
 
   @Post('/:workspaceId/shared/')
@@ -804,13 +822,22 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() createFolderDto: CreateWorkspaceFolderDto,
   ) {
-    return this.workspaceUseCases.createFolder(
+    const folder = await this.workspaceUseCases.createFolder(
       user,
       workspaceId,
       createFolderDto,
     );
+
+    this.storageNotificationService.folderCreated({
+      payload: folder,
+      user,
+      clientId,
+    });
+
+    return folder;
   }
 
   @Get('/:workspaceId/trash')

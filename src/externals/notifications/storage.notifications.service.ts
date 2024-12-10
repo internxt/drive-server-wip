@@ -98,7 +98,6 @@ export class StorageNotificationService {
   }
 
   public async getTokensAndSendNotification(userUuid: string) {
-    console.log({ userUuid });
     const tokens = await this.userRepository.getNotificationTokens(userUuid, {
       type: 'macos',
     });

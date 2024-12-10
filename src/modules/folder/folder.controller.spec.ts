@@ -21,6 +21,8 @@ import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 
+const requester = newUser();
+
 describe('FolderController', () => {
   let folderController: FolderController;
   let folderUseCases: FolderUseCases;
@@ -290,6 +292,7 @@ describe('FolderController', () => {
         folder.uuid,
         { destinationFolder: destinationFolder.uuid },
         clientId,
+        requester,
       );
       expect(result).toEqual(expectedFolder);
     });
@@ -303,6 +306,7 @@ describe('FolderController', () => {
             destinationFolder: v4(),
           },
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
 
@@ -314,6 +318,7 @@ describe('FolderController', () => {
             destinationFolder: 'invaliduuid',
           },
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
     });

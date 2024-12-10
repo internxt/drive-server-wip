@@ -60,6 +60,7 @@ import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
+import { Requester } from '../auth/decorators/requester.decorator';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -116,6 +117,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     const folder = await this.folderUseCases.createFolder(
       user,
@@ -124,7 +126,7 @@ export class FolderController {
 
     this.storageNotificationService.folderCreated({
       payload: folder,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -830,6 +832,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Body() updateFolderMetaDto: UpdateFolderMetaDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     const folderUpdated = await this.folderUseCases.updateFolderMetaData(
       user,
@@ -839,7 +842,7 @@ export class FolderController {
 
     this.storageNotificationService.folderUpdated({
       payload: folderUpdated,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -872,6 +875,7 @@ export class FolderController {
     @Param('uuid') folderUuid: Folder['uuid'],
     @Body() moveFolderData: MoveFolderDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -884,7 +888,7 @@ export class FolderController {
 
     this.storageNotificationService.folderUpdated({
       payload: folder,
-      user: user,
+      user: requester,
       clientId,
     });
 
