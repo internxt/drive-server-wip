@@ -99,6 +99,7 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     request.user = resourceOwner;
+    request.requester = request.requester || request.user;
     request.isSharedItem = true;
 
     return true;
