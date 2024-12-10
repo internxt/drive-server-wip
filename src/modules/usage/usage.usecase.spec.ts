@@ -20,7 +20,7 @@ describe('UsageUseCases', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [UsageUseCases],
     })
-      .useMocker(createMock)
+      .useMocker(() => createMock())
       .compile();
 
     usageUseCases = module.get<UsageUseCases>(UsageUseCases);
