@@ -1415,4 +1415,36 @@ describe('FolderUseCases', () => {
       );
     });
   });
+
+  describe('getFolderByUuidAndUser', () => {
+    const mockUser = newUser();
+    const mockFolder = newFolder({
+      attributes: {
+        userId: mockUser.id,
+        user: mockUser,
+      },
+      owner: mockUser,
+    });
+
+    it('When the folder exists, then it is returned', async () => {
+      jest
+        .spyOn(folderRepository, 'findByUuidAndUser')
+        .mockResolvedValueOnce(mockFolder);
+
+      const result = await service.getFolderByUuidAndUser(
+        mockFolder.uuid,
+        mockUser,
+      );
+
+      expect(result).toBe(mockFolder);
+    });
+
+    it('When the folder is not found, then an error is thrown', async () => {
+      jest.spyOn(folderRepository, 'findByUuidAndUser').mockResolvedValue(null);
+
+      await expect(
+        service.getFolderByUuidAndUser(mockFolder.uuid, mockUser),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

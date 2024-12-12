@@ -445,7 +445,7 @@ export class FolderController {
     @Param('uuid') folderUuid: string,
     @Body() query: CheckFileExistenceInFolderDto,
   ) {
-    const parentFolder = await this.folderUseCases.getFolderByUuidAndUser(
+    const parentFolder = await this.folderUseCases.getFolderByUuid(
       folderUuid,
       user,
     );
@@ -489,7 +489,7 @@ export class FolderController {
     @Query() query: BasicPaginationDto,
   ) {
     const [currentFolder, childrenFolders, files] = await Promise.all([
-      this.folderUseCases.getFolderByUuidAndUser(folderUuid, user),
+      this.folderUseCases.getFolderByUuid(folderUuid, user),
       this.folderUseCases.getFolders(
         user.id,
         {

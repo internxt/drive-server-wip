@@ -77,6 +77,19 @@ export class FolderUseCases {
   }
 
   async getFolderByUuidAndUser(
+    uuid: FolderAttributes['uuid'],
+    user: User,
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuidAndUser(uuid, user.id);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    return folder;
+  }
+
+  async getFolderByUuid(
     folderUuid: FolderAttributes['uuid'],
     user: User,
   ): Promise<Folder> {
@@ -783,10 +796,7 @@ export class FolderUseCases {
       );
     }
 
-    const destinationFolder = await this.getFolderByUuidAndUser(
-      destinationUuid,
-      user,
-    );
+    const destinationFolder = await this.getFolderByUuid(destinationUuid, user);
     if (destinationFolder.removed === true) {
       throw new UnprocessableEntityException(
         `Folder can not be moved to ${destinationUuid}`,

@@ -602,7 +602,7 @@ export class FileUseCases {
       );
     }
 
-    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
+    const destinationFolder = await this.folderUsecases.getFolderByUuid(
       destinationUuid,
       user,
     );

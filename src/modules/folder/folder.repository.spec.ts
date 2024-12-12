@@ -7,6 +7,8 @@ import { newFolder } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { v4 } from 'uuid';
+import { randomInt } from 'crypto';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -207,6 +209,43 @@ describe('SequelizeFolderRepository', () => {
       );
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('findByUuidAndUser', () => {
+    it('When folders are searched by uuid and user, then it should be handle as expected', async () => {
+      const randomFolderUUID = v4();
+      const randomUserId = randomInt(100000);
+
+      await repository.findByUuidAndUser(randomFolderUUID, randomUserId);
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: {
+          uuid: randomFolderUUID,
+          userId: randomUserId,
+          removed: false,
+        },
+      });
+    });
+
+    it('When folders are searched by uuid and user but they dont exist, then it should return null', async () => {
+      const randomFolderUUID = v4();
+      const randomUserId = randomInt(100000);
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findByUuidAndUser(
+        randomFolderUUID,
+        randomUserId,
+      );
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: {
+          uuid: randomFolderUUID,
+          userId: randomUserId,
+          removed: false,
+        },
+      });
+      expect(result).toBeNull();
     });
   });
 });
