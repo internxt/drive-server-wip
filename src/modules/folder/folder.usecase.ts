@@ -86,10 +86,6 @@ export class FolderUseCases {
       throw new NotFoundException();
     }
 
-    if (folder.userId !== user.id) {
-      throw new ForbiddenException();
-    }
-
     return folder;
   }
 

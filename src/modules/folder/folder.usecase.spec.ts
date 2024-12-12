@@ -1417,12 +1417,13 @@ describe('FolderUseCases', () => {
   });
 
   describe('getFolderByUuidAndUser', () => {
+    const mockUser = newUser();
     const mockFolder = newFolder({
       attributes: {
-        userId: userMocked.id,
-        user: userMocked,
+        userId: mockUser.id,
+        user: mockUser,
       },
-      owner: userMocked,
+      owner: mockUser,
     });
 
     it('When the folder exists, then it is returned', async () => {
@@ -1432,32 +1433,17 @@ describe('FolderUseCases', () => {
 
       const result = await service.getFolderByUuidAndUser(
         mockFolder.uuid,
-        userMocked,
+        mockUser,
       );
 
       expect(result).toBe(mockFolder);
-    });
-
-    it('When the folder is not owned by the user, then an error is thrown', async () => {
-      const otherUser = User.build({
-        ...userMocked,
-        id: userMocked.id + 1,
-        userId: v4(),
-      });
-      jest
-        .spyOn(folderRepository, 'findByUuidAndUser')
-        .mockResolvedValueOnce(mockFolder);
-
-      await expect(
-        service.getFolderByUuidAndUser(mockFolder.uuid, otherUser),
-      ).rejects.toThrow(ForbiddenException);
     });
 
     it('When the folder is not found, then an error is thrown', async () => {
       jest.spyOn(folderRepository, 'findByUuidAndUser').mockResolvedValue(null);
 
       await expect(
-        service.getFolderByUuidAndUser(mockFolder.uuid, userMocked),
+        service.getFolderByUuidAndUser(mockFolder.uuid, mockUser),
       ).rejects.toThrow(NotFoundException);
     });
   });
