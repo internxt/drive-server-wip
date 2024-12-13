@@ -9,6 +9,7 @@ import { Response, Request } from 'express';
 import { NotFoundException } from '@nestjs/common';
 import { KeyServer } from '../keyserver/key-server.domain';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { v4 } from 'uuid';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -100,7 +101,7 @@ describe('AuthController', () => {
     it('should call loginAccess method', async () => {
       const loginAccessDto = new LoginAccessDto();
       loginAccessDto.email = 'user_test@gmail.com';
-      loginAccessDto.password = 'password';
+      loginAccessDto.password = v4();
       loginAccessDto.privateKey = 'privateKey';
       loginAccessDto.publicKey = 'publicKey';
       loginAccessDto.revocateKey = 'revocateKey';

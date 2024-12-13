@@ -823,7 +823,7 @@ describe('User use cases', () => {
     it('should throw BadRequestException for non-existing email', async () => {
       const loginAccessDto = {
         email: 'nonexistent@example.com',
-        password: 'password',
+        password: v4(),
         tfa: '',
         ...keys,
       };
@@ -837,14 +837,14 @@ describe('User use cases', () => {
     it('should throw ForbiddenException if login attempts limit is reached', async () => {
       const loginAccessDto = {
         email: 'test@example.com',
-        password: 'password',
+        password: v4(),
         tfa: '',
         ...keys,
       };
       const user = newUser({
         attributes: {
           email: 'test@example.com',
-          password: 'hashedPassword',
+          password: v4(),
           errorLoginCount: 10,
         },
       });
@@ -856,9 +856,10 @@ describe('User use cases', () => {
     });
 
     it('should throw BadRequestException for wrong password', async () => {
+      const wrongPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
-        password: 'wrongPassword',
+        password: wrongPassword,
         tfa: '',
         ...keys,
       };
@@ -870,7 +871,7 @@ describe('User use cases', () => {
         },
       });
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
-      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('wrongPassword');
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(wrongPassword);
 
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
         BadRequestException,
@@ -878,16 +879,17 @@ describe('User use cases', () => {
     });
 
     it('should return user and tokens on successful login', async () => {
+      const hashedPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
-        password: 'password',
+        password: v4(),
         tfa: '',
         ...keys,
       };
       const user = newUser({
         attributes: {
           email: 'test@example.com',
-          password: 'hashedPassword',
+          password: hashedPassword,
           errorLoginCount: 0,
           secret_2FA: null,
         },
@@ -901,9 +903,7 @@ describe('User use cases', () => {
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
-      jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValue('hashedPassword');
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
       jest
         .spyOn(userUseCases, 'getAuthTokens')
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
@@ -922,24 +922,23 @@ describe('User use cases', () => {
     });
 
     it('should throw BadRequestException for wrong 2FA code', async () => {
+      const hashedPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
-        password: 'password',
+        password: v4(),
         tfa: 'wrongTfa',
         ...keys,
       };
       const user = newUser({
         attributes: {
           email: 'test@example.com',
-          password: 'hashedPassword',
+          password: hashedPassword,
           errorLoginCount: 0,
           secret_2FA: 'secret',
         },
       });
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
-      jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValue('hashedPassword');
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
       jest.spyOn(speakeasy.totp, 'verifyDelta').mockReturnValue(undefined);
 
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
@@ -948,16 +947,17 @@ describe('User use cases', () => {
     });
 
     it('should return user and tokens on successful login with 2FA code', async () => {
+      const hashedPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
-        password: 'password',
+        password: v4(),
         tfa: 'okTfa',
         ...keys,
       };
       const user = newUser({
         attributes: {
           email: 'test@example.com',
-          password: 'hashedPassword',
+          password: hashedPassword,
           errorLoginCount: 0,
           secret_2FA: 'secret',
         },
@@ -970,9 +970,7 @@ describe('User use cases', () => {
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
-      jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValue('hashedPassword');
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
       jest
         .spyOn(speakeasy.totp, 'verifyDelta')
         .mockReturnValue({ delta: 123456 });
