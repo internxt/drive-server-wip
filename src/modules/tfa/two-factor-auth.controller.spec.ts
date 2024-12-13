@@ -128,7 +128,9 @@ describe('TwoFactorAuthController', () => {
       jest
         .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
         .mockResolvedValueOnce(true);
-      jest.spyOn(cryptoService, 'decryptText').mockReturnValueOnce('password');
+      jest
+        .spyOn(cryptoService, 'decryptText')
+        .mockReturnValueOnce(user.password);
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
 
       await tfaController.deleteTfa(user, deleteTfaDto, res as any);
