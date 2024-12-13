@@ -8,7 +8,6 @@ import {
   newWorkspaceTeam,
 } from '../../../test/fixtures';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { BridgeService } from '../../externals/bridge/bridge.service';
 import { v4 } from 'uuid';
 import { GatewayUseCases } from './gateway.usecase';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
@@ -17,7 +16,6 @@ describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
   let userRepository: SequelizeUserRepository;
   let workspaceUseCases: WorkspacesUsecases;
-  let networkService: BridgeService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -31,7 +29,6 @@ describe('GatewayUseCases', () => {
       SequelizeUserRepository,
     );
     workspaceUseCases = module.get<WorkspacesUsecases>(WorkspacesUsecases);
-    networkService = module.get<BridgeService>(BridgeService);
   });
 
   it('should be defined', () => {
@@ -145,6 +142,7 @@ describe('GatewayUseCases', () => {
         expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
           workspace.id,
           maxSpaceBytes,
+          undefined,
         );
       });
 
@@ -193,7 +191,45 @@ describe('GatewayUseCases', () => {
         expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
           workspace.id,
           maxSpaceBytes,
+          numberOfSeats,
         );
+      });
+    });
+
+    describe('validateStorageForPlanChange', () => {
+      it('When user is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+        await expect(
+          service.validateStorageForPlanChange(v4(), maxSpaceBytes, 4),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When the workspace is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+        jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValueOnce(null);
+
+        await expect(
+          service.validateStorageForPlanChange(owner.uuid, maxSpaceBytes, 4),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When owner and workspaces are found, then it should call validateStorageForPlanChange', async () => {
+        const owner = newUser();
+        const workspace = newWorkspace({ owner });
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+        jest
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
+
+        await service.validateStorageForPlanChange(
+          owner.uuid,
+          maxSpaceBytes,
+          4,
+        );
+
+        expect(
+          workspaceUseCases.validateStorageForPlanChange,
+        ).toHaveBeenCalledWith(workspace, maxSpaceBytes, 4);
       });
     });
 

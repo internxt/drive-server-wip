@@ -2,7 +2,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder } from '../../../test/fixtures';
+import { newFile, newFolder, newUser } from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
 import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
@@ -15,6 +15,8 @@ describe('FileController', () => {
   let fileUseCases: FileUseCases;
   let file: File;
   const clientId = 'drive-web';
+
+  const requester = newUser();
 
   const userMocked = User.build({
     id: 1,
@@ -81,6 +83,7 @@ describe('FileController', () => {
           destinationFolder: destinationFolder.uuid,
         },
         clientId,
+        requester,
       );
       expect(result).toEqual(expectedFile);
     });
@@ -94,6 +97,7 @@ describe('FileController', () => {
             destinationFolder: v4(),
           },
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
 
@@ -105,6 +109,7 @@ describe('FileController', () => {
             destinationFolder: 'invaliduuid',
           },
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -212,6 +217,7 @@ describe('FileController', () => {
           newFile().uuid,
           null,
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
 
@@ -221,6 +227,7 @@ describe('FileController', () => {
           newFile().uuid,
           undefined,
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
 
@@ -230,6 +237,7 @@ describe('FileController', () => {
           newFile().uuid,
           {},
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -255,6 +263,7 @@ describe('FileController', () => {
         mockFile.uuid,
         newMetadataInfo,
         clientId,
+        requester,
       );
       expect(result).toEqual(expectedFile);
     });

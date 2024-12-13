@@ -68,6 +68,10 @@ import { Public } from '../auth/decorators/public.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 import { GetSharedWithDto } from './dto/shared-with.dto';
+import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
+import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Client } from '../auth/decorators/client.decorator';
 import { LogAction } from './interceptors/workspacesLogs.interceptor';
 import { WorkspaceLogType } from './attributes/workspace-logs.attributes';
 
@@ -75,7 +79,10 @@ import { WorkspaceLogType } from './attributes/workspace-logs.attributes';
 @Controller('workspaces')
 @UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
-  constructor(private readonly workspaceUseCases: WorkspacesUsecases) {}
+  constructor(
+    private readonly workspaceUseCases: WorkspacesUsecases,
+    private readonly storageNotificationService: StorageNotificationService,
+  ) {}
 
   @Get('/')
   @ApiOperation({
@@ -259,6 +266,73 @@ export class WorkspacesController {
     @Param('userUuid', ValidateUUIDPipe) memberId: UserAttributes['uuid'],
   ) {
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
+  }
+
+  @Get('/:workspaceId/files')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFiles(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Query() query: GetWorkspaceFilesQueryDto,
+  ) {
+    const { limit, offset, status, bucket, sort, order, updatedAt } = query;
+
+    const files =
+      await this.workspaceUseCases.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+        user.uuid,
+        workspaceId,
+        new Date(updatedAt || 1),
+        {
+          limit,
+          offset,
+          sort,
+          order,
+          status: status !== 'ALL' ? status : undefined,
+        },
+        bucket,
+      );
+
+    return files.map((f) => {
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      return f;
+    });
+  }
+
+  @Get('/:workspaceId/folders')
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFolders(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Query() query: GetWorkspaceFoldersQueryDto,
+  ) {
+    const { limit, offset, status, sort, order, updatedAt } = query;
+
+    const folders =
+      await this.workspaceUseCases.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        user.uuid,
+        workspaceId,
+        new Date(updatedAt || 1),
+        {
+          limit,
+          offset,
+          sort,
+          order,
+          status: status !== 'ALL' ? status : undefined,
+        },
+      );
+
+    return folders.map((f) => ({
+      ...f,
+      status: f.getFolderStatus(),
+    }));
   }
 
   @Patch('/:workspaceId/teams/:teamId/manager')
@@ -549,9 +623,22 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() createFileDto: CreateWorkspaceFileDto,
   ) {
-    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+    const file = await this.workspaceUseCases.createFile(
+      user,
+      workspaceId,
+      createFileDto,
+    );
+
+    this.storageNotificationService.fileCreated({
+      payload: file,
+      user,
+      clientId,
+    });
+
+    return file;
   }
 
   @Post('/:workspaceId/shared/')
@@ -738,13 +825,22 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() createFolderDto: CreateWorkspaceFolderDto,
   ) {
-    return this.workspaceUseCases.createFolder(
+    const folder = await this.workspaceUseCases.createFolder(
       user,
       workspaceId,
       createFolderDto,
     );
+
+    this.storageNotificationService.folderCreated({
+      payload: folder,
+      user,
+      clientId,
+    });
+
+    return folder;
   }
 
   @Get('/:workspaceId/trash')

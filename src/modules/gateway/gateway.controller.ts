@@ -59,6 +59,23 @@ export class GatewayController {
     );
   }
 
+  @Post('/workspaces/:workspaceId/storage/upgrade-check')
+  @ApiOperation({
+    summary: 'Precheck for updating a workspace',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({ description: 'Returns whether the update is possible' })
+  async validateStorageForPlanChange(
+    @Body() updateWorkspaceStorageDto: UpdateWorkspaceStorageDto,
+  ) {
+    return this.gatewayUseCases.validateStorageForPlanChange(
+      updateWorkspaceStorageDto.ownerId,
+      updateWorkspaceStorageDto.maxSpaceBytes,
+      updateWorkspaceStorageDto.numberOfSeats,
+    );
+  }
+
   @Delete('/workspaces')
   @ApiOperation({
     summary: 'Destroy a workspace',

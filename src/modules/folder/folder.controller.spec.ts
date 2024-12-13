@@ -21,6 +21,8 @@ import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 
+const requester = newUser();
+
 describe('FolderController', () => {
   let folderController: FolderController;
   let folderUseCases: FolderUseCases;
@@ -290,6 +292,7 @@ describe('FolderController', () => {
         folder.uuid,
         { destinationFolder: destinationFolder.uuid },
         clientId,
+        requester,
       );
       expect(result).toEqual(expectedFolder);
     });
@@ -303,6 +306,7 @@ describe('FolderController', () => {
             destinationFolder: v4(),
           },
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
 
@@ -314,6 +318,7 @@ describe('FolderController', () => {
             destinationFolder: 'invaliduuid',
           },
           clientId,
+          requester,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -321,9 +326,7 @@ describe('FolderController', () => {
 
   describe('getFolderContent', () => {
     it('When folde content is requested and the current folder is not found, then it should throw', async () => {
-      jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
-        .mockResolvedValue(null);
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValue(null);
 
       expect(
         folderController.getFolderContent(userMocked, v4(), {
@@ -354,7 +357,7 @@ describe('FolderController', () => {
       }));
 
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(currentFolder);
 
       jest
@@ -486,7 +489,7 @@ describe('FolderController', () => {
       ];
 
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(parentFolder);
       jest
         .spyOn(fileUseCases, 'searchFilesInFolder')
@@ -505,7 +508,7 @@ describe('FolderController', () => {
       const parentFolder = newFolder({ attributes: { uuid: folderUuid } });
 
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(parentFolder);
       jest.spyOn(fileUseCases, 'searchFilesInFolder').mockResolvedValue([]);
 
@@ -519,9 +522,7 @@ describe('FolderController', () => {
     });
 
     it('When the parent folder does not exist, then it should throw', async () => {
-      jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
-        .mockResolvedValue(null);
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValue(null);
 
       await expect(
         folderController.checkFilesExistenceInFolder(user, folderUuid, query),

@@ -41,6 +41,7 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
+import { Requester } from '../auth/decorators/requester.decorator';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -156,6 +157,7 @@ export class FileController {
     @Param('uuid') fileUuid: File['uuid'],
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     try {
       const file = await this.fileUseCases.replaceFile(
@@ -166,7 +168,7 @@ export class FileController {
 
       this.storageNotificationService.fileUpdated({
         payload: file,
-        user: user,
+        user: requester,
         clientId,
       });
 
@@ -219,6 +221,7 @@ export class FileController {
     fileUuid: File['uuid'],
     @Body() updateFileMetaDto: UpdateFileMetaDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (!updateFileMetaDto || Object.keys(updateFileMetaDto).length === 0) {
       throw new BadRequestException('Missing update file metadata');
@@ -231,7 +234,7 @@ export class FileController {
 
     this.storageNotificationService.fileUpdated({
       payload: result,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -327,6 +330,7 @@ export class FileController {
     @Param('uuid') fileUuid: File['uuid'],
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -339,7 +343,7 @@ export class FileController {
 
     this.storageNotificationService.fileUpdated({
       payload: file,
-      user: user,
+      user: requester,
       clientId,
     });
 

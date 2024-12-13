@@ -36,6 +36,7 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
+import { FileModel } from './file.model';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -339,6 +340,35 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
+  async getWorkspaceFilesUpdatedAfter(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<File[]> {
+    const additionalOrders: Array<[keyof FileModel, string]> = options.sort ?? [
+      ['updatedAt', 'ASC'],
+    ];
+
+    const files =
+      await this.fileRepository.findAllCursorWhereUpdatedAfterInWorkspace(
+        createdBy,
+        workspaceId,
+        { ...where },
+        updatedAfter,
+        options.limit,
+        options.offset,
+        additionalOrders,
+      );
+
+    return files;
+  }
+
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
@@ -572,7 +602,7 @@ export class FileUseCases {
       );
     }
 
-    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
+    const destinationFolder = await this.folderUsecases.getFolderByUuid(
       destinationUuid,
       user,
     );

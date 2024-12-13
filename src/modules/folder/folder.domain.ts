@@ -154,6 +154,29 @@ export class Folder implements FolderAttributes {
     this.user = user;
   }
 
+  static getFilterByStatus(
+    status: FolderStatus,
+  ): Partial<Pick<FolderOptions, 'deleted' | 'removed'>> {
+    switch (status) {
+      case FolderStatus.EXISTS:
+        return {
+          deleted: false,
+          removed: false,
+        };
+      case FolderStatus.TRASHED:
+        return {
+          deleted: true,
+          removed: false,
+        };
+      case FolderStatus.DELETED:
+        return {
+          removed: true,
+        };
+      default:
+        return {};
+    }
+  }
+
   toJSON(): FolderDto {
     return {
       id: this.id,

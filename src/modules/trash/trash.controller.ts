@@ -48,6 +48,7 @@ import {
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { Requester } from '../auth/decorators/requester.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -140,6 +141,7 @@ export class TrashController {
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (moveItemsDto.items.length === 0) {
       logger('error', {
@@ -186,7 +188,12 @@ export class TrashController {
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach((member) => {
+          const usersToNotify = [
+            ...members.filter((m) => m.uuid !== user.uuid),
+            requester,
+          ];
+
+          usersToNotify.forEach((member) => {
             this.storageNotificationService.itemsTrashed({
               payload: moveItemsDto.items,
               user: member,
@@ -263,12 +270,6 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    // TODO: Uncomment this once all the platforms block deleting more than 50 items
-    // if (deleteItemsDto.items.length > 50) {
-    //   throw new BadRequestException(
-    //     'Items to remove from the trash are limited to 50',
-    //   );
-    // }
     const { items } = deleteItemsDto;
 
     const filesIds: File['id'][] = [];
