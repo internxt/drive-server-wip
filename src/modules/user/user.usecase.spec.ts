@@ -866,7 +866,7 @@ describe('User use cases', () => {
       const user = newUser({
         attributes: {
           email: 'test@example.com',
-          password: 'hashedPassword',
+          password: v4(),
           errorLoginCount: 0,
         },
       });

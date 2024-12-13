@@ -8,6 +8,7 @@ import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { BadRequestException, HttpException } from '@nestjs/common';
 import { GeneratedSecret } from 'speakeasy';
+import { v4 } from 'uuid';
 
 describe('TwoFactorAuthController', () => {
   let tfaController: TwoFactorAuthController;
@@ -115,7 +116,7 @@ describe('TwoFactorAuthController', () => {
     it('should return a 200 response with a success message', async () => {
       const user = newUser();
       user.secret_2FA = 'secret';
-      user.password = 'password';
+      user.password = v4();
       const deleteTfaDto = new DeleteTfaDto();
       deleteTfaDto.code = 'code';
       deleteTfaDto.pass = 'pass';
@@ -154,7 +155,7 @@ describe('TwoFactorAuthController', () => {
     it('should throw a 400 error if the password is invalid', async () => {
       const user = newUser();
       user.secret_2FA = 'secret';
-      user.password = 'password';
+      user.password = v4();
       const deleteTfaDto = new DeleteTfaDto();
       deleteTfaDto.code = 'code';
       deleteTfaDto.pass = 'invalid-pass';
