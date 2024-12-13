@@ -13,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
+import * as speakeasy from 'speakeasy';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
@@ -72,8 +73,9 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
+import { LoginAccessDto } from '../auth/dto/login-access-dto';
 
-class ReferralsNotAvailableError extends Error {
+export class ReferralsNotAvailableError extends Error {
   constructor() {
     super('Referrals program not available for this user');
   }
@@ -186,6 +188,10 @@ export class UserUseCases {
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
     return this.userRepository.findAllBy({ bridgeUser });
+  }
+
+  updateByUuid(userUuid: User['uuid'], payload: Partial<User>) {
+    return this.userRepository.updateByUuid(userUuid, payload);
   }
 
   async getNetworkByUserId(id: number, mnemonic: string) {
@@ -1185,5 +1191,126 @@ export class UserUseCases {
 
   getUserNotificationTokens(user: User): Promise<UserNotificationTokens[]> {
     return this.userRepository.getNotificationTokens(user.uuid);
+  }
+
+  async loginAccess(loginAccessDto: LoginAccessDto) {
+    const MAX_LOGIN_FAIL_ATTEMPTS = 10;
+
+    const userData = await this.findByEmail(loginAccessDto.email);
+
+    if (!userData) {
+      Logger.debug(
+        '[AUTH/LOGIN] Attempted login with a non-existing email: %s',
+        loginAccessDto.email,
+      );
+      throw new BadRequestException('Wrong login credentials');
+    }
+
+    const loginAttemptsLimitReached =
+      userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
+
+    if (loginAttemptsLimitReached) {
+      throw new ForbiddenException(
+        'Your account has been blocked for security reasons. Please reach out to us',
+      );
+    }
+
+    const hashedPass = this.cryptoService.decryptText(loginAccessDto.password);
+
+    if (hashedPass !== userData.password.toString()) {
+      await this.loginFailed(userData, true);
+      throw new BadRequestException('Wrong login credentials');
+    }
+
+    const twoFactorEnabled =
+      userData.secret_2FA && userData.secret_2FA.length > 0;
+    if (twoFactorEnabled) {
+      const tfaResult = speakeasy.totp.verifyDelta({
+        secret: userData.secret_2FA,
+        token: loginAccessDto.tfa,
+        encoding: 'base32',
+        window: 2,
+      });
+
+      if (!tfaResult) {
+        throw new BadRequestException('Wrong 2-factor auth code');
+      }
+    }
+    const { token, newToken } = this.getAuthTokens(userData);
+    await this.loginFailed(userData, false);
+
+    this.updateByUuid(userData.uuid, { updatedAt: new Date() });
+    const rootFolder = await this.folderUseCases.getFolderById(
+      userData.rootFolderId,
+    );
+    const userBucket = rootFolder.bucket;
+
+    const {
+      publicKey,
+      privateKey,
+      revocateKey: revocationKey,
+    } = loginAccessDto;
+    let keys = await this.keyServerRepository.findUserKeys(userData.id);
+
+    if (!keys && publicKey) {
+      keys = await this.keyServerRepository.create(userData.id, {
+        publicKey,
+        privateKey,
+        revocationKey,
+      });
+    }
+
+    const user = {
+      email: loginAccessDto.email,
+      userId: userData.userId,
+      mnemonic: userData.mnemonic.toString(),
+      root_folder_id: userData.rootFolderId,
+      rootFolderId: rootFolder?.uuid,
+      name: userData.name,
+      lastname: userData.lastname,
+      uuid: userData.uuid,
+      credit: userData.credit,
+      createdAt: userData.createdAt,
+      privateKey: keys ? keys.privateKey : null,
+      publicKey: keys ? keys.publicKey : null,
+      revocateKey: keys ? keys.revocationKey : null,
+      bucket: userBucket,
+      registerCompleted: userData.registerCompleted,
+      teams: false,
+      username: userData.username,
+      bridgeUser: userData.bridgeUser,
+      sharedWorkspace: userData.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: userData.backupsBucket,
+      avatar: userData.avatar ? await this.getAvatarUrl(userData.avatar) : null,
+      emailVerified: userData.emailVerified,
+      lastPasswordChangedAt: userData.lastPasswordChangedAt,
+    };
+
+    return { user, token, userTeam: null, newToken };
+  }
+
+  logReferralError(userId: number | string, err: unknown) {
+    if (err instanceof ReferralsNotAvailableError) {
+      return;
+    }
+
+    if (err instanceof Error && !err.message) {
+      return Logger.error(
+        '[STORAGE]: ERROR message undefined applying referral for user %s',
+        userId,
+      );
+    }
+
+    return Logger.error(
+      '[STORAGE]: ERROR applying referral for user %s: %s',
+      userId,
+      err instanceof Error ? err.message : 'Unknown error',
+    );
+  }
+
+  loginFailed(user: User, isFailed: boolean) {
+    return this.userRepository.loginFailed(user.uuid, isFailed);
   }
 }

@@ -125,6 +125,14 @@ export class UserModel extends Model implements UserAttributes {
 
   @AllowNull
   @Column
+  updatedAt: Date;
+
+  @AllowNull
+  @Column
+  createdAt: Date;
+
+  @AllowNull
+  @Column
   tierId: string;
 
   @Default(false)

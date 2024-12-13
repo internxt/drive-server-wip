@@ -92,4 +92,69 @@ describe('Key Server Use Cases', () => {
       },
     );
   });
+
+  describe('getPublicKey', () => {
+    it('should return the public key when found', async () => {
+      const userId = 123;
+      const mockPublicKey = 'mockPublicKey';
+
+      jest
+        .spyOn(keyServerRepository, 'findPublicKey')
+        .mockResolvedValue(mockPublicKey);
+
+      const result = await service.getPublicKey(userId);
+
+      expect(result).toEqual(mockPublicKey);
+      expect(keyServerRepository.findPublicKey).toHaveBeenCalledWith(userId);
+    });
+
+    it('should return undefined an error when no public key is found', async () => {
+      const userId = 123;
+      jest
+        .spyOn(keyServerRepository, 'findPublicKey')
+        .mockResolvedValue(undefined);
+
+      await service.getPublicKey(userId);
+      expect(keyServerRepository.findPublicKey).toHaveBeenCalledWith(userId);
+    });
+  });
+
+  describe('findUserKeys', () => {
+    it('should return user keys when found', async () => {
+      const userId = 123;
+
+      const keys: Keys = {
+        privateKey:
+          'gMWcRQZTAnrLMlFgAfGyukRICiLBKFqndsuEzMKuJuPlHlhbyVxPDxuWeZpI',
+        publicKey:
+          'lSWpfeTYwKqrMmfmTgqjQmInalzEDSrMRCNOOVOsrTuGWlbfMTThJHEBPmcV',
+        revocationKey:
+          'WtPCEiOBbBTKIcOsePFyUCwCbfFmuoJsZKHnuKnjMbvWSPJxOdDFtaNRvwCB',
+      };
+
+      const keyServer = new KeyServer({
+        id: 430,
+        userId,
+        ...keys,
+        encryptVersion: '',
+      });
+
+      jest
+        .spyOn(keyServerRepository, 'findUserKeys')
+        .mockResolvedValue(keyServer);
+
+      const result = await service.findUserKeys(userId);
+
+      expect(result).toEqual(keys);
+      expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
+    });
+
+    it('should throw an error when no keys are found', async () => {
+      const userId = 123;
+      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
+
+      await expect(service.findUserKeys(userId)).rejects.toThrowError();
+      expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
+    });
+  });
 });
