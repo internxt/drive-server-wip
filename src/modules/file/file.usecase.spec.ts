@@ -36,6 +36,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { UsageUseCases } from '../usage/usage.usecase';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -48,6 +49,8 @@ describe('FileUseCases', () => {
   let sharingService: SharingService;
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
+  let usageUsecases: UsageUseCases;
+  let networkService: BridgeService;
 
   const userMocked = User.build({
     id: 1,
@@ -94,6 +97,8 @@ describe('FileUseCases', () => {
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
+    usageUsecases = module.get<UsageUseCases>(UsageUseCases);
+    networkService = module.get<BridgeService>(BridgeService);
   });
 
   afterEach(() => {
@@ -1109,6 +1114,68 @@ describe('FileUseCases', () => {
         options.limit,
         options.offset,
         options.sort,
+      );
+    });
+  });
+
+  describe('replaceFile', () => {
+    const originalFile = newFile({
+      attributes: {
+        size: BigInt(500),
+        status: FileStatus.EXISTS,
+      },
+    });
+
+    const newFileData = {
+      fileId: v4(),
+      size: BigInt(1000),
+    };
+
+    it('When the file does not exist, it should throw', async () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.replaceFile(userMocked, originalFile.uuid, newFileData),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the file was deleted or trashed, it should throw', async () => {
+      const trashedFile = newFile({
+        attributes: { ...originalFile, status: FileStatus.DELETED },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findByUuid')
+        .mockResolvedValueOnce(trashedFile);
+
+      await expect(
+        service.replaceFile(userMocked, originalFile.uuid, newFileData),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the file exists and is valid, it updates the file data correctly', async () => {
+      jest
+        .spyOn(fileRepository, 'findByUuid')
+        .mockResolvedValueOnce(originalFile);
+      jest.spyOn(networkService, 'deleteFile').mockResolvedValueOnce(null);
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId');
+      jest
+        .spyOn(usageUsecases, 'addDailyUsageChangeOnFileSizeChange')
+        .mockResolvedValueOnce(null);
+
+      await service.replaceFile(userMocked, originalFile.uuid, newFileData);
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        originalFile.uuid,
+        userMocked.id,
+        newFileData,
+      );
+      expect(
+        usageUsecases.addDailyUsageChangeOnFileSizeChange,
+      ).toHaveBeenCalledWith(
+        userMocked,
+        originalFile,
+        expect.objectContaining(newFileData),
       );
     });
   });
