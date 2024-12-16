@@ -1,3 +1,5 @@
+import { FolderModel } from './../../folder/folder.model';
+import { FileModel } from './../../file/file.model';
 import {
   Model,
   Table,
@@ -9,6 +11,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
+import { WorkspaceModel } from './workspace.model';
 
 @Table({
   underscored: true,
@@ -19,6 +22,17 @@ export class WorkspaceLogModel extends Model {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
   id: string;
+
+  @ForeignKey(() => WorkspaceModel)
+  @Column({ type: DataType.UUID, allowNull: false })
+  workspaceId: string;
+
+  @BelongsTo(() => WorkspaceModel, {
+    foreignKey: 'workspaceId',
+    targetKey: 'id',
+    as: 'workspace',
+  })
+  workspace: WorkspaceModel;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUID, allowNull: false })
@@ -38,10 +52,24 @@ export class WorkspaceLogModel extends Model {
   type: WorkspaceLogAttributes['type'];
 
   @Column(DataType.STRING)
-  entity: string;
+  platform: string;
 
   @Column(DataType.STRING)
   entityId: string;
+
+  @BelongsTo(() => FileModel, {
+    foreignKey: 'entity_id',
+    targetKey: 'uuid',
+    as: 'file',
+  })
+  file?: FileModel;
+
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'entity_id',
+    targetKey: 'uuid',
+    as: 'folder',
+  })
+  folder?: FolderModel;
 
   @Column
   createdAt: Date;

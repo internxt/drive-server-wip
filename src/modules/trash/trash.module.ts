@@ -11,6 +11,7 @@ import { ShareModel } from '../share/share.repository';
 import { FileModel } from '../file/file.model';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SharingModule } from '../sharing/sharing.module';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 
 @Module({
   imports: [
@@ -26,6 +27,6 @@ import { SharingModule } from '../sharing/sharing.module';
     NotificationModule,
   ],
   controllers: [TrashController],
-  providers: [Logger, TrashUseCases],
+  providers: [Logger, TrashUseCases, SequelizeWorkspaceRepository],
 })
 export class TrashModule {}

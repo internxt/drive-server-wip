@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ExecutionContext,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -21,6 +22,8 @@ import {
 import { WorkspaceUser } from '../domains/workspace-user.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { v4 } from 'uuid';
+import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
+import { WorkspaceLogType } from '../attributes/workspace-logs.attributes';
 
 describe('WorkspaceGuard', () => {
   let guard: WorkspaceGuard;
@@ -58,6 +61,44 @@ describe('WorkspaceGuard', () => {
     const canUserAccess = await guard.canActivate(context);
 
     expect(canUserAccess).toBeFalsy();
+  });
+
+  it('When workspaceLogAction is DELETE_ALL, then it should set request.items', async () => {
+    const mockGetItems = [{ type: WorkspaceItemType.File, uuid: v4() }];
+    const workspaceOwner = newUser();
+    const workspace = newWorkspace({ owner: workspaceOwner });
+
+    const mockRequest = {
+      user: workspaceOwner,
+      params: { workspaceId: workspace.id },
+    };
+
+    const mockContext = {
+      switchToHttp: () => ({
+        getRequest: () => mockRequest,
+      }),
+      getHandler: () => jest.fn(),
+    } as unknown as ExecutionContext;
+
+    jest.spyOn(reflector, 'get').mockReturnValueOnce({
+      requiredRole: WorkspaceRole.OWNER,
+      accessContext: AccessContext.WORKSPACE,
+      idSource: 'params',
+    });
+    jest
+      .spyOn(reflector, 'get')
+      .mockReturnValueOnce(WorkspaceLogType.DELETE_ALL);
+
+    workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+      workspace,
+      workspaceUser: {} as WorkspaceUser,
+    });
+
+    jest.spyOn(guard, 'getItems').mockResolvedValueOnce(mockGetItems);
+
+    const request = mockContext.switchToHttp().getRequest();
+    await guard.canActivate(mockContext);
+    expect(request.items).toEqual(mockGetItems);
   });
 
   describe('Workspace Permissions', () => {
@@ -455,6 +496,70 @@ describe('WorkspaceGuard', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getItems()', () => {
+    const user = newUser();
+    const workspaceId = v4();
+
+    it('When there are trashed files and folders, then it should return an array of trashed items', async () => {
+      const mockFiles = [{ uuid: 'file-uuid-1' }, { uuid: 'file-uuid-2' }];
+      const mockFolders = [{ uuid: 'folder-uuid-1' }, { uuid: null }];
+
+      workspaceUseCases.getWorkspaceUserTrashedItems
+        .mockResolvedValueOnce({ result: mockFiles } as any)
+        .mockResolvedValueOnce({ result: mockFolders } as any);
+
+      const result = await guard.getItems(user, workspaceId);
+
+      expect(result).toEqual([
+        { type: WorkspaceItemType.File, uuid: 'file-uuid-1' },
+        { type: WorkspaceItemType.File, uuid: 'file-uuid-2' },
+        { type: WorkspaceItemType.Folder, uuid: 'folder-uuid-1' },
+      ]);
+    });
+
+    it('When there are no trashed items, then it should return an empty array', async () => {
+      workspaceUseCases.getWorkspaceUserTrashedItems
+        .mockResolvedValueOnce({ result: [] })
+        .mockResolvedValueOnce({ result: [] });
+
+      const result = await guard.getItems(user, workspaceId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('When there are items without a uuid, then it should filter them out', async () => {
+      const mockFiles = [{ uuid: null }, { uuid: 'file-uuid-1' }];
+      const mockFolders = [{ uuid: 'folder-uuid-1' }, { uuid: null }];
+
+      workspaceUseCases.getWorkspaceUserTrashedItems
+        .mockResolvedValueOnce({ result: mockFiles } as any)
+        .mockResolvedValueOnce({ result: mockFolders } as any);
+
+      const result = await guard.getItems(user, workspaceId);
+
+      expect(result).toEqual([
+        { type: WorkspaceItemType.File, uuid: 'file-uuid-1' },
+        { type: WorkspaceItemType.Folder, uuid: 'folder-uuid-1' },
+      ]);
+    });
+
+    it('When there is an error fetching trashed items, then it should handle the error gracefully', async () => {
+      const loggerDebugSpy = jest.spyOn(Logger, 'debug').mockImplementation();
+      workspaceUseCases.getWorkspaceUserTrashedItems
+        .mockRejectedValueOnce(new Error('Error fetching files'))
+        .mockResolvedValueOnce({ result: [] });
+
+      const result = await guard.getItems(user, workspaceId);
+
+      expect(result).toEqual(undefined);
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        '[WORKSPACES/GUARD] Error fetching trashed items:',
+        expect.any(Error),
+      );
+      loggerDebugSpy.mockRestore();
     });
   });
 });

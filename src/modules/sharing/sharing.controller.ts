@@ -64,6 +64,8 @@ import {
   WorkspacesInBehalfGuard,
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -619,6 +621,7 @@ export class SharingController {
     { sourceKey: 'body', fieldName: 'itemType' },
   ])
   @WorkspacesInBehalfGuard()
+  @WorkspaceLogAction(WorkspaceLogType.SHARE)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,

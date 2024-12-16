@@ -37,7 +37,7 @@ module.exports = {
         type: Sequelize.DataTypes.STRING,
         allowNull: false,
       },
-      paltform: {
+      platform: {
         type: Sequelize.DataTypes.STRING,
         allowNull: false,
       },
@@ -65,7 +65,7 @@ module.exports = {
       name: indexName2,
     });
     await queryInterface.addIndex(tableName, {
-      fields: ['paltform'],
+      fields: ['platform'],
       name: indexName3,
     });
     await queryInterface.addIndex(tableName, {

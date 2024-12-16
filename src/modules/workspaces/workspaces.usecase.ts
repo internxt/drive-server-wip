@@ -73,6 +73,7 @@ import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { WorkspaceLog } from './domains/workspace-log.domain';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -2878,5 +2879,33 @@ export class WorkspacesUsecases {
     );
 
     return searchResults;
+  }
+
+  async accessLogs(
+    workspaceId: Workspace['id'],
+    pagination: {
+      limit?: number;
+      offset?: number;
+    },
+    member?: string,
+    logType?: WorkspaceLog['type'][],
+    lastDays?: number,
+    order?: [string, string][],
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    return this.workspaceRepository.accessLogs(
+      workspace.id,
+      true,
+      member,
+      logType,
+      pagination,
+      lastDays,
+      order,
+    );
   }
 }

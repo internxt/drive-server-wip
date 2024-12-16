@@ -72,8 +72,9 @@ import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
 import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
-import { LogAction } from './interceptors/workspacesLogs.interceptor';
 import { WorkspaceLogType } from './attributes/workspace-logs.attributes';
+import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
+import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -618,7 +619,6 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   @RequiredSharingPermissions(SharingActionName.UploadFile)
-  @LogAction(WorkspaceLogType.UPLOAD_FILE)
   async createFile(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -652,6 +652,7 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @WorkspaceLogAction(WorkspaceLogType.SHARE)
   async shareItemWithMember(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -887,6 +888,7 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @WorkspaceLogAction(WorkspaceLogType.DELETE_ALL)
   async emptyTrash(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -1158,6 +1160,46 @@ export class WorkspacesController {
       user,
       workspaceId,
       search,
+    );
+  }
+
+  @Get(':workspaceId/access/logs')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Access Logs',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Access Logs',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async accessLogs(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Query() workspaceLogDto: GetWorkspaceLogsDto,
+  ) {
+    const {
+      limit,
+      offset,
+      member,
+      activity: logType,
+      lastDays,
+      orderBy,
+    } = workspaceLogDto;
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.accessLogs(
+      workspaceId,
+      { limit, offset },
+      member,
+      logType,
+      lastDays,
+      order,
     );
   }
 }

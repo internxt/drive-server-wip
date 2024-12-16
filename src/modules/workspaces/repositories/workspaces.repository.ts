@@ -12,7 +12,7 @@ import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attrib
 import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import {
   WorkspaceItemType,
@@ -20,11 +20,15 @@ import {
 } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../file/file.model';
-import { FileAttributes } from '../../file/file.domain';
-import { FolderAttributes } from '../../folder/folder.domain';
+import { File, FileAttributes } from '../../file/file.domain';
+import { Folder, FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
-import { WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
+import {
+  WorkspaceLogAttributes,
+  WorkspaceLogType,
+} from '../attributes/workspace-logs.attributes';
 import { WorkspaceLogModel } from '../models/workspace-logs.model';
+import { WorkspaceLog } from '../domains/workspace-log.domain';
 
 @Injectable()
 export class SequelizeWorkspaceRepository {
@@ -477,6 +481,107 @@ export class SequelizeWorkspaceRepository {
     await this.modelWorkspaceLog.create(log);
   }
 
+  async accessLogs(
+    workspaceId: Workspace['id'],
+    summary: boolean = false,
+    member?: string,
+    logType?: WorkspaceLog['type'][],
+    pagination?: {
+      limit?: number;
+      offset?: number;
+    },
+    lastDays?: number,
+    order: [string, string][] = [['createdAt', 'DESC']],
+  ) {
+    const dateLimit = new Date();
+    if (lastDays) {
+      dateLimit.setDate(dateLimit.getDate() - lastDays);
+      dateLimit.setMilliseconds(0);
+    }
+
+    const whereConditions: any = {
+      workspaceId,
+      ...(lastDays && dateLimit ? { createdAt: { [Op.gte]: dateLimit } } : {}),
+    };
+
+    if (member) {
+      whereConditions[Op.or] = [
+        { '$user.email$': { [Op.iLike]: `%${member}%` } },
+        { '$user.name$': { [Op.iLike]: `%${member}%` } },
+      ];
+    }
+
+    if (logType && logType.length > 0) {
+      whereConditions.type = { [Op.in]: logType };
+    }
+
+    const itemLogs = await this.modelWorkspaceLog.findAll({
+      where: whereConditions,
+      include: [
+        {
+          model: UserModel,
+          as: 'user',
+          required: true,
+        },
+        {
+          model: WorkspaceModel,
+          as: 'workspace',
+          required: true,
+        },
+        {
+          model: FileModel,
+          as: 'file',
+          required: false,
+          where: {
+            uuid: {
+              [Op.eq]: Sequelize.col('WorkspaceLogModel.entity_id'),
+            },
+          },
+          on: {
+            [Op.and]: [
+              Sequelize.where(Sequelize.col('WorkspaceLogModel.type'), {
+                [Op.or]: ['SHARE_FILE', 'DELETE_FILE'],
+              }),
+              Sequelize.where(
+                Sequelize.col('file.uuid'),
+                Sequelize.col('WorkspaceLogModel.entity_id'),
+              ),
+            ],
+          },
+        },
+        {
+          model: FolderModel,
+          as: 'folder',
+          required: false,
+          where: {
+            uuid: {
+              [Op.eq]: Sequelize.col('WorkspaceLogModel.entity_id'),
+            },
+          },
+          on: {
+            [Op.and]: [
+              Sequelize.where(Sequelize.col('WorkspaceLogModel.type'), {
+                [Op.or]: ['SHARE_FOLDER', 'DELETE_FOLDER'],
+              }),
+              Sequelize.where(
+                Sequelize.col('folder.uuid'),
+                Sequelize.col('WorkspaceLogModel.entity_id'),
+              ),
+            ],
+          },
+        },
+      ],
+      ...pagination,
+      order,
+    });
+
+    return itemLogs.map((item) =>
+      summary
+        ? this.workspaceLogToDomainSummary(item)
+        : this.workspaceLogToDomain(item),
+    );
+  }
+
   toDomain(model: WorkspaceModel): Workspace {
     return Workspace.build({
       ...model.toJSON(),
@@ -493,6 +598,51 @@ export class SequelizeWorkspaceRepository {
   workspaceItemUserToDomain(model: WorkspaceItemUserModel): WorkspaceItemUser {
     return WorkspaceItemUser.build({
       ...model?.toJSON(),
+    });
+  }
+
+  workspaceLogToDomain(model: WorkspaceLogModel): WorkspaceLog {
+    return WorkspaceLog.build({
+      ...model.toJSON(),
+      user: model.user ? User.build(model.user).toJSON() : null,
+      workspace: model.workspace
+        ? Workspace.build(model.workspace).toJSON()
+        : null,
+      file: model.file ? File.build(model.file).toJSON() : null,
+      folder: model.folder ? Folder.build(model.folder).toJSON() : null,
+    });
+  }
+
+  workspaceLogToDomainSummary(model: WorkspaceLogModel): WorkspaceLog {
+    const buildUser = ({
+      id,
+      name,
+      lastname,
+      email,
+      uuid,
+    }: UserModel | null) => (id ? { id, name, lastname, email, uuid } : null);
+
+    const buildWorkspace = ({ id, name }: WorkspaceModel | null) =>
+      id ? { id, name } : null;
+
+    const buildFile = (file: FileModel | null) => {
+      if (!file) return null;
+      const { uuid, plainName, folderUuid, type } = file;
+      return { uuid, plainName, folderUuid, type };
+    };
+
+    const buildFolder = (folder: FolderModel | null) => {
+      if (!folder) return null;
+      const { uuid, plainName, parentId } = folder;
+      return { uuid, plainName, parentId };
+    };
+
+    return WorkspaceLog.build({
+      ...model.toJSON(),
+      user: buildUser(model.user),
+      workspace: buildWorkspace(model.workspace),
+      file: buildFile(model.file),
+      folder: buildFolder(model.folder),
     });
   }
 

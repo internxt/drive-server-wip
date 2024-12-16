@@ -1,12 +1,14 @@
 export enum WorkspaceLogType {
   LOGIN = 'LOGIN',
-  RESET_PASSWORD = 'RESET_PASSWORD',
+  CHANGED_PASSWORD = 'CHANGED_PASSWORD',
   LOGOUT = 'LOGOUT',
+  SHARE = 'SHARE',
   SHARE_FILE = 'SHARE_FILE',
   SHARE_FOLDER = 'SHARE_FOLDER',
+  DELETE = 'DELETE',
   DELETE_FILE = 'DELETE_FILE',
-  UPLOAD_FILE = 'UPLOAD_FILE',
-  DOWNLOAD_FILE = 'DOWNLOAD_FILE',
+  DELETE_FOLDER = 'DELETE_FOLDER',
+  DELETE_ALL = 'DELETE_ALL',
 }
 
 export enum WorkspaceLogPlatform {
@@ -23,6 +25,10 @@ export interface WorkspaceLogAttributes {
   type: WorkspaceLogType;
   platform: WorkspaceLogPlatform;
   entityId?: string;
+  user?: any;
+  workspace?: any;
+  file?: any;
+  folder?: any;
   createdAt: Date;
   updatedAt: Date;
 }

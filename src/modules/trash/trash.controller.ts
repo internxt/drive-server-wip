@@ -49,6 +49,8 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -266,6 +268,7 @@ export class TrashController {
   })
   @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
   @WorkspacesInBehalfGuard(WorkspaceResourcesAction.DeleteItemsFromTrash)
+  @WorkspaceLogAction(WorkspaceLogType.DELETE)
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
