@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
+import {
+  FindOptions,
+  Op,
+  Sequelize,
+  Transaction,
+  WhereOptions,
+} from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';

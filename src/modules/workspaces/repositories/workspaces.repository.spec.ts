@@ -11,17 +11,21 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceInvite,
+  newWorkspaceItemUser,
   newWorkspaceUser,
 } from '../../../../test/fixtures';
 import { Workspace } from '../domains/workspaces.domain';
 import { User } from '../../user/user.domain';
 import { Op } from 'sequelize';
+import { SequelizeTransactionAdapter } from '../../../externals/sequelize/sequelize-transaction';
+import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;
   let workspaceModel: typeof WorkspaceModel;
   let workspaceUserModel: typeof WorkspaceUserModel;
   let workspaceInviteModel: typeof WorkspaceInviteModel;
+  let workspaceItemUserModel: typeof WorkspaceItemUserModel;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -42,6 +46,9 @@ describe('SequelizeWorkspaceRepository', () => {
     workspaceInviteModel = module.get<typeof WorkspaceInviteModel>(
       getModelToken(WorkspaceInviteModel),
     );
+    workspaceItemUserModel = module.get<typeof WorkspaceItemUserModel>(
+      getModelToken(WorkspaceItemUserModel),
+    );
   });
 
   describe('findInvite', () => {
@@ -59,9 +66,81 @@ describe('SequelizeWorkspaceRepository', () => {
 
     it('When a workspace invitation is searched and it is not found, it should return null', async () => {
       jest.spyOn(workspaceInviteModel, 'findOne').mockResolvedValueOnce(null);
-
-      const result = await repository.findInvite({ id: '1' });
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+      const result = await repository.findInvite(
+        { id: '1' },
+        { transaction: mockTransaction },
+      );
       expect(result).toBeNull();
+      expect(workspaceInviteModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
+    });
+
+    it('When a workspace inivitation is searched with a transaction, it should return the respective invitation', async () => {
+      const mockInvite = newWorkspaceInvite();
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest
+        .spyOn(workspaceInviteModel, 'findOne')
+        .mockResolvedValueOnce(mockInvite as WorkspaceInviteModel);
+
+      const result = await repository.findInvite(
+        { id: '1' },
+        { transaction: mockTransaction },
+      );
+      expect(result).toBeInstanceOf(WorkspaceInvite);
+      expect(result.id).toEqual(mockInvite.id);
+      expect(workspaceInviteModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
+    });
+  });
+
+  describe('findOne', () => {
+    it('When a workspace is searched and found, it should return the respective workspace', async () => {
+      const mockWorkspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceModel, 'findOne')
+        .mockResolvedValueOnce(mockWorkspace as any);
+
+      const result = await repository.findOne({ id: '1' });
+      expect(result.id).toEqual(mockWorkspace.id);
+    });
+
+    it('When a workspace is searched and not found, it should return null', async () => {
+      jest.spyOn(workspaceModel, 'findOne').mockResolvedValueOnce(null);
+      const result = await repository.findOne({ id: '1' });
+      expect(result).toBeNull();
+    });
+
+    it('When a workspace is searched with a transaction, it should return the respective workspace', async () => {
+      const mockWorkspace = newWorkspace();
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest
+        .spyOn(workspaceModel, 'findOne')
+        .mockResolvedValueOnce(mockWorkspace as any);
+
+      const result = await repository.findOne(
+        { id: '1' },
+        { transaction: mockTransaction },
+      );
+      expect(result).toBeInstanceOf(Workspace);
+      expect(result.id).toEqual(mockWorkspace.id);
+      expect(workspaceModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
     });
   });
 
@@ -112,12 +191,25 @@ describe('SequelizeWorkspaceRepository', () => {
         ...mockWorkspaceUser,
         toJSON: jest.fn().mockReturnValue(mockWorkspaceUser),
       } as any);
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
 
-      const result = await repository.findWorkspaceUser({ memberId: '1' });
+      const result = await repository.findWorkspaceUser(
+        { memberId: '1' },
+        false,
+        {
+          transaction: mockTransaction,
+        },
+      );
       expect(result).toBeInstanceOf(WorkspaceUser);
       expect(result.toJSON()).toMatchObject({
         ...workspaceUser.toJSON(),
       });
+      expect(workspaceUserModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { memberId: '1' },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
     });
 
     it('When a workspace user is searched and not found, it should return nothing', async () => {
@@ -144,6 +236,37 @@ describe('SequelizeWorkspaceRepository', () => {
       expect(result).toBeInstanceOf(WorkspaceUser);
       expect(result.member).toBeInstanceOf(User);
     });
+
+    it('When a workspace user is searched with a transaction, then it should return the user', async () => {
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+      const workspaceUser = newWorkspaceUser();
+      const mockWorkspaceUser = {
+        memberId: workspaceUser.id,
+        workspaceId: workspaceUser.workspaceId,
+        ...workspaceUser.toJSON(),
+      };
+
+      jest.spyOn(workspaceUserModel, 'findOne').mockResolvedValueOnce({
+        ...mockWorkspaceUser,
+        toJSON: jest.fn().mockReturnValue(mockWorkspaceUser),
+      } as any);
+
+      const result = await repository.findWorkspaceUser(
+        { memberId: '1' },
+        false,
+        { transaction: mockTransaction },
+      );
+      expect(result).toBeInstanceOf(WorkspaceUser);
+      expect(result.toJSON()).toMatchObject({
+        ...workspaceUser.toJSON(),
+      });
+      expect(workspaceUserModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { memberId: '1' },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
+    });
   });
 
   describe('getSpaceLimitInInvitations', () => {
@@ -161,6 +284,244 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const total = await repository.getTotalSpaceLimitInWorkspaceUsers('1');
       expect(total).toStrictEqual(10);
+    });
+  });
+
+  describe('createItem', () => {
+    it('When a workspace item is created, it should return the respective item', async () => {
+      const user = newUser();
+      const workpace = newWorkspace();
+      const workspaceItem = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        workspaceId: workpace.id,
+      });
+
+      jest
+        .spyOn(workspaceItemUserModel, 'create')
+        .mockResolvedValueOnce(workspaceItem as any);
+      jest
+        .spyOn(repository, 'workspaceItemUserToDomain')
+        .mockReturnValue(workspaceItem);
+
+      const result = await repository.createItem(workspaceItem);
+
+      expect(result.createdBy).toEqual(user.uuid);
+      expect(result.workspaceId).toEqual(workpace.id);
+
+      expect(workspaceItemUserModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createdBy: user.uuid,
+          workspaceId: workpace.id,
+        }),
+        { transaction: undefined },
+      );
+    });
+
+    it('When a workspace item is created with a transaction, it should return the respective item', async () => {
+      const user = newUser();
+      const workpace = newWorkspace();
+      const workspaceItem = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        workspaceId: workpace.id,
+      });
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest
+        .spyOn(workspaceItemUserModel, 'create')
+        .mockResolvedValueOnce(workspaceItem as any);
+      jest
+        .spyOn(repository, 'workspaceItemUserToDomain')
+        .mockReturnValue(workspaceItem);
+
+      const result = await repository.createItem(workspaceItem, {
+        transaction: mockTransaction,
+      });
+
+      expect(result.createdBy).toEqual(user.uuid);
+      expect(result.workspaceId).toEqual(workpace.id);
+
+      expect(workspaceItemUserModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createdBy: user.uuid,
+          workspaceId: workpace.id,
+        }),
+        expect.objectContaining({
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
+    });
+  });
+
+  describe('addUserToWorkspace', () => {
+    it('When a user is added to a workspace, it should return the respective workspace user', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+
+      jest
+        .spyOn(workspaceUserModel, 'create')
+        .mockResolvedValueOnce(workspaceUser as any);
+      jest
+        .spyOn(repository, 'workspaceUserToDomain')
+        .mockReturnValue(workspaceUser);
+
+      const result = await repository.addUserToWorkspace(workspaceUser);
+
+      expect(result).toBeInstanceOf(WorkspaceUser);
+      expect(result.memberId).toEqual(user.uuid);
+      expect(result.workspaceId).toEqual(workspace.id);
+
+      expect(workspaceUserModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memberId: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        { transaction: undefined },
+      );
+    });
+
+    it('When a user is added to a workspace with a transaction, it should return the respective workspace user', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest
+        .spyOn(workspaceUserModel, 'create')
+        .mockResolvedValueOnce(workspaceUser as any);
+
+      const result = await repository.addUserToWorkspace(workspaceUser, {
+        transaction: mockTransaction,
+      });
+
+      expect(result).toBeInstanceOf(WorkspaceUser);
+      expect(result.memberId).toEqual(user.uuid);
+      expect(result.workspaceId).toEqual(workspace.id);
+
+      expect(workspaceUserModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memberId: user.uuid,
+          workspaceId: workspace.id,
+        }),
+        expect.objectContaining({
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
+    });
+  });
+
+  describe('updateById', () => {
+    it('When a workspace is updated, it should return the respective workspace', async () => {
+      const workspace = newWorkspace();
+      const updatedWorkspace = newWorkspace({
+        attributes: { name: 'new-name' },
+      });
+
+      jest
+        .spyOn(workspaceModel, 'update')
+        .mockResolvedValueOnce([1, [updatedWorkspace]] as any);
+
+      await repository.updateById(workspace.id, {
+        name: 'new-name',
+      });
+
+      expect(workspaceModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'new-name',
+        }),
+        expect.objectContaining({
+          where: { id: workspace.id },
+        }),
+      );
+    });
+
+    it('When a workspace is updated with a transaction, it should return the respective workspace', async () => {
+      const workspace = newWorkspace();
+      const updatedWorkspace = newWorkspace({
+        attributes: { name: 'new-name' },
+      });
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest
+        .spyOn(workspaceModel, 'update')
+        .mockResolvedValueOnce([1, [updatedWorkspace]] as any);
+
+      await repository.updateById(
+        workspace.id,
+        { name: 'new-name' },
+        mockTransaction,
+      );
+
+      expect(workspaceModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'new-name',
+        }),
+        expect.objectContaining({
+          where: { id: workspace.id },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
+    });
+  });
+
+  describe('updateWorkspaceUserBy', () => {
+    it('When a workspace user is updated, it should return the respective workspace user', async () => {
+      const workspaceUser = newWorkspaceUser();
+      const updatedWorkspaceUser = newWorkspaceUser({
+        attributes: { spaceLimit: 100 },
+      });
+
+      jest
+        .spyOn(workspaceUserModel, 'update')
+        .mockResolvedValueOnce([1, [updatedWorkspaceUser]] as any);
+
+      await repository.updateWorkspaceUserBy(
+        { memberId: workspaceUser.memberId },
+        { spaceLimit: 100 },
+      );
+
+      expect(workspaceUserModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spaceLimit: 100,
+        }),
+        expect.objectContaining({
+          where: { memberId: workspaceUser.memberId },
+        }),
+      );
+    });
+
+    it('When a workspace user is updated with a transaction, it should return the respective workspace user', async () => {
+      const workspaceUser = newWorkspaceUser();
+      const updatedWorkspaceUser = newWorkspaceUser({
+        attributes: { spaceLimit: 123 },
+      });
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+
+      jest
+        .spyOn(workspaceUserModel, 'update')
+        .mockResolvedValueOnce([1, [updatedWorkspaceUser]] as any);
+
+      await repository.updateWorkspaceUserBy(
+        { memberId: workspaceUser.memberId },
+        { spaceLimit: 123 },
+        mockTransaction,
+      );
+
+      expect(workspaceUserModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spaceLimit: 123,
+        }),
+        expect.objectContaining({
+          where: { memberId: workspaceUser.memberId },
+          transaction: mockTransaction.getSequelizeTransaction(),
+        }),
+      );
     });
   });
 
@@ -255,6 +616,27 @@ describe('SequelizeWorkspaceRepository', () => {
         expect(workspaceModel.destroy).toHaveBeenCalledWith({
           where: { id: '1' },
         });
+      });
+    });
+  });
+
+  describe('deleteInviteBy', () => {
+    it('When a workspace invitation is deleted, it should call the model to delete the invitation', async () => {
+      await repository.deleteInviteBy({ id: '1' });
+      expect(workspaceInviteModel.destroy).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+    });
+
+    it('When a workspace invitation is deleted with a transaction, it should call the model to delete the invitation', async () => {
+      const mockTransaction = { getSequelizeTransaction: jest.fn() } as any;
+      await repository.deleteInviteBy(
+        { id: '1' },
+        { transaction: mockTransaction },
+      );
+      expect(workspaceInviteModel.destroy).toHaveBeenCalledWith({
+        where: { id: '1' },
+        transaction: mockTransaction.getSequelizeTransaction(),
       });
     });
   });

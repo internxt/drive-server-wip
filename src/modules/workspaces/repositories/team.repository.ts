@@ -11,6 +11,10 @@ import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes
 import { UserAttributes } from '../../user/user.attributes';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
+import {
+  SequelizeTransactionAdapter,
+  Transaction,
+} from '../../../externals/sequelize/sequelize-transaction';
 
 @Injectable()
 export class SequelizeWorkspaceTeamRepository {
@@ -135,11 +139,19 @@ export class SequelizeWorkspaceTeamRepository {
   async addUserToTeam(
     teamId: WorkspaceTeamAttributes['id'],
     userUuid: UserAttributes['uuid'],
+    options?: { transaction: Transaction },
   ): Promise<WorkspaceTeamUser | null> {
-    const teamUser = await this.teamUserModel.create({
-      teamId,
-      memberId: userUuid,
-    });
+    const sequelizeTransaction =
+      options?.transaction instanceof SequelizeTransactionAdapter
+        ? options.transaction.getSequelizeTransaction()
+        : undefined;
+    const teamUser = await this.teamUserModel.create(
+      {
+        teamId,
+        memberId: userUuid,
+      },
+      { ...options, transaction: sequelizeTransaction },
+    );
 
     return this.teamUserToDomain(teamUser);
   }
