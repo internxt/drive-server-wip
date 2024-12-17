@@ -23,10 +23,7 @@ import { FileModel } from '../../file/file.model';
 import { File, FileAttributes } from '../../file/file.domain';
 import { Folder, FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
-import {
-  WorkspaceLogAttributes,
-  WorkspaceLogType,
-} from '../attributes/workspace-logs.attributes';
+import { WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
 import { WorkspaceLogModel } from '../models/workspace-logs.model';
 import { WorkspaceLog } from '../domains/workspace-log.domain';
 

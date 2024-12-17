@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { mergeMap } from 'rxjs/operators';
 import { SequelizeWorkspaceRepository } from '../repositories/workspaces.repository';
 import {
   WorkspaceLogAttributes,
@@ -68,10 +68,8 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     const platform = this.determinePlatform(request.headers['internxt-client']);
 
     return next.handle().pipe(
-      tap({
-        next: async (res) => {
-          await this.handleAction(platform, this.logAction, request, res);
-        },
+      mergeMap(async (res) => {
+        await this.handleAction(platform, this.logAction, request, res);
       }),
     );
   }
@@ -232,7 +230,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   ) {
     const user: User = res?.user || req?.user;
 
-    if (!user || !user.uuid) {
+    if (!user?.uuid) {
       Logger.debug('[WORKSPACE/LOGS] User is required');
       return;
     }

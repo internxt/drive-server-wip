@@ -6104,7 +6104,6 @@ describe('WorkspacesUsecases', () => {
         member,
         logType,
         lastDays,
-        undefined,
       );
 
       expect(result).toEqual(mockLogs);

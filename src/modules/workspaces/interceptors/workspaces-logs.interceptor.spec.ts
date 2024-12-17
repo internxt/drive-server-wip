@@ -6,7 +6,7 @@ import {
   WorkspaceLogPlatform,
 } from '../attributes/workspace-logs.attributes';
 import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
-import { of } from 'rxjs';
+import { lastValueFrom, of } from 'rxjs';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 
 describe('WorkspacesLogsInterceptor', () => {
@@ -43,22 +43,22 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('intercept()', () => {
+    const mockHandler = jest.fn();
+    const context: ExecutionContext = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          headers: { 'internxt-client': 'drive-web' },
+        }),
+      }),
+      getHandler: () => mockHandler,
+    } as any;
+
     it('When log action is valid, then it should call handleAction', async () => {
-      const mockHandler = jest.fn();
       Reflect.defineMetadata(
         'workspaceLogAction',
         WorkspaceLogType.LOGIN,
         mockHandler,
       );
-
-      const context: ExecutionContext = {
-        switchToHttp: () => ({
-          getRequest: () => ({
-            headers: { 'internxt-client': 'drive-web' },
-          }),
-        }),
-        getHandler: () => mockHandler,
-      } as any;
 
       const next: CallHandler = {
         handle: jest.fn().mockReturnValue(of({})),
@@ -68,27 +68,17 @@ describe('WorkspacesLogsInterceptor', () => {
         .spyOn(interceptor, 'handleAction')
         .mockResolvedValue(undefined);
 
-      await interceptor.intercept(context, next).toPromise();
+      await lastValueFrom(interceptor.intercept(context, next));
 
       expect(handleActionSpy).toHaveBeenCalled();
     });
 
-    it('When log action is invalid, then it should log a debug message', async () => {
-      const mockHandler = jest.fn();
+    it('When log action is invalid, then it should log an invalid action message', async () => {
       Reflect.defineMetadata(
         'workspaceLogAction',
         'INVALID_ACTION',
         mockHandler,
       );
-
-      const context: ExecutionContext = {
-        switchToHttp: () => ({
-          getRequest: () => ({
-            headers: { 'internxt-client': 'drive-web' },
-          }),
-        }),
-        getHandler: () => mockHandler,
-      } as any;
 
       const next: CallHandler = {
         handle: jest.fn().mockReturnValue(of({})),
