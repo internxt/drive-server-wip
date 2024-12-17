@@ -3,13 +3,11 @@ import {
   Controller,
   HttpCode,
   Post,
-  Res,
   Logger,
-  Req,
   NotFoundException,
   UseGuards,
-  Request as RequestDecorator,
   Get,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -18,7 +16,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from './decorators/public.decorator';
-import { Response, Request } from 'express';
 import { ReferralKey, User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
@@ -27,6 +24,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access-dto';
 import { User as UserDecorator } from './decorators/user.decorator';
+import { Client } from './decorators/client.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -39,32 +37,29 @@ export class AuthController {
 
   @UseGuards(ThrottlerGuard)
   @Post('/login')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get security details to log in',
   })
   @ApiResponse({ status: 200, description: 'Retrieve details' })
   @Public()
-  async login(
-    @Body() body: LoginDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const internxtClient = req.headers['internxt-client'];
-
+  async login(@Body() body: LoginDto, @Client() clientId: string) {
     const user = await this.userUseCases.findByEmail(body.email);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Invalid credentials');
     }
 
     try {
-      const encSalt = this.cryptoService.encryptText(user.hKey.toString());
-      const required2FA = user.secret_2FA && user.secret_2FA.length > 0;
-
+      const encryptedSalt = this.cryptoService.encryptText(
+        user.hKey.toString(),
+      );
+      const required2FA = Boolean(
+        user.secret_2FA && user.secret_2FA.length > 0,
+      );
       const hasKeys = await this.keyServerUseCases.findUserKeys(user.id);
 
-      if (internxtClient === 'drive-mobile') {
+      if (clientId === 'drive-mobile') {
         this.userUseCases
           .applyReferral(user.id, ReferralKey.InstallMobileApp)
           .catch((err) => {
@@ -72,7 +67,7 @@ export class AuthController {
           });
       }
 
-      if (internxtClient === 'drive-desktop') {
+      if (clientId === 'drive-desktop') {
         this.userUseCases
           .applyReferral(user.id, ReferralKey.InstallDesktopApp)
           .catch((err) => {
@@ -80,7 +75,7 @@ export class AuthController {
           });
       }
 
-      return res.status(200).send({ hasKeys, sKey: encSalt, tfa: required2FA });
+      return { hasKeys, sKey: encryptedSalt, tfa: required2FA };
     } catch (err) {
       Logger.error(
         `[AUTH/LOGIN] USER: ${user.email} ERROR: ${
@@ -93,13 +88,13 @@ export class AuthController {
 
   @UseGuards(ThrottlerGuard)
   @Post('/login/access')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Access account',
+    summary: 'Access user account',
   })
   @ApiResponse({
     status: 200,
-    description: 'Allow the user to access their account',
+    description: 'User  successfully accessed their account',
   })
   @Public()
   async loginAccess(@Body() body: LoginAccessDto) {
@@ -107,13 +102,13 @@ export class AuthController {
   }
 
   @Get('/logout')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Logout account',
+    summary: 'Log out of the account',
   })
-  @ApiResponse({ status: 200, description: 'Register log logout' })
-  async logout(@UserDecorator() user: User, @Res() res: Response) {
-    return res.send({ logout: true });
+  @ApiResponse({ status: 200, description: 'Successfully logged out' })
+  async logout(@UserDecorator() user: User) {
+    return { logout: true };
   }
 }

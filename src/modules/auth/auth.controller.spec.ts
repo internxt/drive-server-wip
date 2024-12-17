@@ -5,7 +5,7 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access-dto';
-import { Response, Request } from 'express';
+import { Response } from 'express';
 import { NotFoundException } from '@nestjs/common';
 import { KeyServer } from '../keyserver/key-server.domain';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
@@ -34,16 +34,8 @@ describe('AuthController', () => {
   });
 
   describe('POST /login', () => {
-    it('should return user data', async () => {
-      const req = {
-        headers: {
-          'internxt-client': 'drive-mobile',
-        },
-      } as unknown as Request;
-      const res = {
-        status: jest.fn(() => res),
-        send: jest.fn(),
-      } as unknown as Response;
+    it('When valid credentials are provided, then it should return security details', async () => {
+      const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
@@ -64,67 +56,71 @@ describe('AuthController', () => {
       jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce(keys);
       jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
 
-      await authController.login(loginDto, req, res);
+      const res = {
+        status: jest.fn(() => res),
+        send: jest.fn(),
+      } as unknown as Response;
 
-      expect(res.status).toHaveBeenCalledTimes(1);
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.send).toHaveBeenCalledTimes(1);
-      expect(res.send).toHaveBeenCalledWith({
+      const result = await authController.login(loginDto, clientId);
+
+      expect(result).toEqual({
         hasKeys: keys,
         sKey: 'encryptedText',
         tfa: true,
       });
     });
 
-    it('should throw NotFoundException if user not found', async () => {
-      const req = {
-        headers: {
-          'internxt-client': 'drive-mobile',
-        },
-      } as unknown as Request;
-      const res = {
-        status: jest.fn(() => res),
-        send: jest.fn(),
-      } as unknown as Response;
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
 
-      await expect(authController.login(loginDto, req, res)).rejects.toThrow(
+      await expect(authController.login(loginDto, clientId)).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
   describe('POST /login/access', () => {
-    it('should call loginAccess method', async () => {
-      const loginAccessDto = new LoginAccessDto();
-      loginAccessDto.email = 'user_test@gmail.com';
-      loginAccessDto.password = v4();
-      loginAccessDto.privateKey = 'privateKey';
-      loginAccessDto.publicKey = 'publicKey';
-      loginAccessDto.revocateKey = 'revocateKey';
+    const loginAccessDto = new LoginAccessDto();
+    loginAccessDto.email = 'user_test@gmail.com';
+    loginAccessDto.password = v4();
+    loginAccessDto.privateKey = 'privateKey';
+    loginAccessDto.publicKey = 'publicKey';
+    loginAccessDto.revocateKey = 'revocateKey';
 
-      await authController.loginAccess(loginAccessDto);
+    it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce({ success: true } as any);
+
+      const result = await authController.loginAccess(loginAccessDto);
 
       expect(userUseCases.loginAccess).toHaveBeenCalledTimes(1);
       expect(userUseCases.loginAccess).toHaveBeenCalledWith(loginAccessDto);
+      expect(result).toEqual({ success: true });
+    });
+
+    it('When an error occurs during login access, then it should throw an error', async () => {
+      userUseCases.loginAccess = jest
+        .fn()
+        .mockRejectedValue(new Error('Login access error'));
+
+      await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
+        Error,
+      );
     });
   });
 
   describe('GET /logout', () => {
-    it('should return logout response', async () => {
+    it('When a user logs out, then it should return a logout confirmation', async () => {
       const user = newUser();
 
-      const res = {
-        send: jest.fn(),
-      } as unknown as Response;
+      const result = await authController.logout(user);
 
-      await authController.logout(user, res);
-
-      expect(res.send).toHaveBeenCalledTimes(1);
-      expect(res.send).toHaveBeenCalledWith({ logout: true });
+      expect(result).toEqual({ logout: true });
     });
   });
 });

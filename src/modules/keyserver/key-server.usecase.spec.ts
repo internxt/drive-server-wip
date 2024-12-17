@@ -14,12 +14,12 @@ describe('Key Server Use Cases', () => {
     service = new KeyServerUseCases(keyServerRepository);
   });
 
-  it('is be defined', () => {
+  it('when the service is instantiated, then it should be defined', () => {
     expect(service).toBeDefined();
   });
 
   describe('Add Keys To User', () => {
-    it('saves the keys to the user', async () => {
+    it('When valid keys are provided, then it should save the keys to the user', async () => {
       const userId = 234059;
       const keys: Keys = {
         privateKey:
@@ -77,7 +77,7 @@ describe('Key Server Use Cases', () => {
     ];
 
     it.each(incompleteKeys)(
-      'does not save the keys if one is missing',
+      'When keys are incomplete, then it should not save the keys',
       async (incompleteKeySet: Partial<Keys>) => {
         const userId = 234059;
         jest.spyOn(keyServerRepository, 'findUserKeysOrCreate');
@@ -94,7 +94,7 @@ describe('Key Server Use Cases', () => {
   });
 
   describe('getPublicKey', () => {
-    it('should return the public key when found', async () => {
+    it('When a public key is found, then it should return the public key', async () => {
       const userId = 123;
       const mockPublicKey = 'mockPublicKey';
 
@@ -108,7 +108,7 @@ describe('Key Server Use Cases', () => {
       expect(keyServerRepository.findPublicKey).toHaveBeenCalledWith(userId);
     });
 
-    it('should return undefined an error when no public key is found', async () => {
+    it('When no public key is found, then it should return undefined', async () => {
       const userId = 123;
       jest
         .spyOn(keyServerRepository, 'findPublicKey')
@@ -120,7 +120,7 @@ describe('Key Server Use Cases', () => {
   });
 
   describe('findUserKeys', () => {
-    it('should return user keys when found', async () => {
+    it('When user keys are found, then it should return the user keys', async () => {
       const userId = 123;
 
       const keys: Keys = {
@@ -149,7 +149,7 @@ describe('Key Server Use Cases', () => {
       expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
     });
 
-    it('should throw an error when no keys are found', async () => {
+    it('When no keys are found, then it should throw an error', async () => {
       const userId = 123;
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
 

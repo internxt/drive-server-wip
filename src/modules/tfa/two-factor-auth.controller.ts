@@ -4,12 +4,12 @@ import {
   Put,
   Delete,
   Body,
-  Res,
   HttpStatus,
   BadRequestException,
-  HttpException,
+  HttpCode,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
-import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -34,6 +34,7 @@ export class TwoFactorAuthController {
   ) {}
 
   @Get('/')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get two-factor authentication',
@@ -41,16 +42,17 @@ export class TwoFactorAuthController {
   @ApiOkResponse({
     description: 'two-factor authentication',
   })
-  async getTfa(@UserDecorator() user: User, @Res() res: Response) {
+  async getTfa(@UserDecorator() user: User) {
     if (user.secret_2FA) {
-      throw new HttpException('User has already 2FA', HttpStatus.CONFLICT);
+      throw new ConflictException('User has already 2FA');
     }
     const { secret, qrCode } =
       await this.twoFactorAuthService.generateTwoFactorAuthSecret();
-    return res.status(200).send({ code: secret.base32, qr: qrCode });
+    return { code: secret.base32, qr: qrCode };
   }
 
   @Put('/')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update two-factor authentication',
@@ -61,10 +63,9 @@ export class TwoFactorAuthController {
   async putTfa(
     @UserDecorator() user: User,
     @Body() updateTfaDto: UpdateTfaDto,
-    @Res() res: Response,
   ) {
     if (user.secret_2FA) {
-      throw new HttpException('User has already 2FA', HttpStatus.CONFLICT);
+      throw new ConflictException('User has already 2FA');
     }
 
     await this.twoFactorAuthService.validateTwoFactorAuthCode(
@@ -75,10 +76,11 @@ export class TwoFactorAuthController {
       secret_2FA: updateTfaDto.key,
     });
 
-    return res.status(200).send({ message: 'ok' });
+    return { message: 'ok' };
   }
 
   @Delete('/')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Delete two-factor authentication',
@@ -89,13 +91,9 @@ export class TwoFactorAuthController {
   async deleteTfa(
     @UserDecorator() user: User,
     @Body() deleteTfaDto: DeleteTfaDto,
-    @Res() res: Response,
   ) {
     if (!user.secret_2FA) {
-      throw new HttpException(
-        'Your account does not have 2FA activated.',
-        HttpStatus.NO_CONTENT,
-      );
+      throw new NotFoundException('Your account does not have 2FA activated.');
     }
 
     await this.twoFactorAuthService.validateTwoFactorAuthCode(
@@ -106,9 +104,8 @@ export class TwoFactorAuthController {
 
     if (user.password.toString() !== decryptedPass) {
       throw new BadRequestException('Invalid password');
-    } else {
-      await this.userUseCases.updateByUuid(user.uuid, { secret_2FA: null });
-      return res.status(200).send({ message: 'ok' });
     }
+    await this.userUseCases.updateByUuid(user.uuid, { secret_2FA: null });
+    return { message: 'ok' };
   }
 }

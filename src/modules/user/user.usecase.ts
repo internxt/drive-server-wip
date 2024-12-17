@@ -1274,6 +1274,16 @@ export class UserUseCases {
       privateKey: keys ? keys.privateKey : null,
       publicKey: keys ? keys.publicKey : null,
       revocateKey: keys ? keys.revocationKey : null,
+      keys: {
+        ecc: {
+          privateKey: keys ? keys.privateKey : null,
+          publicKey: keys ? keys.publicKey : null,
+        },
+        kyber: {
+          privateKey: null,
+          publicKey: null,
+        },
+      },
       bucket: userBucket,
       registerCompleted: userData.registerCompleted,
       teams: false,

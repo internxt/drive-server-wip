@@ -820,7 +820,7 @@ describe('User use cases', () => {
       revocateKey: 'revocateKey',
     };
 
-    it('should throw BadRequestException for non-existing email', async () => {
+    it('When a non-existing email is provided, then it should throw ', async () => {
       const loginAccessDto = {
         email: 'nonexistent@example.com',
         password: v4(),
@@ -834,7 +834,7 @@ describe('User use cases', () => {
       );
     });
 
-    it('should throw ForbiddenException if login attempts limit is reached', async () => {
+    it('When login attempts limit is reached, then it should throw', async () => {
       const loginAccessDto = {
         email: 'test@example.com',
         password: v4(),
@@ -855,7 +855,7 @@ describe('User use cases', () => {
       );
     });
 
-    it('should throw BadRequestException for wrong password', async () => {
+    it('When the password is incorrect, then it should throw', async () => {
       const wrongPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
@@ -878,7 +878,7 @@ describe('User use cases', () => {
       );
     });
 
-    it('should return user and tokens on successful login', async () => {
+    it('When login is successful, then it should return user and tokens', async () => {
       const hashedPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
@@ -921,7 +921,7 @@ describe('User use cases', () => {
       expect(result).toHaveProperty('newToken', 'newAuthToken');
     });
 
-    it('should throw BadRequestException for wrong 2FA code', async () => {
+    it('When the 2FA code is wrong, then it should throw', async () => {
       const hashedPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
@@ -946,7 +946,7 @@ describe('User use cases', () => {
       );
     });
 
-    it('should return user and tokens on successful login with 2FA code', async () => {
+    it('When the 2FA code is valid, then it should return user and tokens', async () => {
       const hashedPassword = v4();
       const loginAccessDto = {
         email: 'test@example.com',
@@ -993,7 +993,7 @@ describe('User use cases', () => {
   });
 
   describe('updateByUuid', () => {
-    it('should call userRepository.updateByUuid with correct parameters', async () => {
+    it('When updating user by UUID, then it should call userRepository.updateByUuid', async () => {
       const userUuid = v4();
       const payload = { name: 'New Name' };
       jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
@@ -1008,7 +1008,7 @@ describe('User use cases', () => {
   });
 
   describe('logReferralError', () => {
-    it('should log error message for undefined error', () => {
+    it('When an undefined error is logged, then it should log error message for undefined error', () => {
       const userId = v4();
 
       userUseCases.logReferralError(userId, new Error());
@@ -1019,7 +1019,7 @@ describe('User use cases', () => {
       );
     });
 
-    it('should not log anything for ReferralsNotAvailableError', () => {
+    it('When a ReferralsNotAvailableError is logged, then it should not log anything', () => {
       const userId = v4();
       const error = new ReferralsNotAvailableError();
 
@@ -1028,7 +1028,7 @@ describe('User use cases', () => {
       expect(loggerErrorSpy).not.toHaveBeenCalled();
     });
 
-    it('should log error message for other errors', () => {
+    it('When another error is logged, then it should log error message for other errors', () => {
       const userId = v4();
       const errorMessage = 'Some error occurred';
 
@@ -1041,7 +1041,7 @@ describe('User use cases', () => {
       );
     });
 
-    it('should log "Unknown error" for non-Error objects', () => {
+    it('When a non-Error object is logged, Then it should log "Unknown error"', () => {
       const userId = v4();
       const error = 'This is a string error';
 
@@ -1056,7 +1056,7 @@ describe('User use cases', () => {
   });
 
   describe('loginFailed', () => {
-    it('should call userRepository.loginFailed with correct parameters', async () => {
+    it('When a login attempt fails, then it should call userRepository.loginFailed', async () => {
       const user = newUser();
       const isFailed = true;
       jest.spyOn(userRepository, 'loginFailed').mockResolvedValue(undefined);

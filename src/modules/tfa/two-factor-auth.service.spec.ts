@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import {
   BadRequestException,
@@ -18,12 +17,12 @@ describe('TwoFactorAuthService', () => {
     service = new TwoFactorAuthService();
   });
 
-  it('should be defined', () => {
+  it('When the service is instantiated, then it should be defined', () => {
     expect(service).toBeDefined();
   });
 
   describe('generateTwoFactorAuthSecret', () => {
-    it('should generate a secret and a QR code', async () => {
+    it('When generating a two-factor authentication secret, then it should return a secret and a QR code', async () => {
       qrcode.toDataURL.mockResolvedValueOnce('data:image/png;base64,iVB');
       const result = await service.generateTwoFactorAuthSecret();
       expect(result).toHaveProperty('secret');
@@ -32,7 +31,7 @@ describe('TwoFactorAuthService', () => {
       expect(typeof result.qrCode).toBe('string');
     });
 
-    it('should throw an InternalServerErrorException if an error occurs', async () => {
+    it('When an error occurs during QR code generation, then it should throw', async () => {
       qrcode.toDataURL.mockRejectedValueOnce(new Error());
       await expect(service.generateTwoFactorAuthSecret()).rejects.toThrow(
         InternalServerErrorException,
@@ -41,7 +40,7 @@ describe('TwoFactorAuthService', () => {
   });
 
   describe('validateTwoFactorAuthCode', () => {
-    it('should return true if the code is valid', async () => {
+    it('When a valid code is provided, then it should return true', async () => {
       const secret = speakeasy.generateSecret({ length: 10 }).ascii;
       const token = speakeasy.totp({
         secret,
@@ -51,7 +50,7 @@ describe('TwoFactorAuthService', () => {
       expect(result).toBe(true);
     });
 
-    it('should throw a BadRequestException if the code is invalid', async () => {
+    it('When an invalid code is provided, then it should throw', async () => {
       const secret = speakeasy.generateSecret({ length: 10 }).ascii;
       await expect(
         service.validateTwoFactorAuthCode(secret, 'invalid-code'),
