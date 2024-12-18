@@ -617,35 +617,35 @@ export class SequelizeWorkspaceRepository {
   }
 
   workspaceLogToDomainSummary(model: WorkspaceLogModel): WorkspaceLog {
-    const buildUser = ({
+    const buildUser = ({ id, name, lastname, email, uuid }: UserModel) => ({
       id,
       name,
       lastname,
       email,
       uuid,
-    }: UserModel | null) => (id ? { id, name, lastname, email, uuid } : null);
+    });
 
-    const buildWorkspace = ({ id, name }: WorkspaceModel | null) =>
-      id ? { id, name } : null;
+    const buildWorkspace = ({ id, name }: WorkspaceModel) => ({ id, name });
 
-    const buildFile = (file: FileModel | null) => {
-      if (!file) return null;
-      const { uuid, plainName, folderUuid, type } = file;
-      return { uuid, plainName, folderUuid, type };
-    };
+    const buildFile = ({ uuid, plainName, folderUuid, type }: FileModel) => ({
+      uuid,
+      plainName,
+      folderUuid,
+      type,
+    });
 
-    const buildFolder = (folder: FolderModel | null) => {
-      if (!folder) return null;
-      const { uuid, plainName, parentId } = folder;
-      return { uuid, plainName, parentId };
-    };
+    const buildFolder = ({ uuid, plainName, parentId }: FolderModel) => ({
+      uuid,
+      plainName,
+      parentId,
+    });
 
     return WorkspaceLog.build({
       ...model.toJSON(),
-      user: buildUser(model.user),
-      workspace: buildWorkspace(model.workspace),
-      file: buildFile(model.file),
-      folder: buildFolder(model.folder),
+      user: model.user ? buildUser(model.user) : null,
+      workspace: model.workspace ? buildWorkspace(model.workspace) : null,
+      file: model.file ? buildFile(model.file) : null,
+      folder: model.folder ? buildFolder(model.folder) : null,
     });
   }
 

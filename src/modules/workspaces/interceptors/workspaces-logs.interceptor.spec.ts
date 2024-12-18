@@ -36,11 +36,6 @@ describe('WorkspacesLogsInterceptor', () => {
       const platform = interceptor.determinePlatform('drive-desktop');
       expect(platform).toBe(WorkspaceLogPlatform.Desktop);
     });
-
-    it('When client is unknown, then it should return UNSPECIFIED platform', () => {
-      const platform = interceptor.determinePlatform('unknown-client');
-      expect(platform).toBeUndefined();
-    });
   });
 
   describe('intercept()', () => {

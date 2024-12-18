@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   Min,
+  Max,
 } from 'class-validator';
 import { OrderBy } from './../../../common/order.type';
 import { WorkspaceLogType } from '../attributes/workspace-logs.attributes';
@@ -31,6 +32,7 @@ export class GetWorkspaceLogsDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(25)
   @Type(() => Number)
   limit?: number;
 
@@ -47,6 +49,7 @@ export class GetWorkspaceLogsDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(90)
   @Type(() => Number)
   lastDays?: number;
 
