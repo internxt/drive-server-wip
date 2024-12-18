@@ -137,7 +137,7 @@ describe('WorkspacesLogsInterceptor', () => {
     });
   });
 
-  describe('registerWorkspaceLog()', () => {
+  describe('logWorkspaceAction()', () => {
     const payload = {
       workspaceId: 'workspace-id',
       creator: 'user-id',
@@ -147,7 +147,7 @@ describe('WorkspacesLogsInterceptor', () => {
     };
 
     it('When registerLog is called, then it should call the repository method', async () => {
-      await interceptor.registerWorkspaceLog(payload);
+      await interceptor.logWorkspaceAction(payload);
 
       expect(workspaceRepository.registerLog).toHaveBeenCalledWith({
         ...payload,
@@ -161,7 +161,7 @@ describe('WorkspacesLogsInterceptor', () => {
         .spyOn(workspaceRepository, 'registerLog')
         .mockRejectedValue(new Error('Database error'));
 
-      await interceptor.registerWorkspaceLog(payload);
+      await interceptor.logWorkspaceAction(payload);
 
       expect(loggerDebugSpy).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -179,10 +179,10 @@ describe('WorkspacesLogsInterceptor', () => {
       const workspaceIds = ['workspace-id-1', 'workspace-id-2'];
 
       jest
-        .spyOn(interceptor, 'getUserWorkspaces')
+        .spyOn(interceptor, 'fetchUserWorkspacesIds')
         .mockResolvedValue(workspaceIds);
       const registerLogSpy = jest
-        .spyOn(interceptor, 'registerWorkspaceLog')
+        .spyOn(interceptor, 'logWorkspaceAction')
         .mockImplementation();
 
       await interceptor.handleUserAction(
@@ -236,7 +236,7 @@ describe('WorkspacesLogsInterceptor', () => {
         workspaceId: 'workspace-id',
       });
       const registerLogSpy = jest
-        .spyOn(interceptor, 'registerWorkspaceLog')
+        .spyOn(interceptor, 'logWorkspaceAction')
         .mockImplementation();
 
       await interceptor.handleUserWorkspaceAction(
@@ -423,7 +423,7 @@ describe('WorkspacesLogsInterceptor', () => {
     });
   });
 
-  describe('getUserWorkspaces()', () => {
+  describe('fetchUserWorkspacesIds()', () => {
     it('When user has workspaces, then it should return their IDs', async () => {
       const uuid = 'user-id';
 
@@ -441,7 +441,7 @@ describe('WorkspacesLogsInterceptor', () => {
         .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
         .mockResolvedValue(workspaces);
 
-      const result = await interceptor.getUserWorkspaces(uuid);
+      const result = await interceptor.fetchUserWorkspacesIds(uuid);
       expect(result).toEqual(['workspace-id-1', 'workspace-id-2']);
     });
 
@@ -461,7 +461,7 @@ describe('WorkspacesLogsInterceptor', () => {
         .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
         .mockResolvedValue(workspaces);
 
-      const result = await interceptor.getUserWorkspaces(uuid);
+      const result = await interceptor.fetchUserWorkspacesIds(uuid);
       expect(result).toEqual([]);
     });
   });
@@ -617,7 +617,7 @@ describe('WorkspacesLogsInterceptor', () => {
       const req = { body: { items: [{ type: 'file', uuid: 'file-id' }] } };
       const res = {};
       const registerLogSpy = jest
-        .spyOn(interceptor, 'registerWorkspaceLog')
+        .spyOn(interceptor, 'logWorkspaceAction')
         .mockResolvedValue(undefined);
       const extractRequestDataSpy = jest
         .spyOn(interceptor, 'extractRequestData')

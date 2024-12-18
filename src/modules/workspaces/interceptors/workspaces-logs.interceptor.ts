@@ -161,7 +161,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
             item.type as unknown as WorkspaceItemType,
           );
           if (action) {
-            return this.registerWorkspaceLog({
+            return this.logWorkspaceAction({
               workspaceId: workspaceId,
               creator: requesterUuid,
               type: action,
@@ -215,7 +215,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     return Reflect.getMetadata('workspaceLogAction', handler) || null;
   }
 
-  async registerWorkspaceLog(
+  async logWorkspaceAction(
     payload: Omit<WorkspaceLogAttributes, 'id' | 'createdAt' | 'updatedAt'>,
   ) {
     try {
@@ -232,7 +232,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     }
   }
 
-  async getUserWorkspaces(uuid: string) {
+  async fetchUserWorkspacesIds(uuid: string) {
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(uuid);
     return availableWorkspaces
@@ -256,10 +256,10 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
       return;
     }
 
-    const workspaceIds = await this.getUserWorkspaces(user.uuid);
+    const workspaceIds = await this.fetchUserWorkspacesIds(user.uuid);
     await Promise.all(
       workspaceIds.map((workspaceId) =>
-        this.registerWorkspaceLog({
+        this.logWorkspaceAction({
           workspaceId,
           creator: user.uuid,
           type: actionType,
@@ -284,7 +284,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     }
 
     if (ok && requesterUuid && workspaceId && entityId) {
-      await this.registerWorkspaceLog({
+      await this.logWorkspaceAction({
         workspaceId,
         creator: requesterUuid,
         type: actionType,
