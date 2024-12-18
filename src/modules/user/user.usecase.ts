@@ -73,7 +73,7 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
-import { LoginAccessDto } from '../auth/dto/login-access-dto';
+import { LoginAccessDto } from '../auth/dto/login-access.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {

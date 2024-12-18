@@ -8,23 +8,30 @@ import {
   UseGuards,
   Get,
   HttpStatus,
+  ConflictException,
+  BadRequestException,
+  Delete,
+  Put,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from './decorators/public.decorator';
-import { ReferralKey, User } from '../user/user.domain';
+import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
-import { LoginAccessDto } from './dto/login-access-dto';
+import { LoginAccessDto } from './dto/login-access.dto';
 import { User as UserDecorator } from './decorators/user.decorator';
 import { Client } from './decorators/client.decorator';
+import { TwoFactorAuthService } from './two-factor-auth.service';
+import { DeleteTfaDto } from './dto/delete-tfa.dto';
+import { UpdateTfaDto } from './dto/update-tfa.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -33,6 +40,7 @@ export class AuthController {
     private userUseCases: UserUseCases,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
+    private twoFactorAuthService: TwoFactorAuthService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -41,7 +49,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get security details to log in',
   })
-  @ApiResponse({ status: 200, description: 'Retrieve details' })
+  @ApiOkResponse({ description: 'Retrieve details' })
   @Public()
   async login(@Body() body: LoginDto, @Client() clientId: string) {
     const user = await this.userUseCases.findByEmail(body.email);
@@ -58,22 +66,6 @@ export class AuthController {
         user.secret_2FA && user.secret_2FA.length > 0,
       );
       const hasKeys = await this.keyServerUseCases.findUserKeys(user.id);
-
-      if (clientId === 'drive-mobile') {
-        this.userUseCases
-          .applyReferral(user.id, ReferralKey.InstallMobileApp)
-          .catch((err) => {
-            this.userUseCases.logReferralError(user.id, err);
-          });
-      }
-
-      if (clientId === 'drive-desktop') {
-        this.userUseCases
-          .applyReferral(user.id, ReferralKey.InstallDesktopApp)
-          .catch((err) => {
-            this.userUseCases.logReferralError(user.id, err);
-          });
-      }
 
       return { hasKeys, sKey: encryptedSalt, tfa: required2FA };
     } catch (err) {
@@ -92,8 +84,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Access user account',
   })
-  @ApiResponse({
-    status: 200,
+  @ApiOkResponse({
     description: 'User  successfully accessed their account',
   })
   @Public()
@@ -107,8 +98,84 @@ export class AuthController {
   @ApiOperation({
     summary: 'Log out of the account',
   })
-  @ApiResponse({ status: 200, description: 'Successfully logged out' })
+  @ApiOkResponse({ description: 'Successfully logged out' })
   async logout(@UserDecorator() user: User) {
     return { logout: true };
+  }
+
+  @Get('/tfa')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get two-factor authentication',
+  })
+  @ApiOkResponse({
+    description: 'two-factor authentication',
+  })
+  async getTfa(@UserDecorator() user: User) {
+    if (user.secret_2FA) {
+      throw new ConflictException('User has already 2FA');
+    }
+    const { secret, qrCode } =
+      await this.twoFactorAuthService.generateTwoFactorAuthSecret();
+    return { code: secret.base32, qr: qrCode };
+  }
+
+  @Put('/tfa')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update two-factor authentication',
+  })
+  @ApiOkResponse({
+    description: 'two-factor authentication',
+  })
+  async putTfa(
+    @UserDecorator() user: User,
+    @Body() updateTfaDto: UpdateTfaDto,
+  ) {
+    if (user.secret_2FA) {
+      throw new ConflictException('User has already 2FA');
+    }
+
+    await this.twoFactorAuthService.validateTwoFactorAuthCode(
+      updateTfaDto.key,
+      updateTfaDto.code,
+    );
+    await this.userUseCases.updateByUuid(user.uuid, {
+      secret_2FA: updateTfaDto.key,
+    });
+
+    return { message: 'ok' };
+  }
+
+  @Delete('/tfa')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete two-factor authentication',
+  })
+  @ApiOkResponse({
+    description: 'two-factor authentication',
+  })
+  async deleteTfa(
+    @UserDecorator() user: User,
+    @Body() deleteTfaDto: DeleteTfaDto,
+  ) {
+    if (!user.secret_2FA) {
+      throw new NotFoundException('Your account does not have 2FA activated.');
+    }
+
+    await this.twoFactorAuthService.validateTwoFactorAuthCode(
+      user.secret_2FA,
+      deleteTfaDto.code,
+    );
+    const decryptedPass = this.cryptoService.decryptText(deleteTfaDto.pass);
+
+    if (user.password.toString() !== decryptedPass) {
+      throw new BadRequestException('Invalid password');
+    }
+    await this.userUseCases.updateByUuid(user.uuid, { secret_2FA: null });
+    return { message: 'ok' };
   }
 }

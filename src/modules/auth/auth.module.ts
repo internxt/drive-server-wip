@@ -12,6 +12,7 @@ import { GatewayRS256JwtStrategy } from './gateway-rs256jwt.strategy';
 import { AuthController } from './auth.controller';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { TwoFactorAuthService } from './two-factor-auth.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     GatewayRS256JwtStrategy,
     CryptoService,
     SequelizeWorkspaceRepository,
+    TwoFactorAuthService,
   ],
   controllers: [AuthController],
   exports: [JwtStrategy, BasicStrategy, PassportModule],
