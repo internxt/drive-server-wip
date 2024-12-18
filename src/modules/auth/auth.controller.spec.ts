@@ -10,6 +10,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { KeyServer } from '../keyserver/key-server.domain';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
@@ -81,7 +82,7 @@ describe('AuthController', () => {
       });
     });
 
-    it('When user is not found, then it should throw NotFoundException', async () => {
+    it('When user is not found, then it should throw UnauthorizedException', async () => {
       const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
@@ -89,7 +90,7 @@ describe('AuthController', () => {
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
 
       await expect(authController.login(loginDto, clientId)).rejects.toThrow(
-        new NotFoundException('Invalid credentials'),
+        new UnauthorizedException('Wrong login credentials'),
       );
     });
   });
@@ -178,7 +179,7 @@ describe('AuthController', () => {
 
       jest
         .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockResolvedValueOnce(true);
+        .mockReturnValueOnce(true);
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
 
       const result = await authController.putTfa(user, updateTfaDto);
@@ -208,7 +209,7 @@ describe('AuthController', () => {
 
       jest
         .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockResolvedValueOnce(true);
+        .mockReturnValueOnce(true);
       jest
         .spyOn(cryptoService, 'decryptText')
         .mockReturnValueOnce(user.password);
@@ -240,7 +241,7 @@ describe('AuthController', () => {
 
       jest
         .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockResolvedValueOnce(true);
+        .mockReturnValueOnce(true);
       jest
         .spyOn(cryptoService, 'decryptText')
         .mockReturnValueOnce('invalid-password');

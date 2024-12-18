@@ -27,7 +27,7 @@ export class TwoFactorAuthService {
     }
   }
 
-  async validateTwoFactorAuthCode(secret: string, code: string) {
+  validateTwoFactorAuthCode(secret: string, code: string) {
     const isValid = speakeasy.totp.verifyDelta({
       secret,
       token: code,

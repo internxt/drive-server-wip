@@ -23,6 +23,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   Sign,
@@ -830,7 +831,7 @@ describe('User use cases', () => {
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
 
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
-        BadRequestException,
+        UnauthorizedException,
       );
     });
 
@@ -874,7 +875,7 @@ describe('User use cases', () => {
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(wrongPassword);
 
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
-        BadRequestException,
+        UnauthorizedException,
       );
     });
 
@@ -942,7 +943,7 @@ describe('User use cases', () => {
       jest.spyOn(speakeasy.totp, 'verifyDelta').mockReturnValue(undefined);
 
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
-        BadRequestException,
+        UnauthorizedException,
       );
     });
 
@@ -1051,21 +1052,6 @@ describe('User use cases', () => {
         '[STORAGE]: ERROR applying referral for user %s: %s',
         userId,
         'Unknown error',
-      );
-    });
-  });
-
-  describe('loginFailed', () => {
-    it('When a login attempt fails, then it should call userRepository.loginFailed', async () => {
-      const user = newUser();
-      const isFailed = true;
-      jest.spyOn(userRepository, 'loginFailed').mockResolvedValue(undefined);
-
-      await userUseCases.loginFailed(user, isFailed);
-
-      expect(userRepository.loginFailed).toHaveBeenCalledWith(
-        user.uuid,
-        isFailed,
       );
     });
   });

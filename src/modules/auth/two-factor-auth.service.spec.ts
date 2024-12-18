@@ -34,7 +34,9 @@ describe('TwoFactorAuthService', () => {
     it('When an error occurs during QR code generation, then it should throw', async () => {
       qrcode.toDataURL.mockRejectedValueOnce(new Error());
       await expect(service.generateTwoFactorAuthSecret()).rejects.toThrow(
-        InternalServerErrorException,
+        new InternalServerErrorException(
+          'An error occurred while trying to generate two-factor authentication.',
+        ),
       );
     });
   });
@@ -46,15 +48,17 @@ describe('TwoFactorAuthService', () => {
         secret,
         encoding: 'base32',
       });
-      const result = await service.validateTwoFactorAuthCode(secret, token);
+      const result = service.validateTwoFactorAuthCode(secret, token);
       expect(result).toBe(true);
     });
 
     it('When an invalid code is provided, then it should throw', async () => {
       const secret = speakeasy.generateSecret({ length: 10 }).ascii;
-      await expect(
-        service.validateTwoFactorAuthCode(secret, 'invalid-code'),
-      ).rejects.toThrow(BadRequestException);
+      jest.spyOn(speakeasy.totp, 'verifyDelta').mockReturnValue(undefined);
+
+      expect(() =>
+        service.validateTwoFactorAuthCode(secret, 'invalidCode'),
+      ).toThrow(new BadRequestException('Invalid 2FA code'));
     });
   });
 });

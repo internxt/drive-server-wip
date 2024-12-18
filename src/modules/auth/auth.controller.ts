@@ -12,6 +12,7 @@ import {
   BadRequestException,
   Delete,
   Put,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -55,7 +56,7 @@ export class AuthController {
     const user = await this.userUseCases.findByEmail(body.email);
 
     if (!user) {
-      throw new NotFoundException('Invalid credentials');
+      throw new UnauthorizedException('Wrong login credentials');
     }
 
     try {
@@ -138,7 +139,7 @@ export class AuthController {
       throw new ConflictException('User has already 2FA');
     }
 
-    await this.twoFactorAuthService.validateTwoFactorAuthCode(
+    this.twoFactorAuthService.validateTwoFactorAuthCode(
       updateTfaDto.key,
       updateTfaDto.code,
     );
@@ -166,7 +167,7 @@ export class AuthController {
       throw new NotFoundException('Your account does not have 2FA activated.');
     }
 
-    await this.twoFactorAuthService.validateTwoFactorAuthCode(
+    this.twoFactorAuthService.validateTwoFactorAuthCode(
       user.secret_2FA,
       deleteTfaDto.code,
     );

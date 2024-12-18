@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -1203,7 +1204,7 @@ export class UserUseCases {
         '[AUTH/LOGIN] Attempted login with a non-existing email: %s',
         loginAccessDto.email,
       );
-      throw new BadRequestException('Wrong login credentials');
+      throw new UnauthorizedException('Wrong login credentials');
     }
 
     const loginAttemptsLimitReached =
@@ -1218,8 +1219,8 @@ export class UserUseCases {
     const hashedPass = this.cryptoService.decryptText(loginAccessDto.password);
 
     if (hashedPass !== userData.password.toString()) {
-      await this.loginFailed(userData, true);
-      throw new BadRequestException('Wrong login credentials');
+      await this.userRepository.loginFailed(userData, true);
+      throw new UnauthorizedException('Wrong login credentials');
     }
 
     const twoFactorEnabled =
@@ -1233,11 +1234,11 @@ export class UserUseCases {
       });
 
       if (!tfaResult) {
-        throw new BadRequestException('Wrong 2-factor auth code');
+        throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
     const { token, newToken } = this.getAuthTokens(userData);
-    await this.loginFailed(userData, false);
+    await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
     const rootFolder = await this.folderUseCases.getFolderById(
@@ -1318,9 +1319,5 @@ export class UserUseCases {
       userId,
       err instanceof Error ? err.message : 'Unknown error',
     );
-  }
-
-  loginFailed(user: User, isFailed: boolean) {
-    return this.userRepository.loginFailed(user.uuid, isFailed);
   }
 }

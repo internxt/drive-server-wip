@@ -42,7 +42,7 @@ export interface UserRepository {
     tokens: string[],
   ): Promise<void>;
   getNotificationTokenCount(userId: string): Promise<number>;
-  loginFailed(uuid: User['uuid'], isFailed: boolean): Promise<void>;
+  loginFailed(user: User, isFailed: boolean): Promise<void>;
 }
 
 @Injectable()
@@ -251,11 +251,9 @@ export class SequelizeUserRepository implements UserRepository {
     return this.modelUserNotificationTokens.count({ where: { userId } });
   }
 
-  async loginFailed(uuid: User['uuid'], isFailed: boolean): Promise<void> {
-    const update: any = { errorLoginCount: 0 };
-    if (isFailed) {
-      update.errorLoginCount = Sequelize.literal('error_login_count + 1');
-    }
+  async loginFailed(user: User, isFailed: boolean): Promise<void> {
+    const { uuid, errorLoginCount } = user;
+    const update = { errorLoginCount: isFailed ? errorLoginCount + 1 : 0 };
     await this.modelUser.update(update, { where: { uuid } });
   }
 
