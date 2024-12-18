@@ -34,11 +34,23 @@ module.exports = {
         onDelete: 'CASCADE',
       },
       type: {
-        type: Sequelize.DataTypes.STRING,
+        type: Sequelize.ENUM(
+          'login',
+          'changed-password',
+          'logout',
+          'share-file',
+          'share-folder',
+          'delete-file',
+          'delete-folder',
+        ),
         allowNull: false,
       },
       platform: {
-        type: Sequelize.DataTypes.STRING,
+        type: Sequelize.ENUM(
+          'web',
+          'mobile',
+          'desktop',
+        ),
         allowNull: false,
       },
       entity_id: {

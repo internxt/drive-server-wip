@@ -59,6 +59,6 @@ import { WorkspaceLogModel } from './models/workspace-logs.model';
     PaymentsService,
     FuzzySearchUseCases,
   ],
-  exports: [WorkspacesUsecases, SequelizeModule],
+  exports: [WorkspacesUsecases, SequelizeModule, SequelizeWorkspaceRepository],
 })
 export class WorkspacesModule {}

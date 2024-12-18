@@ -18,7 +18,6 @@ import {
   Headers,
   Patch,
   UseFilters,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -65,7 +64,7 @@ import {
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
-import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
+import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -621,7 +620,7 @@ export class SharingController {
     { sourceKey: 'body', fieldName: 'itemType' },
   ])
   @WorkspacesInBehalfGuard()
-  @WorkspaceLogAction(WorkspaceLogType.SHARE)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Share)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,

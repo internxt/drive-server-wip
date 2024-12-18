@@ -23,7 +23,10 @@ import { FileModel } from '../../file/file.model';
 import { File, FileAttributes } from '../../file/file.domain';
 import { Folder, FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
-import { WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
+import {
+  WorkspaceLogAttributes,
+  WorkspaceLogType,
+} from '../attributes/workspace-logs.attributes';
 import { WorkspaceLogModel } from '../models/workspace-logs.model';
 import { WorkspaceLog } from '../domains/workspace-log.domain';
 
@@ -481,14 +484,14 @@ export class SequelizeWorkspaceRepository {
   async accessLogs(
     workspaceId: Workspace['id'],
     summary: boolean = false,
-    member?: string,
+    membersUuids?: WorkspaceLog['creator'][],
     logType?: WorkspaceLog['type'][],
     pagination?: {
       limit?: number;
       offset?: number;
     },
     lastDays?: number,
-    order: [string, string][] = [['createdAt', 'DESC']],
+    order: [string, string][] = [['updatedAt', 'DESC']],
   ) {
     const dateLimit = new Date();
     if (lastDays) {
@@ -498,14 +501,11 @@ export class SequelizeWorkspaceRepository {
 
     const whereConditions: any = {
       workspaceId,
-      ...(lastDays && dateLimit ? { createdAt: { [Op.gte]: dateLimit } } : {}),
+      ...(lastDays && dateLimit ? { updatedAt: { [Op.gte]: dateLimit } } : {}),
     };
 
-    if (member) {
-      whereConditions[Op.or] = [
-        { '$user.email$': { [Op.iLike]: `%${member}%` } },
-        { '$user.name$': { [Op.iLike]: `%${member}%` } },
-      ];
+    if (membersUuids) {
+      whereConditions.creator = { [Op.in]: membersUuids };
     }
 
     if (logType && logType.length > 0) {
@@ -537,7 +537,10 @@ export class SequelizeWorkspaceRepository {
           on: {
             [Op.and]: [
               Sequelize.where(Sequelize.col('WorkspaceLogModel.type'), {
-                [Op.or]: ['SHARE_FILE', 'DELETE_FILE'],
+                [Op.or]: [
+                  WorkspaceLogType.ShareFile,
+                  WorkspaceLogType.DeleteFile,
+                ],
               }),
               Sequelize.where(
                 Sequelize.col('file.uuid'),
@@ -558,7 +561,10 @@ export class SequelizeWorkspaceRepository {
           on: {
             [Op.and]: [
               Sequelize.where(Sequelize.col('WorkspaceLogModel.type'), {
-                [Op.or]: ['SHARE_FOLDER', 'DELETE_FOLDER'],
+                [Op.or]: [
+                  WorkspaceLogType.ShareFolder,
+                  WorkspaceLogType.DeleteFolder,
+                ],
               }),
               Sequelize.where(
                 Sequelize.col('folder.uuid'),

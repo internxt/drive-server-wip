@@ -393,21 +393,21 @@ describe('SequelizeWorkspaceRepository', () => {
     const workspaceId = v4();
     const user = newUser({ attributes: { email: 'test@example.com' } });
     const pagination = { limit: 10, offset: 0 };
-    const member = 'test@example.com';
+    const mockMembersUuids: string[] = undefined;
     const logType: WorkspaceLog['type'][] = [
-      WorkspaceLogType.LOGIN,
-      WorkspaceLogType.LOGOUT,
+      WorkspaceLogType.Login,
+      WorkspaceLogType.Logout,
     ];
     const lastDays = 7;
-    const order: [string, string][] = [['createdAt', 'DESC']];
+    const order: [string, string][] = [['updatedAt', 'DESC']];
     const date = new Date();
 
     const workspaceLogtoJson = {
       id: v4(),
       workspaceId,
       creator: user.uuid,
-      type: WorkspaceLogType.LOGIN,
-      platform: WorkspaceLogPlatform.WEB,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
       entityId: null,
       createdAt: date,
       updatedAt: date,
@@ -439,7 +439,7 @@ describe('SequelizeWorkspaceRepository', () => {
 
       const whereConditions = {
         workspaceId,
-        createdAt: { [Op.gte]: dateLimit },
+        updatedAt: { [Op.gte]: dateLimit },
       };
 
       jest
@@ -449,7 +449,7 @@ describe('SequelizeWorkspaceRepository', () => {
       await repository.accessLogs(
         workspaceId,
         true,
-        member,
+        mockMembersUuids,
         logType,
         pagination,
         lastDays,
@@ -465,12 +465,11 @@ describe('SequelizeWorkspaceRepository', () => {
     });
 
     it('when member is provided, then should filter logs by member email or name', async () => {
+      const mockMembers = [newWorkspaceUser(), newWorkspaceUser()];
+      const mockMembersUuids = mockMembers.map((m) => m.memberId);
       const whereConditions = {
         workspaceId,
-        [Op.or]: [
-          { '$user.email$': { [Op.iLike]: `%${member}%` } },
-          { '$user.name$': { [Op.iLike]: `%${member}%` } },
-        ],
+        creator: { [Op.in]: mockMembersUuids },
       };
 
       jest
@@ -480,7 +479,7 @@ describe('SequelizeWorkspaceRepository', () => {
       await repository.accessLogs(
         workspaceId,
         true,
-        member,
+        mockMembersUuids,
         logType,
         pagination,
         lastDays,
@@ -508,7 +507,7 @@ describe('SequelizeWorkspaceRepository', () => {
       await repository.accessLogs(
         workspaceId,
         true,
-        member,
+        mockMembersUuids,
         logType,
         pagination,
         lastDays,
@@ -534,7 +533,7 @@ describe('SequelizeWorkspaceRepository', () => {
       await repository.accessLogs(
         workspaceId,
         true,
-        member,
+        mockMembersUuids,
         logType,
         pagination,
         lastDays,
@@ -558,7 +557,7 @@ describe('SequelizeWorkspaceRepository', () => {
       await repository.accessLogs(
         workspaceId,
         true,
-        member,
+        mockMembersUuids,
         logType,
         undefined,
         lastDays,
@@ -584,7 +583,7 @@ describe('SequelizeWorkspaceRepository', () => {
       await repository.accessLogs(
         workspaceId,
         true,
-        member,
+        mockMembersUuids,
         logType,
         pagination,
         lastDays,
@@ -594,7 +593,7 @@ describe('SequelizeWorkspaceRepository', () => {
         where: expect.objectContaining(whereConditions),
         include: expect.any(Array),
         ...pagination,
-        order: [['createdAt', 'DESC']],
+        order: [['updatedAt', 'DESC']],
       });
     });
   });
@@ -606,7 +605,7 @@ describe('SequelizeWorkspaceRepository', () => {
       const toJson = {
         id: v4(),
         workspaceId: workspaceId,
-        type: WorkspaceLogType.SHARE_FILE,
+        type: WorkspaceLogType.ShareFile,
         createdAt: new Date(),
         updatedAt: new Date(),
         creator: v4(),
@@ -637,13 +636,13 @@ describe('SequelizeWorkspaceRepository', () => {
     it('When model is provided, then it should return a summary of WorkspaceLog entity', async () => {
       const toJson = {
         id: v4(),
-        type: WorkspaceLogType.SHARE_FOLDER,
+        type: WorkspaceLogType.ShareFolder,
         workspaceId: workspaceId,
         createdAt: new Date(),
         updatedAt: new Date(),
         creator: v4(),
         entityId: folderId,
-        platform: WorkspaceLogPlatform.WEB,
+        platform: WorkspaceLogPlatform.Web,
       };
       const model: WorkspaceLogModel = {
         user: { id: 20, name: 'John Doe' },

@@ -1,21 +1,23 @@
 export enum WorkspaceLogType {
-  LOGIN = 'LOGIN',
-  CHANGED_PASSWORD = 'CHANGED_PASSWORD',
-  LOGOUT = 'LOGOUT',
-  SHARE = 'SHARE',
-  SHARE_FILE = 'SHARE_FILE',
-  SHARE_FOLDER = 'SHARE_FOLDER',
-  DELETE = 'DELETE',
-  DELETE_FILE = 'DELETE_FILE',
-  DELETE_FOLDER = 'DELETE_FOLDER',
-  DELETE_ALL = 'DELETE_ALL',
+  Login = 'login',
+  ChangedPassword = 'changed-password',
+  Logout = 'logout',
+  ShareFile = 'share-file',
+  ShareFolder = 'share-folder',
+  DeleteFile = 'delete-file',
+  DeleteFolder = 'delete-folder',
+}
+
+export enum WorkspaceLogGlobalActionType {
+  Share = 'share',
+  Delete = 'delete',
+  DeleteAll = 'delete-all',
 }
 
 export enum WorkspaceLogPlatform {
-  WEB = 'WEB',
-  MOBILE = 'MOBILE',
-  DESKTOP = 'DESKTOP',
-  UNSPECIFIED = 'UNSPECIFIED',
+  Web = 'web',
+  Mobile = 'mobile',
+  Desktop = 'desktop',
 }
 
 export interface WorkspaceLogAttributes {

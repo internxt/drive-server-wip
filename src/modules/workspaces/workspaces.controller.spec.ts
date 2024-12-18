@@ -764,12 +764,13 @@ describe('Workspace Controller', () => {
     const workspaceId = v4();
     const user = newUser({ attributes: { email: 'test@example.com' } });
     const date = new Date();
+    const summary = true;
     const workspaceLogtoJson = {
       id: v4(),
       workspaceId,
       creator: user.uuid,
-      type: WorkspaceLogType.LOGIN,
-      platform: WorkspaceLogPlatform.WEB,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
       entityId: null,
       createdAt: date,
       updatedAt: date,
@@ -795,7 +796,11 @@ describe('Workspace Controller', () => {
     ];
 
     it('when valid request is made, then should return access logs successfully', async () => {
-      const workspaceLogDto: GetWorkspaceLogsDto = { limit: 10, offset: 0 };
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        summary,
+      };
 
       jest.spyOn(workspacesUsecases, 'accessLogs').mockResolvedValue(mockLogs);
 
@@ -812,13 +817,18 @@ describe('Workspace Controller', () => {
         undefined,
         undefined,
         undefined,
+        summary,
         undefined,
       );
     });
 
     it('when invalid workspaceId is provided, then should throw', async () => {
       const invalidWorkspaceId = v4();
-      const workspaceLogDto: GetWorkspaceLogsDto = { limit: 10, offset: 0 };
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        summary,
+      };
 
       jest
         .spyOn(workspacesUsecases, 'accessLogs')
@@ -839,9 +849,10 @@ describe('Workspace Controller', () => {
         limit: 10,
         offset: 0,
         member: mockLogs[0].user.name,
-        activity: [WorkspaceLogType.LOGIN],
+        activity: [WorkspaceLogType.Login],
         lastDays: 7,
         orderBy: 'createdAt:DESC',
+        summary: false,
       };
 
       jest.spyOn(workspacesUsecases, 'accessLogs').mockResolvedValue(mockLogs);
@@ -857,8 +868,9 @@ describe('Workspace Controller', () => {
         workspaceId,
         { limit: 10, offset: 0 },
         username,
-        [WorkspaceLogType.LOGIN],
+        [WorkspaceLogType.Login],
         7,
+        false,
         [['createdAt', 'DESC']],
       );
     });

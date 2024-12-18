@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -10,7 +11,7 @@ import {
 } from 'class-validator';
 import { OrderBy } from './../../../common/order.type';
 import { WorkspaceLogType } from '../attributes/workspace-logs.attributes';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class GetWorkspaceLogsDto {
   @IsOptional()
@@ -48,4 +49,9 @@ export class GetWorkspaceLogsDto {
   @Min(0)
   @Type(() => Number)
   lastDays?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  summary?: boolean = true;
 }

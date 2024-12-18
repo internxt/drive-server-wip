@@ -17,13 +17,6 @@ import {
 } from './workspace-required-access.decorator';
 import { User } from '../../user/user.domain';
 import { isUUID } from 'class-validator';
-import { WorkspaceLogType } from '../attributes/workspace-logs.attributes';
-import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
-
-interface TrashItem {
-  type: WorkspaceItemType;
-  uuid: string;
-}
 
 @Injectable()
 export class WorkspaceGuard implements CanActivate {
@@ -64,22 +57,13 @@ export class WorkspaceGuard implements CanActivate {
       );
     }
 
-    let verified = false;
-    const workspaceLogAction =
-      this.reflector.get('workspaceLogAction', context.getHandler()) || null;
-
     if (accessContext === AccessContext.WORKSPACE) {
-      verified = await this.verifyWorkspaceAccessByRole(user, id, requiredRole);
+      return this.verifyWorkspaceAccessByRole(user, id, requiredRole);
     } else if (accessContext === AccessContext.TEAM) {
-      verified = await this.verifyTeamAccessByRole(user, id, requiredRole);
+      return this.verifyTeamAccessByRole(user, id, requiredRole);
     }
 
-    if (verified && workspaceLogAction === WorkspaceLogType.DELETE_ALL) {
-      const items: TrashItem[] = await this.getItems(user, id);
-      request.items = items;
-    }
-
-    return verified;
+    return false;
   }
 
   private async verifyWorkspaceAccessByRole(
@@ -171,45 +155,5 @@ export class WorkspaceGuard implements CanActivate {
     field: string,
   ): string | undefined {
     return request[source]?.[field];
-  }
-
-  async getItems(user: User, workspaceId: string): Promise<TrashItem[]> {
-    try {
-      const { result: files } =
-        await this.workspaceUseCases.getWorkspaceUserTrashedItems(
-          user,
-          workspaceId,
-          WorkspaceItemType.File,
-          null,
-        );
-
-      const { result: folders } =
-        await this.workspaceUseCases.getWorkspaceUserTrashedItems(
-          user,
-          workspaceId,
-          WorkspaceItemType.Folder,
-          null,
-        );
-
-      const items: TrashItem[] = [
-        ...(Array.isArray(files) ? files : [])
-          .filter((file) => file.uuid != null)
-          .map((file) => ({
-            type: WorkspaceItemType.File,
-            uuid: file.uuid,
-          })),
-        ...(Array.isArray(folders) ? folders : [])
-          .filter((folder) => folder.uuid != null)
-          .map((folder) => ({
-            type: WorkspaceItemType.Folder,
-            uuid: folder.uuid,
-          })),
-      ];
-
-      return items;
-    } catch (error) {
-      Logger.debug('[WORKSPACES/GUARD] Error fetching trashed items:', error);
-      return;
-    }
   }
 }

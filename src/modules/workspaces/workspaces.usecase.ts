@@ -74,6 +74,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { WorkspaceLog } from './domains/workspace-log.domain';
+import { TrashItem } from './interceptors/workspaces-logs.interceptor';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -769,12 +770,15 @@ export class WorkspacesUsecases {
       getItems: (offset: number) => Promise<any[]>,
       deleteItems: (items: (File | Folder)[]) => Promise<void>,
     ) => {
+      const allItems = [];
       const promises = [];
       for (let i = 0; i < itemCount; i += chunkSize) {
         const items = await getItems(i);
+        allItems.push(...items);
         promises.push(deleteItems(items));
       }
       await Promise.all(promises);
+      return allItems;
     };
 
     const [filesCount, foldersCount] = await Promise.all([
@@ -799,7 +803,7 @@ export class WorkspacesUsecases {
 
     const emptyTrashChunkSize = 100;
 
-    await emptyTrashItems(
+    const folders = await emptyTrashItems(
       foldersCount,
       emptyTrashChunkSize,
       (offset) =>
@@ -813,7 +817,7 @@ export class WorkspacesUsecases {
         this.folderUseCases.deleteByUser(workspaceUser, folders),
     );
 
-    await emptyTrashItems(
+    const files = await emptyTrashItems(
       filesCount,
       emptyTrashChunkSize,
       (offset) =>
@@ -825,6 +829,23 @@ export class WorkspacesUsecases {
         ),
       (files: File[]) => this.fileUseCases.deleteByUser(workspaceUser, files),
     );
+
+    const items: TrashItem[] = [
+      ...(Array.isArray(files) ? files : [])
+        .filter((file) => file.uuid != null)
+        .map((file) => ({
+          type: WorkspaceItemType.File,
+          uuid: file.uuid,
+        })),
+      ...(Array.isArray(folders) ? folders : [])
+        .filter((folder) => folder.uuid != null)
+        .map((folder) => ({
+          type: WorkspaceItemType.Folder,
+          uuid: folder.uuid,
+        })),
+    ];
+
+    return { items };
   }
 
   async createFile(
@@ -2890,18 +2911,28 @@ export class WorkspacesUsecases {
     member?: string,
     logType?: WorkspaceLog['type'][],
     lastDays?: number,
+    summary: boolean = true,
     order?: [string, string][],
   ) {
+    let membersUuids: string[];
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
 
+    if (member) {
+      const workspaceUsers = await this.workspaceRepository.findWorkspaceUsers(
+        workspace.id,
+        member,
+      );
+      membersUuids = workspaceUsers.map((user: WorkspaceUser) => user.memberId);
+    }
+
     return this.workspaceRepository.accessLogs(
       workspace.id,
-      true,
-      member,
+      summary,
+      membersUuids,
       logType,
       pagination,
       lastDays,

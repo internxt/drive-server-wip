@@ -72,7 +72,7 @@ import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
 import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
-import { WorkspaceLogType } from './attributes/workspace-logs.attributes';
+import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 
@@ -652,7 +652,7 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
-  @WorkspaceLogAction(WorkspaceLogType.SHARE)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Share)
   async shareItemWithMember(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -888,7 +888,7 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
-  @WorkspaceLogAction(WorkspaceLogType.DELETE_ALL)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.DeleteAll)
   async emptyTrash(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -1186,6 +1186,7 @@ export class WorkspacesController {
       member,
       activity: logType,
       lastDays,
+      summary,
       orderBy,
     } = workspaceLogDto;
 
@@ -1199,6 +1200,7 @@ export class WorkspacesController {
       member,
       logType,
       lastDays,
+      summary,
       order,
     );
   }

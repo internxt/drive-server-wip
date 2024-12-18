@@ -6,89 +6,108 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { mergeMap } from 'rxjs/operators';
+import { tap } from 'rxjs/operators';
 import { SequelizeWorkspaceRepository } from '../repositories/workspaces.repository';
 import {
   WorkspaceLogAttributes,
   WorkspaceLogPlatform,
   WorkspaceLogType,
+  WorkspaceLogGlobalActionType,
 } from '../attributes/workspace-logs.attributes';
 import { User } from '../../user/user.domain';
 import { DeleteItem } from './../../trash/dto/controllers/delete-item.dto';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 
 type ActionHandler = {
-  [key in WorkspaceLogType]: (
+  [key in WorkspaceLogType | WorkspaceLogGlobalActionType]: (
     platform: WorkspaceLogPlatform,
     req: any,
     res: any,
   ) => Promise<void>;
 };
 
+export interface TrashItem {
+  id?: string;
+  type: WorkspaceItemType;
+  uuid: string;
+}
+
 @Injectable()
 export class WorkspacesLogsInterceptor implements NestInterceptor {
   public actionHandler: ActionHandler;
-  public logAction: WorkspaceLogType;
+  public logAction: WorkspaceLogType | WorkspaceLogGlobalActionType;
 
   constructor(
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
   ) {
     this.actionHandler = {
-      [WorkspaceLogType.LOGIN]: this.logIn.bind(this),
-      [WorkspaceLogType.CHANGED_PASSWORD]: this.changedPassword.bind(this),
-      [WorkspaceLogType.LOGOUT]: this.logout.bind(this),
-      [WorkspaceLogType.DELETE]: this.delete.bind(this),
-      [WorkspaceLogType.DELETE_ALL]: this.delete.bind(this),
-      [WorkspaceLogType.DELETE_FILE]: this.deleteFile.bind(this),
-      [WorkspaceLogType.DELETE_FOLDER]: this.deleteFolder.bind(this),
-      [WorkspaceLogType.SHARE]: this.share.bind(this),
-      [WorkspaceLogType.SHARE_FILE]: this.shareFile.bind(this),
-      [WorkspaceLogType.SHARE_FOLDER]: this.shareFolder.bind(this),
+      [WorkspaceLogType.Login]: this.logIn.bind(this),
+      [WorkspaceLogType.ChangedPassword]: this.changedPassword.bind(this),
+      [WorkspaceLogType.Logout]: this.logout.bind(this),
+      [WorkspaceLogType.DeleteFile]: this.deleteFile.bind(this),
+      [WorkspaceLogType.DeleteFolder]: this.deleteFolder.bind(this),
+      [WorkspaceLogType.ShareFile]: this.shareFile.bind(this),
+      [WorkspaceLogType.ShareFolder]: this.shareFolder.bind(this),
+      [WorkspaceLogGlobalActionType.Share]: this.share.bind(this),
+      [WorkspaceLogGlobalActionType.Delete]: this.delete.bind(this),
+      [WorkspaceLogGlobalActionType.DeleteAll]: this.delete.bind(this),
     };
   }
 
-  determinePlatform(client: string): WorkspaceLogPlatform {
+  determinePlatform(client: string): WorkspaceLogPlatform | undefined {
     const platforms = {
-      'drive-web': WorkspaceLogPlatform.WEB,
-      'drive-mobile': WorkspaceLogPlatform.MOBILE,
-      'drive-desktop': WorkspaceLogPlatform.DESKTOP,
+      'drive-web': WorkspaceLogPlatform.Web,
+      'drive-mobile': WorkspaceLogPlatform.Mobile,
+      'drive-desktop': WorkspaceLogPlatform.Desktop,
     };
-    return platforms[client] || WorkspaceLogPlatform.UNSPECIFIED;
+    return platforms[client];
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     this.logAction = this.getWorkspaceLogAction(context);
 
-    if (!Object.values(WorkspaceLogType).includes(this.logAction)) {
+    if (
+      !Object.values({
+        ...WorkspaceLogType,
+        ...WorkspaceLogGlobalActionType,
+      }).includes(this.logAction)
+    ) {
       Logger.debug(`[WORKSPACE/LOGS] Invalid log action: ${this.logAction}`);
       return;
     }
 
     const platform = this.determinePlatform(request.headers['internxt-client']);
 
+    if (!platform) {
+      Logger.error(
+        `[WORKSPACE/LOGS] Platform not specified for log action: ${this.logAction}`,
+      );
+      return;
+    }
+
     return next.handle().pipe(
-      mergeMap(async (res) => {
-        await this.handleAction(platform, this.logAction, request, res);
+      tap((res) => {
+        this.handleAction(platform, this.logAction, request, res);
       }),
     );
   }
 
   async logIn(platform: WorkspaceLogPlatform, req: any, res: any) {
-    await this.handleUserAction(platform, WorkspaceLogType.LOGIN, req, res);
+    await this.handleUserAction(platform, WorkspaceLogType.Login, req, res);
   }
 
   async changedPassword(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserAction(
       platform,
-      WorkspaceLogType.CHANGED_PASSWORD,
+      WorkspaceLogType.ChangedPassword,
       req,
       res,
     );
   }
 
   async logout(platform: WorkspaceLogPlatform, req: any, res: any) {
-    await this.handleUserAction(platform, WorkspaceLogType.LOGOUT, req, res);
+    await this.handleUserAction(platform, WorkspaceLogType.Logout, req, res);
   }
 
   async share(platform: WorkspaceLogPlatform, req: any, res: any) {
@@ -98,8 +117,8 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
       return;
     }
 
-    const action = this.determineAction(
-      'SHARE',
+    const action = this.getActionForGlobalLogType(
+      WorkspaceLogGlobalActionType.Share,
       itemType as unknown as WorkspaceItemType,
     );
     if (action) {
@@ -110,7 +129,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   async shareFile(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserWorkspaceAction(
       platform,
-      WorkspaceLogType.SHARE_FILE,
+      WorkspaceLogType.ShareFile,
       req,
       res,
     );
@@ -119,14 +138,14 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   async shareFolder(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserWorkspaceAction(
       platform,
-      WorkspaceLogType.SHARE_FOLDER,
+      WorkspaceLogType.ShareFolder,
       req,
       res,
     );
   }
 
   async delete(platform: WorkspaceLogPlatform, req: any, res: any) {
-    const items: DeleteItem[] = req?.body?.items || req?.items;
+    const items: DeleteItem[] | TrashItem[] = req?.body?.items || res?.items;
     if (!items || items.length === 0) {
       Logger.debug('[WORKSPACE/LOGS] The items are required');
       return;
@@ -136,9 +155,9 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
 
     if (ok) {
       const deletePromises = items
-        .map((item) => {
-          const action = this.determineAction(
-            'DELETE',
+        .map((item: DeleteItem | TrashItem) => {
+          const action = this.getActionForGlobalLogType(
+            WorkspaceLogGlobalActionType.Delete,
             item.type as unknown as WorkspaceItemType,
           );
           if (action) {
@@ -147,7 +166,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
               creator: requesterUuid,
               type: action,
               platform,
-              entityId: item.uuid || item.id,
+              entityId: item.uuid || item?.id,
             });
           }
           return null;
@@ -160,7 +179,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   async deleteFile(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserWorkspaceAction(
       platform,
-      WorkspaceLogType.DELETE_FILE,
+      WorkspaceLogType.DeleteFile,
       req,
       res,
     );
@@ -169,7 +188,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   async deleteFolder(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserWorkspaceAction(
       platform,
-      WorkspaceLogType.DELETE_FOLDER,
+      WorkspaceLogType.DeleteFolder,
       req,
       res,
     );
@@ -177,7 +196,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
 
   async handleAction(
     platform: WorkspaceLogPlatform,
-    action: WorkspaceLogType,
+    action: WorkspaceLogType | WorkspaceLogGlobalActionType,
     req: any,
     res: any,
   ) {
@@ -189,7 +208,9 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     }
   }
 
-  getWorkspaceLogAction(context: ExecutionContext): WorkspaceLogType {
+  getWorkspaceLogAction(
+    context: ExecutionContext,
+  ): WorkspaceLogType | WorkspaceLogGlobalActionType {
     const handler = context.getHandler();
     return Reflect.getMetadata('workspaceLogAction', handler) || null;
   }
@@ -281,18 +302,18 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     return req?.body?.itemId || req?.params?.itemId || res?.itemId;
   }
 
-  determineAction(
-    type: 'SHARE' | 'DELETE',
+  getActionForGlobalLogType(
+    type: WorkspaceLogGlobalActionType,
     itemType: WorkspaceItemType,
   ): WorkspaceLogType {
     const actionMap = {
-      SHARE: {
-        [WorkspaceItemType.File]: WorkspaceLogType.SHARE_FILE,
-        [WorkspaceItemType.Folder]: WorkspaceLogType.SHARE_FOLDER,
+      [WorkspaceLogGlobalActionType.Share]: {
+        [WorkspaceItemType.File]: WorkspaceLogType.ShareFile,
+        [WorkspaceItemType.Folder]: WorkspaceLogType.ShareFolder,
       },
-      DELETE: {
-        [WorkspaceItemType.File]: WorkspaceLogType.DELETE_FILE,
-        [WorkspaceItemType.Folder]: WorkspaceLogType.DELETE_FOLDER,
+      [WorkspaceLogGlobalActionType.Delete]: {
+        [WorkspaceItemType.File]: WorkspaceLogType.DeleteFile,
+        [WorkspaceItemType.Folder]: WorkspaceLogType.DeleteFolder,
       },
     };
 

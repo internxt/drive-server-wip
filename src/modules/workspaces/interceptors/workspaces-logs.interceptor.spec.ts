@@ -4,6 +4,7 @@ import { SequelizeWorkspaceRepository } from '../repositories/workspaces.reposit
 import {
   WorkspaceLogType,
   WorkspaceLogPlatform,
+  WorkspaceLogGlobalActionType,
 } from '../attributes/workspace-logs.attributes';
 import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { lastValueFrom, of } from 'rxjs';
@@ -23,22 +24,22 @@ describe('WorkspacesLogsInterceptor', () => {
   describe('determinePlatform()', () => {
     it('When client is drive-web, then it should return WEB platform', () => {
       const platform = interceptor.determinePlatform('drive-web');
-      expect(platform).toBe(WorkspaceLogPlatform.WEB);
+      expect(platform).toBe(WorkspaceLogPlatform.Web);
     });
 
     it('When client is drive-mobile, then it should return MOBILE platform', () => {
       const platform = interceptor.determinePlatform('drive-mobile');
-      expect(platform).toBe(WorkspaceLogPlatform.MOBILE);
+      expect(platform).toBe(WorkspaceLogPlatform.Mobile);
     });
 
     it('When client is drive-desktop, then it should return DESKTOP platform', () => {
       const platform = interceptor.determinePlatform('drive-desktop');
-      expect(platform).toBe(WorkspaceLogPlatform.DESKTOP);
+      expect(platform).toBe(WorkspaceLogPlatform.Desktop);
     });
 
     it('When client is unknown, then it should return UNSPECIFIED platform', () => {
       const platform = interceptor.determinePlatform('unknown-client');
-      expect(platform).toBe(WorkspaceLogPlatform.UNSPECIFIED);
+      expect(platform).toBeUndefined();
     });
   });
 
@@ -56,7 +57,7 @@ describe('WorkspacesLogsInterceptor', () => {
     it('When log action is valid, then it should call handleAction', async () => {
       Reflect.defineMetadata(
         'workspaceLogAction',
-        WorkspaceLogType.LOGIN,
+        WorkspaceLogType.Login,
         mockHandler,
       );
 
@@ -99,7 +100,7 @@ describe('WorkspacesLogsInterceptor', () => {
     const res = {};
 
     it('When action is recognized, then it should call the corresponding method', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
 
       const handleUserActionSpy = jest
         .spyOn(interceptor, 'handleUserAction')
@@ -107,21 +108,21 @@ describe('WorkspacesLogsInterceptor', () => {
 
       await interceptor.handleAction(
         platform,
-        WorkspaceLogType.LOGIN,
+        WorkspaceLogType.Login,
         req,
         res,
       );
 
       expect(handleUserActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.LOGIN,
+        WorkspaceLogType.Login,
         req,
         res,
       );
     });
 
     it('When action is not recognized, then it should log a debug message', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
 
       await interceptor.handleAction(
         platform,
@@ -140,8 +141,8 @@ describe('WorkspacesLogsInterceptor', () => {
     const payload = {
       workspaceId: 'workspace-id',
       creator: 'user-id',
-      type: WorkspaceLogType.LOGIN,
-      platform: WorkspaceLogPlatform.WEB,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
       entityId: 'entity-id',
     };
 
@@ -164,7 +165,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(loggerDebugSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          'An error occurred trying to register a log of type LOGIN for the user user-id',
+          `An error occurred trying to register a log of type ${payload.type} for the user user-id`,
         ),
         expect.any(Error),
       );
@@ -185,8 +186,8 @@ describe('WorkspacesLogsInterceptor', () => {
         .mockImplementation();
 
       await interceptor.handleUserAction(
-        WorkspaceLogPlatform.WEB,
-        WorkspaceLogType.LOGIN,
+        WorkspaceLogPlatform.Web,
+        WorkspaceLogType.Login,
         req,
         res,
       );
@@ -196,8 +197,8 @@ describe('WorkspacesLogsInterceptor', () => {
         expect(registerLogSpy).toHaveBeenCalledWith({
           workspaceId,
           creator: 'user-id',
-          type: WorkspaceLogType.LOGIN,
-          platform: WorkspaceLogPlatform.WEB,
+          type: WorkspaceLogType.Login,
+          platform: WorkspaceLogPlatform.Web,
         });
       });
     });
@@ -207,8 +208,8 @@ describe('WorkspacesLogsInterceptor', () => {
       const res = {};
 
       await interceptor.handleUserAction(
-        WorkspaceLogPlatform.WEB,
-        WorkspaceLogType.LOGIN,
+        WorkspaceLogPlatform.Web,
+        WorkspaceLogType.Login,
         req,
         res,
       );
@@ -227,7 +228,7 @@ describe('WorkspacesLogsInterceptor', () => {
         workspace: { id: 'workspace-id' },
       };
       const res = { user: { uuid: 'user-id' } };
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
 
       jest.spyOn(interceptor, 'extractRequestData').mockReturnValue({
         ok: true,
@@ -240,7 +241,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       await interceptor.handleUserWorkspaceAction(
         platform,
-        WorkspaceLogType.SHARE_FILE,
+        WorkspaceLogType.ShareFile,
         req,
         res,
       );
@@ -248,7 +249,7 @@ describe('WorkspacesLogsInterceptor', () => {
       expect(registerLogSpy).toHaveBeenCalledWith({
         workspaceId: 'workspace-id',
         creator: 'user-id',
-        type: WorkspaceLogType.SHARE_FILE,
+        type: WorkspaceLogType.ShareFile,
         platform,
         entityId: 'item-id',
       });
@@ -257,11 +258,11 @@ describe('WorkspacesLogsInterceptor', () => {
     it('When request data is invalid, then it should log a debug message', async () => {
       const req = { body: {}, params: {}, workspace: {} };
       const res = { user: { uuid: 'user-id' } };
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
 
       await interceptor.handleUserWorkspaceAction(
         platform,
-        WorkspaceLogType.SHARE_FILE,
+        WorkspaceLogType.ShareFile,
         req,
         res,
       );
@@ -274,15 +275,15 @@ describe('WorkspacesLogsInterceptor', () => {
 
   describe('getItemType()', () => {
     it('When itemType is in body, then it should return itemType', () => {
-      const req = { body: { itemType: 'FILE' } };
+      const req = { body: { itemType: 'file' } };
       const result = interceptor.getItemType(req);
-      expect(result).toBe('FILE');
+      expect(result).toBe('file');
     });
 
     it('When itemType is in params, then it should return itemType', () => {
-      const req = { params: { itemType: 'FOLDER' } };
+      const req = { params: { itemType: 'folder' } };
       const result = interceptor.getItemType(req);
-      expect(result).toBe('FOLDER');
+      expect(result).toBe('folder');
     });
 
     it('When itemType is not present, then it should return undefined', () => {
@@ -319,41 +320,41 @@ describe('WorkspacesLogsInterceptor', () => {
     });
   });
 
-  describe('determineAction()', () => {
-    it('When type is SHARE and itemType is File, then it should return SHARE_FILE', () => {
-      const action = interceptor.determineAction(
-        'SHARE',
+  describe('getActionForGlobalLogType()', () => {
+    it('When type is Share and itemType is File, then it should return ShareFile', () => {
+      const action = interceptor.getActionForGlobalLogType(
+        WorkspaceLogGlobalActionType.Share,
         WorkspaceItemType.File,
       );
-      expect(action).toBe(WorkspaceLogType.SHARE_FILE);
+      expect(action).toBe(WorkspaceLogType.ShareFile);
     });
 
-    it('When type is SHARE and itemType is Folder, then it should return SHARE_FOLDER', () => {
-      const action = interceptor.determineAction(
-        'SHARE',
+    it('When type is Share and itemType is Folder, then it should return ShareFolder', () => {
+      const action = interceptor.getActionForGlobalLogType(
+        WorkspaceLogGlobalActionType.Share,
         WorkspaceItemType.Folder,
       );
-      expect(action).toBe(WorkspaceLogType.SHARE_FOLDER);
+      expect(action).toBe(WorkspaceLogType.ShareFolder);
     });
 
-    it('When type is DELETE and itemType is File, then it should return DELETE_FILE', () => {
-      const action = interceptor.determineAction(
-        'DELETE',
+    it('When type is Delete and itemType is File, then it should return DeleteFile', () => {
+      const action = interceptor.getActionForGlobalLogType(
+        WorkspaceLogGlobalActionType.Delete,
         WorkspaceItemType.File,
       );
-      expect(action).toBe(WorkspaceLogType.DELETE_FILE);
+      expect(action).toBe(WorkspaceLogType.DeleteFile);
     });
 
-    it('When type is DELETE and itemType is Folder, then it should return DELETE_FOLDER', () => {
-      const action = interceptor.determineAction(
-        'DELETE',
+    it('When type is Delete and itemType is Folder, then it should return DeleteFolder', () => {
+      const action = interceptor.getActionForGlobalLogType(
+        WorkspaceLogGlobalActionType.Delete,
         WorkspaceItemType.Folder,
       );
-      expect(action).toBe(WorkspaceLogType.DELETE_FOLDER);
+      expect(action).toBe(WorkspaceLogType.DeleteFolder);
     });
 
     it('When type is invalid, then it should log a debug message', () => {
-      const action = interceptor.determineAction(
+      const action = interceptor.getActionForGlobalLogType(
         'INVALID_TYPE' as any,
         WorkspaceItemType.File,
       );
@@ -364,13 +365,13 @@ describe('WorkspacesLogsInterceptor', () => {
     });
 
     it('When itemType is invalid, then it should log a debug message', () => {
-      const action = interceptor.determineAction(
-        'SHARE',
+      const action = interceptor.getActionForGlobalLogType(
+        WorkspaceLogGlobalActionType.Share,
         'INVALID_ITEM_TYPE' as any,
       );
       expect(action).toBeNull();
       expect(loggerDebugSpy).toHaveBeenCalledWith(
-        '[WORKSPACE/LOGS] Invalid action type: SHARE or item type: INVALID_ITEM_TYPE',
+        `[WORKSPACE/LOGS] Invalid action type: ${WorkspaceLogGlobalActionType.Share} or item type: INVALID_ITEM_TYPE`,
       );
     });
   });
@@ -466,8 +467,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('logIn()', () => {
-    it('When called, then it should call handleUser Action with LOGIN type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser Action with logIn type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -479,7 +480,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.LOGIN,
+        WorkspaceLogType.Login,
         req,
         res,
       );
@@ -487,8 +488,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('changedPassword()', () => {
-    it('When called, then it should call handleUser Action with CHANGED_PASSWORD type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser Action with ChangedPassword type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -500,7 +501,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.CHANGED_PASSWORD,
+        WorkspaceLogType.ChangedPassword,
         req,
         res,
       );
@@ -508,8 +509,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('logout()', () => {
-    it('When called, then it should call handleUser Action with LOGOUT type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser Action with Logout type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -521,7 +522,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.LOGOUT,
+        WorkspaceLogType.Logout,
         req,
         res,
       );
@@ -530,30 +531,33 @@ describe('WorkspacesLogsInterceptor', () => {
 
   describe('share()', () => {
     it('When itemType is valid, then it should call handleUserWorkspaceAction', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
       const req = { body: { itemType: 'file' } };
       const res = {};
 
-      const determineActionSpy = jest
-        .spyOn(interceptor, 'determineAction')
-        .mockReturnValue(WorkspaceLogType.SHARE_FILE);
+      const getActionForGlobalLogType = jest
+        .spyOn(interceptor, 'getActionForGlobalLogType')
+        .mockReturnValue(WorkspaceLogType.ShareFile);
       const handleUserWorkspaceActionSpy = jest
         .spyOn(interceptor, 'handleUserWorkspaceAction')
         .mockImplementation();
 
       await interceptor.share(platform, req, res);
 
-      expect(determineActionSpy).toHaveBeenCalledWith('SHARE', 'file');
+      expect(getActionForGlobalLogType).toHaveBeenCalledWith(
+        WorkspaceLogGlobalActionType.Share,
+        'file',
+      );
       expect(handleUserWorkspaceActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.SHARE_FILE,
+        WorkspaceLogType.ShareFile,
         req,
         res,
       );
     });
 
     it('When itemType is not provided, then it should log a debug message', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
       const req = { body: {} };
       const res = {};
 
@@ -566,8 +570,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('shareFile()', () => {
-    it('When called, then it should call handleUser WorkspaceAction with SHARE_FILE type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser WorkspaceAction with ShareFile type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -579,7 +583,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserWorkspaceActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.SHARE_FILE,
+        WorkspaceLogType.ShareFile,
         req,
         res,
       );
@@ -587,8 +591,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('shareFolder()', () => {
-    it('When called, then it should call handleUser WorkspaceAction with SHARE_FOLDER type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser WorkspaceAction with ShareFolder type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -600,7 +604,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserWorkspaceActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.SHARE_FOLDER,
+        WorkspaceLogType.ShareFolder,
         req,
         res,
       );
@@ -609,7 +613,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
   describe('delete()', () => {
     it('When items are provided, then it should register logs for each item', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
       const req = { body: { items: [{ type: 'file', uuid: 'file-id' }] } };
       const res = {};
       const registerLogSpy = jest
@@ -623,8 +627,8 @@ describe('WorkspacesLogsInterceptor', () => {
           workspaceId: 'workspace-id',
         });
       jest
-        .spyOn(interceptor, 'determineAction')
-        .mockReturnValue(WorkspaceLogType.DELETE_FILE);
+        .spyOn(interceptor, 'getActionForGlobalLogType')
+        .mockReturnValue(WorkspaceLogType.DeleteFile);
 
       await interceptor.delete(platform, req, res);
 
@@ -632,14 +636,14 @@ describe('WorkspacesLogsInterceptor', () => {
       expect(registerLogSpy).toHaveBeenCalledWith({
         workspaceId: 'workspace-id',
         creator: 'requester-uuid',
-        type: WorkspaceLogType.DELETE_FILE,
+        type: WorkspaceLogType.DeleteFile,
         platform,
         entityId: 'file-id',
       });
     });
 
     it('When no items are provided, then it should log a debug message', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+      const platform = WorkspaceLogPlatform.Web;
       const req = { body: {} };
       const res = {};
 
@@ -652,8 +656,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('deleteFile()', () => {
-    it('When called, then it should call handleUser  WorkspaceAction with DELETE_FILE type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser  WorkspaceAction with DeleteFile type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -665,7 +669,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserWorkspaceActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.DELETE_FILE,
+        WorkspaceLogType.DeleteFile,
         req,
         res,
       );
@@ -673,8 +677,8 @@ describe('WorkspacesLogsInterceptor', () => {
   });
 
   describe('deleteFolder()', () => {
-    it('When called, then it should call handleUser  WorkspaceAction with DELETE_FOLDER type', async () => {
-      const platform = WorkspaceLogPlatform.WEB;
+    it('When called, then it should call handleUser  WorkspaceAction with DeleteFolder type', async () => {
+      const platform = WorkspaceLogPlatform.Web;
       const req = {};
       const res = {};
 
@@ -686,7 +690,7 @@ describe('WorkspacesLogsInterceptor', () => {
 
       expect(handleUserWorkspaceActionSpy).toHaveBeenCalledWith(
         platform,
-        WorkspaceLogType.DELETE_FOLDER,
+        WorkspaceLogType.DeleteFolder,
         req,
         res,
       );
