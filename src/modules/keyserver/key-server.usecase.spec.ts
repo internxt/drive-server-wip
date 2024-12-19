@@ -14,12 +14,12 @@ describe('Key Server Use Cases', () => {
     service = new KeyServerUseCases(keyServerRepository);
   });
 
-  it('is be defined', () => {
+  it('when the service is instantiated, then it should be defined', () => {
     expect(service).toBeDefined();
   });
 
   describe('Add Keys To User', () => {
-    it('saves the keys to the user', async () => {
+    it('When valid keys are provided, then it should save the keys to the user', async () => {
       const userId = 234059;
       const keys: Keys = {
         privateKey:
@@ -77,7 +77,7 @@ describe('Key Server Use Cases', () => {
     ];
 
     it.each(incompleteKeys)(
-      'does not save the keys if one is missing',
+      'When keys are incomplete, then it should not save the keys',
       async (incompleteKeySet: Partial<Keys>) => {
         const userId = 234059;
         jest.spyOn(keyServerRepository, 'findUserKeysOrCreate');
@@ -91,5 +91,70 @@ describe('Key Server Use Cases', () => {
         );
       },
     );
+  });
+
+  describe('getPublicKey', () => {
+    it('When a public key is found, then it should return the public key', async () => {
+      const userId = 123;
+      const mockPublicKey = 'mockPublicKey';
+
+      jest
+        .spyOn(keyServerRepository, 'findPublicKey')
+        .mockResolvedValue(mockPublicKey);
+
+      const result = await service.getPublicKey(userId);
+
+      expect(result).toEqual(mockPublicKey);
+      expect(keyServerRepository.findPublicKey).toHaveBeenCalledWith(userId);
+    });
+
+    it('When no public key is found, then it should return undefined', async () => {
+      const userId = 123;
+      jest
+        .spyOn(keyServerRepository, 'findPublicKey')
+        .mockResolvedValue(undefined);
+
+      await service.getPublicKey(userId);
+      expect(keyServerRepository.findPublicKey).toHaveBeenCalledWith(userId);
+    });
+  });
+
+  describe('findUserKeys', () => {
+    it('When user keys are found, then it should return the user keys', async () => {
+      const userId = 123;
+
+      const keys: Keys = {
+        privateKey:
+          'gMWcRQZTAnrLMlFgAfGyukRICiLBKFqndsuEzMKuJuPlHlhbyVxPDxuWeZpI',
+        publicKey:
+          'lSWpfeTYwKqrMmfmTgqjQmInalzEDSrMRCNOOVOsrTuGWlbfMTThJHEBPmcV',
+        revocationKey:
+          'WtPCEiOBbBTKIcOsePFyUCwCbfFmuoJsZKHnuKnjMbvWSPJxOdDFtaNRvwCB',
+      };
+
+      const keyServer = new KeyServer({
+        id: 430,
+        userId,
+        ...keys,
+        encryptVersion: '',
+      });
+
+      jest
+        .spyOn(keyServerRepository, 'findUserKeys')
+        .mockResolvedValue(keyServer);
+
+      const result = await service.findUserKeys(userId);
+
+      expect(result).toEqual(keys);
+      expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
+    });
+
+    it('When no keys are found, then it should throw an error', async () => {
+      const userId = 123;
+      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
+
+      await expect(service.findUserKeys(userId)).rejects.toThrowError();
+      expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
+    });
   });
 });

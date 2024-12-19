@@ -7,7 +7,7 @@ import { Folder } from '../folder/folder.domain';
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 
@@ -42,6 +42,7 @@ export interface UserRepository {
     tokens: string[],
   ): Promise<void>;
   getNotificationTokenCount(userId: string): Promise<number>;
+  loginFailed(user: User, isFailed: boolean): Promise<void>;
 }
 
 @Injectable()
@@ -248,6 +249,12 @@ export class SequelizeUserRepository implements UserRepository {
 
   async getNotificationTokenCount(userId: string): Promise<number> {
     return this.modelUserNotificationTokens.count({ where: { userId } });
+  }
+
+  async loginFailed(user: User, isFailed: boolean): Promise<void> {
+    const { uuid, errorLoginCount } = user;
+    const update = { errorLoginCount: isFailed ? errorLoginCount + 1 : 0 };
+    await this.modelUser.update(update, { where: { uuid } });
   }
 
   toDomain(model: UserModel): User {
