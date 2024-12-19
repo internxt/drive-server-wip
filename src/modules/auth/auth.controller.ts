@@ -33,6 +33,8 @@ import { Client } from './decorators/client.decorator';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -89,6 +91,7 @@ export class AuthController {
     description: 'User  successfully accessed their account',
   })
   @Public()
+  @WorkspaceLogAction(WorkspaceLogType.Login)
   async loginAccess(@Body() body: LoginAccessDto) {
     return this.userUseCases.loginAccess(body);
   }
@@ -100,6 +103,7 @@ export class AuthController {
     summary: 'Log out of the account',
   })
   @ApiOkResponse({ description: 'Successfully logged out' })
+  @WorkspaceLogAction(WorkspaceLogType.Logout)
   async logout(@UserDecorator() user: User) {
     return { logout: true };
   }

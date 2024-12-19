@@ -16,12 +16,20 @@ import {
 import { Workspace } from '../domains/workspaces.domain';
 import { User } from '../../user/user.domain';
 import { Op } from 'sequelize';
+import { WorkspaceLogModel } from '../models/workspace-logs.model';
+import {
+  WorkspaceLogPlatform,
+  WorkspaceLogType,
+} from '../attributes/workspace-logs.attributes';
+import { v4 } from 'uuid';
+import { WorkspaceLog } from '../domains/workspace-log.domain';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;
   let workspaceModel: typeof WorkspaceModel;
   let workspaceUserModel: typeof WorkspaceUserModel;
   let workspaceInviteModel: typeof WorkspaceInviteModel;
+  let workspaceLogModel: typeof WorkspaceLogModel;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -41,6 +49,9 @@ describe('SequelizeWorkspaceRepository', () => {
     );
     workspaceInviteModel = module.get<typeof WorkspaceInviteModel>(
       getModelToken(WorkspaceInviteModel),
+    );
+    workspaceLogModel = module.get<typeof WorkspaceLogModel>(
+      getModelToken(WorkspaceLogModel),
     );
   });
 
@@ -375,6 +386,283 @@ describe('SequelizeWorkspaceRepository', () => {
       const result =
         await repository.findWorkspaceAndDefaultUser('non-existent-id');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('accessLogs', () => {
+    const workspaceId = v4();
+    const user = newUser({ attributes: { email: 'test@example.com' } });
+    const pagination = { limit: 10, offset: 0 };
+    const mockMembersUuids: string[] = undefined;
+    const logType: WorkspaceLog['type'][] = [
+      WorkspaceLogType.Login,
+      WorkspaceLogType.Logout,
+    ];
+    const lastDays = 7;
+    const order: [string, string][] = [['updatedAt', 'DESC']];
+    const date = new Date();
+
+    const workspaceLogtoJson = {
+      id: v4(),
+      workspaceId,
+      creator: user.uuid,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
+      entityId: null,
+      createdAt: date,
+      updatedAt: date,
+    };
+    const mockLogs: WorkspaceLog[] = [
+      {
+        ...workspaceLogtoJson,
+        user: {
+          id: 4,
+          name: user.name,
+          lastname: user.lastname,
+          email: user.email,
+          uuid: user.uuid,
+        },
+        workspace: {
+          id: workspaceId,
+          name: 'My Workspace',
+        },
+        file: null,
+        folder: null,
+        toJSON: () => ({ ...workspaceLogtoJson }),
+      },
+    ];
+
+    it('when lastDays is provided, then should filter logs by date', async () => {
+      const dateLimit = new Date();
+      dateLimit.setDate(dateLimit.getDate() - lastDays);
+      dateLimit.setMilliseconds(0);
+
+      const whereConditions = {
+        workspaceId,
+        updatedAt: { [Op.gte]: dateLimit },
+      };
+
+      jest
+        .spyOn(workspaceLogModel, 'findAll')
+        .mockResolvedValue(mockLogs as WorkspaceLogModel[]);
+
+      await repository.accessLogs(
+        workspaceId,
+        true,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        order,
+      );
+
+      expect(workspaceLogModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining(whereConditions),
+        include: expect.any(Array),
+        ...pagination,
+        order,
+      });
+    });
+
+    it('when member is provided, then should filter logs by member email or name', async () => {
+      const mockMembers = [newWorkspaceUser(), newWorkspaceUser()];
+      const mockMembersUuids = mockMembers.map((m) => m.memberId);
+      const whereConditions = {
+        workspaceId,
+        creator: { [Op.in]: mockMembersUuids },
+      };
+
+      jest
+        .spyOn(workspaceLogModel, 'findAll')
+        .mockResolvedValue(mockLogs as WorkspaceLogModel[]);
+
+      await repository.accessLogs(
+        workspaceId,
+        true,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        order,
+      );
+
+      expect(workspaceLogModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining(whereConditions),
+        include: expect.any(Array),
+        ...pagination,
+        order,
+      });
+    });
+
+    it('when logType is provided, then should filter logs by type', async () => {
+      const whereConditions = {
+        workspaceId,
+        type: { [Op.in]: logType },
+      };
+
+      jest
+        .spyOn(workspaceLogModel, 'findAll')
+        .mockResolvedValue(mockLogs as WorkspaceLogModel[]);
+
+      await repository.accessLogs(
+        workspaceId,
+        true,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        order,
+      );
+
+      expect(workspaceLogModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining(whereConditions),
+        include: expect.any(Array),
+        ...pagination,
+        order,
+      });
+    });
+
+    it('when summary is true, then should return summary of logs', async () => {
+      jest
+        .spyOn(workspaceLogModel, 'findAll')
+        .mockResolvedValue(mockLogs as WorkspaceLogModel[]);
+      jest
+        .spyOn(repository, 'workspaceLogToDomainSummary')
+        .mockImplementation((log) => log as WorkspaceLog);
+
+      await repository.accessLogs(
+        workspaceId,
+        true,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        order,
+      );
+
+      expect(repository.workspaceLogToDomainSummary).toHaveBeenCalledWith(
+        mockLogs[0],
+      );
+    });
+
+    it('when pagination is not provided, then should use default pagination', async () => {
+      const whereConditions = {
+        workspaceId,
+      };
+
+      jest
+        .spyOn(workspaceLogModel, 'findAll')
+        .mockResolvedValue(mockLogs as WorkspaceLogModel[]);
+
+      await repository.accessLogs(
+        workspaceId,
+        true,
+        mockMembersUuids,
+        logType,
+        undefined,
+        lastDays,
+        order,
+      );
+
+      expect(workspaceLogModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining(whereConditions),
+        include: expect.any(Array),
+        order,
+      });
+    });
+
+    it('when order is not provided, then should use default order', async () => {
+      const whereConditions = {
+        workspaceId,
+      };
+
+      jest
+        .spyOn(workspaceLogModel, 'findAll')
+        .mockResolvedValue(mockLogs as WorkspaceLogModel[]);
+
+      await repository.accessLogs(
+        workspaceId,
+        true,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+      );
+
+      expect(workspaceLogModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining(whereConditions),
+        include: expect.any(Array),
+        ...pagination,
+        order: [['updatedAt', 'DESC']],
+      });
+    });
+  });
+
+  describe('workspaceLogToDomain()', () => {
+    const workspaceId = v4();
+    const fileId = v4();
+    it('When model is provided, then it should return a WorkspaceLog entity', async () => {
+      const toJson = {
+        id: v4(),
+        workspaceId: workspaceId,
+        type: WorkspaceLogType.ShareFile,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        creator: v4(),
+        entityId: fileId,
+        platform: 'WEB',
+      };
+      const model: WorkspaceLogModel = {
+        user: { id: 10, name: 'John Doe' },
+        workspace: { id: workspaceId, name: 'My Workspace' },
+        file: { uuid: fileId, plainName: 'example.txt' },
+        folder: null,
+        toJSON: () => ({ ...toJson }),
+      } as any;
+
+      const result = repository.workspaceLogToDomain(model);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...toJson,
+        }),
+      );
+    });
+  });
+
+  describe('workspaceLogToDomainSummary()', () => {
+    const workspaceId = v4();
+    const folderId = v4();
+    it('When model is provided, then it should return a summary of WorkspaceLog entity', async () => {
+      const toJson = {
+        id: v4(),
+        type: WorkspaceLogType.ShareFolder,
+        workspaceId: workspaceId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        creator: v4(),
+        entityId: folderId,
+        platform: WorkspaceLogPlatform.Web,
+      };
+      const model: WorkspaceLogModel = {
+        user: { id: 20, name: 'John Doe' },
+        workspace: { id: workspaceId, name: 'My Workspace' },
+        file: null,
+        folder: { uuid: folderId, plainName: 'My Folder' },
+        toJSON: () => ({ ...toJson }),
+      } as any;
+
+      const result = repository.workspaceLogToDomainSummary(model);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...toJson,
+          file: null,
+          folder: model.folder,
+          user: model.user,
+          workspace: model.workspace,
+        }),
+      );
     });
   });
 });
