@@ -3,7 +3,11 @@ import { createMock } from '@golevelup/ts-jest';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
-import { MailLimitReachedException, UserUseCases } from './user.usecase';
+import {
+  MailLimitReachedException,
+  UserUseCases,
+  ReferralsNotAvailableError,
+} from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
@@ -15,7 +19,12 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import {
   Sign,
   SignEmail,
@@ -32,6 +41,7 @@ import {
   newWorkspaceInvite,
   newNotificationToken,
   newFile,
+  newFolder,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -42,6 +52,10 @@ import {
   RegisterNotificationTokenDto,
 } from './dto/register-notification-token.dto';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
+import { v4 } from 'uuid';
+import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
+import { KeyServerModel } from '../keyserver/key-server.model';
+import * as speakeasy from 'speakeasy';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -60,6 +74,7 @@ describe('User use cases', () => {
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let userRepository: SequelizeUserRepository;
+  let keyServerRepository: SequelizeKeyServerRepository;
   let bridgeService: BridgeService;
   let sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository;
   let cryptoService: CryptoService;
@@ -67,6 +82,7 @@ describe('User use cases', () => {
   let configService: ConfigService;
   let mailLimitRepository: SequelizeMailLimitRepository;
   let workspaceRepository: SequelizeWorkspaceRepository;
+  const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
     id: 1,
@@ -109,6 +125,9 @@ describe('User use cases', () => {
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
+    keyServerRepository = moduleRef.get<SequelizeKeyServerRepository>(
+      SequelizeKeyServerRepository,
+    );
     bridgeService = moduleRef.get<BridgeService>(BridgeService);
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
@@ -129,6 +148,7 @@ describe('User use cases', () => {
     workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
       SequelizeWorkspaceRepository,
     );
+    jest.clearAllMocks();
   });
 
   describe('Resetting a user', () => {
@@ -790,6 +810,248 @@ describe('User use cases', () => {
         },
         jwtSecret,
         true,
+      );
+    });
+  });
+
+  describe('loginAccess', () => {
+    const keys = {
+      publicKey: 'publicKey',
+      privateKey: 'privateKey',
+      revocateKey: 'revocateKey',
+    };
+
+    it('When a non-existing email is provided, then it should throw ', async () => {
+      const loginAccessDto = {
+        email: 'nonexistent@example.com',
+        password: v4(),
+        tfa: '',
+        ...keys,
+      };
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+
+      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('When login attempts limit is reached, then it should throw', async () => {
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: v4(),
+        tfa: '',
+        ...keys,
+      };
+      const user = newUser({
+        attributes: {
+          email: 'test@example.com',
+          password: v4(),
+          errorLoginCount: 10,
+        },
+      });
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+
+      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When the password is incorrect, then it should throw', async () => {
+      const wrongPassword = v4();
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: wrongPassword,
+        tfa: '',
+        ...keys,
+      };
+      const user = newUser({
+        attributes: {
+          email: 'test@example.com',
+          password: v4(),
+          errorLoginCount: 0,
+        },
+      });
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(wrongPassword);
+
+      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('When login is successful, then it should return user and tokens', async () => {
+      const hashedPassword = v4();
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: v4(),
+        tfa: '',
+        ...keys,
+      };
+      const user = newUser({
+        attributes: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: null,
+        },
+      });
+      const keyServer = {
+        ...keys,
+        revocationKey: keys.revocateKey,
+        userId: user.id,
+      } as unknown as KeyServerModel;
+
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
+      jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(result).toHaveProperty('user');
+      expect(result.user).toHaveProperty('email', 'test@example.com');
+      expect(result.user).toHaveProperty('bucket', folder.bucket);
+      expect(result).toHaveProperty('token', 'authToken');
+      expect(result).toHaveProperty('newToken', 'newAuthToken');
+    });
+
+    it('When the 2FA code is wrong, then it should throw', async () => {
+      const hashedPassword = v4();
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: v4(),
+        tfa: 'wrongTfa',
+        ...keys,
+      };
+      const user = newUser({
+        attributes: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: 'secret',
+        },
+      });
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest.spyOn(speakeasy.totp, 'verifyDelta').mockReturnValue(undefined);
+
+      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('When the 2FA code is valid, then it should return user and tokens', async () => {
+      const hashedPassword = v4();
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: v4(),
+        tfa: 'okTfa',
+        ...keys,
+      };
+      const user = newUser({
+        attributes: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: 'secret',
+        },
+      });
+      const keyServer = {
+        ...keys,
+        revocationKey: keys.revocateKey,
+        userId: user.id,
+      } as unknown as KeyServerModel;
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(speakeasy.totp, 'verifyDelta')
+        .mockReturnValue({ delta: 123456 });
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
+      jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(result).toHaveProperty('user');
+      expect(result.user).toHaveProperty('email', 'test@example.com');
+      expect(result.user).toHaveProperty('bucket', folder.bucket);
+      expect(result).toHaveProperty('token', 'authToken');
+      expect(result).toHaveProperty('newToken', 'newAuthToken');
+    });
+  });
+
+  describe('updateByUuid', () => {
+    it('When updating user by UUID, then it should call userRepository.updateByUuid', async () => {
+      const userUuid = v4();
+      const payload = { name: 'New Name' };
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+
+      await userUseCases.updateByUuid(userUuid, payload);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(
+        userUuid,
+        payload,
+      );
+    });
+  });
+
+  describe('logReferralError', () => {
+    it('When an undefined error is logged, then it should log error message for undefined error', () => {
+      const userId = v4();
+
+      userUseCases.logReferralError(userId, new Error());
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        '[STORAGE]: ERROR message undefined applying referral for user %s',
+        userId,
+      );
+    });
+
+    it('When a ReferralsNotAvailableError is logged, then it should not log anything', () => {
+      const userId = v4();
+      const error = new ReferralsNotAvailableError();
+
+      userUseCases.logReferralError(userId, error);
+
+      expect(loggerErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('When another error is logged, then it should log error message for other errors', () => {
+      const userId = v4();
+      const errorMessage = 'Some error occurred';
+
+      userUseCases.logReferralError(userId, new Error(errorMessage));
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        '[STORAGE]: ERROR applying referral for user %s: %s',
+        userId,
+        errorMessage,
+      );
+    });
+
+    it('When a non-Error object is logged, Then it should log "Unknown error"', () => {
+      const userId = v4();
+      const error = 'This is a string error';
+
+      userUseCases.logReferralError(userId, error);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        '[STORAGE]: ERROR applying referral for user %s: %s',
+        userId,
+        'Unknown error',
       );
     });
   });

@@ -246,7 +246,7 @@ export const newSharing = (bindTo?: {
     type: bindTo?.sharingType ? bindTo.sharingType : SharingType.Private,
     id: v4(),
     itemId: bindTo?.item?.uuid || v4(),
-    itemType: (bindTo?.item instanceof File ? 'file' : 'folder') || 'folder',
+    itemType: bindTo?.item instanceof File ? 'file' : 'folder',
     ownerId: bindTo?.owner?.uuid || v4(),
     sharedWith: bindTo?.sharedWith?.uuid || v4(),
     encryptedPassword: bindTo?.encryptedPassword || null,

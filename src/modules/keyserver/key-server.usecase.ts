@@ -29,4 +29,10 @@ export class KeyServerUseCases {
 
     return publicKey;
   }
+
+  async findUserKeys(userId: UserAttributes['id']): Promise<Keys> {
+    const { publicKey, privateKey, revocationKey } =
+      await this.repository.findUserKeys(userId);
+    return { publicKey, privateKey, revocationKey };
+  }
 }
