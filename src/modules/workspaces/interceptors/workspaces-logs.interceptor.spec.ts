@@ -88,6 +88,37 @@ describe('WorkspacesLogsInterceptor', () => {
         '[WORKSPACE/LOGS] Invalid log action: INVALID_ACTION',
       );
     });
+
+    it('When handleAction fails then should log an error', async () => {
+      Reflect.defineMetadata(
+        'workspaceLogAction',
+        WorkspaceLogType.Login,
+        mockHandler,
+      );
+
+      const next: CallHandler = {
+        handle: jest.fn().mockReturnValue(of({})),
+      };
+
+      const handleActionSpy = jest
+        .spyOn(interceptor, 'handleAction')
+        .mockRejectedValueOnce(new Error('Logging failed'));
+
+      const logErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(handleActionSpy).toHaveBeenCalled();
+      expect(logErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error logging action: Logging failed'),
+      );
+      expect(logErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Platform: ${WorkspaceLogPlatform.Web}`),
+      );
+      expect(logErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Action: ${WorkspaceLogType.Login}`),
+      );
+    });
   });
 
   describe('handleAction()', () => {

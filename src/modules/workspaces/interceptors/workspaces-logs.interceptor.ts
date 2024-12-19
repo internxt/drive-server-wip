@@ -88,7 +88,13 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((res) => {
-        this.handleAction(platform, this.logAction, request, res);
+        this.handleAction(platform, this.logAction, request, res).catch((err) =>
+          Logger.error(
+            `[WORKSPACE/LOGS] Error logging action: ${
+              err.message || err
+            }. Platform: ${platform}, Action: ${this.logAction}.`,
+          ),
+        );
       }),
     );
   }
