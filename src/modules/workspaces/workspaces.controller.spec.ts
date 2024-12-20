@@ -1,5 +1,5 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -16,6 +16,12 @@ import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { WorkspaceLog } from './domains/workspace-log.domain';
+import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
+import {
+  WorkspaceLogPlatform,
+  WorkspaceLogType,
+} from './attributes/workspace-logs.attributes';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
@@ -750,6 +756,122 @@ describe('Workspace Controller', () => {
         user,
         workspaceId,
         search,
+      );
+    });
+  });
+
+  describe('GET /:workspaceId/access/logs', () => {
+    const workspaceId = v4();
+    const user = newUser({ attributes: { email: 'test@example.com' } });
+    const date = new Date();
+    const summary = true;
+    const workspaceLogtoJson = {
+      id: v4(),
+      workspaceId,
+      creator: user.uuid,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
+      entityId: null,
+      createdAt: date,
+      updatedAt: date,
+    };
+    const mockLogs: WorkspaceLog[] = [
+      {
+        ...workspaceLogtoJson,
+        user: {
+          id: 4,
+          name: user.name,
+          lastname: user.lastname,
+          email: user.email,
+          uuid: user.uuid,
+        },
+        workspace: {
+          id: workspaceId,
+          name: 'My Workspace',
+        },
+        file: null,
+        folder: null,
+        toJSON: () => ({ ...workspaceLogtoJson }),
+      },
+    ];
+
+    it('when valid request is made, then should return access logs successfully', async () => {
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        summary,
+      };
+
+      jest.spyOn(workspacesUsecases, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await workspacesController.accessLogs(
+        workspaceId,
+        user,
+        workspaceLogDto,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspacesUsecases.accessLogs).toHaveBeenCalledWith(
+        workspaceId,
+        { limit: 10, offset: 0 },
+        undefined,
+        undefined,
+        undefined,
+        summary,
+        undefined,
+      );
+    });
+
+    it('when invalid workspaceId is provided, then should throw', async () => {
+      const invalidWorkspaceId = v4();
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        summary,
+      };
+
+      jest
+        .spyOn(workspacesUsecases, 'accessLogs')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        workspacesController.accessLogs(
+          invalidWorkspaceId,
+          user,
+          workspaceLogDto,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('when query parameters are provided, then should handle them correctly', async () => {
+      const username = mockLogs[0].user.name;
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        member: mockLogs[0].user.name,
+        activity: [WorkspaceLogType.Login],
+        lastDays: 7,
+        orderBy: 'createdAt:DESC',
+        summary: false,
+      };
+
+      jest.spyOn(workspacesUsecases, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await workspacesController.accessLogs(
+        workspaceId,
+        user,
+        workspaceLogDto,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspacesUsecases.accessLogs).toHaveBeenCalledWith(
+        workspaceId,
+        { limit: 10, offset: 0 },
+        username,
+        [WorkspaceLogType.Login],
+        7,
+        false,
+        [['createdAt', 'DESC']],
       );
     });
   });

@@ -69,6 +69,8 @@ import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { getFutureIAT } from '../../middlewares/passport';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('User')
 @Controller('users')
@@ -422,6 +424,7 @@ export class UserController {
 
   @Patch('password')
   @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
   async updatePassword(
     @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,

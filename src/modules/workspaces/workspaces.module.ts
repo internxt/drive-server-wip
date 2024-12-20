@@ -24,6 +24,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
+import { WorkspaceLogModel } from './models/workspace-logs.model';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
       WorkspaceTeamUserModel,
       WorkspaceUserModel,
       WorkspaceInviteModel,
+      WorkspaceLogModel,
     ]),
     forwardRef(() => UserModule),
     forwardRef(() => FolderModule),
@@ -57,6 +59,6 @@ import { NotificationModule } from '../../externals/notifications/notifications.
     PaymentsService,
     FuzzySearchUseCases,
   ],
-  exports: [WorkspacesUsecases, SequelizeModule],
+  exports: [WorkspacesUsecases, SequelizeModule, SequelizeWorkspaceRepository],
 })
 export class WorkspacesModule {}

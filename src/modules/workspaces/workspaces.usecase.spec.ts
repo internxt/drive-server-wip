@@ -58,6 +58,11 @@ import {
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
 import { FolderStatus } from '../folder/folder.domain';
+import { WorkspaceLog } from './domains/workspace-log.domain';
+import {
+  WorkspaceLogPlatform,
+  WorkspaceLogType,
+} from './attributes/workspace-logs.attributes';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -5931,6 +5936,229 @@ describe('WorkspacesUsecases', () => {
           limit: options.limit,
           offset: options.offset,
         },
+      );
+    });
+  });
+
+  describe('accessLogs', () => {
+    const workspaceId = v4();
+    const mockWorkspace = newWorkspace({ attributes: { id: workspaceId } });
+    const user = newUser({ attributes: { email: 'test@example.com' } });
+    const pagination = { limit: 10, offset: 0 };
+    const member = undefined;
+    const mockMembersUuids: string[] = undefined;
+    const logType: WorkspaceLog['type'][] = [
+      WorkspaceLogType.Login,
+      WorkspaceLogType.Logout,
+    ];
+    const lastDays = 7;
+    const order: [string, string][] = [['createdAt', 'DESC']];
+    const date = new Date();
+    const summary = true;
+
+    const workspaceLogtoJson = {
+      id: v4(),
+      workspaceId,
+      creator: user.uuid,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
+      entityId: null,
+      createdAt: date,
+      updatedAt: date,
+    };
+    const mockLogs: WorkspaceLog[] = [
+      {
+        ...workspaceLogtoJson,
+        user: {
+          id: 4,
+          name: user.name,
+          lastname: user.lastname,
+          email: user.email,
+          uuid: user.uuid,
+        },
+        workspace: {
+          id: workspaceId,
+          name: 'My Workspace',
+        },
+        file: null,
+        folder: null,
+        toJSON: () => ({ ...workspaceLogtoJson }),
+      },
+    ];
+
+    it('when workspace exists, then should return access logs', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest.spyOn(workspaceRepository, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await service.accessLogs(
+        workspaceId,
+        pagination,
+        member,
+        logType,
+        lastDays,
+        summary,
+        order,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspaceRepository.findById).toHaveBeenCalledWith(workspaceId);
+      expect(workspaceRepository.accessLogs).toHaveBeenCalledWith(
+        mockWorkspace.id,
+        summary,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        order,
+      );
+    });
+
+    it('when workspace does not exist, then should throw NotFoundException', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.accessLogs(
+          workspaceId,
+          pagination,
+          member,
+          logType,
+          lastDays,
+          summary,
+          order,
+        ),
+      ).rejects.toThrow(NotFoundException);
+      await expect(
+        service.accessLogs(
+          workspaceId,
+          pagination,
+          member,
+          logType,
+          lastDays,
+          summary,
+          order,
+        ),
+      ).rejects.toThrow('Workspace not found');
+    });
+
+    it('when member exist, then should return members logs', async () => {
+      const member = 'jhon@doe.com';
+      const mockMembers = [newWorkspaceUser()];
+      const mockMembersUuids = mockMembers.map((m) => m.memberId);
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsers')
+        .mockResolvedValue(mockMembers);
+      jest.spyOn(workspaceRepository, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await service.accessLogs(
+        workspaceId,
+        pagination,
+        member,
+        logType,
+        lastDays,
+        summary,
+        order,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspaceRepository.findById).toHaveBeenCalledWith(workspaceId);
+      expect(workspaceRepository.accessLogs).toHaveBeenCalledWith(
+        mockWorkspace.id,
+        summary,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        order,
+      );
+    });
+
+    it('when pagination is not provided, then should use default values', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest.spyOn(workspaceRepository, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await service.accessLogs(
+        workspaceId,
+        {},
+        member,
+        logType,
+        lastDays,
+        summary,
+        order,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspaceRepository.findById).toHaveBeenCalledWith(workspaceId);
+      expect(workspaceRepository.accessLogs).toHaveBeenCalledWith(
+        mockWorkspace.id,
+        true,
+        mockMembersUuids,
+        logType,
+        {},
+        lastDays,
+        order,
+      );
+    });
+
+    it('when lastDays is not provided, then should call accessLogs without lastDays', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest.spyOn(workspaceRepository, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await service.accessLogs(
+        workspaceId,
+        pagination,
+        member,
+        logType,
+        undefined,
+        summary,
+        order,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspaceRepository.accessLogs).toHaveBeenCalledWith(
+        mockWorkspace.id,
+        summary,
+        mockMembersUuids,
+        logType,
+        pagination,
+        undefined,
+        order,
+      );
+    });
+
+    it('when order is not provided, then should call accessLogs without order', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest.spyOn(workspaceRepository, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await service.accessLogs(
+        workspaceId,
+        pagination,
+        member,
+        logType,
+        lastDays,
+        summary,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspaceRepository.accessLogs).toHaveBeenCalledWith(
+        mockWorkspace.id,
+        summary,
+        mockMembersUuids,
+        logType,
+        pagination,
+        lastDays,
+        undefined,
       );
     });
   });
