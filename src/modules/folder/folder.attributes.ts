@@ -10,6 +10,7 @@ export interface FolderAttributes {
   userId: number;
   uuid: string;
   user?: any;
+  workspaceItemUser?: any;
   plainName: string;
   encryptVersion: '03-aes';
   deleted: boolean;

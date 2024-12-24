@@ -40,7 +40,10 @@ interface SharingRepository {
   createInvite(invite: Omit<SharingInvite, 'id'>): Promise<SharingInvite>;
   createSharing(sharing: Omit<Sharing, 'id'>): Promise<Sharing>;
   deleteInvite(invite: SharingInvite): Promise<void>;
-
+  findAllSharingsByItemIds(
+    itemIds: Sharing['itemId'][],
+    where: Partial<Sharing>,
+  ): Promise<Sharing[]>;
   findAllSharing(
     where: Partial<Sharing>,
     offset: number,
@@ -304,6 +307,21 @@ export class SequelizeSharingRepository implements SharingRepository {
     const raw = await this.sharings.findOne({ where });
 
     return raw ? Sharing.build(raw) : null;
+  }
+
+  async findAllSharingsByItemIds(
+    itemIds: Sharing['itemId'][],
+    where: Partial<Sharing>,
+  ): Promise<Sharing[]> {
+    const sharings = await this.sharings.findAll({
+      where: {
+        ...where,
+        itemId: {
+          [Op.in]: itemIds,
+        },
+      },
+    });
+    return sharings.map((shared) => Sharing.build(shared));
   }
 
   async findAllSharing(

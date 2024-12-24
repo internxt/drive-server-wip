@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
-import { newUser, newWorkspace } from '../../../test/fixtures';
+import { newFile, newUser, newWorkspace } from '../../../test/fixtures';
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
@@ -192,6 +192,157 @@ describe('FileRepository', () => {
         offset,
         additionalOrders,
       );
+    });
+  });
+
+  describe('findAllCursorInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const where = { status: FileStatus.TRASHED };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FileModel, string]> = [['createdAt', 'DESC']];
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+    const model: FileModel = {
+      ...mockFile,
+      user: { id: mockFile.userId, name: 'John Doe' },
+      folder: { uuid: mockFile.folderId, plainName: mockFile.plainName },
+      workspaceItemUser: null,
+      toJSON: () => ({ ...toJson }),
+    } as any;
+
+    it('when called with valid parameters then returns mapped files', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursorInWorkspace(
+        createdBy,
+        workspaceId,
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        limit,
+        offset,
+        where,
+        include: expect.any(Array),
+        subQuery: false,
+        order: expect.any(Array),
+      });
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ...toJson,
+            folder: expect.objectContaining({ ...model.folder }),
+            user: expect.objectContaining({ ...model.user }),
+          }),
+        ]),
+      );
+    });
+
+    it('when no files found then returns empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+      const result = await repository.findAllCursorInWorkspace(
+        createdBy,
+        workspaceId,
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findAllCursorWithThumbnailsInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const where = { status: FileStatus.TRASHED };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FileModel, string]> = [['createdAt', 'DESC']];
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+    const model: FileModel = {
+      ...mockFile,
+      user: { id: mockFile.userId, name: 'John Doe' },
+      folder: { uuid: mockFile.folderId, plainName: mockFile.plainName },
+      workspaceItemUser: null,
+      toJSON: () => ({ ...toJson }),
+    } as any;
+
+    it('when called with valid parameters then returns mapped files with thumbnails', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursorWithThumbnailsInWorkspace(
+        createdBy,
+        workspaceId,
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        limit,
+        offset,
+        where,
+        include: expect.any(Array),
+        subQuery: false,
+        order: expect.any(Array),
+      });
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ...toJson,
+            folder: expect.objectContaining({ ...model.folder }),
+            user: expect.objectContaining({ ...model.user }),
+          }),
+        ]),
+      );
+    });
+
+    it('when no files found then returns empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      const result = await repository.findAllCursorWithThumbnailsInWorkspace(
+        createdBy,
+        workspaceId,
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 });

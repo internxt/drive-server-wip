@@ -12,6 +12,7 @@ export class WorkspaceItemUser implements WorkspaceItemUserAttributes {
   itemType: WorkspaceItemType;
   context: WorkspaceItemContext;
   createdBy: User['uuid'];
+  creator?: User;
   createdAt: Date;
   updatedAt: Date;
 
@@ -22,6 +23,7 @@ export class WorkspaceItemUser implements WorkspaceItemUserAttributes {
     itemId,
     context,
     createdBy,
+    creator,
     createdAt,
     updatedAt,
   }: WorkspaceItemUserAttributes) {
@@ -31,6 +33,7 @@ export class WorkspaceItemUser implements WorkspaceItemUserAttributes {
     this.itemType = itemType;
     this.context = context;
     this.createdBy = createdBy;
+    this.setCreator(creator);
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -41,6 +44,13 @@ export class WorkspaceItemUser implements WorkspaceItemUserAttributes {
 
   isOwnedBy(user: User) {
     return this.createdBy === user.uuid;
+  }
+
+  setCreator(creator) {
+    if (creator && !(creator instanceof User)) {
+      throw Error('user invalid');
+    }
+    this.creator = creator;
   }
 
   toJSON() {

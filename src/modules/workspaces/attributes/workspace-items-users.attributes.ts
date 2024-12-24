@@ -15,6 +15,7 @@ export interface WorkspaceItemUserAttributes {
   itemType: WorkspaceItemType;
   context: WorkspaceItemContext;
   createdBy: string;
+  creator?: any;
   createdAt: Date;
   updatedAt: Date;
 }

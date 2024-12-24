@@ -217,6 +217,13 @@ export class SharingService {
     return this.sharingRepository.findOneSharingBy(where);
   }
 
+  findAllSharingsByItemIds(
+    itemIds: Sharing['itemId'][],
+    where: Partial<Sharing>,
+  ): Promise<Sharing[]> {
+    return this.sharingRepository.findAllSharingsByItemIds(itemIds, where);
+  }
+
   findSharingsBySharedWithAndAttributes(
     sharedWithValues: Sharing['sharedWith'][],
     filters: Omit<Partial<Sharing>, 'sharedWith'> = {},

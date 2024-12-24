@@ -18,6 +18,11 @@ import {
 import { v4 } from 'uuid';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';
+import { SharedWithType } from './../../sharing/sharing.domain';
+import { UserUseCases } from './../../user/user.usecase';
+import { FileUseCases } from './../../file/file.usecase';
+import { FolderUseCases } from './../../folder/folder.usecase';
+import { SharingService } from './../../sharing/sharing.service';
 
 jest.mock('../../../lib/jwt', () => ({
   verifyWithDefaultSecret: jest.fn(),
@@ -31,13 +36,25 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
   let guard: WorkspacesResourcesItemsInBehalfGuard;
   let reflector: DeepMocked<Reflector>;
   let workspaceUseCases: DeepMocked<WorkspacesUsecases>;
+  let sharingUseCases: DeepMocked<SharingService>;
+  let folderUseCases: DeepMocked<FolderUseCases>;
+  let fileUseCases: DeepMocked<FileUseCases>;
+  let userUseCases: DeepMocked<UserUseCases>;
 
   beforeEach(async () => {
     reflector = createMock<Reflector>();
     workspaceUseCases = createMock<WorkspacesUsecases>();
+    sharingUseCases = createMock<SharingService>();
+    folderUseCases = createMock<FolderUseCases>();
+    fileUseCases = createMock<FileUseCases>();
+    userUseCases = createMock<UserUseCases>();
     guard = new WorkspacesResourcesItemsInBehalfGuard(
       reflector,
       workspaceUseCases,
+      sharingUseCases,
+      folderUseCases,
+      fileUseCases,
+      userUseCases,
     );
   });
 
@@ -352,6 +369,205 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
         sharingId: v4(),
       });
       expect(hasPermissions).toBeFalsy();
+    });
+  });
+
+  describe('hasUser AccessToViewSharedItemDetails', () => {
+    const requester = newUser();
+    requester.uuid = v4();
+    const item = { itemId: v4(), itemType: WorkspaceItemType.File };
+    const workspaceId = v4();
+    const teamUuid = v4();
+    const folderUuid = v4();
+    const userUuid = v4();
+
+    it('When itemId or workspaceId is not a valid UUID then throws BadRequestException', async () => {
+      await expect(
+        guard.hasUserAccessToViewSharedItemDetails(
+          requester,
+          { itemId: 'invalid-uuid', itemType: WorkspaceItemType.File },
+          workspaceId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When item is shared directly with user team then returns true', async () => {
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([
+        { sharedWithType: SharedWithType.WorkspaceTeam, sharedWith: v4() },
+      ] as any);
+      workspaceUseCases.getTeamMembers.mockResolvedValue([
+        { uuid: requester.uuid },
+      ] as any);
+
+      const result = await guard.hasUserAccessToViewSharedItemDetails(
+        requester,
+        item,
+        workspaceId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When item is not shared directly but through parent folders then returns true', async () => {
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([]);
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([
+        { sharedWithType: SharedWithType.WorkspaceTeam, sharedWith: teamUuid },
+      ] as any);
+      workspaceUseCases.getTeamMembers.mockResolvedValue([
+        { uuid: requester.uuid },
+      ] as any);
+      fileUseCases.getByUuid.mockResolvedValue({
+        folderUuid: folderUuid,
+      } as any);
+      folderUseCases.getByUuid.mockResolvedValue({ userId: userUuid } as any);
+      userUseCases.findById.mockResolvedValue({ uuid: userUuid } as any);
+      folderUseCases.getFolderAncestorsInWorkspace.mockResolvedValue([
+        { uuid: folderUuid },
+      ] as any);
+      workspaceUseCases.getTeamsUserBelongsTo.mockResolvedValue([
+        { id: teamUuid },
+      ] as any);
+
+      const result = await guard.hasUserAccessToViewSharedItemDetails(
+        requester,
+        item,
+        workspaceId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When item is not shared either directly or through parent folders then returns false', async () => {
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([]);
+      workspaceUseCases.getTeamMembers.mockResolvedValue([
+        { uuid: v4() },
+      ] as any);
+      fileUseCases.getByUuid.mockResolvedValue({
+        folderUuid: folderUuid,
+      } as any);
+      folderUseCases.getByUuid.mockResolvedValue({ userId: userUuid } as any);
+      userUseCases.findById.mockResolvedValue({ uuid: userUuid } as any);
+      folderUseCases.getFolderAncestorsInWorkspace.mockResolvedValue([
+        { uuid: v4() },
+      ] as any);
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([]);
+
+      const result = await guard.hasUserAccessToViewSharedItemDetails(
+        requester,
+        item,
+        workspaceId,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('isSharedDirectlyWithUserTeam', () => {
+    const requester = newUser();
+    requester.uuid = v4();
+    const teamUuid = v4();
+    const itemId = v4();
+    const itemType = WorkspaceItemType.File;
+
+    it('When item is shared with the user team then returns true', async () => {
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([
+        { sharedWithType: SharedWithType.WorkspaceTeam, sharedWith: teamUuid },
+      ] as any);
+      workspaceUseCases.getTeamMembers.mockResolvedValue([
+        { uuid: requester.uuid },
+      ] as any);
+
+      const result = await guard.isSharedDirectlyWithUserTeam(
+        requester,
+        itemId,
+        itemType,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When item is not shared with the user team then returns false', async () => {
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([
+        {
+          sharedWithType: SharedWithType.WorkspaceTeam,
+          sharedWith: 'team-uuid',
+        },
+      ] as any);
+      workspaceUseCases.getTeamMembers.mockResolvedValue([
+        { uuid: 'another-user-uuid' },
+      ] as any);
+
+      const result = await guard.isSharedDirectlyWithUserTeam(
+        requester,
+        itemId,
+        itemType,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('isSharedThroughParentFoldersWithUserTeam', () => {
+    const requester = newUser();
+    requester.uuid = v4();
+    const workspaceId = v4();
+    const teamUuid = v4();
+    const folderUuid = v4();
+    const userUuid = v4();
+    const itemId = v4();
+    const itemType = WorkspaceItemType.File;
+
+    it('When item is shared through parent folders then returns true', async () => {
+      fileUseCases.getByUuid.mockResolvedValue({
+        folderUuid: folderUuid,
+      } as any);
+      folderUseCases.getByUuid.mockResolvedValue({ userId: userUuid } as any);
+      userUseCases.findById.mockResolvedValue({ uuid: userUuid } as any);
+      folderUseCases.getFolderAncestorsInWorkspace.mockResolvedValue([
+        { uuid: v4() },
+      ] as any);
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([
+        {
+          sharedWithType: SharedWithType.WorkspaceTeam,
+          sharedWith: teamUuid,
+        },
+      ] as any);
+      workspaceUseCases.getTeamsUserBelongsTo.mockResolvedValue([
+        { id: teamUuid },
+      ] as any);
+
+      const result = await guard.isSharedThroughParentFoldersWithUserTeam(
+        requester,
+        itemId,
+        itemType,
+        workspaceId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When item is not shared through parent folders then returns false', async () => {
+      fileUseCases.getByUuid.mockResolvedValue({
+        folderUuid: folderUuid,
+      } as any);
+      folderUseCases.getByUuid.mockResolvedValue({ userId: userUuid } as any);
+      userUseCases.findById.mockResolvedValue({ uuid: userUuid } as any);
+      folderUseCases.getFolderAncestorsInWorkspace.mockResolvedValue([
+        { uuid: v4() },
+      ] as any);
+      sharingUseCases.findAllSharingsByItemIds.mockResolvedValue([]);
+      workspaceUseCases.getTeamsUserBelongsTo.mockResolvedValue([
+        { id: v4() },
+      ] as any);
+
+      const result = await guard.isSharedThroughParentFoldersWithUserTeam(
+        requester,
+        itemId,
+        itemType,
+        workspaceId,
+      );
+
+      expect(result).toBe(false);
     });
   });
 });

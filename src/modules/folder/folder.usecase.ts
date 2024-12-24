@@ -30,6 +30,7 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
+import { FolderModel } from './folder.model';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -599,17 +600,17 @@ export class FolderUseCases {
   getWorkspacesFoldersUpdatedAfter(
     createdBy: User['uuid'],
     workspaceId: WorkspaceAttributes['id'],
-    where: Partial<FolderAttributes>,
+    where: Partial<Folder>,
     updatedAfter: Date,
     options: { limit: number; offset: number; sort?: SortParamsFolder },
   ): Promise<Array<Folder>> {
-    const additionalOrders: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> =
+    const additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']> =
       options.sort ?? [['updatedAt', 'ASC']];
 
     return this.folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter(
       createdBy,
       workspaceId,
-      { ...where },
+      where,
       updatedAfter,
       options.limit,
       options.offset,

@@ -18,4 +18,5 @@ export interface SharingAccessTokenData {
     uuid: FolderAttributes['uuid'];
     id: FolderAttributes['id'];
   };
+  workspaceId?: Workspace['id'];
 }
