@@ -20,8 +20,6 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
-import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
-import { SharingItemType } from '../sharing/sharing.domain';
 
 const requester = newUser();
 
@@ -639,71 +637,6 @@ describe('FolderController', () => {
       expect(
         folderController.getFolderMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
-    });
-  });
-
-  describe('getFolderAncestorsV2', () => {
-    const user = newUser();
-    const workspace = newWorkspace();
-    const itemUuid = v4();
-    const itemType = WorkspaceItemType.File;
-
-    it('when provided with an invalid UUID then throws BadRequestException', async () => {
-      await expect(
-        folderController.getFolderAncestorsV2(
-          user,
-          workspace,
-          'invalid-uuid',
-          itemType,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('when itemType is file then returns folder ancestors in workspace', async () => {
-      const folderUuid = v4();
-      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
-
-      jest
-        .spyOn(fileUseCases, 'getByUuid')
-        .mockResolvedValue({ folderUuid } as any);
-      jest
-        .spyOn(folderUseCases, 'getFolderAncestorsInWorkspace')
-        .mockResolvedValue(expectedAncestors);
-
-      const result = await folderController.getFolderAncestorsV2(
-        user,
-        workspace,
-        itemUuid,
-        itemType,
-      );
-
-      expect(fileUseCases.getByUuid).toHaveBeenCalledWith(itemUuid);
-      expect(folderUseCases.getFolderAncestorsInWorkspace).toHaveBeenCalledWith(
-        user,
-        folderUuid,
-      );
-      expect(result).toEqual(expectedAncestors);
-    });
-
-    it('when itemType is folder then returns folder ancestors', async () => {
-      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
-
-      jest
-        .spyOn(folderUseCases, 'getFolderAncestors')
-        .mockResolvedValue(expectedAncestors);
-
-      const result = await folderController.getFolderAncestorsV2(
-        user,
-        undefined,
-        itemUuid,
-        WorkspaceItemType.Folder,
-      );
-
-      expect(folderUseCases.getFolderAncestors).toHaveBeenCalledWith(
-        user,
-        itemUuid,
-      );
-      expect(result).toEqual(expect.objectContaining(expectedAncestors));
     });
   });
 });

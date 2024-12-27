@@ -875,4 +875,52 @@ describe('Workspace Controller', () => {
       );
     });
   });
+
+  describe('getWorkspaceItemAncestors', () => {
+    it('When provided with an invalid workspaceId then should throw', async () => {
+      const user = newUser();
+      const workspaceId = 'invalid-uuid';
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+        .mockRejectedValue(new NotFoundException('Workspace not found'));
+
+      await expect(
+        workspacesController.getWorkspaceItemAncestors(
+          user,
+          workspaceId,
+          itemType,
+          itemUuid,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When provided with valid parameters then returns item ancestors', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const itemType = WorkspaceItemType.Folder;
+      const itemUuid = v4();
+      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+        .mockResolvedValue(expectedAncestors);
+
+      const result = await workspacesController.getWorkspaceItemAncestors(
+        user,
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+
+      expect(workspacesUsecases.getWorkspaceItemAncestors).toHaveBeenCalledWith(
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+      expect(result).toEqual(expectedAncestors);
+    });
+  });
 });

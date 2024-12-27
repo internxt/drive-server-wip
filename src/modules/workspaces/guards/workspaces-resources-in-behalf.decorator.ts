@@ -12,7 +12,6 @@ export enum WorkspaceResourcesAction {
   AddItemsToTrash = 'addItemsToTrash',
   DeleteItemsFromTrash = 'deleteItemsFromTrash',
   ModifySharingById = 'modifySharingById',
-  ViewItemDetails = 'viewItemDetails',
   Default = 'default',
 }
 

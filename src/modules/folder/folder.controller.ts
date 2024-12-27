@@ -46,17 +46,13 @@ import { MoveFolderDto } from './dto/move-folder.dto';
 
 import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import {
-  WorkspaceResourcesAction,
-  WorkspacesInBehalfGuard,
-  WorkspacesInBehalfValidationFolder,
-} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { Sharing, SharingActionName } from '../sharing/sharing.domain';
+import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
@@ -65,7 +61,6 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
-import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -758,44 +753,6 @@ export class FolderController {
     return !workspace
       ? this.folderUseCases.getFolderAncestors(user, folderUuid)
       : this.folderUseCases.getFolderAncestorsInWorkspace(user, folderUuid);
-  }
-
-  @Get('/:itemType/:uuid/ancestors')
-  @GetDataFromRequest([
-    {
-      sourceKey: 'params',
-      fieldName: 'uuid',
-      newFieldName: 'itemId',
-    },
-    {
-      sourceKey: 'params',
-      fieldName: 'itemType',
-    },
-  ])
-  @ApiQuery({
-    name: 'workspace',
-    description: 'If true, will return ancestors in workspace',
-    type: Boolean,
-  })
-  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ViewItemDetails)
-  async getFolderAncestorsV2(
-    @UserDecorator() user: User,
-    @WorkspaceDecorator() workspace: Workspace,
-    @Param('uuid') itemUuid: Sharing['itemId'],
-    @Param('itemType') itemType: WorkspaceItemType,
-  ) {
-    if (!validate(itemUuid)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
-
-    const folderUuid =
-      itemType === WorkspaceItemType.File
-        ? (await this.fileUseCases.getByUuid(itemUuid)).folderUuid
-        : itemUuid;
-
-    return workspace
-      ? this.folderUseCases.getFolderAncestorsInWorkspace(user, folderUuid)
-      : this.folderUseCases.getFolderAncestors(user, folderUuid);
   }
 
   @Get('/:uuid/tree')
