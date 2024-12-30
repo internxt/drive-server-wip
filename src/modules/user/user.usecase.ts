@@ -1251,6 +1251,7 @@ export class UserUseCases {
       privateKey,
       revocateKey: revocationKey,
     } = loginAccessDto;
+
     let keys = await this.keyServerRepository.findUserKeys(userData.id);
 
     if (!keys && publicKey) {
