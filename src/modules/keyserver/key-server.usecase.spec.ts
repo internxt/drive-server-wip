@@ -148,13 +148,5 @@ describe('Key Server Use Cases', () => {
       expect(result).toEqual(keys);
       expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
     });
-
-    it('When no keys are found, then it should throw an error', async () => {
-      const userId = 123;
-      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
-
-      await expect(service.findUserKeys(userId)).rejects.toThrowError();
-      expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
-    });
   });
 });

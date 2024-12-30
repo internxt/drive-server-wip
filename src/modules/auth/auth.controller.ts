@@ -68,9 +68,9 @@ export class AuthController {
       const required2FA = Boolean(
         user.secret_2FA && user.secret_2FA.length > 0,
       );
-      const hasKeys = await this.keyServerUseCases.findUserKeys(user.id);
+      const keys = await this.keyServerUseCases.findUserKeys(user.id);
 
-      return { hasKeys, sKey: encryptedSalt, tfa: required2FA };
+      return { hasKeys: !!keys, sKey: encryptedSalt, tfa: required2FA };
     } catch (err) {
       Logger.error(
         `[AUTH/LOGIN] USER: ${user.email} ERROR: ${

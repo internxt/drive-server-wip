@@ -76,7 +76,7 @@ describe('AuthController', () => {
       const result = await authController.login(loginDto, clientId);
 
       expect(result).toEqual({
-        hasKeys: keys,
+        hasKeys: true,
         sKey: 'encryptedText',
         tfa: true,
       });
