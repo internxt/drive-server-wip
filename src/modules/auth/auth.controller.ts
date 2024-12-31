@@ -13,6 +13,8 @@ import {
   Delete,
   Put,
   UnauthorizedException,
+  HttpException,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -29,15 +31,16 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access.dto';
 import { User as UserDecorator } from './decorators/user.decorator';
-import { Client } from './decorators/client.decorator';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
+import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 
 @ApiTags('Auth')
 @Controller('auth')
+@UseFilters(ExtendedHttpExceptionFilter)
 export class AuthController {
   constructor(
     private userUseCases: UserUseCases,
@@ -54,7 +57,7 @@ export class AuthController {
   })
   @ApiOkResponse({ description: 'Retrieve details' })
   @Public()
-  async login(@Body() body: LoginDto, @Client() clientId: string) {
+  async login(@Body() body: LoginDto) {
     const user = await this.userUseCases.findByEmail(body.email);
 
     if (!user) {
@@ -72,11 +75,13 @@ export class AuthController {
 
       return { hasKeys: !!keys, sKey: encryptedSalt, tfa: required2FA };
     } catch (err) {
-      Logger.error(
-        `[AUTH/LOGIN] USER: ${user.email} ERROR: ${
-          (err as Error).message
-        }, STACK: ${(err as Error).stack}`,
-      );
+      if (!(err instanceof HttpException)) {
+        Logger.error(
+          `[AUTH/LOGIN] USER: ${user.email} ERROR: ${
+            (err as Error).message
+          }, STACK: ${(err as Error).stack}`,
+        );
+      }
       throw err;
     }
   }
