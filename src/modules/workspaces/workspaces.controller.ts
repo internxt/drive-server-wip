@@ -60,7 +60,7 @@ import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import { OrderBy } from '../../common/order.type';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { SharingActionName } from '../sharing/sharing.domain';
+import { Sharing, SharingActionName } from '../sharing/sharing.domain';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
@@ -1202,6 +1202,34 @@ export class WorkspacesController {
       lastDays,
       summary,
       order,
+    );
+  }
+
+  @Get(':workspaceId/:itemType/:uuid/ancestors')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'See item ancestors',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'itemType', type: String, required: true })
+  @ApiParam({ name: 'uuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Item ancestors details',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getWorkspaceItemAncestors(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('itemType') itemType: WorkspaceItemType,
+    @Param('uuid', ValidateUUIDPipe)
+    itemUuid: Sharing['itemId'],
+  ) {
+    return this.workspaceUseCases.getWorkspaceItemAncestors(
+      workspaceId,
+      itemType,
+      itemUuid,
     );
   }
 }

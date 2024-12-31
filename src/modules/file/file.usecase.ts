@@ -658,14 +658,14 @@ export class FileUseCases {
     );
 
     if (decryptedName === '') {
-      return File.build(file).toJSON();
+      return File.build(file);
     }
 
     return File.build({
       ...file,
       name: decryptedName,
       plainName: decryptedName,
-    }).toJSON();
+    });
   }
 
   addOldAttributes(file: File): any {
@@ -680,7 +680,7 @@ export class FileUseCases {
     return File.build({
       ...file,
       thumbnails: thumbnailsWithOldAttributers,
-    }).toJSON();
+    });
   }
 
   /**
