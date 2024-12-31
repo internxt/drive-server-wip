@@ -47,7 +47,6 @@ describe('AuthController', () => {
 
   describe('POST /login', () => {
     it('When valid credentials are provided, then it should return security details', async () => {
-      const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
@@ -73,7 +72,7 @@ describe('AuthController', () => {
         send: jest.fn(),
       } as unknown as Response;
 
-      const result = await authController.login(loginDto, clientId);
+      const result = await authController.login(loginDto);
 
       expect(result).toEqual({
         hasKeys: true,
@@ -83,13 +82,12 @@ describe('AuthController', () => {
     });
 
     it('When user is not found, then it should throw UnauthorizedException', async () => {
-      const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
 
-      await expect(authController.login(loginDto, clientId)).rejects.toThrow(
+      await expect(authController.login(loginDto)).rejects.toThrow(
         new UnauthorizedException('Wrong login credentials'),
       );
     });
