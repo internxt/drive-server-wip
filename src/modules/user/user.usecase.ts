@@ -1303,6 +1303,18 @@ export class UserUseCases {
     return { user, token, userTeam: null, newToken };
   }
 
+  async areCredentialsCorrect(user: User, hashedPassword: User['password']) {
+    if (!hashedPassword) {
+      throw new BadRequestException('Hashed password needed');
+    }
+
+    if (user.password.toString() !== hashedPassword) {
+      throw new UnauthorizedException('Wrong credentials');
+    }
+
+    return true;
+  }
+
   logReferralError(userId: number | string, err: unknown) {
     if (err instanceof ReferralsNotAvailableError) {
       return;

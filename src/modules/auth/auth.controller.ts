@@ -15,6 +15,7 @@ import {
   UnauthorizedException,
   HttpException,
   UseFilters,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -37,6 +38,7 @@ import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -187,5 +189,20 @@ export class AuthController {
     }
     await this.userUseCases.updateByUuid(user.uuid, { secret_2FA: null });
     return { message: 'ok' };
+  }
+
+  @Get('/are-credentials-correct')
+  @ApiOperation({
+    summary: 'Check if current user credentials are correct',
+  })
+  @ApiOkResponse({
+    description: 'Credentials are correct',
+  })
+  async areCredentialsCorrect(
+    @UserDecorator() user: User,
+    @Query() query: AreCredentialsCorrectDto,
+  ) {
+    const { hashedPassword } = query;
+    return this.userUseCases.areCredentialsCorrect(user, hashedPassword);
   }
 }

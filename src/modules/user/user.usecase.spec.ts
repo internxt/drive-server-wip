@@ -1055,6 +1055,36 @@ describe('User use cases', () => {
       );
     });
   });
+
+  describe('areCredentialsCorrect', () => {
+    it('When credentials are correct, then it should return true', async () => {
+      const hashedPass = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
+      const user = newUser();
+      user.password = hashedPass;
+
+      const result = await userUseCases.areCredentialsCorrect(user, hashedPass);
+
+      expect(result).toEqual(true);
+    });
+
+    it('When credentials are not correct, then it should throw', async () => {
+      const hashedPass = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
+      const user = newUser();
+      user.password = hashedPass;
+
+      await expect(
+        userUseCases.areCredentialsCorrect(user, 'incorrect password'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('When hashed password is null or empty, then it should throw', async () => {
+      const user = newUser();
+
+      await expect(
+        userUseCases.areCredentialsCorrect(user, ''),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });
 
 const createTestingModule = (): Promise<TestingModule> => {
