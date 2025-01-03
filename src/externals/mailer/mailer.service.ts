@@ -241,4 +241,15 @@ export class MailerService {
       context,
     );
   }
+
+  async sendVerifyAccountEmail(email: User['email'], url: string) {
+    const context = {
+      verification_url: url,
+    };
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.verifyAccountEmail'),
+      context,
+    );
+  }
 }

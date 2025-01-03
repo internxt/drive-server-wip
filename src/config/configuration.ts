@@ -95,6 +95,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_WELCOME_EMAIL_VERIFICATION || '',
       recoverAccountEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
+      verifyAccountEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_EMAIL_VERIFICATION || '',
       invitationToSharingReceived:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
       invitationToSharingGuestReceived:

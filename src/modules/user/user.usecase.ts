@@ -40,7 +40,6 @@ import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
@@ -75,6 +74,7 @@ import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspa
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
+import { isUUID } from 'class-validator';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -113,8 +113,8 @@ export class UserNotFoundError extends Error {
 }
 
 export class MailLimitReachedException extends HttpException {
-  constructor() {
-    super('Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
+  constructor(customMessage?: string) {
+    super(customMessage ?? 'Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
   }
 }
 
@@ -1301,6 +1301,79 @@ export class UserUseCases {
     };
 
     return { user, token, userTeam: null, newToken };
+  }
+
+  areCredentialsCorrect(user: User, hashedPassword: User['password']) {
+    if (!hashedPassword) {
+      throw new BadRequestException('Hashed password needed');
+    }
+
+    if (user.password.toString() !== hashedPassword) {
+      throw new UnauthorizedException('Wrong credentials');
+    }
+
+    return true;
+  }
+
+  async verifyUserEmail(verificationToken: string) {
+    const secret = this.configService.get('secrets.jwt');
+
+    let userUuid: string;
+
+    try {
+      userUuid = this.cryptoService.decryptText(verificationToken, secret);
+
+      if (!isUUID(userUuid)) {
+        throw new Error('Token without valid user uuid');
+      }
+    } catch (err) {
+      Logger.error(
+        `[AUTH/EMAIL_VERIFICATION] Error while validating verificationToken: ${err.message}`,
+      );
+      throw new BadRequestException(
+        `Could not verify this verificationToken: "${verificationToken}"`,
+      );
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      emailVerified: true,
+    });
+  }
+
+  async sendAccountEmailVerification(user: User) {
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: user.id,
+        mailType: MailTypes.EmailVerification,
+      },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 10,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException(
+        'Mail verification daily limit reached',
+      );
+    }
+
+    const secret = this.configService.get('secrets.jwt');
+    const verificationToken = this.cryptoService.encryptText(user.uuid, secret);
+    const verificationTokenEncoded = encodeURIComponent(verificationToken);
+
+    const driveWebUrl = this.configService.get('clients.drive.web');
+    const url = `${driveWebUrl}/verify-email/${verificationTokenEncoded}`;
+
+    await this.mailerService.sendVerifyAccountEmail(user.email, url);
+
+    mailLimit.increaseTodayAttemps();
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.EmailVerification,
+      mailLimit,
+    );
   }
 
   logReferralError(userId: number | string, err: unknown) {

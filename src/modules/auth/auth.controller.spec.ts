@@ -249,4 +249,22 @@ describe('AuthController', () => {
       ).rejects.toThrow(new BadRequestException('Invalid password'));
     });
   });
+
+  describe('GET /are-credentials-correct', () => {
+    it('When credentials need to be checked, then it should call the respective service correctly', async () => {
+      const hashedPassword = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
+      const user = newUser();
+
+      jest.spyOn(userUseCases, 'areCredentialsCorrect');
+
+      await authController.areCredentialsCorrect(user, {
+        hashedPassword,
+      });
+
+      expect(userUseCases.areCredentialsCorrect).toHaveBeenCalledWith(
+        user,
+        hashedPassword,
+      );
+    });
+  });
 });

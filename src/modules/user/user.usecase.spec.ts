@@ -56,6 +56,7 @@ import { v4 } from 'uuid';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -82,6 +83,7 @@ describe('User use cases', () => {
   let configService: ConfigService;
   let mailLimitRepository: SequelizeMailLimitRepository;
   let workspaceRepository: SequelizeWorkspaceRepository;
+  let mailerService: MailerService;
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
@@ -148,6 +150,7 @@ describe('User use cases', () => {
     workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
       SequelizeWorkspaceRepository,
     );
+    mailerService = moduleRef.get<MailerService>(MailerService);
     jest.clearAllMocks();
   });
 
@@ -1053,6 +1056,121 @@ describe('User use cases', () => {
         userId,
         'Unknown error',
       );
+    });
+  });
+
+  describe('areCredentialsCorrect', () => {
+    it('When credentials are correct, then it should return true', () => {
+      const hashedPass = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
+      const user = newUser();
+      user.password = hashedPass;
+
+      const result = userUseCases.areCredentialsCorrect(user, hashedPass);
+
+      expect(result).toEqual(true);
+    });
+
+    it('When credentials are not correct, then it should throw', () => {
+      const hashedPass = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
+      const user = newUser();
+      user.password = hashedPass;
+
+      expect(() =>
+        userUseCases.areCredentialsCorrect(user, 'incorrect password'),
+      ).toThrow(UnauthorizedException);
+    });
+
+    it('When hashed password is null or empty, then it should throw', () => {
+      const user = newUser();
+
+      expect(() => userUseCases.areCredentialsCorrect(user, '')).toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('verifyUserEmail', () => {
+    it('When the verificationToken is valid, then it should update the user emailVerified status', async () => {
+      const verificationToken = 'validToken';
+      const decryptedUuid = v4();
+
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(decryptedUuid);
+      jest.spyOn(userRepository, 'updateByUuid');
+
+      await userUseCases.verifyUserEmail(verificationToken);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(decryptedUuid, {
+        emailVerified: true,
+      });
+    });
+
+    it('When the verificationToken is invalid, then it should throw BadRequestException', async () => {
+      const verificationToken = 'invalidToken';
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation(() => {
+        throw new Error('Invalid token');
+      });
+
+      await expect(
+        userUseCases.verifyUserEmail(verificationToken),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When the decrypted UUID is not valid, then it should throw BadRequestException', async () => {
+      const verificationToken = 'validToken';
+      const invalidUuid = 'not-a-uuid';
+
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(invalidUuid);
+
+      await expect(
+        userUseCases.verifyUserEmail(verificationToken),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('sendAccountEmailVerification', () => {
+    it('When the user has not reached the mail limit, then it should send a verification email', async () => {
+      const user = newUser();
+      const currentAttemptsCount = 1;
+      const mailLimit = newMailLimit({
+        attemptsCount: currentAttemptsCount,
+        attemptsLimit: 10,
+      });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValue('encryptedToken');
+      jest.spyOn(configService, 'get').mockReturnValue('jwt-secret');
+      jest.spyOn(mailerService, 'sendVerifyAccountEmail');
+      jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+
+      await userUseCases.sendAccountEmailVerification(user);
+
+      expect(cryptoService.encryptText).toHaveBeenCalledWith(
+        user.uuid,
+        expect.any(String),
+      );
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(user.id, MailTypes.EmailVerification, {
+        ...mailLimit,
+        attemptsCount: currentAttemptsCount + 1,
+      });
+    });
+
+    it('When the mail limit is reached, then it should throw', async () => {
+      const user = newUser();
+      const mailLimit = newMailLimit({ attemptsCount: 10, attemptsLimit: 10 });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+
+      await expect(
+        userUseCases.sendAccountEmailVerification(user),
+      ).rejects.toThrow(MailLimitReachedException);
     });
   });
 });
