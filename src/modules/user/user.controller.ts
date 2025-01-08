@@ -496,7 +496,7 @@ export class UserController {
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      await this.userUseCases.sendAccountRecoveryEmail(body.email);
+      await this.userUseCases.sendAccountRecoveryEmail(body.email.toLowerCase());
     } catch (err) {
       new Logger().error(
         `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
