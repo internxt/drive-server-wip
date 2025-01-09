@@ -71,6 +71,7 @@ import { RegisterNotificationTokenDto } from './dto/register-notification-token.
 import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -811,5 +812,25 @@ export class UserController {
     @Body() body: RegisterNotificationTokenDto,
   ) {
     return this.userUseCases.registerUserNotificationToken(user, body);
+  }
+
+  @Post('/verify-email')
+  @ApiOperation({
+    summary: 'Verify user email',
+  })
+  @ApiResponse({ status: 201, description: 'Email verified successfully' })
+  @Public()
+  async verifyAccountEmail(@Body() body: VerifyEmailDto) {
+    return this.userUseCases.verifyUserEmail(body.verificationToken);
+  }
+
+  @Post('/send-verification-email')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Send account verification email',
+  })
+  @ApiResponse({ status: 201, description: 'Email sent successfully' })
+  async sendAccountVerifyEmail(@UserDecorator() user: User) {
+    return this.userUseCases.sendAccountEmailVerification(user);
   }
 }

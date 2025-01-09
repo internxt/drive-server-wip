@@ -1,5 +1,6 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
+  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   UnauthorizedException,
@@ -203,6 +204,53 @@ describe('User Controller', () => {
           type: DeviceType.macos,
         }),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('POST /verify-email', () => {
+    it('When the verification token is valid, then email is verified', async () => {
+      const verifyEmailDto = { verificationToken: 'valid-token' };
+      userUseCases.verifyUserEmail.mockResolvedValueOnce(undefined);
+
+      await expect(
+        userController.verifyAccountEmail(verifyEmailDto),
+      ).resolves.toBeUndefined();
+
+      expect(userUseCases.verifyUserEmail).toHaveBeenCalledWith(
+        verifyEmailDto.verificationToken,
+      );
+    });
+
+    it('When the verification token is invalid, then it throws an error', async () => {
+      const verifyEmailDto = { verificationToken: 'invalid-token' };
+      userUseCases.verifyUserEmail.mockRejectedValueOnce(
+        new BadRequestException(),
+      );
+
+      await expect(
+        userController.verifyAccountEmail(verifyEmailDto),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(userUseCases.verifyUserEmail).toHaveBeenCalledWith(
+        verifyEmailDto.verificationToken,
+      );
+    });
+  });
+
+  describe('POST /send-verification-email', () => {
+    it('When the user has not reached the mail limit, then it sends a verification email', async () => {
+      const user = newUser();
+      userUseCases.sendAccountEmailVerification.mockResolvedValueOnce(
+        undefined,
+      );
+
+      await expect(
+        userController.sendAccountVerifyEmail(user),
+      ).resolves.toBeUndefined();
+
+      expect(userUseCases.sendAccountEmailVerification).toHaveBeenCalledWith(
+        user,
+      );
     });
   });
 });
