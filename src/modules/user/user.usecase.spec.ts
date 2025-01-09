@@ -1172,6 +1172,62 @@ describe('User use cases', () => {
         userUseCases.sendAccountEmailVerification(user),
       ).rejects.toThrow(MailLimitReachedException);
     });
+
+    it('When mail is sent, then it updates email attempts counter', async () => {
+      const user = newUser();
+      const currentAttemptsCount = 1;
+      const mailLimit = newMailLimit({
+        attemptsCount: currentAttemptsCount,
+        attemptsLimit: 10,
+      });
+
+      jest.spyOn(mailLimit, 'increaseTodayAttempts');
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValue('encryptedToken');
+      jest.spyOn(configService, 'get').mockReturnValue('jwt-secret');
+      jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+
+      await userUseCases.sendAccountEmailVerification(user);
+
+      expect(mailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(mailLimit.attemptsCount).toEqual(currentAttemptsCount + 1);
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(user.id, MailTypes.EmailVerification, {
+        ...mailLimit,
+        attemptsCount: currentAttemptsCount + 1,
+      });
+    });
+
+    it('When the last email was sent in a different day, then it should reset email attempts', async () => {
+      const user = newUser();
+      const lastDayDate = new Date();
+      lastDayDate.setDate(lastDayDate.getDate() - 1);
+
+      const mailLimit = newMailLimit({
+        attemptsCount: 10,
+        attemptsLimit: 10,
+        lastMailSent: lastDayDate,
+      });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValue('encryptedToken');
+      jest.spyOn(configService, 'get').mockReturnValue('jwt-secret');
+      jest.spyOn(mailerService, 'sendVerifyAccountEmail');
+      jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+
+      await userUseCases.sendAccountEmailVerification(user);
+
+      expect(mailLimit.attemptsCount).toEqual(1);
+    });
   });
 });
 

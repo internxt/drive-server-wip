@@ -828,7 +828,7 @@ export class UserUseCases {
     await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
 
     const lastMailSentDate = Time.convertTimestampToDate(defaultIat);
-    mailLimit.increaseTodayAttemps(lastMailSentDate);
+    mailLimit.increaseTodayAttempts(lastMailSentDate);
 
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
@@ -1367,7 +1367,7 @@ export class UserUseCases {
 
     await this.mailerService.sendVerifyAccountEmail(user.email, url);
 
-    mailLimit.increaseTodayAttemps();
+    mailLimit.increaseTodayAttempts();
 
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
