@@ -207,7 +207,7 @@ describe('User Controller', () => {
     });
   });
 
-  describe('POST /verify-email', () => {
+  describe('POST /email-verification', () => {
     it('When the verification token is valid, then email is verified', async () => {
       const verifyEmailDto = { verificationToken: 'valid-token' };
       userUseCases.verifyUserEmail.mockResolvedValueOnce(undefined);
@@ -237,7 +237,7 @@ describe('User Controller', () => {
     });
   });
 
-  describe('POST /send-verification-email', () => {
+  describe('POST /email-verification/send', () => {
     it('When the user has not reached the mail limit, then it sends a verification email', async () => {
       const user = newUser();
       userUseCases.sendAccountEmailVerification.mockResolvedValueOnce(
