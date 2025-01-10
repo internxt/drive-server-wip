@@ -497,7 +497,9 @@ export class UserController {
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      await this.userUseCases.sendAccountRecoveryEmail(body.email.toLowerCase());
+      await this.userUseCases.sendAccountRecoveryEmail(
+        body.email.toLowerCase(),
+      );
     } catch (err) {
       new Logger().error(
         `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
@@ -814,17 +816,7 @@ export class UserController {
     return this.userUseCases.registerUserNotificationToken(user, body);
   }
 
-  @Post('/verify-email')
-  @ApiOperation({
-    summary: 'Verify user email',
-  })
-  @ApiResponse({ status: 201, description: 'Email verified successfully' })
-  @Public()
-  async verifyAccountEmail(@Body() body: VerifyEmailDto) {
-    return this.userUseCases.verifyUserEmail(body.verificationToken);
-  }
-
-  @Post('/send-verification-email')
+  @Post('/email-verification/send')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Send account verification email',
@@ -832,5 +824,15 @@ export class UserController {
   @ApiResponse({ status: 201, description: 'Email sent successfully' })
   async sendAccountVerifyEmail(@UserDecorator() user: User) {
     return this.userUseCases.sendAccountEmailVerification(user);
+  }
+
+  @Post('/email-verification')
+  @ApiOperation({
+    summary: 'Verify user email',
+  })
+  @ApiResponse({ status: 201, description: 'Email verified successfully' })
+  @Public()
+  async verifyAccountEmail(@Body() body: VerifyEmailDto) {
+    return this.userUseCases.verifyUserEmail(body.verificationToken);
   }
 }
