@@ -33,4 +33,8 @@ export class AppSumoUseCase {
 
     return appSumo;
   }
+
+  public async deleteByUserId(userId: number): Promise<void> {
+    await this.appSumoRepository.deleteBy({ userId });
+  }
 }

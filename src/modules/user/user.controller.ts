@@ -21,6 +21,7 @@ import {
   UseFilters,
   InternalServerErrorException,
   HttpException,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -72,6 +73,8 @@ import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
+import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -827,6 +830,7 @@ export class UserController {
   }
 
   @Post('/email-verification')
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({
     summary: 'Verify user email',
   })
@@ -834,5 +838,33 @@ export class UserController {
   @Public()
   async verifyAccountEmail(@Body() body: VerifyEmailDto) {
     return this.userUseCases.verifyUserEmail(body.verificationToken);
+  }
+
+  @Post('/deactivation/send')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Send email to deactivate current user account',
+  })
+  async sendUserDeactivationEmail(
+    @UserDecorator() user: User,
+    @Req() req: Request,
+  ) {
+    const response = await this.userUseCases.sendDeactivationEmail(user);
+
+    this.notificationsService.add(new DeactivationRequestEvent(user, req));
+
+    return response;
+  }
+
+  @Post('/deactivation/confirm')
+  @UseGuards(ThrottlerGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Confirm user deactivation',
+  })
+  async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
+    const { token } = body;
+
+    return this.userUseCases.confirmDeactivation(token);
   }
 }
