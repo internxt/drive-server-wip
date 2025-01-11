@@ -1578,6 +1578,94 @@ describe('User use cases', () => {
       });
     });
   });
+  describe('sendDeactivationEmail', () => {
+    it('When the user has not reached the deactivation mail limit, then it should send a deactivation email', async () => {
+      const user = newUser();
+      const currentAttemptsCount = 1;
+      const mailLimit = newMailLimit({
+        attemptsCount: currentAttemptsCount,
+        attemptsLimit: 10,
+      });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
+      jest.spyOn(bridgeService, 'sendDeactivationEmail');
+      jest.spyOn(mailLimit, 'increaseTodayAttempts');
+      jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+
+      await userUseCases.sendDeactivationEmail(user);
+
+      expect(bridgeService.sendDeactivationEmail).toHaveBeenCalledWith(
+        user,
+        expect.any(String),
+        expect.any(String),
+      );
+      expect(mailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(mailLimit.attemptsCount).toEqual(currentAttemptsCount + 1);
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(user.id, MailTypes.DeactivateUser, {
+        ...mailLimit,
+        attemptsCount: currentAttemptsCount + 1,
+      });
+    });
+
+    it('When the deactivation mail limit is reached, then it should throw', async () => {
+      const user = newUser();
+      const mailLimit = newMailLimit({ attemptsCount: 10, attemptsLimit: 10 });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+
+      await expect(userUseCases.sendDeactivationEmail(user)).rejects.toThrow(
+        MailLimitReachedException,
+      );
+    });
+
+    it('When deactivation mail is sent, then it updates deactivation email attempts counter', async () => {
+      const user = newUser();
+      const currentAttemptsCount = 1;
+      const mailLimit = newMailLimit({
+        attemptsCount: currentAttemptsCount,
+        attemptsLimit: 10,
+      });
+
+      jest.spyOn(mailLimit, 'increaseTodayAttempts');
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
+
+      await userUseCases.sendDeactivationEmail(user);
+
+      expect(mailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(mailLimit.attemptsCount).toEqual(currentAttemptsCount + 1);
+    });
+
+    it('When the last deactivation email was sent on a different day, then it should reset email attempts', async () => {
+      const user = newUser();
+      const lastDayDate = new Date();
+      lastDayDate.setDate(lastDayDate.getDate() - 1);
+
+      const mailLimit = newMailLimit({
+        attemptsCount: 10,
+        attemptsLimit: 10,
+        lastMailSent: lastDayDate,
+      });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
+
+      await userUseCases.sendDeactivationEmail(user);
+
+      expect(mailLimit.attemptsCount).toEqual(1);
+    });
+  });
 });
 
 const createTestingModule = (): Promise<TestingModule> => {

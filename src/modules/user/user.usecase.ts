@@ -15,6 +15,7 @@ import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
+import crypto from 'crypto';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
@@ -78,6 +79,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { BackupUseCase } from '../backups/backup.usecase';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -150,6 +153,8 @@ export class UserUseCases {
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
     private readonly keyServerUseCases: KeyServerUseCases,
+    private readonly appSumoUseCases: AppSumoUseCase,
+    private readonly backupUseCases: BackupUseCase,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -1446,5 +1451,97 @@ export class UserUseCases {
       userId,
       err instanceof Error ? err.message : 'Unknown error',
     );
+  }
+
+  async sendDeactivationEmail(user: User) {
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: user.id,
+        mailType: MailTypes.DeactivateUser,
+      },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 10,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException(
+        'Mail deactivation daily limit reached',
+      );
+    }
+
+    const deactivator = crypto.randomBytes(256).toString('hex');
+    const deactivationUrl = `${this.configService.get(
+      'clients.drive.web',
+    )}/deactivations/${deactivator}`;
+
+    await this.networkService.sendDeactivationEmail(
+      user,
+      deactivationUrl,
+      deactivator,
+    );
+
+    mailLimit.increaseTodayAttempts();
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.DeactivateUser,
+      mailLimit,
+    );
+  }
+
+  async confirmDeactivation(token: string) {
+    const userEmail = await this.networkService.confirmDeactivation(token);
+    const user = await this.userRepository.findByEmail(userEmail);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    try {
+      await this.userRepository.updateByUuid(user.uuid, {
+        rootFolderId: null,
+      });
+
+      // DELETING FOREIGN KEYS (not cascade)
+      await Promise.all([
+        await this.userRepository.deleteUserNotificationTokens(user.uuid),
+        await this.keyServerRepository.deleteByUserId(user.id),
+        await this.appSumoUseCases.deleteByUserId(user.id),
+        await this.backupUseCases.deleteUserBackups(user.id),
+      ]);
+
+      await this.userRepository.deleteBy({ uuid: user.uuid });
+      await this.folderUseCases.removeUserOrphanFolders(user);
+    } catch (err) {
+      if (user) {
+        const tempUsername = `${user.email}-${crypto
+          .randomBytes(5)
+          .toString('hex')}-DELETED`;
+
+        await this.userRepository.updateBy(
+          { uuid: user.uuid },
+          {
+            email: tempUsername,
+            username: tempUsername,
+            bridgeUser: tempUsername,
+          },
+        );
+
+        const errorDetails = {
+          message: err.message,
+          stack: err.stack,
+        };
+
+        throw new Error(
+          `Deactivation error for user: ${
+            user.email
+          } (renamed to ${tempUsername}): ${JSON.stringify(errorDetails)}`,
+        );
+      } else {
+        throw err;
+      }
+    }
   }
 }

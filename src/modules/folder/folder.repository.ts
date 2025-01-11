@@ -475,6 +475,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
   }
 
+  async updateBy(
+    update: Partial<FolderAttributes>,
+    where: Partial<FolderAttributes>,
+  ): Promise<number> {
+    const [updatedItems] = await this.folderModel.update(update, {
+      where,
+    });
+
+    return updatedItems;
+  }
+
   async createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
   ): Promise<Folder> {
