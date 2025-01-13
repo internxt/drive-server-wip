@@ -18,7 +18,7 @@ export class KeyServerUseCases {
         publicKey: keys.publicKey,
         privateKey: keys.privateKey,
         revocationKey: keys.revocationKey,
-        encryptVersion: null,
+        encryptVersion: 'ecc',
       });
 
     return { publicKey, privateKey, revocationKey };
