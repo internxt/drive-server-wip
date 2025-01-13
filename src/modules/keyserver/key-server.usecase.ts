@@ -30,17 +30,13 @@ export class KeyServerUseCases {
     return publicKey;
   }
 
-  async findUserKeys(userId: UserAttributes['id']): Promise<Keys | null> {
+  async findUserKeys(userId: UserAttributes['id']): Promise<Keys[]> {
     const keys = await this.repository.findUserKeys(userId);
 
     if (!keys) {
       return null;
     }
 
-    return {
-      publicKey: keys.publicKey,
-      privateKey: keys.privateKey,
-      revocationKey: keys.revocationKey,
-    };
+    return keys;
   }
 }
