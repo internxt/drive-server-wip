@@ -35,5 +35,5 @@ export class KeyServerModel extends Model implements KeyServerAttributes {
   revocationKey: string;
 
   @Column(DataType.STRING)
-  encryptVersion: string;
+  encryptVersion: 'ecc' | 'kyber';
 }
