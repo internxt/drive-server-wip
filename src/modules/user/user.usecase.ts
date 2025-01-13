@@ -356,7 +356,8 @@ export class UserUseCases {
   }
 
   async createUser(newUser: NewUser) {
-    const { email, password, salt } = newUser;
+    const { email: rawEmail, password, salt } = newUser;
+    const email = rawEmail.toLowerCase();
 
     const maybeExistentUser = await this.userRepository.findByUsername(email);
     const userAlreadyExists = !!maybeExistentUser;
@@ -1197,7 +1198,7 @@ export class UserUseCases {
   async loginAccess(loginAccessDto: LoginAccessDto) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
-    const userData = await this.findByEmail(loginAccessDto.email);
+    const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
 
     if (!userData) {
       Logger.debug(
@@ -1263,7 +1264,7 @@ export class UserUseCases {
     }
 
     const user = {
-      email: loginAccessDto.email,
+      email: userData.email,
       userId: userData.userId,
       mnemonic: userData.mnemonic.toString(),
       root_folder_id: userData.rootFolderId,
