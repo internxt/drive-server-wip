@@ -596,7 +596,7 @@ export class UserUseCases {
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
       revocationKey: revocationCertificate,
-      encryptVersion: null,
+      encryptVersion: 'ecc',
     });
 
     return {
