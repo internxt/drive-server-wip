@@ -7,7 +7,7 @@ export interface Keys {
 export interface KeyServerAttributes extends Keys {
   id: number;
   userId: number;
-  encryptVersion: string;
+  encryptVersion: 'ecc' | 'kyber';
 }
 
 export class KeyServer implements KeyServerAttributes {
@@ -16,7 +16,7 @@ export class KeyServer implements KeyServerAttributes {
   publicKey: string;
   privateKey: string;
   revocationKey: string;
-  encryptVersion: string;
+  encryptVersion: 'ecc' | 'kyber';
 
   constructor({
     id,
