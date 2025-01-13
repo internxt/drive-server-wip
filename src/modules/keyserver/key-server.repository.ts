@@ -13,6 +13,11 @@ interface KeyServerRepository {
   findPublicKey(
     userId: UserAttributes['id'],
   ): Promise<KeyServerAttributes['publicKey']>;
+  updateByUserAndEncryptVersion(
+    userId: UserAttributes['id'],
+    encryptVersion: KeyServerAttributes['encryptVersion'],
+    data: Partial<KeyServerAttributes>,
+  ): Promise<void>;
   deleteByUserId(userId: UserAttributes['id']): Promise<void>;
 }
 
@@ -44,6 +49,16 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     data: Partial<KeyServerAttributes>,
   ) {
     await this.model.update(data, { where: { userId } });
+  }
+
+  async updateByUserAndEncryptVersion(
+    userId: UserAttributes['id'],
+    encryptVersion: KeyServerAttributes['encryptVersion'],
+    data: Partial<KeyServerAttributes>,
+  ): Promise<void> {
+    await this.model.update(data, {
+      where: { userId, encryptVersion },
+    });
   }
 
   async findPublicKey(

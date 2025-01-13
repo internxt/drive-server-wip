@@ -466,6 +466,7 @@ export class UserController {
         mnemonic,
         privateKey,
         encryptVersion,
+        keys: updatePasswordDto.keys,
       });
 
       const { token, newToken } = this.userUseCases.getAuthTokens(
