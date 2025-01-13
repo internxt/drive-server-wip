@@ -49,7 +49,7 @@ describe('Key Server Use Cases', () => {
         {
           userId,
           ...keys,
-          encryptVersion: null,
+          encryptVersion: 'ecc',
         },
       );
     });
