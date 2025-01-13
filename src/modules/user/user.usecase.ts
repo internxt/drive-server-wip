@@ -75,6 +75,7 @@ import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { isUUID } from 'class-validator';
+import { KeyServerAttributes } from '../keyserver/key-server.domain';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -971,15 +972,34 @@ export class UserUseCases {
       lastPasswordChangedAt: new Date(),
     });
 
-    await this.keyServerRepository.findUserKeysOrCreate(user.id, {
-      userId: user.id,
-      privateKey: privateKey,
-      encryptVersion: updatePasswordDto.encryptVersion,
-    });
+    if (updatePasswordDto.keys) {
+      for (const key of Object.keys(updatePasswordDto.keys)) {
+        const { privateKey, publicKey, revocationKey } =
+          updatePasswordDto.keys[key];
 
-    await this.keyServerRepository.update(user.id, {
-      privateKey,
-    });
+        await this.keyServerRepository.updateByUserAndEncryptVersion(
+          user.id,
+          key as KeyServerAttributes['encryptVersion'],
+          {
+            privateKey,
+            publicKey,
+            revocationKey,
+          },
+        );
+      }
+    } else {
+      await this.keyServerRepository.findUserKeysOrCreate(user.id, {
+        userId: user.id,
+        privateKey: privateKey,
+        encryptVersion:
+          (updatePasswordDto.encryptVersion as KeyServerAttributes['encryptVersion']) ||
+          'ecc',
+      });
+
+      await this.keyServerRepository.update(user.id, {
+        privateKey,
+      });
+    }
   }
 
   async getAvatarUrl(avatarKey: string) {

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsObject, IsOptional, IsString } from 'class-validator';
 
 export class UpdatePasswordDto {
   @IsString()
@@ -43,4 +43,23 @@ export class UpdatePasswordDto {
     description: 'Encrypt version',
   })
   encryptVersion: string;
+
+  @IsObject()
+  @IsOptional()
+  @ApiProperty({
+    example: 'newKeys',
+    description: 'keys',
+  })
+  keys: {
+    ecc: {
+      publicKey: string;
+      privateKey: string;
+      revocationKey: string;
+    };
+    kyber: {
+      publicKey: string;
+      privateKey: string;
+      revocationKey: string;
+    };
+  };
 }
