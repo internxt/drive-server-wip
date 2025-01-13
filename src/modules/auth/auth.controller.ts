@@ -60,7 +60,9 @@ export class AuthController {
   @ApiOkResponse({ description: 'Retrieve details' })
   @Public()
   async login(@Body() body: LoginDto) {
-    const user = await this.userUseCases.findByEmail(body.email);
+    const email = body.email.toLowerCase();
+
+    const user = await this.userUseCases.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('Wrong login credentials');
