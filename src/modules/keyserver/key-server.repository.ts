@@ -9,7 +9,7 @@ interface KeyServerRepository {
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]>;
-  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer>;
+  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]>;
   findPublicKey(
     userId: UserAttributes['id'],
   ): Promise<KeyServerAttributes['publicKey']>;
@@ -33,8 +33,8 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     });
   }
 
-  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer> {
-    return this.model.findOne({
+  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]> {
+    return this.model.findAll({
       where: { userId },
     });
   }
