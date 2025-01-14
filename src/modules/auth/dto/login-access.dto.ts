@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class LoginAccessDto {
   @ApiProperty({
@@ -22,30 +22,31 @@ export class LoginAccessDto {
     example: 'two_factor_authentication_code',
     description: 'TFA',
   })
+  @IsOptional()
   @IsString()
-  tfa: string;
+  tfa?: string;
 
   @ApiProperty({
     example: 'public_key',
     description: 'Public Key',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  publicKey: string; //TODO: Check this field. It's possible that we need an Object Keys
+  publicKey?: string;
 
   @ApiProperty({
     example: 'private_key',
     description: 'Private Key',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  privateKey: string; //TODO: Check this field. It's possible that we need an Object Keys
+  privateKey?: string;
 
   @ApiProperty({
     example: 'revocate_key',
     description: 'Revocate Key',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  revocateKey: string; //TODO: Check this field. It's possible that we need an Object Keys
+  revocateKey?: string;
 }

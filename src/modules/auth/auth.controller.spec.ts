@@ -91,6 +91,18 @@ describe('AuthController', () => {
         new UnauthorizedException('Wrong login credentials'),
       );
     });
+
+    it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
+      const body = { email: 'TEST@EXAMPLE.COM' };
+      const emailLowerCase = 'test@example.com';
+      const user = newUser({ attributes: { email: emailLowerCase } });
+
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue(user);
+
+      await authController.login(body);
+
+      expect(userUseCases.findByEmail).toHaveBeenCalledWith(emailLowerCase);
+    });
   });
 
   describe('POST /login/access', () => {
