@@ -75,9 +75,18 @@ export class AuthController {
       const required2FA = Boolean(
         user.secret_2FA && user.secret_2FA.length > 0,
       );
-      const keys = await this.keyServerUseCases.findUserKeys(user.id);
 
-      return { hasKeys: !!keys, sKey: encryptedSalt, tfa: required2FA };
+      const { kyberKeys, eccKeys } = await this.keyServerUseCases.findUserKeys(
+        user.id,
+      );
+
+      return {
+        hasKeys: !!eccKeys,
+        sKey: encryptedSalt,
+        tfa: required2FA,
+        hasKyberKeys: !!kyberKeys,
+        hasEccKeys: !!eccKeys,
+      };
     } catch (err) {
       if (!(err instanceof HttpException)) {
         Logger.error(

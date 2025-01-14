@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class LoginAccessDto {
   @ApiProperty({
@@ -49,4 +56,24 @@ export class LoginAccessDto {
   @IsOptional()
   @IsString()
   revocateKey?: string;
+
+  @IsObject()
+  @IsOptional()
+  @ValidateNested()
+  @ApiProperty({
+    example: 'newKeys',
+    description: 'keys',
+  })
+  keys: {
+    ecc: {
+      publicKey: string;
+      privateKey: string;
+      revocationKey: string;
+    };
+    kyber: {
+      publicKey: string;
+      privateKey: string;
+      revocationKey: string;
+    };
+  };
 }
