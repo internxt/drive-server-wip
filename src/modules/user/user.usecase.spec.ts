@@ -59,6 +59,7 @@ import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository
 import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1286,6 +1287,63 @@ describe('User use cases', () => {
 
       expect(result).toMatchObject({ avatar: newAvatarURL });
       expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteAvatar', () => {
+    it('When the user has an avatar, then it should delete the avatar and update the user', async () => {
+      const user = newUser({ attributes: { avatar: v4() } });
+
+      avatarService.deleteAvatar = jest.fn().mockResolvedValue(undefined);
+      userRepository.updateById = jest.fn().mockResolvedValue(undefined);
+
+      await userUseCases.deleteAvatar(user);
+
+      expect(avatarService.deleteAvatar).toHaveBeenCalledWith(user.avatar);
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        avatar: null,
+      });
+    });
+
+    it('When the user has no avatar, then it should not delete the avatar and not update the user', async () => {
+      const user = newUser({ attributes: { avatar: null } });
+
+      await userUseCases.deleteAvatar(user);
+
+      expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it('When deleting the avatar fails, then it should throw', async () => {
+      const user = newUser({ attributes: { avatar: v4() } });
+
+      jest
+        .spyOn(avatarService, 'deleteAvatar')
+        .mockRejectedValue(new Error('Delete failed'));
+
+      await expect(userUseCases.deleteAvatar(user)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('When updating the user profile, then it should call updateByUuid with the correct parameters', async () => {
+      const user = newUser();
+      const payload: UpdateProfileDto = {
+        name: 'John',
+        lastname: 'Doe',
+      };
+
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+
+      await userUseCases.updateProfile(user, payload);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(
+        user.uuid,
+        payload,
+      );
     });
   });
 });
