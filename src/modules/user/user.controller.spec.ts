@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
 import { MailLimitReachedException, UserUseCases } from './user.usecase';
@@ -13,10 +14,10 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
-import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import { AccountTokenAction } from './user.domain';
 import { v4 } from 'uuid';
 import { DeviceType } from './dto/register-notification-token.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -29,6 +30,15 @@ jest.mock('../../config/configuration', () => {
       jitsi: {
         appId: 'jitsi-app-id',
         apiKey: 'jitsi-api-key',
+      },
+      avatar: {
+        accessKey: 'accessKey',
+        secretKey: 'secretKey',
+        bucket: 'bucket',
+        region: 'region',
+        endpoint: 'http://storage:9000',
+        endpointForSignedUrls: 'http://localhost:9000',
+        forcePathStyle: true,
       },
     })),
   };
@@ -251,6 +261,72 @@ describe('User Controller', () => {
       expect(userUseCases.sendAccountEmailVerification).toHaveBeenCalledWith(
         user,
       );
+    });
+  });
+
+  describe('PATCH /profile', () => {
+    it('When updateProfile is called then it should update the user profile', async () => {
+      const user = newUser();
+      const payload: UpdateProfileDto = { name: 'John', lastname: 'Doe' };
+
+      await userController.updateProfile(user, payload);
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(user, payload);
+    });
+  });
+
+  describe('PUT /avatar', () => {
+    const user = newUser();
+    const newAvatarKey = v4();
+    const avatar: Express.Multer.File | any = {
+      stream: undefined,
+      fieldname: undefined,
+      originalname: undefined,
+      encoding: undefined,
+      mimetype: undefined,
+      size: undefined,
+      filename: undefined,
+      destination: undefined,
+      path: undefined,
+      buffer: undefined,
+    };
+
+    it('When uploadAvatar is called with a valid avatar then it should upload the avatar', async () => {
+      avatar.key = newAvatarKey;
+      const avatarURL = 'https://localhost:9000/avatars/' + v4();
+      const mockResponse = { avatar: avatarURL };
+      jest
+        .spyOn(userUseCases, 'upsertAvatar')
+        .mockResolvedValue({ avatar: avatarURL });
+      const result = await userController.uploadAvatar(avatar, user);
+      expect(result).toEqual(mockResponse);
+      expect(userUseCases.upsertAvatar).toHaveBeenCalledWith(
+        user,
+        newAvatarKey,
+      );
+    });
+
+    it('When uploadAvatar is called without an avatar then it should throw', async () => {
+      const mockAvatar = undefined;
+      await expect(
+        userController.uploadAvatar(mockAvatar as any, user),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When uploadAvatar is called without a key then it should throw', async () => {
+      avatar.key = null;
+      await expect(userController.uploadAvatar(avatar, user)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
+  });
+
+  describe('DELETE /avatar', () => {
+    const user = newUser();
+    it('When deleteAvatar is called then it should delete the user avatar', async () => {
+      jest.spyOn(userUseCases, 'deleteAvatar').mockResolvedValue(undefined);
+
+      await userController.deleteAvatar(user);
+      expect(userUseCases.deleteAvatar).toHaveBeenCalledWith(user);
     });
   });
 });
