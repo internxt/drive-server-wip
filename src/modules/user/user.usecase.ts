@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   UnauthorizedException,
@@ -74,6 +75,7 @@ import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspa
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
 
 export class ReferralsNotAvailableError extends Error {
@@ -1375,6 +1377,65 @@ export class UserUseCases {
       MailTypes.EmailVerification,
       mailLimit,
     );
+  }
+
+  async upsertAvatar(
+    user: User,
+    avatarKey: string,
+  ): Promise<Error | { avatar: string }> {
+    if (!avatarKey) {
+      throw new BadRequestException('Avatar key required');
+    }
+
+    if (user.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(user.avatar);
+      } catch (err) {
+        Logger.error(
+          `[USER/SET_AVATAR]Deleting the avatar for the user: ${
+            user.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
+
+    try {
+      await this.userRepository.updateById(user.id, {
+        avatar: avatarKey,
+      });
+      const avatarUrl = await this.getAvatarUrl(avatarKey);
+      return { avatar: avatarUrl };
+    } catch (err) {
+      Logger.error(
+        `[USER/SET_AVATAR]Adding the avatar for the user: ${
+          user.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async deleteAvatar(user: User): Promise<Error | void> {
+    if (user.avatar) {
+      try {
+        await this.avatarService.deleteAvatar(user.avatar);
+        await this.userRepository.updateById(user.id, {
+          avatar: null,
+        });
+      } catch (err) {
+        Logger.error(
+          `[USER/DELETE_AVATAR]Deleting the avatar for the user: ${
+            user.id
+          } has failed. Error: ${(err as Error).message}`,
+        );
+        throw new InternalServerErrorException();
+      }
+    }
+  }
+
+  async updateProfile(user: User, payload: UpdateProfileDto) {
+    await this.userRepository.updateByUuid(user.uuid, payload);
   }
 
   logReferralError(userId: number | string, err: unknown) {

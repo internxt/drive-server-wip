@@ -15,13 +15,17 @@ import {
   Patch,
   Request as RequestDecorator,
   Put,
+  UploadedFile,
+  Delete,
   Query,
   UnauthorizedException,
   BadRequestException,
   UseFilters,
   InternalServerErrorException,
   HttpException,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -72,6 +76,8 @@ import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { avatarStorageS3Config } from '../../externals/multer';
 
 @ApiTags('User')
 @Controller('users')
@@ -834,5 +840,51 @@ export class UserController {
   @Public()
   async verifyAccountEmail(@Body() body: VerifyEmailDto) {
     return this.userUseCases.verifyUserEmail(body.verificationToken);
+  }
+
+  @Patch('/profile')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update user profile',
+  })
+  @ApiOkResponse({
+    description: 'Updated user profile',
+  })
+  async updateProfile(
+    @UserDecorator() user: User,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.userUseCases.updateProfile(user, updateProfileDto);
+  }
+
+  @Put('/avatar')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Avatar added to the user',
+  })
+  @UseInterceptors(FileInterceptor('avatar', avatarStorageS3Config))
+  async uploadAvatar(
+    @UploadedFile() avatar: Express.Multer.File | any,
+    @UserDecorator() user: User,
+  ) {
+    if (!avatar) {
+      throw new BadRequestException('avatar is required');
+    }
+    if (!avatar.key) {
+      throw new InternalServerErrorException('Avatar could not be uploaded');
+    }
+    return this.userUseCases.upsertAvatar(user, avatar.key);
+  }
+
+  @Delete('/avatar')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Avatar deleted from the workspace',
+  })
+  async deleteAvatar(@UserDecorator() user: User) {
+    return this.userUseCases.deleteAvatar(user);
   }
 }
