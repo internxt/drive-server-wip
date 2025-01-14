@@ -36,7 +36,7 @@ jest.mock('../../config/configuration', () => {
         secretKey: 'secretKey',
         bucket: 'bucket',
         region: 'region',
-        endpoint: 'http://storage:9000',
+        endpoint: 'http://localhost:9001',
         endpointForSignedUrls: 'http://localhost:9000',
         forcePathStyle: true,
       },
