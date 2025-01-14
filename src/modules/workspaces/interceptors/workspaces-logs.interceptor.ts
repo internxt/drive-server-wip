@@ -74,7 +74,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
       }).includes(this.logAction)
     ) {
       Logger.debug(`[WORKSPACE/LOGS] Invalid log action: ${this.logAction}`);
-      return;
+      return next.handle();
     }
 
     const platform = this.determinePlatform(request.headers['internxt-client']);
@@ -83,7 +83,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
       Logger.error(
         `[WORKSPACE/LOGS] Platform not specified for log action: ${this.logAction}`,
       );
-      return;
+      return next.handle();
     }
 
     return next.handle().pipe(
