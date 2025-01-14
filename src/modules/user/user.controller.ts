@@ -722,9 +722,9 @@ export class UserController {
       throw new NotFoundException();
     }
 
-    return {
-      publicKey: await this.keyServerUseCases.getPublicKey(user.id),
-    };
+    const keys = await this.keyServerUseCases.getPublicKeys(user.id);
+
+    return keys;
   }
 
   @UseFilters(new HttpExceptionFilter())

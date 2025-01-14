@@ -10,9 +10,6 @@ interface KeyServerRepository {
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]>;
   findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]>;
-  findPublicKey(
-    userId: UserAttributes['id'],
-  ): Promise<KeyServerAttributes['publicKey']>;
   updateByUserAndEncryptVersion(
     userId: UserAttributes['id'],
     encryptVersion: KeyServerAttributes['encryptVersion'],
@@ -28,20 +25,31 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     private model: typeof KeyServerModel,
   ) {}
 
-  findUserKeysOrCreate(
+  async findUserKeysOrCreate(
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]> {
-    return this.model.findOrCreate({
-      where: { userId },
+    const optionalWhere = {};
+
+    if (data.encryptVersion) {
+      optionalWhere['encryptVersion'] = data.encryptVersion;
+    }
+
+    const [userKeys, wasCreated] = await this.model.findOrCreate({
+      where: { userId, ...optionalWhere },
       defaults: data,
     });
+
+    return userKeys
+      ? [this.toDomain(userKeys), wasCreated]
+      : [null, wasCreated];
   }
 
-  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]> {
-    return this.model.findAll({
+  async findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]> {
+    const userKeys = await this.model.findAll({
       where: { userId },
     });
+    return userKeys ? userKeys.map(this.toDomain.bind(this)) : null;
   }
 
   async update(
@@ -61,18 +69,19 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     });
   }
 
-  async findPublicKey(
-    userId: UserAttributes['id'],
-  ): Promise<KeyServerAttributes['publicKey']> {
-    const keyServer = await this.model.findOne({ where: { userId } });
-    return keyServer.publicKey;
-  }
-
   async deleteByUserId(userId: UserAttributes['id']): Promise<void> {
     await this.model.destroy({ where: { userId } });
   }
 
-  create(userId: UserAttributes['id'], data: Partial<KeyServerAttributes>) {
-    return this.model.create({ userId, ...data });
+  async create(
+    userId: UserAttributes['id'],
+    data: Partial<KeyServerAttributes>,
+  ) {
+    const newUserKeys = await this.model.create({ userId, ...data });
+    return newUserKeys ? this.toDomain(newUserKeys) : null;
+  }
+
+  toDomain(keyServer: KeyServerModel): KeyServer {
+    return KeyServer.build(keyServer.toJSON());
   }
 }

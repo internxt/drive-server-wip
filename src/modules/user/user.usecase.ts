@@ -46,7 +46,6 @@ import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
-import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
@@ -77,7 +76,11 @@ import { RegisterNotificationTokenDto } from './dto/register-notification-token.
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
-import { KeyServerAttributes } from '../keyserver/key-server.domain';
+import {
+  KeyServerAttributes,
+  UserKeysEncryptVersions,
+} from '../keyserver/key-server.domain';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -151,7 +154,7 @@ export class UserUseCases {
     private networkService: BridgeService,
     private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
-    private readonly keyServerRepository: SequelizeKeyServerRepository,
+    private readonly keyServerUseCases: KeyServerUseCases,
     private readonly avatarService: AvatarService,
     private readonly mailerService: MailerService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
@@ -600,7 +603,7 @@ export class UserUseCases {
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
       revocationKey: revocationCertificate,
-      encryptVersion: 'ecc',
+      encryptVersion: UserKeysEncryptVersions.Ecc,
     });
 
     return {
@@ -901,7 +904,7 @@ export class UserUseCases {
 
     // TODO: Replace with updating the private key once AFS is ready.
     // Requires to send the private key encrypted with the user's password
-    await this.keyServerRepository.deleteByUserId(user.id);
+    await this.keyServerUseCases.deleteByUserId(user.id);
   }
 
   async resetUser(
@@ -979,7 +982,7 @@ export class UserUseCases {
         const { privateKey, publicKey, revocationKey } =
           updatePasswordDto.keys[key];
 
-        await this.keyServerRepository.updateByUserAndEncryptVersion(
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
           user.id,
           key as KeyServerAttributes['encryptVersion'],
           {
@@ -990,17 +993,17 @@ export class UserUseCases {
         );
       }
     } else {
-      await this.keyServerRepository.findUserKeysOrCreate(user.id, {
-        userId: user.id,
-        privateKey: privateKey,
-        encryptVersion:
-          (updatePasswordDto.encryptVersion as KeyServerAttributes['encryptVersion']) ||
-          'ecc',
-      });
+      // NOTE: Do not get the encryptVersion from the updatePasswordDto, as it is sent wrong by the frontend currently (aes-03)
+      const encryptVersion = UserKeysEncryptVersions.Ecc;
 
-      await this.keyServerRepository.update(user.id, {
-        privateKey,
-      });
+      await this.keyServerUseCases.updateByUserAndEncryptVersion(
+        user.id,
+        encryptVersion,
+        {
+          privateKey: privateKey,
+          encryptVersion: encryptVersion,
+        },
+      );
     }
   }
 
@@ -1275,14 +1278,33 @@ export class UserUseCases {
       revocateKey: revocationKey,
     } = loginAccessDto;
 
-    let keys = await this.keyServerRepository.findUserKeys(userData.id);
+    let { kyberKeys, eccKeys } = await this.keyServerUseCases.findUserKeys(
+      userData.id,
+    );
 
-    if (!keys && publicKey) {
-      keys = await this.keyServerRepository.create(userData.id, {
-        publicKey,
-        privateKey,
-        revocationKey,
-      });
+    if (!eccKeys && (publicKey || loginAccessDto?.keys?.ecc)) {
+      eccKeys = await this.keyServerUseCases.findOrCreateKeysForUser(
+        userData.id,
+        {
+          publicKey: loginAccessDto?.keys?.ecc?.publicKey || publicKey,
+          privateKey: loginAccessDto?.keys?.ecc?.privateKey || privateKey,
+          revocationKey:
+            loginAccessDto?.keys?.ecc?.revocationKey || revocationKey,
+          encryptVersion: UserKeysEncryptVersions.Ecc,
+        },
+      );
+    }
+
+    if (!kyberKeys && loginAccessDto?.keys?.kyber) {
+      kyberKeys = await this.keyServerUseCases.findOrCreateKeysForUser(
+        userData.id,
+        {
+          publicKey: loginAccessDto?.keys?.kyber?.publicKey,
+          privateKey: loginAccessDto?.keys?.kyber?.privateKey,
+          revocationKey: loginAccessDto?.keys?.kyber?.revocationKey,
+          encryptVersion: UserKeysEncryptVersions.Kyber,
+        },
+      );
     }
 
     const user = {
@@ -1296,17 +1318,17 @@ export class UserUseCases {
       uuid: userData.uuid,
       credit: userData.credit,
       createdAt: userData.createdAt,
-      privateKey: keys ? keys.privateKey : null,
-      publicKey: keys ? keys.publicKey : null,
-      revocateKey: keys ? keys.revocationKey : null,
+      privateKey: eccKeys ? eccKeys.privateKey : null,
+      publicKey: eccKeys ? eccKeys.publicKey : null,
+      revocateKey: eccKeys ? eccKeys.revocationKey : null,
       keys: {
         ecc: {
-          privateKey: keys ? keys.privateKey : null,
-          publicKey: keys ? keys.publicKey : null,
+          privateKey: eccKeys ? eccKeys.privateKey : null,
+          publicKey: eccKeys ? eccKeys.publicKey : null,
         },
         kyber: {
-          privateKey: null,
-          publicKey: null,
+          privateKey: kyberKeys ? kyberKeys.privateKey : null,
+          publicKey: kyberKeys ? kyberKeys.publicKey : null,
         },
       },
       bucket: userBucket,

@@ -1,3 +1,8 @@
+export enum UserKeysEncryptVersions {
+  Ecc = 'ecc',
+  Kyber = 'kyber',
+}
+
 export interface Keys {
   publicKey: string;
   privateKey: string;
@@ -7,7 +12,7 @@ export interface Keys {
 export interface KeyServerAttributes extends Keys {
   id: number;
   userId: number;
-  encryptVersion: 'ecc' | 'kyber';
+  encryptVersion: UserKeysEncryptVersions;
 }
 
 export class KeyServer implements KeyServerAttributes {
@@ -16,7 +21,7 @@ export class KeyServer implements KeyServerAttributes {
   publicKey: string;
   privateKey: string;
   revocationKey: string;
-  encryptVersion: 'ecc' | 'kyber';
+  encryptVersion: UserKeysEncryptVersions;
 
   constructor({
     id,
