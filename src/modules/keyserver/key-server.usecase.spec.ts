@@ -214,14 +214,11 @@ describe('Key Server Use Cases', () => {
       const userKeys = await service.getPublicKeys(userId);
 
       expect(userKeys).toEqual({
-        publicKey: eccKey.publicKey,
-        keys: {
-          kyber: {
-            publicKey: kyberKey.publicKey,
-          },
-          ecc: {
-            publicKey: eccKey.publicKey,
-          },
+        kyber: {
+          publicKey: kyberKey.publicKey,
+        },
+        ecc: {
+          publicKey: eccKey.publicKey,
         },
       });
     });
@@ -244,26 +241,20 @@ describe('Key Server Use Cases', () => {
       const noKeys = await service.getPublicKeys(userId);
 
       expect(userKeys).toEqual({
-        publicKey: eccKey.publicKey,
-        keys: {
-          kyber: {
-            publicKey: null,
-          },
-          ecc: {
-            publicKey: eccKey.publicKey,
-          },
+        kyber: {
+          publicKey: null,
+        },
+        ecc: {
+          publicKey: eccKey.publicKey,
         },
       });
 
       expect(noKeys).toEqual({
-        publicKey: null,
-        keys: {
-          kyber: {
-            publicKey: null,
-          },
-          ecc: {
-            publicKey: null,
-          },
+        kyber: {
+          publicKey: null,
+        },
+        ecc: {
+          publicKey: null,
         },
       });
     });

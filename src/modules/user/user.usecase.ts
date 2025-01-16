@@ -982,16 +982,13 @@ export class UserUseCases {
 
     if (updatePasswordDto.keys) {
       for (const key of Object.keys(updatePasswordDto.keys)) {
-        const { privateKey, publicKey, revocationKey } =
-          updatePasswordDto.keys[key];
+        const { privateKey } = updatePasswordDto.keys[key];
 
         await this.keyServerUseCases.updateByUserAndEncryptVersion(
           user.id,
           key as KeyServerAttributes['encryptVersion'],
           {
             privateKey,
-            publicKey,
-            revocationKey,
           },
         );
       }
@@ -1004,7 +1001,6 @@ export class UserUseCases {
         encryptVersion,
         {
           privateKey: privateKey,
-          encryptVersion: encryptVersion,
         },
       );
     }
@@ -1223,7 +1219,12 @@ export class UserUseCases {
     return this.userRepository.getNotificationTokens(user.uuid);
   }
 
-  async loginAccess(loginAccessDto: LoginAccessDto) {
+  async loginAccess(
+    loginAccessDto: Omit<
+      LoginAccessDto,
+      'privateKey' | 'publicKey' | 'revocateKey' | 'revocationKey'
+    >,
+  ) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
     const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
@@ -1275,35 +1276,30 @@ export class UserUseCases {
     );
     const userBucket = rootFolder.bucket;
 
-    const {
-      publicKey,
-      privateKey,
-      revocateKey: revocationKey,
-    } = loginAccessDto;
+    const { keys } = loginAccessDto;
 
-    let { kyber, ecc } =
-      (await this.keyServerUseCases.findUserKeys(userData.id)) || {};
+    const userKeys = await this.keyServerUseCases.findUserKeys(userData.id);
 
-    if (!ecc && (publicKey || loginAccessDto?.keys?.ecc)) {
-      ecc = await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
-        publicKey: loginAccessDto?.keys?.ecc?.publicKey || publicKey,
-        privateKey: loginAccessDto?.keys?.ecc?.privateKey || privateKey,
-        revocationKey:
-          loginAccessDto?.keys?.ecc?.revocationKey || revocationKey,
-        encryptVersion: UserKeysEncryptVersions.Ecc,
-      });
-    }
+    const shouldCreateEccKeys = !userKeys.ecc && keys?.ecc;
 
-    if (!kyber && loginAccessDto?.keys?.kyber) {
-      kyber = await this.keyServerUseCases.findOrCreateKeysForUser(
-        userData.id,
-        {
-          publicKey: loginAccessDto?.keys?.kyber?.publicKey,
-          privateKey: loginAccessDto?.keys?.kyber?.privateKey,
+    const ecc = shouldCreateEccKeys
+      ? await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+          publicKey: keys.ecc.publicKey,
+          privateKey: keys.ecc.privateKey,
+          revocationKey: keys.ecc.revocationKey,
+          encryptVersion: UserKeysEncryptVersions.Ecc,
+        })
+      : userKeys.ecc;
+
+    const shouldCreateKyberKeys = !userKeys.kyber && keys?.kyber;
+
+    const kyber = shouldCreateKyberKeys
+      ? await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+          publicKey: keys.kyber.publicKey,
+          privateKey: keys.kyber.privateKey,
           encryptVersion: UserKeysEncryptVersions.Kyber,
-        },
-      );
-    }
+        })
+      : userKeys.kyber;
 
     const user = {
       email: userData.email,
@@ -1323,6 +1319,7 @@ export class UserUseCases {
         ecc: {
           privateKey: ecc ? ecc.privateKey : null,
           publicKey: ecc ? ecc.publicKey : null,
+          revocationKey: ecc ? ecc.revocationKey : null,
         },
         kyber: {
           privateKey: kyber ? kyber.privateKey : null,

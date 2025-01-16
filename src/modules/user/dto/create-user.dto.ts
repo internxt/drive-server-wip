@@ -8,7 +8,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { UserAttributes } from '../user.attributes';
 import { Type } from 'class-transformer';
-import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/key-pair.dto';
+import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/keys.dto';
 
 class KeysDto {
   @Type(() => EccKeysDto)
@@ -74,7 +74,6 @@ export class CreateUserDto {
   })
   salt: string;
 
-  @ValidateIf((dto) => !dto.keys)
   @IsOptional()
   @IsString()
   @ApiProperty({
@@ -82,9 +81,8 @@ export class CreateUserDto {
     description: '',
     deprecated: true,
   })
-  privateKey: string;
+  privateKey?: string;
 
-  @ValidateIf((dto) => !dto.keys)
   @IsOptional()
   @IsString()
   @ApiProperty({
@@ -92,9 +90,8 @@ export class CreateUserDto {
     description: '',
     deprecated: true,
   })
-  publicKey: string;
+  publicKey?: string;
 
-  @ValidateIf((dto) => !dto.keys)
   @IsOptional()
   @IsString()
   @ApiProperty({
@@ -102,29 +99,22 @@ export class CreateUserDto {
     description: '',
     deprecated: true,
   })
-  revocationKey: string;
+  revocationKey?: string;
 
   @IsOptional()
   @ApiProperty({
     example: '',
     description: '',
   })
-  referrer: UserAttributes['referrer'];
+  referrer?: UserAttributes['referrer'];
 
   @IsOptional()
   @ApiProperty({
     example: '',
     description: '',
   })
-  registerCompleted: UserAttributes['registerCompleted'];
+  registerCompleted?: UserAttributes['registerCompleted'];
 
-  @ValidateIf(
-    (dto) =>
-      !dto.privateKey &&
-      !dto.encryptVersion &&
-      !dto.publicKey &&
-      !dto.revocationKey,
-  )
   @IsOptional()
   @ValidateNested()
   @Type(() => KeysDto)

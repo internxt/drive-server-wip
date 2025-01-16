@@ -1,13 +1,15 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
-  IsObject,
   IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { KeysDto } from '../../keyserver/dto/keys.dto';
+
+class OptionalKeyGroup extends PartialType(KeysDto) {}
 
 export class LoginAccessDto {
   @ApiProperty({
@@ -36,7 +38,7 @@ export class LoginAccessDto {
 
   @ApiProperty({
     example: 'public_key',
-    description: 'Public Key',
+    description: 'Public Key (deprecated in favor of keys object)',
     deprecated: true,
   })
   @IsOptional()
@@ -45,7 +47,7 @@ export class LoginAccessDto {
 
   @ApiProperty({
     example: 'private_key',
-    description: 'Private Key',
+    description: 'Private Key (deprecated in favor of keys object)',
     deprecated: true,
   })
   @IsOptional()
@@ -54,7 +56,7 @@ export class LoginAccessDto {
 
   @ApiProperty({
     example: 'revocate_key',
-    description: 'Revocate Key (deprecated field)',
+    description: 'Revocate Key (deprecated in favor of keys object)',
     deprecated: true,
   })
   @IsOptional()
@@ -63,30 +65,19 @@ export class LoginAccessDto {
 
   @ApiProperty({
     example: 'revocation_key',
-    description: 'Revocation Key',
+    description: 'Revocation Key (deprecated in favor of keys object)',
     deprecated: true,
   })
   @IsOptional()
   @IsString()
-  @Transform(({ value, obj }) => value ?? obj.revocateKey)
   revocationKey?: string;
 
-  @IsObject()
+  @Type(() => OptionalKeyGroup)
   @IsOptional()
   @ValidateNested()
   @ApiProperty({
     example: 'newKeys',
     description: 'keys',
   })
-  keys?: {
-    ecc?: {
-      publicKey: string;
-      privateKey: string;
-      revocationKey: string;
-    };
-    kyber?: {
-      publicKey: string;
-      privateKey: string;
-    };
-  };
+  keys?: OptionalKeyGroup;
 }

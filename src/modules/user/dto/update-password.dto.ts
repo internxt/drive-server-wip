@@ -7,9 +7,9 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { KeyPairDto } from '../../keyserver/dto/key-pair.dto';
+import { BaseKeysDto } from '../../keyserver/dto/keys.dto';
 
-class PrivateKeysDto extends PickType(KeyPairDto, ['privateKey']) {}
+class PrivateKeysDto extends PickType(BaseKeysDto, ['privateKey']) {}
 
 class KeysDto {
   @ValidateNested()
