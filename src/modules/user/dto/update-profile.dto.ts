@@ -36,7 +36,7 @@ export class UpdateProfileDto {
     example: 'Lastname',
     description: 'Last name of the new user',
   })
-  lastname?: UserAttributes['lastname'] | '';
+  lastname?: UserAttributes['lastname'];
 
   @ValidateIf((o) => o.lastname === null)
   @IsNotEmpty({ message: 'Lastname should not be null if provided.' })
