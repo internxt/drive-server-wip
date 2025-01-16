@@ -880,7 +880,10 @@ export class UserUseCases {
       mnemonic: string;
       password: string;
       salt: string;
-      privateKey?: string;
+      privateKeys?: {
+        kyber?: string;
+        ecc?: string;
+      };
     },
     withReset = false,
   ): Promise<void> {
@@ -1278,30 +1281,25 @@ export class UserUseCases {
       revocateKey: revocationKey,
     } = loginAccessDto;
 
-    let { kyberKeys, eccKeys } = await this.keyServerUseCases.findUserKeys(
-      userData.id,
-    );
+    let { kyber, ecc } =
+      (await this.keyServerUseCases.findUserKeys(userData.id)) || {};
 
-    if (!eccKeys && (publicKey || loginAccessDto?.keys?.ecc)) {
-      eccKeys = await this.keyServerUseCases.findOrCreateKeysForUser(
-        userData.id,
-        {
-          publicKey: loginAccessDto?.keys?.ecc?.publicKey || publicKey,
-          privateKey: loginAccessDto?.keys?.ecc?.privateKey || privateKey,
-          revocationKey:
-            loginAccessDto?.keys?.ecc?.revocationKey || revocationKey,
-          encryptVersion: UserKeysEncryptVersions.Ecc,
-        },
-      );
+    if (!ecc && (publicKey || loginAccessDto?.keys?.ecc)) {
+      ecc = await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+        publicKey: loginAccessDto?.keys?.ecc?.publicKey || publicKey,
+        privateKey: loginAccessDto?.keys?.ecc?.privateKey || privateKey,
+        revocationKey:
+          loginAccessDto?.keys?.ecc?.revocationKey || revocationKey,
+        encryptVersion: UserKeysEncryptVersions.Ecc,
+      });
     }
 
-    if (!kyberKeys && loginAccessDto?.keys?.kyber) {
-      kyberKeys = await this.keyServerUseCases.findOrCreateKeysForUser(
+    if (!kyber && loginAccessDto?.keys?.kyber) {
+      kyber = await this.keyServerUseCases.findOrCreateKeysForUser(
         userData.id,
         {
           publicKey: loginAccessDto?.keys?.kyber?.publicKey,
           privateKey: loginAccessDto?.keys?.kyber?.privateKey,
-          revocationKey: loginAccessDto?.keys?.kyber?.revocationKey,
           encryptVersion: UserKeysEncryptVersions.Kyber,
         },
       );
@@ -1318,17 +1316,17 @@ export class UserUseCases {
       uuid: userData.uuid,
       credit: userData.credit,
       createdAt: userData.createdAt,
-      privateKey: eccKeys ? eccKeys.privateKey : null,
-      publicKey: eccKeys ? eccKeys.publicKey : null,
-      revocateKey: eccKeys ? eccKeys.revocationKey : null,
+      privateKey: ecc ? ecc.privateKey : null,
+      publicKey: ecc ? ecc.publicKey : null,
+      revocationKey: ecc ? ecc.revocationKey : null,
       keys: {
         ecc: {
-          privateKey: eccKeys ? eccKeys.privateKey : null,
-          publicKey: eccKeys ? eccKeys.publicKey : null,
+          privateKey: ecc ? ecc.privateKey : null,
+          publicKey: ecc ? ecc.publicKey : null,
         },
         kyber: {
-          privateKey: kyberKeys ? kyberKeys.privateKey : null,
-          publicKey: kyberKeys ? kyberKeys.publicKey : null,
+          privateKey: kyber ? kyber.privateKey : null,
+          publicKey: kyber ? kyber.publicKey : null,
         },
       },
       bucket: userBucket,

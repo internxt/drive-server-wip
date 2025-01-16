@@ -76,16 +76,14 @@ export class AuthController {
         user.secret_2FA && user.secret_2FA.length > 0,
       );
 
-      const { kyberKeys, eccKeys } = await this.keyServerUseCases.findUserKeys(
-        user.id,
-      );
+      const { kyber, ecc } = await this.keyServerUseCases.findUserKeys(user.id);
 
       return {
-        hasKeys: !!eccKeys,
+        hasKeys: !!ecc,
         sKey: encryptedSalt,
         tfa: required2FA,
-        hasKyberKeys: !!kyberKeys,
-        hasEccKeys: !!eccKeys,
+        hasKyberKeys: !!kyber,
+        hasEccKeys: !!ecc,
       };
     } catch (err) {
       if (!(err instanceof HttpException)) {

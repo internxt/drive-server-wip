@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
@@ -36,6 +37,7 @@ export class LoginAccessDto {
   @ApiProperty({
     example: 'public_key',
     description: 'Public Key',
+    deprecated: true,
   })
   @IsOptional()
   @IsString()
@@ -44,6 +46,7 @@ export class LoginAccessDto {
   @ApiProperty({
     example: 'private_key',
     description: 'Private Key',
+    deprecated: true,
   })
   @IsOptional()
   @IsString()
@@ -51,11 +54,22 @@ export class LoginAccessDto {
 
   @ApiProperty({
     example: 'revocate_key',
-    description: 'Revocate Key',
+    description: 'Revocate Key (deprecated field)',
+    deprecated: true,
   })
   @IsOptional()
   @IsString()
   revocateKey?: string;
+
+  @ApiProperty({
+    example: 'revocation_key',
+    description: 'Revocation Key',
+    deprecated: true,
+  })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value, obj }) => value ?? obj.revocateKey)
+  revocationKey?: string;
 
   @IsObject()
   @IsOptional()
@@ -64,16 +78,15 @@ export class LoginAccessDto {
     example: 'newKeys',
     description: 'keys',
   })
-  keys: {
-    ecc: {
+  keys?: {
+    ecc?: {
       publicKey: string;
       privateKey: string;
       revocationKey: string;
     };
-    kyber: {
+    kyber?: {
       publicKey: string;
       privateKey: string;
-      revocationKey: string;
     };
   };
 }

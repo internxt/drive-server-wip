@@ -8,38 +8,60 @@ import {
 } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
 
+export class InvalidKeyServerException extends Error {
+  constructor(public validationMessage: string) {
+    super(validationMessage);
+    Object.setPrototypeOf(this, InvalidKeyServerException.prototype);
+  }
+}
+
+type PartialKeys = Partial<Omit<KeyServerAttributes, 'id' | 'userId'>>;
+
 @Injectable()
 export class KeyServerUseCases {
   constructor(private repository: SequelizeKeyServerRepository) {}
 
-  async addKeysToUser(userId: UserAttributes['id'], keys: Keys): Promise<Keys> {
-    if (!keys.privateKey || !keys.publicKey || !keys.revocationKey) {
-      return;
-    }
+  async addKeysToUser(
+    userId: UserAttributes['id'],
+    keys: {
+      kyber?: Omit<PartialKeys, 'encryptVersion'>;
+      ecc?: Omit<PartialKeys, 'encryptVersion'>;
+    },
+  ): Promise<{ kyber: KeyServer | null; ecc: KeyServer | null }> {
+    const processKey = async (
+      encryptVersion: UserKeysEncryptVersions,
+      keyData?: Omit<PartialKeys, 'encryptVersion'>,
+    ): Promise<KeyServer | undefined> => {
+      if (!keyData) return null;
 
-    const [{ publicKey, privateKey, revocationKey }] =
-      await this.repository.findUserKeysOrCreate(userId, {
-        userId,
-        publicKey: keys.publicKey,
-        privateKey: keys.privateKey,
-        revocationKey: keys.revocationKey,
-        encryptVersion: UserKeysEncryptVersions.Ecc,
-      });
+      try {
+        return await this.findOrCreateKeysForUser(userId, {
+          publicKey: keyData.publicKey,
+          privateKey: keyData.privateKey,
+          revocationKey: keyData.revocationKey,
+          encryptVersion,
+        });
+      } catch {
+        return null;
+      }
+    };
 
-    return { publicKey, privateKey, revocationKey };
+    const [kyberKey, eccKey] = await Promise.all([
+      processKey(UserKeysEncryptVersions.Kyber, keys.kyber),
+      processKey(UserKeysEncryptVersions.Ecc, keys.ecc),
+    ]);
+
+    return { kyber: kyberKey, ecc: eccKey };
   }
 
   async findOrCreateKeysForUser(
     userId: UserAttributes['id'],
-    keys: Partial<Omit<KeyServerAttributes, 'id' | 'userId'>>,
+    keys: PartialKeys,
   ): Promise<KeyServer> {
-    if (
-      !keys.privateKey ||
-      !keys.publicKey ||
-      !keys.revocationKey ||
-      !keys.encryptVersion
-    ) {
-      return;
+    try {
+      KeyServer.validate(keys.encryptVersion, keys);
+    } catch (error) {
+      throw new InvalidKeyServerException(error.message);
     }
 
     const [createdKeys] = await this.repository.findUserKeysOrCreate(userId, {
@@ -97,13 +119,13 @@ export class KeyServerUseCases {
 
   async findUserKeys(
     userId: UserAttributes['id'],
-  ): Promise<{ kyberKeys: KeyServerAttributes; eccKeys: KeyServerAttributes }> {
+  ): Promise<{ kyber: KeyServer; ecc: KeyServer }> {
     const keys = await this.repository.findUserKeys(userId);
 
-    const kyberKeys = keys.find((key) => key.encryptVersion === 'kyber');
-    const eccKeys = keys.find((key) => key.encryptVersion === 'ecc');
+    const kyber = keys.find((key) => key.encryptVersion === 'kyber');
+    const ecc = keys.find((key) => key.encryptVersion === 'ecc');
 
-    return { kyberKeys, eccKeys };
+    return { kyber, ecc };
   }
 
   private findKeyByEncryptionMethod = (

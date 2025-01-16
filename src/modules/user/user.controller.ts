@@ -114,16 +114,24 @@ export class UserController {
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
+
       const keys = await this.keyServerUseCases.addKeysToUser(
         response.user.id,
-        createUserDto,
+        {
+          kyber: createUserDto.keys?.kyber,
+          ecc: createUserDto.keys?.ecc || {
+            publicKey: createUserDto.publicKey,
+            privateKey: createUserDto.privateKey,
+            revocationKey: createUserDto.revocationKey,
+          },
+        },
       );
 
-      if (req.headers['internxt-client'] !== 'drive-mobile') {
+      if (keys.ecc) {
         await this.userUseCases.replacePreCreatedUser(
           response.user.email,
           response.user.uuid,
-          keys.publicKey,
+          keys.ecc.publicKey,
         );
       }
 
@@ -154,7 +162,10 @@ export class UserController {
           ...(isDriveWeb
             ? { rootFolderId: response.user.rootFolderUuid }
             : null),
-          ...keys,
+          publicKey: keys?.ecc?.publicKey,
+          privateKey: keys?.ecc?.privateKey,
+          revocationKey: keys?.ecc?.revocationKey,
+          keys: { ...keys },
         },
         token: response.token,
         uuid: response.uuid,
@@ -275,14 +286,23 @@ export class UserController {
 
       const keys = await this.keyServerUseCases.addKeysToUser(
         userCreated.user.id,
-        createUserDto,
+        {
+          kyber: createUserDto.keys?.kyber,
+          ecc: createUserDto.keys?.ecc || {
+            publicKey: createUserDto.publicKey,
+            privateKey: createUserDto.privateKey,
+            revocationKey: createUserDto.revocationKey,
+          },
+        },
       );
 
-      await this.userUseCases.replacePreCreatedUser(
-        userCreated.user.email,
-        userCreated.user.uuid,
-        keys.publicKey,
-      );
+      if (keys.ecc) {
+        await this.userUseCases.replacePreCreatedUser(
+          userCreated.user.email,
+          userCreated.user.uuid,
+          keys.ecc.publicKey,
+        );
+      }
 
       this.notificationsService.add(
         new SignUpSuccessEvent(userCreated.user as unknown as User, req),
@@ -321,6 +341,10 @@ export class UserController {
           ...userCreated.user,
           root_folder_id: userCreated.user.rootFolderId,
           ...keys,
+          publicKey: keys?.ecc?.publicKey,
+          privateKey: keys?.ecc?.privateKey,
+          revocationKey: keys?.ecc?.revocationKey,
+          keys: { ...keys },
         },
         token: userCreated.token,
         uuid: userCreated.uuid,
@@ -433,7 +457,6 @@ export class UserController {
   @ApiBearerAuth()
   @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
   async updatePassword(
-    @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
     @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
@@ -459,7 +482,7 @@ export class UserController {
         throw new UnauthorizedException();
       }
 
-      await this.userUseCases.updatePassword(req.user, {
+      await this.userUseCases.updatePassword(user, {
         currentPassword,
         newPassword,
         newSalt,
@@ -681,13 +704,16 @@ export class UserController {
           true,
         );
       } else {
-        const { privateKey } = body as RecoverAccountDto;
+        const { privateKey, privateKeys } = body as RecoverAccountDto;
 
         await this.userUseCases.updateCredentials(userUuid, {
           mnemonic,
           password,
           salt,
-          privateKey,
+          privateKeys: {
+            ecc: privateKey || privateKeys?.ecc,
+            kyber: privateKeys?.kyber,
+          },
         });
       }
     } catch (err) {

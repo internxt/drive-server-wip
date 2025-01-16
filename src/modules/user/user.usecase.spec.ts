@@ -44,6 +44,7 @@ import {
   newNotificationToken,
   newFile,
   newFolder,
+  newKeyServer,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -55,12 +56,11 @@ import {
 } from './dto/register-notification-token.dto';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { v4 } from 'uuid';
-import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -79,7 +79,6 @@ describe('User use cases', () => {
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let userRepository: SequelizeUserRepository;
-  let keyServerRepository: SequelizeKeyServerRepository;
   let bridgeService: BridgeService;
   let sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository;
   let cryptoService: CryptoService;
@@ -89,6 +88,8 @@ describe('User use cases', () => {
   let workspaceRepository: SequelizeWorkspaceRepository;
   let mailerService: MailerService;
   let avatarService: AvatarService;
+  let keyServerUseCases: KeyServerUseCases;
+
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
@@ -132,9 +133,6 @@ describe('User use cases', () => {
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
-    keyServerRepository = moduleRef.get<SequelizeKeyServerRepository>(
-      SequelizeKeyServerRepository,
-    );
     bridgeService = moduleRef.get<BridgeService>(BridgeService);
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
@@ -155,6 +153,7 @@ describe('User use cases', () => {
     workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
       SequelizeWorkspaceRepository,
     );
+    keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
     mailerService = moduleRef.get<MailerService>(MailerService);
     avatarService = moduleRef.get<AvatarService>(AvatarService);
     jest.clearAllMocks();
@@ -824,11 +823,7 @@ describe('User use cases', () => {
   });
 
   describe('loginAccess', () => {
-    const keys = {
-      publicKey: 'publicKey',
-      privateKey: 'privateKey',
-      revocateKey: 'revocateKey',
-    };
+    const keys = newKeyServer();
 
     it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
       const loginAccessDto: LoginAccessDto = {
@@ -854,7 +849,7 @@ describe('User use cases', () => {
         email: 'nonexistent@example.com',
         password: v4(),
         tfa: '',
-        ...keys,
+        ...keys.toJSON(),
       };
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
 
@@ -868,7 +863,7 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: v4(),
         tfa: '',
-        ...keys,
+        ...keys.toJSON(),
       };
       const user = newUser({
         attributes: {
@@ -890,7 +885,7 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: wrongPassword,
         tfa: '',
-        ...keys,
+        ...keys.toJSON(),
       };
       const user = newUser({
         attributes: {
@@ -909,12 +904,6 @@ describe('User use cases', () => {
 
     it('When login is successful, then it should return user and tokens', async () => {
       const hashedPassword = v4();
-      const loginAccessDto = {
-        email: 'test@example.com',
-        password: v4(),
-        tfa: '',
-        ...keys,
-      };
       const user = newUser({
         attributes: {
           email: 'test@example.com',
@@ -923,11 +912,13 @@ describe('User use cases', () => {
           secret_2FA: null,
         },
       });
-      const keyServer = {
-        ...keys,
-        revocationKey: keys.revocateKey,
-        userId: user.id,
-      } as unknown as KeyServerModel;
+      const keyServer = newKeyServer({ userId: user.id, ...keys.toJSON() });
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: v4(),
+        tfa: '',
+        ...keyServer.toJSON(),
+      };
 
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
@@ -938,8 +929,12 @@ describe('User use cases', () => {
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
-      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
-      jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(keyServer);
 
       const result = await userUseCases.loginAccess(loginAccessDto);
 
@@ -956,7 +951,7 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: v4(),
         tfa: 'wrongTfa',
-        ...keys,
+        ...keys.toJSON(),
       };
       const user = newUser({
         attributes: {
@@ -981,8 +976,9 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: v4(),
         tfa: 'okTfa',
-        ...keys,
+        ...keys.toJSON(),
       };
+
       const user = newUser({
         attributes: {
           email: 'test@example.com',
@@ -991,11 +987,8 @@ describe('User use cases', () => {
           secret_2FA: 'secret',
         },
       });
-      const keyServer = {
-        ...keys,
-        revocationKey: keys.revocateKey,
-        userId: user.id,
-      } as unknown as KeyServerModel;
+      const keyServer = newKeyServer({ userId: user.id, ...keys.toJSON() });
+
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
@@ -1008,9 +1001,12 @@ describe('User use cases', () => {
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
-      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
-      jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
-
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(keyServer);
       const result = await userUseCases.loginAccess(loginAccessDto);
 
       expect(result).toHaveProperty('user');
