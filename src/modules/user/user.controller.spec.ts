@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
@@ -379,6 +380,24 @@ describe('User Controller', () => {
         InternalServerErrorException,
       );
     });
+
+    it('When upsertAvatar throws an error, then it should log the error and rethrow it', async () => {
+      avatar.key = newAvatarKey;
+      const errorMessage = 'Failed to upload avatar';
+      jest
+        .spyOn(userUseCases, 'upsertAvatar')
+        .mockRejectedValue(new Error(errorMessage));
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await expect(userController.uploadAvatar(avatar, user)).rejects.toThrow(
+        Error,
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        `[USER/UPLOAD_AVATAR] Error uploading avatar for user: ${user.id}. Error: ${errorMessage}`,
+      );
+
+      loggerSpy.mockRestore();
+    });
   });
 
   describe('DELETE /avatar', () => {
@@ -388,6 +407,21 @@ describe('User Controller', () => {
 
       await userController.deleteAvatar(user);
       expect(userUseCases.deleteAvatar).toHaveBeenCalledWith(user);
+    });
+
+    it('When deleteAvatar throws an error, then it should log the error and rethrow it', async () => {
+      const errorMessage = 'Failed to delete avatar';
+      jest
+        .spyOn(userUseCases, 'deleteAvatar')
+        .mockRejectedValue(new Error(errorMessage));
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await expect(userController.deleteAvatar(user)).rejects.toThrow(Error);
+      expect(loggerSpy).toHaveBeenCalledWith(
+        `[USER/DELETE_AVATAR] Error deleting the avatar for the user: ${user.id} has failed. Error: ${errorMessage}`,
+      );
+
+      loggerSpy.mockRestore();
     });
   });
 });
