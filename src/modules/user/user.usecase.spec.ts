@@ -1275,24 +1275,24 @@ describe('User use cases', () => {
       expect(result).toMatchObject({ avatar: newAvatarURL });
     });
 
-    it('When deleting the old avatar fails then throw InternalServerErrorException', async () => {
+    it('When deleting the old avatar fails then throw', async () => {
       jest
         .spyOn(avatarService, 'deleteAvatar')
         .mockRejectedValue(new Error('Delete failed'));
 
       await expect(
         userUseCases.upsertAvatar(user, newAvatarKey),
-      ).rejects.toThrow(InternalServerErrorException);
+      ).rejects.toThrow();
     });
 
-    it('When updating the user avatar fails then throw InternalServerErrorException', async () => {
+    it('When updating the user avatar fails then throw', async () => {
       jest
         .spyOn(userRepository, 'updateById')
         .mockRejectedValue(new Error('Update failed'));
 
       await expect(
         userUseCases.upsertAvatar(user, newAvatarKey),
-      ).rejects.toThrow(InternalServerErrorException);
+      ).rejects.toThrow();
     });
 
     it('When user has no avatar already, then previous avatar is not deleted', async () => {
@@ -1338,9 +1338,7 @@ describe('User use cases', () => {
         .spyOn(avatarService, 'deleteAvatar')
         .mockRejectedValue(new Error('Delete failed'));
 
-      await expect(userUseCases.deleteAvatar(user)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(userUseCases.deleteAvatar(user)).rejects.toThrow();
       expect(userRepository.updateById).not.toHaveBeenCalled();
     });
   });

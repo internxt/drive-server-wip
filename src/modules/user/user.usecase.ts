@@ -1384,34 +1384,21 @@ export class UserUseCases {
     avatarKey: string,
   ): Promise<Error | { avatar: string }> {
     if (user.avatar) {
-      try {
-        await this.avatarService.deleteAvatar(user.avatar);
-      } catch (err) {
-        throw new InternalServerErrorException('Failed to delete old avatar');
-      }
+      await this.avatarService.deleteAvatar(user.avatar);
     }
-
-    try {
-      await this.userRepository.updateById(user.id, {
-        avatar: avatarKey,
-      });
-      const avatarUrl = await this.getAvatarUrl(avatarKey);
-      return { avatar: avatarUrl };
-    } catch (err) {
-      throw new InternalServerErrorException('Failed to add new avatar');
-    }
+    await this.userRepository.updateById(user.id, {
+      avatar: avatarKey,
+    });
+    const avatarUrl = await this.getAvatarUrl(avatarKey);
+    return { avatar: avatarUrl };
   }
 
   async deleteAvatar(user: User): Promise<Error | void> {
     if (user.avatar) {
-      try {
-        await this.avatarService.deleteAvatar(user.avatar);
-        await this.userRepository.updateById(user.id, {
-          avatar: null,
-        });
-      } catch (err) {
-        throw new InternalServerErrorException('Failed to delete avatar');
-      }
+      await this.avatarService.deleteAvatar(user.avatar);
+      await this.userRepository.updateById(user.id, {
+        avatar: null,
+      });
     }
   }
 
