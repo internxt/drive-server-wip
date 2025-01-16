@@ -25,6 +25,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import {
   SharedWithType,
+  Sharing,
   SharingActionName,
   SharingItemType,
   SharingType,
@@ -882,6 +883,62 @@ describe('Sharing Use Cases', () => {
       await expect(
         sharingService.getPublicSharingFolderSize(''),
       ).rejects.toThrow(SharingNotFoundException);
+    });
+  });
+
+  describe('findAllSharingsByItemIds', () => {
+    it('When called with valid itemIds then calls sharingRepository with correct parameters', async () => {
+      const itemIds = [v4(), v4()];
+      const where = { sharedWithType: SharedWithType.WorkspaceTeam };
+      const expectedSharings = [
+        { itemId: itemIds[0], sharedWithType: SharedWithType.WorkspaceTeam },
+      ] as any;
+
+      sharingRepository.findAllSharingsByItemIds.mockResolvedValue(
+        expectedSharings,
+      );
+
+      const result = await sharingService.findAllSharingsByItemIds(
+        itemIds,
+        where,
+      );
+
+      expect(sharingRepository.findAllSharingsByItemIds).toHaveBeenCalledWith(
+        itemIds,
+        where,
+      );
+      expect(result).toEqual(expectedSharings);
+    });
+
+    it('When called with empty itemIds then calls sharingRepository with empty array', async () => {
+      const itemIds: Sharing['itemId'][] = [];
+      const where = { sharedWithType: SharedWithType.WorkspaceTeam };
+
+      sharingRepository.findAllSharingsByItemIds.mockResolvedValue([]);
+
+      const result = await sharingService.findAllSharingsByItemIds(
+        itemIds,
+        where,
+      );
+
+      expect(sharingRepository.findAllSharingsByItemIds).toHaveBeenCalledWith(
+        itemIds,
+        where,
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('When sharingRepository throws an error then it propagates the error', async () => {
+      const itemIds = [v4()];
+      const where = { sharedWithType: SharedWithType.WorkspaceTeam };
+      const errorMessage = 'Database error';
+      sharingRepository.findAllSharingsByItemIds.mockRejectedValue(
+        new Error(errorMessage),
+      );
+
+      await expect(
+        sharingService.findAllSharingsByItemIds(itemIds, where),
+      ).rejects.toThrow(errorMessage);
     });
   });
 });

@@ -1,5 +1,6 @@
 import { Sharing } from '../sharing/sharing.domain';
 import { User } from '../user/user.domain';
+import { WorkspaceItemUser } from '../workspaces/domains/workspace-item-user.domain';
 import { FolderDto } from './dto/folder.dto';
 import { FolderAttributes } from './folder.attributes';
 
@@ -28,6 +29,7 @@ export class Folder implements FolderAttributes {
   bucket: string;
   userId: number;
   user?: User;
+  workspaceItemUser?: WorkspaceItemUser;
   uuid: string;
   plainName: string;
   encryptVersion: FolderAttributes['encryptVersion'];
@@ -52,6 +54,7 @@ export class Folder implements FolderAttributes {
     bucket,
     userId,
     user,
+    workspaceItemUser,
     plainName,
     encryptVersion,
     deleted,
@@ -84,6 +87,7 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.sharings = sharings;
+    this.workspaceItemUser = workspaceItemUser;
     this.creationTime = creationTime;
     this.modificationTime = modificationTime;
   }
