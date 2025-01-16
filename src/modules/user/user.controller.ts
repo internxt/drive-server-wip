@@ -855,6 +855,11 @@ export class UserController {
     @UserDecorator() user: User,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
+    if (!updateProfileDto.name && updateProfileDto.lastname == undefined) {
+      throw new BadRequestException(
+        'At least one of name or lastname must be provided.',
+      );
+    }
     return this.userUseCases.updateProfile(user, updateProfileDto);
   }
 
@@ -875,7 +880,15 @@ export class UserController {
     if (!avatar.key) {
       throw new InternalServerErrorException('Avatar could not be uploaded');
     }
-    return this.userUseCases.upsertAvatar(user, avatar.key);
+
+    try {
+      return await this.userUseCases.upsertAvatar(user, avatar.key);
+    } catch (err) {
+      Logger.error(
+        `[USER/UPLOAD_AVATAR] Error uploading avatar for user: ${user.id}. Error: ${err.message}`,
+      );
+      throw err;
+    }
   }
 
   @Delete('/avatar')
@@ -885,6 +898,15 @@ export class UserController {
     description: 'Avatar deleted from the workspace',
   })
   async deleteAvatar(@UserDecorator() user: User) {
-    return this.userUseCases.deleteAvatar(user);
+    try {
+      return await this.userUseCases.deleteAvatar(user);
+    } catch (err) {
+      Logger.error(
+        `[USER/DELETE_AVATAR] Error deleting the avatar for the user: ${
+          user.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
   }
 }

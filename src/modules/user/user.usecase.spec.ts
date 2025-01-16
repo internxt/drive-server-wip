@@ -1238,15 +1238,12 @@ describe('User use cases', () => {
   describe('upsertAvatar', () => {
     const newAvatarKey = v4();
     const newAvatarURL = `http://localhost:9000/${newAvatarKey}`;
-    it('When avatarKey is not provided then throw BadRequestException', async () => {
-      await expect(userUseCases.upsertAvatar(user, '')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
 
     it('When user has an existing avatar then delete the old avatar', async () => {
       const user = newUser({ attributes: { avatar: v4() } });
 
+      jest.spyOn(avatarService, 'deleteAvatar').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'updateById').mockResolvedValue(undefined);
       jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValue(newAvatarURL);
 
       const result = await userUseCases.upsertAvatar(user, newAvatarKey);

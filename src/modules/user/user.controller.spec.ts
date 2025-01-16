@@ -265,12 +265,73 @@ describe('User Controller', () => {
   });
 
   describe('PATCH /profile', () => {
-    it('When updateProfile is called then it should update the user profile', async () => {
-      const user = newUser();
-      const payload: UpdateProfileDto = { name: 'John', lastname: 'Doe' };
+    const user = newUser();
+    it('When name is provided and valid, then it should call updateProfile with the correct parameters', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: 'Internxt',
+      };
 
-      await userController.updateProfile(user, payload);
-      expect(userUseCases.updateProfile).toHaveBeenCalledWith(user, payload);
+      await userController.updateProfile(user, updateProfileDto);
+
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(
+        user,
+        updateProfileDto,
+      );
+    });
+
+    it('When lastname is provided as an empty string, then it should call updateProfile with the correct parameters', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        lastname: '',
+      };
+
+      await userController.updateProfile(user, updateProfileDto);
+
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(
+        user,
+        updateProfileDto,
+      );
+    });
+
+    it('When both name and lastname are not provided, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: undefined,
+        lastname: undefined,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When name is null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When lastname is null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        lastname: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When both name and lastname are null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: null,
+        lastname: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

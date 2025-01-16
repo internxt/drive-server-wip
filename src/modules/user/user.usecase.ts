@@ -1383,20 +1383,11 @@ export class UserUseCases {
     user: User,
     avatarKey: string,
   ): Promise<Error | { avatar: string }> {
-    if (!avatarKey) {
-      throw new BadRequestException('Avatar key required');
-    }
-
     if (user.avatar) {
       try {
         await this.avatarService.deleteAvatar(user.avatar);
       } catch (err) {
-        Logger.error(
-          `[USER/SET_AVATAR]Deleting the avatar for the user: ${
-            user.id
-          } has failed. Error: ${(err as Error).message}`,
-        );
-        throw new InternalServerErrorException();
+        throw new InternalServerErrorException('Failed to delete old avatar');
       }
     }
 
@@ -1407,12 +1398,7 @@ export class UserUseCases {
       const avatarUrl = await this.getAvatarUrl(avatarKey);
       return { avatar: avatarUrl };
     } catch (err) {
-      Logger.error(
-        `[USER/SET_AVATAR]Adding the avatar for the user: ${
-          user.id
-        } has failed. Error: ${(err as Error).message}`,
-      );
-      throw new InternalServerErrorException();
+      throw new InternalServerErrorException('Failed to add new avatar');
     }
   }
 
@@ -1424,12 +1410,7 @@ export class UserUseCases {
           avatar: null,
         });
       } catch (err) {
-        Logger.error(
-          `[USER/DELETE_AVATAR]Deleting the avatar for the user: ${
-            user.id
-          } has failed. Error: ${(err as Error).message}`,
-        );
-        throw new InternalServerErrorException();
+        throw new InternalServerErrorException('Failed to delete avatar');
       }
     }
   }
