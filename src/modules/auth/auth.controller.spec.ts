@@ -1,4 +1,4 @@
-import { newUser } from './../../../test/fixtures';
+import { newKeyServer, newUser } from './../../../test/fixtures';
 import { AuthController } from './auth.controller';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
@@ -54,17 +54,12 @@ describe('AuthController', () => {
       user.hKey = 'hKey';
       user.secret_2FA = 'secret_2FA';
 
-      const keys: Omit<
-        KeyServer,
-        'id' | 'userId' | 'encryptVersion' | 'toJSON'
-      > = {
-        publicKey: 'publicKey',
-        privateKey: 'privateKey',
-        revocationKey: 'revocationKey',
-      };
+      const keys = newKeyServer({ userId: user.id });
 
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
-      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce(keys);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValueOnce({ ecc: keys, kyber: null });
       jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
 
       const res = {
@@ -78,6 +73,8 @@ describe('AuthController', () => {
         hasKeys: true,
         sKey: 'encryptedText',
         tfa: true,
+        hasKyberKeys: false,
+        hasEccKeys: true,
       });
     });
 

@@ -34,6 +34,11 @@ import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-i
 import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 import { UserNotificationTokens } from '../src/modules/user/user-notification-tokens.domain';
 import { UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
+import {
+  KeyServer,
+  KeyServerAttributes,
+  UserKeysEncryptVersions,
+} from '../src/modules/keyserver/key-server.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -220,7 +225,7 @@ export const newPreCreatedUser = (): PreCreatedUser => {
     publicKey: '',
     privateKey: '',
     revocationKey: '',
-    encryptVersion: '03-aes',
+    encryptVersion: UserKeysEncryptVersions.Ecc,
   });
 };
 
@@ -539,4 +544,25 @@ export const newNotificationToken = (
       token[key] = params.attributes[key];
     });
   return token;
+};
+
+export const newKeyServer = (
+  params?: Partial<KeyServerAttributes>,
+): KeyServer => {
+  const defaultAttributes: KeyServerAttributes = {
+    id: randomDataGenerator.natural({ min: 1 }),
+    userId: randomDataGenerator.natural({ min: 1 }),
+    publicKey: randomDataGenerator.string({ length: 64 }),
+    privateKey: randomDataGenerator.string({ length: 64 }),
+    revocationKey: randomDataGenerator.string({ length: 64 }),
+    encryptVersion: params?.encryptVersion || UserKeysEncryptVersions.Ecc,
+  };
+
+  if (defaultAttributes.encryptVersion !== UserKeysEncryptVersions.Ecc) {
+    defaultAttributes.revocationKey = undefined;
+  }
+
+  const attributes: KeyServerAttributes = { ...defaultAttributes, ...params };
+
+  return KeyServer.build(attributes);
 };

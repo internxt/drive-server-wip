@@ -1,5 +1,35 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsObject, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, PickType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsObject,
+  IsString,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
+import { KeyPairDto } from '../../keyserver/dto/key-pair.dto';
+
+class PrivateKeysDto extends PickType(KeyPairDto, ['privateKey']) {}
+
+class KeysDto {
+  @ValidateNested()
+  @Type(() => PrivateKeysDto)
+  @IsNotEmpty()
+  @ApiProperty({
+    type: PrivateKeysDto,
+    description: 'ECC keys',
+  })
+  ecc: PrivateKeysDto;
+
+  @ValidateNested()
+  @Type(() => PrivateKeysDto)
+  @IsNotEmpty()
+  @ApiProperty({
+    type: PrivateKeysDto,
+    description: 'Kyber keys',
+  })
+  kyber: PrivateKeysDto;
+}
 
 export class UpdatePasswordDto {
   @IsString()
@@ -30,36 +60,42 @@ export class UpdatePasswordDto {
   })
   mnemonic: string;
 
+  @ValidateIf((dto) => !dto.keys)
+  @IsNotEmpty({
+    message: 'PrivateKey must be defined if keys object is not provided.',
+  })
   @IsString()
   @ApiProperty({
     example: 'newPrivateKey',
     description: 'New private key',
+    deprecated: true,
   })
   privateKey: string;
 
+  @ValidateIf((dto) => !dto.keys)
+  @IsNotEmpty({
+    message: 'EncryptVersion must be defined if keys object is not provided.',
+  })
   @IsString()
   @ApiProperty({
     example: 'encryptVersion',
     description: 'Encrypt version',
+    deprecated: true,
   })
   encryptVersion: string;
 
-  @IsObject()
-  @IsOptional()
-  @ApiProperty({
-    example: 'newKeys',
-    description: 'keys',
+  @ValidateIf((dto) => !dto.privateKey && !dto.encryptVersion)
+  @IsNotEmpty({
+    message:
+      'Keys object must be provided if privateKey and encryptVersion are not defined.',
   })
-  keys: {
-    ecc: {
-      publicKey: string;
-      privateKey: string;
-      revocationKey: string;
-    };
-    kyber: {
-      publicKey: string;
-      privateKey: string;
-      revocationKey: string;
-    };
-  };
+  @ValidateNested()
+  @Type(() => KeysDto)
+  @IsObject()
+  @ApiProperty({
+    type: KeysDto,
+    description:
+      'Keys, if provided, will update the user keys. This object replaces the need for privateKey and encryptVersion.',
+  })
+  keys?: KeysDto;
 }
