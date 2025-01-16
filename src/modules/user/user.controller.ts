@@ -13,7 +13,6 @@ import {
   NotFoundException,
   UseGuards,
   Patch,
-  Request as RequestDecorator,
   Put,
   Query,
   UnauthorizedException,
@@ -738,7 +737,7 @@ export class UserController {
 
     const keys = await this.keyServerUseCases.getPublicKeys(user.id);
 
-    return keys;
+    return { publicKey: keys.ecc.publicKey, keys };
   }
 
   @UseFilters(new HttpExceptionFilter())

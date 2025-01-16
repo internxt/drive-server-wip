@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { UserAttributes } from '../user/user.attributes';
 import {
-  Keys,
   KeyServer,
   KeyServerAttributes,
   UserKeysEncryptVersions,
@@ -31,7 +30,7 @@ export class KeyServerUseCases {
     const processKey = async (
       encryptVersion: UserKeysEncryptVersions,
       keyData?: Omit<PartialKeys, 'encryptVersion'>,
-    ): Promise<KeyServer | undefined> => {
+    ): Promise<KeyServer | null> => {
       if (!keyData) return null;
 
       try {
@@ -87,7 +86,14 @@ export class KeyServerUseCases {
     );
   }
 
-  async getPublicKeys(userId: UserAttributes['id']) {
+  async getPublicKeys(userId: UserAttributes['id']): Promise<{
+    kyber: {
+      publicKey: string | null;
+    };
+    ecc: {
+      publicKey: string | null;
+    };
+  }> {
     const userKeys = await this.repository.findUserKeys(userId);
 
     const publicKey = this.findKeyByEncryptionMethod(
@@ -101,14 +107,11 @@ export class KeyServerUseCases {
     );
 
     return {
-      publicKey: publicKey?.publicKey || null,
-      keys: {
-        kyber: {
-          publicKey: kyberPublicKey?.publicKey || null,
-        },
-        ecc: {
-          publicKey: publicKey?.publicKey || null,
-        },
+      kyber: {
+        publicKey: kyberPublicKey?.publicKey || null,
+      },
+      ecc: {
+        publicKey: publicKey?.publicKey || null,
       },
     };
   }
@@ -119,7 +122,7 @@ export class KeyServerUseCases {
 
   async findUserKeys(
     userId: UserAttributes['id'],
-  ): Promise<{ kyber: KeyServer; ecc: KeyServer }> {
+  ): Promise<{ kyber: KeyServer | null; ecc: KeyServer | null }> {
     const keys = await this.repository.findUserKeys(userId);
 
     const kyber = keys.find((key) => key.encryptVersion === 'kyber');
@@ -128,9 +131,10 @@ export class KeyServerUseCases {
     return { kyber, ecc };
   }
 
-  private findKeyByEncryptionMethod = (
+  private findKeyByEncryptionMethod(
     userKeys: KeyServer[],
     version: UserKeysEncryptVersions,
-  ): KeyServer | null =>
-    userKeys.find((key) => key.encryptVersion === version) || null;
+  ): KeyServer | null {
+    return userKeys.find((key) => key.encryptVersion === version) || null;
+  }
 }
