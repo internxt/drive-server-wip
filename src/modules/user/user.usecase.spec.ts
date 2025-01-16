@@ -59,6 +59,7 @@ import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository
 import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 jest.mock('../../middlewares/passport', () => {
@@ -828,6 +829,25 @@ describe('User use cases', () => {
       privateKey: 'privateKey',
       revocateKey: 'revocateKey',
     };
+
+    it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
+      const loginAccessDto: LoginAccessDto = {
+        email: 'TEST@EXAMPLE.COM',
+        password: v4(),
+      };
+      const emailLowerCase = 'test@example.com';
+      const userData = newUser({ attributes: { email: emailLowerCase } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(userData);
+
+      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(
+        emailLowerCase,
+      );
+    });
 
     it('When a non-existing email is provided, then it should throw ', async () => {
       const loginAccessDto = {
