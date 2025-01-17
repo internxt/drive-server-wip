@@ -1,3 +1,4 @@
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
@@ -11,7 +12,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   publicKey: string;
   privateKey: string;
   revocationKey: string;
-  encryptVersion: string;
+  encryptVersion: UserKeysEncryptVersions;
   constructor({
     id,
     email,

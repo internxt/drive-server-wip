@@ -1,5 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
+
+class PrivateKeysDto {
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'ECC key',
+  })
+  ecc: string;
+
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Kyber keys',
+  })
+  kyber: string;
+}
 
 export class RecoverAccountDto {
   @ApiProperty({
@@ -29,6 +44,11 @@ export class RecoverAccountDto {
   })
   // @IsNotEmpty()
   privateKey: string;
+
+  @Type(() => PrivateKeysDto)
+  @ValidateNested()
+  @IsOptional()
+  privateKeys?: PrivateKeysDto;
 }
 
 export class ResetAccountDto {
