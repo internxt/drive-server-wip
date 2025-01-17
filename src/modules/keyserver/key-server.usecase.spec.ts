@@ -182,7 +182,7 @@ describe('Key Server Use Cases', () => {
     });
   });
 
-  describe('findOrCreateKeysForUser', () => {
+  describe('getPublicKeys', () => {
     const userId = 234059;
     const KeysData = {
       privateKey:
@@ -214,12 +214,8 @@ describe('Key Server Use Cases', () => {
       const userKeys = await service.getPublicKeys(userId);
 
       expect(userKeys).toEqual({
-        kyber: {
-          publicKey: kyberKey.publicKey,
-        },
-        ecc: {
-          publicKey: eccKey.publicKey,
-        },
+        kyber: kyberKey.publicKey,
+        ecc: eccKey.publicKey,
       });
     });
 
@@ -241,21 +237,13 @@ describe('Key Server Use Cases', () => {
       const noKeys = await service.getPublicKeys(userId);
 
       expect(userKeys).toEqual({
-        kyber: {
-          publicKey: null,
-        },
-        ecc: {
-          publicKey: eccKey.publicKey,
-        },
+        kyber: null,
+        ecc: eccKey.publicKey,
       });
 
       expect(noKeys).toEqual({
-        kyber: {
-          publicKey: null,
-        },
-        ecc: {
-          publicKey: null,
-        },
+        kyber: null,
+        ecc: null,
       });
     });
   });

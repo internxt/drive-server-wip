@@ -87,32 +87,24 @@ export class KeyServerUseCases {
   }
 
   async getPublicKeys(userId: UserAttributes['id']): Promise<{
-    kyber: {
-      publicKey: string | null;
-    };
-    ecc: {
-      publicKey: string | null;
-    };
+    kyber: string | null;
+    ecc: string | null;
   }> {
     const userKeys = await this.repository.findUserKeys(userId);
 
-    const publicKey = this.findKeyByEncryptionMethod(
+    const eccKeys = this.findKeyByEncryptionMethod(
       userKeys,
       UserKeysEncryptVersions.Ecc,
     );
 
-    const kyberPublicKey = this.findKeyByEncryptionMethod(
+    const kyberKeys = this.findKeyByEncryptionMethod(
       userKeys,
       UserKeysEncryptVersions.Kyber,
     );
 
     return {
-      kyber: {
-        publicKey: kyberPublicKey?.publicKey || null,
-      },
-      ecc: {
-        publicKey: publicKey?.publicKey || null,
-      },
+      kyber: kyberKeys?.publicKey || null,
+      ecc: eccKeys?.publicKey || null,
     };
   }
 
