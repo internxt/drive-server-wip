@@ -710,7 +710,7 @@ export class UserController {
           password,
           salt,
           privateKeys: {
-            ecc: privateKey || privateKeys?.ecc,
+            ecc: privateKeys?.ecc || privateKey,
             kyber: privateKeys?.kyber,
           },
         });
