@@ -749,7 +749,7 @@ export class UserController {
 
     const keys = await this.keyServerUseCases.getPublicKeys(user.id);
 
-    return { publicKey: keys.ecc.publicKey, keys };
+    return { publicKey: keys.ecc, keys };
   }
 
   @UseFilters(new HttpExceptionFilter())

@@ -719,8 +719,8 @@ describe('User Controller', () => {
       const eccKeys = newKeyServer({ userId: mockUser.id });
 
       keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
-        kyber: { publicKey: kyberKeys.publicKey },
-        ecc: { publicKey: eccKeys.publicKey },
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
       });
 
       const response = await userController.getPublicKeyByEmail(mockUser.email);
@@ -736,29 +736,29 @@ describe('User Controller', () => {
       const eccKeys = newKeyServer({ userId: mockUser.id });
 
       keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
-        kyber: { publicKey: kyberKeys.publicKey },
-        ecc: { publicKey: eccKeys.publicKey },
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
       });
 
       const response = await userController.getPublicKeyByEmail(mockUser.email);
 
       expect(response.keys).toMatchObject({
-        kyber: { publicKey: kyberKeys.publicKey },
-        ecc: { publicKey: eccKeys.publicKey },
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
       });
     });
 
     it('When public keys are requested and user does not have keys, then it should return empty keys object and public key', async () => {
       keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
-        kyber: { publicKey: null },
-        ecc: { publicKey: null },
+        kyber: null,
+        ecc: null,
       });
 
       const response = await userController.getPublicKeyByEmail(mockUser.email);
 
       expect(response.keys).toMatchObject({
-        kyber: { publicKey: null },
-        ecc: { publicKey: null },
+        kyber: null,
+        ecc: null,
       });
       expect(response.publicKey).toEqual(null);
     });
