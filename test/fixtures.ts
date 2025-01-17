@@ -555,14 +555,14 @@ export const newKeyServer = (
     publicKey: randomDataGenerator.string({ length: 64 }),
     privateKey: randomDataGenerator.string({ length: 64 }),
     revocationKey: randomDataGenerator.string({ length: 64 }),
-    encryptVersion: params?.encryptVersion || UserKeysEncryptVersions.Ecc,
+    encryptVersion: UserKeysEncryptVersions.Ecc,
   };
 
-  if (defaultAttributes.encryptVersion !== UserKeysEncryptVersions.Ecc) {
-    defaultAttributes.revocationKey = undefined;
-  }
-
   const attributes: KeyServerAttributes = { ...defaultAttributes, ...params };
+
+  if (attributes.encryptVersion !== UserKeysEncryptVersions.Ecc) {
+    attributes.revocationKey = undefined;
+  }
 
   return KeyServer.build(attributes);
 };

@@ -1276,7 +1276,7 @@ export class UserUseCases {
     );
     const userBucket = rootFolder.bucket;
 
-    const { keys } = loginAccessDto;
+    const keys = loginAccessDto?.keys;
 
     const userKeys = await this.keyServerUseCases.findUserKeys(userData.id);
 

@@ -9,26 +9,26 @@ import {
 } from 'class-validator';
 import { BaseKeysDto } from '../../keyserver/dto/keys.dto';
 
-class PrivateKeysDto extends PickType(BaseKeysDto, ['privateKey']) {}
+class BasePrivateKey extends PickType(BaseKeysDto, ['privateKey'] as const) {}
 
-class KeysDto {
+class PrivateKeysDto {
+  @Type(() => BasePrivateKey)
   @ValidateNested()
-  @Type(() => PrivateKeysDto)
   @IsNotEmpty()
   @ApiProperty({
-    type: PrivateKeysDto,
+    type: BasePrivateKey,
     description: 'ECC keys',
   })
-  ecc: PrivateKeysDto;
+  ecc: BasePrivateKey;
 
+  @Type(() => BasePrivateKey)
   @ValidateNested()
-  @Type(() => PrivateKeysDto)
   @IsNotEmpty()
   @ApiProperty({
-    type: PrivateKeysDto,
+    type: BasePrivateKey,
     description: 'Kyber keys',
   })
-  kyber: PrivateKeysDto;
+  kyber: BasePrivateKey;
 }
 
 export class UpdatePasswordDto {
@@ -90,12 +90,12 @@ export class UpdatePasswordDto {
       'Keys object must be provided if privateKey and encryptVersion are not defined.',
   })
   @ValidateNested()
-  @Type(() => KeysDto)
+  @Type(() => PrivateKeysDto)
   @IsObject()
   @ApiProperty({
-    type: KeysDto,
+    type: PrivateKeysDto,
     description:
       'Keys, if provided, will update the user keys. This object replaces the need for privateKey and encryptVersion.',
   })
-  keys?: KeysDto;
+  keys?: PrivateKeysDto;
 }
