@@ -124,6 +124,10 @@ export interface FolderRepository {
     path: string,
     rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null>;
+  updateBy(
+    update: Partial<FolderAttributes>,
+    where: Partial<FolderAttributes>,
+  ): Promise<number>;
 }
 
 @Injectable()
@@ -463,6 +467,17 @@ export class SequelizeFolderRepository implements FolderRepository {
         },
       },
     });
+  }
+
+  async updateBy(
+    update: Partial<FolderAttributes>,
+    where: Partial<FolderAttributes>,
+  ): Promise<number> {
+    const [updatedItems] = await this.folderModel.update(update, {
+      where,
+    });
+
+    return updatedItems;
   }
 
   async createWithAttributes(

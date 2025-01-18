@@ -10,6 +10,7 @@ import { SignUpSuccessEvent } from '../events/sign-up-success.event';
 import geoip from 'geoip-lite';
 import DeviceDetector from 'node-device-detector';
 import { Request } from 'express';
+import { DeactivationRequestEvent } from '../events/deactivation-request.event';
 
 const deviceDetector = new DeviceDetector();
 
@@ -273,6 +274,21 @@ export class AnalyticsListener {
         shared_workspace: sharedWorkspace,
         ...affiliate,
       },
+      context,
+    });
+  }
+
+  @OnEvent(DeactivationRequestEvent.id)
+  async handleDeactivationRequest(event: SignUpSuccessEvent) {
+    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+
+    const { user, req } = event;
+
+    const context = await getContext(req);
+
+    this.analytics.track({
+      userId: user.uuid,
+      event: AnalyticsTrackName.DeactivationRequest,
       context,
     });
   }

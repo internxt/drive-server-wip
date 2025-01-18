@@ -89,6 +89,15 @@ export class FolderUseCases {
     return folder;
   }
 
+  async removeUserOrphanFolders(user: User): Promise<number> {
+    const removedFoldersCount = await this.folderRepository.updateBy(
+      { removed: true, deleted: true },
+      { userId: user.id, parentId: null },
+    );
+
+    return removedFoldersCount;
+  }
+
   async getFolderByUuid(
     folderUuid: FolderAttributes['uuid'],
     user: User,
