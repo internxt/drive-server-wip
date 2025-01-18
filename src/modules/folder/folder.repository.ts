@@ -124,6 +124,10 @@ export interface FolderRepository {
     path: string,
     rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null>;
+  updateBy(
+    update: Partial<FolderAttributes>,
+    where: Partial<FolderAttributes>,
+  ): Promise<number>;
 }
 
 @Injectable()

@@ -481,6 +481,20 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('removeUserOrphanFolders', () => {
+    it('When called, then it should mark folders as deleted and removed', async () => {
+      jest.spyOn(folderRepository, 'updateBy');
+      jest.spyOn(service, 'deleteOrphansFolders');
+
+      await service.removeUserOrphanFolders(user);
+
+      expect(folderRepository.updateBy).toHaveBeenCalledWith(
+        { removed: true, deleted: true },
+        { userId: user.id, parentId: null },
+      );
+    });
+  });
+
   describe('decryptFolderName()', () => {
     it('When the name is encrypted, then the decrypting works', () => {
       const folder = newFolder();
