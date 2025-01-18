@@ -90,4 +90,60 @@ describe('Bridge Service', () => {
       );
     });
   });
+
+  describe('sendDeactivationEmail', () => {
+    it('When deactivation email is being requested, it should make the request successfully', async () => {
+      const testBridgeApiUrl = 'bridge.test.com';
+      const deactivationRedirectUrl = 'http://example.com/redirect';
+      const deactivator = 'admin-user';
+      const response: AxiosResponse<void> = {
+        data: null,
+        status: 200,
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+        statusText: 'OK',
+      };
+
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'delete').mockResolvedValueOnce(response);
+
+      await service.sendDeactivationEmail(
+        mockedUser,
+        deactivationRedirectUrl,
+        deactivator,
+      );
+
+      expect(httpClient.delete).toHaveBeenCalledTimes(1);
+      expect(httpClient.delete).toHaveBeenCalledWith(
+        `${testBridgeApiUrl}/users/${mockedUser.email}?redirect=${deactivationRedirectUrl}&deactivator=${deactivator}`,
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe('confirmDeactivation', () => {
+    it('When user deactivation is being confirmed, it should make the request successfully', async () => {
+      const testBridgeApiUrl = 'bridge.test.com';
+      const token = 'deactivationToken';
+      const email = 'test@email.com';
+      const response: AxiosResponse<{ email: string }> = {
+        data: { email },
+        status: 200,
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+        statusText: 'OK',
+      };
+
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'get').mockResolvedValueOnce(response);
+
+      await service.confirmDeactivation(token);
+
+      expect(httpClient.get).toHaveBeenCalledTimes(1);
+      expect(httpClient.get).toHaveBeenCalledWith(
+        `${testBridgeApiUrl}/deactivationStripe/${token}`,
+        expect.any(Object),
+      );
+    });
+  });
 });

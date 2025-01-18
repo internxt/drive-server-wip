@@ -63,6 +63,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { BackupUseCase } from '../backups/backup.usecase';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -92,6 +94,8 @@ describe('User use cases', () => {
   let mailerService: MailerService;
   let avatarService: AvatarService;
   let keyServerUseCases: KeyServerUseCases;
+  let appSumoUseCases: AppSumoUseCase;
+  let backupUseCases: BackupUseCase;
 
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
@@ -163,6 +167,8 @@ describe('User use cases', () => {
     avatarService = moduleRef.get<AvatarService>(AvatarService);
     keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
 
+    appSumoUseCases = moduleRef.get<AppSumoUseCase>(AppSumoUseCase);
+    backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
     jest.clearAllMocks();
   });
 
@@ -1664,6 +1670,89 @@ describe('User use cases', () => {
       await userUseCases.sendDeactivationEmail(user);
 
       expect(mailLimit.attemptsCount).toEqual(1);
+    });
+  });
+
+  describe('confirmDeactivation', () => {
+    const mockUser = newUser();
+
+    it('When the token is not for a valid user, then it should throw', async () => {
+      const invalidEmail = 'test@test.com';
+      jest
+        .spyOn(bridgeService, 'confirmDeactivation')
+        .mockResolvedValueOnce(invalidEmail);
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(null);
+
+      await expect(
+        userUseCases.confirmDeactivation('invalid-token'),
+      ).rejects.toThrow(BadRequestException);
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(invalidEmail);
+    });
+
+    it('When user is deactivated successfully, then all related resources should be deleted', async () => {
+      jest
+        .spyOn(bridgeService, 'confirmDeactivation')
+        .mockResolvedValueOnce(mockUser.email);
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(mockUser);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(mockUser);
+      jest
+        .spyOn(userRepository, 'updateByUuid')
+        .mockResolvedValueOnce(undefined);
+      jest.spyOn(userRepository, 'deleteBy').mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(appSumoUseCases, 'deleteByUserId')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(backupUseCases, 'deleteUserBackups')
+        .mockResolvedValueOnce(undefined);
+      jest.spyOn(folderUseCases, 'removeUserOrphanFolders');
+
+      await expect(
+        userUseCases.confirmDeactivation('valid-token'),
+      ).resolves.not.toThrow();
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(mockUser.email);
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        rootFolderId: null,
+      });
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({
+        uuid: mockUser.uuid,
+      });
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(appSumoUseCases.deleteByUserId).toHaveBeenCalledWith(mockUser.id);
+      expect(backupUseCases.deleteUserBackups).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(folderUseCases.removeUserOrphanFolders).toHaveBeenCalledWith(
+        mockUser,
+      );
+    });
+
+    it('When an error occurs during deactivation, then the user is renamed and the error is thrown', async () => {
+      jest
+        .spyOn(bridgeService, 'confirmDeactivation')
+        .mockResolvedValueOnce(mockUser.email);
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(mockUser);
+      jest.spyOn(userRepository, 'updateBy');
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockRejectedValue(new Error('Deletion error'));
+
+      await expect(
+        userUseCases.confirmDeactivation('bad-token'),
+      ).rejects.toThrow();
+      expect(userRepository.updateBy).toHaveBeenCalledWith(
+        { uuid: mockUser.uuid },
+        expect.objectContaining({ email: expect.stringMatching(/-DELETED$/) }),
+      );
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
     });
   });
 });
