@@ -432,6 +432,12 @@ export class UserController {
     @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
   ) {
+    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+
+    if (!isDriveWeb) {
+      throw new BadRequestException('Change password is only allowed from the web app');
+    }
+
     try {
       const currentPassword = this.cryptoService.decryptText(
         updatePasswordDto.currentPassword,
