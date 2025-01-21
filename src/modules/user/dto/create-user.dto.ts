@@ -115,9 +115,10 @@ export class CreateUserDto {
   })
   registerCompleted?: UserAttributes['registerCompleted'];
 
+  // TODO: uncomment object validations when frontend starts sending kyber.privateKey and kyber.publicKey with data instead of null;
+  //@Type(() => KeysDto)
   @IsOptional()
-  @ValidateNested()
-  @Type(() => KeysDto)
+  //@ValidateNested()
   @ApiProperty({
     type: KeysDto,
     description:

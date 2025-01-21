@@ -39,6 +39,7 @@ import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-actio
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -110,7 +111,7 @@ export class AuthController {
   @WorkspaceLogAction(WorkspaceLogType.Login)
   async loginAccess(@Body() body: LoginAccessDto) {
     const eccKeys =
-      body.keys?.ecc || body.publicKey
+      body.keys?.ecc || (body.publicKey && body.privateKey)
         ? {
             publicKey: body.keys?.ecc?.publicKey || body.publicKey,
             privateKey: body.keys?.ecc?.privateKey || body.privateKey,
@@ -121,12 +122,33 @@ export class AuthController {
           }
         : null;
 
-    const kyberKeys = body.keys?.kyber
-      ? {
-          publicKey: body.keys.kyber.publicKey,
-          privateKey: body.keys.kyber.privateKey,
-        }
-      : null;
+    const kyberKeys =
+      body.keys?.kyber &&
+      body.keys.kyber?.publicKey &&
+      body.keys.kyber?.privateKey
+        ? {
+            publicKey: body.keys.kyber.publicKey,
+            privateKey: body.keys.kyber.privateKey,
+          }
+        : null;
+
+    // TODO: remove this validation when frontend starts sending privateKey instead of privateKeyEncrypted
+    if (eccKeys || kyberKeys) {
+      try {
+        if (eccKeys)
+          this.keyServerUseCases.validateKey(
+            eccKeys,
+            UserKeysEncryptVersions.Ecc,
+          );
+        if (kyberKeys)
+          this.keyServerUseCases.validateKey(
+            kyberKeys,
+            UserKeysEncryptVersions.Kyber,
+          );
+      } catch (err) {
+        throw new BadRequestException(err.message);
+      }
+    }
 
     return this.userUseCases.loginAccess({
       ...body,

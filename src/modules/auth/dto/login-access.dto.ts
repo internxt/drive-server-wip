@@ -72,9 +72,10 @@ export class LoginAccessDto {
   @IsString()
   revocationKey?: string;
 
-  @Type(() => OptionalKeyGroup)
+  // TODO: uncomment object validations when frontend starts sending kyber.privateKey and kyber.publicKey with data instead of null;
+  //@Type(() => OptionalKeyGroup)
   @IsOptional()
-  @ValidateNested()
+  //@ValidateNested()
   @ApiProperty({
     example: 'newKeys',
     description: 'keys',

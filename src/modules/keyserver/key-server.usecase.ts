@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UserAttributes } from '../user/user.attributes';
 import {
   KeyServer,
@@ -40,7 +40,12 @@ export class KeyServerUseCases {
           revocationKey: keyData.revocationKey,
           encryptVersion,
         });
-      } catch {
+      } catch (error) {
+        Logger.error(
+          `[KEYS/ADD_KEYS_TO_USER]: Error adding ${encryptVersion} key to user ${userId}, error: ${JSON.stringify(
+            error,
+          )}`,
+        );
         return null;
       }
     };
@@ -51,6 +56,10 @@ export class KeyServerUseCases {
     ]);
 
     return { kyber: kyberKey, ecc: eccKey };
+  }
+
+  validateKey(keys: PartialKeys, encryptVersion: UserKeysEncryptVersions) {
+    return KeyServer.validate(encryptVersion, { ...keys });
   }
 
   async findOrCreateKeysForUser(

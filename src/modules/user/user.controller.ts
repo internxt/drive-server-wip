@@ -78,6 +78,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { Client } from '../auth/decorators/client.decorator';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 
 @ApiTags('User')
 @Controller('users')
@@ -115,15 +116,50 @@ export class UserController {
     try {
       const response = await this.userUseCases.createUser(createUserDto);
 
+      // TODO: remove this big validation when frontend starts sending ecc keys without using encryptedPrivateKey, dto should validate this;
+      const eccKeys =
+        createUserDto.keys?.ecc ||
+        (createUserDto.publicKey && createUserDto.privateKey)
+          ? {
+              publicKey:
+                createUserDto.keys?.ecc?.publicKey || createUserDto.publicKey,
+              privateKey:
+                createUserDto.keys?.ecc?.privateKey || createUserDto.privateKey,
+              revocationKey:
+                createUserDto.keys?.ecc?.revocationKey ||
+                createUserDto.revocationKey,
+            }
+          : null;
+
+      const kyberKeys = createUserDto.keys?.kyber;
+
+      if (eccKeys || kyberKeys) {
+        try {
+          if (eccKeys)
+            this.keyServerUseCases.validateKey(
+              eccKeys,
+              UserKeysEncryptVersions.Ecc,
+            );
+          if (kyberKeys)
+            this.keyServerUseCases.validateKey(
+              kyberKeys,
+              UserKeysEncryptVersions.Kyber,
+            );
+        } catch (err) {
+          throw new BadRequestException(err.message);
+        }
+      }
+
       const keys = await this.keyServerUseCases.addKeysToUser(
         response.user.id,
         {
-          kyber: createUserDto.keys?.kyber,
-          ecc: createUserDto.keys?.ecc || {
+          kyber: kyberKeys,
+          ecc: eccKeys,
+          /* ecc: createUserDto.keys?.ecc || {
             publicKey: createUserDto.publicKey,
             privateKey: createUserDto.privateKey,
             revocationKey: createUserDto.revocationKey,
-          },
+          }, */
         },
       );
 
@@ -284,15 +320,50 @@ export class UserController {
 
       const userCreated = await this.userUseCases.createUser(createUserDto);
 
+      // TODO: same as createUser, remove this big validation when frontend starts sending ecc keys without using encryptedPrivateKey, dto should validate this;
+      const eccKeys =
+        createUserDto.keys?.ecc ||
+        (createUserDto.publicKey && createUserDto.privateKey)
+          ? {
+              publicKey:
+                createUserDto.keys?.ecc?.publicKey || createUserDto.publicKey,
+              privateKey:
+                createUserDto.keys?.ecc?.privateKey || createUserDto.privateKey,
+              revocationKey:
+                createUserDto.keys?.ecc?.revocationKey ||
+                createUserDto.revocationKey,
+            }
+          : null;
+
+      const kyberKeys = createUserDto.keys?.kyber;
+
+      if (eccKeys || kyberKeys) {
+        try {
+          if (eccKeys)
+            this.keyServerUseCases.validateKey(
+              eccKeys,
+              UserKeysEncryptVersions.Ecc,
+            );
+          if (kyberKeys)
+            this.keyServerUseCases.validateKey(
+              kyberKeys,
+              UserKeysEncryptVersions.Kyber,
+            );
+        } catch (err) {
+          throw new BadRequestException(err.message);
+        }
+      }
+
       const keys = await this.keyServerUseCases.addKeysToUser(
         userCreated.user.id,
         {
-          kyber: createUserDto.keys?.kyber,
-          ecc: createUserDto.keys?.ecc || {
+          kyber: kyberKeys,
+          ecc: eccKeys,
+          /* ecc: createUserDto.keys?.ecc || {
             publicKey: createUserDto.publicKey,
             privateKey: createUserDto.privateKey,
             revocationKey: createUserDto.revocationKey,
-          },
+          }, */
         },
       );
 
