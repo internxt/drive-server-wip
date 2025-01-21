@@ -2,7 +2,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -20,9 +19,10 @@ class KeysDto {
   })
   ecc: EccKeysDto;
 
-  @Type(() => KyberKeysDto)
+  // TODO: uncomment validations when frontend stops sending kyber object as {privateKey: null, publicKey: null}
+  //@Type(() => KyberKeysDto)
   @IsOptional()
-  @ValidateNested()
+  //@ValidateNested()
   @ApiProperty({
     type: KyberKeysDto,
     description: 'Kyber keys',
@@ -115,9 +115,9 @@ export class CreateUserDto {
   })
   registerCompleted?: UserAttributes['registerCompleted'];
 
+  @Type(() => KeysDto)
   @IsOptional()
   @ValidateNested()
-  @Type(() => KeysDto)
   @ApiProperty({
     type: KeysDto,
     description:

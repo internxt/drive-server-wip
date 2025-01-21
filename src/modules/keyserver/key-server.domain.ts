@@ -45,12 +45,9 @@ export class KeyServer implements KeyServerAttributes {
 
   toJSON() {
     return {
-      id: this.id,
-      userId: this.userId,
       publicKey: this.publicKey,
       privateKey: this.privateKey,
       revocationKey: this.revocationKey,
-      encryptVersion: this.encryptVersion,
     };
   }
 
@@ -64,11 +61,7 @@ export class KeyServer implements KeyServerAttributes {
   ) {
     const requiredFields = {
       [UserKeysEncryptVersions.Kyber]: ['publicKey', 'privateKey'],
-      [UserKeysEncryptVersions.Ecc]: [
-        'publicKey',
-        'privateKey',
-        'revocationKey',
-      ],
+      [UserKeysEncryptVersions.Ecc]: ['publicKey', 'privateKey'],
     };
 
     const required = requiredFields[encryptVersion];

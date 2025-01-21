@@ -1,8 +1,31 @@
-import { ApiProperty, PickType } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsString, IsNotEmpty, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  ValidateNested,
+  IsOptional,
+} from 'class-validator';
 
-export class BaseKeysDto {
+export class KyberKeysDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({
+    example: 'publicKeyExample',
+    description: 'Public key',
+  })
+  publicKey: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({
+    example: 'privateKeyExample',
+    description: 'Private key',
+  })
+  privateKey: string;
+}
+
+export class EccKeysDto {
   @IsString()
   @IsNotEmpty()
   @ApiProperty({
@@ -20,20 +43,13 @@ export class BaseKeysDto {
   privateKey: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     example: 'revocationKeyExample',
     description: 'Revocation key',
   })
-  revocationKey: string;
+  revocationKey?: string;
 }
-
-export class KyberKeysDto extends PickType(BaseKeysDto, [
-  'publicKey',
-  'privateKey',
-] as const) {}
-
-export class EccKeysDto extends BaseKeysDto {}
 
 export class KeysDto {
   @Type(() => EccKeysDto)
@@ -44,8 +60,9 @@ export class KeysDto {
   })
   ecc: EccKeysDto;
 
-  @Type(() => KyberKeysDto)
-  @ValidateNested()
+  // TODO: uncomment validations when frontend stops sending kyber object as {privateKey: null, publicKey: null}
+  //@Type(() => KyberKeysDto)
+  //@ValidateNested()
   @ApiProperty({
     type: KyberKeysDto,
     description: 'Kyber keys',

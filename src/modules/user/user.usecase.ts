@@ -104,13 +104,6 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
-export class KeyServerNotFoundError extends Error {
-  constructor() {
-    super('Key server not found');
-
-    Object.setPrototypeOf(this, KeyServerNotFoundError.prototype);
-  }
-}
 export class UserNotFoundError extends Error {
   constructor() {
     super('User not found');

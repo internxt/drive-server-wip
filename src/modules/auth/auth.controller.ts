@@ -109,28 +109,15 @@ export class AuthController {
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
   async loginAccess(@Body() body: LoginAccessDto) {
-    const eccKeys =
-      body.keys?.ecc || body.publicKey
-        ? {
-            publicKey: body.keys?.ecc?.publicKey || body.publicKey,
-            privateKey: body.keys?.ecc?.privateKey || body.privateKey,
-            revocationKey:
-              body.keys?.ecc?.revocationKey ||
-              body.revocationKey ||
-              body.revocateKey,
-          }
-        : null;
-
-    const kyberKeys = body.keys?.kyber
-      ? {
-          publicKey: body.keys.kyber.publicKey,
-          privateKey: body.keys.kyber.privateKey,
-        }
-      : null;
+    const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
+      privateKey: body.privateKey,
+      publicKey: body.publicKey,
+      revocationKey: body.revocationKey || body.revocateKey,
+    });
 
     return this.userUseCases.loginAccess({
       ...body,
-      keys: { kyber: kyberKeys, ecc: eccKeys },
+      keys: { kyber, ecc },
     });
   }
 

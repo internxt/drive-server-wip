@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UserAttributes } from '../user/user.attributes';
 import {
   KeyServer,
@@ -6,6 +6,7 @@ import {
   UserKeysEncryptVersions,
 } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
+import { EccKeysDto, KyberKeysDto } from './dto/keys.dto';
 
 export class InvalidKeyServerException extends Error {
   constructor(public validationMessage: string) {
@@ -40,7 +41,12 @@ export class KeyServerUseCases {
           revocationKey: keyData.revocationKey,
           encryptVersion,
         });
-      } catch {
+      } catch (error) {
+        Logger.error(
+          `[KEYS/ADD_KEYS_TO_USER]: Error adding ${encryptVersion} key to user ${userId}, error: ${JSON.stringify(
+            error,
+          )}`,
+        );
         return null;
       }
     };
@@ -51,6 +57,40 @@ export class KeyServerUseCases {
     ]);
 
     return { kyber: kyberKey, ecc: eccKey };
+  }
+
+  parseKeysInput(
+    keys: {
+      kyber?: PartialKeys;
+      ecc?: PartialKeys;
+    },
+    oldKeys?: {
+      privateKey: string;
+      publicKey: string;
+      revocationKey: string;
+    },
+  ): {
+    ecc: EccKeysDto;
+    kyber: KyberKeysDto;
+  } {
+    const eccKeys =
+      keys?.ecc || (oldKeys?.publicKey && oldKeys?.privateKey)
+        ? {
+            publicKey: keys?.ecc?.publicKey || oldKeys?.publicKey,
+            privateKey: keys?.ecc?.privateKey || oldKeys?.privateKey,
+            revocationKey: keys?.ecc?.revocationKey || oldKeys?.revocationKey,
+          }
+        : null;
+
+    const kyberKeys =
+      keys?.kyber && keys.kyber.publicKey && keys.kyber.privateKey
+        ? {
+            publicKey: keys.kyber.publicKey,
+            privateKey: keys.kyber.privateKey,
+          }
+        : null;
+
+    return { ecc: eccKeys, kyber: kyberKeys };
   }
 
   async findOrCreateKeysForUser(

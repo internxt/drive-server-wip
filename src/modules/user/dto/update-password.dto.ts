@@ -7,28 +7,32 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { BaseKeysDto } from '../../keyserver/dto/keys.dto';
+import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/keys.dto';
 
-class BasePrivateKey extends PickType(BaseKeysDto, ['privateKey'] as const) {}
+class KyberPrivateKeyDto extends PickType(KyberKeysDto, [
+  'privateKey',
+] as const) {}
+
+class EccPrivateKeyDto extends PickType(EccKeysDto, ['privateKey'] as const) {}
 
 class PrivateKeysDto {
-  @Type(() => BasePrivateKey)
+  @Type(() => EccPrivateKeyDto)
   @ValidateNested()
   @IsNotEmpty()
   @ApiProperty({
-    type: BasePrivateKey,
+    type: EccPrivateKeyDto,
     description: 'ECC keys',
   })
-  ecc: BasePrivateKey;
+  ecc: EccPrivateKeyDto;
 
-  @Type(() => BasePrivateKey)
-  @ValidateNested()
-  @IsNotEmpty()
+  // TODO: uncomment validations when frontend stops sending kyber object as {privateKey: null, publicKey: null}
+  //@Type(() => KyberPrivateKeyDto)
+  //@ValidateNested()
   @ApiProperty({
-    type: BasePrivateKey,
+    type: KyberPrivateKeyDto,
     description: 'Kyber keys',
   })
-  kyber: BasePrivateKey;
+  kyber?: KyberPrivateKeyDto;
 }
 
 export class UpdatePasswordDto {
@@ -61,9 +65,6 @@ export class UpdatePasswordDto {
   mnemonic: string;
 
   @ValidateIf((dto) => !dto.keys)
-  @IsNotEmpty({
-    message: 'PrivateKey must be defined if keys object is not provided.',
-  })
   @IsString()
   @ApiProperty({
     example: 'newPrivateKey',

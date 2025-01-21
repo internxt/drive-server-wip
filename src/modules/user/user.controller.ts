@@ -42,7 +42,6 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
-  KeyServerNotFoundError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
@@ -115,15 +114,20 @@ export class UserController {
     try {
       const response = await this.userUseCases.createUser(createUserDto);
 
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+        {
+          privateKey: createUserDto.privateKey,
+          publicKey: createUserDto.publicKey,
+          revocationKey: createUserDto.revocationKey,
+        },
+      );
+
       const keys = await this.keyServerUseCases.addKeysToUser(
         response.user.id,
         {
-          kyber: createUserDto.keys?.kyber,
-          ecc: createUserDto.keys?.ecc || {
-            publicKey: createUserDto.publicKey,
-            privateKey: createUserDto.privateKey,
-            revocationKey: createUserDto.revocationKey,
-          },
+          kyber,
+          ecc,
         },
       );
 
@@ -284,15 +288,20 @@ export class UserController {
 
       const userCreated = await this.userUseCases.createUser(createUserDto);
 
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+        {
+          privateKey: createUserDto.privateKey,
+          publicKey: createUserDto.publicKey,
+          revocationKey: createUserDto.revocationKey,
+        },
+      );
+
       const keys = await this.keyServerUseCases.addKeysToUser(
         userCreated.user.id,
         {
-          kyber: createUserDto.keys?.kyber,
-          ecc: createUserDto.keys?.ecc || {
-            publicKey: createUserDto.publicKey,
-            privateKey: createUserDto.privateKey,
-            revocationKey: createUserDto.revocationKey,
-          },
+          kyber,
+          ecc,
         },
       );
 
@@ -458,7 +467,6 @@ export class UserController {
   @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
   async updatePassword(
     @Body() updatePasswordDto: UpdatePasswordDto,
-    @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
@@ -485,6 +493,14 @@ export class UserController {
         throw new UnauthorizedException();
       }
 
+      const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+      if (userKeys.kyber && !updatePasswordDto.keys?.kyber?.privateKey) {
+        throw new BadRequestException(
+          'User has kyber keys, you need to send kyber keys to update user password',
+        );
+      }
+
       await this.userUseCases.updatePassword(user, {
         currentPassword,
         newPassword,
@@ -502,25 +518,14 @@ export class UserController {
 
       return { status: 'success', newToken, token };
     } catch (err) {
-      let errorMessage = err.message;
-
-      if (err instanceof UnauthorizedException) {
-        res.status(HttpStatus.BAD_REQUEST);
-      } else if (err instanceof KeyServerNotFoundError) {
-        res.status(HttpStatus.NOT_FOUND);
-      } else {
-        new Logger().error(
-          `[AUTH/UPDATEPASSWORD] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
     }
   }
 

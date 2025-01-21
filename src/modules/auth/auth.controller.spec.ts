@@ -1,4 +1,5 @@
 import { newKeyServer, newUser } from './../../../test/fixtures';
+import { Test } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
@@ -12,7 +13,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { GeneratedSecret } from 'speakeasy';
@@ -21,23 +22,25 @@ import { DeleteTfaDto } from './dto/delete-tfa.dto';
 
 describe('AuthController', () => {
   let authController: AuthController;
-  let userUseCases: DeepMocked<UserUseCases>;
-  let keyServerUseCases: DeepMocked<KeyServerUseCases>;
-  let cryptoService: DeepMocked<CryptoService>;
-  let twoFactorAuthService: DeepMocked<TwoFactorAuthService>;
+  let userUseCases: UserUseCases;
+  let keyServerUseCases: KeyServerUseCases;
+  let cryptoService: CryptoService;
+  let twoFactorAuthService: TwoFactorAuthService;
 
   beforeEach(async () => {
-    userUseCases = createMock<UserUseCases>();
-    keyServerUseCases = createMock<KeyServerUseCases>();
-    cryptoService = createMock<CryptoService>();
-    twoFactorAuthService = createMock<TwoFactorAuthService>();
+    const moduleRef = await Test.createTestingModule({
+      controllers: [AuthController],
+    })
+      .useMocker(() => createMock())
+      .compile();
 
-    authController = new AuthController(
-      userUseCases,
-      keyServerUseCases,
-      cryptoService,
-      twoFactorAuthService,
-    );
+    userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
+    keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
+    cryptoService = moduleRef.get<CryptoService>(CryptoService);
+    twoFactorAuthService =
+      moduleRef.get<TwoFactorAuthService>(TwoFactorAuthService);
+
+    authController = moduleRef.get<AuthController>(AuthController);
   });
 
   it('should be defined', () => {
@@ -110,6 +113,13 @@ describe('AuthController', () => {
     loginAccessDto.revocationKey = 'revocationKey';
 
     it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
       jest
         .spyOn(userUseCases, 'loginAccess')
         .mockResolvedValueOnce({ success: true } as any);
@@ -121,9 +131,9 @@ describe('AuthController', () => {
         ...loginAccessDto,
         keys: {
           ecc: {
-            publicKey: loginAccessDto.publicKey,
-            privateKey: loginAccessDto.privateKey,
-            revocationKey: loginAccessDto.revocationKey,
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
           },
           kyber: null,
         },
@@ -147,6 +157,13 @@ describe('AuthController', () => {
       inputWithRevocateKey.revocationKey = undefined;
       inputWithRevocateKey.revocateKey = revocationKey;
 
+      const eccKey = newKeyServer({ revocationKey });
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
       jest
         .spyOn(userUseCases, 'loginAccess')
         .mockResolvedValueOnce({ success: true } as any);
@@ -157,9 +174,9 @@ describe('AuthController', () => {
         ...inputWithRevocateKey,
         keys: {
           ecc: {
-            publicKey: inputWithRevocateKey.publicKey,
-            privateKey: inputWithRevocateKey.privateKey,
-            revocationKey: revocationKey,
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
           },
           kyber: null,
         },
@@ -167,18 +184,23 @@ describe('AuthController', () => {
     });
 
     it('When new key fields are sent, then it should update keys accordingly', async () => {
+      const eccKey = newKeyServer();
+      const kyberKey = newKeyServer();
+
       const inputWithRevocateKey = { ...loginAccessDto };
       inputWithRevocateKey.keys = {
         ecc: {
-          publicKey: 'public key',
-          privateKey: ' private key',
-          revocationKey: 'revocation key',
+          ...eccKey.toJSON(),
         },
         kyber: {
-          publicKey: 'public kyber key',
-          privateKey: ' private kyber key',
+          ...kyberKey.toJSON(),
         },
       };
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: kyberKey.toJSON(),
+      });
 
       jest.spyOn(userUseCases, 'loginAccess');
 
@@ -188,13 +210,10 @@ describe('AuthController', () => {
         ...inputWithRevocateKey,
         keys: {
           ecc: {
-            publicKey: 'public key',
-            privateKey: ' private key',
-            revocationKey: 'revocation key',
+            ...eccKey.toJSON(),
           },
           kyber: {
-            publicKey: 'public kyber key',
-            privateKey: ' private kyber key',
+            ...kyberKey.toJSON(),
           },
         },
       });
