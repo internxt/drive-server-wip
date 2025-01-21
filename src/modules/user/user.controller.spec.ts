@@ -7,6 +7,12 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import {
+  generateBase64PrivateKeyStub,
+  newKeyServer,
+  newPreCreatedUser,
+  newUser,
+} from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
 import { MailLimitReachedException, UserUseCases } from './user.usecase';
@@ -15,12 +21,7 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
-import {
-  generateBase64PrivateKeyStub,
-  newKeyServer,
-  newPreCreatedUser,
-  newUser,
-} from '../../../test/fixtures';
+
 import { AccountTokenAction, User } from './user.domain';
 import { DeviceType } from './dto/register-notification-token.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -430,6 +431,9 @@ describe('User Controller', () => {
       );
 
       loggerSpy.mockRestore();
+    });
+  });
+
   describe('POST /create-user', () => {
     const req = createMock<Request>({
       headers: { 'internxt-client': 'drive-web' } as any,
