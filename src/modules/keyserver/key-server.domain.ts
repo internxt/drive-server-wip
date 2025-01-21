@@ -1,13 +1,18 @@
+export enum UserKeysEncryptVersions {
+  Ecc = 'ecc',
+  Kyber = 'kyber',
+}
+
 export interface Keys {
   publicKey: string;
   privateKey: string;
-  revocationKey: string;
+  revocationKey?: string;
 }
 
 export interface KeyServerAttributes extends Keys {
   id: number;
   userId: number;
-  encryptVersion: string;
+  encryptVersion: UserKeysEncryptVersions;
 }
 
 export class KeyServer implements KeyServerAttributes {
@@ -15,8 +20,8 @@ export class KeyServer implements KeyServerAttributes {
   userId: number;
   publicKey: string;
   privateKey: string;
-  revocationKey: string;
-  encryptVersion: string;
+  revocationKey?: string;
+  encryptVersion: UserKeysEncryptVersions;
 
   constructor({
     id,
@@ -47,5 +52,39 @@ export class KeyServer implements KeyServerAttributes {
       revocationKey: this.revocationKey,
       encryptVersion: this.encryptVersion,
     };
+  }
+
+  validate() {
+    return KeyServer.validate(this.encryptVersion, this);
+  }
+
+  static validate(
+    encryptVersion: UserKeysEncryptVersions,
+    keyData: Partial<Keys>,
+  ) {
+    const requiredFields = {
+      [UserKeysEncryptVersions.Kyber]: ['publicKey', 'privateKey'],
+      [UserKeysEncryptVersions.Ecc]: [
+        'publicKey',
+        'privateKey',
+        'revocationKey',
+      ],
+    };
+
+    const required = requiredFields[encryptVersion];
+
+    if (!required) {
+      throw new Error(`Unsupported encryption version: ${encryptVersion}`);
+    }
+
+    for (const field of required) {
+      if (!keyData[field]) {
+        throw new Error(
+          `${field} is required for encryption version ${encryptVersion}.`,
+        );
+      }
+    }
+
+    return true;
   }
 }
