@@ -84,7 +84,7 @@ export class UpdatePasswordDto {
   })
   encryptVersion: string;
 
-  @ValidateIf((dto) => !dto.privateKey && !dto.encryptVersion)
+  @ValidateIf((dto) => !dto.privateKey || !!dto.keys)
   @IsNotEmpty({
     message:
       'Keys object must be provided if privateKey and encryptVersion are not defined.',
