@@ -75,16 +75,9 @@ export class AuthController {
       const required2FA = Boolean(
         user.secret_2FA && user.secret_2FA.length > 0,
       );
+      const keys = await this.keyServerUseCases.findUserKeys(user.id);
 
-      const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
-
-      return {
-        hasKeys: !!userKeys.ecc,
-        sKey: encryptedSalt,
-        tfa: required2FA,
-        hasKyberKeys: !!userKeys.kyber,
-        hasEccKeys: !!userKeys.ecc,
-      };
+      return { hasKeys: !!keys, sKey: encryptedSalt, tfa: required2FA };
     } catch (err) {
       if (!(err instanceof HttpException)) {
         Logger.error(
@@ -109,29 +102,7 @@ export class AuthController {
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
   async loginAccess(@Body() body: LoginAccessDto) {
-    const eccKeys =
-      body.keys?.ecc || body.publicKey
-        ? {
-            publicKey: body.keys?.ecc?.publicKey || body.publicKey,
-            privateKey: body.keys?.ecc?.privateKey || body.privateKey,
-            revocationKey:
-              body.keys?.ecc?.revocationKey ||
-              body.revocationKey ||
-              body.revocateKey,
-          }
-        : null;
-
-    const kyberKeys = body.keys?.kyber
-      ? {
-          publicKey: body.keys.kyber.publicKey,
-          privateKey: body.keys.kyber.privateKey,
-        }
-      : null;
-
-    return this.userUseCases.loginAccess({
-      ...body,
-      keys: { kyber: kyberKeys, ecc: eccKeys },
-    });
+    return this.userUseCases.loginAccess(body);
   }
 
   @Get('/logout')

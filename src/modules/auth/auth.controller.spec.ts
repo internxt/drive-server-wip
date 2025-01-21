@@ -1,4 +1,4 @@
-import { newKeyServer, newUser } from './../../../test/fixtures';
+import { newUser } from './../../../test/fixtures';
 import { AuthController } from './auth.controller';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
@@ -12,6 +12,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { KeyServer } from '../keyserver/key-server.domain';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
 import { TwoFactorAuthService } from './two-factor-auth.service';
@@ -53,12 +54,17 @@ describe('AuthController', () => {
       user.hKey = 'hKey';
       user.secret_2FA = 'secret_2FA';
 
-      const keys = newKeyServer({ userId: user.id });
+      const keys: Omit<
+        KeyServer,
+        'id' | 'userId' | 'encryptVersion' | 'toJSON'
+      > = {
+        publicKey: 'publicKey',
+        privateKey: 'privateKey',
+        revocationKey: 'revocationKey',
+      };
 
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
-      jest
-        .spyOn(keyServerUseCases, 'findUserKeys')
-        .mockResolvedValueOnce({ ecc: keys, kyber: null });
+      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce(keys);
       jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
 
       const res = {
@@ -72,8 +78,6 @@ describe('AuthController', () => {
         hasKeys: true,
         sKey: 'encryptedText',
         tfa: true,
-        hasKyberKeys: false,
-        hasEccKeys: true,
       });
     });
 
@@ -107,7 +111,7 @@ describe('AuthController', () => {
     loginAccessDto.password = v4();
     loginAccessDto.privateKey = 'privateKey';
     loginAccessDto.publicKey = 'publicKey';
-    loginAccessDto.revocationKey = 'revocationKey';
+    loginAccessDto.revocateKey = 'revocateKey';
 
     it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
       jest
@@ -117,17 +121,7 @@ describe('AuthController', () => {
       const result = await authController.loginAccess(loginAccessDto);
 
       expect(userUseCases.loginAccess).toHaveBeenCalledTimes(1);
-      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
-        ...loginAccessDto,
-        keys: {
-          ecc: {
-            publicKey: loginAccessDto.publicKey,
-            privateKey: loginAccessDto.privateKey,
-            revocationKey: loginAccessDto.revocationKey,
-          },
-          kyber: null,
-        },
-      });
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith(loginAccessDto);
       expect(result).toEqual({ success: true });
     });
 
@@ -139,65 +133,6 @@ describe('AuthController', () => {
       await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
         Error,
       );
-    });
-
-    it('When revocateKey is sent, then it should rename it to revocationKey', async () => {
-      const revocationKey = 'revocationKey';
-      const inputWithRevocateKey = { ...loginAccessDto };
-      inputWithRevocateKey.revocationKey = undefined;
-      inputWithRevocateKey.revocateKey = revocationKey;
-
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce({ success: true } as any);
-
-      await authController.loginAccess(inputWithRevocateKey);
-
-      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
-        ...inputWithRevocateKey,
-        keys: {
-          ecc: {
-            publicKey: inputWithRevocateKey.publicKey,
-            privateKey: inputWithRevocateKey.privateKey,
-            revocationKey: revocationKey,
-          },
-          kyber: null,
-        },
-      });
-    });
-
-    it('When new key fields are sent, then it should update keys accordingly', async () => {
-      const inputWithRevocateKey = { ...loginAccessDto };
-      inputWithRevocateKey.keys = {
-        ecc: {
-          publicKey: 'public key',
-          privateKey: ' private key',
-          revocationKey: 'revocation key',
-        },
-        kyber: {
-          publicKey: 'public kyber key',
-          privateKey: ' private kyber key',
-        },
-      };
-
-      jest.spyOn(userUseCases, 'loginAccess');
-
-      await authController.loginAccess(inputWithRevocateKey);
-
-      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
-        ...inputWithRevocateKey,
-        keys: {
-          ecc: {
-            publicKey: 'public key',
-            privateKey: ' private key',
-            revocationKey: 'revocation key',
-          },
-          kyber: {
-            publicKey: 'public kyber key',
-            privateKey: ' private kyber key',
-          },
-        },
-      });
     });
   });
 
