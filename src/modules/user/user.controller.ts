@@ -77,6 +77,7 @@ import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attrib
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { avatarStorageS3Config } from '../../externals/multer';
+import { Client } from '../auth/decorators/client.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -459,11 +460,14 @@ export class UserController {
     @Body() updatePasswordDto: UpdatePasswordDto,
     @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
+    @Client() clientId: string,
   ) {
-    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+    const isDriveWeb = clientId === 'drive-web';
 
     if (!isDriveWeb) {
-      throw new BadRequestException('Change password is only allowed from the web app');
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
     }
 
     try {
