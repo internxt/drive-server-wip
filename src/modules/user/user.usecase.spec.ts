@@ -43,6 +43,7 @@ import {
   newNotificationToken,
   newFile,
   newFolder,
+  newKeyServer,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -54,12 +55,13 @@ import {
 } from './dto/register-notification-token.dto';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { v4 } from 'uuid';
-import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -78,7 +80,6 @@ describe('User use cases', () => {
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let userRepository: SequelizeUserRepository;
-  let keyServerRepository: SequelizeKeyServerRepository;
   let bridgeService: BridgeService;
   let sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository;
   let cryptoService: CryptoService;
@@ -88,6 +89,8 @@ describe('User use cases', () => {
   let workspaceRepository: SequelizeWorkspaceRepository;
   let mailerService: MailerService;
   let avatarService: AvatarService;
+  let keyServerUseCases: KeyServerUseCases;
+
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
@@ -131,9 +134,6 @@ describe('User use cases', () => {
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
-    keyServerRepository = moduleRef.get<SequelizeKeyServerRepository>(
-      SequelizeKeyServerRepository,
-    );
     bridgeService = moduleRef.get<BridgeService>(BridgeService);
     userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
@@ -154,6 +154,7 @@ describe('User use cases', () => {
     workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
       SequelizeWorkspaceRepository,
     );
+    keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
     mailerService = moduleRef.get<MailerService>(MailerService);
     avatarService = moduleRef.get<AvatarService>(AvatarService);
     jest.clearAllMocks();
@@ -833,11 +834,7 @@ describe('User use cases', () => {
   });
 
   describe('loginAccess', () => {
-    const keys = {
-      publicKey: 'publicKey',
-      privateKey: 'privateKey',
-      revocateKey: 'revocateKey',
-    };
+    const keys = newKeyServer();
 
     it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
       const loginAccessDto: LoginAccessDto = {
@@ -863,7 +860,7 @@ describe('User use cases', () => {
         email: 'nonexistent@example.com',
         password: v4(),
         tfa: '',
-        ...keys,
+        ...keys.toJSON(),
       };
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
 
@@ -877,7 +874,7 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: v4(),
         tfa: '',
-        ...keys,
+        ...keys.toJSON(),
       };
       const user = newUser({
         attributes: {
@@ -899,7 +896,7 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: wrongPassword,
         tfa: '',
-        ...keys,
+        ...keys.toJSON(),
       };
       const user = newUser({
         attributes: {
@@ -918,12 +915,6 @@ describe('User use cases', () => {
 
     it('When login is successful, then it should return user and tokens', async () => {
       const hashedPassword = v4();
-      const loginAccessDto = {
-        email: 'test@example.com',
-        password: v4(),
-        tfa: '',
-        ...keys,
-      };
       const user = newUser({
         attributes: {
           email: 'test@example.com',
@@ -932,11 +923,13 @@ describe('User use cases', () => {
           secret_2FA: null,
         },
       });
-      const keyServer = {
-        ...keys,
-        revocationKey: keys.revocateKey,
-        userId: user.id,
-      } as unknown as KeyServerModel;
+      const keyServer = newKeyServer({ userId: user.id, ...keys.toJSON() });
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: v4(),
+        tfa: '',
+        ...keyServer.toJSON(),
+      };
 
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
@@ -947,8 +940,12 @@ describe('User use cases', () => {
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
-      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
-      jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(keyServer);
 
       const result = await userUseCases.loginAccess(loginAccessDto);
 
@@ -965,7 +962,7 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: v4(),
         tfa: 'wrongTfa',
-        ...keys,
+        ...keys.toJSON(),
       };
       const user = newUser({
         attributes: {
@@ -990,8 +987,9 @@ describe('User use cases', () => {
         email: 'test@example.com',
         password: v4(),
         tfa: 'okTfa',
-        ...keys,
+        ...keys.toJSON(),
       };
+
       const user = newUser({
         attributes: {
           email: 'test@example.com',
@@ -1000,11 +998,8 @@ describe('User use cases', () => {
           secret_2FA: 'secret',
         },
       });
-      const keyServer = {
-        ...keys,
-        revocationKey: keys.revocateKey,
-        userId: user.id,
-      } as unknown as KeyServerModel;
+      const keyServer = newKeyServer({ userId: user.id, ...keys.toJSON() });
+
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
@@ -1017,9 +1012,12 @@ describe('User use cases', () => {
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
-      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
-      jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
-
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(keyServer);
       const result = await userUseCases.loginAccess(loginAccessDto);
 
       expect(result).toHaveProperty('user');
@@ -1027,6 +1025,276 @@ describe('User use cases', () => {
       expect(result.user).toHaveProperty('bucket', folder.bucket);
       expect(result).toHaveProperty('token', 'authToken');
       expect(result).toHaveProperty('newToken', 'newAuthToken');
+    });
+
+    it('When user without ecc keys logs in and keys are sent, then it should save keys', async () => {
+      const hashedPassword = 'hashedPassword';
+      const user = newUser({
+        attributes: {
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: null,
+        },
+      });
+      const keyServer = newKeyServer({ userId: user.id, ...keys.toJSON() });
+      const loginAccessDto: LoginAccessDto = {
+        email: user.email,
+        password: hashedPassword,
+        tfa: '',
+        keys: { ecc: { ...keyServer.toJSON() } },
+      };
+
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(keyServer);
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledWith(
+        user.id,
+        {
+          publicKey: keyServer.publicKey,
+          privateKey: keyServer.privateKey,
+          revocationKey: keyServer.revocationKey,
+          encryptVersion: keyServer.encryptVersion,
+        },
+      );
+      expect(result.user).toHaveProperty('keys', {
+        ecc: {
+          privateKey: keyServer.privateKey,
+          publicKey: keyServer.publicKey,
+          revocationKey: keyServer.revocationKey,
+        },
+        kyber: {
+          privateKey: null,
+          publicKey: null,
+        },
+      });
+    });
+
+    it('When user without kyber keys logs in and keys are sent, then it should save keys', async () => {
+      const hashedPassword = 'hashedPassword';
+      const user = newUser({
+        attributes: {
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: null,
+        },
+      });
+      const keyServer = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const loginAccessDto: LoginAccessDto = {
+        email: user.email,
+        password: hashedPassword,
+        tfa: '',
+        keys: { kyber: { ...keyServer.toJSON() } },
+      };
+
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(keyServer);
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledTimes(
+        1,
+      );
+
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledWith(
+        user.id,
+        {
+          publicKey: keyServer.publicKey,
+          privateKey: keyServer.privateKey,
+          revocationKey: keyServer.revocationKey,
+          encryptVersion: keyServer.encryptVersion,
+        },
+      );
+
+      expect(result.user).toHaveProperty('keys', {
+        ecc: {
+          privateKey: null,
+          publicKey: null,
+          revocationKey: null,
+        },
+        kyber: {
+          privateKey: keyServer.privateKey,
+          publicKey: keyServer.publicKey,
+        },
+      });
+    });
+
+    it('When user is missing one of the keys and both were sent, then it should save missing keys', async () => {
+      const hashedPassword = 'hashedPassword';
+      const user = newUser({
+        attributes: {
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: null,
+        },
+      });
+      const eccKey = newKeyServer({
+        userId: user.id,
+      });
+      const kyberKey = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const alreadyExistentEccKey = newKeyServer({
+        userId: user.id,
+      });
+      const loginAccessDto: LoginAccessDto = {
+        email: user.email,
+        password: hashedPassword,
+        tfa: '',
+        keys: { kyber: { ...kyberKey.toJSON() }, ecc: { ...eccKey.toJSON() } },
+      };
+
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: alreadyExistentEccKey, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValue(kyberKey);
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledTimes(
+        1,
+      );
+
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledWith(
+        user.id,
+        {
+          publicKey: kyberKey.publicKey,
+          privateKey: kyberKey.privateKey,
+          encryptVersion: kyberKey.encryptVersion,
+        },
+      );
+
+      expect(result.user).toHaveProperty('keys', {
+        ecc: {
+          privateKey: alreadyExistentEccKey.privateKey,
+          publicKey: alreadyExistentEccKey.publicKey,
+          revocationKey: alreadyExistentEccKey.revocationKey,
+        },
+        kyber: {
+          privateKey: kyberKey.privateKey,
+          publicKey: kyberKey.publicKey,
+        },
+      });
+    });
+  });
+
+  describe('updatePassword', () => {
+    const fixedSystemCurrentDate = new Date();
+
+    beforeAll(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(fixedSystemCurrentDate);
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
+    it('When user updates their password, then it should update password and privateKeys successfully', async () => {
+      const updatePasswordDto: UpdatePasswordDto = {
+        currentPassword: 'currentHashedPassword',
+        newPassword: 'newHashedPassword',
+        newSalt: 'newSalt',
+        mnemonic: 'mnemonic',
+        privateKey: 'encryptedPrivateKey',
+        encryptVersion: UserKeysEncryptVersions.Ecc,
+      };
+
+      await userUseCases.updatePassword(user, updatePasswordDto);
+
+      jest.spyOn(userRepository, 'updateById');
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        password: updatePasswordDto.newPassword,
+        hKey: Buffer.from(updatePasswordDto.newSalt),
+        mnemonic: updatePasswordDto.mnemonic,
+        lastPasswordChangedAt: fixedSystemCurrentDate,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: updatePasswordDto.privateKey,
+      });
+    });
+
+    it('When user updates their password along with new kyber keys, then it should update successfully', async () => {
+      const newKeys = {
+        ecc: { privateKey: 'privateEccKey' },
+        kyber: { privateKey: 'privateKyberKey' },
+      };
+
+      const updatePasswordDto: UpdatePasswordDto = {
+        currentPassword: 'currentHashedPassword',
+        newPassword: 'newHashedPassword',
+        newSalt: 'newSalt',
+        mnemonic: 'mnemonic',
+        privateKey: 'encryptedPrivateKey',
+        encryptVersion: UserKeysEncryptVersions.Ecc,
+        keys: newKeys,
+      };
+
+      await userUseCases.updatePassword(user, updatePasswordDto);
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        password: updatePasswordDto.newPassword,
+        hKey: Buffer.from(updatePasswordDto.newSalt),
+        mnemonic: updatePasswordDto.mnemonic,
+        lastPasswordChangedAt: fixedSystemCurrentDate,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: newKeys.ecc.privateKey,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: newKeys.kyber.privateKey,
+      });
     });
   });
 
