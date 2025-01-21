@@ -3,8 +3,10 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
 import { MailLimitReachedException, UserUseCases } from './user.usecase';
@@ -13,10 +15,10 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
-import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
 import { AccountTokenAction } from './user.domain';
 import { v4 } from 'uuid';
 import { DeviceType } from './dto/register-notification-token.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -29,6 +31,15 @@ jest.mock('../../config/configuration', () => {
       jitsi: {
         appId: 'jitsi-app-id',
         apiKey: 'jitsi-api-key',
+      },
+      avatar: {
+        accessKey: 'accessKey',
+        secretKey: 'secretKey',
+        bucket: 'bucket',
+        region: 'region',
+        endpoint: 'http://localhost:9001',
+        endpointForSignedUrls: 'http://localhost:9000',
+        forcePathStyle: true,
       },
     })),
   };
@@ -251,6 +262,166 @@ describe('User Controller', () => {
       expect(userUseCases.sendAccountEmailVerification).toHaveBeenCalledWith(
         user,
       );
+    });
+  });
+
+  describe('PATCH /profile', () => {
+    const user = newUser();
+    it('When name is provided and valid, then it should call updateProfile with the correct parameters', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: 'Internxt',
+      };
+
+      await userController.updateProfile(user, updateProfileDto);
+
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(
+        user,
+        updateProfileDto,
+      );
+    });
+
+    it('When lastname is provided as an empty string, then it should call updateProfile with the correct parameters', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        lastname: '',
+      };
+
+      await userController.updateProfile(user, updateProfileDto);
+
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(
+        user,
+        updateProfileDto,
+      );
+    });
+
+    it('When both name and lastname are not provided, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: undefined,
+        lastname: undefined,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When name is null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When lastname is null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        lastname: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When both name and lastname are null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: null,
+        lastname: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('PUT /avatar', () => {
+    const user = newUser();
+    const newAvatarKey = v4();
+    const avatar: Express.Multer.File | any = {
+      stream: undefined,
+      fieldname: undefined,
+      originalname: undefined,
+      encoding: undefined,
+      mimetype: undefined,
+      size: undefined,
+      filename: undefined,
+      destination: undefined,
+      path: undefined,
+      buffer: undefined,
+    };
+
+    it('When uploadAvatar is called with a valid avatar then it should upload the avatar', async () => {
+      avatar.key = newAvatarKey;
+      const avatarURL = 'https://localhost:9000/avatars/' + v4();
+      const mockResponse = { avatar: avatarURL };
+      jest
+        .spyOn(userUseCases, 'upsertAvatar')
+        .mockResolvedValue({ avatar: avatarURL });
+      const result = await userController.uploadAvatar(avatar, user);
+      expect(result).toEqual(mockResponse);
+      expect(userUseCases.upsertAvatar).toHaveBeenCalledWith(
+        user,
+        newAvatarKey,
+      );
+    });
+
+    it('When uploadAvatar is called without an avatar then it should throw', async () => {
+      const mockAvatar = undefined;
+      await expect(
+        userController.uploadAvatar(mockAvatar as any, user),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When uploadAvatar is called without a key then it should throw', async () => {
+      avatar.key = null;
+      await expect(userController.uploadAvatar(avatar, user)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
+
+    it('When upsertAvatar throws an error, then it should log the error and rethrow it', async () => {
+      avatar.key = newAvatarKey;
+      const errorMessage = 'Failed to upload avatar';
+      jest
+        .spyOn(userUseCases, 'upsertAvatar')
+        .mockRejectedValue(new Error(errorMessage));
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await expect(userController.uploadAvatar(avatar, user)).rejects.toThrow(
+        Error,
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        `[USER/UPLOAD_AVATAR] Error uploading avatar for user: ${user.id}. Error: ${errorMessage}`,
+      );
+
+      loggerSpy.mockRestore();
+    });
+  });
+
+  describe('DELETE /avatar', () => {
+    const user = newUser();
+    it('When deleteAvatar is called then it should delete the user avatar', async () => {
+      jest.spyOn(userUseCases, 'deleteAvatar').mockResolvedValue(undefined);
+
+      await userController.deleteAvatar(user);
+      expect(userUseCases.deleteAvatar).toHaveBeenCalledWith(user);
+    });
+
+    it('When deleteAvatar throws an error, then it should log the error and rethrow it', async () => {
+      const errorMessage = 'Failed to delete avatar';
+      jest
+        .spyOn(userUseCases, 'deleteAvatar')
+        .mockRejectedValue(new Error(errorMessage));
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await expect(userController.deleteAvatar(user)).rejects.toThrow(Error);
+      expect(loggerSpy).toHaveBeenCalledWith(
+        `[USER/DELETE_AVATAR] Error deleting the avatar for the user: ${user.id} has failed. Error: ${errorMessage}`,
+      );
+
+      loggerSpy.mockRestore();
     });
   });
 });

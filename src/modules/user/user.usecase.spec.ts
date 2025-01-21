@@ -14,6 +14,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { AccountTokenAction, User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
+import { AvatarService } from '../../externals/avatar/avatar.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
@@ -22,6 +23,7 @@ import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.re
 import {
   BadRequestException,
   ForbiddenException,
+  InternalServerErrorException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -58,6 +60,7 @@ import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -85,6 +88,7 @@ describe('User use cases', () => {
   let mailLimitRepository: SequelizeMailLimitRepository;
   let workspaceRepository: SequelizeWorkspaceRepository;
   let mailerService: MailerService;
+  let avatarService: AvatarService;
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
@@ -152,6 +156,7 @@ describe('User use cases', () => {
       SequelizeWorkspaceRepository,
     );
     mailerService = moduleRef.get<MailerService>(MailerService);
+    avatarService = moduleRef.get<AvatarService>(AvatarService);
     jest.clearAllMocks();
   });
 
@@ -1247,6 +1252,113 @@ describe('User use cases', () => {
       await userUseCases.sendAccountEmailVerification(user);
 
       expect(mailLimit.attemptsCount).toEqual(1);
+    });
+  });
+
+  describe('upsertAvatar', () => {
+    const newAvatarKey = v4();
+    const newAvatarURL = `http://localhost:9000/${newAvatarKey}`;
+
+    it('When user has an existing avatar then delete the old avatar', async () => {
+      const user = newUser({ attributes: { avatar: v4() } });
+
+      jest.spyOn(avatarService, 'deleteAvatar').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'updateById').mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValue(newAvatarURL);
+
+      const result = await userUseCases.upsertAvatar(user, newAvatarKey);
+
+      expect(avatarService.deleteAvatar).toHaveBeenCalledWith(user.avatar);
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        avatar: newAvatarKey,
+      });
+      expect(result).toMatchObject({ avatar: newAvatarURL });
+    });
+
+    it('When deleting the old avatar fails then throw', async () => {
+      jest
+        .spyOn(avatarService, 'deleteAvatar')
+        .mockRejectedValue(new Error('Delete failed'));
+
+      await expect(
+        userUseCases.upsertAvatar(user, newAvatarKey),
+      ).rejects.toThrow();
+    });
+
+    it('When updating the user avatar fails then throw', async () => {
+      jest
+        .spyOn(userRepository, 'updateById')
+        .mockRejectedValue(new Error('Update failed'));
+
+      await expect(
+        userUseCases.upsertAvatar(user, newAvatarKey),
+      ).rejects.toThrow();
+    });
+
+    it('When user has no avatar already, then previous avatar is not deleted', async () => {
+      const user = newUser({ attributes: { avatar: null } });
+      jest.spyOn(userRepository, 'updateById').mockResolvedValue();
+      jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValue(newAvatarURL);
+
+      const result = await userUseCases.upsertAvatar(user, newAvatarKey);
+
+      expect(result).toMatchObject({ avatar: newAvatarURL });
+      expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteAvatar', () => {
+    it('When the user has an avatar, then it should delete the avatar and update the user', async () => {
+      const user = newUser({ attributes: { avatar: v4() } });
+
+      avatarService.deleteAvatar = jest.fn().mockResolvedValue(undefined);
+      userRepository.updateById = jest.fn().mockResolvedValue(undefined);
+
+      await userUseCases.deleteAvatar(user);
+
+      expect(avatarService.deleteAvatar).toHaveBeenCalledWith(user.avatar);
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        avatar: null,
+      });
+    });
+
+    it('When the user has no avatar, then it should not delete the avatar and not update the user', async () => {
+      const user = newUser({ attributes: { avatar: null } });
+
+      await userUseCases.deleteAvatar(user);
+
+      expect(avatarService.deleteAvatar).not.toHaveBeenCalled();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it('When deleting the avatar fails, then it should throw', async () => {
+      const user = newUser({ attributes: { avatar: v4() } });
+
+      jest
+        .spyOn(avatarService, 'deleteAvatar')
+        .mockRejectedValue(new Error('Delete failed'));
+
+      await expect(userUseCases.deleteAvatar(user)).rejects.toThrow();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('When updating the user profile, then it should call updateByUuid with the correct parameters', async () => {
+      const user = newUser();
+      const payload: UpdateProfileDto = {
+        name: 'John',
+        lastname: 'Doe',
+      };
+
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+
+      await userUseCases.updateProfile(user, payload);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(
+        user.uuid,
+        payload,
+      );
     });
   });
 });

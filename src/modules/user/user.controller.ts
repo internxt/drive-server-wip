@@ -15,13 +15,17 @@ import {
   Patch,
   Request as RequestDecorator,
   Put,
+  UploadedFile,
+  Delete,
   Query,
   UnauthorizedException,
   BadRequestException,
   UseFilters,
   InternalServerErrorException,
   HttpException,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -72,6 +76,8 @@ import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { avatarStorageS3Config } from '../../externals/multer';
 
 @ApiTags('User')
 @Controller('users')
@@ -840,5 +846,73 @@ export class UserController {
   @Public()
   async verifyAccountEmail(@Body() body: VerifyEmailDto) {
     return this.userUseCases.verifyUserEmail(body.verificationToken);
+  }
+
+  @Patch('/profile')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update user profile',
+  })
+  @ApiOkResponse({
+    description: 'Updated user profile',
+  })
+  async updateProfile(
+    @UserDecorator() user: User,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    if (!updateProfileDto.name && updateProfileDto.lastname == undefined) {
+      throw new BadRequestException(
+        'At least one of name or lastname must be provided.',
+      );
+    }
+    return this.userUseCases.updateProfile(user, updateProfileDto);
+  }
+
+  @Put('/avatar')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Avatar added to the user',
+  })
+  @UseInterceptors(FileInterceptor('avatar', avatarStorageS3Config))
+  async uploadAvatar(
+    @UploadedFile() avatar: Express.Multer.File | any,
+    @UserDecorator() user: User,
+  ) {
+    if (!avatar) {
+      throw new BadRequestException('avatar is required');
+    }
+    if (!avatar.key) {
+      throw new InternalServerErrorException('Avatar could not be uploaded');
+    }
+
+    try {
+      return await this.userUseCases.upsertAvatar(user, avatar.key);
+    } catch (err) {
+      Logger.error(
+        `[USER/UPLOAD_AVATAR] Error uploading avatar for user: ${user.id}. Error: ${err.message}`,
+      );
+      throw err;
+    }
+  }
+
+  @Delete('/avatar')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Avatar deleted from the workspace',
+  })
+  async deleteAvatar(@UserDecorator() user: User) {
+    try {
+      return await this.userUseCases.deleteAvatar(user);
+    } catch (err) {
+      Logger.error(
+        `[USER/DELETE_AVATAR] Error deleting the avatar for the user: ${
+          user.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
   }
 }
