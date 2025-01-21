@@ -9,7 +9,6 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
-import { KeyServerAttributes } from '../keyserver/key-server.domain';
 
 @Table({
   underscored: true,
@@ -46,7 +45,7 @@ export class PreCreatedUserModel
   revocationKey: string;
 
   @Column(DataType.STRING)
-  encryptVersion: KeyServerAttributes['encryptVersion'];
+  encryptVersion: string;
 
   @Column
   password: string;

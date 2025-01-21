@@ -1,35 +1,5 @@
-import { ApiProperty, PickType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsNotEmpty,
-  IsObject,
-  IsString,
-  ValidateIf,
-  ValidateNested,
-} from 'class-validator';
-import { BaseKeysDto } from '../../keyserver/dto/keys.dto';
-
-class BasePrivateKey extends PickType(BaseKeysDto, ['privateKey'] as const) {}
-
-class PrivateKeysDto {
-  @Type(() => BasePrivateKey)
-  @ValidateNested()
-  @IsNotEmpty()
-  @ApiProperty({
-    type: BasePrivateKey,
-    description: 'ECC keys',
-  })
-  ecc: BasePrivateKey;
-
-  @Type(() => BasePrivateKey)
-  @ValidateNested()
-  @IsNotEmpty()
-  @ApiProperty({
-    type: BasePrivateKey,
-    description: 'Kyber keys',
-  })
-  kyber: BasePrivateKey;
-}
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
 
 export class UpdatePasswordDto {
   @IsString()
@@ -60,42 +30,17 @@ export class UpdatePasswordDto {
   })
   mnemonic: string;
 
-  @ValidateIf((dto) => !dto.keys)
-  @IsNotEmpty({
-    message: 'PrivateKey must be defined if keys object is not provided.',
-  })
   @IsString()
   @ApiProperty({
     example: 'newPrivateKey',
     description: 'New private key',
-    deprecated: true,
   })
   privateKey: string;
 
-  @ValidateIf((dto) => !dto.keys)
-  @IsNotEmpty({
-    message: 'EncryptVersion must be defined if keys object is not provided.',
-  })
   @IsString()
   @ApiProperty({
     example: 'encryptVersion',
     description: 'Encrypt version',
-    deprecated: true,
   })
   encryptVersion: string;
-
-  @ValidateIf((dto) => !dto.privateKey || !!dto.keys)
-  @IsNotEmpty({
-    message:
-      'Keys object must be provided if privateKey and encryptVersion are not defined.',
-  })
-  @ValidateNested()
-  @Type(() => PrivateKeysDto)
-  @IsObject()
-  @ApiProperty({
-    type: PrivateKeysDto,
-    description:
-      'Keys, if provided, will update the user keys. This object replaces the need for privateKey and encryptVersion.',
-  })
-  keys?: PrivateKeysDto;
 }

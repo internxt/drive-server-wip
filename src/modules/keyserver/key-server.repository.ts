@@ -9,12 +9,10 @@ interface KeyServerRepository {
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]>;
-  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]>;
-  updateByUserAndEncryptVersion(
+  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer>;
+  findPublicKey(
     userId: UserAttributes['id'],
-    encryptVersion: KeyServerAttributes['encryptVersion'],
-    data: Partial<KeyServerAttributes>,
-  ): Promise<void>;
+  ): Promise<KeyServerAttributes['publicKey']>;
   deleteByUserId(userId: UserAttributes['id']): Promise<void>;
 }
 
@@ -25,31 +23,20 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     private model: typeof KeyServerModel,
   ) {}
 
-  async findUserKeysOrCreate(
+  findUserKeysOrCreate(
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
   ): Promise<[KeyServer | null, boolean]> {
-    const optionalWhere = {};
-
-    if (data.encryptVersion) {
-      optionalWhere['encryptVersion'] = data.encryptVersion;
-    }
-
-    const [userKeys, wasCreated] = await this.model.findOrCreate({
-      where: { userId, ...optionalWhere },
+    return this.model.findOrCreate({
+      where: { userId },
       defaults: data,
     });
-
-    return userKeys
-      ? [this.toDomain(userKeys), wasCreated]
-      : [null, wasCreated];
   }
 
-  async findUserKeys(userId: UserAttributes['id']): Promise<KeyServer[]> {
-    const userKeys = await this.model.findAll({
+  findUserKeys(userId: UserAttributes['id']): Promise<KeyServer> {
+    return this.model.findOne({
       where: { userId },
     });
-    return userKeys ? userKeys.map(this.toDomain.bind(this)) : null;
   }
 
   async update(
@@ -59,29 +46,18 @@ export class SequelizeKeyServerRepository implements KeyServerRepository {
     await this.model.update(data, { where: { userId } });
   }
 
-  async updateByUserAndEncryptVersion(
+  async findPublicKey(
     userId: UserAttributes['id'],
-    encryptVersion: KeyServerAttributes['encryptVersion'],
-    data: Partial<KeyServerAttributes>,
-  ): Promise<void> {
-    await this.model.update(data, {
-      where: { userId, encryptVersion },
-    });
+  ): Promise<KeyServerAttributes['publicKey']> {
+    const keyServer = await this.model.findOne({ where: { userId } });
+    return keyServer.publicKey;
   }
 
   async deleteByUserId(userId: UserAttributes['id']): Promise<void> {
     await this.model.destroy({ where: { userId } });
   }
 
-  async create(
-    userId: UserAttributes['id'],
-    data: Partial<KeyServerAttributes>,
-  ) {
-    const newUserKeys = await this.model.create({ userId, ...data });
-    return newUserKeys ? this.toDomain(newUserKeys) : null;
-  }
-
-  toDomain(keyServer: KeyServerModel): KeyServer {
-    return KeyServer.build(keyServer.toJSON());
+  create(userId: UserAttributes['id'], data: Partial<KeyServerAttributes>) {
+    return this.model.create({ userId, ...data });
   }
 }
