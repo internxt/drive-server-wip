@@ -76,7 +76,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
-import { IsSharedItemWorkspace } from './decorators/is-shared-item-workspace.decorator';
+import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -1228,7 +1228,7 @@ export class WorkspacesController {
     @Param('itemType') itemType: WorkspaceItemType,
     @Param('uuid', ValidateUUIDPipe)
     itemUuid: Sharing['itemId'],
-    @IsSharedItemWorkspace() isSharedItem: boolean,
+    @IsSharedItem() isSharedItem: boolean,
   ) {
     if (!isSharedItem) {
       const creator = await this.workspaceUseCases.isUserCreatorOfItem(
