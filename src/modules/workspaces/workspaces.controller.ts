@@ -13,6 +13,7 @@ import {
   UseInterceptors,
   InternalServerErrorException,
   UseFilters,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -75,6 +76,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
+import { IsSharedItemWorkspace } from './decorators/is-shared-item.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -1216,8 +1218,9 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Item ancestors details',
   })
-  @UseGuards(WorkspaceGuard)
+  @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @RequiredSharingPermissions(SharingActionName.ViewDetails)
   async getWorkspaceItemAncestors(
     @UserDecorator() user: User,
     @Param('workspaceId', ValidateUUIDPipe)
@@ -1225,7 +1228,19 @@ export class WorkspacesController {
     @Param('itemType') itemType: WorkspaceItemType,
     @Param('uuid', ValidateUUIDPipe)
     itemUuid: Sharing['itemId'],
+    @IsSharedItemWorkspace() isSharedItem: boolean,
   ) {
+    if (!isSharedItem) {
+      const creator = await this.workspaceUseCases.isUserCreatorOfItem(
+        user,
+        itemUuid,
+        itemType,
+      );
+      if (!creator) {
+        throw new ForbiddenException('You cannot access this resource');
+      }
+    }
+
     return this.workspaceUseCases.getWorkspaceItemAncestors(
       workspaceId,
       itemType,

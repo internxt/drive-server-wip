@@ -1,5 +1,9 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -876,12 +880,65 @@ describe('Workspace Controller', () => {
     });
   });
 
+  // describe('getWorkspaceItemAncestors', () => {
+  //   it('When provided with an invalid workspaceId then should throw', async () => {
+  //     const user = newUser();
+  //     const workspaceId = 'invalid-uuid';
+  //     const itemType = WorkspaceItemType.File;
+  //     const itemUuid = v4();
+  //     const isSharedItem = true;
+
+  //     jest
+  //       .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+  //       .mockRejectedValue(new NotFoundException('Workspace not found'));
+
+  //     await expect(
+  //       workspacesController.getWorkspaceItemAncestors(
+  //         user,
+  //         workspaceId,
+  //         itemType,
+  //         itemUuid,
+  //         isSharedItem,
+  //       ),
+  //     ).rejects.toThrow(NotFoundException);
+  //   });
+
+  //   it('When provided with valid parameters then returns item ancestors', async () => {
+  //     const user = newUser();
+  //     const workspaceId = v4();
+  //     const itemType = WorkspaceItemType.Folder;
+  //     const itemUuid = v4();
+  //     const isSharedItem = true;
+  //     const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+  //     jest
+  //       .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+  //       .mockResolvedValue(expectedAncestors);
+
+  //     const result = await workspacesController.getWorkspaceItemAncestors(
+  //       user,
+  //       workspaceId,
+  //       itemType,
+  //       itemUuid,
+  //       isSharedItem,
+  //     );
+
+  //     expect(workspacesUsecases.getWorkspaceItemAncestors).toHaveBeenCalledWith(
+  //       workspaceId,
+  //       itemType,
+  //       itemUuid,
+  //     );
+  //     expect(result).toEqual(expectedAncestors);
+  //   });
+  // });
+
   describe('getWorkspaceItemAncestors', () => {
     it('When provided with an invalid workspaceId then should throw', async () => {
       const user = newUser();
       const workspaceId = 'invalid-uuid';
       const itemType = WorkspaceItemType.File;
       const itemUuid = v4();
+      const isSharedItem = true;
 
       jest
         .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
@@ -893,15 +950,17 @@ describe('Workspace Controller', () => {
           workspaceId,
           itemType,
           itemUuid,
+          isSharedItem,
         ),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When provided with valid parameters then returns item ancestors', async () => {
+    it('When provided with valid parameters and isSharedItem is true then returns item ancestors', async () => {
       const user = newUser();
       const workspaceId = v4();
       const itemType = WorkspaceItemType.Folder;
       const itemUuid = v4();
+      const isSharedItem = true;
       const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
 
       jest
@@ -913,6 +972,60 @@ describe('Workspace Controller', () => {
         workspaceId,
         itemType,
         itemUuid,
+        isSharedItem,
+      );
+
+      expect(workspacesUsecases.getWorkspaceItemAncestors).toHaveBeenCalledWith(
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+      expect(result).toEqual(expectedAncestors);
+    });
+
+    it('When isSharedItem is false and user is not the creator then should throw', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+      const isSharedItem = false;
+
+      jest
+        .spyOn(workspacesUsecases, 'isUserCreatorOfItem')
+        .mockResolvedValue(false);
+
+      await expect(
+        workspacesController.getWorkspaceItemAncestors(
+          user,
+          workspaceId,
+          itemType,
+          itemUuid,
+          isSharedItem,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When isSharedItem is false and user is the creator then returns item ancestors', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+      const isSharedItem = false;
+      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+      jest
+        .spyOn(workspacesUsecases, 'isUserCreatorOfItem')
+        .mockResolvedValue(true);
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+        .mockResolvedValue(expectedAncestors);
+
+      const result = await workspacesController.getWorkspaceItemAncestors(
+        user,
+        workspaceId,
+        itemType,
+        itemUuid,
+        isSharedItem,
       );
 
       expect(workspacesUsecases.getWorkspaceItemAncestors).toHaveBeenCalledWith(

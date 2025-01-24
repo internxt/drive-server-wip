@@ -809,22 +809,10 @@ export class SequelizeFolderRepository implements FolderRepository {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
 
-    const buildWorkspaceItemUser = (
-      workspaceItemUserData: WorkspaceItemUserModel | null,
-    ) => {
-      if (!workspaceItemUserData) return null;
-
-      return WorkspaceItemUser.build({
-        ...workspaceItemUserData,
-        creator: buildUser(workspaceItemUserData.creator),
-      });
-    };
-
     return Folder.build({
       ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
-      user: buildUser(model.user),
-      workspaceItemUser: buildWorkspaceItemUser(model.workspaceUser),
+      user: buildUser(model.user || model.workspaceUser?.creator),
     });
   }
 

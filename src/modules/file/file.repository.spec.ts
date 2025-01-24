@@ -220,7 +220,6 @@ describe('FileRepository', () => {
       ...mockFile,
       user: { id: mockFile.userId, name: 'John Doe' },
       folder: { uuid: mockFile.folderId, plainName: mockFile.plainName },
-      workspaceItemUser: null,
       toJSON: () => ({ ...toJson }),
     } as any;
 
@@ -295,7 +294,6 @@ describe('FileRepository', () => {
       ...mockFile,
       user: { id: mockFile.userId, name: 'John Doe' },
       folder: { uuid: mockFile.folderId, plainName: mockFile.plainName },
-      workspaceItemUser: null,
       toJSON: () => ({ ...toJson }),
     } as any;
 

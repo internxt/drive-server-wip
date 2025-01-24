@@ -5,7 +5,6 @@ import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
 import { isStringEmpty } from '../../lib/validators';
-import { WorkspaceItemUser } from './../workspaces/domains/workspace-item-user.domain';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
@@ -36,7 +35,6 @@ export interface FileAttributes {
   removedAt: Date;
   userId: number;
   user?: any;
-  workspaceItemUser?: any;
   creationTime: Date;
   modificationTime: Date;
   plainName: string;
@@ -72,7 +70,6 @@ export class File implements FileAttributes {
   deletedAt: Date;
   userId: number;
   user: User;
-  workspaceItemUser?: WorkspaceItemUser;
   creationTime: Date;
   modificationTime: Date;
   createdAt: Date;
@@ -99,7 +96,6 @@ export class File implements FileAttributes {
     deletedAt,
     userId,
     user,
-    workspaceItemUser,
     creationTime,
     modificationTime,
     createdAt,
@@ -139,7 +135,6 @@ export class File implements FileAttributes {
     this.shares = shares;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
-    this.workspaceItemUser = workspaceItemUser;
     if (!this.isFilenameValid()) {
       throw new Error('Filename cannot be empty');
     }

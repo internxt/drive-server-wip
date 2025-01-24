@@ -78,6 +78,23 @@ describe('SharingPermissionsGuard', () => {
     );
   });
 
+  it('When decoded.isSharedItem is true then set request.isSharedItem to true and return true', async () => {
+    mockMetadata(reflector, { action: SharingActionName.ViewDetails });
+
+    const context = createMockExecutionContext({
+      user,
+      headers: { 'internxt-resources-token': 'invalid-token' },
+    });
+    const decoded = { isSharedItem: true };
+    (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => decoded);
+
+    const result = await guard.canActivate(context);
+    const request = context.switchToHttp().getRequest();
+
+    expect(request.isSharedItem).toBe(true);
+    expect(result).toBe(true);
+  });
+
   it('When workspace and team permissions are valid, it should allow allow', async () => {
     const workspace = newWorkspace();
     const team = newWorkspaceTeam();
@@ -104,7 +121,7 @@ describe('SharingPermissionsGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it('When user is not part of the team, it should deny access', async () => {
+  it('When user is not part of the team, it should throw', async () => {
     const workspace = newWorkspace();
     const team = newWorkspaceTeam();
     const folder = newFolder();
@@ -125,7 +142,36 @@ describe('SharingPermissionsGuard', () => {
       .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
       .mockResolvedValue(false);
 
-    await expect(guard.canActivate(context)).resolves.toBe(false);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      new ForbiddenException('You cannot access this resource'),
+    );
+  });
+
+  it('When decoded owner is not found, it should throw', async () => {
+    const workspace = newWorkspace();
+    const team = newWorkspaceTeam();
+    const folder = newFolder();
+    mockMetadata(reflector, { action: SharingActionName.ViewDetails });
+
+    const context = createMockExecutionContext({
+      user,
+      headers: { 'internxt-resources-token': 'valid-token' },
+    });
+
+    (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => ({
+      workspace: { workspaceId: workspace.id, teamId: team.id },
+      sharedRootFolderId: folder.uuid,
+      sharedWithType: SharedWithType.WorkspaceTeam,
+      owner: undefined,
+    }));
+
+    jest
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
+      .mockResolvedValue(true);
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      new ForbiddenException('Resource owner is required'),
+    );
   });
 
   it('When resource owner is not found, it should throw', async () => {

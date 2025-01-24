@@ -1339,7 +1339,19 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getSharedFoldersInWorkspace(
@@ -1362,7 +1374,19 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getItemsInSharedFolder(
@@ -2962,6 +2986,95 @@ export class WorkspacesUsecases {
 
     const owner = await this.findWorkspaceResourceOwner(workspace);
 
-    return this.folderUseCases.getFolderAncestorsInWorkspace(owner, folderUuid);
+    const folders = await this.folderUseCases.getFolderAncestorsInWorkspace(
+      owner,
+      folderUuid,
+    );
+
+    // const existentSharing = await this.sharingUseCases.findSharingBy({
+    //   itemId: itemUuid,
+    //   itemType,
+    //   sharedWithType: SharedWithType.WorkspaceTeam,
+    // });
+
+    // if (existentSharing) {
+    // // Recorrer folders y retornar solos los hijos de itemUuid usando el campo uuid de folders
+    //   return folders.map((folder) => {
+
+    //   });
+    // }
+    return folders.map((f) => ({
+      uuid: f.uuid,
+      plainName: f.plainName,
+    }));
   }
 }
+/* [
+  {
+    type: 'folder',
+    id: 73,
+    parentId: 72,
+    parentUuid: '3c013506-5a65-469a-8ff3-39e8eb5acb00',
+    uuid: 'afeeb7ad-89dd-49a2-9ad5-c4ff979dbc3d',
+    plainName: 'Teams',
+  },
+  {
+    type: 'folder',
+    id: 72,
+    parentId: 63,
+    parentUuid: '8cb3747a-25fa-409c-b935-696506e438e8',
+    uuid: '3c013506-5a65-469a-8ff3-39e8eb5acb00',
+    plainName: 'Family',
+  },
+  {
+    type: 'folder',
+    id: 63,
+    parentId: 9,
+    parentUuid: '3e1c0cce-3e28-44b2-9a10-3e177c426da4',
+    uuid: '8cb3747a-25fa-409c-b935-696506e438e8',
+    plainName: '27fd134b-c05a-4b7f-a484-de5e5c4bf393',
+  },
+];
+
+[
+  {
+    type: 'folder',
+    id: 76,
+    parentId: 75,
+    parentUuid: '15a4e007-aa64-47dd-8213-d9c6f2685182',
+    uuid: 'e049cf03-bdee-4feb-a9f7-5810d8245798',
+    plainName: 'Private',
+  },
+  {
+    type: 'folder',
+    id: 75,
+    parentId: 73,
+    parentUuid: 'afeeb7ad-89dd-49a2-9ad5-c4ff979dbc3d',
+    uuid: '15a4e007-aa64-47dd-8213-d9c6f2685182',
+    plainName: 'CEO',
+  },
+  {
+    type: 'folder',
+    id: 73,
+    parentId: 72,
+    parentUuid: '3c013506-5a65-469a-8ff3-39e8eb5acb00',
+    uuid: 'afeeb7ad-89dd-49a2-9ad5-c4ff979dbc3d',
+    plainName: 'Teams',
+  },
+  {
+    type: 'folder',
+    id: 72,
+    parentId: 63,
+    parentUuid: '8cb3747a-25fa-409c-b935-696506e438e8',
+    uuid: '3c013506-5a65-469a-8ff3-39e8eb5acb00',
+    plainName: 'Family',
+  },
+  {
+    type: 'folder',
+    id: 63,
+    parentId: 9,
+    parentUuid: '3e1c0cce-3e28-44b2-9a10-3e177c426da4',
+    uuid: '8cb3747a-25fa-409c-b935-696506e438e8',
+    plainName: '27fd134b-c05a-4b7f-a484-de5e5c4bf393',
+  },
+]; */

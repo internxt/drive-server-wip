@@ -19,4 +19,5 @@ export interface SharingAccessTokenData {
     id: FolderAttributes['id'];
   };
   workspaceId?: Workspace['id'];
+  isSharedItem?: boolean;
 }

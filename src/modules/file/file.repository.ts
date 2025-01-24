@@ -768,22 +768,10 @@ export class SequelizeFileRepository implements FileRepository {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
 
-    const buildWorkspaceItemUser = (
-      workspaceItemUserData: WorkspaceItemUserModel | null,
-    ) => {
-      if (!workspaceItemUserData) return null;
-
-      return WorkspaceItemUser.build({
-        ...workspaceItemUserData.toJSON(),
-        creator: buildUser(workspaceItemUserData.creator),
-      });
-    };
-
     const file = File.build({
       ...model.toJSON(),
       folder: model.folder ? Folder.build(model.folder) : null,
-      user: buildUser(model.user),
-      workspaceItemUser: buildWorkspaceItemUser(model.workspaceUser),
+      user: buildUser(model.user || model.workspaceUser?.creator),
     });
     return file;
   }

@@ -66,15 +66,21 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Invalid token');
     }
 
+    if (decoded.isSharedItem) {
+      request.isSharedItem = true;
+      return true;
+    }
+
     let userIsAllowedToPerfomAction = false;
 
     const sharedItemId = decoded.sharedRootFolderId;
+    const workspaceId = decoded.workspace?.workspaceId || decoded.workspaceId;
 
-    if (decoded.workspace) {
+    if (workspaceId) {
       userIsAllowedToPerfomAction =
         await this.isWorkspaceMemberAbleToPerfomAction(
           requester,
-          decoded.workspace.workspaceId,
+          workspaceId,
           sharedItemId,
           action,
         );
@@ -87,7 +93,11 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     if (!userIsAllowedToPerfomAction) {
-      return false;
+      throw new ForbiddenException('You cannot access this resource');
+    }
+
+    if (!decoded.owner || !decoded.owner.uuid) {
+      throw new ForbiddenException('Resource owner is required');
     }
 
     const resourceOwner = await this.userUseCases.findByUuid(
