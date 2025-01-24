@@ -40,6 +40,7 @@ interface SharingRepository {
   createInvite(invite: Omit<SharingInvite, 'id'>): Promise<SharingInvite>;
   createSharing(sharing: Omit<Sharing, 'id'>): Promise<Sharing>;
   deleteInvite(invite: SharingInvite): Promise<void>;
+
   findAllSharing(
     where: Partial<Sharing>,
     offset: number,

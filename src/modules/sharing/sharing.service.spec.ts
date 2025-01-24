@@ -25,7 +25,6 @@ import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import {
   SharedWithType,
-  Sharing,
   SharingActionName,
   SharingItemType,
   SharingType,
