@@ -18,7 +18,7 @@ export class KeyServerUseCases {
         publicKey: keys.publicKey,
         privateKey: keys.privateKey,
         revocationKey: keys.revocationKey,
-        encryptVersion: null,
+        encryptVersion: 'ecc',
       });
 
     return { publicKey, privateKey, revocationKey };
@@ -30,9 +30,17 @@ export class KeyServerUseCases {
     return publicKey;
   }
 
-  async findUserKeys(userId: UserAttributes['id']): Promise<Keys> {
-    const { publicKey, privateKey, revocationKey } =
-      await this.repository.findUserKeys(userId);
-    return { publicKey, privateKey, revocationKey };
+  async findUserKeys(userId: UserAttributes['id']): Promise<Keys | null> {
+    const keys = await this.repository.findUserKeys(userId);
+
+    if (!keys) {
+      return null;
+    }
+
+    return {
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey,
+      revocationKey: keys.revocationKey,
+    };
   }
 }

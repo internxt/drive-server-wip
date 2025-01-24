@@ -47,7 +47,6 @@ describe('AuthController', () => {
 
   describe('POST /login', () => {
     it('When valid credentials are provided, then it should return security details', async () => {
-      const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
@@ -73,25 +72,36 @@ describe('AuthController', () => {
         send: jest.fn(),
       } as unknown as Response;
 
-      const result = await authController.login(loginDto, clientId);
+      const result = await authController.login(loginDto);
 
       expect(result).toEqual({
-        hasKeys: keys,
+        hasKeys: true,
         sKey: 'encryptedText',
         tfa: true,
       });
     });
 
     it('When user is not found, then it should throw UnauthorizedException', async () => {
-      const clientId = 'drive-mobile';
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
 
-      await expect(authController.login(loginDto, clientId)).rejects.toThrow(
+      await expect(authController.login(loginDto)).rejects.toThrow(
         new UnauthorizedException('Wrong login credentials'),
       );
+    });
+
+    it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
+      const body = { email: 'TEST@EXAMPLE.COM' };
+      const emailLowerCase = 'test@example.com';
+      const user = newUser({ attributes: { email: emailLowerCase } });
+
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue(user);
+
+      await authController.login(body);
+
+      expect(userUseCases.findByEmail).toHaveBeenCalledWith(emailLowerCase);
     });
   });
 
@@ -249,6 +259,24 @@ describe('AuthController', () => {
       await expect(
         authController.deleteTfa(user, deleteTfaDto),
       ).rejects.toThrow(new BadRequestException('Invalid password'));
+    });
+  });
+
+  describe('GET /are-credentials-correct', () => {
+    it('When credentials need to be checked, then it should call the respective service correctly', async () => {
+      const hashedPassword = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
+      const user = newUser();
+
+      jest.spyOn(userUseCases, 'areCredentialsCorrect');
+
+      await authController.areCredentialsCorrect(user, {
+        hashedPassword,
+      });
+
+      expect(userUseCases.areCredentialsCorrect).toHaveBeenCalledWith(
+        user,
+        hashedPassword,
+      );
     });
   });
 });

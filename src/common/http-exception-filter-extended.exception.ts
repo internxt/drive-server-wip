@@ -17,6 +17,7 @@ export class ExtendedHttpExceptionFilter extends BaseExceptionFilter {
         method: request.method,
         message: (exception as Error)?.message,
         stack: (exception as Error)?.stack,
+        body: request.body || {},
         user: { email: request?.user?.email, uuid: request?.user?.uuid },
       };
 

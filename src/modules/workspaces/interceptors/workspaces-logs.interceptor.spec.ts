@@ -7,7 +7,7 @@ import {
   WorkspaceLogGlobalActionType,
 } from '../attributes/workspace-logs.attributes';
 import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
-import { lastValueFrom, of } from 'rxjs';
+import { isObservable, lastValueFrom, of } from 'rxjs';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 
 describe('WorkspacesLogsInterceptor', () => {
@@ -67,6 +67,7 @@ describe('WorkspacesLogsInterceptor', () => {
       await lastValueFrom(interceptor.intercept(context, next));
 
       expect(handleActionSpy).toHaveBeenCalled();
+      expect(next.handle).toHaveBeenCalled();
     });
 
     it('When log action is invalid, then it should log an invalid action message', async () => {
@@ -87,6 +88,48 @@ describe('WorkspacesLogsInterceptor', () => {
       expect(loggerDebugSpy).toHaveBeenCalledWith(
         '[WORKSPACE/LOGS] Invalid log action: INVALID_ACTION',
       );
+      expect(next.handle).toHaveBeenCalled();
+    });
+
+    it('When log action is invalid, then it should return a stream to continue with the request', async () => {
+      Reflect.defineMetadata(
+        'workspaceLogAction',
+        'INVALID_ACTION',
+        mockHandler,
+      );
+
+      const next: CallHandler = {
+        handle: jest.fn().mockReturnValue(of({})),
+      };
+
+      const result = interceptor.intercept(context, next);
+
+      expect(isObservable(result)).toBe(true);
+    });
+
+    it('When platform is not identified, then it should return a stream to continue with the request', async () => {
+      Reflect.defineMetadata(
+        'workspaceLogAction',
+        WorkspaceLogType.Login,
+        mockHandler,
+      );
+
+      const contextWithoutPlaformHeader: ExecutionContext = {
+        switchToHttp: () => ({
+          getRequest: () => ({
+            headers: {},
+          }),
+        }),
+        getHandler: () => mockHandler,
+      } as any;
+
+      const next: CallHandler = {
+        handle: jest.fn().mockReturnValue(of({})),
+      };
+
+      const result = interceptor.intercept(contextWithoutPlaformHeader, next);
+
+      expect(isObservable(result)).toBe(true);
     });
 
     it('When handleAction fails then should log an error', async () => {
@@ -118,6 +161,7 @@ describe('WorkspacesLogsInterceptor', () => {
       expect(logErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(`Action: ${WorkspaceLogType.Login}`),
       );
+      expect(next.handle).toHaveBeenCalled();
     });
   });
 
