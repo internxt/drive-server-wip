@@ -18,7 +18,6 @@ import {
 } from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { WorkspaceItemUser } from './../workspaces/domains/workspace-item-user.domain';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;

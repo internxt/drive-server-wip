@@ -17,7 +17,6 @@ import {
   WorkspaceItemType,
   WorkspaceItemUserAttributes,
 } from '../workspaces/attributes/workspace-items-users.attributes';
-import { WorkspaceItemUser } from './../workspaces/domains/workspace-item-user.domain';
 import { Literal } from 'sequelize/types/utils';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileStatus } from '../file/file.domain';

@@ -76,7 +76,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
-import { IsSharedItemWorkspace } from './decorators/is-shared-item.decorator';
+import { IsSharedItemWorkspace } from './decorators/is-shared-item-workspace.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
