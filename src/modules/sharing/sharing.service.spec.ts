@@ -81,7 +81,7 @@ describe('Sharing Use Cases', () => {
 
       folderUseCases.getByUuid.mockResolvedValue(folder);
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
-      sharingRepository.findSharingRole.mockResolvedValue(sharingRole);
+      sharingRepository.findSharingRoleBy.mockResolvedValue(sharingRole);
 
       await sharingService.removeSharedWith(
         folder.uuid,
@@ -153,7 +153,7 @@ describe('Sharing Use Cases', () => {
 
       folderUseCases.getByUuid.mockResolvedValue(folder);
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
-      sharingRepository.findSharingRole.mockResolvedValue(sharingRole);
+      sharingRepository.findSharingRoleBy.mockResolvedValue(sharingRole);
 
       await sharingService.removeSharedWith(
         folder.uuid,
