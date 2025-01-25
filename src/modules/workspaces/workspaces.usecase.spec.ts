@@ -6199,13 +6199,16 @@ describe('WorkspacesUsecases', () => {
       const itemUuid = v4();
       const itemType = WorkspaceItemType.File;
       const mockFile = newFile({ attributes: { folderUuid: itemUuid } });
-      const owner = v4();
+      const owner = newUser();
       const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
 
       jest
         .spyOn(workspaceRepository, 'findById')
         .mockResolvedValue(mockWorkspace);
       jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'findWorkspaceResourceOwner')
+        .mockResolvedValue(owner);
       jest
         .spyOn(folderUseCases, 'getFolderAncestorsInWorkspace')
         .mockResolvedValue(expectedAncestors);
@@ -6228,12 +6231,15 @@ describe('WorkspacesUsecases', () => {
       const mockWorkspace = newWorkspace({ attributes: { id: workspaceId } });
       const itemType = WorkspaceItemType.Folder;
       const itemUuid = v4();
-      const owner = v4();
+      const owner = newUser();
       const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
 
       jest
         .spyOn(workspaceRepository, 'findById')
         .mockResolvedValue(mockWorkspace);
+      jest
+        .spyOn(service, 'findWorkspaceResourceOwner')
+        .mockResolvedValue(owner);
       jest
         .spyOn(folderUseCases, 'getFolderAncestorsInWorkspace')
         .mockResolvedValue(expectedAncestors);
