@@ -216,6 +216,8 @@ describe('SequelizeFolderRepository', () => {
     it('When folders are searched by uuid and user, then it should be handle as expected', async () => {
       const randomFolderUUID = v4();
       const randomUserId = randomInt(100000);
+      const folder = newFolder();
+      jest.spyOn(folderModel, 'findOne').mockReturnValueOnce(folder as any);
 
       await repository.findByUuidAndUser(randomFolderUUID, randomUserId);
 

@@ -256,6 +256,7 @@ describe('GatewayUseCases', () => {
           attributes: { ownerId: owner.uuid },
         });
 
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(owner);
         jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValue(workspace);
 
         await service.destroyWorkspace(owner.uuid);

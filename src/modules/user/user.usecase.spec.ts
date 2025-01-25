@@ -23,7 +23,6 @@ import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.re
 import {
   BadRequestException,
   ForbiddenException,
-  InternalServerErrorException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -610,12 +609,13 @@ describe('User use cases', () => {
     it('When accepting an attempt, Then it should return new email details with a new token', async () => {
       const encryptedId = 'encryptedId';
       const decryptedId = '1';
+      const newEmail = 'newemail@example.com';
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(decryptedId);
 
       const attemptChangeEmail = {
         id: 1,
         userUuid: user.uuid,
-        newEmail: 'newemail@example.com',
+        newEmail: newEmail,
         isExpiresAt: false,
         isVerified: false,
       };
@@ -629,21 +629,27 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'changeUserEmailById').mockResolvedValue({
         oldEmail: user.email,
-        newEmail: 'newemail@example.com',
+        newEmail: newEmail,
       });
 
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(User.build({ ...user }));
       jest.spyOn(userUseCases, 'getNewTokenPayload').mockReturnValue({} as any);
       jest.spyOn(configService, 'get').mockReturnValueOnce('a-secret-key');
 
       const result = await userUseCases.acceptAttemptChangeEmail(encryptedId);
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         oldEmail: user.email,
-        newEmail: 'newemail@example.com',
+        newEmail: newEmail,
         newAuthentication: {
           token: 'token',
           newToken: 'newToken',
-          user,
+          user: expect.objectContaining({
+            email: newEmail,
+            username: newEmail,
+          }),
         },
       });
     });
@@ -792,6 +798,9 @@ describe('User use cases', () => {
 
     it('When called with custom iat, then it should create the tokens with custom iat', async () => {
       const customIat = 1620000000;
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
+
       userUseCases.getAuthTokens(user, customIat);
 
       expect(SignEmail).toHaveBeenCalledWith(

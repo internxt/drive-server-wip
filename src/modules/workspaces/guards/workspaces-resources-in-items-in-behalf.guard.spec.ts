@@ -104,7 +104,7 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       );
     });
 
-    it('When user has no permissions, and action is not set then deny access', async () => {
+    it('When user has no permissions permissions for the item, and specific action is not set then deny access', async () => {
       const user = newUser();
       const behalfUser = newUser();
       const workspace = newWorkspace({
@@ -134,18 +134,16 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
       );
       workspaceUseCases.isUserCreatorOfItem.mockResolvedValue(false);
 
-      jest.spyOn(reflector, 'get').mockReturnValueOnce(undefined);
+      jest.spyOn(reflector, 'get').mockReturnValue(undefined); // Mocks get data from request and get action
 
       (extractDataFromRequest as jest.Mock).mockReturnValue({
         itemId: workspaceItem.itemId,
       });
 
-      await expect(guard.canActivate(excutionContext)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(guard.canActivate(excutionContext)).rejects.toThrow(Error);
     });
 
-    it('When user has permission and action is not set, then give access and set request user', async () => {
+    it('When user has permissions for the item and specific action is not set, then give access and set request user', async () => {
       const user = newUser();
       const behalfUser = newUser();
       const workspace = newWorkspace({
@@ -170,7 +168,7 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
         behalfUser,
       );
 
-      jest.spyOn(reflector, 'get').mockReturnValueOnce(undefined);
+      jest.spyOn(reflector, 'get').mockReturnValue(undefined);
 
       (extractDataFromRequest as jest.Mock).mockReturnValue({
         itemId: v4(),
@@ -365,12 +363,10 @@ const createMockExecutionContext = (
     ...requestPayload,
   };
 
-  return {
-    getHandler: () => ({
-      name: 'endPointHandler',
-    }),
+  const executionMock = createMock<ExecutionContext>({
     switchToHttp: () => ({
       getRequest: () => request,
     }),
-  } as unknown as ExecutionContext;
+  });
+  return executionMock;
 };

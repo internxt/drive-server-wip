@@ -6,7 +6,8 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
+import * as jwtUtils from '../../lib/jwt';
+import { newUser } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
 import { MailLimitReachedException, UserUseCases } from './user.usecase';
@@ -26,7 +27,7 @@ jest.mock('../../config/configuration', () => {
     default: jest.fn(() => ({
       secrets: {
         jwt: 'Test',
-        jitsiSecret: generateBase64PrivateKeyStub(),
+        jitsiSecret: 'jitsi secret',
       },
       jitsi: {
         appId: 'jitsi-app-id',
@@ -42,6 +43,14 @@ jest.mock('../../config/configuration', () => {
         forcePathStyle: true,
       },
     })),
+  };
+});
+
+jest.mock('../../lib/jwt', () => {
+  return {
+    ...jest.requireActual('../../lib/jitsi'),
+    generateJitsiJWT: jest.fn(() => 'newJitsiJwt'),
+    verifyWithDefaultSecret: jest.fn(() => 'defaultVerifiedSecret'),
   };
 });
 
@@ -149,6 +158,16 @@ describe('User Controller', () => {
 
     it('When token and user are correct, then resolves', async () => {
       userUseCases.unblockAccount.mockResolvedValueOnce();
+
+      jest.spyOn(jwtUtils, 'verifyWithDefaultSecret').mockReturnValueOnce({
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+        iat: 123123,
+      });
+
       await expect(
         userController.accountUnblock(validToken),
       ).resolves.toBeUndefined();
