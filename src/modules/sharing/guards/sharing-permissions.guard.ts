@@ -66,15 +66,16 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Invalid token');
     }
 
-    if (decoded.isSharedItem) {
-      request.isSharedItem = true;
-      return true;
-    }
+    await this.verifySharedItemAccess(decoded, requester, request, context);
 
     let userIsAllowedToPerfomAction = false;
 
     const sharedItemId = decoded.sharedRootFolderId;
     const workspaceId = decoded.workspace?.workspaceId || decoded.workspaceId;
+
+    if (!sharedItemId) {
+      throw new ForbiddenException('Shared item id not found');
+    }
 
     if (workspaceId) {
       userIsAllowedToPerfomAction =
@@ -97,7 +98,7 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     if (!decoded.owner || !decoded.owner.uuid) {
-      throw new ForbiddenException('Resource owner is required');
+      throw new ForbiddenException('Owner is required');
     }
 
     const resourceOwner = await this.userUseCases.findByUuid(
@@ -156,17 +157,30 @@ export class SharingPermissionsGuard implements CanActivate {
     return userIsAllowedToPerfomAction;
   }
 
-  getSharedItemIdFromRequest(
+  async verifySharedItemAccess(
+    decoded: SharingAccessTokenData,
+    requester: User,
     request: Request,
-    reflector: Reflector,
     context: ExecutionContext,
-  ) {
-    const extractedData = extractDataFromRequest(
-      request,
-      reflector,
-      context,
-    ) as any;
+  ): Promise<void> {
+    if (!decoded.isSharedItem) {
+      return;
+    }
 
-    return extractedData.itemId;
+    const extractData = this.getSharedDataFromRequest(request, context);
+    const isOwner = decoded.owner?.uuid === requester.uuid;
+    const isSharedWithMe = decoded.sharedWithUserUuid === requester.uuid;
+    const isSameType = decoded.item?.type === extractData.itemType;
+    const isSameId = decoded.item?.uuid === extractData.itemUuid;
+
+    if ((!isOwner && !isSharedWithMe) || !isSameType || !isSameId) {
+      throw new ForbiddenException(
+        'You do not have permission to perform this action',
+      );
+    }
+  }
+
+  getSharedDataFromRequest(request: Request, context: ExecutionContext) {
+    return extractDataFromRequest(request, this.reflector, context) as any;
   }
 }

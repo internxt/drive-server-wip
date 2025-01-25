@@ -1339,19 +1339,7 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return {
-      ...response,
-      token: generateTokenWithPlainSecret(
-        {
-          workspace: {
-            workspaceId,
-          },
-          isSharedItem: true,
-        },
-        '1d',
-        this.configService.get('secrets.jwt'),
-      ),
-    };
+    return { ...response, token: '' };
   }
 
   async getSharedFoldersInWorkspace(
@@ -1374,19 +1362,7 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return {
-      ...response,
-      token: generateTokenWithPlainSecret(
-        {
-          workspace: {
-            workspaceId,
-          },
-          isSharedItem: true,
-        },
-        '1d',
-        this.configService.get('secrets.jwt'),
-      ),
-    };
+    return { ...response, token: '' };
   }
 
   async getItemsInSharedFolder(

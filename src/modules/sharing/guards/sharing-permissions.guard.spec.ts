@@ -27,6 +27,7 @@ import {
   newWorkspaceTeam,
 } from '../../../../test/fixtures';
 import { v4 } from 'uuid';
+import { SharingAccessTokenData } from './sharings-token.interface';
 
 jest.mock('../../../lib/jwt');
 
@@ -78,21 +79,51 @@ describe('SharingPermissionsGuard', () => {
     );
   });
 
-  it('When decoded.isSharedItem is true then set request.isSharedItem to true and return true', async () => {
-    mockMetadata(reflector, { action: SharingActionName.ViewDetails });
-
+  it('When shared item access is verified successfully, then it should proceed to check permissions', async () => {
     const context = createMockExecutionContext({
-      user,
-      headers: { 'internxt-resources-token': 'invalid-token' },
+      user: { uuid: 'requester-uuid' },
+      headers: { 'internxt-resources-token': 'valid-token' },
     });
-    const decoded = { isSharedItem: true };
-    (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => decoded);
+    const owner = newUser({ attributes: { uuid: 'owner-uuid' } });
+
+    const decoded = {
+      sharedRootFolderId: 'shared-folder-id',
+      workspace: { workspaceId: 'workspace-id' },
+      owner: { uuid: owner.uuid },
+    } as SharingAccessTokenData;
+
+    jest.spyOn(reflector, 'get').mockReturnValue({ action: 'some-action' });
+    (verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+    jest.spyOn(guard, 'verifySharedItemAccess').mockResolvedValue(undefined);
+    jest
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
+      .mockResolvedValue(true);
+    jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(owner);
 
     const result = await guard.canActivate(context);
     const request = context.switchToHttp().getRequest();
 
-    expect(request.isSharedItem).toBe(true);
     expect(result).toBe(true);
+    expect(request.isSharedItem).toBe(true);
+  });
+
+  it('When shared item ID is not found, then it should throw ForbiddenException', async () => {
+    const context = createMockExecutionContext({
+      user: { uuid: 'requester-uuid' },
+      headers: { 'internxt-resources-token': 'valid-token' },
+    });
+
+    const decoded = {
+      sharedRootFolderId: undefined,
+      owner: { uuid: 'owner-uuid' },
+    } as SharingAccessTokenData;
+
+    jest.spyOn(reflector, 'get').mockReturnValue({ action: 'some-action' });
+    (verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('When workspace and team permissions are valid, it should allow allow', async () => {
@@ -170,7 +201,7 @@ describe('SharingPermissionsGuard', () => {
       .mockResolvedValue(true);
 
     await expect(guard.canActivate(context)).rejects.toThrow(
-      new ForbiddenException('Resource owner is required'),
+      new ForbiddenException('Owner is required'),
     );
   });
 
@@ -322,6 +353,109 @@ describe('SharingPermissionsGuard', () => {
         action,
         SharedWithType.Individual,
       );
+    });
+  });
+
+  describe('verifySharedItemAccess', () => {
+    const requester = newUser({ attributes: { uuid: 'requester-uuid' } });
+    const request = createMock<Request>();
+    const context = createMock<ExecutionContext>();
+    it('When decoded.isSharedItem is false, then it should return early without throwing an error', async () => {
+      const decoded = { isSharedItem: false } as SharingAccessTokenData;
+
+      await expect(
+        guard.verifySharedItemAccess(decoded, requester, request, context),
+      ).resolves.toBeUndefined();
+    });
+
+    it('When user is neither the owner nor shared with, then it should throw ForbiddenException', async () => {
+      const decoded = {
+        isSharedItem: true,
+        owner: { uuid: 'owner-uuid' },
+        sharedWithUserUuid: 'another-user-uuid',
+        item: { type: 'file', uuid: 'item-uuid' },
+      } as SharingAccessTokenData;
+
+      jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+        itemType: 'file',
+        itemUuid: 'item-uuid',
+      });
+
+      await expect(
+        guard.verifySharedItemAccess(decoded, requester, request, context),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When item type does not match, then it should throw ForbiddenException', async () => {
+      const decoded = {
+        isSharedItem: true,
+        owner: { uuid: 'owner-uuid' },
+        sharedWithUserUuid: 'requester-uuid',
+        item: { type: 'folder', uuid: 'item-uuid' },
+      } as SharingAccessTokenData;
+
+      jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+        itemType: 'file',
+        itemUuid: 'item-uuid',
+      });
+
+      await expect(
+        guard.verifySharedItemAccess(decoded, requester, request, context),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When item ID does not match, then it should throw ForbiddenException', async () => {
+      const decoded = {
+        isSharedItem: true,
+        owner: { uuid: 'owner-uuid' },
+        sharedWithUserUuid: 'requester-uuid',
+        item: { type: 'file', uuid: 'item-uuid' },
+      } as SharingAccessTokenData;
+
+      jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+        itemType: 'file',
+        itemUuid: 'another-item-uuid',
+      });
+
+      await expect(
+        guard.verifySharedItemAccess(decoded, requester, request, context),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user is the owner, then it should not throw an error', async () => {
+      const decoded = {
+        isSharedItem: true,
+        owner: { uuid: 'requester-uuid' },
+        sharedWithUserUuid: 'another-user-uuid',
+        item: { type: 'file', uuid: 'item-uuid' },
+      } as SharingAccessTokenData;
+
+      jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+        itemType: 'file',
+        itemUuid: 'item-uuid',
+      });
+
+      await expect(
+        guard.verifySharedItemAccess(decoded, requester, request, context),
+      ).resolves.toBeUndefined();
+    });
+
+    it('When user is shared with, then it should not throw an error', async () => {
+      const decoded = {
+        isSharedItem: true,
+        owner: { uuid: 'owner-uuid' },
+        sharedWithUserUuid: 'requester-uuid',
+        item: { type: 'file', uuid: 'item-uuid' },
+      } as SharingAccessTokenData;
+
+      jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+        itemType: 'file',
+        itemUuid: 'item-uuid',
+      });
+
+      await expect(
+        guard.verifySharedItemAccess(decoded, requester, request, context),
+      ).resolves.toBeUndefined();
     });
   });
 });

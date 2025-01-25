@@ -59,6 +59,7 @@ import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagi
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import { OrderBy } from '../../common/order.type';
+import { GetDataFromRequest } from './../../common/extract-data-from-request';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { Sharing, SharingActionName } from '../sharing/sharing.domain';
@@ -1218,6 +1219,17 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Item ancestors details',
   })
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemUuid',
+    },
+    {
+      sourceKey: 'params',
+      fieldName: 'itemType',
+    },
+  ])
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   @RequiredSharingPermissions(SharingActionName.ViewDetails)
