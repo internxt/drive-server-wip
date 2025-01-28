@@ -5,7 +5,6 @@ import {
   HttpStatus,
   Inject,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
   UnauthorizedException,
@@ -77,6 +76,8 @@ import { RegisterNotificationTokenDto } from './dto/register-notification-token.
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -100,13 +101,6 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
-export class KeyServerNotFoundError extends Error {
-  constructor() {
-    super('Key server not found');
-
-    Object.setPrototypeOf(this, KeyServerNotFoundError.prototype);
-  }
-}
 export class UserNotFoundError extends Error {
   constructor() {
     super('User not found');
@@ -155,6 +149,7 @@ export class UserUseCases {
     private readonly mailerService: MailerService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
+    private readonly keyServerUseCases: KeyServerUseCases,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -599,7 +594,7 @@ export class UserUseCases {
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
       revocationKey: revocationCertificate,
-      encryptVersion: 'ecc',
+      encryptVersion: UserKeysEncryptVersions.Ecc,
     });
 
     return {
@@ -964,7 +959,21 @@ export class UserUseCases {
     user: User,
     updatePasswordDto: UpdatePasswordDto,
   ): Promise<void> {
-    const { newPassword, newSalt, mnemonic, privateKey } = updatePasswordDto;
+    const { newPassword, newSalt, mnemonic, privateKey, privateKyberKey } =
+      updatePasswordDto;
+
+    const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
+      ecc: privateKey,
+      kyber: privateKyberKey,
+    };
+
+    const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+    if (userKeys.kyber?.privateKey && !keysToUpdate.kyber) {
+      throw new BadRequestException(
+        'User has kyber keys, you need to send kyber keys to update user password',
+      );
+    }
 
     await this.userRepository.updateById(user.id, {
       password: newPassword,
@@ -973,15 +982,15 @@ export class UserUseCases {
       lastPasswordChangedAt: new Date(),
     });
 
-    await this.keyServerRepository.findUserKeysOrCreate(user.id, {
-      userId: user.id,
-      privateKey: privateKey,
-      encryptVersion: updatePasswordDto.encryptVersion,
-    });
-
-    await this.keyServerRepository.update(user.id, {
-      privateKey,
-    });
+    for (const [version, key] of Object.entries(keysToUpdate)) {
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey: key },
+        );
+      }
+    }
   }
 
   async getAvatarUrl(avatarKey: string) {
@@ -1255,13 +1264,14 @@ export class UserUseCases {
       revocateKey: revocationKey,
     } = loginAccessDto;
 
-    let keys = await this.keyServerRepository.findUserKeys(userData.id);
+    const keys = await this.keyServerUseCases.findUserKeys(userData.id);
 
-    if (!keys && publicKey) {
-      keys = await this.keyServerRepository.create(userData.id, {
+    if (!keys.ecc && publicKey && privateKey) {
+      keys.ecc = await this.keyServerRepository.create(userData.id, {
         publicKey,
         privateKey,
         revocationKey,
+        encryptVersion: UserKeysEncryptVersions.Ecc,
       });
     }
 
@@ -1276,13 +1286,13 @@ export class UserUseCases {
       uuid: userData.uuid,
       credit: userData.credit,
       createdAt: userData.createdAt,
-      privateKey: keys ? keys.privateKey : null,
-      publicKey: keys ? keys.publicKey : null,
-      revocateKey: keys ? keys.revocationKey : null,
+      privateKey: keys.ecc ? keys.ecc.privateKey : null,
+      publicKey: keys.ecc ? keys.ecc.publicKey : null,
+      revocateKey: keys.ecc ? keys.ecc.revocationKey : null,
       keys: {
         ecc: {
-          privateKey: keys ? keys.privateKey : null,
-          publicKey: keys ? keys.publicKey : null,
+          privateKey: keys.ecc ? keys.ecc.privateKey : null,
+          publicKey: keys.ecc ? keys.ecc.publicKey : null,
         },
         kyber: {
           privateKey: null,

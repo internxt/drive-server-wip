@@ -1135,14 +1135,15 @@ describe('FolderUseCases', () => {
   describe('getFolderTree', () => {
     const user = newUser();
     const rootFolder = newFolder({ attributes: { userId: user.id } });
-    const childFolder = newFolder({
-      attributes: { userId: user.id, parentId: rootFolder.id },
-    });
     const fileInRootFolder = newFile({
       attributes: { folderId: rootFolder.id, userId: user.id },
     });
 
     it('When retrieving the folder tree, then it should return the folder tree structure', async () => {
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
+
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(rootFolder);
@@ -1151,9 +1152,20 @@ describe('FolderUseCases', () => {
         .mockResolvedValueOnce([fileInRootFolder]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
-        .mockResolvedValueOnce([childFolder]);
+        .mockResolvedValueOnce([childrenFolder]);
       jest
         .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+
+      // Second iteration mocks for children folder
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(childrenFolder);
+      jest
+        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
         .mockResolvedValueOnce([]);
 
       const result = await service.getFolderTree(user, rootFolder.uuid);
@@ -1161,7 +1173,7 @@ describe('FolderUseCases', () => {
       expect(result).toEqual({
         ...rootFolder,
         files: [fileInRootFolder],
-        children: [{ ...childFolder, files: [], children: [] }],
+        children: [{ ...childrenFolder, files: [], children: [] }],
       });
     });
 
@@ -1224,7 +1236,7 @@ describe('FolderUseCases', () => {
     });
 
     it('When folder has children folders, then it should return the folder with children', async () => {
-      const loopedFolder = newFolder({
+      const childrenFolder = newFolder({
         attributes: { userId: user.id, parentId: rootFolder.id },
       });
       jest
@@ -1235,20 +1247,31 @@ describe('FolderUseCases', () => {
         .mockResolvedValueOnce([fileInRootFolder]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
-        .mockResolvedValueOnce([loopedFolder]);
+        .mockResolvedValueOnce([childrenFolder]);
+
+      // Second iteration mocks for children folder
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(childrenFolder); // Children folder is fetch again from queue
       jest
         .spyOn(fileUsecases, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
-        .mockResolvedValueOnce([rootFolder]);
+        .mockResolvedValueOnce([]);
 
       const result = await service.getFolderTree(user, rootFolder.uuid);
 
       expect(result).toEqual({
         ...rootFolder,
         files: [fileInRootFolder],
-        children: [{ ...loopedFolder, files: [], children: [] }],
+        children: [
+          {
+            ...childrenFolder,
+            files: [],
+            children: [],
+          },
+        ],
       });
     });
   });

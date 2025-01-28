@@ -23,7 +23,6 @@ import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.re
 import {
   BadRequestException,
   ForbiddenException,
-  InternalServerErrorException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -44,6 +43,7 @@ import {
   newNotificationToken,
   newFile,
   newFolder,
+  newKeyServer,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -56,11 +56,13 @@ import {
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { v4 } from 'uuid';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { KeyServerModel } from '../keyserver/key-server.model';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -89,6 +91,8 @@ describe('User use cases', () => {
   let workspaceRepository: SequelizeWorkspaceRepository;
   let mailerService: MailerService;
   let avatarService: AvatarService;
+  let keyServerUseCases: KeyServerUseCases;
+
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
@@ -157,6 +161,8 @@ describe('User use cases', () => {
     );
     mailerService = moduleRef.get<MailerService>(MailerService);
     avatarService = moduleRef.get<AvatarService>(AvatarService);
+    keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
+
     jest.clearAllMocks();
   });
 
@@ -610,12 +616,13 @@ describe('User use cases', () => {
     it('When accepting an attempt, Then it should return new email details with a new token', async () => {
       const encryptedId = 'encryptedId';
       const decryptedId = '1';
+      const newEmail = 'newemail@example.com';
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(decryptedId);
 
       const attemptChangeEmail = {
         id: 1,
         userUuid: user.uuid,
-        newEmail: 'newemail@example.com',
+        newEmail: newEmail,
         isExpiresAt: false,
         isVerified: false,
       };
@@ -629,21 +636,27 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'changeUserEmailById').mockResolvedValue({
         oldEmail: user.email,
-        newEmail: 'newemail@example.com',
+        newEmail: newEmail,
       });
 
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(User.build({ ...user }));
       jest.spyOn(userUseCases, 'getNewTokenPayload').mockReturnValue({} as any);
       jest.spyOn(configService, 'get').mockReturnValueOnce('a-secret-key');
 
       const result = await userUseCases.acceptAttemptChangeEmail(encryptedId);
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         oldEmail: user.email,
-        newEmail: 'newemail@example.com',
+        newEmail: newEmail,
         newAuthentication: {
           token: 'token',
           newToken: 'newToken',
-          user,
+          user: expect.objectContaining({
+            email: newEmail,
+            username: newEmail,
+          }),
         },
       });
     });
@@ -792,6 +805,9 @@ describe('User use cases', () => {
 
     it('When called with custom iat, then it should create the tokens with custom iat', async () => {
       const customIat = 1620000000;
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
+
       userUseCases.getAuthTokens(user, customIat);
 
       expect(SignEmail).toHaveBeenCalledWith(
@@ -824,11 +840,7 @@ describe('User use cases', () => {
   });
 
   describe('loginAccess', () => {
-    const keys = {
-      publicKey: 'publicKey',
-      privateKey: 'privateKey',
-      revocateKey: 'revocateKey',
-    };
+    const keys = newKeyServer();
 
     it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
       const loginAccessDto: LoginAccessDto = {
@@ -923,11 +935,11 @@ describe('User use cases', () => {
           secret_2FA: null,
         },
       });
-      const keyServer = {
+      const keyServer = newKeyServer({
         ...keys,
-        revocationKey: keys.revocateKey,
+        revocationKey: keys.revocationKey,
         userId: user.id,
-      } as unknown as KeyServerModel;
+      });
 
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
@@ -991,11 +1003,13 @@ describe('User use cases', () => {
           secret_2FA: 'secret',
         },
       });
-      const keyServer = {
+
+      const keyServer = newKeyServer({
         ...keys,
-        revocationKey: keys.revocateKey,
+        revocationKey: keys.revocationKey,
         userId: user.id,
-      } as unknown as KeyServerModel;
+      });
+
       const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
@@ -1018,6 +1032,48 @@ describe('User use cases', () => {
       expect(result.user).toHaveProperty('bucket', folder.bucket);
       expect(result).toHaveProperty('token', 'authToken');
       expect(result).toHaveProperty('newToken', 'newAuthToken');
+    });
+
+    it('When user without keys logs in, then it should return empty keys', async () => {
+      const hashedPassword = 'hashedPassword';
+      const user = newUser({
+        attributes: {
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: null,
+        },
+      });
+      const loginAccessDto: LoginAccessDto = {
+        email: user.email,
+        password: hashedPassword,
+        tfa: '',
+      };
+
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(result.user).toHaveProperty('keys', {
+        ecc: {
+          privateKey: null,
+          publicKey: null,
+        },
+        kyber: {
+          privateKey: null,
+          publicKey: null,
+        },
+      });
     });
   });
 
@@ -1359,6 +1415,92 @@ describe('User use cases', () => {
         user.uuid,
         payload,
       );
+    });
+  });
+
+  describe('updatePassword', () => {
+    const userKeys = {
+      ecc: newKeyServer(),
+      kyber: newKeyServer({ encryptVersion: UserKeysEncryptVersions.Kyber }),
+    };
+
+    const updatePasswordDto: UpdatePasswordDto = {
+      currentPassword: 'currentHashedPassword',
+      newPassword: 'newHashedPassword',
+      newSalt: 'newSalt',
+      mnemonic: 'mnemonic',
+      privateKey: 'encryptedPrivateKey',
+      privateKyberKey: 'encryptedKyberPrivateKey',
+      encryptVersion: UserKeysEncryptVersions.Ecc,
+    };
+
+    const fixedSystemCurrentDate = new Date();
+
+    beforeAll(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(fixedSystemCurrentDate);
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
+    it('When user updates their password, then it should update password and privateKeys successfully', async () => {
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValueOnce(userKeys);
+
+      await userUseCases.updatePassword(user, updatePasswordDto);
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        password: updatePasswordDto.newPassword,
+        hKey: Buffer.from(updatePasswordDto.newSalt),
+        mnemonic: updatePasswordDto.mnemonic,
+        lastPasswordChangedAt: fixedSystemCurrentDate,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: updatePasswordDto.privateKey,
+      });
+    });
+
+    it('When user with kyber keys tries to update their password but kyber key was not sent, then it should throw', async () => {
+      const updatePasswordDtoNoKyber = {
+        ...updatePasswordDto,
+        privateKyberKey: null,
+      };
+
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValueOnce(userKeys);
+
+      await expect(
+        userUseCases.updatePassword(user, updatePasswordDtoNoKyber),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user updates their password along with new kyber keys, then it should update successfully', async () => {
+      await userUseCases.updatePassword(user, updatePasswordDto);
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        password: updatePasswordDto.newPassword,
+        hKey: Buffer.from(updatePasswordDto.newSalt),
+        mnemonic: updatePasswordDto.mnemonic,
+        lastPasswordChangedAt: fixedSystemCurrentDate,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: updatePasswordDto.privateKey,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: updatePasswordDto.privateKyberKey,
+      });
     });
   });
 });

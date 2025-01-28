@@ -2349,6 +2349,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
       });
 
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUsers')
         .mockResolvedValue([workspaceUser]);
@@ -2401,6 +2402,7 @@ describe('WorkspacesUsecases', () => {
         manager: user1,
       });
 
+      jest.spyOn(workspaceRepository, 'findOne').mockResolvedValue(workspace);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUsers')
         .mockResolvedValue([workspaceUser1, workspaceUser2]);

@@ -13,7 +13,6 @@ import {
   NotFoundException,
   UseGuards,
   Patch,
-  Request as RequestDecorator,
   Put,
   UploadedFile,
   Delete,
@@ -43,7 +42,6 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
-  KeyServerNotFoundError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
@@ -78,6 +76,7 @@ import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attrib
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { avatarStorageS3Config } from '../../externals/multer';
+import { Client } from '../auth/decorators/client.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -116,14 +115,20 @@ export class UserController {
       const response = await this.userUseCases.createUser(createUserDto);
       const keys = await this.keyServerUseCases.addKeysToUser(
         response.user.id,
-        createUserDto,
+        {
+          ecc: {
+            privateKey: createUserDto.privateKey,
+            publicKey: createUserDto.publicKey,
+            revocationKey: createUserDto.revocationKey,
+          },
+        },
       );
 
       if (req.headers['internxt-client'] !== 'drive-mobile') {
         await this.userUseCases.replacePreCreatedUser(
           response.user.email,
           response.user.uuid,
-          keys.publicKey,
+          keys.ecc.publicKey,
         );
       }
 
@@ -154,7 +159,10 @@ export class UserController {
           ...(isDriveWeb
             ? { rootFolderId: response.user.rootFolderUuid }
             : null),
-          ...keys,
+          publicKey: keys.ecc?.publicKey,
+          privateKey: keys.ecc?.privateKey,
+          revocationKey: keys.ecc?.revocationKey,
+          keys: { ...keys },
         },
         token: response.token,
         uuid: response.uuid,
@@ -275,13 +283,19 @@ export class UserController {
 
       const keys = await this.keyServerUseCases.addKeysToUser(
         userCreated.user.id,
-        createUserDto,
+        {
+          ecc: {
+            privateKey: createUserDto.privateKey,
+            publicKey: createUserDto.publicKey,
+            revocationKey: createUserDto.revocationKey,
+          },
+        },
       );
 
       await this.userUseCases.replacePreCreatedUser(
         userCreated.user.email,
         userCreated.user.uuid,
-        keys.publicKey,
+        keys.ecc.publicKey,
       );
 
       this.notificationsService.add(
@@ -320,7 +334,10 @@ export class UserController {
         user: {
           ...userCreated.user,
           root_folder_id: userCreated.user.rootFolderId,
-          ...keys,
+          publicKey: keys.ecc?.publicKey,
+          privateKey: keys.ecc?.privateKey,
+          revocationKey: keys.ecc?.revocationKey,
+          keys: { ...keys },
         },
         token: userCreated.token,
         uuid: userCreated.uuid,
@@ -433,15 +450,16 @@ export class UserController {
   @ApiBearerAuth()
   @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
   async updatePassword(
-    @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
-    @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
+    @Client() clientId: string,
   ) {
-    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+    const isDriveWeb = clientId === 'drive-web';
 
     if (!isDriveWeb) {
-      throw new BadRequestException('Change password is only allowed from the web app');
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
     }
 
     try {
@@ -453,19 +471,20 @@ export class UserController {
       );
       const newSalt = this.cryptoService.decryptText(updatePasswordDto.newSalt);
 
-      const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
+      const { mnemonic, encryptVersion } = updatePasswordDto;
 
       if (user.password.toString() !== currentPassword) {
         throw new UnauthorizedException();
       }
 
-      await this.userUseCases.updatePassword(req.user, {
+      await this.userUseCases.updatePassword(user, {
         currentPassword,
         newPassword,
         newSalt,
         mnemonic,
-        privateKey,
+        privateKey: updatePasswordDto.privateKey,
         encryptVersion,
+        privateKyberKey: updatePasswordDto?.privateKyberKey,
       });
 
       const { token, newToken } = this.userUseCases.getAuthTokens(
@@ -475,25 +494,14 @@ export class UserController {
 
       return { status: 'success', newToken, token };
     } catch (err) {
-      let errorMessage = err.message;
-
-      if (err instanceof UnauthorizedException) {
-        res.status(HttpStatus.BAD_REQUEST);
-      } else if (err instanceof KeyServerNotFoundError) {
-        res.status(HttpStatus.NOT_FOUND);
-      } else {
-        new Logger().error(
-          `[AUTH/UPDATEPASSWORD] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
     }
   }
 
@@ -721,9 +729,9 @@ export class UserController {
       throw new NotFoundException();
     }
 
-    return {
-      publicKey: await this.keyServerUseCases.getPublicKey(user.id),
-    };
+    const keys = await this.keyServerUseCases.getPublicKeys(user.id);
+
+    return { publicKey: keys.ecc, keys };
   }
 
   @UseFilters(new HttpExceptionFilter())
