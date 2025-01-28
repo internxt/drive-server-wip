@@ -77,7 +77,7 @@ export class AuthController {
       );
       const keys = await this.keyServerUseCases.findUserKeys(user.id);
 
-      return { hasKeys: !!keys, sKey: encryptedSalt, tfa: required2FA };
+      return { hasKeys: !!keys.ecc, sKey: encryptedSalt, tfa: required2FA };
     } catch (err) {
       if (!(err instanceof HttpException)) {
         Logger.error(

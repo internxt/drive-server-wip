@@ -10,6 +10,7 @@ import {
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
 import * as fixtures from './fixtures';
 import { SharingActionName } from '../src/modules/sharing/sharing.domain';
+import { UserKeysEncryptVersions } from '../src/modules/keyserver/key-server.domain';
 
 describe('Testing fixtures tests', () => {
   describe("User's fixture", () => {
@@ -580,6 +581,57 @@ describe('Testing fixtures tests', () => {
       const role = fixtures.newRole(customName);
 
       expect(role.name).toBe(customName);
+    });
+  });
+
+  describe('KeyServer fixture', () => {
+    it('When it generates a KeyServer, then the attributes should be random', () => {
+      const keyServer1 = fixtures.newKeyServer();
+      const keyServer2 = fixtures.newKeyServer();
+
+      expect(keyServer1.publicKey).not.toBe(keyServer2.publicKey);
+      expect(keyServer1.privateKey).not.toBe(keyServer2.privateKey);
+    });
+
+    it('When it generates a KeyServer with ECC encryption, then the revocationKey should be present', () => {
+      const keyServer = fixtures.newKeyServer({
+        encryptVersion: UserKeysEncryptVersions.Ecc,
+      });
+
+      expect(keyServer.revocationKey).toBeTruthy();
+    });
+
+    it('When it generates a KeyServer with Kyber encryption, then the revocationKey should be undefined', () => {
+      const keyServer = fixtures.newKeyServer({
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+
+      expect(keyServer.revocationKey).toBeUndefined();
+    });
+
+    it('When it generates a KeyServer with custom attributes, then those attributes should be set', () => {
+      const customAttributes = {
+        id: 123,
+        userId: 456,
+        publicKey: 'customPublicKey',
+        privateKey: 'customPrivateKey',
+        revocationKey: 'customRevocationKey',
+        encryptVersion: UserKeysEncryptVersions.Ecc,
+      };
+      const keyServer = fixtures.newKeyServer(customAttributes);
+
+      expect(keyServer.id).toBe(customAttributes.id);
+      expect(keyServer.userId).toBe(customAttributes.userId);
+      expect(keyServer.publicKey).toBe(customAttributes.publicKey);
+      expect(keyServer.privateKey).toBe(customAttributes.privateKey);
+      expect(keyServer.revocationKey).toBe(customAttributes.revocationKey);
+      expect(keyServer.encryptVersion).toBe(customAttributes.encryptVersion);
+    });
+
+    it('When it generates a KeyServer, then the default encryption version should be ECC', () => {
+      const keyServer = fixtures.newKeyServer();
+
+      expect(keyServer.encryptVersion).toBe(UserKeysEncryptVersions.Ecc);
     });
   });
 });

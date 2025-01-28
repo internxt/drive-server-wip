@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdatePasswordDto {
   @IsString()
@@ -31,16 +31,28 @@ export class UpdatePasswordDto {
   mnemonic: string;
 
   @IsString()
+  @MaxLength(3200)
   @ApiProperty({
-    example: 'newPrivateKey',
-    description: 'New private key',
+    example: 'encryptedPrivateKey',
+    description: 'Ecc private key encrypted with new password',
   })
   privateKey: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(3200)
+  @ApiProperty({
+    example: 'encryptedPrivateKey',
+    description: 'Kyber private key encrypted with new password',
+  })
+  privateKyberKey?: string;
+
+  @IsOptional()
   @IsString()
   @ApiProperty({
     example: 'encryptVersion',
     description: 'Encrypt version',
+    deprecated: true,
   })
-  encryptVersion: string;
+  encryptVersion?: string;
 }

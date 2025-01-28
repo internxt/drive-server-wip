@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as jwtUtils from '../../lib/jwt';
-import { newUser } from '../../../test/fixtures';
+import { newKeyServer, newUser } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
 import { MailLimitReachedException, UserUseCases } from './user.usecase';
@@ -20,6 +20,8 @@ import { AccountTokenAction } from './user.domain';
 import { v4 } from 'uuid';
 import { DeviceType } from './dto/register-notification-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -441,6 +443,135 @@ describe('User Controller', () => {
       );
 
       loggerSpy.mockRestore();
+    });
+  });
+
+  describe('GET /public-key/:email', () => {
+    const mockUser = newUser();
+
+    it('When public keys are requested, then it should return the publicKey field for backward compatibility', async () => {
+      const kyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKeys = newKeyServer({ userId: mockUser.id });
+
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.publicKey).toEqual(eccKeys.publicKey);
+    });
+
+    it('When public keys are requested, then it should return the keys object containing public keys for each encryption method', async () => {
+      const kyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKeys = newKeyServer({ userId: mockUser.id });
+
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.keys).toMatchObject({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+    });
+
+    it('When public keys are requested and user does not have keys, then it should return empty keys object and public key', async () => {
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.keys).toMatchObject({
+        kyber: null,
+        ecc: null,
+      });
+      expect(response.publicKey).toEqual(null);
+    });
+  });
+
+  describe('PATCH /password', () => {
+    const mockUser = newUser();
+    const clientId = 'drive-web';
+    const mockUpdatePasswordDto: UpdatePasswordDto = {
+      currentPassword: 'encryptedCurrentPassword',
+      newPassword: 'encryptedNewPassword',
+      newSalt: 'encryptedNewSalt',
+      mnemonic: 'mockMnemonic',
+      privateKey: 'mockPrivateKey',
+      encryptVersion: 'ecc',
+      privateKyberKey: 'encryptedPrivateKyberKey',
+    };
+
+    it('When client is not drive-web, then it throws', async () => {
+      const invalidClient = 'invalid-client';
+      await expect(
+        userController.updatePassword(
+          mockUpdatePasswordDto,
+          mockUser,
+          invalidClient,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When current password does not match, then it throws', async () => {
+      cryptoService.decryptText.mockReturnValueOnce('decryptedCurrentPassword');
+      mockUser.password = 'differentPassword';
+
+      await expect(
+        userController.updatePassword(
+          mockUpdatePasswordDto,
+          mockUser,
+          clientId,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('When all conditions are met, it updates the password and returns tokens', async () => {
+      const kyberKey = newKeyServer({
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKey = newKeyServer();
+
+      const mockTokens = { token: 'mockToken', newToken: 'mockNewToken' };
+      cryptoService.decryptText
+        .mockReturnValueOnce(mockUser.password) // currentPassword
+        .mockReturnValueOnce('decryptedNewPassword') // newPassword
+        .mockReturnValueOnce('decryptedNewSalt'); // newSalt
+      keyServerUseCases.findUserKeys.mockResolvedValueOnce({
+        kyber: kyberKey,
+        ecc: eccKey,
+      });
+      userUseCases.getAuthTokens.mockReturnValueOnce(mockTokens);
+
+      const result = await userController.updatePassword(
+        mockUpdatePasswordDto,
+        mockUser,
+        clientId,
+      );
+
+      expect(userUseCases.updatePassword).toHaveBeenCalledWith(mockUser, {
+        currentPassword: mockUser.password,
+        newPassword: 'decryptedNewPassword',
+        newSalt: 'decryptedNewSalt',
+        mnemonic: mockUpdatePasswordDto.mnemonic,
+        privateKey: mockUpdatePasswordDto.privateKey,
+        encryptVersion: mockUpdatePasswordDto.encryptVersion,
+        privateKyberKey: mockUpdatePasswordDto.privateKyberKey,
+      });
+      expect(result).toEqual({ status: 'success', ...mockTokens });
     });
   });
 });
