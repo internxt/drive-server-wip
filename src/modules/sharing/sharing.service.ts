@@ -54,7 +54,6 @@ import { SequelizeUserReferralsRepository } from '../user/user-referrals.reposit
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
-import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
 
 export class InvalidOwnerError extends Error {
   constructor() {
