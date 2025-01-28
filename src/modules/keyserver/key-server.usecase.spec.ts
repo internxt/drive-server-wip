@@ -5,6 +5,7 @@ import {
   InvalidKeyServerException,
   KeyServerUseCases,
 } from './key-server.usecase';
+import { BadRequestException } from '@nestjs/common';
 
 describe('Key Server Use Cases', () => {
   let service: KeyServerUseCases;
@@ -97,7 +98,7 @@ describe('Key Server Use Cases', () => {
   describe('findOrCreateKeysForUser', () => {
     const userId = 234059;
 
-    it('When invalid ecc keys are provided, it should throw', async () => {
+    it('When there are missing ecc keys, it should throw', async () => {
       const invalidEccKeys = {
         privateKey:
           'gMWcRQZTAnrLMlFgAfGyukRICiLBKFqndsuEzMKuJuPlHlhbyVxPDxuWeZpI',
@@ -109,7 +110,7 @@ describe('Key Server Use Cases', () => {
       ).rejects.toThrow(InvalidKeyServerException);
     });
 
-    it('When invalid kyber keys are provided, it should throw', async () => {
+    it('When there are missing kyber keys, it should throw', async () => {
       const invalidKyberKeys = {
         privateKey:
           'gMWcRQZTAnrLMlFgAfGyukRICiLBKFqndsuEzMKuJuPlHlhbyVxPDxuWeZpI',
@@ -188,7 +189,7 @@ describe('Key Server Use Cases', () => {
         'WtPCEiOBbBTKIcOsePFyUCwCbfFmuoJsZKHnuKnjMbvWSPJxOdDFtaNRvwCB',
     };
 
-    it('When user public keys are retrieved, it should return them successfully', async () => {
+    it('When the user public keys are retrieved, it should return them successfully', async () => {
       const eccKey = new KeyServer({
         id: 430,
         userId,
@@ -215,7 +216,7 @@ describe('Key Server Use Cases', () => {
       });
     });
 
-    it('When user public keys are retrieved there are keys missing, it should them as empty', async () => {
+    it('When the user public keys are retrieved but they are missing, then it returns null values', async () => {
       const eccKey = new KeyServer({
         id: 430,
         userId,

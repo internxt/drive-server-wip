@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UserAttributes } from '../user/user.attributes';
 import {
   KeyServer,
@@ -7,7 +7,7 @@ import {
 } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
 
-export class InvalidKeyServerException extends Error {
+export class InvalidKeyServerException extends BadRequestException {
   constructor(public validationMessage: string) {
     super(validationMessage);
     Object.setPrototypeOf(this, InvalidKeyServerException.prototype);

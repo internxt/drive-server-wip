@@ -1034,7 +1034,7 @@ describe('User use cases', () => {
       expect(result).toHaveProperty('newToken', 'newAuthToken');
     });
 
-    it('When user without keys logs and no key is saved, then it should return empty keys ', async () => {
+    it('When user without keys logs in, then it should return empty keys', async () => {
       const hashedPassword = 'hashedPassword';
       const user = newUser({
         attributes: {

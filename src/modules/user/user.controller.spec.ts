@@ -547,6 +547,9 @@ describe('User Controller', () => {
     });
 
     it('When all conditions are met, it updates the password and returns tokens', async () => {
+      const newPassword = 'newPassword';
+      const newSalt = 'newSalt';
+
       const kyberKey = newKeyServer({
         encryptVersion: UserKeysEncryptVersions.Kyber,
       });
@@ -555,8 +558,8 @@ describe('User Controller', () => {
       const mockTokens = { token: 'mockToken', newToken: 'mockNewToken' };
       cryptoService.decryptText
         .mockReturnValueOnce(mockUser.password) // currentPassword
-        .mockReturnValueOnce('decryptedNewPassword') // newPassword
-        .mockReturnValueOnce('decryptedNewSalt'); // newSalt
+        .mockReturnValueOnce(newPassword)
+        .mockReturnValueOnce(newSalt);
       keyServerUseCases.findUserKeys.mockResolvedValueOnce({
         kyber: kyberKey,
         ecc: eccKey,
@@ -571,8 +574,8 @@ describe('User Controller', () => {
 
       expect(userUseCases.updatePassword).toHaveBeenCalledWith(mockUser, {
         currentPassword: mockUser.password,
-        newPassword: 'decryptedNewPassword',
-        newSalt: 'decryptedNewSalt',
+        newPassword: newPassword,
+        newSalt: newSalt,
         mnemonic: mockUpdatePasswordDto.mnemonic,
         privateKey: mockUpdatePasswordDto.privateKey,
         encryptVersion: mockUpdatePasswordDto.encryptVersion,
