@@ -77,6 +77,7 @@ import { RegisterNotificationTokenDto } from './dto/register-notification-token.
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
+import { UsageUseCases } from '../usage/usage.usecase';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -155,6 +156,7 @@ export class UserUseCases {
     private readonly mailerService: MailerService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
+    private readonly usageUseCases: UsageUseCases,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -205,6 +207,10 @@ export class UserUseCases {
       encryptionKey: mnemonic,
       bridgeUrl: this.configService.get('apis.storage.url'),
     });
+  }
+
+  async getUserUsage(user: User) {
+    return this.usageUseCases.getUserUsage(user);
   }
 
   async applyReferral(
