@@ -2,7 +2,7 @@
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up(queryInterface) {
+  async up(queryInterface, Sequelize) {
     await queryInterface.changeColumn('keyserver', 'public_key', {
       type: Sequelize.STRING(2000),
     });
@@ -11,7 +11,7 @@ module.exports = {
     });
   },
 
-  async down(queryInterface) {
+  async down(queryInterface, Sequelize) {
     await queryInterface.changeColumn('keyserver', 'public_key', {
       type: Sequelize.STRING(1024),
     });
