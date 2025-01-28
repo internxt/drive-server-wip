@@ -78,6 +78,7 @@ import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attrib
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
+import { Requester } from '../auth/decorators/requester.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -1234,7 +1235,7 @@ export class WorkspacesController {
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   @RequiredSharingPermissions(SharingActionName.ViewDetails)
   async getWorkspaceItemAncestors(
-    @UserDecorator() user: User,
+    @Requester() user: User,
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @Param('itemType') itemType: WorkspaceItemType,

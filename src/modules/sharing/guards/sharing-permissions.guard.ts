@@ -66,11 +66,15 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Invalid token');
     }
 
-    await this.verifySharedItemAccess(decoded, requester, request, context);
+    const extractData = this.getSharedDataFromRequest(request, context);
+    const isSharedWithMe = decoded.sharedWithUserUuid === requester.uuid;
+    const isRootToken = decoded.isSharedItem && isSharedWithMe;
 
     let userIsAllowedToPerfomAction = false;
 
-    const sharedItemId = decoded.sharedRootFolderId;
+    const sharedItemId = isRootToken
+      ? extractData.itemUuid
+      : decoded.sharedRootFolderId;
     const workspaceId = decoded.workspace?.workspaceId || decoded.workspaceId;
 
     if (!sharedItemId) {
@@ -97,13 +101,13 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('You cannot access this resource');
     }
 
-    if (!decoded.owner || !decoded.owner.uuid) {
+    if (!isRootToken && (!decoded.owner || !decoded.owner.uuid)) {
       throw new ForbiddenException('Owner is required');
     }
 
-    const resourceOwner = await this.userUseCases.findByUuid(
-      decoded.owner.uuid,
-    );
+    const resourceOwner = isRootToken
+      ? await this.getOwnerByItemUuid(sharedItemId)
+      : await this.userUseCases.findByUuid(decoded.owner.uuid);
 
     if (!resourceOwner) {
       throw new NotFoundException('Resource owner not found');
@@ -157,27 +161,14 @@ export class SharingPermissionsGuard implements CanActivate {
     return userIsAllowedToPerfomAction;
   }
 
-  async verifySharedItemAccess(
-    decoded: SharingAccessTokenData,
-    requester: User,
-    request: Request,
-    context: ExecutionContext,
-  ): Promise<void> {
-    if (!decoded.isSharedItem) {
-      return;
+  async getOwnerByItemUuid(itemUuid: string) {
+    const sharing = await this.sharingUseCases.findSharingBy({
+      itemId: itemUuid,
+    });
+    if (!sharing) {
+      throw new Error('Sharing item not found');
     }
-
-    const extractData = this.getSharedDataFromRequest(request, context);
-    const isOwner = decoded.owner?.uuid === requester.uuid;
-    const isSharedWithMe = decoded.sharedWithUserUuid === requester.uuid;
-    const isSameType = decoded.item?.type === extractData.itemType;
-    const isSameId = decoded.item?.uuid === extractData.itemUuid;
-
-    if ((!isOwner && !isSharedWithMe) || !isSameType || !isSameId) {
-      throw new ForbiddenException(
-        'You do not have permission to perform this action',
-      );
-    }
+    return this.userUseCases.getUser(sharing.ownerId);
   }
 
   getSharedDataFromRequest(request: Request, context: ExecutionContext) {

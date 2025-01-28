@@ -1827,25 +1827,6 @@ export class SharingService {
               ? await this.usersUsecases.getAvatarUrl(avatar)
               : null,
           },
-          token: generateTokenWithPlainSecret(
-            {
-              workspace: {
-                workspaceId,
-              },
-              isSharedItem: true,
-              sharedWithUserUuid: user.uuid,
-              owner: {
-                uuid: fileWithSharedInfo.file.user.uuid,
-              },
-              item: {
-                uuid: fileWithSharedInfo.file.uuid,
-                type: WorkspaceItemType.File,
-              },
-              sharedRootFolderId: fileWithSharedInfo.file.uuid,
-            },
-            '1d',
-            this.configService.get('secrets.jwt'),
-          ),
         };
       }),
     )) as FileWithSharedInfo[];
@@ -1892,25 +1873,6 @@ export class SharingService {
               ? await this.usersUsecases.getAvatarUrl(avatar)
               : null,
           },
-          token: generateTokenWithPlainSecret(
-            {
-              workspace: {
-                workspaceId,
-              },
-              isSharedItem: true,
-              sharedWithUserUuid: user.uuid,
-              owner: {
-                uuid: folderWithSharedInfo.folder.user.uuid,
-              },
-              item: {
-                uuid: folderWithSharedInfo.folder.uuid,
-                type: WorkspaceItemType.Folder,
-              },
-              sharedRootFolderId: folderWithSharedInfo.folder.uuid,
-            },
-            '1d',
-            this.configService.get('secrets.jwt'),
-          ),
         };
       }),
     )) as FolderWithSharedInfo[];

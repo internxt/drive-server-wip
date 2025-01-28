@@ -1339,7 +1339,20 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+          sharedWithUserUuid: user.uuid,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getSharedFoldersInWorkspace(
@@ -1362,7 +1375,20 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+          sharedWithUserUuid: user.uuid,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getItemsInSharedFolder(
