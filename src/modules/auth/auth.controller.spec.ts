@@ -147,6 +147,44 @@ describe('AuthController', () => {
         Error,
       );
     });
+
+    it('When kyber and ecc keys are sent, then it should make the call with the respective keys', async () => {
+      const eccKey = newKeyServer();
+      const kyberKey = newKeyServer({
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+
+      const inputWithKyberKeys = { ...loginAccessDto };
+      inputWithKyberKeys.keys = {
+        ecc: {
+          ...eccKey.toJSON(),
+        },
+        kyber: {
+          ...kyberKey.toJSON(),
+        },
+      };
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: kyberKey.toJSON(),
+      });
+
+      jest.spyOn(userUseCases, 'loginAccess');
+
+      await authController.loginAccess(inputWithKyberKeys);
+
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...inputWithKyberKeys,
+        keys: {
+          ecc: {
+            ...eccKey.toJSON(),
+          },
+          kyber: {
+            ...kyberKey.toJSON(),
+          },
+        },
+      });
+    });
   });
 
   describe('GET /logout', () => {

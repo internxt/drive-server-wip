@@ -282,4 +282,102 @@ describe('Key Server Use Cases', () => {
       expect(keyServerRepository.findUserKeys).toHaveBeenCalledWith(userId);
     });
   });
+
+  describe('parseKeysInput', () => {
+    it('When both ecc and kyber keys are provided, then it should return the parsed keys', () => {
+      const inputKeys = {
+        ecc: {
+          publicKey: 'eccPublicKey',
+          privateKey: 'eccPrivateKey',
+          revocationKey: 'eccRevocationKey',
+        },
+        kyber: {
+          publicKey: 'kyberPublicKey',
+          privateKey: 'kyberPrivateKey',
+        },
+      };
+
+      const result = service.parseKeysInput(inputKeys);
+
+      expect(result).toEqual({
+        ecc: {
+          publicKey: 'eccPublicKey',
+          privateKey: 'eccPrivateKey',
+          revocationKey: 'eccRevocationKey',
+        },
+        kyber: {
+          publicKey: 'kyberPublicKey',
+          privateKey: 'kyberPrivateKey',
+        },
+      });
+    });
+
+    it('When only ecc keys are provided, then it should return only ecc keys with null kyber keys', () => {
+      const inputKeys = {
+        ecc: {
+          publicKey: 'eccPublicKey',
+          privateKey: 'eccPrivateKey',
+          revocationKey: 'eccRevocationKey',
+        },
+      };
+
+      const result = service.parseKeysInput(inputKeys);
+
+      expect(result).toEqual({
+        ecc: {
+          publicKey: 'eccPublicKey',
+          privateKey: 'eccPrivateKey',
+          revocationKey: 'eccRevocationKey',
+        },
+        kyber: null,
+      });
+    });
+
+    it('When only kyber keys are provided, then it should return only kyber keys with null ecc keys', () => {
+      const inputKeys = {
+        kyber: {
+          publicKey: 'kyberPublicKey',
+          privateKey: 'kyberPrivateKey',
+        },
+      };
+
+      const result = service.parseKeysInput(inputKeys);
+
+      expect(result).toEqual({
+        ecc: null,
+        kyber: {
+          publicKey: 'kyberPublicKey',
+          privateKey: 'kyberPrivateKey',
+        },
+      });
+    });
+
+    it('When no keys are provided, then it should return both ecc and kyber as null', () => {
+      const result = service.parseKeysInput({});
+
+      expect(result).toEqual({
+        ecc: null,
+        kyber: null,
+      });
+    });
+
+    it('When old keys are provided and new keys are missing, it should fall back to old keys', () => {
+      const oldKeys = {
+        publicKey: 'oldPublicKey',
+        privateKey: 'oldPrivateKey',
+        revocationKey: 'oldRevocationKey',
+      };
+
+      const result = service.parseKeysInput({}, oldKeys);
+
+      expect(result).toEqual({
+        ecc: {
+          publicKey: 'oldPublicKey',
+          privateKey: 'oldPrivateKey',
+          revocationKey: 'oldRevocationKey',
+        },
+        kyber: null,
+      });
+    });
+  });
 });
