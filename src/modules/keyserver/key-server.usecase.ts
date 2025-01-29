@@ -6,6 +6,7 @@ import {
   UserKeysEncryptVersions,
 } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
+import { EccKeysDto, KyberKeysDto } from './dto/keys.dto';
 
 export class InvalidKeyServerException extends BadRequestException {
   constructor(public validationMessage: string) {
@@ -133,5 +134,39 @@ export class KeyServerUseCases {
     version: UserKeysEncryptVersions,
   ): KeyServer | null {
     return userKeys.find((key) => key.encryptVersion === version) || null;
+  }
+
+  parseKeysInput(
+    keys: {
+      kyber?: PartialKeys;
+      ecc?: PartialKeys;
+    },
+    oldKeys?: {
+      privateKey: string;
+      publicKey: string;
+      revocationKey: string;
+    },
+  ): {
+    ecc: EccKeysDto;
+    kyber: KyberKeysDto;
+  } {
+    const eccKeys =
+      keys?.ecc || (oldKeys?.publicKey && oldKeys?.privateKey)
+        ? {
+            publicKey: keys?.ecc?.publicKey || oldKeys?.publicKey,
+            privateKey: keys?.ecc?.privateKey || oldKeys?.privateKey,
+            revocationKey: keys?.ecc?.revocationKey || oldKeys?.revocationKey,
+          }
+        : null;
+
+    const kyberKeys =
+      keys?.kyber?.publicKey && keys?.kyber?.privateKey
+        ? {
+            publicKey: keys.kyber.publicKey,
+            privateKey: keys.kyber.privateKey,
+          }
+        : null;
+
+    return { ecc: eccKeys, kyber: kyberKeys };
   }
 }

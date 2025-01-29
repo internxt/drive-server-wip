@@ -18,6 +18,7 @@ import { TwoFactorAuthService } from './two-factor-auth.service';
 import { GeneratedSecret } from 'speakeasy';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -53,23 +54,24 @@ describe('AuthController', () => {
       user.hKey = 'hKey';
       user.secret_2FA = 'secret_2FA';
 
-      const keys = newKeyServer({ userId: user.id });
+      const eccKeys = newKeyServer({ userId: user.id });
+      const kyberKeys = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
 
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
       jest
         .spyOn(keyServerUseCases, 'findUserKeys')
-        .mockResolvedValueOnce({ ecc: keys, kyber: null });
+        .mockResolvedValueOnce({ ecc: eccKeys, kyber: kyberKeys });
       jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
-
-      const res = {
-        status: jest.fn(() => res),
-        send: jest.fn(),
-      } as unknown as Response;
 
       const result = await authController.login(loginDto);
 
       expect(result).toEqual({
         hasKeys: true,
+        hasKyberKeys: true,
+        hasEccKeys: true,
         sKey: 'encryptedText',
         tfa: true,
       });
@@ -108,6 +110,13 @@ describe('AuthController', () => {
     loginAccessDto.revocateKey = 'revocateKey';
 
     it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
       jest
         .spyOn(userUseCases, 'loginAccess')
         .mockResolvedValueOnce({ success: true } as any);
@@ -115,7 +124,17 @@ describe('AuthController', () => {
       const result = await authController.loginAccess(loginAccessDto);
 
       expect(userUseCases.loginAccess).toHaveBeenCalledTimes(1);
-      expect(userUseCases.loginAccess).toHaveBeenCalledWith(loginAccessDto);
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...loginAccessDto,
+        keys: {
+          ecc: {
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
+          },
+          kyber: null,
+        },
+      });
       expect(result).toEqual({ success: true });
     });
 

@@ -602,7 +602,69 @@ describe('User Controller', () => {
     };
 
     it('When the user is created with new keys object, then the user and keys should be created successfully', async () => {
+      const newKyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
       const newEccKeys = newKeyServer({ userId: mockUser.id });
+      const newKeys = {
+        kyber: {
+          publicKey: newKyberKeys.publicKey,
+          privateKey: newKyberKeys.privateKey,
+        },
+        ecc: {
+          publicKey: newEccKeys.publicKey,
+          privateKey: newEccKeys.privateKey,
+          revocationKey: newEccKeys.revocationKey,
+        },
+      };
+      const createUserDto: CreateUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: 'test@test.com',
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        privateKey: 'privateKey',
+        publicKey: 'publicKey',
+        revocationKey: 'revocationKey',
+        keys: newKeys,
+      };
+
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce(newKeys);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: newKyberKeys,
+        ecc: newEccKeys,
+      });
+
+      const result = await userController.createUser(createUserDto, req, res);
+
+      expect(userUseCases.createUser).toHaveBeenCalledWith(createUserDto);
+      expect(keyServerUseCases.addKeysToUser).toHaveBeenCalledWith(
+        mockUser.id,
+        {
+          kyber: {
+            publicKey: newKeys.kyber.publicKey,
+            privateKey: newKeys.kyber.privateKey,
+          },
+          ecc: {
+            publicKey: newKeys.ecc.publicKey,
+            privateKey: newKeys.ecc.privateKey,
+            revocationKey: newKeys.ecc.revocationKey,
+          },
+        },
+      );
+      expect((result as any).user).toMatchObject({
+        publicKey: newKeys.ecc.publicKey,
+        privateKey: newKeys.ecc.privateKey,
+        revocationKey: newKeys.ecc.revocationKey,
+        keys: newKeys,
+      });
+    });
+
+    it('When the user is created and ecc keys are found, then it should try to replace pre created user invitations', async () => {
+      const existentEccKey = newKeyServer({ userId: mockUser.id });
 
       const createUserDto: CreateUserDto = {
         name: 'My',
@@ -611,40 +673,17 @@ describe('User Controller', () => {
         password: 'hashed password',
         mnemonic: 'mnemonic',
         salt: 'salt',
-        privateKey: newEccKeys.privateKey,
-        publicKey: newEccKeys.publicKey,
-        revocationKey: newEccKeys.revocationKey,
-        referrer: null,
-        registerCompleted: true,
       };
 
       userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
       keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
         kyber: null,
-        ecc: newEccKeys,
+        ecc: existentEccKey,
       });
 
-      const result = await userController.createUser(
-        createUserDto,
-        req as any,
-        res as any,
-      );
+      await userController.createUser(createUserDto, req, res);
 
-      expect(keyServerUseCases.addKeysToUser).toHaveBeenCalledWith(
-        mockUser.id,
-        {
-          ecc: {
-            publicKey: newEccKeys.publicKey,
-            privateKey: newEccKeys.privateKey,
-            revocationKey: newEccKeys.revocationKey,
-          },
-        },
-      );
-      expect((result as any).user).toMatchObject({
-        publicKey: newEccKeys.publicKey,
-        privateKey: newEccKeys.privateKey,
-        revocationKey: newEccKeys.revocationKey,
-      });
+      expect(userUseCases.replacePreCreatedUser).toHaveBeenCalled();
     });
   });
 
@@ -666,8 +705,16 @@ describe('User Controller', () => {
     };
 
     it('When the pre-created user is registered, then the user and keys should be created successfully', async () => {
+      const newKyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
       const newEccKeys = newKeyServer({ userId: mockUser.id });
       const newKeys = {
+        kyber: {
+          publicKey: newKyberKeys.publicKey,
+          privateKey: newKyberKeys.privateKey,
+        },
         ecc: {
           publicKey: newEccKeys.publicKey,
           privateKey: newEccKeys.privateKey,
@@ -689,10 +736,11 @@ describe('User Controller', () => {
         registerCompleted: true,
       };
 
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce(newKeys);
       userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
       userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
       keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
-        kyber: null,
+        kyber: newKyberKeys,
         ecc: newEccKeys,
       });
 
@@ -708,6 +756,29 @@ describe('User Controller', () => {
         revocationKey: newKeys.ecc.revocationKey,
         keys: newKeys,
       });
+    });
+
+    it('When the pre-created user is registered without keys, then replacing pre created user invitations should be skipped', async () => {
+      const preCreateUserDto: RegisterPreCreatedUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: 'test@test.com',
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      await userController.registerPreCreatedUser(preCreateUserDto, req, res);
+
+      expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
     });
   });
 
