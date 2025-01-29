@@ -1075,6 +1075,81 @@ describe('User use cases', () => {
         },
       });
     });
+
+    it('When user without keys logs in and keys are sent, then it should save keys', async () => {
+      const hashedPassword = 'hashedPassword';
+      const user = newUser({
+        attributes: {
+          password: hashedPassword,
+          errorLoginCount: 0,
+          secret_2FA: null,
+        },
+      });
+      const eccKeys = newKeyServer({ userId: user.id, ...keys.toJSON() });
+      const kyberKeys = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+
+      const loginAccessDto: LoginAccessDto = {
+        email: user.email,
+        password: hashedPassword,
+        tfa: '',
+        keys: {
+          ecc: { ...eccKeys.toJSON() },
+          kyber: { ...kyberKeys.toJSON() },
+        },
+      };
+
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
+      jest
+        .spyOn(userUseCases, 'getAuthTokens')
+        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValueOnce(eccKeys);
+      jest
+        .spyOn(keyServerUseCases, 'findOrCreateKeysForUser')
+        .mockResolvedValueOnce(kyberKeys);
+
+      const result = await userUseCases.loginAccess(loginAccessDto);
+
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledWith(
+        user.id,
+        {
+          publicKey: eccKeys.publicKey,
+          privateKey: eccKeys.privateKey,
+          revocationKey: eccKeys.revocationKey,
+          encryptVersion: eccKeys.encryptVersion,
+        },
+      );
+      expect(keyServerUseCases.findOrCreateKeysForUser).toHaveBeenCalledWith(
+        user.id,
+        {
+          publicKey: kyberKeys.publicKey,
+          privateKey: kyberKeys.privateKey,
+          encryptVersion: kyberKeys.encryptVersion,
+        },
+      );
+      expect(result.user).toHaveProperty('keys', {
+        ecc: {
+          privateKey: eccKeys.privateKey,
+          publicKey: eccKeys.publicKey,
+        },
+        kyber: {
+          privateKey: kyberKeys.privateKey,
+          publicKey: kyberKeys.publicKey,
+        },
+      });
+    });
   });
 
   describe('updateByUuid', () => {

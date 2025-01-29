@@ -1206,7 +1206,12 @@ export class UserUseCases {
     return this.userRepository.getNotificationTokens(user.uuid);
   }
 
-  async loginAccess(loginAccessDto: LoginAccessDto) {
+  async loginAccess(
+    loginAccessDto: Omit<
+      LoginAccessDto,
+      'privateKey' | 'publicKey' | 'revocateKey' | 'revocationKey'
+    >,
+  ) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
     const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
@@ -1258,22 +1263,30 @@ export class UserUseCases {
     );
     const userBucket = rootFolder.bucket;
 
-    const {
-      publicKey,
-      privateKey,
-      revocateKey: revocationKey,
-    } = loginAccessDto;
+    const newKeys = loginAccessDto?.keys;
 
     const keys = await this.keyServerUseCases.findUserKeys(userData.id);
 
-    if (!keys.ecc && publicKey && privateKey) {
-      keys.ecc = await this.keyServerRepository.create(userData.id, {
-        publicKey,
-        privateKey,
-        revocationKey,
-        encryptVersion: UserKeysEncryptVersions.Ecc,
-      });
-    }
+    const shouldCreateEccKeys = !keys.ecc && newKeys?.ecc;
+
+    const ecc = shouldCreateEccKeys
+      ? await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+          publicKey: newKeys.ecc.publicKey,
+          privateKey: newKeys.ecc.privateKey,
+          revocationKey: newKeys.ecc.revocationKey,
+          encryptVersion: UserKeysEncryptVersions.Ecc,
+        })
+      : keys.ecc;
+
+    const shouldCreateKyberKeys = !keys.kyber && newKeys?.kyber;
+
+    const kyber = shouldCreateKyberKeys
+      ? await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+          publicKey: newKeys.kyber.publicKey,
+          privateKey: newKeys.kyber.privateKey,
+          encryptVersion: UserKeysEncryptVersions.Kyber,
+        })
+      : keys.kyber;
 
     const user = {
       email: userData.email,
@@ -1286,17 +1299,17 @@ export class UserUseCases {
       uuid: userData.uuid,
       credit: userData.credit,
       createdAt: userData.createdAt,
-      privateKey: keys.ecc ? keys.ecc.privateKey : null,
-      publicKey: keys.ecc ? keys.ecc.publicKey : null,
-      revocateKey: keys.ecc ? keys.ecc.revocationKey : null,
+      privateKey: ecc?.privateKey || null,
+      publicKey: ecc?.publicKey || null,
+      revocateKey: ecc?.revocationKey || null,
       keys: {
         ecc: {
-          privateKey: keys.ecc ? keys.ecc.privateKey : null,
-          publicKey: keys.ecc ? keys.ecc.publicKey : null,
+          privateKey: ecc?.privateKey || null,
+          publicKey: ecc?.publicKey || null,
         },
         kyber: {
-          privateKey: null,
-          publicKey: null,
+          privateKey: kyber?.privateKey || null,
+          publicKey: kyber?.publicKey || null,
         },
       },
       bucket: userBucket,

@@ -77,7 +77,13 @@ export class AuthController {
       );
       const keys = await this.keyServerUseCases.findUserKeys(user.id);
 
-      return { hasKeys: !!keys.ecc, sKey: encryptedSalt, tfa: required2FA };
+      return {
+        hasKeys: !!keys.ecc,
+        sKey: encryptedSalt,
+        tfa: required2FA,
+        hasKyberKeys: !!keys.kyber,
+        hasEccKeys: !!keys.ecc,
+      };
     } catch (err) {
       if (!(err instanceof HttpException)) {
         Logger.error(
@@ -102,7 +108,16 @@ export class AuthController {
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
   async loginAccess(@Body() body: LoginAccessDto) {
-    return this.userUseCases.loginAccess(body);
+    const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
+      privateKey: body.privateKey,
+      publicKey: body.publicKey,
+      revocationKey: body.revocateKey,
+    });
+
+    return this.userUseCases.loginAccess({
+      ...body,
+      keys: { kyber, ecc },
+    });
   }
 
   @Get('/logout')

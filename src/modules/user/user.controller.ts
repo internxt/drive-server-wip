@@ -113,18 +113,25 @@ export class UserController {
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        response.user.id,
+
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
         {
-          ecc: {
-            privateKey: createUserDto.privateKey,
-            publicKey: createUserDto.publicKey,
-            revocationKey: createUserDto.revocationKey,
-          },
+          privateKey: createUserDto.privateKey,
+          publicKey: createUserDto.publicKey,
+          revocationKey: createUserDto.revocationKey,
         },
       );
 
-      if (req.headers['internxt-client'] !== 'drive-mobile') {
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        response.user.id,
+        {
+          kyber,
+          ecc,
+        },
+      );
+
+      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
         await this.userUseCases.replacePreCreatedUser(
           response.user.email,
           response.user.uuid,
@@ -281,22 +288,30 @@ export class UserController {
 
       const userCreated = await this.userUseCases.createUser(createUserDto);
 
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        userCreated.user.id,
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
         {
-          ecc: {
-            privateKey: createUserDto.privateKey,
-            publicKey: createUserDto.publicKey,
-            revocationKey: createUserDto.revocationKey,
-          },
+          privateKey: createUserDto.privateKey,
+          publicKey: createUserDto.publicKey,
+          revocationKey: createUserDto.revocationKey,
         },
       );
 
-      await this.userUseCases.replacePreCreatedUser(
-        userCreated.user.email,
-        userCreated.user.uuid,
-        keys.ecc.publicKey,
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        userCreated.user.id,
+        {
+          kyber,
+          ecc,
+        },
       );
+
+      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+        await this.userUseCases.replacePreCreatedUser(
+          userCreated.user.email,
+          userCreated.user.uuid,
+          keys.ecc.publicKey,
+        );
+      }
 
       this.notificationsService.add(
         new SignUpSuccessEvent(userCreated.user as unknown as User, req),
