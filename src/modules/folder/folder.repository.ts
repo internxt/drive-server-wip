@@ -20,6 +20,7 @@ import {
 import { Literal } from 'sequelize/types/utils';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileStatus } from '../file/file.domain';
+import { UserModel } from '../user/user.model';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -252,7 +253,16 @@ export class SequelizeFolderRepository implements FolderRepository {
           where: {
             createdBy,
             workspaceId,
+            itemType: WorkspaceItemType.Folder,
           },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+            },
+          ],
         },
         {
           model: SharingModel,
@@ -660,7 +670,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     updatedAfter: Date,
     limit: number,
     offset: number,
-    additionalOrders: Array<[keyof FolderModel, string]> = [],
+    additionalOrders: Array<[keyof FolderAttributes, string]> = [],
   ): Promise<Array<Folder>> {
     const folders = await this.folderModel.findAll({
       where: {
@@ -795,10 +805,13 @@ export class SequelizeFolderRepository implements FolderRepository {
   }
 
   private toDomain(model: FolderModel): Folder {
+    const buildUser = (userData: UserModel | null) =>
+      userData ? User.build(userData) : null;
+
     return Folder.build({
       ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
-      user: model.user ? User.build(model.user) : null,
+      user: buildUser(model.user || model.workspaceUser?.creator),
     });
   }
 

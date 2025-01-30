@@ -44,6 +44,7 @@ export class GetWorkspaceLogsDto {
 
   @IsOptional()
   @IsString()
+  @Max(50)
   member?: string;
 
   @IsOptional()

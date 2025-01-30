@@ -1339,7 +1339,20 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+          sharedWithUserUuid: user.uuid,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getSharedFoldersInWorkspace(
@@ -1362,7 +1375,20 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+          sharedWithUserUuid: user.uuid,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getItemsInSharedFolder(
@@ -2938,5 +2964,38 @@ export class WorkspacesUsecases {
       lastDays,
       order,
     );
+  }
+
+  async getWorkspaceItemAncestors(
+    workspaceId: Workspace['id'],
+    itemType: WorkspaceItemType,
+    itemUuid: Sharing['itemId'],
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const folderUuid =
+      itemType === WorkspaceItemType.File
+        ? (await this.fileUseCases.getByUuid(itemUuid)).folderUuid
+        : itemUuid;
+
+    if (!folderUuid) {
+      throw new NotFoundException('Folder uuid required');
+    }
+
+    const owner = await this.findWorkspaceResourceOwner(workspace);
+
+    const folders = await this.folderUseCases.getFolderAncestorsInWorkspace(
+      owner,
+      folderUuid,
+    );
+
+    return folders.map((f) => ({
+      uuid: f.uuid,
+      plainName: f.plainName,
+    }));
   }
 }

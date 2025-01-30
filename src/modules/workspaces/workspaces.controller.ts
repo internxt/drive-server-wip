@@ -13,6 +13,7 @@ import {
   UseInterceptors,
   InternalServerErrorException,
   UseFilters,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -58,9 +59,10 @@ import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagi
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import { OrderBy } from '../../common/order.type';
+import { GetDataFromRequest } from './../../common/extract-data-from-request';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { SharingActionName } from '../sharing/sharing.domain';
+import { Sharing, SharingActionName } from '../sharing/sharing.domain';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
@@ -75,6 +77,8 @@ import { Client } from '../auth/decorators/client.decorator';
 import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
+import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
+import { Requester } from '../auth/decorators/requester.decorator';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -1202,6 +1206,58 @@ export class WorkspacesController {
       lastDays,
       summary,
       order,
+    );
+  }
+
+  @Get(':workspaceId/:itemType/:uuid/ancestors')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'See item ancestors',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'itemType', type: String, required: true })
+  @ApiParam({ name: 'uuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Item ancestors details',
+  })
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemUuid',
+    },
+    {
+      sourceKey: 'params',
+      fieldName: 'itemType',
+    },
+  ])
+  @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @RequiredSharingPermissions(SharingActionName.ViewDetails)
+  async getWorkspaceItemAncestors(
+    @Requester() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('itemType') itemType: WorkspaceItemType,
+    @Param('uuid', ValidateUUIDPipe)
+    itemUuid: Sharing['itemId'],
+    @IsSharedItem() isSharedItem: boolean,
+  ) {
+    if (!isSharedItem) {
+      const creator = await this.workspaceUseCases.isUserCreatorOfItem(
+        user,
+        itemUuid,
+        itemType,
+      );
+      if (!creator) {
+        throw new ForbiddenException('You cannot access this resource');
+      }
+    }
+
+    return this.workspaceUseCases.getWorkspaceItemAncestors(
+      workspaceId,
+      itemType,
+      itemUuid,
     );
   }
 }

@@ -27,6 +27,7 @@ import {
   newWorkspaceTeam,
 } from '../../../../test/fixtures';
 import { v4 } from 'uuid';
+import { SharingAccessTokenData } from './sharings-token.interface';
 
 jest.mock('../../../lib/jwt');
 
@@ -78,6 +79,60 @@ describe('SharingPermissionsGuard', () => {
     );
   });
 
+  it('When shared item access is verified successfully, then it should proceed to check permissions', async () => {
+    const context = createMockExecutionContext({
+      user: { uuid: 'requester-uuid' },
+      headers: { 'internxt-resources-token': 'valid-token' },
+    });
+    const owner = newUser({ attributes: { uuid: 'owner-uuid' } });
+
+    const decoded = {
+      sharedRootFolderId: 'shared-folder-id',
+      workspace: { workspaceId: 'workspace-id' },
+      owner: { uuid: owner.uuid },
+    } as SharingAccessTokenData;
+
+    jest.spyOn(reflector, 'get').mockReturnValue({ action: 'some-action' });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
+    });
+    (verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+    jest
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
+      .mockResolvedValue(true);
+    jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(owner);
+
+    const result = await guard.canActivate(context);
+    const request = context.switchToHttp().getRequest();
+
+    expect(result).toBe(true);
+    expect(request.isSharedItem).toBe(true);
+  });
+
+  it('When shared item ID is not found, then it should throw ForbiddenException', async () => {
+    const context = createMockExecutionContext({
+      user: { uuid: 'requester-uuid' },
+      headers: { 'internxt-resources-token': 'valid-token' },
+    });
+
+    const decoded = {
+      sharedRootFolderId: undefined,
+      owner: { uuid: 'owner-uuid' },
+    } as SharingAccessTokenData;
+
+    jest.spyOn(reflector, 'get').mockReturnValue({ action: 'some-action' });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
+    });
+    (verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
   it('When workspace and team permissions are valid, it should allow allow', async () => {
     const workspace = newWorkspace();
     const team = newWorkspaceTeam();
@@ -87,6 +142,10 @@ describe('SharingPermissionsGuard', () => {
     const context = createMockExecutionContext({
       user,
       headers: { 'internxt-resources-token': 'valid-token' },
+    });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
     });
 
     (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => ({
@@ -104,7 +163,7 @@ describe('SharingPermissionsGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it('When user is not part of the team, it should deny access', async () => {
+  it('When user is not part of the team, it should throw', async () => {
     const workspace = newWorkspace();
     const team = newWorkspaceTeam();
     const folder = newFolder();
@@ -113,6 +172,10 @@ describe('SharingPermissionsGuard', () => {
     const context = createMockExecutionContext({
       user,
       headers: { 'internxt-resources-token': 'valid-token' },
+    });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
     });
 
     (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => ({
@@ -125,7 +188,40 @@ describe('SharingPermissionsGuard', () => {
       .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
       .mockResolvedValue(false);
 
-    await expect(guard.canActivate(context)).resolves.toBe(false);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      new ForbiddenException('You cannot access this resource'),
+    );
+  });
+
+  it('When decoded owner is not found, it should throw', async () => {
+    const workspace = newWorkspace();
+    const team = newWorkspaceTeam();
+    const folder = newFolder();
+    mockMetadata(reflector, { action: SharingActionName.ViewDetails });
+
+    const context = createMockExecutionContext({
+      user,
+      headers: { 'internxt-resources-token': 'valid-token' },
+    });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
+    });
+
+    (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => ({
+      workspace: { workspaceId: workspace.id, teamId: team.id },
+      sharedRootFolderId: folder.uuid,
+      sharedWithType: SharedWithType.WorkspaceTeam,
+      owner: undefined,
+    }));
+
+    jest
+      .spyOn(guard, 'isWorkspaceMemberAbleToPerfomAction')
+      .mockResolvedValue(true);
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      new ForbiddenException('Owner is required'),
+    );
   });
 
   it('When resource owner is not found, it should throw', async () => {
@@ -137,6 +233,10 @@ describe('SharingPermissionsGuard', () => {
     const context = createMockExecutionContext({
       user,
       headers: { 'internxt-resources-token': 'valid-token' },
+    });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
     });
 
     (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => ({
@@ -161,6 +261,10 @@ describe('SharingPermissionsGuard', () => {
     const context = createMockExecutionContext({
       user,
       headers: { 'internxt-resources-token': 'valid-token' },
+    });
+    jest.spyOn(guard, 'getSharedDataFromRequest').mockReturnValue({
+      itemType: 'file',
+      itemUuid: 'item-uuid',
     });
 
     (verifyWithDefaultSecret as jest.Mock).mockImplementation(() => ({
@@ -276,6 +380,82 @@ describe('SharingPermissionsGuard', () => {
         action,
         SharedWithType.Individual,
       );
+    });
+  });
+
+  describe('getOwnerByItemUuid', () => {
+    const itemUuid = 'item-uuid';
+    const owner = newUser();
+    const sharing = { ownerId: owner.uuid } as any;
+
+    it('When sharing is found, then return the owner', async () => {
+      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(sharing);
+      jest.spyOn(userUseCases, 'getUser').mockResolvedValue(owner);
+
+      const result = await guard.getOwnerByItemUuid(itemUuid);
+      expect(result).toEqual(owner);
+      expect(sharingUseCases.findSharingBy).toHaveBeenCalledWith({
+        itemId: itemUuid,
+      });
+      expect(userUseCases.getUser).toHaveBeenCalledWith(owner.uuid);
+    });
+
+    it('When sharing is not found, then throw an error', async () => {
+      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(null);
+
+      await expect(guard.getOwnerByItemUuid(itemUuid)).rejects.toThrow(
+        'Sharing item not found',
+      );
+      expect(sharingUseCases.findSharingBy).toHaveBeenCalledWith({
+        itemId: itemUuid,
+      });
+    });
+
+    it('When findSharingBy throws an error, then propagate the error', async () => {
+      const errorMessage = 'Database error';
+
+      jest
+        .spyOn(sharingUseCases, 'findSharingBy')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(guard.getOwnerByItemUuid(itemUuid)).rejects.toThrow(
+        errorMessage,
+      );
+      expect(sharingUseCases.findSharingBy).toHaveBeenCalledWith({
+        itemId: itemUuid,
+      });
+    });
+
+    it('When getUser throws an error, then propagate the error', async () => {
+      const errorMessage = 'User not found';
+
+      jest.spyOn(sharingUseCases, 'findSharingBy').mockResolvedValue(sharing);
+      jest
+        .spyOn(userUseCases, 'getUser')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(guard.getOwnerByItemUuid(itemUuid)).rejects.toThrow(
+        errorMessage,
+      );
+      expect(sharingUseCases.findSharingBy).toHaveBeenCalledWith({
+        itemId: itemUuid,
+      });
+      expect(userUseCases.getUser).toHaveBeenCalledWith(owner.uuid);
+    });
+  });
+
+  describe('getSharedDataFromRequest', () => {
+    it('When called, then return extracted data', () => {
+      const request = { headers: {}, body: {} } as Request;
+      const context = {} as ExecutionContext;
+      const extractedData = { someData: 'value' };
+
+      jest
+        .spyOn(guard, 'getSharedDataFromRequest')
+        .mockReturnValue(extractedData);
+
+      const result = guard.getSharedDataFromRequest(request, context);
+      expect(result).toEqual(extractedData);
     });
   });
 });

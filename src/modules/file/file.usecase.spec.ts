@@ -464,23 +464,30 @@ describe('FileUseCases', () => {
         folderId,
       );
 
-      const file = File.build({
+      const file = {
         ...fileAttributes,
         name: encryptedName,
         folderId,
-      });
+      };
+
+      const decryptedName = 'decryptedName';
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValue(decryptedName);
 
       delete fileAttributes['user'];
 
-      const result = service.decrypFileName(file);
+      const result = service.decrypFileName(file as File);
 
-      expect(result).toStrictEqual({
-        ...fileAttributes,
-        shares: undefined,
-        thumbnails: undefined,
-        sharings: undefined,
-        folderId,
-      });
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        file.name,
+        file.folderId,
+      );
+      expect(result).toEqual(
+        File.build({
+          ...file,
+          name: decryptedName,
+          plainName: decryptedName,
+        }),
+      );
     });
 
     it('fails when name is not encrypted', () => {

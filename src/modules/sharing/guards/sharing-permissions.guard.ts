@@ -66,15 +66,26 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Invalid token');
     }
 
+    const extractData = this.getSharedDataFromRequest(request, context);
+    const isSharedWithMe = decoded.sharedWithUserUuid === requester.uuid;
+    const isRootToken = decoded.isSharedItem && isSharedWithMe;
+
     let userIsAllowedToPerfomAction = false;
 
-    const sharedItemId = decoded.sharedRootFolderId;
+    const sharedItemId = isRootToken
+      ? extractData.itemUuid
+      : decoded.sharedRootFolderId;
+    const workspaceId = decoded.workspace?.workspaceId || decoded.workspaceId;
 
-    if (decoded.workspace) {
+    if (!sharedItemId) {
+      throw new ForbiddenException('Shared item id not found');
+    }
+
+    if (workspaceId) {
       userIsAllowedToPerfomAction =
         await this.isWorkspaceMemberAbleToPerfomAction(
           requester,
-          decoded.workspace.workspaceId,
+          workspaceId,
           sharedItemId,
           action,
         );
@@ -87,12 +98,16 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     if (!userIsAllowedToPerfomAction) {
-      return false;
+      throw new ForbiddenException('You cannot access this resource');
     }
 
-    const resourceOwner = await this.userUseCases.findByUuid(
-      decoded.owner.uuid,
-    );
+    if (!isRootToken && (!decoded.owner || !decoded.owner.uuid)) {
+      throw new ForbiddenException('Owner is required');
+    }
+
+    const resourceOwner = isRootToken
+      ? await this.getOwnerByItemUuid(sharedItemId)
+      : await this.userUseCases.findByUuid(decoded.owner.uuid);
 
     if (!resourceOwner) {
       throw new NotFoundException('Resource owner not found');
@@ -146,17 +161,17 @@ export class SharingPermissionsGuard implements CanActivate {
     return userIsAllowedToPerfomAction;
   }
 
-  getSharedItemIdFromRequest(
-    request: Request,
-    reflector: Reflector,
-    context: ExecutionContext,
-  ) {
-    const extractedData = extractDataFromRequest(
-      request,
-      reflector,
-      context,
-    ) as any;
+  async getOwnerByItemUuid(itemUuid: string) {
+    const sharing = await this.sharingUseCases.findSharingBy({
+      itemId: itemUuid,
+    });
+    if (!sharing) {
+      throw new Error('Sharing item not found');
+    }
+    return this.userUseCases.getUser(sharing.ownerId);
+  }
 
-    return extractedData.itemId;
+  getSharedDataFromRequest(request: Request, context: ExecutionContext) {
+    return extractDataFromRequest(request, this.reflector, context) as any;
   }
 }

@@ -6164,4 +6164,99 @@ describe('WorkspacesUsecases', () => {
       );
     });
   });
+
+  describe('getWorkspaceItemAncestors', () => {
+    it('When workspace is not found then throws NotFoundException', async () => {
+      const workspaceId = 'invalid-workspace-id';
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.getWorkspaceItemAncestors(workspaceId, itemType, itemUuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When itemType is File and file does not have a folderUuid then throws NotFoundException', async () => {
+      const workspaceId = v4();
+      const mockWorkspace = newWorkspace({ attributes: { id: workspaceId } });
+      const mockFile = newFile({ attributes: { folderUuid: null } });
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValue(mockFile);
+
+      await expect(
+        service.getWorkspaceItemAncestors(workspaceId, itemType, itemUuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When itemType is File then returns folder ancestors in workspace', async () => {
+      const workspaceId = v4();
+      const mockWorkspace = newWorkspace({ attributes: { id: workspaceId } });
+      const itemUuid = v4();
+      const itemType = WorkspaceItemType.File;
+      const mockFile = newFile({ attributes: { folderUuid: itemUuid } });
+      const owner = newUser();
+      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest.spyOn(fileUseCases, 'getByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'findWorkspaceResourceOwner')
+        .mockResolvedValue(owner);
+      jest
+        .spyOn(folderUseCases, 'getFolderAncestorsInWorkspace')
+        .mockResolvedValue(expectedAncestors);
+
+      const result = await service.getWorkspaceItemAncestors(
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+
+      expect(folderUseCases.getFolderAncestorsInWorkspace).toHaveBeenCalledWith(
+        owner,
+        itemUuid,
+      );
+      expect(result).toEqual(expectedAncestors);
+    });
+
+    it('When itemType is Folder then returns folder ancestors in workspace', async () => {
+      const workspaceId = v4();
+      const mockWorkspace = newWorkspace({ attributes: { id: workspaceId } });
+      const itemType = WorkspaceItemType.Folder;
+      const itemUuid = v4();
+      const owner = newUser();
+      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValue(mockWorkspace);
+      jest
+        .spyOn(service, 'findWorkspaceResourceOwner')
+        .mockResolvedValue(owner);
+      jest
+        .spyOn(folderUseCases, 'getFolderAncestorsInWorkspace')
+        .mockResolvedValue(expectedAncestors);
+
+      const result = await service.getWorkspaceItemAncestors(
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+
+      expect(folderUseCases.getFolderAncestorsInWorkspace).toHaveBeenCalledWith(
+        owner,
+        itemUuid,
+      );
+      expect(result).toEqual(expectedAncestors);
+    });
+  });
 });

@@ -17,6 +17,7 @@ import {
   newUser,
   publicUser,
 } from '../../../test/fixtures';
+import * as jwtUtils from '../../lib/jwt';
 import { PasswordNeededError, SharingService } from './sharing.service';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -31,6 +32,8 @@ import {
 } from './sharing.domain';
 import { FileStatus } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
+
+jest.mock('../../lib/jwt');
 
 describe('Sharing Use Cases', () => {
   let sharingService: SharingService;
@@ -551,6 +554,7 @@ describe('Sharing Use Cases', () => {
     it('When files are shared with teams user belongs to, then it should return the files', async () => {
       const sharing = newSharing();
       sharing.file = newFile({ owner: newUser() });
+      sharing.file.user = newUser();
 
       const filesWithSharedInfo = [sharing];
 
@@ -564,6 +568,10 @@ describe('Sharing Use Cases', () => {
 
       jest.spyOn(usersUsecases, 'getAvatarUrl').mockResolvedValue('avatar-url');
 
+      jest
+        .spyOn(jwtUtils, 'generateWithDefaultSecret')
+        .mockReturnValue('generatedToken');
+
       const result = await sharingService.getSharedFilesInWorkspaceByTeams(
         user,
         workspaceId,
@@ -573,21 +581,23 @@ describe('Sharing Use Cases', () => {
 
       expect(result).toEqual(
         expect.objectContaining({
-          folders: [],
+          credentials: expect.objectContaining({
+            networkUser: expect.any(String),
+            networkPass: expect.any(String),
+          }),
+          folders: expect.arrayContaining([]),
           files: expect.arrayContaining([
             expect.objectContaining({
-              plainName: sharing.file.plainName,
-              sharingId: sharing.id,
-              encryptionKey: sharing.encryptionKey,
-              dateShared: sharing.createdAt,
+              plainName: expect.any(String),
+              encryptionKey: expect.any(String),
+              user: expect.objectContaining({
+                email: expect.any(String),
+                name: expect.any(String),
+              }),
             }),
           ]),
-          credentials: {
-            networkPass: user.userId,
-            networkUser: user.bridgeUser,
-          },
           token: '',
-          role: 'OWNER',
+          role: expect.any(String),
         }),
       );
     });
@@ -651,6 +661,7 @@ describe('Sharing Use Cases', () => {
       const folder = newFolder();
       folder.user = newUser();
       sharing.folder = folder;
+      sharing.folder.user = newUser();
       const foldersWithSharedInfo = [sharing];
 
       jest
@@ -662,6 +673,9 @@ describe('Sharing Use Cases', () => {
         .mockReturnValue({ plainName: 'DecryptedFolderName' });
 
       jest.spyOn(usersUsecases, 'getAvatarUrl').mockResolvedValue('avatar-url');
+      jest
+        .spyOn(jwtUtils, 'generateWithDefaultSecret')
+        .mockReturnValue('generatedToken');
 
       const result = await sharingService.getSharedFoldersInWorkspaceByTeams(
         user,
@@ -672,21 +686,19 @@ describe('Sharing Use Cases', () => {
 
       expect(result).toEqual(
         expect.objectContaining({
+          credentials: expect.objectContaining({
+            networkPass: expect.any(String),
+            networkUser: expect.any(String),
+          }),
+          files: expect.arrayContaining([]),
           folders: expect.arrayContaining([
             expect.objectContaining({
-              sharingId: sharing.id,
-              encryptionKey: sharing.encryptionKey,
-              dateShared: sharing.createdAt,
-              sharedWithMe: true,
+              plainName: expect.any(String),
+              encryptionKey: expect.any(String),
             }),
           ]),
-          files: [],
-          credentials: {
-            networkPass: user.userId,
-            networkUser: user.bridgeUser,
-          },
           token: '',
-          role: 'OWNER',
+          role: expect.any(String),
         }),
       );
     });

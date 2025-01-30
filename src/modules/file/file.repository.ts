@@ -5,13 +5,17 @@ import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
 import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
+import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
 import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
-import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import {
+  WorkspaceItemType,
+  WorkspaceItemUserAttributes,
+} from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
@@ -45,6 +49,14 @@ export interface FileRepository {
     offset: number,
     additionalOrders?: Array<[keyof FileModel, string]>,
   ): Promise<File[]>;
+  findAllCursorWithThumbnailsInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
   findOne(
     fileId: FileAttributes['id'],
     userId: FileAttributes['userId'],
@@ -334,10 +346,25 @@ export class SequelizeFileRepository implements FileRepository {
       limit,
       offset,
       where,
-      include: {
-        model: WorkspaceItemUserModel,
-        where: { createdBy, workspaceId },
-      },
+      include: [
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+            itemType: WorkspaceItemType.File,
+          },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+              required: true,
+            },
+          ],
+        },
+      ],
       subQuery: false,
       order: appliedOrder,
     });
@@ -440,7 +467,17 @@ export class SequelizeFileRepository implements FileRepository {
           where: {
             createdBy,
             workspaceId,
+            itemType: WorkspaceItemType.File,
           },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+              required: true,
+            },
+          ],
         },
       ],
       subQuery: false,
@@ -727,10 +764,13 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   private toDomain(model: FileModel): File {
+    const buildUser = (userData: UserModel | null) =>
+      userData ? User.build(userData) : null;
+
     const file = File.build({
       ...model.toJSON(),
       folder: model.folder ? Folder.build(model.folder) : null,
-      user: model.user ? User.build(model.user) : null,
+      user: buildUser(model.user || model.workspaceUser?.creator),
     });
     return file;
   }
