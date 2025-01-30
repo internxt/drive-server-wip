@@ -11,6 +11,7 @@ module.exports = {
       id: uuidv4(),
       role_id: role.id,
       name: 'VIEW_DETAILS',
+      type: 'VIEW_DETAILS',
       created_at: new Date(),
       updated_at: new Date(),
     }));
