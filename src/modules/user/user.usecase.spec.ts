@@ -50,7 +50,7 @@ import {
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
-import * as openpgpUtils from '../../lib/openpgp';
+import * as openpgpUtils from '../../lib/assymetric-encryption/openpgp';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import {
   DeviceType,

@@ -406,6 +406,10 @@ export class UserController {
           uuid: user.uuid,
         },
         publicKey: user.publicKey,
+        keys: {
+          ecc: user.publicKey,
+          kyber: user.publicKyberKey,
+        },
       };
     } catch (err) {
       let errorMessage = err.message;

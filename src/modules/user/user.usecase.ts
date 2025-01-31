@@ -55,7 +55,7 @@ import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
   generateNewKeys,
-} from '../../lib/openpgp';
+} from '../../lib/assymetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
@@ -83,6 +83,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { Kyber512 } from '../../lib/assymetric-encryption/kyber';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -585,6 +586,7 @@ export class UserUseCases {
     if (preCreatedUser) {
       return {
         ...preCreatedUser.toJSON(),
+        publicKyberKey: preCreatedUser.publicKey,
         publicKey: preCreatedUser.publicKey.toString(),
         password: preCreatedUser.password.toString(),
       };
@@ -610,6 +612,14 @@ export class UserUseCases {
       salt: this.configService.get('secrets.magicSalt'),
     });
 
+    const Kem = new Kyber512();
+    const kyberKeys = await Kem.generateKeysInBase64();
+
+    const encPrivateKyberKey = aes.encrypt(kyberKeys.privateKey, defaultPass, {
+      iv: this.configService.get('secrets.magicIv'),
+      salt: this.configService.get('secrets.magicSalt'),
+    });
+
     const user = await this.preCreatedUserRepository.create({
       email,
       uuid: v4(),
@@ -619,6 +629,8 @@ export class UserUseCases {
       mnemonic: encMnemonic,
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
+      privateKyberKey: encPrivateKyberKey,
+      publicKyberKey: kyberKeys.publicKey,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
     });
@@ -626,6 +638,7 @@ export class UserUseCases {
     return {
       ...user.toJSON(),
       publicKey: user.publicKey.toString(),
+      publicKyberKey: user.publicKyberKey,
       password: user.password.toString(),
     };
   }
