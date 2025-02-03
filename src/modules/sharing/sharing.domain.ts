@@ -266,6 +266,10 @@ export class SharingInvite implements SharingInviteAttributes {
     return user.uuid === this.sharedWith;
   }
 
+  isHybrid(): boolean {
+    return this.encryptionAlgorithm === 'hybrid';
+  }
+
   toJSON(): SharingInviteAttributes {
     return {
       id: this.id,
