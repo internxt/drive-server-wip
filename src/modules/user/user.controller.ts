@@ -136,6 +136,7 @@ export class UserController {
           response.user.email,
           response.user.uuid,
           keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 
@@ -310,6 +311,7 @@ export class UserController {
           userCreated.user.email,
           userCreated.user.uuid,
           keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 

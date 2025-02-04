@@ -80,6 +80,7 @@ import {
   encryptMessageWithPublicKey,
   generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
+import { SharingInvite } from '../sharing/sharing.domain';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -469,14 +470,23 @@ export class UserUseCases {
       preCreatedUser;
 
     const privateKey = aes.decrypt(encPrivateKey, defaultPass);
-    const privateKyberKey = aes.decrypt(encPrivateKyberKey, defaultPass);
+    const privateKyberKey = encPrivateKyberKey
+      ? aes.decrypt(encPrivateKyberKey, defaultPass)
+      : null;
 
     const invites = await this.sharingRepository.getInvitesBySharedwith(
       preCreatedUser.uuid,
     );
 
+    const invitesToUpdate: SharingInvite[] = [];
+
     for (const invite of invites) {
       const { encryptionKey } = invite;
+
+      if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
+        await this.sharingRepository.deleteInvite(invite);
+        continue;
+      }
 
       const decryptedEncryptionKey =
         await this.asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey(
@@ -499,9 +509,11 @@ export class UserUseCases {
       invite.encryptionKey = newEncryptedEncryptionKey;
 
       invite.sharedWith = newUserUuid;
+
+      invitesToUpdate.push(invite);
     }
 
-    await this.sharingRepository.bulkUpdate(invites);
+    await this.sharingRepository.bulkUpdate(invitesToUpdate);
 
     await this.replacePreCreatedUserWorkspaceInvitations(
       preCreatedUser.uuid,
