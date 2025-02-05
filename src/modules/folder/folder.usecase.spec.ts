@@ -1470,4 +1470,24 @@ describe('FolderUseCases', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('getUserRootFolder', () => {
+    const mockUser = newUser();
+    const mockFolder = newFolder({
+      attributes: {
+        userId: mockUser.id,
+        user: mockUser,
+      },
+      owner: mockUser,
+    });
+    mockUser.rootFolderId = mockFolder.id;
+
+    it('When root folder exists, then it is returned', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
+
+      const result = await service.getUserRootFolder(mockUser);
+
+      expect(result).toBe(mockFolder);
+    });
+  });
 });

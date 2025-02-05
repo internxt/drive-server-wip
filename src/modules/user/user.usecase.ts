@@ -1258,9 +1258,9 @@ export class UserUseCases {
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
-    const rootFolder = await this.folderUseCases.getFolderById(
-      userData.rootFolderId,
-    );
+
+    const rootFolder = await this.folderUseCases.getUserRootFolder(userData);
+
     const userBucket = rootFolder.bucket;
 
     const newKeys = loginAccessDto?.keys;
