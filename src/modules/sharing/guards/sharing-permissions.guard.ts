@@ -66,14 +66,12 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Invalid token');
     }
 
-    const extractData = this.getSharedDataFromRequest(request, context);
-    const isSharedWithMe = decoded.sharedWithUserUuid === requester.uuid;
-    const isRootToken = decoded.isSharedItem && isSharedWithMe;
+    const isRootToken = decoded.isSharedItem;
 
     let userIsAllowedToPerfomAction = false;
 
     const sharedItemId = isRootToken
-      ? extractData.itemUuid
+      ? this.getSharedDataFromRequest(request, context)?.itemUuid
       : decoded.sharedRootFolderId;
     const workspaceId = decoded.workspace?.workspaceId || decoded.workspaceId;
 

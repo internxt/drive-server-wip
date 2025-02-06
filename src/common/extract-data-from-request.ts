@@ -28,7 +28,7 @@ export const extractDataFromRequest = (
     context.getHandler(),
   );
 
-  const { dataSources } = metadataOptions;
+  const { dataSources = [] } = metadataOptions || {};
 
   const extractedData = {};
 
