@@ -949,7 +949,9 @@ describe('User use cases', () => {
         .spyOn(userUseCases, 'getAuthTokens')
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
 
@@ -1021,7 +1023,9 @@ describe('User use cases', () => {
         .spyOn(userUseCases, 'getAuthTokens')
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
 
@@ -1057,7 +1061,9 @@ describe('User use cases', () => {
         .spyOn(userUseCases, 'getAuthTokens')
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest
         .spyOn(keyServerUseCases, 'findUserKeys')
         .mockResolvedValue({ ecc: null, kyber: null });
@@ -1109,7 +1115,9 @@ describe('User use cases', () => {
         .spyOn(userUseCases, 'getAuthTokens')
         .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest
         .spyOn(keyServerUseCases, 'findUserKeys')
         .mockResolvedValue({ ecc: null, kyber: null });
