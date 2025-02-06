@@ -92,10 +92,11 @@ describe('Bridge Service', () => {
   });
 
   describe('sendDeactivationEmail', () => {
+    const testBridgeApiUrl = 'bridge.test.com';
+    const deactivationRedirectUrl = 'http://example.com/redirect';
+    const deactivator = 'user';
+
     it('When deactivation email is being requested, it should make the request successfully', async () => {
-      const testBridgeApiUrl = 'bridge.test.com';
-      const deactivationRedirectUrl = 'http://example.com/redirect';
-      const deactivator = 'admin-user';
       const response: AxiosResponse<void> = {
         data: null,
         status: 200,
@@ -119,13 +120,27 @@ describe('Bridge Service', () => {
         expect.any(Object),
       );
     });
+
+    it('When deactivation email fails, it should throw', async () => {
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'delete').mockRejectedValueOnce(new Error());
+
+      await expect(
+        service.sendDeactivationEmail(
+          mockedUser,
+          deactivationRedirectUrl,
+          deactivator,
+        ),
+      ).rejects.toThrow();
+    });
   });
 
   describe('confirmDeactivation', () => {
+    const testBridgeApiUrl = 'bridge.test.com';
+    const token = 'deactivationToken';
+    const email = 'test@email.com';
+
     it('When user deactivation is being confirmed, it should make the request successfully', async () => {
-      const testBridgeApiUrl = 'bridge.test.com';
-      const token = 'deactivationToken';
-      const email = 'test@email.com';
       const response: AxiosResponse<{ email: string }> = {
         data: { email },
         status: 200,
@@ -144,6 +159,13 @@ describe('Bridge Service', () => {
         `${testBridgeApiUrl}/deactivationStripe/${token}`,
         expect.any(Object),
       );
+    });
+
+    it('When user deactivation confirmation fails, it should throw', async () => {
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'get').mockRejectedValueOnce(new Error());
+
+      await expect(service.confirmDeactivation(token)).rejects.toThrow();
     });
   });
 });
