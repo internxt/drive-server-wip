@@ -28,8 +28,10 @@ module.exports = {
 
       return permission;
     });
-
-    await queryInterface.bulkInsert('permissions', permissions);
+    // Sequelize / DB fails if we pass empty array to inserts. Local environments do not have type column
+    if (permissions.length > 0) {
+      await queryInterface.bulkInsert('permissions', permissions);
+    }
   },
 
   async down(queryInterface, Sequelize) {
