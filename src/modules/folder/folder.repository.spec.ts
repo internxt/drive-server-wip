@@ -250,4 +250,18 @@ describe('SequelizeFolderRepository', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('updateBy', () => {
+    it('When folders are updated, it should update by the fields provided', async () => {
+      const userId = 134455;
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([1]);
+
+      await repository.updateBy({ removed: true }, { userId });
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        { removed: true },
+        { where: { userId } },
+      );
+    });
+  });
 });

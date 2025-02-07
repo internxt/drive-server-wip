@@ -24,4 +24,8 @@ export class SequelizeAppSumoRepository {
 
     return item;
   }
+
+  public async deleteBy(appSumo: Partial<AppSumoModel>) {
+    return this.appSumoModel.destroy({ where: appSumo });
+  }
 }
