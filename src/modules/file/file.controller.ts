@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  UseFilters,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -42,6 +43,7 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
+import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -325,6 +327,7 @@ export class FileController {
     },
   ])
   @WorkspacesInBehalfValidationFile()
+  @UseFilters(ExtendedHttpExceptionFilter)
   async moveFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: File['uuid'],
