@@ -1,4 +1,3 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Sharing } from '../sharing/sharing.domain';
 import { User } from '../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
@@ -20,49 +19,27 @@ export interface FolderOptions {
 }
 
 export class Folder implements FolderAttributes {
-  @ApiProperty()
   id: number;
-  @ApiProperty()
   parentId: number | null;
-  @ApiProperty()
   parentUuid: string | null;
-  @ApiProperty({ type: Folder })
   parent: Folder;
-  @ApiProperty()
   type: string;
-  @ApiProperty()
   name: string;
-  @ApiProperty()
   bucket: string;
-  @ApiProperty()
   userId: number;
-  @ApiProperty()
   user?: User;
-  @ApiProperty()
   uuid: string;
-  @ApiProperty()
   plainName: string;
-  @ApiProperty()
   encryptVersion: FolderAttributes['encryptVersion'];
-  @ApiProperty()
   deleted: boolean;
-  @ApiProperty()
   removed: boolean;
-  @ApiProperty()
   removedAt: Date;
-  @ApiProperty()
   deletedAt: Date;
-  @ApiProperty()
   createdAt: Date;
-  @ApiProperty()
   updatedAt: Date;
-  @ApiProperty()
   size: number;
-  @ApiProperty()
   creationTime: Date;
-  @ApiProperty()
   modificationTime: Date;
-  @ApiProperty()
   sharings?: Sharing[];
 
   private constructor({

@@ -5,7 +5,6 @@ import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
 import { isStringEmpty } from '../../lib/validators';
-import { ApiProperty } from '@nestjs/swagger';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
@@ -55,57 +54,31 @@ export interface FileOptions {
 }
 
 export class File implements FileAttributes {
-  @ApiProperty()
   id: number;
-  @ApiProperty()
   uuid: string;
-  @ApiProperty()
   fileId: string;
-  @ApiProperty()
   name: string;
-  @ApiProperty()
   type: string;
-  @ApiProperty()
   size: bigint;
-  @ApiProperty()
   bucket: string;
-  @ApiProperty()
   folderId: number;
-  @ApiProperty()
   folder: Folder;
-  @ApiProperty()
   folderUuid: string;
-  @ApiProperty()
   encryptVersion: string;
-  @ApiProperty()
   deleted: boolean;
-  @ApiProperty()
   removed: boolean;
-  @ApiProperty()
   deletedAt: Date;
-  @ApiProperty()
   userId: number;
-  @ApiProperty()
   user: User;
-  @ApiProperty()
   creationTime: Date;
-  @ApiProperty()
   modificationTime: Date;
-  @ApiProperty()
   createdAt: Date;
-  @ApiProperty()
   updatedAt: Date;
-  @ApiProperty()
   removedAt: Date;
-  @ApiProperty()
   plainName: string;
-  @ApiProperty({ enum: FileStatus })
   status: FileStatus;
-  @ApiProperty()
   shares?: Share[];
-  @ApiProperty()
   sharings?: Sharing[];
-  @ApiProperty()
   thumbnails?: Thumbnail[];
 
   private constructor({

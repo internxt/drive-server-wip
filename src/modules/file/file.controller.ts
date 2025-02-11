@@ -17,7 +17,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -246,7 +245,6 @@ export class FileController {
   }
 
   @Get('/')
-  @ApiOkResponse({ type: File, isArray: true })
   @ApiQuery({ name: 'bucket', required: false })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
@@ -260,7 +258,7 @@ export class FileController {
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
-  ): Promise<File[]> {
+  ) {
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestException('Limit or offset are not numbers');
     }
