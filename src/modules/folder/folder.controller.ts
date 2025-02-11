@@ -31,6 +31,7 @@ import { FileUseCases } from '../file/file.usecase';
 import {
   Folder,
   FolderAttributes,
+  FolderStatus,
   SortableFolderAttributes,
 } from './folder.domain';
 import {
@@ -62,6 +63,11 @@ import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import {
+  GetFoldersDto,
+  ResultGetFoldersDto,
+} from './dto/responses/get-folders.dto';
+import { ResultGetFilesDto } from '../file/dto/responses/get-files.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -221,6 +227,7 @@ export class FolderController {
   }
 
   @Get(':id/files')
+  @ApiOkResponse({ type: ResultGetFilesDto })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
   async getFolderFiles(
@@ -230,7 +237,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultGetFilesDto> {
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -528,6 +535,7 @@ export class FolderController {
   }
 
   @Get(':id/folders')
+  @ApiOkResponse({ type: ResultGetFoldersDto })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
   async getFolderFolders(
@@ -537,7 +545,7 @@ export class FolderController {
     @Param('id') folderId: number,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultGetFoldersDto> {
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -570,14 +578,14 @@ export class FolderController {
 
     return {
       result: folders.map((f) => {
-        let folderStatus: FileStatus;
+        let folderStatus: FolderStatus;
 
         if (f.removed) {
-          folderStatus = FileStatus.DELETED;
+          folderStatus = FolderStatus.DELETED;
         } else if (f.deleted) {
-          folderStatus = FileStatus.TRASHED;
+          folderStatus = FolderStatus.TRASHED;
         } else {
-          folderStatus = FileStatus.EXISTS;
+          folderStatus = FolderStatus.EXISTS;
         }
 
         return { ...f, status: folderStatus };
@@ -586,6 +594,7 @@ export class FolderController {
   }
 
   @Get('/')
+  @ApiOkResponse({ isArray: true, type: GetFoldersDto })
   @ApiQuery({ name: 'updatedAt', required: false })
   async getFolders(
     @UserDecorator() user: User,
@@ -593,7 +602,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('status') status: (typeof foldersStatuses)[number],
     @Query('updatedAt') updatedAt?: string,
-  ) {
+  ): Promise<GetFoldersDto[]> {
     if (!status) {
       throw new BadRequestException('Missing "status" query param');
     }
@@ -638,14 +647,14 @@ export class FolderController {
           f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
         }
 
-        let status: 'EXISTS' | 'TRASHED' | 'DELETED';
+        let status: FolderStatus;
 
         if (f.removed) {
-          status = 'DELETED';
+          status = FolderStatus.DELETED;
         } else if (f.deleted) {
-          status = 'TRASHED';
+          status = FolderStatus.TRASHED;
         } else {
-          status = 'EXISTS';
+          status = FolderStatus.EXISTS;
         }
 
         delete f.deleted;
