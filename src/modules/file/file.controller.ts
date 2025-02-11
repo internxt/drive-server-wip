@@ -17,8 +17,10 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -244,16 +246,21 @@ export class FileController {
   }
 
   @Get('/')
+  @ApiOkResponse({ type: File, isArray: true })
+  @ApiQuery({ name: 'bucket', required: false })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
+  @ApiQuery({ name: 'updatedAt', required: false })
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: (typeof filesStatuses)[number],
-    @Query('bucket') bucket?: File['bucket'],
+    @Query('bucket') bucket?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
-  ) {
+  ): Promise<File[]> {
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestException('Limit or offset are not numbers');
     }

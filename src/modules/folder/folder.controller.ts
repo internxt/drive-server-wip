@@ -62,6 +62,8 @@ import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { ResultFoldersDto } from './dto/result-folders.dto';
+import { ResultFilesDto } from './dto/result-files.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -221,6 +223,9 @@ export class FolderController {
   }
 
   @Get(':id/files')
+  @ApiOkResponse({ type: ResultFilesDto })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
   async getFolderFiles(
     @UserDecorator() user: User,
     @Param('id') folderId: number,
@@ -228,7 +233,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFilesDto> {
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -526,6 +531,9 @@ export class FolderController {
   }
 
   @Get(':id/folders')
+  @ApiOkResponse({ type: ResultFoldersDto })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
   async getFolderFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
@@ -582,6 +590,8 @@ export class FolderController {
   }
 
   @Get('/')
+  @ApiOkResponse({ isArray: true, type: Folder })
+  @ApiQuery({ name: 'updatedAt', required: false })
   async getFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
