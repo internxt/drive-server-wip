@@ -17,8 +17,10 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -44,6 +46,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { GetFilesDto } from './dto/responses/get-files.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -244,16 +247,21 @@ export class FileController {
   }
 
   @Get('/')
+  @ApiOkResponse({ isArray: true, type: GetFilesDto })
+  @ApiQuery({ name: 'bucket', required: false })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
+  @ApiQuery({ name: 'updatedAt', required: false })
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('status') status: (typeof filesStatuses)[number],
-    @Query('bucket') bucket?: File['bucket'],
+    @Query('bucket') bucket?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
-  ) {
+  ): Promise<GetFilesDto[]> {
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestException('Limit or offset are not numbers');
     }
