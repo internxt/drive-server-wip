@@ -799,14 +799,18 @@ export class FolderUseCases {
       );
     }
 
-    const parentFolder = await this.folderRepository.findById(folder.parentId);
-    if (parentFolder.removed === true) {
+    const parentFolder = await this.folderRepository.findOne({
+      id: folder.parentId,
+    });
+
+    if (parentFolder?.isRemoved()) {
       throw new UnprocessableEntityException(
         `Folder ${folderUuid} can not be moved`,
       );
     }
 
     const destinationFolder = await this.getFolderByUuid(destinationUuid, user);
+
     if (destinationFolder.removed === true) {
       throw new UnprocessableEntityException(
         `Folder can not be moved to ${destinationUuid}`,
