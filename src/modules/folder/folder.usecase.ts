@@ -337,9 +337,17 @@ export class FolderUseCases {
   ) {
     const folder = await this.folderRepository.findOne({
       uuid: folderUuid,
-      deleted: false,
-      removed: false,
     });
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    if (folder.isRemoved()) {
+      throw new UnprocessableEntityException(
+        'Cannot update this folder metadata',
+      );
+    }
 
     if (!folder.isOwnedBy(user)) {
       throw new ForbiddenException('This folder is not yours');
