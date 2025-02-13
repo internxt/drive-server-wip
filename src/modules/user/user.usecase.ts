@@ -1219,18 +1219,9 @@ export class UserUseCases {
   ) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
-    Logger.debug(
-      '[USER/LOGIN-ACCESS] Processing login for email: %s',
-      loginAccessDto.email,
-    );
-
     const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
 
     if (!userData) {
-      Logger.debug(
-        '[USER/LOGIN-ACCESS] Attempted login with a non-existing email: %s',
-        loginAccessDto.email,
-      );
       throw new UnauthorizedException('Wrong login credentials');
     }
 
@@ -1238,10 +1229,6 @@ export class UserUseCases {
       userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
 
     if (loginAttemptsLimitReached) {
-      Logger.warn(
-        '[USER/LOGIN-ACCESS] Login attempts limit reached for email: %s',
-        loginAccessDto.email,
-      );
       throw new ForbiddenException(
         'Your account has been blocked for security reasons. Please reach out to us',
       );
@@ -1251,10 +1238,6 @@ export class UserUseCases {
 
     if (hashedPass !== userData.password.toString()) {
       await this.userRepository.loginFailed(userData, true);
-      Logger.warn(
-        '[USER/LOGIN-ACCESS] Failed login attempt for email: %s',
-        loginAccessDto.email,
-      );
       throw new UnauthorizedException('Wrong login credentials');
     }
 
@@ -1269,10 +1252,6 @@ export class UserUseCases {
       });
 
       if (!tfaResult) {
-        Logger.warn(
-          '[USER/LOGIN-ACCESS] Failed 2FA verification for email: %s',
-          loginAccessDto.email,
-        );
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
@@ -1348,10 +1327,6 @@ export class UserUseCases {
       lastPasswordChangedAt: userData.lastPasswordChangedAt,
     };
 
-    Logger.debug(
-      '[USER/LOGIN-ACCESS] Successful login for email: %s',
-      loginAccessDto.email,
-    );
     return { user, token, userTeam: null, newToken };
   }
 
