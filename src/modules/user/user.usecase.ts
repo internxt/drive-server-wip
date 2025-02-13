@@ -1222,10 +1222,6 @@ export class UserUseCases {
     const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
 
     if (!userData) {
-      Logger.debug(
-        '[AUTH/LOGIN] Attempted login with a non-existing email: %s',
-        loginAccessDto.email,
-      );
       throw new UnauthorizedException('Wrong login credentials');
     }
 

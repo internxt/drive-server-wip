@@ -108,16 +108,30 @@ export class AuthController {
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
   async loginAccess(@Body() body: LoginAccessDto) {
-    const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
-      privateKey: body.privateKey,
-      publicKey: body.publicKey,
-      revocationKey: body.revocateKey,
-    });
+    Logger.log(`[AUTH/LOGIN-ACCESS] Attempting login for email: ${body.email}`);
+    try {
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
+        privateKey: body.privateKey,
+        publicKey: body.publicKey,
+        revocationKey: body.revocateKey,
+      });
 
-    return this.userUseCases.loginAccess({
-      ...body,
-      keys: { kyber, ecc },
-    });
+      const result = await this.userUseCases.loginAccess({
+        ...body,
+        keys: { kyber, ecc },
+      });
+
+      Logger.log(
+        `[AUTH/LOGIN-ACCESS] Successful login for email: ${body.email}`,
+      );
+      return result;
+    } catch (error) {
+      Logger.error(
+        `[AUTH/LOGIN-ACCESS] Failed login attempt for email: ${body.email}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   @Get('/logout')
