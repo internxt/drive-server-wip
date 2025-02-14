@@ -42,7 +42,7 @@ export class FileDto {
 
 export class FilesDto {
   @ApiProperty({ isArray: true, type: FileDto })
-  result: FileDto[];
+  files: FileDto[];
 }
 
 export class ResultFilesDto {

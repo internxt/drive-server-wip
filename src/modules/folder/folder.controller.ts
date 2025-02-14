@@ -63,7 +63,7 @@ import {
   FoldersDto,
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
-import { ResultFilesDto } from '../file/dto/responses/file.dto';
+import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -182,6 +182,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/files')
+  @ApiOkResponse({ type: FilesDto })
   async getFolderContentFiles(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
@@ -189,7 +190,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ): Promise<{ files: FileAttributes[] }> {
+  ): Promise<FilesDto> {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
