@@ -34,7 +34,7 @@ export class FolderDto {
   creationTime: Date;
   @ApiProperty()
   modificationTime: Date;
-  @ApiProperty()
+  @ApiProperty({ enum: FolderStatus })
   status: FolderStatus;
 }
 

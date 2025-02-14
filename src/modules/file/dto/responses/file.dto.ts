@@ -36,7 +36,7 @@ export class FileDto {
   updatedAt: Date;
   @ApiProperty()
   plainName: string;
-  @ApiProperty()
+  @ApiProperty({ enum: FileStatus })
   status: FileStatus;
 }
 
