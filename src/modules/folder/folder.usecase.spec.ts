@@ -1104,6 +1104,27 @@ describe('FolderUseCases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
+    it('When the folder is removed, then it should throw', async () => {
+      const mockFolder = newFolder({ attributes: { removed: true } });
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
+
+      await expect(
+        service.updateFolderMetaData(
+          userMocked,
+          mockFolder.uuid,
+          newFolderMetadata,
+        ),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('When the folder is not found, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateFolderMetaData(userMocked, v4(), newFolderMetadata),
+      ).rejects.toThrow(NotFoundException);
+    });
+
     it('When a folder with the same name already exists in the same location, then it should throw', async () => {
       const mockFolder = newFolder({ owner: userMocked });
       const folderWithSameName = newFolder({
