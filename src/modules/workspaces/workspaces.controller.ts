@@ -79,6 +79,7 @@ import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator'
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
 import { Requester } from '../auth/decorators/requester.decorator';
+import { GetFilesDto } from '../file/dto/responses/get-files.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -274,14 +275,15 @@ export class WorkspacesController {
   }
 
   @Get('/:workspaceId/files')
+  @ApiOkResponse({ isArray: true, type: GetFilesDto })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFiles(
     @UserDecorator() user: User,
     @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
+    workspaceId: string,
     @Query() query: GetWorkspaceFilesQueryDto,
-  ) {
+  ): Promise<GetFilesDto[]> {
     const { limit, offset, status, bucket, sort, order, updatedAt } = query;
 
     const files =

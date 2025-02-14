@@ -888,7 +888,7 @@ export class FolderController {
   @UseFilters(ExtendedHttpExceptionFilter)
   async moveFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: Folder['uuid'],
+    @Param('uuid') folderUuid: string,
     @Body() moveFolderData: MoveFolderDto,
     @Client() clientId: string,
     @Requester() requester: User,
