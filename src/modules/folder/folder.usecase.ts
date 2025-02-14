@@ -16,6 +16,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
   FolderOptions,
+  FolderStatus,
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
@@ -940,5 +941,18 @@ export class FolderUseCases {
       path,
       rootFolder.uuid,
     );
+  }
+
+  getFolderWithStatus(folder: Folder) {
+    let folderStatus: FolderStatus;
+    if (folder.removed) {
+      folderStatus = FolderStatus.DELETED;
+    } else if (folder.deleted) {
+      folderStatus = FolderStatus.TRASHED;
+    } else {
+      folderStatus = FolderStatus.EXISTS;
+    }
+
+    return { ...folder, status: folderStatus };
   }
 }
