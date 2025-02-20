@@ -727,10 +727,17 @@ export class UserUseCases {
     return !hasBeenSubscribed;
   }
 
-  getAuthTokens(
+  async getAuthTokens(
     user: User,
     customIat?: number,
-  ): { token: string; newToken: string } {
+  ): Promise<{ token: string; newToken: string }> {
+    const availableWorkspaces =
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+
+    const owners = [
+      ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
+    ];
+
     const expires = true;
     const token = SignEmail(
       user.email,
@@ -751,6 +758,7 @@ export class UserUseCases {
             user: user.bridgeUser,
             pass: user.userId,
           },
+          workspaces: { owners },
         },
         ...(customIat ? { iat: customIat } : null),
       },
@@ -1255,7 +1263,7 @@ export class UserUseCases {
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
-    const { token, newToken } = this.getAuthTokens(userData);
+    const { token, newToken } = await this.getAuthTokens(userData);
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });

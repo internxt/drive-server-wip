@@ -44,6 +44,8 @@ import {
   newFile,
   newFolder,
   newKeyServer,
+  newWorkspace,
+  newWorkspaceUser,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -801,7 +803,7 @@ describe('User use cases', () => {
     });
 
     it('When called, then it should return respective tokens', async () => {
-      const result = userUseCases.getAuthTokens(user);
+      const result = await userUseCases.getAuthTokens(user);
 
       expect(result).toEqual({
         token: 'token',
@@ -814,7 +816,7 @@ describe('User use cases', () => {
 
       jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
 
-      userUseCases.getAuthTokens(user, customIat);
+      await userUseCases.getAuthTokens(user, customIat);
 
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
@@ -836,8 +838,55 @@ describe('User use cases', () => {
               user: user.bridgeUser,
               pass: user.userId,
             },
+            workspaces: {
+              owners: [],
+            },
           },
           iat: customIat,
+        },
+        jwtSecret,
+        true,
+      );
+    });
+
+    it('When called, then it should create the tokens with expected payload', async () => {
+      const workspace = newWorkspace({ owner: user });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValueOnce([{ workspace, workspaceUser }]);
+
+      await userUseCases.getAuthTokens(user);
+
+      expect(SignEmail).toHaveBeenCalledWith(
+        user.email,
+        jwtSecret,
+        true,
+        undefined,
+      );
+
+      expect(Sign).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            email: user.email,
+            name: user.name,
+            lastname: user.lastname,
+            username: user.username,
+            sharedWorkspace: true,
+            networkCredentials: {
+              user: user.bridgeUser,
+              pass: user.userId,
+            },
+            workspaces: {
+              owners: [workspace.ownerId],
+            },
+          },
         },
         jwtSecret,
         true,
@@ -951,9 +1000,10 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
         .spyOn(folderUseCases, 'getUserRootFolder')
@@ -1025,9 +1075,10 @@ describe('User use cases', () => {
       jest
         .spyOn(speakeasy.totp, 'verifyDelta')
         .mockReturnValue({ delta: 123456 });
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
         .spyOn(folderUseCases, 'getUserRootFolder')
@@ -1063,9 +1114,10 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
         .spyOn(folderUseCases, 'getUserRootFolder')
@@ -1117,9 +1169,10 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
         .spyOn(folderUseCases, 'getUserRootFolder')
