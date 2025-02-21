@@ -565,7 +565,7 @@ describe('User Controller', () => {
         kyber: kyberKey,
         ecc: eccKey,
       });
-      userUseCases.getAuthTokens.mockReturnValueOnce(mockTokens);
+      userUseCases.getAuthTokens.mockResolvedValueOnce(mockTokens);
 
       const result = await userController.updatePassword(
         mockUpdatePasswordDto,
