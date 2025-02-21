@@ -46,7 +46,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
-import { GetFilesDto } from './dto/responses/get-files.dto';
+import { FileDto } from './dto/file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -104,6 +104,7 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
+  @ApiOkResponse({ type: FileDto })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -118,8 +119,8 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async getFileMetadata(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
-  ) {
+    @Param('uuid') fileUuid: string,
+  ): Promise<FileDto> {
     if (!validate(fileUuid)) {
       throw new BadRequestException('Invalid UUID');
     }
@@ -247,7 +248,7 @@ export class FileController {
   }
 
   @Get('/')
-  @ApiOkResponse({ isArray: true, type: GetFilesDto })
+  @ApiOkResponse({ isArray: true, type: FileDto })
   @ApiQuery({ name: 'bucket', required: false })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
@@ -261,7 +262,7 @@ export class FileController {
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
-  ): Promise<GetFilesDto[]> {
+  ): Promise<FileDto[]> {
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestException('Limit or offset are not numbers');
     }

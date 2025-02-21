@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { FileStatus } from '../../file.domain';
 
-export class GetFilesDto {
+export class FileDto {
   @ApiProperty()
   id: number;
   @ApiProperty()
@@ -36,11 +36,16 @@ export class GetFilesDto {
   updatedAt: Date;
   @ApiProperty()
   plainName: string;
-  @ApiProperty()
+  @ApiProperty({ enum: FileStatus })
   status: FileStatus;
 }
 
-export class ResultGetFilesDto {
-  @ApiProperty({ isArray: true, type: GetFilesDto })
-  result: GetFilesDto[];
+export class FilesDto {
+  @ApiProperty({ isArray: true, type: FileDto })
+  files: FileDto[];
+}
+
+export class ResultFilesDto {
+  @ApiProperty({ isArray: true, type: FileDto })
+  result: FileDto[];
 }
