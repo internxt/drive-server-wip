@@ -85,6 +85,7 @@ import {
   ResultFoldersDto,
 } from '../folder/dto/responses/folder.dto';
 import { GetAvailableWorkspacesResponseDto } from './dto/reponse/workspace.dto';
+import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -460,13 +461,14 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Workspace credentials',
+    type: WorkspaceCredentialsDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getWorkspaceUser(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-  ) {
+  ): Promise<WorkspaceCredentialsDto> {
     return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
   }
 
@@ -629,7 +631,8 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: 'Created File',
+    description: 'File created',
+    type: FileDto,
   })
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -640,7 +643,7 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Client() clientId: string,
     @Body() createFileDto: CreateWorkspaceFileDto,
-  ) {
+  ): Promise<FileDto> {
     const file = await this.workspaceUseCases.createFile(
       user,
       workspaceId,
@@ -834,6 +837,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Created Folder',
+    type: FolderDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -843,7 +847,7 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Client() clientId: string,
     @Body() createFolderDto: CreateWorkspaceFolderDto,
-  ) {
+  ): Promise<FolderDto> {
     const folder = await this.workspaceUseCases.createFolder(
       user,
       workspaceId,

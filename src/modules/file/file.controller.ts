@@ -50,6 +50,13 @@ import { FileDto } from './dto/responses/file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
+enum FileStatusQuery {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+  ALL = 'ALL',
+}
+
 @ApiTags('File')
 @Controller('files')
 export class FileController {
@@ -62,6 +69,7 @@ export class FileController {
   @ApiOperation({
     summary: 'Create File',
   })
+  @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
   @UseGuards(SharingPermissionsGuard)
@@ -69,7 +77,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
     @Client() clientId: string,
-  ) {
+  ): Promise<FileDto> {
     const file = await this.fileUseCases.createFile(user, createFileDto);
 
     this.storageNotificationService.fileCreated({
@@ -160,7 +168,7 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
+    @Param('uuid') fileUuid: string,
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
@@ -253,11 +261,12 @@ export class FileController {
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
   @ApiQuery({ name: 'updatedAt', required: false })
+  @ApiQuery({ name: 'status', enum: FileStatusQuery })
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: (typeof filesStatuses)[number],
+    @Query('status') status: FileStatusQuery,
     @Query('bucket') bucket?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
@@ -339,7 +348,7 @@ export class FileController {
   @UseFilters(ExtendedHttpExceptionFilter)
   async moveFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
+    @Param('uuid') fileUuid: string,
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
@@ -398,10 +407,11 @@ export class FileController {
   }
 
   @Get('/meta')
+  @ApiOkResponse({ type: FileDto })
   async getFileMetaByPath(
     @UserDecorator() user: User,
     @Query('path') filePath: string,
-  ) {
+  ): Promise<FileDto> {
     if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
       throw new BadRequestException('Invalid path provided');
     }

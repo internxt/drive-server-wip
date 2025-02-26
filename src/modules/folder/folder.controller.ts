@@ -59,6 +59,7 @@ import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-ol
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import {
+  ExistingFoldersDto,
   FolderDto,
   FoldersDto,
   ResultFoldersDto,
@@ -116,12 +117,16 @@ export class FolderController {
     summary: 'Create Folder',
   })
   @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Folder created',
+    type: FolderDto,
+  })
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FolderDto> {
     const folder = await this.folderUseCases.createFolder(
       user,
       createFolderDto,
@@ -405,12 +410,13 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiOkResponse({ type: ExistingFoldersDto })
   @WorkspacesInBehalfValidationFolder()
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
     @Body() query: CheckFoldersExistenceDto,
-  ) {
+  ): Promise<ExistingFoldersDto> {
     const { plainNames } = query;
 
     const folders = await this.folderUseCases.searchFoldersInFolder(
