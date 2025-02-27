@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
-import { FolderAttributes } from '../../folder/folder.attributes';
 
 export class CreateFolderDto {
   @ApiProperty({
@@ -8,7 +7,7 @@ export class CreateFolderDto {
     description: 'Folder name',
   })
   @IsNotEmpty()
-  plainName: FolderAttributes['plainName'];
+  plainName: string;
 
   @ApiProperty({
     example: '79a88429-b45a-4ae7-90f1-c351b6882670',
@@ -16,7 +15,7 @@ export class CreateFolderDto {
   })
   @IsNotEmpty()
   @IsUUID('4')
-  parentFolderUuid: FolderAttributes['uuid'];
+  parentFolderUuid: string;
 
   @ApiProperty({
     description: 'The last modification time of the folder (optional)',

@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Folder, FolderStatus } from '../../folder.domain';
 
-export class GetFoldersDto {
+export class FolderDto {
   @ApiProperty()
   type: string;
   @ApiProperty()
@@ -34,11 +34,24 @@ export class GetFoldersDto {
   creationTime: Date;
   @ApiProperty()
   modificationTime: Date;
-  @ApiProperty()
+  @ApiProperty({ enum: FolderStatus })
   status: FolderStatus;
+  @ApiProperty()
+  removed: boolean;
+  @ApiProperty()
+  deleted: boolean;
 }
 
-export class ResultGetFoldersDto {
-  @ApiProperty({ isArray: true, type: GetFoldersDto })
-  result: GetFoldersDto[];
+export class FoldersDto {
+  @ApiProperty({ isArray: true, type: FolderDto })
+  folders: FolderDto[];
+}
+export class ExistingFoldersDto {
+  @ApiProperty({ isArray: true, type: FolderDto })
+  existentFolders: FolderDto[];
+}
+
+export class ResultFoldersDto {
+  @ApiProperty({ isArray: true, type: FolderDto })
+  result: FolderDto[];
 }
