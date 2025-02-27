@@ -79,7 +79,7 @@ import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator'
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
 import { Requester } from '../auth/decorators/requester.decorator';
-import { FileDto } from '../file/dto/file.dto';
+import { FileDto } from '../file/dto/responses/file.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
