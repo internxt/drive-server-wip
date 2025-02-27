@@ -631,7 +631,7 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: 'File created',
+    description: 'Created File',
     type: FileDto,
   })
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
@@ -923,7 +923,10 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'folderUuid', type: String, required: true })
-  @ApiOkResponse({ type: ResultFoldersDto })
+  @ApiOkResponse({
+    description: 'Folders in folder',
+    type: ResultFoldersDto,
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFoldersInFolder(
@@ -955,7 +958,10 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'folderUuid', type: String, required: true })
-  @ApiOkResponse({ type: ResultFilesDto })
+  @ApiOkResponse({
+    description: 'Files in folder',
+    type: ResultFilesDto,
+  })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFilesInFolder(

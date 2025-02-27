@@ -60,7 +60,7 @@ async function bootstrap() {
     app.use(RequestLoggerMiddleware);
   }
 
-  // app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api');
   app.disable('x-powered-by');
   app.enableShutdownHooks();
 
