@@ -79,7 +79,13 @@ import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator'
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
 import { Requester } from '../auth/decorators/requester.decorator';
-import { FileDto } from '../file/dto/responses/file.dto';
+import { ResultFilesDto, FileDto } from '../file/dto/responses/file.dto';
+import {
+  FolderDto,
+  ResultFoldersDto,
+} from '../folder/dto/responses/folder.dto';
+import { GetAvailableWorkspacesResponseDto } from './dto/reponse/workspace.dto';
+import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -96,9 +102,12 @@ export class WorkspacesController {
   })
   @ApiOkResponse({
     description: 'Available workspaces and workspaceUser',
+    type: GetAvailableWorkspacesResponseDto,
   })
   @ApiBearerAuth()
-  async getAvailableWorkspaces(@UserDecorator() user: User) {
+  async getAvailableWorkspaces(
+    @UserDecorator() user: User,
+  ): Promise<GetAvailableWorkspacesResponseDto> {
     return this.workspaceUseCases.getAvailableWorkspaces(user);
   }
 
@@ -312,14 +321,15 @@ export class WorkspacesController {
   }
 
   @Get('/:workspaceId/folders')
+  @ApiOkResponse({ isArray: true, type: FolderDto })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFolders(
     @UserDecorator() user: User,
     @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
+    workspaceId: string,
     @Query() query: GetWorkspaceFoldersQueryDto,
-  ) {
+  ): Promise<FolderDto[]> {
     const { limit, offset, status, sort, order, updatedAt } = query;
 
     const folders =
@@ -451,13 +461,14 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Workspace credentials',
+    type: WorkspaceCredentialsDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getWorkspaceUser(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-  ) {
+  ): Promise<WorkspaceCredentialsDto> {
     return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
   }
 
@@ -620,7 +631,8 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: 'Created File',
+    description: 'File created',
+    type: FileDto,
   })
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -631,7 +643,7 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Client() clientId: string,
     @Body() createFileDto: CreateWorkspaceFileDto,
-  ) {
+  ): Promise<FileDto> {
     const file = await this.workspaceUseCases.createFile(
       user,
       workspaceId,
@@ -825,6 +837,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Created Folder',
+    type: FolderDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -834,7 +847,7 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Client() clientId: string,
     @Body() createFolderDto: CreateWorkspaceFolderDto,
-  ) {
+  ): Promise<FolderDto> {
     const folder = await this.workspaceUseCases.createFolder(
       user,
       workspaceId,
@@ -910,21 +923,19 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'folderUuid', type: String, required: true })
-  @ApiOkResponse({
-    description: 'Folders in folder',
-  })
+  @ApiOkResponse({ type: ResultFoldersDto })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFoldersInFolder(
     @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
+    workspaceId: string,
     @Param('folderUuid', ValidateUUIDPipe)
-    folderUuid: FolderAttributes['uuid'],
+    folderUuid: string,
     @UserDecorator() user: User,
     @Query() pagination: BasicPaginationDto,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFoldersDto> {
     const { limit, offset } = pagination;
 
     return this.workspaceUseCases.getPersonalWorkspaceFoldersInFolder(
@@ -944,9 +955,7 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'folderUuid', type: String, required: true })
-  @ApiOkResponse({
-    description: 'Files in folder',
-  })
+  @ApiOkResponse({ type: ResultFilesDto })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFilesInFolder(
@@ -958,7 +967,7 @@ export class WorkspacesController {
     @Query() pagination: BasicPaginationDto,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFilesDto> {
     const { limit, offset } = pagination;
     return this.workspaceUseCases.getPersonalWorkspaceFilesInFolder(
       user,
