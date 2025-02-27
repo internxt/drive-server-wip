@@ -2,25 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 import { FileStatus } from '../../file.domain';
 
 export class FileDto {
-  @ApiProperty({
-    description: 'The id of the file',
-    example: 1,
-  })
+  @ApiProperty()
   id: number;
-  @ApiProperty({
-    description: 'The uuid of the file',
-    example: 'a1b2c3d4-1234-5678-9abc-123456789abc',
-  })
+  @ApiProperty()
   uuid: string;
-  @ApiProperty({
-    description: 'The fileId of the file',
-    example: 'a1b2c3d4-1234-5678-9abc-123456789abc',
-  })
+  @ApiProperty()
   fileId: string;
-  @ApiProperty({
-    description: 'The name of the file',
-    example: 'file.txt',
-  })
+  @ApiProperty()
   name: string;
   @ApiProperty()
   type?: string;
