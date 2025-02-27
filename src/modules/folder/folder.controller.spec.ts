@@ -165,13 +165,6 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'getFolders')
         .mockResolvedValue(expectedSubfolders);
 
-      jest
-        .spyOn(folderUseCases, 'getFolderWithStatus')
-        .mockImplementation((folder) => ({
-          ...folder,
-          status: FolderStatus.EXISTS,
-        }));
-
       const result = await folderController.getFolderContentFolders(
         userMocked,
         folder.uuid,
@@ -448,13 +441,6 @@ describe('FolderController', () => {
       jest
         .spyOn(folderUseCases, 'searchFoldersInFolder')
         .mockResolvedValue(mockFolders);
-
-      jest
-        .spyOn(folderUseCases, 'getFolderWithStatus')
-        .mockImplementation((folder) => ({
-          ...folder,
-          status: FolderStatus.EXISTS,
-        }));
 
       const result = await folderController.checkFoldersExistenceInFolder(
         user,

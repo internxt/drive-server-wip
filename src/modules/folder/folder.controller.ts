@@ -135,7 +135,7 @@ export class FolderController {
       clientId,
     });
 
-    return this.folderUseCases.getFolderWithStatus(folder);
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Get('/count')
@@ -353,7 +353,7 @@ export class FolderController {
 
     return {
       folders: folders.map((f) => {
-        return this.folderUseCases.getFolderWithStatus(f);
+        return { ...f, status: f.getFolderStatus() };
       }),
     };
   }
@@ -426,9 +426,10 @@ export class FolderController {
     );
 
     return {
-      existentFolders: folders.map((folder) =>
-        this.folderUseCases.getFolderWithStatus(folder),
-      ),
+      existentFolders: folders.map((folder) => ({
+        ...folder,
+        status: folder.getFolderStatus(),
+      })),
     };
   }
 
@@ -572,9 +573,10 @@ export class FolderController {
     );
 
     return {
-      result: folders.map((f) => {
-        return this.folderUseCases.getFolderWithStatus(f);
-      }),
+      result: folders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      })),
     };
   }
 
@@ -632,7 +634,7 @@ export class FolderController {
           f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
         }
 
-        return this.folderUseCases.getFolderWithStatus(f);
+        return { ...f, status: f.getFolderStatus() };
       });
     } catch (error) {
       const err = error as Error;
@@ -679,7 +681,7 @@ export class FolderController {
         throw new NotFoundException();
       }
 
-      return this.folderUseCases.getFolderWithStatus(folder);
+      return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
         err instanceof NotFoundException ||

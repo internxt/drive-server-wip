@@ -49,6 +49,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   Folder,
   FolderAttributes,
+  FolderStatus,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
@@ -862,7 +863,7 @@ export class WorkspacesController {
       clientId,
     });
 
-    return this.folderUseCases.getFolderWithStatus(folder);
+    return { ...folder, status: FolderStatus.EXISTS };
   }
 
   @Get('/:workspaceId/trash')
