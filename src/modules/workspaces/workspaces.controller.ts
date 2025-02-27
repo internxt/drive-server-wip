@@ -86,6 +86,7 @@ import {
 } from '../folder/dto/responses/folder.dto';
 import { GetAvailableWorkspacesResponseDto } from './dto/reponse/workspace.dto';
 import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -93,6 +94,7 @@ import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto
 export class WorkspacesController {
   constructor(
     private readonly workspaceUseCases: WorkspacesUsecases,
+    private readonly folderUseCases: FolderUseCases,
     private readonly storageNotificationService: StorageNotificationService,
   ) {}
 
@@ -860,7 +862,7 @@ export class WorkspacesController {
       clientId,
     });
 
-    return folder;
+    return this.folderUseCases.getFolderWithStatus(folder);
   }
 
   @Get('/:workspaceId/trash')

@@ -32,6 +32,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
+import { FolderDto } from './dto/responses/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -943,8 +944,9 @@ export class FolderUseCases {
     );
   }
 
-  getFolderWithStatus(folder: Folder) {
+  getFolderWithStatus(folder: Omit<FolderDto, 'status'>): FolderDto {
     let folderStatus: FolderStatus;
+
     if (folder.removed) {
       folderStatus = FolderStatus.DELETED;
     } else if (folder.deleted) {

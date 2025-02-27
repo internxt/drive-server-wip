@@ -26,10 +26,12 @@ import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
 } from './attributes/workspace-logs.attributes';
+import { FolderUseCases } from '../folder/folder.usecase';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
+  let folderUsecases: DeepMocked<FolderUseCases>;
   let storageNotificationService: DeepMocked<StorageNotificationService>;
 
   beforeEach(async () => {
@@ -38,6 +40,7 @@ describe('Workspace Controller', () => {
 
     workspacesController = new WorkspacesController(
       workspacesUsecases,
+      folderUsecases,
       storageNotificationService,
     );
   });

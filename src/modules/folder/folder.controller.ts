@@ -117,10 +117,7 @@ export class FolderController {
     summary: 'Create Folder',
   })
   @ApiBearerAuth()
-  @ApiOkResponse({
-    description: 'Folder created',
-    type: FolderDto,
-  })
+  @ApiOkResponse({ type: FolderDto })
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
@@ -138,7 +135,7 @@ export class FolderController {
       clientId,
     });
 
-    return folder;
+    return this.folderUseCases.getFolderWithStatus(folder);
   }
 
   @Get('/count')
@@ -428,7 +425,11 @@ export class FolderController {
       },
     );
 
-    return { existentFolders: folders };
+    return {
+      existentFolders: folders.map((folder) =>
+        this.folderUseCases.getFolderWithStatus(folder),
+      ),
+    };
   }
 
   @Post('/content/:uuid/files/existence')
