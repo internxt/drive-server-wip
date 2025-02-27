@@ -36,6 +36,7 @@ describe('Workspace Controller', () => {
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
+    folderUsecases = createMock<FolderUseCases>();
     storageNotificationService = createMock<StorageNotificationService>();
 
     workspacesController = new WorkspacesController(

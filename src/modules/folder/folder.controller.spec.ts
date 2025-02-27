@@ -14,7 +14,7 @@ import {
   BadRequestOutOfRangeLimitException,
   FolderController,
 } from './folder.controller';
-import { Folder } from './folder.domain';
+import { Folder, FolderStatus } from './folder.domain';
 import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';
@@ -164,6 +164,13 @@ describe('FolderController', () => {
       jest
         .spyOn(folderUseCases, 'getFolders')
         .mockResolvedValue(expectedSubfolders);
+
+      jest
+        .spyOn(folderUseCases, 'getFolderWithStatus')
+        .mockImplementation((folder) => ({
+          ...folder,
+          status: FolderStatus.EXISTS,
+        }));
 
       const result = await folderController.getFolderContentFolders(
         userMocked,
@@ -442,13 +449,25 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'searchFoldersInFolder')
         .mockResolvedValue(mockFolders);
 
+      jest
+        .spyOn(folderUseCases, 'getFolderWithStatus')
+        .mockImplementation((folder) => ({
+          ...folder,
+          status: FolderStatus.EXISTS,
+        }));
+
       const result = await folderController.checkFoldersExistenceInFolder(
         user,
         folderUuid,
         { plainNames: plainNames },
       );
 
-      expect(result).toEqual({ existentFolders: mockFolders });
+      expect(result).toEqual({
+        existentFolders: mockFolders.map((folder) => ({
+          ...folder,
+          status: FolderStatus.EXISTS,
+        })),
+      });
       expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
         user,
         folderUuid,
