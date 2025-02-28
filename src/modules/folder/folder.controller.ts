@@ -65,6 +65,7 @@ import {
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
 import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
+import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -476,6 +477,7 @@ export class FolderController {
   @ApiParam({ name: 'uuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Current folder with children folders and files',
+    type: GetFolderContentDto,
   })
   @GetDataFromRequest([
     {
@@ -493,7 +495,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: BasicPaginationDto,
-  ) {
+  ): Promise<GetFolderContentDto> {
     const [currentFolder, childrenFolders, files] = await Promise.all([
       this.folderUseCases.getFolderByUuid(folderUuid, user),
       this.folderUseCases.getFolders(

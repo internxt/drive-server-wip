@@ -39,6 +39,7 @@ import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-actio
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
+import { LoginResponseDto } from './dto/responses/login.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -104,10 +105,11 @@ export class AuthController {
   })
   @ApiOkResponse({
     description: 'User  successfully accessed their account',
+    type: LoginResponseDto,
   })
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
-  async loginAccess(@Body() body: LoginAccessDto) {
+  async loginAccess(@Body() body: LoginAccessDto): Promise<LoginResponseDto> {
     Logger.log(`[AUTH/LOGIN-ACCESS] Attempting login for email: ${body.email}`);
     try {
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
