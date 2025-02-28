@@ -3,6 +3,50 @@ import { UserToJsonDto } from 'src/modules/user/dto/user-to-json.dto';
 import { WorkspaceAttributes } from '../../attributes/workspace.attributes';
 import { Workspace } from '../../domains/workspaces.domain';
 
+export class WorkspaceAttributesDto implements WorkspaceAttributes {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  ownerId: string;
+
+  @ApiProperty({ required: false })
+  address?: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ required: false })
+  description?: string;
+
+  @ApiProperty({ nullable: true })
+  avatar: string | null;
+
+  @ApiProperty()
+  defaultTeamId: string;
+
+  @ApiProperty()
+  workspaceUserId: string;
+
+  @ApiProperty()
+  setupCompleted: boolean;
+
+  @ApiProperty()
+  numberOfSeats: number;
+
+  @ApiProperty({ required: false })
+  phoneNumber?: string;
+
+  @ApiProperty({ required: false })
+  rootFolderId?: string;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
 export class WorkspaceUserToJSONDTO {
   @ApiProperty()
   id: string;
@@ -34,7 +78,7 @@ export class WorkspaceDto {
   workspaceUser: WorkspaceUserToJSONDTO;
 
   @ApiProperty()
-  workspace: WorkspaceAttributes;
+  workspace: WorkspaceAttributesDto;
 }
 
 export class GetAvailableWorkspacesResponseDto {
@@ -42,5 +86,5 @@ export class GetAvailableWorkspacesResponseDto {
   availableWorkspaces: WorkspaceDto[];
 
   @ApiProperty({ type: [Workspace] })
-  pendingWorkspaces: WorkspaceAttributes[];
+  pendingWorkspaces: WorkspaceAttributesDto[];
 }

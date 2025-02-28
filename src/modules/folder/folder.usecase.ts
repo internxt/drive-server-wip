@@ -943,4 +943,17 @@ export class FolderUseCases {
       rootFolder.uuid,
     );
   }
+
+  getFolderWithStatus(folder: Folder) {
+    let folderStatus: FolderStatus;
+    if (folder.removed) {
+      folderStatus = FolderStatus.DELETED;
+    } else if (folder.deleted) {
+      folderStatus = FolderStatus.TRASHED;
+    } else {
+      folderStatus = FolderStatus.EXISTS;
+    }
+
+    return { ...folder, status: folderStatus };
+  }
 }

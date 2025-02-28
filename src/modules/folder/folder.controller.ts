@@ -117,7 +117,10 @@ export class FolderController {
     summary: 'Create Folder',
   })
   @ApiBearerAuth()
-  @ApiOkResponse({ type: FolderDto })
+  @ApiOkResponse({
+    description: 'Folder created',
+    type: FolderDto,
+  })
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,

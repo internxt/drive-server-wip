@@ -632,7 +632,7 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: 'Created File',
+    description: 'File created',
     type: FileDto,
   })
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
