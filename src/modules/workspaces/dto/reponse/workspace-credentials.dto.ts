@@ -1,35 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
 
 export class WorkspaceCredentialsDetailsDto {
-  @ApiProperty({ example: 'networkPass', description: 'Network password' })
-  @IsString()
+  @ApiProperty()
   networkPass: string;
-
-  @ApiProperty({ example: 'networkUser', description: 'Network user' })
-  @IsString()
+  @ApiProperty()
   networkUser: string;
 }
 
 export class WorkspaceCredentialsDto {
-  @ApiProperty({ example: 'workspaceId', description: 'workspaceId' })
-  @IsString()
+  @ApiProperty()
   workspaceId: string;
-
-  @ApiProperty({ example: 'bucket', description: 'bucket' })
-  @IsString()
+  @ApiProperty()
   bucket: string;
-
-  @ApiProperty({ example: 'workspaceUserId', description: 'workspaceUserId' })
-  @IsString()
+  @ApiProperty()
   workspaceUserId: string;
-
-  @ApiProperty({ example: 'email', description: 'email' })
+  @ApiProperty()
   email: string;
-
   @ApiProperty({ type: WorkspaceCredentialsDetailsDto })
   credentials: WorkspaceCredentialsDetailsDto;
-
-  @ApiProperty({ example: 'tokenHeader', description: 'tokenHeader' })
+  @ApiProperty()
   tokenHeader: string;
 }

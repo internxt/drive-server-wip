@@ -32,6 +32,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
+import { FolderDto } from './dto/responses/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 

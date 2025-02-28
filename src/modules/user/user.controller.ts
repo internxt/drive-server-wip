@@ -443,7 +443,7 @@ export class UserController {
       throw new NotFoundException();
     }
 
-    const { token, newToken } = this.userUseCases.getAuthTokens(user);
+    const { token, newToken } = await this.userUseCases.getAuthTokens(user);
     const avatar = await this.userUseCases.getAvatarUrl(user.avatar);
 
     return {
@@ -504,7 +504,7 @@ export class UserController {
         privateKyberKey: updatePasswordDto?.privateKyberKey,
       });
 
-      const { token, newToken } = this.userUseCases.getAuthTokens(
+      const { token, newToken } = await this.userUseCases.getAuthTokens(
         user,
         getFutureIAT(),
       );

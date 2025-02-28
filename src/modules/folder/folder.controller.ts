@@ -138,7 +138,7 @@ export class FolderController {
       clientId,
     });
 
-    return folder;
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Get('/count')
@@ -315,6 +315,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/folders')
+  @ApiOkResponse({ type: FoldersDto })
   async getFolderContentFolders(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
@@ -355,7 +356,7 @@ export class FolderController {
 
     return {
       folders: folders.map((f) => {
-        return this.folderUseCases.getFolderWithStatus(f);
+        return { ...f, status: f.getFolderStatus() };
       }),
     };
   }
@@ -427,7 +428,12 @@ export class FolderController {
       },
     );
 
-    return { existentFolders: folders };
+    return {
+      existentFolders: folders.map((folder) => ({
+        ...folder,
+        status: folder.getFolderStatus(),
+      })),
+    };
   }
 
   @Post('/content/:uuid/files/existence')
@@ -570,9 +576,10 @@ export class FolderController {
     );
 
     return {
-      result: folders.map((f) => {
-        return this.folderUseCases.getFolderWithStatus(f);
-      }),
+      result: folders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      })),
     };
   }
 
@@ -630,7 +637,7 @@ export class FolderController {
           f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
         }
 
-        return this.folderUseCases.getFolderWithStatus(f);
+        return { ...f, status: f.getFolderStatus() };
       });
     } catch (error) {
       const err = error as Error;
@@ -677,7 +684,7 @@ export class FolderController {
         throw new NotFoundException();
       }
 
-      return this.folderUseCases.getFolderWithStatus(folder);
+      return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
