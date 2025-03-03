@@ -1075,7 +1075,7 @@ export class WorkspacesUsecases {
     );
 
     return {
-      result: folders.map((f) => ({ ...f, status: FileStatus.EXISTS })),
+      result: folders.map((f) => ({ ...f, status: FolderStatus.EXISTS })),
     };
   }
 

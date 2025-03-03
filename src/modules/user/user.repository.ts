@@ -160,6 +160,10 @@ export class SequelizeUserRepository implements UserRepository {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
+  async deleteBy(where: Partial<User>): Promise<void> {
+    await this.modelUser.destroy({ where });
+  }
+
   async getMeetClosedBetaUsers(): Promise<string[]> {
     const [rawEmails] = await this.modelUser.sequelize.query(
       'SELECT email FROM meet_closed_beta_users',
@@ -223,14 +227,14 @@ export class SequelizeUserRepository implements UserRepository {
 
   async deleteUserNotificationTokens(
     userUuid: UserAttributes['uuid'],
-    tokens: string[],
+    tokens?: string[],
   ) {
+    const optionalCondition = tokens ? { token: { [Op.in]: tokens } } : null;
+
     await this.modelUserNotificationTokens.destroy({
       where: {
         userId: userUuid,
-        token: {
-          [Op.in]: tokens,
-        },
+        ...optionalCondition,
       },
     });
   }

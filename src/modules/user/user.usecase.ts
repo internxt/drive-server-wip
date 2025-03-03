@@ -15,6 +15,7 @@ import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
+import crypto from 'crypto';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
@@ -81,6 +82,8 @@ import {
   generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { SharingInvite } from '../sharing/sharing.domain';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { BackupUseCase } from '../backups/backup.usecase';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -154,6 +157,8 @@ export class UserUseCases {
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
+    private readonly appSumoUseCases: AppSumoUseCase,
+    private readonly backupUseCases: BackupUseCase,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -758,10 +763,17 @@ export class UserUseCases {
     return !hasBeenSubscribed;
   }
 
-  getAuthTokens(
+  async getAuthTokens(
     user: User,
     customIat?: number,
-  ): { token: string; newToken: string } {
+  ): Promise<{ token: string; newToken: string }> {
+    const availableWorkspaces =
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+
+    const owners = [
+      ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
+    ];
+
     const expires = true;
     const token = SignEmail(
       user.email,
@@ -782,6 +794,7 @@ export class UserUseCases {
             user: user.bridgeUser,
             pass: user.userId,
           },
+          workspaces: { owners },
         },
         ...(customIat ? { iat: customIat } : null),
       },
@@ -1253,10 +1266,6 @@ export class UserUseCases {
     const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
 
     if (!userData) {
-      Logger.debug(
-        '[AUTH/LOGIN] Attempted login with a non-existing email: %s',
-        loginAccessDto.email,
-      );
       throw new UnauthorizedException('Wrong login credentials');
     }
 
@@ -1290,13 +1299,13 @@ export class UserUseCases {
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
-    const { token, newToken } = this.getAuthTokens(userData);
+    const { token, newToken } = await this.getAuthTokens(userData);
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
-    const rootFolder = await this.folderUseCases.getFolderById(
-      userData.rootFolderId,
-    );
+
+    const rootFolder = await this.folderUseCases.getUserRootFolder(userData);
+
     const userBucket = rootFolder.bucket;
 
     const newKeys = loginAccessDto?.keys;
@@ -1482,5 +1491,97 @@ export class UserUseCases {
       userId,
       err instanceof Error ? err.message : 'Unknown error',
     );
+  }
+
+  async sendDeactivationEmail(user: User) {
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: user.id,
+        mailType: MailTypes.DeactivateUser,
+      },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 10,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException(
+        'Mail deactivation daily limit reached',
+      );
+    }
+
+    const deactivator = crypto.randomBytes(256).toString('hex');
+    const deactivationUrl = `${this.configService.get(
+      'clients.drive.web',
+    )}/deactivations/${deactivator}`;
+
+    await this.networkService.sendDeactivationEmail(
+      user,
+      deactivationUrl,
+      deactivator,
+    );
+
+    mailLimit.increaseTodayAttempts();
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.DeactivateUser,
+      mailLimit,
+    );
+  }
+
+  async confirmDeactivation(token: string) {
+    const userEmail = await this.networkService.confirmDeactivation(token);
+    const user = await this.userRepository.findByEmail(userEmail);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    try {
+      await this.userRepository.updateByUuid(user.uuid, {
+        rootFolderId: null,
+      });
+
+      // DELETING FOREIGN KEYS (not cascade)
+      await Promise.all([
+        await this.userRepository.deleteUserNotificationTokens(user.uuid),
+        await this.keyServerRepository.deleteByUserId(user.id),
+        await this.appSumoUseCases.deleteByUserId(user.id),
+        await this.backupUseCases.deleteUserBackups(user.id),
+      ]);
+
+      await this.userRepository.deleteBy({ uuid: user.uuid });
+      await this.folderUseCases.removeUserOrphanFolders(user);
+    } catch (err) {
+      if (user) {
+        const tempUsername = `${user.email}-${crypto
+          .randomBytes(5)
+          .toString('hex')}-DELETED`;
+
+        await this.userRepository.updateBy(
+          { uuid: user.uuid },
+          {
+            email: tempUsername,
+            username: tempUsername,
+            bridgeUser: tempUsername,
+          },
+        );
+
+        const errorDetails = {
+          message: err.message,
+          stack: err.stack,
+        };
+
+        throw new Error(
+          `Deactivation error for user: ${
+            user.email
+          } (renamed to ${tempUsername}): ${JSON.stringify(errorDetails)}`,
+        );
+      } else {
+        throw err;
+      }
+    }
   }
 }

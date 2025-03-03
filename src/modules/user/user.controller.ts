@@ -77,6 +77,8 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { Client } from '../auth/decorators/client.decorator';
+import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
+import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -447,7 +449,7 @@ export class UserController {
       throw new NotFoundException();
     }
 
-    const { token, newToken } = this.userUseCases.getAuthTokens(user);
+    const { token, newToken } = await this.userUseCases.getAuthTokens(user);
     const avatar = await this.userUseCases.getAvatarUrl(user.avatar);
 
     return {
@@ -508,7 +510,7 @@ export class UserController {
         privateKyberKey: updatePasswordDto?.privateKyberKey,
       });
 
-      const { token, newToken } = this.userUseCases.getAuthTokens(
+      const { token, newToken } = await this.userUseCases.getAuthTokens(
         user,
         getFutureIAT(),
       );
@@ -868,6 +870,7 @@ export class UserController {
   }
 
   @Post('/email-verification')
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({
     summary: 'Verify user email',
   })
@@ -943,5 +946,33 @@ export class UserController {
       );
       throw err;
     }
+  }
+
+  @Post('/deactivation/send')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Send email to deactivate current user account',
+  })
+  async sendUserDeactivationEmail(
+    @UserDecorator() user: User,
+    @Req() req: Request,
+  ) {
+    const response = await this.userUseCases.sendDeactivationEmail(user);
+
+    this.notificationsService.add(new DeactivationRequestEvent(user, req));
+
+    return response;
+  }
+
+  @Post('/deactivation/confirm')
+  @UseGuards(ThrottlerGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Confirm user deactivation',
+  })
+  async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
+    const { token } = body;
+
+    return this.userUseCases.confirmDeactivation(token);
   }
 }

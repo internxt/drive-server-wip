@@ -47,6 +47,8 @@ import {
   newFolder,
   newKeyServer,
   newPreCreatedUser,
+  newWorkspace,
+  newWorkspaceUser,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -70,6 +72,8 @@ import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { SharingInvite } from '../sharing/sharing.domain';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { BackupUseCase } from '../backups/backup.usecase';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -103,6 +107,8 @@ describe('User use cases', () => {
   let mailerService: MailerService;
   let avatarService: AvatarService;
   let keyServerUseCases: KeyServerUseCases;
+  let appSumoUseCases: AppSumoUseCase;
+  let backupUseCases: BackupUseCase;
 
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
@@ -184,6 +190,8 @@ describe('User use cases', () => {
       AsymmetricEncryptionService,
     );
 
+    appSumoUseCases = moduleRef.get<AppSumoUseCase>(AppSumoUseCase);
+    backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
     jest.clearAllMocks();
   });
 
@@ -990,7 +998,7 @@ describe('User use cases', () => {
     });
 
     it('When called, then it should return respective tokens', async () => {
-      const result = userUseCases.getAuthTokens(user);
+      const result = await userUseCases.getAuthTokens(user);
 
       expect(result).toEqual({
         token: 'token',
@@ -1003,7 +1011,7 @@ describe('User use cases', () => {
 
       jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
 
-      userUseCases.getAuthTokens(user, customIat);
+      await userUseCases.getAuthTokens(user, customIat);
 
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
@@ -1025,8 +1033,55 @@ describe('User use cases', () => {
               user: user.bridgeUser,
               pass: user.userId,
             },
+            workspaces: {
+              owners: [],
+            },
           },
           iat: customIat,
+        },
+        jwtSecret,
+        true,
+      );
+    });
+
+    it('When called, then it should create the tokens with expected payload', async () => {
+      const workspace = newWorkspace({ owner: user });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValueOnce([{ workspace, workspaceUser }]);
+
+      await userUseCases.getAuthTokens(user);
+
+      expect(SignEmail).toHaveBeenCalledWith(
+        user.email,
+        jwtSecret,
+        true,
+        undefined,
+      );
+
+      expect(Sign).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            email: user.email,
+            name: user.name,
+            lastname: user.lastname,
+            username: user.username,
+            sharedWorkspace: true,
+            networkCredentials: {
+              user: user.bridgeUser,
+              pass: user.userId,
+            },
+            workspaces: {
+              owners: [workspace.ownerId],
+            },
+          },
         },
         jwtSecret,
         true,
@@ -1140,11 +1195,14 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
 
@@ -1212,11 +1270,14 @@ describe('User use cases', () => {
       jest
         .spyOn(speakeasy.totp, 'verifyDelta')
         .mockReturnValue({ delta: 123456 });
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
 
@@ -1248,11 +1309,14 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest
         .spyOn(keyServerUseCases, 'findUserKeys')
         .mockResolvedValue({ ecc: null, kyber: null });
@@ -1300,11 +1364,14 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(hashedPassword);
-      jest
-        .spyOn(userUseCases, 'getAuthTokens')
-        .mockReturnValue({ token: 'authToken', newToken: 'newAuthToken' });
+      jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValueOnce({
+        token: 'authToken',
+        newToken: 'newAuthToken',
+      });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(folderUseCases, 'getFolderById').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValueOnce(folder);
       jest
         .spyOn(keyServerUseCases, 'findUserKeys')
         .mockResolvedValue({ ecc: null, kyber: null });
@@ -1771,6 +1838,177 @@ describe('User use cases', () => {
       ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Kyber, {
         privateKey: updatePasswordDto.privateKyberKey,
       });
+    });
+  });
+  describe('sendDeactivationEmail', () => {
+    it('When the user has not reached the deactivation mail limit, then it should send a deactivation email', async () => {
+      const user = newUser();
+      const currentAttemptsCount = 1;
+      const mailLimit = newMailLimit({
+        attemptsCount: currentAttemptsCount,
+        attemptsLimit: 10,
+      });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
+      jest.spyOn(bridgeService, 'sendDeactivationEmail');
+      jest.spyOn(mailLimit, 'increaseTodayAttempts');
+      jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+
+      await userUseCases.sendDeactivationEmail(user);
+
+      expect(bridgeService.sendDeactivationEmail).toHaveBeenCalledWith(
+        user,
+        expect.any(String),
+        expect.any(String),
+      );
+      expect(mailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(mailLimit.attemptsCount).toEqual(currentAttemptsCount + 1);
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(user.id, MailTypes.DeactivateUser, {
+        ...mailLimit,
+        attemptsCount: currentAttemptsCount + 1,
+      });
+    });
+
+    it('When the deactivation mail limit is reached, then it should throw', async () => {
+      const user = newUser();
+      const mailLimit = newMailLimit({ attemptsCount: 10, attemptsLimit: 10 });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+
+      await expect(userUseCases.sendDeactivationEmail(user)).rejects.toThrow(
+        MailLimitReachedException,
+      );
+    });
+
+    it('When deactivation mail is sent, then it updates deactivation email attempts counter', async () => {
+      const user = newUser();
+      const currentAttemptsCount = 1;
+      const mailLimit = newMailLimit({
+        attemptsCount: currentAttemptsCount,
+        attemptsLimit: 10,
+      });
+
+      jest.spyOn(mailLimit, 'increaseTodayAttempts');
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
+
+      await userUseCases.sendDeactivationEmail(user);
+
+      expect(mailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(mailLimit.attemptsCount).toEqual(currentAttemptsCount + 1);
+    });
+
+    it('When the last deactivation email was sent on a different day, then it should reset email attempts', async () => {
+      const user = newUser();
+      const lastDayDate = new Date();
+      lastDayDate.setDate(lastDayDate.getDate() - 1);
+
+      const mailLimit = newMailLimit({
+        attemptsCount: 10,
+        attemptsLimit: 10,
+        lastMailSent: lastDayDate,
+      });
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
+
+      await userUseCases.sendDeactivationEmail(user);
+
+      expect(mailLimit.attemptsCount).toEqual(1);
+    });
+  });
+
+  describe('confirmDeactivation', () => {
+    const mockUser = newUser();
+
+    it('When the token is not for a valid user, then it should throw', async () => {
+      const invalidEmail = 'test@test.com';
+      jest
+        .spyOn(bridgeService, 'confirmDeactivation')
+        .mockResolvedValueOnce(invalidEmail);
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(null);
+
+      await expect(
+        userUseCases.confirmDeactivation('invalid-token'),
+      ).rejects.toThrow(BadRequestException);
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(invalidEmail);
+    });
+
+    it('When user is deactivated successfully, then all related resources should be deleted', async () => {
+      jest
+        .spyOn(bridgeService, 'confirmDeactivation')
+        .mockResolvedValueOnce(mockUser.email);
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(mockUser);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(mockUser);
+      jest
+        .spyOn(userRepository, 'updateByUuid')
+        .mockResolvedValueOnce(undefined);
+      jest.spyOn(userRepository, 'deleteBy').mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(appSumoUseCases, 'deleteByUserId')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(backupUseCases, 'deleteUserBackups')
+        .mockResolvedValueOnce(undefined);
+      jest.spyOn(folderUseCases, 'removeUserOrphanFolders');
+
+      await expect(
+        userUseCases.confirmDeactivation('valid-token'),
+      ).resolves.not.toThrow();
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(mockUser.email);
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        rootFolderId: null,
+      });
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({
+        uuid: mockUser.uuid,
+      });
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(appSumoUseCases.deleteByUserId).toHaveBeenCalledWith(mockUser.id);
+      expect(backupUseCases.deleteUserBackups).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(folderUseCases.removeUserOrphanFolders).toHaveBeenCalledWith(
+        mockUser,
+      );
+    });
+
+    it('When an error occurs during deactivation, then the user is renamed and the error is thrown', async () => {
+      jest
+        .spyOn(bridgeService, 'confirmDeactivation')
+        .mockResolvedValueOnce(mockUser.email);
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(mockUser);
+      jest.spyOn(userRepository, 'updateBy');
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockRejectedValue(new Error('Deletion error'));
+
+      await expect(
+        userUseCases.confirmDeactivation('bad-token'),
+      ).rejects.toThrow();
+      expect(userRepository.updateBy).toHaveBeenCalledWith(
+        { uuid: mockUser.uuid },
+        expect.objectContaining({ email: expect.stringMatching(/-DELETED$/) }),
+      );
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
     });
   });
 });

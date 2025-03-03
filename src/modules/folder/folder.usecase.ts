@@ -16,6 +16,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
   FolderOptions,
+  FolderStatus,
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
@@ -31,6 +32,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
+import { FolderDto } from './dto/responses/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -88,6 +90,15 @@ export class FolderUseCases {
     }
 
     return folder;
+  }
+
+  async removeUserOrphanFolders(user: User): Promise<number> {
+    const removedFoldersCount = await this.folderRepository.updateBy(
+      { removed: true, deleted: true },
+      { userId: user.id, parentId: null },
+    );
+
+    return removedFoldersCount;
   }
 
   async getFolderByUuid(
@@ -171,13 +182,13 @@ export class FolderUseCases {
     return folder;
   }
 
-  async getFolderById(
-    folderId: FolderAttributes['id'],
-    { deleted }: FolderOptions = { deleted: false },
-  ): Promise<Folder | null> {
-    const folder = await this.folderRepository.findById(folderId, deleted);
+  async getUserRootFolder(user: User): Promise<Folder | null> {
+    const folder = await this.folderRepository.findOne({
+      id: user.rootFolderId,
+      userId: user.id,
+    });
 
-    return folder ? Folder.build({ ...this.decryptFolderName(folder) }) : null;
+    return folder;
   }
 
   async getFolder(
@@ -328,9 +339,17 @@ export class FolderUseCases {
   ) {
     const folder = await this.folderRepository.findOne({
       uuid: folderUuid,
-      deleted: false,
-      removed: false,
     });
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    if (folder.isRemoved()) {
+      throw new UnprocessableEntityException(
+        'Cannot update this folder metadata',
+      );
+    }
 
     if (!folder.isOwnedBy(user)) {
       throw new ForbiddenException('This folder is not yours');
@@ -790,14 +809,18 @@ export class FolderUseCases {
       );
     }
 
-    const parentFolder = await this.folderRepository.findById(folder.parentId);
-    if (parentFolder.removed === true) {
+    const parentFolder = await this.folderRepository.findOne({
+      id: folder.parentId,
+    });
+
+    if (parentFolder?.isRemoved()) {
       throw new UnprocessableEntityException(
         `Folder ${folderUuid} can not be moved`,
       );
     }
 
     const destinationFolder = await this.getFolderByUuid(destinationUuid, user);
+
     if (destinationFolder.removed === true) {
       throw new UnprocessableEntityException(
         `Folder can not be moved to ${destinationUuid}`,

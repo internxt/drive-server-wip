@@ -14,7 +14,7 @@ import {
   BadRequestOutOfRangeLimitException,
   FolderController,
 } from './folder.controller';
-import { Folder } from './folder.domain';
+import { Folder, FolderStatus } from './folder.domain';
 import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';
@@ -448,7 +448,12 @@ describe('FolderController', () => {
         { plainNames: plainNames },
       );
 
-      expect(result).toEqual({ existentFolders: mockFolders });
+      expect(result).toEqual({
+        existentFolders: mockFolders.map((folder) => ({
+          ...folder,
+          status: FolderStatus.EXISTS,
+        })),
+      });
       expect(folderUseCases.searchFoldersInFolder).toHaveBeenCalledWith(
         user,
         folderUuid,

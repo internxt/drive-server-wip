@@ -10,14 +10,17 @@ import {
   Post,
   Put,
   Query,
+  UseFilters,
   UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -42,8 +45,17 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
+import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { FileDto } from './dto/responses/file.dto';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
+enum FileStatusQuery {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+  ALL = 'ALL',
+}
 
 @ApiTags('File')
 @Controller('files')
@@ -57,6 +69,7 @@ export class FileController {
   @ApiOperation({
     summary: 'Create File',
   })
+  @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
   @UseGuards(SharingPermissionsGuard)
@@ -64,7 +77,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
     @Client() clientId: string,
-  ) {
+  ): Promise<FileDto> {
     const file = await this.fileUseCases.createFile(user, createFileDto);
 
     this.storageNotificationService.fileCreated({
@@ -99,6 +112,7 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
+  @ApiOkResponse({ type: FileDto })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -113,8 +127,8 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async getFileMetadata(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
-  ) {
+    @Param('uuid') fileUuid: string,
+  ): Promise<FileDto> {
     if (!validate(fileUuid)) {
       throw new BadRequestException('Invalid UUID');
     }
@@ -154,7 +168,7 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
+    @Param('uuid') fileUuid: string,
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
@@ -242,16 +256,22 @@ export class FileController {
   }
 
   @Get('/')
+  @ApiOkResponse({ isArray: true, type: FileDto })
+  @ApiQuery({ name: 'bucket', required: false })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
+  @ApiQuery({ name: 'updatedAt', required: false })
+  @ApiQuery({ name: 'status', enum: FileStatusQuery })
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: (typeof filesStatuses)[number],
-    @Query('bucket') bucket?: File['bucket'],
+    @Query('status') status: FileStatusQuery,
+    @Query('bucket') bucket?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
-  ) {
+  ): Promise<FileDto[]> {
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestException('Limit or offset are not numbers');
     }
@@ -325,9 +345,10 @@ export class FileController {
     },
   ])
   @WorkspacesInBehalfValidationFile()
+  @UseFilters(ExtendedHttpExceptionFilter)
   async moveFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
+    @Param('uuid') fileUuid: string,
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
@@ -386,10 +407,11 @@ export class FileController {
   }
 
   @Get('/meta')
+  @ApiOkResponse({ type: FileDto })
   async getFileMetaByPath(
     @UserDecorator() user: User,
     @Query('path') filePath: string,
-  ) {
+  ): Promise<FileDto> {
     if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
       throw new BadRequestException('Invalid path provided');
     }

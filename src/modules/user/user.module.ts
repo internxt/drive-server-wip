@@ -48,6 +48,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
+import { BackupModule } from '../backups/backup.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryptio
     forwardRef(() => FeatureLimitModule),
     forwardRef(() => WorkspacesModule),
     AsymmetricEncryptionModule,
+    BackupModule,
   ],
   controllers: [UserController],
   providers: [

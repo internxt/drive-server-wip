@@ -29,6 +29,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { Request, Response } from 'express';
+import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -564,7 +565,7 @@ describe('User Controller', () => {
         kyber: kyberKey,
         ecc: eccKey,
       });
-      userUseCases.getAuthTokens.mockReturnValueOnce(mockTokens);
+      userUseCases.getAuthTokens.mockResolvedValueOnce(mockTokens);
 
       const result = await userController.updatePassword(
         mockUpdatePasswordDto,
@@ -835,6 +836,44 @@ describe('User Controller', () => {
         ecc: null,
       });
       expect(response.publicKey).toEqual(null);
+    });
+  });
+
+  describe('POST /deactivation/send', () => {
+    const mockUser = newUser();
+    const mockRequest = createMock<Request>();
+
+    it('When deactivation email is sent successfully, then the notifications service is called', async () => {
+      const notificationsSpy = jest.spyOn(notificationService, 'add');
+
+      await userController.sendUserDeactivationEmail(mockUser, mockRequest);
+
+      expect(userUseCases.sendDeactivationEmail).toHaveBeenCalledWith(mockUser);
+      expect(notificationsSpy).toHaveBeenCalledWith(
+        expect.any(DeactivationRequestEvent),
+      );
+    });
+
+    it('When sending deactivation email fails, then it throws', async () => {
+      userUseCases.sendDeactivationEmail.mockRejectedValueOnce(
+        new Error('Deactivation failed'),
+      );
+
+      await expect(
+        userController.sendUserDeactivationEmail(mockUser, mockRequest),
+      ).rejects.toThrow();
+
+      expect(userUseCases.sendDeactivationEmail).toHaveBeenCalledWith(mockUser);
+      expect(notificationService.add).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /deactivation/confirm', () => {
+    it('When deactivation is confirmed, then the service is called with the received token', async () => {
+      const token = 'deactivationToken';
+      await userController.confirmUserDeactivation({ token });
+
+      expect(userUseCases.confirmDeactivation).toHaveBeenCalledWith(token);
     });
   });
 });

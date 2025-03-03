@@ -90,4 +90,82 @@ describe('Bridge Service', () => {
       );
     });
   });
+
+  describe('sendDeactivationEmail', () => {
+    const testBridgeApiUrl = 'bridge.test.com';
+    const deactivationRedirectUrl = 'http://example.com/redirect';
+    const deactivator = 'user';
+
+    it('When deactivation email is being requested, it should make the request successfully', async () => {
+      const response: AxiosResponse<void> = {
+        data: null,
+        status: 200,
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+        statusText: 'OK',
+      };
+
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'delete').mockResolvedValueOnce(response);
+
+      await service.sendDeactivationEmail(
+        mockedUser,
+        deactivationRedirectUrl,
+        deactivator,
+      );
+
+      expect(httpClient.delete).toHaveBeenCalledTimes(1);
+      expect(httpClient.delete).toHaveBeenCalledWith(
+        `${testBridgeApiUrl}/users/${mockedUser.email}?redirect=${deactivationRedirectUrl}&deactivator=${deactivator}`,
+        expect.any(Object),
+      );
+    });
+
+    it('When deactivation email fails, it should throw', async () => {
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'delete').mockRejectedValueOnce(new Error());
+
+      await expect(
+        service.sendDeactivationEmail(
+          mockedUser,
+          deactivationRedirectUrl,
+          deactivator,
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('confirmDeactivation', () => {
+    const testBridgeApiUrl = 'bridge.test.com';
+    const token = 'deactivationToken';
+    const email = 'test@email.com';
+
+    it('When user deactivation is being confirmed, it should make the request successfully', async () => {
+      const response: AxiosResponse<{ email: string }> = {
+        data: { email },
+        status: 200,
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+        statusText: 'OK',
+      };
+
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'get').mockResolvedValueOnce(response);
+
+      await service.confirmDeactivation(token);
+
+      expect(httpClient.get).toHaveBeenCalledTimes(1);
+      expect(httpClient.get).toHaveBeenCalledWith(
+        `${testBridgeApiUrl}/deactivationStripe/${token}`,
+        expect.any(Object),
+      );
+    });
+
+    it('When user deactivation confirmation fails, it should throw', async () => {
+      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
+      jest.spyOn(httpClient, 'get').mockRejectedValueOnce(new Error());
+
+      await expect(service.confirmDeactivation(token)).rejects.toThrow();
+    });
+  });
 });
