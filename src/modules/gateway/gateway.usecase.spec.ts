@@ -11,10 +11,13 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { GatewayUseCases } from './gateway.usecase';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
+import { UserUseCases } from '../user/user.usecase';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
   let userRepository: SequelizeUserRepository;
+  let userUseCases: UserUseCases;
+
   let workspaceUseCases: WorkspacesUsecases;
 
   beforeEach(async () => {
@@ -28,6 +31,7 @@ describe('GatewayUseCases', () => {
     userRepository = module.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
+    userUseCases = module.get<UserUseCases>(UserUseCases);
     workspaceUseCases = module.get<WorkspacesUsecases>(WorkspacesUsecases);
   });
 
@@ -287,6 +291,35 @@ describe('GatewayUseCases', () => {
         await expect(service.getUserByEmail(user.email)).resolves.toStrictEqual(
           user,
         );
+      });
+    });
+
+    describe('checkUserStorageExpansion', () => {
+      const user = newUser();
+
+      it('When user is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+        await expect(
+          service.checkUserStorageExpansion(user.uuid),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When user exists, then it should return storage stackability data', async () => {
+        const response = {
+          canExpand: true,
+          currentMaxSpaceBytes: 10000,
+          expandableBytes: 13400,
+        };
+
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+        jest
+          .spyOn(userUseCases, 'canUserExpandStorage')
+          .mockResolvedValue(response);
+
+        await expect(
+          service.checkUserStorageExpansion(user.uuid, 100),
+        ).resolves.toStrictEqual(response);
       });
     });
   });
