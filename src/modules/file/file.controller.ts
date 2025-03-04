@@ -47,6 +47,7 @@ import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { FileDto } from './dto/responses/file.dto';
+import { UploadGuard } from './guards/upload.guard';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -72,7 +73,7 @@ export class FileController {
   @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
-  @UseGuards(SharingPermissionsGuard)
+  @UseGuards(SharingPermissionsGuard, UploadGuard)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
