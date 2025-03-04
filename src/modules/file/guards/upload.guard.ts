@@ -4,16 +4,17 @@ import {
   ExecutionContext,
   Injectable,
 } from '@nestjs/common';
+import * as semver from 'semver';
 
 @Injectable()
 export class UploadGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    const version = request.headers['internxt-version'];
     const client = request.headers['internxt-client'];
+    const version = request.headers['internxt-version'];
 
-    if (version === '1.0.5' && client === '@internxt/cli') {
+    if (client === '@internxt/cli' && semver.lt(version, '1.5.0')) {
       throw new BadRequestException(
         'This Internxt CLI version is not allowed. Please update it.',
       );
