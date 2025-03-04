@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsNumber, IsUUID } from 'class-validator';
 
 export class CheckStorageExpansionDto {
@@ -10,9 +11,13 @@ export class CheckStorageExpansionDto {
   userUuid: string;
 
   @ApiProperty({
-    example: 312321312,
-    description: 'Extra space in bytes to add to the user',
+    example: 3298534883328,
+    description: 'Extra space to add to user in bytes',
+    required: false,
   })
   @IsNumber()
-  additionalBytes: number;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
+  additionalBytes?: number;
 }

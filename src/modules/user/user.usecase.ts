@@ -724,7 +724,7 @@ export class UserUseCases {
     const expandableBytes = MAX_STORAGE_BYTES - currentMaxSpaceBytes;
 
     const canExpand =
-      currentMaxSpaceBytes + additionalBytes < MAX_STORAGE_BYTES;
+      currentMaxSpaceBytes + additionalBytes <= MAX_STORAGE_BYTES;
 
     return { canExpand, currentMaxSpaceBytes, expandableBytes };
   }

@@ -176,4 +176,23 @@ describe('Gateway Controller', () => {
       expect(gatewayUsecases.getUserByEmail).toHaveBeenCalledWith(user.email);
     });
   });
+
+  describe('GET /users/storage/stackability', () => {
+    const user = newUser();
+
+    it('When called, it should call service with respective params', async () => {
+      const userUuid = user.uuid;
+      const additionalBytes = 10;
+
+      await gatewayController.checkUserStorageExpansion({
+        userUuid,
+        additionalBytes,
+      });
+
+      expect(gatewayUsecases.checkUserStorageExpansion).toHaveBeenCalledWith(
+        userUuid,
+        additionalBytes,
+      );
+    });
+  });
 });

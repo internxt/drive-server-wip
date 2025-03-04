@@ -107,7 +107,8 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Check if user can expand storage space',
   })
-  @ApiQuery({ name: 'email', type: String, required: true })
+  @ApiQuery({ name: 'userUuid', type: String, required: true })
+  @ApiQuery({ name: 'additionalBytes', type: Number, required: true })
   @UseGuards(GatewayGuard)
   async checkUserStorageExpansion(@Query() queryDto: CheckStorageExpansionDto) {
     const { userUuid, additionalBytes } = queryDto;

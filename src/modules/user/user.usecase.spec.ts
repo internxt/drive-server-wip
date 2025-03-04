@@ -1816,6 +1816,69 @@ describe('User use cases', () => {
       );
     });
   });
+
+  describe('canUserExpandStorage', () => {
+    const STORAGE_50_TB = 1024 ** 4 * 50;
+    const STORAGE_20_TB = 1024 ** 4 * 20;
+    const userMock = newUser();
+
+    it('When the user has enough space left, then it should return canExpand as true', async () => {
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(STORAGE_50_TB);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        STORAGE_20_TB,
+      );
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: STORAGE_50_TB,
+        expandableBytes: STORAGE_50_TB,
+      });
+    });
+
+    it('When the user has reached the maximum storage limit, then it should return canExpand as false', async () => {
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(1024 ** 4 * 100); // 100TB
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        STORAGE_20_TB,
+      );
+
+      expect(result).toEqual({
+        canExpand: false,
+        currentMaxSpaceBytes: 1024 ** 4 * 100,
+        expandableBytes: 0,
+      });
+    });
+
+    it('When the user is just below the maximum storage limit, then it should return canExpand as true', async () => {
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(1024 ** 4 * 99); // Mocking current storage to be 99TB
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        1024 ** 4 * 1, // Trying to add 1 TB
+      );
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: 1024 ** 4 * 99,
+        expandableBytes: 1024 ** 4 * 1,
+      });
+    });
+
+    it('When no additional space is requested, then it should return canExpand based only on the current usage', async () => {
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(1024 ** 4 * 20); // Mocking current storage to be 20TB
+
+      const result = await userUseCases.canUserExpandStorage(userMock);
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: 1024 ** 4 * 20,
+        expandableBytes: 1024 ** 4 * 80, // Remaining space to 100TB
+      });
+    });
+  });
 });
 
 const createTestingModule = (): Promise<TestingModule> => {

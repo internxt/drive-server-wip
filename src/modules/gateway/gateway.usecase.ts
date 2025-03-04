@@ -129,7 +129,14 @@ export class GatewayUseCases {
     return user;
   }
 
-  async checkUserStorageExpansion(uuid: string, additionalBytes?: number) {
+  async checkUserStorageExpansion(
+    uuid: string,
+    additionalBytes?: number,
+  ): Promise<{
+    canExpand: boolean;
+    currentMaxSpaceBytes: number;
+    expandableBytes: number;
+  }> {
     const user = await this.userRepository.findByUuid(uuid);
     if (!user) {
       throw new NotFoundException('User not found');
