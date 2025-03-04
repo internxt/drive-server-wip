@@ -8,12 +8,14 @@ import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { User } from '../user/user.domain';
+import { UserUseCases } from '../user/user.usecase';
 
 @Injectable()
 export class GatewayUseCases {
   constructor(
     private readonly workspaceUseCases: WorkspacesUsecases,
     private readonly userRepository: SequelizeUserRepository,
+    private readonly userUseCases: UserUseCases,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -125,5 +127,17 @@ export class GatewayUseCases {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  async checkUserStorageExpansion(uuid: string, additionalBytes?: number) {
+    const user = await this.userRepository.findByUuid(uuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const userStorageData = await this.userUseCases.canUserExpandStorage(
+      user,
+      additionalBytes,
+    );
+    return userStorageData;
   }
 }

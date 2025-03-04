@@ -713,6 +713,22 @@ export class UserUseCases {
     return hasSubscriptions || isLifetime;
   }
 
+  async canUserExpandStorage(user: User, additionalBytes = 0) {
+    const MAX_STORAGE_BYTES = 1024 ** 4 * 100; // 100 TB
+
+    const currentMaxSpaceBytes = await this.networkService.getLimit(
+      user.bridgeUser,
+      user.userId,
+    );
+
+    const expandableBytes = MAX_STORAGE_BYTES - currentMaxSpaceBytes;
+
+    const canExpand =
+      currentMaxSpaceBytes + additionalBytes < MAX_STORAGE_BYTES;
+
+    return { canExpand, currentMaxSpaceBytes, expandableBytes };
+  }
+
   async hasReferralsProgram(
     userEmail: UserAttributes['email'],
     networkUser: UserAttributes['bridgeUser'],
