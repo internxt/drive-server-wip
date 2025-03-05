@@ -14,7 +14,7 @@ export class UploadGuard implements CanActivate {
     const client = request.headers['internxt-client'];
     const version = request.headers['internxt-version'];
 
-    if (client === '@internxt/cli' && semver.lt(version, '1.5.0')) {
+    if (client === '@internxt/cli' && semver.lt(version, '1.5.1')) {
       throw new BadRequestException(
         'This Internxt CLI version is not allowed. Please update it.',
       );
