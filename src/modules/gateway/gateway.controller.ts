@@ -22,6 +22,7 @@ import { GatewayGuard } from '../auth/gateway.guard';
 import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
 import { User } from '../user/user.domain';
+import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -99,5 +100,22 @@ export class GatewayController {
   @UseGuards(GatewayGuard)
   async getUserByEmail(@Query('email') email: User['email']) {
     return this.gatewayUseCases.getUserByEmail(email);
+  }
+
+  @Get('/users/storage/stackability')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Check if user can expand storage space',
+  })
+  @ApiQuery({ name: 'userUuid', type: String, required: true })
+  @ApiQuery({ name: 'additionalBytes', type: Number, required: true })
+  @UseGuards(GatewayGuard)
+  async checkUserStorageExpansion(@Query() queryDto: CheckStorageExpansionDto) {
+    const { userUuid, additionalBytes } = queryDto;
+
+    return this.gatewayUseCases.checkUserStorageExpansion(
+      userUuid,
+      additionalBytes,
+    );
   }
 }
