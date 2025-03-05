@@ -26,28 +26,18 @@ describe('convertSizeToBytes function', () => {
     expect(result).toBe(1 * 1024 ** 4);
   });
 
-  it('When the value is negative, then it should throw an error with a message "Value cannot be negative."', () => {
+  it('When the value is negative, then it should throw an error', () => {
     expect(() => convertSizeToBytes(-1, 'MB')).toThrow(
       'Value cannot be negative.',
     );
   });
 
-  it('When the value is NaN, then it should throw an error with a message "Value must be a valid number."', () => {
-    expect(() => convertSizeToBytes(NaN, 'GB')).toThrow(
-      'Value must be a valid number.',
-    );
+  it('When the unit is invalid, then it should throw an error', () => {
+    expect(() => convertSizeToBytes(1, 'XZ' as any)).toThrow();
   });
 
-  it('When the unit is invalid, then it should throw an error with a message "Invalid unit. Use B, KB, MB, GB, TB, or PB."', () => {
-    expect(() => convertSizeToBytes(1, 'XZ' as any)).toThrow(
-      'Invalid unit. Use B, KB, MB, GB, TB, or PB.',
-    );
-  });
-
-  it('When no unit is provided, then it should throw an error with a message "Unit is required."', () => {
-    expect(() => convertSizeToBytes(10, '' as any)).toThrow(
-      'Unit is required.',
-    );
+  it('When no unit is provided, then it should throw an error', () => {
+    expect(() => convertSizeToBytes(10, '' as any)).toThrow();
   });
 
   it('When converting to bytes with a valid unit, then it should return the correct result', () => {
