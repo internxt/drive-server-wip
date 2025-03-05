@@ -31,26 +31,72 @@ describe('UploadFileGuard', () => {
   });
 
   it('When client is web or any other, then it should allow access', () => {
-    const contextWeb = createMockExecutionContext({
-      user,
-      headers: {
-        'internxt-client': 'drive-web',
-        'internxt-version': '1.0',
-      },
-    });
-    const contextAny = createMockExecutionContext({
-      user,
-      headers: {
-        'internxt-client': 'any',
-        'internxt-version': 'any',
-      },
-    });
+    const contextsThatShouldAllow = [
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': 'drive-web',
+          'internxt-version': '1.0',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': 'drive-desktop', //macos
+          'internxt-version': '2.6.0.72',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': 'any-other',
+          'internxt-version': '1.0.0',
+        },
+      }),
+    ];
 
-    const resultWeb = guard.canActivate(contextWeb);
-    expect(resultWeb).toBe(true);
+    for (const context of contextsThatShouldAllow) {
+      expect(guard.canActivate(context)).toBe(true);
+    }
+  });
 
-    const resultAny = guard.canActivate(contextAny);
-    expect(resultAny).toBe(true);
+  it('When headers are not valid, then it should allow access', () => {
+    const contextsThatShouldAllow = [
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': 'drive-web',
+          'internxt-version': 'a.b.c',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-version': '1.3.0',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': '@internxt/cli',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {},
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': undefined,
+          'internxt-version': undefined,
+        },
+      }),
+    ];
+
+    for (const context of contextsThatShouldAllow) {
+      expect(guard.canActivate(context)).toBe(true);
+    }
   });
 
   it('When client is CLI and version is lower than 1.5.1, then it should throw BadRequestException', () => {
