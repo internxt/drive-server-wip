@@ -121,26 +121,33 @@ describe('UploadFileGuard', () => {
     expect(() => guard.canActivate(context2)).toThrow(BadRequestException);
   });
 
-  it('When client is CLI and version is equal or greater than 1.5.0, then it should allow access', () => {
-    const contextEqual = createMockExecutionContext({
-      user,
-      headers: {
-        'internxt-client': '@internxt/cli',
-        'internxt-version': '1.5.1',
-      },
-    });
-    const contextGreater = createMockExecutionContext({
-      user,
-      headers: {
-        'internxt-client': '@internxt/cli',
-        'internxt-version': '1.33.0',
-      },
-    });
+  it('When client is CLI and version is equal or greater than 1.5.1, then it should allow access', () => {
+    const contextsThatShouldAllow = [
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': '@internxt/cli',
+          'internxt-version': '1.5.1',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': '@internxt/cli',
+          'internxt-version': '1.5.2',
+        },
+      }),
+      createMockExecutionContext({
+        user,
+        headers: {
+          'internxt-client': '@internxt/cli',
+          'internxt-version': '1.33.0',
+        },
+      }),
+    ];
 
-    const resultEqual = guard.canActivate(contextEqual);
-    expect(resultEqual).toBe(true);
-
-    const resultGreater = guard.canActivate(contextGreater);
-    expect(resultGreater).toBe(true);
+    for (const context of contextsThatShouldAllow) {
+      expect(guard.canActivate(context)).toBe(true);
+    }
   });
 });
