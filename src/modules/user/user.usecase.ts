@@ -497,7 +497,7 @@ export class UserUseCases {
           {
             encryptedMessageInBase64: encryptionKey,
             privateKeyInBase64: privateKey,
-            privateKyberKeyInBase64: privateKyberKey,
+            privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
           },
         );
 
@@ -506,7 +506,7 @@ export class UserUseCases {
           {
             message: decryptedEncryptionKey.toString(),
             publicKeyInBase64: newPublicKey,
-            publicKyberKeyBase64: newPublicKyberKey,
+            publicKyberKeyBase64: invite.isHybrid() ? newPublicKyberKey : null,
           },
         );
 
@@ -1471,25 +1471,6 @@ export class UserUseCases {
 
   async updateProfile(user: User, payload: UpdateProfileDto) {
     await this.userRepository.updateByUuid(user.uuid, payload);
-  }
-
-  logReferralError(userId: number | string, err: unknown) {
-    if (err instanceof ReferralsNotAvailableError) {
-      return;
-    }
-
-    if (err instanceof Error && !err.message) {
-      return Logger.error(
-        '[STORAGE]: ERROR message undefined applying referral for user %s',
-        userId,
-      );
-    }
-
-    return Logger.error(
-      '[STORAGE]: ERROR applying referral for user %s: %s',
-      userId,
-      err instanceof Error ? err.message : 'Unknown error',
-    );
   }
 
   async sendDeactivationEmail(user: User) {
