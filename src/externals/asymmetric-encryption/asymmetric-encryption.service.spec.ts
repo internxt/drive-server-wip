@@ -4,7 +4,6 @@ import { KyberProvider } from './providers/kyber.provider';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
-  generateNewKeys,
 } from './openpgp';
 
 describe('AsymmetricEncryptionService', () => {
@@ -142,15 +141,14 @@ describe('AsymmetricEncryptionService', () => {
     });
 
     it('When old ciphertext and kyber keys, then it should be able to decrypt as before', async () => {
-      const eccKeys = await generateNewKeys();
-      const kyberKeys = await service.generateKyberKeys();
+      const keys = await service.generateNewKeys();
 
       const originalMessage =
         'until bonus summer risk chunk oyster census ability frown win pull steel measure employ rigid improve riot remind system earn inch broken chalk clip';
 
       const encryptedMessage = await encryptMessageWithPublicKey({
         message: originalMessage,
-        publicKeyInBase64: eccKeys.publicKeyArmored,
+        publicKeyInBase64: keys.publicKeyArmored,
       });
 
       const encryptedMessageInBase64 = Buffer.from(
@@ -161,8 +159,8 @@ describe('AsymmetricEncryptionService', () => {
       const decryptedMessage = await service.hybridDecryptMessageWithPrivateKey(
         {
           encryptedMessageInBase64,
-          privateKeyInBase64: eccKeys.privateKeyArmored,
-          privateKyberKeyInBase64: kyberKeys.privateKey,
+          privateKeyInBase64: keys.privateKeyArmored,
+          privateKyberKeyInBase64: keys.privateKyberKeyBase64,
         },
       );
 
@@ -171,7 +169,7 @@ describe('AsymmetricEncryptionService', () => {
           encryptedMessageInBase64,
           'base64',
         ).toString('binary'),
-        privateKeyInBase64: eccKeys.privateKeyArmored,
+        privateKeyInBase64: keys.privateKeyArmored,
       });
 
       expect(decryptedMessage).toEqual(oldDecryptedMessage);
