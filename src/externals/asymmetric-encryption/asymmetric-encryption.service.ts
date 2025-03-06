@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { KyberBuilder, kyberProvider } from './providers/kyber.provider';
+import { KyberBuilder, KyberProvider } from './providers/kyber.provider';
 import { extendSecret, XORhex } from './utils';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
+  generateNewKeys,
 } from './openpgp';
 
 const WORDS_HYBRID_MODE_IN_BASE64 = 'SHlicmlkTW9kZQ=='; // 'HybridMode' in BASE64 format
@@ -11,7 +12,7 @@ const WORDS_HYBRID_MODE_IN_BASE64 = 'SHlicmlkTW9kZQ=='; // 'HybridMode' in BASE6
 @Injectable()
 export class AsymmetricEncryptionService {
   constructor(
-    @Inject(kyberProvider.provide)
+    @Inject(KyberProvider.provide)
     private readonly kyberKem: KyberBuilder,
   ) {}
 
@@ -23,11 +24,25 @@ export class AsymmetricEncryptionService {
     };
   }
 
+  async generateNewKeys(date?: Date) {
+    const [kyberKeys, eccKeys] = await Promise.all([
+      this.generateKyberKeys(),
+      generateNewKeys(date),
+    ]);
+
+    return {
+      privateKeyArmored: eccKeys.privateKeyArmored,
+      publicKeyArmored: eccKeys.publicKeyArmored,
+      revocationCertificate: eccKeys.privateKeyArmored,
+      publicKyberKeyBase64: kyberKeys.publicKey,
+      privateKyberKeyBase64: kyberKeys.privateKey,
+    };
+  }
+
   /**
-   * Encrypts a message using the recipient's public key.
    * Kyber encapsulates a shared secret along with a ciphertext.
    */
-  async encapsulateWithKyber(
+  async encapsulateKyberSharedSecret(
     publicKey: Uint8Array,
   ): Promise<{ ciphertext: Uint8Array; sharedSecret: Uint8Array }> {
     return this.kyberKem.encapsulate(publicKey);
@@ -37,7 +52,7 @@ export class AsymmetricEncryptionService {
    * Decrypts the ciphertext using the recipient's private key.
    * Returns the shared secret that matches the one from encryption.
    */
-  async decapsulateWithKyber(
+  async decapsulateKyberSharedSecret(
     ciphertext: Uint8Array,
     privateKey: Uint8Array,
   ): Promise<Uint8Array> {
@@ -72,7 +87,7 @@ export class AsymmetricEncryptionService {
     if (publicKyberKeyBase64) {
       const publicKyberKey = Buffer.from(publicKyberKeyBase64, 'base64');
       const { ciphertext, sharedSecret: secret } =
-        await this.encapsulateWithKyber(new Uint8Array(publicKyberKey));
+        await this.encapsulateKyberSharedSecret(new Uint8Array(publicKyberKey));
       const kyberCiphertextStr = Buffer.from(ciphertext).toString('base64');
 
       const bits = message.length * 8;
@@ -136,7 +151,7 @@ export class AsymmetricEncryptionService {
 
       const privateKyberKey = Buffer.from(privateKyberKeyInBase64, 'base64');
       const kyberCiphertext = Buffer.from(kyberCiphertextBase64, 'base64');
-      const decapsulateSharedSecret = await this.decapsulateWithKyber(
+      const decapsulateSharedSecret = await this.decapsulateKyberSharedSecret(
         new Uint8Array(kyberCiphertext),
         new Uint8Array(privateKyberKey),
       );
