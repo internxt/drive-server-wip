@@ -138,6 +138,7 @@ export class UserController {
           response.user.email,
           response.user.uuid,
           keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 
@@ -312,6 +313,7 @@ export class UserController {
           userCreated.user.email,
           userCreated.user.uuid,
           keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 
@@ -405,6 +407,10 @@ export class UserController {
           uuid: user.uuid,
         },
         publicKey: user.publicKey,
+        keys: {
+          ecc: user.publicKey,
+          kyber: user.publicKyberKey,
+        },
       };
     } catch (err) {
       let errorMessage = err.message;
