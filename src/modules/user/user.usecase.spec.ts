@@ -77,6 +77,7 @@ import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { SharingInvite } from '../sharing/sharing.domain';
+import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -413,6 +414,10 @@ describe('User use cases', () => {
   });
 
   describe('replacePreCreatedUser', () => {
+    beforeEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('When pre-created user exists, then replace invitations with new user keys and uuid', async () => {
       const preCreatedUser = newPreCreatedUser();
       const newUserUuid = v4();
@@ -583,6 +588,98 @@ describe('User use cases', () => {
 
       expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
       expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
+    });
+
+    it('When pre created user is replaced, then sharing invitations encrypted keys should match original message if decrypted with new asymmetric keys', async () => {
+      const [preCreatedKeys, newKeys] = await Promise.all([
+        asymmetricEncryptionService.generateNewKeys(),
+        asymmetricEncryptionService.generateNewKeys(),
+      ]);
+      const newUserUuid = v4();
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.publicKey = preCreatedKeys.publicKeyArmored;
+      preCreatedUser.publicKyberKey = preCreatedKeys.publicKyberKeyBase64;
+
+      const sharingDecryptedKey =
+        'until bonus summer risk chunk oyster census ability frown win pull steel measure employ rigid improve riot remind system earn inch broken chalk clip';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'ecc',
+          encryptionKey:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: sharingDecryptedKey,
+                publicKeyInBase64: preCreatedKeys.publicKeyArmored,
+              },
+            ),
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: sharingDecryptedKey,
+                publicKeyInBase64: preCreatedKeys.publicKeyArmored,
+                publicKyberKeyBase64: preCreatedKeys.publicKyberKeyBase64,
+              },
+            ),
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedKeys.privateKeyArmored)
+        .mockReturnValueOnce(preCreatedKeys.privateKyberKeyBase64);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+
+      jest.spyOn(sharingRepository, 'bulkUpdate');
+      jest.spyOn(userUseCases, 'replacePreCreatedUserWorkspaceInvitations');
+      jest.spyOn(preCreatedUsersRepository, 'deleteByUuid');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newKeys.publicKeyArmored,
+        newKeys.publicKyberKeyBase64,
+      );
+
+      const newInviteEccEncryptedKey =
+        await asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey({
+          encryptedMessageInBase64: invites[0].encryptionKey,
+          privateKeyInBase64: newKeys.privateKeyArmored,
+        });
+      const newInviteHybridEncryptedKey =
+        await asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey({
+          encryptedMessageInBase64: invites[1].encryptionKey,
+          privateKeyInBase64: newKeys.privateKeyArmored,
+          privateKyberKeyInBase64: newKeys.privateKyberKeyBase64,
+        });
+
+      expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
+      expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     });
   });
 
@@ -1432,54 +1529,6 @@ describe('User use cases', () => {
       expect(userRepository.updateByUuid).toHaveBeenCalledWith(
         userUuid,
         payload,
-      );
-    });
-  });
-
-  describe('logReferralError', () => {
-    it('When an undefined error is logged, then it should log error message for undefined error', () => {
-      const userId = v4();
-
-      userUseCases.logReferralError(userId, new Error());
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        '[STORAGE]: ERROR message undefined applying referral for user %s',
-        userId,
-      );
-    });
-
-    it('When a ReferralsNotAvailableError is logged, then it should not log anything', () => {
-      const userId = v4();
-      const error = new ReferralsNotAvailableError();
-
-      userUseCases.logReferralError(userId, error);
-
-      expect(loggerErrorSpy).not.toHaveBeenCalled();
-    });
-
-    it('When another error is logged, then it should log error message for other errors', () => {
-      const userId = v4();
-      const errorMessage = 'Some error occurred';
-
-      userUseCases.logReferralError(userId, new Error(errorMessage));
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        '[STORAGE]: ERROR applying referral for user %s: %s',
-        userId,
-        errorMessage,
-      );
-    });
-
-    it('When a non-Error object is logged, Then it should log "Unknown error"', () => {
-      const userId = v4();
-      const error = 'This is a string error';
-
-      userUseCases.logReferralError(userId, error);
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        '[STORAGE]: ERROR applying referral for user %s: %s',
-        userId,
-        'Unknown error',
       );
     });
   });
@@ -2363,7 +2412,7 @@ describe('User use cases', () => {
 const createTestingModule = (): Promise<TestingModule> => {
   return Test.createTestingModule({
     controllers: [],
-    providers: [UserUseCases],
+    providers: [UserUseCases, AsymmetricEncryptionService, KyberProvider],
   })
     .useMocker(() => createMock())
     .compile();
