@@ -83,7 +83,6 @@ import { AsymmetricEncryptionService } from '../../externals/asymmetric-encrypti
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
-  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { SharingInvite } from '../sharing/sharing.domain';
 
@@ -628,7 +627,7 @@ export class UserUseCases {
     keysCreationDate.setHours(keysCreationDate.getHours() - 1);
 
     const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
-      await generateNewKeys(keysCreationDate);
+      await this.asymmetricEncryptionService.generateNewKeys(keysCreationDate);
 
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
