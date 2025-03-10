@@ -67,6 +67,7 @@ import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
+import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -1814,6 +1815,83 @@ describe('User use cases', () => {
       expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
         mockUser.id,
       );
+    });
+  });
+
+  describe('canUserExpandStorage', () => {
+    const userMock = newUser();
+
+    it('When the user has enough space left, then it should return canExpand as true', async () => {
+      const userCurrentStorage = convertSizeToBytes(50, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        convertSizeToBytes(20, 'TB'),
+      );
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: convertSizeToBytes(50, 'TB'),
+      });
+    });
+
+    it('When the user has reached the maximum storage limit, then it should return canExpand as false', async () => {
+      const userCurrentStorage = convertSizeToBytes(100, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        convertSizeToBytes(20, 'MB'),
+      );
+
+      expect(result).toEqual({
+        canExpand: false,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: 0,
+      });
+    });
+
+    it('When the user is just below the maximum storage limit, then it should return canExpand as true', async () => {
+      const userCurrentStorage = convertSizeToBytes(99, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        convertSizeToBytes(1, 'TB'),
+      );
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: convertSizeToBytes(1, 'TB'),
+      });
+    });
+
+    it('When no additional space is requested, then it should return canExpand based only on the current usage', async () => {
+      const userCurrentStorage = convertSizeToBytes(20, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(userMock);
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: convertSizeToBytes(80, 'TB'),
+      });
     });
   });
 });

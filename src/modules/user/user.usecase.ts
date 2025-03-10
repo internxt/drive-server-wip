@@ -81,6 +81,7 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
+import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -711,6 +712,22 @@ export class UserUseCases {
     const isLifetime = maxSpaceBytes > MAX_FREE_PLAN_BYTES;
 
     return hasSubscriptions || isLifetime;
+  }
+
+  async canUserExpandStorage(user: User, additionalBytes = 0) {
+    const MAX_STORAGE_BYTES = convertSizeToBytes(100, 'TB');
+
+    const currentMaxSpaceBytes = await this.networkService.getLimit(
+      user.bridgeUser,
+      user.userId,
+    );
+
+    const expandableBytes = MAX_STORAGE_BYTES - currentMaxSpaceBytes;
+
+    const canExpand =
+      currentMaxSpaceBytes + additionalBytes <= MAX_STORAGE_BYTES;
+
+    return { canExpand, currentMaxSpaceBytes, expandableBytes };
   }
 
   async hasReferralsProgram(
