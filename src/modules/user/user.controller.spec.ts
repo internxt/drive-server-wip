@@ -876,4 +876,30 @@ describe('User Controller', () => {
       expect(userUseCases.confirmDeactivation).toHaveBeenCalledWith(token);
     });
   });
+
+  describe('GET /storage/usage', () => {
+    const user = newUser();
+
+    it('When storage usage is requested, then it should return the user usage data', async () => {
+      const mockUsage = {
+        drive: 1024000,
+      };
+
+      userUseCases.getUserUsage.mockResolvedValueOnce(mockUsage);
+
+      const result = await userController.getUserUsage(user);
+
+      expect(userUseCases.getUserUsage).toHaveBeenCalledWith(user);
+      expect(result).toEqual(mockUsage);
+    });
+
+    it('When getUserUsage throws an error, then it should propagate the error', async () => {
+      const errorMessage = 'Failed to get storage usage';
+
+      userUseCases.getUserUsage.mockRejectedValueOnce(new Error(errorMessage));
+
+      await expect(userController.getUserUsage(user)).rejects.toThrow(Error);
+      expect(userUseCases.getUserUsage).toHaveBeenCalledWith(user);
+    });
+  });
 });

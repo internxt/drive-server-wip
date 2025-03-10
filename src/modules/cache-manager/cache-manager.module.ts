@@ -7,7 +7,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 @Module({
   imports: [
     CacheModule.registerAsync({
-      isGlobal: true,
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (
