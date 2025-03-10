@@ -969,4 +969,15 @@ export class UserController {
 
     return this.userUseCases.confirmDeactivation(token);
   }
+
+  @Get('/storage/usage')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get User used storage space',
+  })
+  async getUserUsage(@UserDecorator() user: User) {
+    const usage = await this.userUseCases.getUserUsage(user);
+
+    return usage;
+  }
 }

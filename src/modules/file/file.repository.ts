@@ -778,4 +778,21 @@ export class SequelizeFileRepository implements FileRepository {
   private toModel(domain: File): Partial<FileAttributes> {
     return domain.toJSON();
   }
+
+  async sumExistentFileSizes(
+    userId: FileAttributes['userId'],
+  ): Promise<number> {
+    const result = await this.fileModel.findAll({
+      attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+      where: {
+        userId,
+        status: {
+          [Op.ne]: 'DELETED',
+        },
+      },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) as unknown as number;
+  }
 }
