@@ -5,7 +5,7 @@ import { Cache } from 'cache-manager';
 @Injectable()
 export class CacheManagerService {
   private readonly USAGE_KEY_PREFIX = 'usage:';
-  private readonly LIMIT_KEY_PREFIX = 'user:limit:';
+  private readonly LIMIT_KEY_PREFIX = 'limit:';
 
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 

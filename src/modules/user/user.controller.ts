@@ -79,6 +79,7 @@ import { avatarStorageS3Config } from '../../externals/multer';
 import { Client } from '../auth/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
+import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -975,7 +976,8 @@ export class UserController {
   @ApiOperation({
     summary: 'Get User used storage space',
   })
-  async getUserUsage(@UserDecorator() user: User) {
+  @ApiOkResponse({ type: GetUserUsageDto })
+  async getUserUsage(@UserDecorator() user: User): Promise<GetUserUsageDto> {
     const usage = await this.userUseCases.getUserUsage(user);
 
     return usage;

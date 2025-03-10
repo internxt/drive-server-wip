@@ -17,7 +17,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
         const redisStore = createKeyv({
           url: redisUrl,
-          // Let client throw instead of create a offline queue
+          // Let client throw instead of create an offline queue
           disableOfflineQueue: true,
           socket: {
             reconnectStrategy: false,
