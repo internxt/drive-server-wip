@@ -589,8 +589,6 @@ export class FolderController {
   @ApiOkResponse({ isArray: true, type: FolderDto })
   @ApiQuery({ name: 'updatedAt', required: false })
   @ApiQuery({ name: 'status', enum: FolderStatusQuery })
-  @ApiQuery({ name: 'offset', type: Number })
-  @ApiQuery({ name: 'limit', type: Number })
   async getFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
