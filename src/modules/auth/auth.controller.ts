@@ -39,7 +39,8 @@ import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-actio
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
-import { LoginResponseDto } from './dto/responses/login.dto';
+import { LoginAccessResponseDto } from './dto/responses/login-access-response.dto';
+import { LoginResponseDto } from './dto/responses/login-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -58,9 +59,9 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get security details to log in',
   })
-  @ApiOkResponse({ description: 'Retrieve details' })
+  @ApiOkResponse({ description: 'Retrieve details', type: LoginResponseDto })
   @Public()
-  async login(@Body() body: LoginDto) {
+  async login(@Body() body: LoginDto): Promise<LoginResponseDto> {
     const email = body.email.toLowerCase();
 
     const user = await this.userUseCases.findByEmail(email);
@@ -105,11 +106,13 @@ export class AuthController {
   })
   @ApiOkResponse({
     description: 'User  successfully accessed their account',
-    type: LoginResponseDto,
+    type: LoginAccessResponseDto,
   })
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
-  async loginAccess(@Body() body: LoginAccessDto): Promise<LoginResponseDto> {
+  async loginAccess(
+    @Body() body: LoginAccessDto,
+  ): Promise<LoginAccessResponseDto> {
     Logger.log(`[AUTH/LOGIN-ACCESS] Attempting login for email: ${body.email}`);
     try {
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
