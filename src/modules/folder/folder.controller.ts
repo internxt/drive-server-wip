@@ -29,11 +29,7 @@ import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.de
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
-import {
-  FileAttributes,
-  FileStatus,
-  SortableFileAttributes,
-} from '../file/file.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
@@ -65,8 +61,16 @@ import {
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
 import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
+import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
+enum FolderStatusQuery {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+  ALL = 'ALL',
+}
 
 export class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -476,6 +480,7 @@ export class FolderController {
   @ApiParam({ name: 'uuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Current folder with children folders and files',
+    type: GetFolderContentDto,
   })
   @GetDataFromRequest([
     {
@@ -493,7 +498,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: BasicPaginationDto,
-  ) {
+  ): Promise<GetFolderContentDto> {
     const [currentFolder, childrenFolders, files] = await Promise.all([
       this.folderUseCases.getFolderByUuid(folderUuid, user),
       this.folderUseCases.getFolders(
@@ -583,11 +588,12 @@ export class FolderController {
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FolderDto })
   @ApiQuery({ name: 'updatedAt', required: false })
+  @ApiQuery({ name: 'status', enum: FolderStatusQuery })
   async getFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: (typeof foldersStatuses)[number],
+    @Query('status') status: FolderStatusQuery,
     @Query('updatedAt') updatedAt?: string,
   ): Promise<FolderDto[]> {
     if (!status) {
