@@ -1007,7 +1007,7 @@ describe('User use cases', () => {
       });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
-        .spyOn(folderUseCases, 'getUserRootFolder')
+        .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
         .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
@@ -1082,7 +1082,7 @@ describe('User use cases', () => {
       });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
-        .spyOn(folderUseCases, 'getUserRootFolder')
+        .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
         .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
@@ -1892,6 +1892,59 @@ describe('User use cases', () => {
         currentMaxSpaceBytes: userCurrentStorage,
         expandableBytes: convertSizeToBytes(80, 'TB'),
       });
+    });
+  });
+
+  describe('getOrCreateUserRootFolderAndBucket', () => {
+    const user = newUser();
+    const rootFolder = newFolder();
+    rootFolder.userId = user.id;
+    const bucket = {
+      id: 'bucket-123',
+      name: 'user-bucket',
+      user: user.userId,
+      encryptionKey: 'encryption-key',
+      publicPermissions: [],
+      created: new Date().toISOString(),
+      maxFrameSize: 1024,
+      pubkeys: [],
+      transfer: 0,
+      storage: 0,
+    };
+
+    it('When root folder exists, then it should return the folder without creating a new one', async () => {
+      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(rootFolder);
+
+      const result =
+        await userUseCases.getOrCreateUserRootFolderAndBucket(user);
+
+      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(bridgeService.createBucket).not.toHaveBeenCalled();
+      expect(result).toEqual(rootFolder);
+    });
+
+    it('When root folder does not exist, then it should create a new bucket and folder', async () => {
+      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(null);
+
+      jest.spyOn(bridgeService, 'createBucket').mockResolvedValueOnce(bucket);
+      jest
+        .spyOn(userUseCases, 'createInitialFolders')
+        .mockResolvedValueOnce([rootFolder, newFolder(), newFolder()]);
+
+      const result =
+        await userUseCases.getOrCreateUserRootFolderAndBucket(user);
+
+      // Assert
+      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(bridgeService.createBucket).toHaveBeenCalledWith(
+        user.username,
+        user.userId,
+      );
+      expect(userUseCases.createInitialFolders).toHaveBeenCalledWith(
+        user,
+        bucket.id,
+      );
+      expect(result).toEqual(rootFolder);
     });
   });
 });

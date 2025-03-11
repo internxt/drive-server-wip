@@ -711,24 +711,18 @@ export class FolderUseCases {
     );
   }
 
+  /**
+   * Permanently deletes a folder from the database
+   * @throws ForbiddenException if the user is not the owner of the folder
+   * @warning This method should NOT be used unless you explicitly want to remove
+   * data from the database permanently.
+   */
   async deleteFolderPermanently(folder: Folder, user: User): Promise<void> {
     if (folder.userId !== user.id) {
       Logger.error(
         `User with id: ${user.id} tried to delete a folder that does not own.`,
       );
       throw new ForbiddenException(`You are not owner of this share`);
-    }
-
-    if (folder.isRootFolder()) {
-      throw new UnprocessableEntityException(
-        `folder with id ${folder.id} is a root folder`,
-      );
-    }
-
-    if (!folder.deleted) {
-      throw new UnprocessableEntityException(
-        `folder with id ${folder.id} cannot be permanently deleted`,
-      );
     }
 
     await this.folderRepository.deleteById(folder.id);
