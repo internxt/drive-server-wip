@@ -1334,7 +1334,7 @@ export class UserUseCases {
       email: userData.email,
       userId: userData.userId,
       mnemonic: userData.mnemonic.toString(),
-      root_folder_id: userData.rootFolderId,
+      root_folder_id: rootFolder?.id,
       rootFolderId: rootFolder?.uuid,
       name: userData.name,
       lastname: userData.lastname,

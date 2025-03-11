@@ -197,7 +197,7 @@ export class FolderUseCases {
   ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
 
-    return this.decryptFolderName(folder);
+    return folder ? this.decryptFolderName(folder) : null;
   }
 
   async isFolderInsideFolder(
@@ -891,7 +891,7 @@ export class FolderUseCases {
     });
   }
 
-  decryptFolderName(folder: Folder): any {
+  decryptFolderName(folder: Folder): Folder {
     const decryptedName = this.cryptoService.decryptName(
       folder.name,
       folder.parentId,
