@@ -670,7 +670,7 @@ describe('Sharing Use Cases', () => {
 
       jest
         .spyOn(folderUseCases, 'decryptFolderName')
-        .mockReturnValue({ plainName: 'DecryptedFolderName' });
+        .mockReturnValue(newFolder());
 
       jest.spyOn(usersUsecases, 'getAvatarUrl').mockResolvedValue('avatar-url');
       jest

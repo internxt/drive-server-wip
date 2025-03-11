@@ -292,7 +292,7 @@ export class UserUseCases {
    * @param bucketId Network bucket
    * @returns Created folders
    */
-  private async createInitialFolders(
+  async createInitialFolders(
     user: User,
     bucketId: string,
   ): Promise<[Folder, Folder, Folder]> {
@@ -402,9 +402,15 @@ export class UserUseCases {
       tierId: freeTier?.id,
     });
 
+    let rootFolder: Folder;
+
     try {
       const bucket = await this.networkService.createBucket(email, networkPass);
-      const [rootFolder] = await this.createInitialFolders(user, bucket.id);
+      const [createdRootFolder] = await this.createInitialFolders(
+        user,
+        bucket.id,
+      );
+      rootFolder = createdRootFolder;
 
       const hasReferrer = !!newUser.referrer;
       if (hasReferrer) {
@@ -443,12 +449,22 @@ export class UserUseCases {
         uuid: userUuid,
       };
     } catch (err) {
-      Logger.error(
-        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
-        }`,
-      );
+      const error = {
+        message: err.message,
+        stack: err.stack || 'NO STACK',
+        body: newUser,
+      };
+
+      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${JSON.stringify(error)}`);
       notifySignUpError(err);
+
+      if (user) {
+        Logger.warn(`[SIGNUP/USER]: Rolling back user created ${user.uuid}`);
+        await this.userRepository.deleteBy({ uuid: user.uuid });
+        if (rootFolder) {
+          await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
+        }
+      }
 
       throw err;
     }
@@ -1285,9 +1301,9 @@ export class UserUseCases {
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
 
-    const rootFolder = await this.folderUseCases.getUserRootFolder(userData);
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
 
-    const userBucket = rootFolder.bucket;
+    const userBucket = rootFolder?.bucket;
 
     const newKeys = loginAccessDto?.keys;
 
@@ -1318,7 +1334,7 @@ export class UserUseCases {
       email: userData.email,
       userId: userData.userId,
       mnemonic: userData.mnemonic.toString(),
-      root_folder_id: userData.rootFolderId,
+      root_folder_id: rootFolder?.id,
       rootFolderId: rootFolder?.uuid,
       name: userData.name,
       lastname: userData.lastname,
@@ -1353,6 +1369,22 @@ export class UserUseCases {
     };
 
     return { user, token, userTeam: null, newToken };
+  }
+
+  async getOrCreateUserRootFolderAndBucket(user: User) {
+    const rootFolder = await this.folderUseCases.getFolder(user.rootFolderId);
+
+    if (rootFolder) {
+      return rootFolder;
+    }
+
+    const bucket = await this.networkService.createBucket(
+      user.username,
+      user.userId,
+    );
+    const [newRootFolder] = await this.createInitialFolders(user, bucket.id);
+
+    return newRootFolder;
   }
 
   areCredentialsCorrect(user: User, hashedPassword: User['password']) {
