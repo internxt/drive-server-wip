@@ -7,6 +7,7 @@ import {
   MailLimitReachedException,
   UserUseCases,
   ReferralsNotAvailableError,
+  UserAlreadyRegisteredError,
 } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -1934,7 +1935,6 @@ describe('User use cases', () => {
       const result =
         await userUseCases.getOrCreateUserRootFolderAndBucket(user);
 
-      // Assert
       expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
       expect(bridgeService.createBucket).toHaveBeenCalledWith(
         user.username,
@@ -1945,6 +1945,138 @@ describe('User use cases', () => {
         bucket.id,
       );
       expect(result).toEqual(rootFolder);
+    });
+  });
+
+  describe('createUser', () => {
+    const decryptedPassword = 'decrypted-password-hash';
+    const password = 'encrypted-password-hash';
+    const decryptedSalt = 'decrypted-salt';
+    const salt = 'encrypted-salt';
+    const networkPass = 'network-pass';
+    const bucketId = 'bucket-id';
+
+    const userMock = newUser({
+      attributes: {
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+        userId: networkPass,
+      },
+    });
+
+    it('When user already exists, then it should throw', async () => {
+      const existentUser = newUser();
+
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(existentUser);
+
+      await expect(
+        userUseCases.createUser({ ...existentUser, salt }),
+      ).rejects.toThrow(UserAlreadyRegisteredError);
+
+      expect(bridgeService.createUser).not.toHaveBeenCalled();
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When creating a user successfully, then should return user data', async () => {
+      const rootFolder = newFolder();
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === password) return decryptedPassword;
+        if (text === salt) return decryptedSalt;
+        return '';
+      });
+      jest
+        .spyOn(bridgeService, 'createUser')
+        .mockResolvedValue({ userId: networkPass, uuid: user.uuid });
+      jest.spyOn(userRepository, 'create').mockResolvedValue(userMock);
+      jest
+        .spyOn(bridgeService, 'createBucket')
+        .mockResolvedValue({ id: bucketId } as any);
+      jest
+        .spyOn(userUseCases, 'createInitialFolders')
+        .mockResolvedValue([rootFolder, newFolder(), newFolder()]);
+
+      jest.spyOn(configService, 'get').mockReturnValue('jwt-secret');
+      jest
+        .spyOn(userUseCases, 'getNewTokenPayload')
+        .mockReturnValue({ uuid: userMock.uuid } as any);
+
+      const result = await userUseCases.createUser({
+        email: userMock.email,
+        password,
+        salt,
+        name: userMock.name,
+        mnemonic: 'mnemonic',
+        lastname: userMock.lastname,
+      });
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(
+        userMock.email,
+      );
+      expect(bridgeService.createUser).toHaveBeenCalledWith(userMock.email);
+      expect(bridgeService.createBucket).toHaveBeenCalledWith(
+        userMock.email,
+        networkPass,
+      );
+
+      expect(userUseCases.createInitialFolders).toHaveBeenCalledWith(
+        userMock,
+        bucketId,
+      );
+
+      expect(result).toEqual({
+        token: expect.any(String),
+        newToken: expect.any(String),
+        user: expect.objectContaining({
+          rootFolderId: rootFolder.id,
+          rootFolderUuid: rootFolder.uuid,
+          bucket: bucketId,
+          uuid: user.uuid,
+          userId: networkPass,
+          hasReferralsProgram: false,
+        }),
+        uuid: user.uuid,
+      });
+    });
+
+    it('When error occurs after user creation, then should rollback and notify', async () => {
+      const bucketError = new Error('Bucket creation failed');
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValueOnce(null);
+      jest.spyOn(userRepository, 'create').mockResolvedValueOnce(userMock);
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === password) return decryptedPassword;
+        if (text === salt) return decryptedSalt;
+        return '';
+      });
+      jest
+        .spyOn(bridgeService, 'createUser')
+        .mockResolvedValueOnce({ userId: networkPass, uuid: userMock.uuid });
+      jest.spyOn(bridgeService, 'createBucket').mockRejectedValue(bucketError);
+
+      const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
+      const loggerWarnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+
+      await expect(
+        userUseCases.createUser({
+          email: userMock.email,
+          password,
+          salt,
+          name: userMock.name,
+          mnemonic: 'mnemonic',
+          lastname: userMock.lastname,
+        }),
+      ).rejects.toThrow(bucketError);
+
+      expect(loggerErrorSpy).toHaveBeenCalled();
+      expect(loggerWarnSpy).toHaveBeenCalled();
+
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({
+        uuid: userMock.uuid,
+      });
     });
   });
 });
