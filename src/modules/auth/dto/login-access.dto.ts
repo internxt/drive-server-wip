@@ -31,6 +31,7 @@ export class LoginAccessDto {
   @ApiProperty({
     example: 'two_factor_authentication_code',
     description: 'TFA',
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -40,6 +41,7 @@ export class LoginAccessDto {
     example: 'public_key',
     description: 'Public Key',
     deprecated: true,
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -49,6 +51,7 @@ export class LoginAccessDto {
     example: 'private_key',
     description: 'Private Key',
     deprecated: true,
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -58,6 +61,7 @@ export class LoginAccessDto {
     example: 'revocate_key',
     description: 'Revocate Key',
     deprecated: true,
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -69,6 +73,7 @@ export class LoginAccessDto {
   @ApiProperty({
     example: 'newKeys',
     description: 'keys',
+    required: false,
   })
   keys?: OptionalKeyGroup;
 }
