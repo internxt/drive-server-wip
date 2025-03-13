@@ -82,6 +82,7 @@ import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -156,6 +157,7 @@ export class UserUseCases {
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly appSumoUseCases: AppSumoUseCase,
     private readonly backupUseCases: BackupUseCase,
+    private readonly cacheManager: CacheManagerService,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -1542,6 +1544,21 @@ export class UserUseCases {
       MailTypes.DeactivateUser,
       mailLimit,
     );
+  }
+
+  async getUserUsage(user: User): Promise<{ drive: number }> {
+    let totalDriveUsage = 0;
+    const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
+
+    if (cachedUsage) {
+      totalDriveUsage = cachedUsage.usage;
+    } else {
+      const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
+      await this.cacheManager.setUserUsage(user.uuid, driveUsage);
+      totalDriveUsage = driveUsage;
+    }
+
+    return { drive: totalDriveUsage };
   }
 
   async confirmDeactivation(token: string) {
