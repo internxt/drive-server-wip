@@ -48,7 +48,12 @@ describe('Trash Use Cases', () => {
       jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementation(() => Promise.resolve());
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            id: 2176796544,
+            uuid: 'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+          }),
+        );
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
         .mockImplementation(() => Promise.resolve());
@@ -150,10 +155,20 @@ describe('Trash Use Cases', () => {
       jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            id: 2176796544,
+            uuid: 'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+          }),
+        )
         .mockImplementationOnce(() => Promise.reject(error))
         .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            id: 2751197087,
+            uuid: '38473164-6261-51af-8eb3-223c334986ce',
+          }),
+        )
         .mockImplementationOnce(() => Promise.reject(error));
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
