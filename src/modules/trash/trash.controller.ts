@@ -338,12 +338,12 @@ export class TrashController {
     @Client() clientId: string,
   ) {
     const folder = await this.folderUseCases.getFolderByUserId(
-      user.id,
       folderId,
+      user.id,
     );
 
     if (!folder) {
-      throw new Error('Folder does not exist');
+      throw new NotFoundException('Folder not found');
     }
 
     await this.folderUseCases.deleteByUser(user, [folder]);

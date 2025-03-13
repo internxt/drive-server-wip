@@ -5,7 +5,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from './trash.usecase';
 import { newFolder, newUser } from '../../../test/fixtures';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ItemType } from './dto/controllers/move-items-to-trash.dto';
 import {
   DeleteItemType,
@@ -190,8 +190,8 @@ describe('TrashController', () => {
       await controller.deleteFolder(folderIdToDelete, userMocked, 'clientId');
 
       expect(folderUseCases.getFolderByUserId).toHaveBeenCalledWith(
-        userMocked.id,
         folderIdToDelete,
+        userMocked.id,
       );
       expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
         folder,
@@ -208,7 +208,7 @@ describe('TrashController', () => {
 
       await expect(
         controller.deleteFolder(folderIdToDelete, userMocked, 'clientId'),
-      ).rejects.toThrow('Folder does not exist');
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When an error occurs during deletion, then it should throw an error', async () => {
