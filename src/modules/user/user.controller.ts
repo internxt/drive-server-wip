@@ -971,7 +971,7 @@ export class UserController {
     return this.userUseCases.confirmDeactivation(token);
   }
 
-  @Get('/storage/usage')
+  @Get('/usage')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get User used storage space',
