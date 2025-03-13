@@ -22,6 +22,8 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
+  deleteFilesByUser(user: User, files: File[]): Promise<void>;
+  destroyFile(where: Partial<FileModel>): Promise<void>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -751,6 +753,8 @@ export class SequelizeFileRepository implements FileRepository {
         removedAt: new Date(),
         status: FileStatus.DELETED,
         updatedAt: new Date(),
+        deleted: true,
+        deletedAt: new Date(),
       },
       {
         where: {
@@ -761,6 +765,10 @@ export class SequelizeFileRepository implements FileRepository {
         },
       },
     );
+  }
+
+  async destroyFile(where: Partial<FileModel>): Promise<void> {
+    await this.fileModel.destroy({ where });
   }
 
   private toDomain(model: FileModel): File {

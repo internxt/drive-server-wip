@@ -494,4 +494,67 @@ describe('FileRepository', () => {
       });
     });
   });
+
+  describe('deleteFilesByUser ', () => {
+    it('When files are deleted successfully, then it should call update with correct parameters', async () => {
+      const user = newUser();
+      const files = [{ id: 123456 }, { id: 654321 }] as any;
+
+      await repository.deleteFilesByUser(user, files);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        {
+          removed: true,
+          removedAt: expect.any(Date),
+          status: expect.any(String),
+          updatedAt: expect.any(Date),
+          deleted: true,
+          deletedAt: expect.any(Date),
+        },
+        {
+          where: {
+            userId: user.id,
+            id: {
+              [Op.in]: files.map(({ id }) => id),
+            },
+          },
+        },
+      );
+    });
+
+    it('When an error occurs during the update, then it should throw an error', async () => {
+      const user = newUser();
+      const files = [{ id: 123456 }, { id: 654321 }] as any;
+
+      jest
+        .spyOn(fileModel, 'update')
+        .mockRejectedValue(new Error('Update failed'));
+
+      await expect(repository.deleteFilesByUser(user, files)).rejects.toThrow(
+        'Update failed',
+      );
+    });
+  });
+
+  describe('destroyFile', () => {
+    it('When destroyFile is called, then it should call destroy with correct parameters', async () => {
+      const where = { id: 1234567 };
+
+      await repository.destroyFile(where);
+
+      expect(fileModel.destroy).toHaveBeenCalledWith({ where });
+    });
+
+    it('When an error occurs during the destroy, then it should throw an error', async () => {
+      const where = { id: 1234567 };
+
+      jest
+        .spyOn(fileModel, 'destroy')
+        .mockRejectedValue(new Error('Destroy failed'));
+
+      await expect(repository.destroyFile(where)).rejects.toThrow(
+        'Destroy failed',
+      );
+    });
+  });
 });
