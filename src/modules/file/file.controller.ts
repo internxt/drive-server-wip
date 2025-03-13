@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   Param,
@@ -48,6 +50,9 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { FileDto } from './dto/responses/file.dto';
 import { UploadGuard } from './guards/upload.guard';
+import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
+import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
+import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -64,6 +69,7 @@ export class FileController {
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
+    private readonly thumbnailUseCases: ThumbnailUseCases,
   ) {}
 
   @Post('/')
@@ -444,5 +450,69 @@ export class FileController {
         })} STACK: ${err.stack || 'NO STACK'}`,
       );
     }
+  }
+
+  @Post('/thumbnail')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Create Thumbnail',
+  })
+  @ApiOkResponse({ type: ThumbnailDto })
+  @ApiBearerAuth()
+  @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @UseGuards(SharingPermissionsGuard)
+  async createThumbnail(
+    @UserDecorator() user: User,
+    @Body() createThumbnailDto: CreateThumbnailDto,
+  ): Promise<ThumbnailDto> {
+    return this.thumbnailUseCases.createThumbnail(user, createThumbnailDto);
+  }
+
+  @Delete('/:fileId/bucket/:bucketId')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage and database',
+  })
+  async deleteFileFromBucket(
+    @UserDecorator() user: User,
+    @Param('fileId') fileId: string,
+    @Param('bucketId') bucketId: string,
+    @Client() clientId: string,
+  ) {
+    return this.handleFileDeletion(
+      user,
+      { fileId, bucket: bucketId },
+      clientId,
+    );
+  }
+
+  @Delete('/:uuid')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage and database',
+  })
+  async deleteFileByUuid(
+    @UserDecorator() user: User,
+    @Param('uuid') uuid: string,
+    @Client() clientId: string,
+  ) {
+    return this.handleFileDeletion(user, { uuid }, clientId);
+  }
+
+  async handleFileDeletion(user: User, where: Partial<File>, clientId: string) {
+    const { id, uuid } = await this.fileUseCases.deleteFilePermanently(
+      user,
+      where,
+    );
+
+    this.storageNotificationService.fileDeleted({
+      payload: { ...where, id, uuid },
+      user,
+      clientId,
+    });
+
+    return { deleted: true };
   }
 }

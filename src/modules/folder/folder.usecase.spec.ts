@@ -1398,4 +1398,44 @@ describe('FolderUseCases', () => {
       expect(result).toBe(mockFolder);
     });
   });
+
+  describe('deleteByUser ', () => {
+    const userMocked = newUser();
+    userMocked.rootFolderId = 1;
+    const folderMocked: Folder[] = [
+      { id: 2, parentId: 1 } as Folder,
+      { id: 3, parentId: null } as Folder,
+    ];
+
+    it('When folders are deleted successfully, then it should call deleteByUser ', async () => {
+      jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
+
+      await service.deleteByUser(userMocked, [folderMocked[0]]);
+
+      expect(folderRepository.deleteByUser).toHaveBeenCalledWith(userMocked, [
+        folderMocked[0],
+      ]);
+    });
+
+    it('When trying to delete the root folder, then it should throw an error', async () => {
+      const rootFolder = {
+        id: userMocked.rootFolderId,
+        parentId: null,
+      } as Folder;
+
+      await expect(
+        service.deleteByUser(userMocked, [rootFolder]),
+      ).rejects.toThrow('Cannot delete root folder');
+    });
+
+    it('When an error occurs during deletion, then it should throw an error', async () => {
+      jest
+        .spyOn(folderRepository, 'deleteByUser')
+        .mockRejectedValue(new Error('Deletion failed'));
+
+      await expect(
+        service.deleteByUser(userMocked, [folderMocked[0]]),
+      ).rejects.toThrow('Deletion failed');
+    });
+  });
 });

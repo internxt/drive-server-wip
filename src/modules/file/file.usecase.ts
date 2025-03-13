@@ -37,6 +37,8 @@ import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
 import { FileModel } from './file.model';
+import { ShareUseCases } from '../share/share.usecase';
+import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -50,6 +52,8 @@ export class FileUseCases {
     private sharingUsecases: SharingService,
     private network: BridgeService,
     private cryptoService: CryptoService,
+    private shareUsecases: ShareUseCases,
+    private thumbnailUsecases: ThumbnailUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -71,8 +75,35 @@ export class FileUseCases {
     throw new Error('Method not implemented.');
   }
 
-  async deleteFilePermanently(file: File, user: User): Promise<void> {
-    throw new Error('Method not implemented.');
+  async deleteFilePermanently(
+    user: User,
+    where: Partial<File>,
+  ): Promise<{ id: number; uuid: string }> {
+    const file = await this.fileRepository.findOneBy(where);
+
+    if (!file) {
+      throw new NotFoundException(`File not found`);
+    }
+
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('This file is not yours');
+    }
+
+    const { id, uuid, fileId, bucket } = file;
+    await this.network.deleteFile(user, bucket, fileId);
+    await this.shareUsecases.deleteFileShare(id, user);
+    await this.sharingUsecases.bulkRemoveSharings(
+      user,
+      [uuid],
+      SharingItemType.File,
+    );
+    await this.thumbnailUsecases.deleteBy({ fileId: id });
+    await this.fileRepository.destroyFile({
+      userId: user.id,
+      fileId,
+      bucket,
+    });
+    return { id, uuid };
   }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {

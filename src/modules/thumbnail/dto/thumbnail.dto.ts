@@ -1,13 +1,26 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 export class ThumbnailDto {
+  @ApiProperty()
   id: number;
+  @ApiProperty()
   fileId: number;
-  type: string;
-  size: number;
-  bucketId: string;
-  bucketFile: string;
-  encryptVersion: string;
-  createdAt: Date;
-  updatedAt: Date;
+  @ApiProperty()
   maxWidth: number;
+  @ApiProperty()
   maxHeight: number;
+  @ApiProperty()
+  type: string;
+  @ApiProperty()
+  size: number;
+  @ApiProperty()
+  bucketId: string;
+  @ApiProperty()
+  bucketFile: string;
+  @ApiProperty()
+  encryptVersion: string;
+  @ApiProperty()
+  createdAt: Date;
+  @ApiProperty()
+  updatedAt: Date;
 }
