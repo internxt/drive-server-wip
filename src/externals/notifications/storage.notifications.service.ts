@@ -22,7 +22,7 @@ interface EventArguments {
 
 @Injectable()
 export class StorageNotificationService {
-  private logger = new Logger(StorageNotificationService.name);
+  private readonly logger = new Logger(StorageNotificationService.name);
 
   constructor(
     private notificationService: NotificationService,

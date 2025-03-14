@@ -11,6 +11,7 @@ import { UserNotificationTokens } from '../../modules/user/user-notification-tok
 import { v4 } from 'uuid';
 
 describe('StorageNotificationService', () => {
+  const fixedSystemCurrentDate = new Date('2021-01-01T00:00:00Z');
   let service: StorageNotificationService;
   let notificationService: NotificationService;
   let apnService: ApnService;
@@ -24,6 +25,8 @@ describe('StorageNotificationService', () => {
       .useMocker(createMock)
       .compile();
 
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedSystemCurrentDate);
     loggerMock = createMock<Logger>();
     module.useLogger(loggerMock);
 

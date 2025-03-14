@@ -39,7 +39,7 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 @DisableGlobalAuth()
 @UseInterceptors(ExtendedHttpExceptionFilter)
 export class GatewayController {
-  private logger = new Logger(GatewayController.name);
+  private readonly logger = new Logger(GatewayController.name);
 
   constructor(
     private readonly gatewayUseCases: GatewayUseCases,
