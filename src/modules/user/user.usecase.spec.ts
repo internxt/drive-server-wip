@@ -2125,6 +2125,18 @@ describe('User use cases', () => {
       expect(result).toEqual({ drive: driveUsage });
     });
   });
+
+  describe('updateUserStorage', () => {
+    const newStorage = 1024;
+    it('When called, then it should set user new storage', async () => {
+      await userUseCases.updateUserStorage(user, newStorage);
+
+      expect(bridgeService.setStorage).toHaveBeenCalledWith(
+        user.username,
+        newStorage,
+      );
+    });
+  });
 });
 
 const createTestingModule = (): Promise<TestingModule> => {

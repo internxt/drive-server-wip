@@ -53,8 +53,6 @@ describe('CacheManagerService', () => {
       const userUuid = v4();
       const usage = 2048;
 
-      jest.spyOn(cacheManager, 'set').mockResolvedValue(undefined);
-
       await cacheManagerService.setUserUsage(userUuid, usage);
 
       expect(cacheManager.set).toHaveBeenCalledWith(
@@ -79,6 +77,17 @@ describe('CacheManagerService', () => {
         10000 * 60,
       );
       expect(result).toEqual(returnValue);
+    });
+  });
+
+  describe('expireLimit', () => {
+    it('When called, then it should expire limit with old and new keys', async () => {
+      const userUuid = v4();
+
+      await cacheManagerService.expireLimit(userUuid);
+
+      expect(cacheManager.del).toHaveBeenCalledWith(`${userUuid}$-limit`);
+      expect(cacheManager.del).toHaveBeenCalledWith(`limit:${userUuid}`);
     });
   });
 });

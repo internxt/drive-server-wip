@@ -461,7 +461,9 @@ export class UserUseCases {
       notifySignUpError(err);
 
       if (user) {
-        Logger.warn(`[SIGNUP/USER]: Rolling back user created ${user.uuid}`);
+        Logger.warn(
+          `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
+        );
         await this.userRepository.deleteBy({ uuid: user.uuid });
         if (rootFolder) {
           await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
@@ -746,6 +748,10 @@ export class UserUseCases {
       currentMaxSpaceBytes + additionalBytes <= MAX_STORAGE_BYTES;
 
     return { canExpand, currentMaxSpaceBytes, expandableBytes };
+  }
+
+  async updateUserStorage(user: User, maxSpaceBytes: number) {
+    await this.networkService.setStorage(user.username, maxSpaceBytes);
   }
 
   async hasReferralsProgram(
