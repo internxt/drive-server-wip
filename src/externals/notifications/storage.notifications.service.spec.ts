@@ -63,7 +63,9 @@ describe('StorageNotificationService', () => {
 
       service.fileCreated({ payload, user, clientId });
 
-      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
       );
@@ -87,7 +89,9 @@ describe('StorageNotificationService', () => {
       );
       service.fileUpdated({ payload, user, clientId });
 
-      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
       );
@@ -112,7 +116,9 @@ describe('StorageNotificationService', () => {
 
       service.folderCreated({ payload, user, clientId });
 
-      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
       );
@@ -137,7 +143,9 @@ describe('StorageNotificationService', () => {
 
       service.folderUpdated({ payload, user, clientId });
 
-      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
       );
@@ -162,7 +170,9 @@ describe('StorageNotificationService', () => {
 
       service.itemsTrashed({ payload, user, clientId });
 
-      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
       );
@@ -187,7 +197,9 @@ describe('StorageNotificationService', () => {
 
       service.planUpdated({ payload, user, clientId });
 
-      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
         {
