@@ -982,16 +982,4 @@ export class UserController {
 
     return usage;
   }
-
-  @Get('/usage')
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Get User used storage space',
-  })
-  @ApiOkResponse({ type: GetUserUsageDto })
-  async test(@UserDecorator() user: User): Promise<GetUserUsageDto> {
-    const usage = await this.userUseCases.getUserUsage(user);
-
-    return usage;
-  }
 }
