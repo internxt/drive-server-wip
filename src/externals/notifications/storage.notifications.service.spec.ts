@@ -45,6 +45,130 @@ describe('StorageNotificationService', () => {
     jest.clearAllMocks();
   });
 
+  describe('fileCreated', () => {
+    const user = newUser();
+    const payload = { fileId: '123', fileName: 'test.pdf' };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.itemCreated',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'FILE_CREATED',
+      );
+
+      service.fileCreated({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+      );
+    });
+  });
+
+  describe('fileUpdated', () => {
+    const user = newUser();
+    const payload = { fileId: '123', fileName: 'test.pdf' };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.itemUpdated',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'FILE_UPDATED',
+      );
+      service.fileUpdated({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+      );
+    });
+  });
+
+  describe('folderCreated', () => {
+    const user = newUser();
+    const payload = { folderId: '123', folderName: 'test-folder' };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.itemCreated',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'FOLDER_CREATED',
+      );
+
+      service.folderCreated({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+      );
+    });
+  });
+
+  describe('folderUpdated', () => {
+    const user = newUser();
+    const payload = { folderId: '123', folderName: 'test-folder' };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.itemUpdated',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'FOLDER_UPDATED',
+      );
+
+      service.folderUpdated({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+      );
+    });
+  });
+
+  describe('itemsTrashed', () => {
+    const user = newUser();
+    const payload = { items: [{ id: '123', name: 'test.pdf' }] };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.itemsToTrash',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'ITEMS_TO_TRASH',
+      );
+
+      service.itemsTrashed({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(notification);
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+      );
+    });
+  });
+
   describe('planUpdated', () => {
     const user = newUser();
     const payload = { maxSpaceBytes: 1000000 };
