@@ -177,6 +177,7 @@ export class GatewayController {
         `[UPDATE_USER] Error updating user ${userUuid}, error: ${JSON.stringify(
           error,
         )}`,
+        error.stack,
       );
       throw error;
     }
