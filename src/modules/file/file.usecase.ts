@@ -67,6 +67,10 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids, { userId: user.id });
   }
 
+  getUserUsedStorage(user: User) {
+    return this.fileRepository.sumExistentFileSizes(user.id);
+  }
+
   getByUserExceptParents(arg: any): Promise<File[]> {
     throw new Error('Method not implemented.');
   }

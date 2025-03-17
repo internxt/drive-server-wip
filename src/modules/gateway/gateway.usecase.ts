@@ -9,6 +9,7 @@ import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 @Injectable()
 export class GatewayUseCases {
@@ -16,6 +17,7 @@ export class GatewayUseCases {
     private readonly workspaceUseCases: WorkspacesUsecases,
     private readonly userRepository: SequelizeUserRepository,
     private readonly userUseCases: UserUseCases,
+    private readonly cacheManagerService: CacheManagerService,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -146,5 +148,20 @@ export class GatewayUseCases {
       additionalBytes,
     );
     return userStorageData;
+  }
+
+  async getUserByUuid(uuid: string): Promise<User> {
+    return this.userRepository.findByUuid(uuid);
+  }
+
+  async updateUser(user: User, newStorageSpaceBytes?: number) {
+    await this.userUseCases.updateUserStorage(user, newStorageSpaceBytes);
+
+    this.cacheManagerService.expireLimit(user.uuid).catch((error) => {
+      Logger.error(
+        `[GATEWAY/LIMIT_CACHE] Error deleting cache for user ${user.uuid}`,
+        error,
+      );
+    });
   }
 }

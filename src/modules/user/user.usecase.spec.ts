@@ -69,6 +69,7 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -100,6 +101,7 @@ describe('User use cases', () => {
   let keyServerUseCases: KeyServerUseCases;
   let appSumoUseCases: AppSumoUseCase;
   let backupUseCases: BackupUseCase;
+  let cacheManagerService: CacheManagerService;
 
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
@@ -173,6 +175,9 @@ describe('User use cases', () => {
 
     appSumoUseCases = moduleRef.get<AppSumoUseCase>(AppSumoUseCase);
     backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
+    cacheManagerService =
+      moduleRef.get<CacheManagerService>(CacheManagerService);
+
     jest.clearAllMocks();
   });
 
@@ -2077,6 +2082,59 @@ describe('User use cases', () => {
       expect(userRepository.deleteBy).toHaveBeenCalledWith({
         uuid: userMock.uuid,
       });
+    });
+  });
+
+  describe('getUserUsage', () => {
+    it('When cache has user usage data, then it should return the cached data', async () => {
+      const cachedUsage = { usage: 1024 };
+
+      jest
+        .spyOn(cacheManagerService, 'getUserUsage')
+        .mockResolvedValue(cachedUsage);
+      jest.spyOn(fileUseCases, 'getUserUsedStorage');
+      jest.spyOn(cacheManagerService, 'setUserUsage');
+
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
+      expect(fileUseCases.getUserUsedStorage).not.toHaveBeenCalled();
+      expect(cacheManagerService.setUserUsage).not.toHaveBeenCalled();
+      expect(result).toEqual({ drive: cachedUsage.usage });
+    });
+
+    it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
+      const driveUsage = 2048;
+
+      jest.spyOn(cacheManagerService, 'getUserUsage').mockResolvedValue(null);
+      jest
+        .spyOn(fileUseCases, 'getUserUsedStorage')
+        .mockResolvedValue(driveUsage);
+      jest
+        .spyOn(cacheManagerService, 'setUserUsage')
+        .mockResolvedValue(undefined);
+
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
+      expect(fileUseCases.getUserUsedStorage).toHaveBeenCalledWith(user);
+      expect(cacheManagerService.setUserUsage).toHaveBeenCalledWith(
+        user.uuid,
+        driveUsage,
+      );
+      expect(result).toEqual({ drive: driveUsage });
+    });
+  });
+
+  describe('updateUserStorage', () => {
+    const newStorage = 1024;
+    it('When called, then it should set user new storage', async () => {
+      await userUseCases.updateUserStorage(user, newStorage);
+
+      expect(bridgeService.setStorage).toHaveBeenCalledWith(
+        user.username,
+        newStorage,
+      );
     });
   });
 });

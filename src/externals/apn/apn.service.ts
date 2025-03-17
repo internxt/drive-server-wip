@@ -70,6 +70,7 @@ export class ApnService {
     payload: ApnAlert,
     userUuid?: string,
     isStorageNotification = false,
+    customKeys: Record<string, any> = {},
   ): Promise<{
     statusCode: number;
     body: string;
@@ -111,6 +112,7 @@ export class ApnService {
             aps: {
               alert: this.generateAlertBody(payload),
             },
+            customKeys,
           }),
         );
       }

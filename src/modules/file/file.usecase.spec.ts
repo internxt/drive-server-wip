@@ -1035,6 +1035,18 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getUserUsedStorage', () => {
+    it('When called, it should return the user total used space', async () => {
+      const totalUsage = 1000;
+      jest
+        .spyOn(fileRepository, 'sumExistentFileSizes')
+        .mockResolvedValueOnce(totalUsage);
+
+      const result = await service.getUserUsedStorage(userMocked);
+      expect(result).toEqual(totalUsage);
+    });
+  });
+
   describe('deleteFilePermanently', () => {
     const mockFile = newFile();
     it('When the file exists and is owned by the user, then it should delete the file and return its id and uuid', async () => {

@@ -1,24 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import {
   newUser,
   newWorkspace,
   newWorkspaceTeam,
 } from '../../../test/fixtures';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { GatewayUseCases } from './gateway.usecase';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { UserUseCases } from '../user/user.usecase';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
   let userRepository: SequelizeUserRepository;
   let userUseCases: UserUseCases;
-
   let workspaceUseCases: WorkspacesUsecases;
+  let cacheManagerService: CacheManagerService;
+  let loggerMock: DeepMocked<Logger>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,13 +28,15 @@ describe('GatewayUseCases', () => {
     })
       .useMocker(createMock)
       .compile();
-
+    loggerMock = createMock<Logger>();
+    module.useLogger(loggerMock);
     service = module.get<GatewayUseCases>(GatewayUseCases);
     userRepository = module.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
     userUseCases = module.get<UserUseCases>(UserUseCases);
     workspaceUseCases = module.get<WorkspacesUsecases>(WorkspacesUsecases);
+    cacheManagerService = module.get(CacheManagerService);
   });
 
   it('should be defined', () => {
@@ -320,6 +324,71 @@ describe('GatewayUseCases', () => {
         await expect(
           service.checkUserStorageExpansion(user.uuid, 100),
         ).resolves.toStrictEqual(response);
+      });
+    });
+
+    describe('getUserByUuid', () => {
+      const user = newUser();
+
+      it('When called, then it should return the user', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+
+        await expect(service.getUserByUuid(user.uuid)).resolves.toStrictEqual(
+          user,
+        );
+        expect(userRepository.findByUuid).toHaveBeenCalledWith(user.uuid);
+      });
+
+      it('When user does not exist, then it should return null', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+        await expect(service.getUserByUuid(user.uuid)).resolves.toBeNull();
+        expect(userRepository.findByUuid).toHaveBeenCalledWith(user.uuid);
+      });
+    });
+
+    describe('updateUser', () => {
+      const user = newUser();
+      const newStorageSpaceBytes = 5000000;
+
+      it('When updating user storage, then it should call userUseCases and expire cache', async () => {
+        await service.updateUser(user, newStorageSpaceBytes);
+
+        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+          user,
+          newStorageSpaceBytes,
+        );
+        expect(cacheManagerService.expireLimit).toHaveBeenCalledWith(user.uuid);
+      });
+
+      it('When updating user storage and cache expiration fails, it should still succeed', async () => {
+        jest
+          .spyOn(cacheManagerService, 'expireLimit')
+          .mockRejectedValue(new Error('Cache error'));
+
+        await expect(
+          service.updateUser(user, newStorageSpaceBytes),
+        ).resolves.not.toThrow();
+
+        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+          user,
+          newStorageSpaceBytes,
+        );
+        expect(cacheManagerService.expireLimit).toHaveBeenCalledWith(user.uuid);
+      });
+
+      it('When updating user storage fails, then it should throw the error', async () => {
+        const error = new Error('Failed to update user storage');
+        jest.spyOn(userUseCases, 'updateUserStorage').mockRejectedValue(error);
+
+        await expect(
+          service.updateUser(user, newStorageSpaceBytes),
+        ).rejects.toThrow(error);
+
+        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+          user,
+          newStorageSpaceBytes,
+        );
       });
     });
   });
