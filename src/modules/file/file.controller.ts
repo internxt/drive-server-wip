@@ -468,25 +468,6 @@ export class FileController {
     return this.thumbnailUseCases.createThumbnail(user, createThumbnailDto);
   }
 
-  @Delete('/:fileId/bucket/:bucketId')
-  @HttpCode(200)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Delete file from storage and database',
-  })
-  async deleteFileFromBucket(
-    @UserDecorator() user: User,
-    @Param('fileId') fileId: string,
-    @Param('bucketId') bucketId: string,
-    @Client() clientId: string,
-  ) {
-    return this.handleFileDeletion(
-      user,
-      { fileId, bucket: bucketId },
-      clientId,
-    );
-  }
-
   @Delete('/:uuid')
   @HttpCode(200)
   @ApiBearerAuth()
@@ -495,20 +476,15 @@ export class FileController {
   })
   async deleteFileByUuid(
     @UserDecorator() user: User,
-    @Param('uuid') uuid: string,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
     @Client() clientId: string,
   ) {
-    return this.handleFileDeletion(user, { uuid }, clientId);
-  }
-
-  async handleFileDeletion(user: User, where: Partial<File>, clientId: string) {
-    const { id, uuid } = await this.fileUseCases.deleteFilePermanently(
-      user,
-      where,
-    );
+    const { id } = await this.fileUseCases.deleteFilePermanently(user, {
+      uuid,
+    });
 
     this.storageNotificationService.fileDeleted({
-      payload: { ...where, id, uuid },
+      payload: { id, uuid },
       user,
       clientId,
     });

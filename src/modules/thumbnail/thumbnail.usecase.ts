@@ -1,27 +1,43 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { User } from '../user/user.domain';
 import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { CreateThumbnailDto } from './dto/create-thumbnail.dto';
 import { ThumbnailAttributes } from './thumbnail.attributes';
 import { Thumbnail } from './thumbnail.domain';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 @Injectable()
 export class ThumbnailUseCases {
   constructor(
     private thumbnailRepository: SequelizeThumbnailRepository,
     private network: BridgeService,
+    private fileRepository: SequelizeFileRepository,
   ) {}
   async createThumbnail(user: User, thumbnail: CreateThumbnailDto) {
-    const exists = await this.thumbnailRepository.findByFileId(
+    const file = await this.fileRepository.findOneBy({ id: thumbnail.fileId });
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+    if (file.userId !== user.id) {
+      throw new ForbiddenException(
+        'You do not have permission to modify this file',
+      );
+    }
+    const existingThumbnail = await this.thumbnailRepository.findByFileId(
       thumbnail.fileId,
     );
-    if (exists) {
+    if (existingThumbnail) {
       try {
         await this.network.deleteFile(
           user,
           thumbnail.bucketId,
-          exists.bucketFile,
+          existingThumbnail.bucketFile,
         );
       } catch (error) {
         Logger.error(
@@ -29,8 +45,8 @@ export class ThumbnailUseCases {
         );
       }
       await this.thumbnailRepository.update(thumbnail, {
-        id: exists.id,
-        fileId: exists.fileId,
+        id: existingThumbnail.id,
+        fileId: existingThumbnail.fileId,
       });
       return this.thumbnailRepository.findByFileId(thumbnail.fileId);
     }

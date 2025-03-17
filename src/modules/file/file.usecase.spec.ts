@@ -84,7 +84,7 @@ describe('FileUseCases', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule, ThumbnailModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [FileUseCases, FolderUseCases, SharingService],
     })
       .useMocker(() => createMock())
@@ -1110,6 +1110,32 @@ describe('FileUseCases', () => {
       await expect(
         service.deleteFilePermanently(userMocked, { id: mockFile.id }),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getFile', () => {
+    const mockFile = newFile();
+
+    it('When the file exists, then it should return the file', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+
+      const result = await service.getFile({ id: mockFile.id });
+
+      expect(result).toEqual(mockFile);
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        id: mockFile.id,
+      });
+    });
+
+    it('When the file does not exist, then it should return null', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(null);
+
+      const result = await service.getFile({ id: mockFile.id });
+
+      expect(result).toBeNull();
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        id: mockFile.id,
+      });
     });
   });
 });

@@ -9,6 +9,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -1425,7 +1426,7 @@ describe('FolderUseCases', () => {
 
       await expect(
         service.deleteByUser(userMocked, [rootFolder]),
-      ).rejects.toThrow('Cannot delete root folder');
+      ).rejects.toThrow(NotAcceptableException);
     });
 
     it('When an error occurs during deletion, then it should throw an error', async () => {

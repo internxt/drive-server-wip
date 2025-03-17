@@ -778,4 +778,8 @@ export class FileUseCases {
     );
     return file;
   }
+
+  async getFile(where: Partial<File>): Promise<File> {
+    return this.fileRepository.findOneBy(where);
+  }
 }

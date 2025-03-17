@@ -324,71 +324,32 @@ describe('FileController', () => {
     });
   });
 
-  describe('deleteFileFromBucket', () => {
-    const fileId = v4();
-    const bucket = v4();
-    const clientId = 'clientId';
-
-    it('When valid fileId and bucketId are provided, then it should return a success response', async () => {
-      jest
-        .spyOn(fileController, 'handleFileDeletion')
-        .mockResolvedValue({ deleted: true });
-      const result = await fileController.deleteFileFromBucket(
-        userMocked,
-        fileId,
-        bucket,
-        clientId,
-      );
-      expect(result).toEqual({ deleted: true });
-      expect(fileController.handleFileDeletion).toHaveBeenCalledWith(
-        userMocked,
-        { fileId, bucket },
-        clientId,
-      );
-    });
-
-    it('When an error occurs during deletion, then it should throw ', async () => {
-      jest
-        .spyOn(fileController, 'handleFileDeletion')
-        .mockRejectedValue(new InternalServerErrorException());
-      await expect(
-        fileController.deleteFileFromBucket(
-          userMocked,
-          fileId,
-          bucket,
-          clientId,
-        ),
-      ).rejects.toThrow(InternalServerErrorException);
-    });
-  });
-
   describe('deleteFileByUuid', () => {
     const uuid = v4();
     const clientId = 'clientId';
     it('When a valid uuid is provided, then it should return a success response', async () => {
       jest
-        .spyOn(fileController, 'handleFileDeletion')
-        .mockResolvedValue({ deleted: true });
+        .spyOn(fileUseCases, 'deleteFilePermanently')
+        .mockResolvedValue({ id: 1234, uuid: file.uuid });
       const result = await fileController.deleteFileByUuid(
         userMocked,
         uuid,
         clientId,
       );
       expect(result).toEqual({ deleted: true });
-      expect(fileController.handleFileDeletion).toHaveBeenCalledWith(
+      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledWith(
         userMocked,
         { uuid },
-        clientId,
       );
     });
 
     it('When an error occurs during deletion, then it should throw', async () => {
       jest
-        .spyOn(fileController, 'handleFileDeletion')
-        .mockRejectedValue(new InternalServerErrorException());
+        .spyOn(fileUseCases, 'deleteFilePermanently')
+        .mockRejectedValue(new NotFoundException());
       await expect(
         fileController.deleteFileByUuid(userMocked, uuid, clientId),
-      ).rejects.toThrow(InternalServerErrorException);
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });
