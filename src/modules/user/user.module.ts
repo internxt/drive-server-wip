@@ -76,7 +76,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     SecurityModule,
     forwardRef(() => FeatureLimitModule),
     forwardRef(() => WorkspacesModule),
-    BackupModule,
+    forwardRef(() => BackupModule),
     CacheManagerModule,
   ],
   controllers: [UserController],

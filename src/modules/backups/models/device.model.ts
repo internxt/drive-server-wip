@@ -9,14 +9,17 @@ import {
   ForeignKey,
   BelongsTo,
   Index,
+  HasMany,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
+import { BackupModel } from './backup.model';
+import { DeviceAttributes } from './device.attributes';
 
 @Table({
   timestamps: true,
   tableName: 'devices',
 })
-export class DeviceModel extends Model {
+export class DeviceModel extends Model implements DeviceAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column
@@ -49,4 +52,10 @@ export class DeviceModel extends Model {
 
   @BelongsTo(() => UserModel)
   user: UserModel;
+
+  @HasMany(() => BackupModel, {
+    foreignKey: 'deviceId',
+    as: 'backups',
+  })
+  backups: BackupModel[];
 }

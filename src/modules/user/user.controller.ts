@@ -982,4 +982,24 @@ export class UserController {
 
     return usage;
   }
+
+  @Get('/limit')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Get user space limit',
+  })
+  async limit(@UserDecorator() user: User) {
+    try {
+      const maxSpaceBytes = await this.userUseCases.getSpaceLimit(user);
+      return { maxSpaceBytes };
+    } catch (err) {
+      Logger.error(
+        `[USER/SPACE_LIMIT] Error getting space limit for user: ${
+          user.id
+        }. Error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
+  }
 }

@@ -902,4 +902,38 @@ describe('User Controller', () => {
       expect(userUseCases.getUserUsage).toHaveBeenCalledWith(user);
     });
   });
+
+  describe('limit', () => {
+    const userMocked = newUser();
+    it('When a valid user is provided, then it should return the space limit', async () => {
+      const maxSpaceBytes = 1000000000;
+      jest
+        .spyOn(userUseCases, 'getSpaceLimit')
+        .mockResolvedValue(maxSpaceBytes);
+
+      const result = await userController.limit(userMocked);
+
+      expect(userUseCases.getSpaceLimit).toHaveBeenCalledWith(userMocked);
+      expect(result).toEqual({ maxSpaceBytes });
+    });
+
+    it('When an error occurs while getting the space limit, then it should log the error and throw it', async () => {
+      const errorMessage = 'Error getting space limit';
+      jest
+        .spyOn(userUseCases, 'getSpaceLimit')
+        .mockRejectedValue(new Error(errorMessage));
+      const consoleErrorSpy = jest
+        .spyOn(Logger, 'error')
+        .mockImplementation(() => {});
+
+      await expect(userController.limit(userMocked)).rejects.toThrow(
+        errorMessage,
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `[USER/SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
+        ),
+      );
+    });
+  });
 });
