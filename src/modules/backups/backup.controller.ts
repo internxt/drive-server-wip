@@ -12,9 +12,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { BackupUseCase } from './backup.usecase';
-import { CreateDeviceDto } from './dto/create-device.dto';
 import { CreateDeviceAsFolderDto } from './dto/create-device-as-folder.dto';
-import { CreateBackupDto } from './dto/create-backup.dto';
 
 @ApiTags('Backup')
 @Controller('backup')
@@ -42,20 +40,6 @@ export class BackupController {
     @Param('deviceId') deviceId: number,
   ) {
     return this.backupUseCases.deleteDevice(user, deviceId);
-  }
-
-  @Post('/device/:mac')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Create user device',
-  })
-  @ApiBearerAuth()
-  async createDevice(
-    @UserDecorator() user: User,
-    @Param('mac') mac: string,
-    @Body() body: CreateDeviceDto,
-  ) {
-    return this.backupUseCases.createDevice(user, mac, body);
   }
 
   @Post('/activate')
@@ -120,19 +104,6 @@ export class BackupController {
   @ApiBearerAuth()
   async getDevicesAsFolder(@UserDecorator() user: User) {
     return this.backupUseCases.getDevicesAsFolder(user);
-  }
-
-  @Post('/')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Create backup',
-  })
-  @ApiBearerAuth()
-  async createBackup(
-    @UserDecorator() user: User,
-    @Body() body: CreateBackupDto,
-  ) {
-    return this.backupUseCases.createBackup(user, body);
   }
 
   @Get('/:mac')

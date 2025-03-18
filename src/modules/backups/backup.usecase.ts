@@ -14,7 +14,6 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { BackupModel } from './models/backup.model';
-import { CreateDeviceDto } from './dto/create-device.dto';
 import { SequelizeUserRepository } from '../user/user.repository';
 
 @Injectable()
@@ -41,23 +40,6 @@ export class BackupUseCase {
 
   async getAllDevices(user: User) {
     return this.backupRepository.findAllDevices(user);
-  }
-
-  async createDevice(user: User, mac: string, payload: CreateDeviceDto) {
-    const { platform, deviceName } = payload;
-    const exists = await this.backupRepository.findDeviceByUserAndMac(
-      user,
-      mac,
-    );
-    if (exists) {
-      return exists;
-    }
-
-    return this.backupRepository.createDevice(user, {
-      mac,
-      name: deviceName,
-      platform,
-    });
   }
 
   async deleteDevice(user: User, deviceId: number) {
@@ -185,19 +167,6 @@ export class BackupUseCase {
       name: encryptedName,
       plainName: deviceName,
     });
-  }
-
-  async createBackup(user: User, payload: Partial<BackupModel>) {
-    const { deviceId } = payload;
-    const device = await this.backupRepository.findDeviceByUserAndId(
-      user,
-      deviceId,
-    );
-    if (!device) {
-      throw new NotFoundException('Device not found');
-    }
-
-    return this.backupRepository.createBackup(user, payload);
   }
 
   async getBackupsByMac(user: User, mac: string) {

@@ -24,14 +24,6 @@ export class SequelizeBackupRepository {
     return this.backupModel.destroy({ where });
   }
 
-  async createDevice(user: User, payload: Partial<DeviceModel>) {
-    const device = await this.deviceModel.create({
-      ...payload,
-      userId: user.id,
-    });
-    return this.toDomainDevice(device);
-  }
-
   async findDeviceByUserAndMac(user: User, mac: string) {
     const device = await this.deviceModel.findOne({
       where: { userId: user.id, mac },
@@ -68,14 +60,6 @@ export class SequelizeBackupRepository {
       ],
     });
     return device ? this.toDomainDevice(device) : null;
-  }
-
-  async createBackup(user: User, payload: Partial<BackupModel>) {
-    const backup = await this.backupModel.create({
-      ...payload,
-      userId: user.id,
-    });
-    return this.toDomainBackup(backup);
   }
 
   async findAllBackupsByUserAndDevice(user: User, deviceId: number) {
