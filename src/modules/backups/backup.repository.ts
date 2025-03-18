@@ -25,10 +25,10 @@ export class SequelizeBackupRepository {
   }
 
   async createDevice(user: User, payload: Partial<DeviceModel>) {
-    const device = await new this.deviceModel({
+    const device = await this.deviceModel.create({
       ...payload,
       userId: user.id,
-    }).save();
+    });
     return this.toDomainDevice(device);
   }
 
@@ -71,10 +71,10 @@ export class SequelizeBackupRepository {
   }
 
   async createBackup(user: User, payload: Partial<BackupModel>) {
-    const backup = await new this.backupModel({
+    const backup = await this.backupModel.create({
       ...payload,
       userId: user.id,
-    }).save();
+    });
     return this.toDomainBackup(backup);
   }
 
