@@ -13,7 +13,6 @@ import { CryptoService } from './../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { BackupModel } from './models/backup.model';
 import { SequelizeUserRepository } from '../user/user.repository';
 
 @Injectable()
@@ -36,39 +35,6 @@ export class BackupUseCase {
     ]);
 
     return { deletedBackups, deletedDevices };
-  }
-
-  async getAllDevices(user: User) {
-    return this.backupRepository.findAllDevices(user);
-  }
-
-  async deleteDevice(user: User, deviceId: number) {
-    const device = await this.backupRepository.findDeviceByUserAndId(
-      user,
-      deviceId,
-    );
-    if (!device) {
-      throw new NotFoundException('Device not found');
-    }
-
-    await Promise.all(
-      device.backups.map((backup: BackupModel) => {
-        if (backup.fileId) {
-          return this.networkService.deleteFile(
-            user,
-            backup.bucket,
-            backup.fileId,
-          );
-        }
-      }),
-    );
-
-    await this.backupRepository.deleteBackupsBy({ deviceId });
-
-    return this.backupRepository.deleteDevicesBy({
-      userId: user.id,
-      id: deviceId,
-    });
   }
 
   async activate(user: User) {
@@ -167,30 +133,6 @@ export class BackupUseCase {
       name: encryptedName,
       plainName: deviceName,
     });
-  }
-
-  async getBackupsByMac(user: User, mac: string) {
-    const device = await this.backupRepository.findDeviceByUserAndMac(
-      user,
-      mac,
-    );
-    if (!device) {
-      throw new NotFoundException('Device not found');
-    }
-
-    return this.backupRepository.findAllBackupsByUserAndDevice(user, device.id);
-  }
-
-  async deleteBackup(user: User, backupId: number) {
-    const backup = await this.backupRepository.findBackupByUserAndId(
-      user,
-      backupId,
-    );
-    if (!backup) {
-      throw new NotFoundException('Backup not found');
-    }
-
-    return this.backupRepository.deleteBackupByUserAndId(user, backupId);
   }
 
   async isFolderEmpty(user: User, folder: Folder) {

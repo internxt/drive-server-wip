@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   Param,
@@ -18,29 +17,6 @@ import { CreateDeviceAsFolderDto } from './dto/create-device-as-folder.dto';
 @Controller('backup')
 export class BackupController {
   constructor(private readonly backupUseCases: BackupUseCase) {}
-
-  @Get('/device')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get all user devices',
-  })
-  @ApiBearerAuth()
-  async getAllDevices(@UserDecorator() user: User) {
-    return this.backupUseCases.getAllDevices(user);
-  }
-
-  @Delete('/device/:deviceId')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Delete user device',
-  })
-  @ApiBearerAuth()
-  async deleteDevice(
-    @UserDecorator() user: User,
-    @Param('deviceId') deviceId: number,
-  ) {
-    return this.backupUseCases.deleteDevice(user, deviceId);
-  }
 
   @Post('/activate')
   @HttpCode(200)
@@ -104,31 +80,5 @@ export class BackupController {
   @ApiBearerAuth()
   async getDevicesAsFolder(@UserDecorator() user: User) {
     return this.backupUseCases.getDevicesAsFolder(user);
-  }
-
-  @Get('/:mac')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Get backups by mac',
-  })
-  @ApiBearerAuth()
-  async getBackupsByMac(
-    @UserDecorator() user: User,
-    @Param('mac') mac: string,
-  ) {
-    return this.backupUseCases.getBackupsByMac(user, mac);
-  }
-
-  @Delete('/:backupId')
-  @HttpCode(200)
-  @ApiOperation({
-    summary: 'Delete backup',
-  })
-  @ApiBearerAuth()
-  async deleteBackup(
-    @UserDecorator() user: User,
-    @Param('backupId') backupId: number,
-  ) {
-    return this.backupUseCases.deleteBackup(user, backupId);
   }
 }
