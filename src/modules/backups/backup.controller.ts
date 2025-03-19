@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -20,7 +12,6 @@ export class BackupController {
   constructor(private readonly backupUseCases: BackupUseCase) {}
 
   @Post('/activate')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Activate user backup',
   })
@@ -30,7 +21,6 @@ export class BackupController {
   }
 
   @Post('/deviceAsFolder')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Create a folder using device name',
   })
@@ -43,7 +33,6 @@ export class BackupController {
   }
 
   @Get('/deviceAsFolder/:uuid')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Get device as folder by uuid',
   })
@@ -56,7 +45,6 @@ export class BackupController {
   }
 
   @Patch('/deviceAsFolder/:uuid')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Update device as folder by uuid',
   })
@@ -74,7 +62,6 @@ export class BackupController {
   }
 
   @Get('/deviceAsFolder')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Get all devices as folder',
   })

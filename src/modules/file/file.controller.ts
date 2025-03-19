@@ -4,7 +4,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   Logger,
   NotFoundException,
   Param,
@@ -468,7 +467,6 @@ export class FileController {
   }
 
   @Delete('/:uuid')
-  @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Delete file from storage and database',
