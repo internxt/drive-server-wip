@@ -243,16 +243,11 @@ export class FolderUseCases {
     return folders;
   }
 
-  async getFoldersToUser(
+  async getFoldersByUserId(
     userId: FolderAttributes['userId'],
-    { deleted }: FolderOptions = { deleted: false },
-  ) {
-    const folders = await this.folderRepository.findAll({
-      userId,
-      deleted,
-    });
-
-    return folders;
+    where: Partial<FolderAttributes>,
+  ): Promise<Folder[]> {
+    return this.folderRepository.findAll({ userId, ...where });
   }
 
   async createRootFolder(
@@ -331,6 +326,13 @@ export class FolderUseCases {
         };
       }),
     );
+  }
+
+  async createFolderDevice(user: User, folderData: Partial<FolderAttributes>) {
+    if (!folderData.name || !folderData.bucket) {
+      throw new BadRequestException('Folder name and bucket are required');
+    }
+    return this.folderRepository.createFolder(user.id, folderData);
   }
 
   async updateFolderMetaData(
@@ -943,5 +945,12 @@ export class FolderUseCases {
       path,
       rootFolder.uuid,
     );
+  }
+
+  async updateByFolderId(
+    folder: Folder,
+    folderData: Partial<FolderAttributes>,
+  ): Promise<Folder> {
+    return this.folderRepository.updateByFolderId(folder.id, folderData);
   }
 }

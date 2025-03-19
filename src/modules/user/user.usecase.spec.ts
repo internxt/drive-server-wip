@@ -2137,6 +2137,32 @@ describe('User use cases', () => {
       );
     });
   });
+
+  describe('getSpaceLimit', () => {
+    it('When a valid user is provided, then it should return the space limit', async () => {
+      const expectedLimit = 1000000000;
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(expectedLimit);
+
+      const result = await userUseCases.getSpaceLimit(user);
+
+      expect(bridgeService.getLimit).toHaveBeenCalledWith(
+        user.bridgeUser,
+        user.userId,
+      );
+      expect(result).toEqual(expectedLimit);
+    });
+
+    it('When an error occurs while getting the space limit, then it should throw an error', async () => {
+      const errorMessage = 'Error getting space limit';
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(userUseCases.getSpaceLimit(user)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+  });
 });
 
 const createTestingModule = (): Promise<TestingModule> => {
