@@ -95,11 +95,8 @@ export class BackupUseCase {
     );
   }
 
-  async getDeviceAsFolder(user: User, folderId: FolderAttributes['id']) {
-    const folder = await this.folderUsecases.getFolderByUserId(
-      folderId,
-      user.id,
-    );
+  async getDeviceAsFolder(user: User, uuid: FolderAttributes['uuid']) {
+    const folder = await this.folderUsecases.getFolderByUuid(uuid, user);
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
@@ -113,13 +110,10 @@ export class BackupUseCase {
 
   async updateDeviceAsFolder(
     user: User,
-    folderId: FolderAttributes['id'],
+    uuid: FolderAttributes['uuid'],
     deviceName: string,
   ) {
-    const folder = await this.folderUsecases.getFolderByUserId(
-      folderId,
-      user.id,
-    );
+    const folder = await this.folderUsecases.getFolderByUuid(uuid, user);
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }

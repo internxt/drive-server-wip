@@ -77,13 +77,16 @@ describe('BackupController', () => {
   });
 
   describe('getDeviceAsFolder', () => {
-    it('When getDeviceAsFolder is called with a valid folderId, then it should return the folder', async () => {
-      const mockResponse = { id: 1, name: 'Device Folder' };
+    it('When getDeviceAsFolder is called with a valid uuid, then it should return the folder', async () => {
+      const mockResponse = { uuid: 'folder-uuid', name: 'Device Folder' };
       jest
         .spyOn(backupUseCase, 'getDeviceAsFolder')
         .mockResolvedValue(mockResponse as any);
 
-      const result = await backupController.getDeviceAsFolder(userMocked, 1);
+      const result = await backupController.getDeviceAsFolder(
+        userMocked,
+        'folder-uuid',
+      );
       expect(result).toEqual(mockResponse);
     });
 
@@ -93,21 +96,21 @@ describe('BackupController', () => {
         .mockRejectedValue(new NotFoundException());
 
       await expect(
-        backupController.getDeviceAsFolder(userMocked, 1),
+        backupController.getDeviceAsFolder(userMocked, 'folder-uuid'),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('updateDeviceAsFolder', () => {
     it('When updateDeviceAsFolder is called, then it should return the updated folder', async () => {
-      const mockResponse = { id: 1, name: 'Updated Folder' };
+      const mockResponse = { uuid: 'folder-uuid', name: 'Updated Folder' };
       jest
         .spyOn(backupUseCase, 'updateDeviceAsFolder')
         .mockResolvedValue(mockResponse as any);
 
       const result = await backupController.updateDeviceAsFolder(
         userMocked,
-        1,
+        'folder-uuid',
         { deviceName: 'Updated Folder' },
       );
       expect(result).toEqual(mockResponse);
@@ -119,7 +122,7 @@ describe('BackupController', () => {
         .mockRejectedValue(new NotFoundException());
 
       await expect(
-        backupController.updateDeviceAsFolder(userMocked, 1, {
+        backupController.updateDeviceAsFolder(userMocked, 'folder-uuid', {
           deviceName: 'Updated Folder',
         }),
       ).rejects.toThrow(NotFoundException);
