@@ -1,6 +1,10 @@
 import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { v4 } from 'uuid';
 import { newFile, newFolder, newUser } from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
@@ -9,10 +13,15 @@ import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
+import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
+import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 
 describe('FileController', () => {
   let fileController: FileController;
   let fileUseCases: FileUseCases;
+  let thumbnailUseCases: ThumbnailUseCases;
   let file: File;
   const clientId = 'drive-web';
 
@@ -50,7 +59,7 @@ describe('FileController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [FileController],
+      controllers: [FileController, ThumbnailModule],
       providers: [FileUseCases],
     })
       .useMocker(() => createMock())
@@ -58,6 +67,7 @@ describe('FileController', () => {
 
     fileController = module.get<FileController>(FileController);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
+    thumbnailUseCases = module.get<ThumbnailUseCases>(ThumbnailUseCases);
     file = newFile();
   });
 
@@ -266,6 +276,48 @@ describe('FileController', () => {
         requester,
       );
       expect(result).toEqual(expectedFile);
+    });
+  });
+
+  describe('createThumbnail', () => {
+    const createThumbnailDto: CreateThumbnailDto = {
+      fileId: 1882,
+      maxWidth: 300,
+      maxHeight: 300,
+      type: 'png',
+      size: 19658,
+      bucketId: '32fb049a85f433f5079cd72e',
+      bucketFile: '67d02d2c52b2da002bf29f8a',
+      encryptVersion: '03-aes',
+    };
+    const thumbnailDto: ThumbnailDto = {
+      id: 1,
+      ...createThumbnailDto,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    it('When a valid CreateThumbnailDto is provided, then it should return a ThumbnailDto', async () => {
+      jest
+        .spyOn(thumbnailUseCases, 'createThumbnail')
+        .mockResolvedValue(thumbnailDto);
+      const result = await fileController.createThumbnail(
+        userMocked,
+        createThumbnailDto,
+      );
+      expect(result).toEqual(thumbnailDto);
+      expect(thumbnailUseCases.createThumbnail).toHaveBeenCalledWith(
+        userMocked,
+        createThumbnailDto,
+      );
+    });
+
+    it('When an error occurs during thumbnail creation, then it should throw', async () => {
+      jest
+        .spyOn(thumbnailUseCases, 'createThumbnail')
+        .mockRejectedValue(new InternalServerErrorException());
+      await expect(
+        fileController.createThumbnail(userMocked, createThumbnailDto),
+      ).rejects.toThrow(InternalServerErrorException);
     });
   });
 });

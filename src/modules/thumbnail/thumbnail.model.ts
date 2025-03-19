@@ -6,6 +6,7 @@ import {
   ForeignKey,
   DataType,
   BelongsTo,
+  AutoIncrement,
 } from 'sequelize-typescript';
 
 import { ThumbnailAttributes } from './thumbnail.attributes';
@@ -18,6 +19,7 @@ import { FileModel } from '../file/file.model';
 })
 export class ThumbnailModel extends Model implements ThumbnailAttributes {
   @PrimaryKey
+  @AutoIncrement
   @Column
   id: number;
 
