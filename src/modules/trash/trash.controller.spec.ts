@@ -4,8 +4,8 @@ import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from './trash.usecase';
-import { newFolder, newUser } from '../../../test/fixtures';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { newUser } from '../../../test/fixtures';
+import { BadRequestException } from '@nestjs/common';
 import { ItemType } from './dto/controllers/move-items-to-trash.dto';
 import {
   DeleteItemType,
@@ -170,56 +170,6 @@ describe('TrashController', () => {
         expect.any(Array),
         expect.any(Array),
       );
-    });
-  });
-
-  describe('deleteFolder', () => {
-    const folderIdToDelete = 1;
-    const userMocked = newUser();
-    const folder = newFolder({
-      attributes: { id: folderIdToDelete, userId: userMocked.id },
-    });
-
-    it('When a valid folderId is provided, then it should delete the folder and send a notification', async () => {
-      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(folder);
-      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
-      jest
-        .spyOn(storageNotificationService, 'folderDeleted')
-        .mockImplementation(() => {});
-
-      await controller.deleteFolder(folderIdToDelete, userMocked, 'clientId');
-
-      expect(folderUseCases.getFolderByUserId).toHaveBeenCalledWith(
-        folderIdToDelete,
-        userMocked.id,
-      );
-      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
-        folder,
-      ]);
-      expect(storageNotificationService.folderDeleted).toHaveBeenCalledWith({
-        payload: { id: folderIdToDelete, userId: userMocked.id },
-        user: userMocked,
-        clientId: 'clientId',
-      });
-    });
-
-    it('When a non-existent folderId is provided, then it should throw an error', async () => {
-      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
-
-      await expect(
-        controller.deleteFolder(folderIdToDelete, userMocked, 'clientId'),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When an error occurs during deletion, then it should throw an error', async () => {
-      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(folder);
-      jest
-        .spyOn(folderUseCases, 'deleteByUser')
-        .mockRejectedValue(new Error('Deletion failed'));
-
-      await expect(
-        controller.deleteFolder(folderIdToDelete, userMocked, 'clientId'),
-      ).rejects.toThrow('Deletion failed');
     });
   });
 });

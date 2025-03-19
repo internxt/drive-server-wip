@@ -335,23 +335,15 @@ export class TrashController {
   async deleteFolder(
     @Param('folderId') folderId: number,
     @UserDecorator() user: User,
-    @Client() clientId: string,
   ) {
-    const folder = await this.folderUseCases.getFolderByUserId(
-      folderId,
-      user.id,
-    );
+    const folders = await this.folderUseCases.getFolders(user.id, {
+      id: folderId,
+    });
 
-    if (!folder) {
-      throw new NotFoundException('Folder not found');
+    if (folders.length === 0) {
+      throw new NotFoundException();
     }
 
-    await this.folderUseCases.deleteByUser(user, [folder]);
-
-    this.storageNotificationService.folderDeleted({
-      payload: { id: folderId, userId: user.id },
-      user: user,
-      clientId,
-    });
+    await this.trashUseCases.deleteItems(user, [], [folders[0]]);
   }
 }
