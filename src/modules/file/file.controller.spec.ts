@@ -13,11 +13,11 @@ import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { CreateThumbnailDto } from './../thumbnail/dto/create-thumbnail.dto';
-import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
+import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
+import { BridgeModule } from './../../externals/bridge/bridge.module';
 
 describe('FileController', () => {
   let fileController: FileController;

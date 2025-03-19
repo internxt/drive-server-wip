@@ -50,8 +50,8 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { FileDto } from './dto/responses/file.dto';
 import { UploadGuard } from './guards/upload.guard';
-import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
+import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
@@ -453,7 +453,6 @@ export class FileController {
   }
 
   @Post('/thumbnail')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Create Thumbnail',
   })
