@@ -11,12 +11,14 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
+import { DeviceModel } from './device.model';
+import { BackupAttributes } from './backup.attributes';
 
 @Table({
   timestamps: true,
   tableName: 'backups',
 })
-export class BackupModel extends Model {
+export class BackupModel extends Model implements BackupAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column
@@ -25,13 +27,6 @@ export class BackupModel extends Model {
   @ForeignKey(() => UserModel)
   @Column
   userId: number;
-
-  @Column(DataType.STRING)
-  planId: string;
-
-  @Column(DataType.UUID)
-  uuid: string;
-
   @AllowNull
   @Column(DataType.TEXT)
   path: string;
@@ -40,8 +35,8 @@ export class BackupModel extends Model {
   @Column(DataType.STRING(24))
   fileId: string;
 
-  @AllowNull
-  @Column
+  @ForeignKey(() => DeviceModel)
+  @Column(DataType.INTEGER)
   deviceId: number;
 
   @AllowNull
@@ -70,7 +65,7 @@ export class BackupModel extends Model {
 
   @AllowNull
   @Column(DataType.STRING)
-  encryptVersion: string;
+  encrypt_version: string;
 
   @AllowNull
   @Column(DataType.DATE)

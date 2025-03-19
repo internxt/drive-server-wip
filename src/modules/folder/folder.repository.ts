@@ -519,6 +519,17 @@ export class SequelizeFolderRepository implements FolderRepository {
     return this.toDomain(folder);
   }
 
+  async createFolder(
+    userId: UserAttributes['id'],
+    folderData: Partial<FolderAttributes>,
+  ) {
+    const folder = await this.folderModel.create({
+      ...folderData,
+      userId,
+    });
+    return this.toDomain(folder);
+  }
+
   async bulkCreate(
     folders: {
       userId: UserAttributes['id'];

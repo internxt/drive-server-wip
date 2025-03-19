@@ -1620,4 +1620,8 @@ export class UserUseCases {
       }
     }
   }
+
+  getSpaceLimit(user: User): Promise<number> {
+    return this.networkService.getLimit(user.bridgeUser, user.userId);
+  }
 }
