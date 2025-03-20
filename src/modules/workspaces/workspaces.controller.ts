@@ -14,6 +14,7 @@ import {
   InternalServerErrorException,
   UseFilters,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -156,11 +157,22 @@ export class WorkspacesController {
   ) {
     const { inviteId } = acceptInvitationDto;
 
-    return this.workspaceUseCases.acceptWorkspaceInvite(
+    const workspaceUser = await this.workspaceUseCases.acceptWorkspaceInvite(
       user,
       inviteId,
-      clientId,
     );
+
+    const workspace = await this.workspaceUseCases.findById(
+      workspaceUser.workspaceId,
+    );
+
+    this.storageNotificationService.workspaceJoined({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user,
+      clientId,
+    });
+
+    return workspaceUser;
   }
 
   @Get('/invitations/:inviteId/validate')
@@ -1056,7 +1068,15 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    return this.workspaceUseCases.leaveWorkspace(workspaceId, user, clientId);
+    const workspace = await this.workspaceUseCases.findById(workspaceId);
+
+    await this.workspaceUseCases.leaveWorkspace(workspaceId, user);
+
+    this.storageNotificationService.workspaceLeft({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user,
+      clientId,
+    });
   }
 
   @Get(':workspaceId/members/:memberId')
@@ -1162,8 +1182,26 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @Param('memberId', ValidateUUIDPipe)
     memberId: WorkspaceTeamAttributes['id'],
+    @Client() clientId: string,
   ) {
-    return this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
+    const workspace = await this.workspaceUseCases.findById(workspaceId);
+
+    const workspaceUser = await this.workspaceUseCases.findUserInWorkspace(
+      memberId,
+      workspaceId,
+    );
+
+    if (!workspaceUser) {
+      throw new NotFoundException('User not found in workspace');
+    }
+
+    await this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
+
+    this.storageNotificationService.workspaceLeft({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user: workspaceUser.member,
+      clientId,
+    });
   }
 
   @Get(':workspaceId/fuzzy/:search')

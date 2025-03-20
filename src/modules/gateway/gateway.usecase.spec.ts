@@ -6,6 +6,7 @@ import {
   newUser,
   newWorkspace,
   newWorkspaceTeam,
+  newWorkspaceUser,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -13,6 +14,7 @@ import { GatewayUseCases } from './gateway.usecase';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -21,7 +23,7 @@ describe('GatewayUseCases', () => {
   let workspaceUseCases: WorkspacesUsecases;
   let cacheManagerService: CacheManagerService;
   let loggerMock: DeepMocked<Logger>;
-
+  let storageNotificationService: StorageNotificationService;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [GatewayUseCases],
@@ -37,6 +39,9 @@ describe('GatewayUseCases', () => {
     userUseCases = module.get<UserUseCases>(UserUseCases);
     workspaceUseCases = module.get<WorkspacesUsecases>(WorkspacesUsecases);
     cacheManagerService = module.get(CacheManagerService);
+    storageNotificationService = module.get<StorageNotificationService>(
+      StorageNotificationService,
+    );
   });
 
   it('should be defined', () => {
@@ -258,20 +263,40 @@ describe('GatewayUseCases', () => {
         );
       });
 
-      it('When owner and workspaces are found, then it should delete all workspaces completed', async () => {
+      it('When owner and workspaces are found, then it should delete all workspaces content and send the workspaceLeft notification for all members', async () => {
         const workspace = newWorkspace({
           owner,
           attributes: { ownerId: owner.uuid },
         });
+        const workspaceMembers = [
+          newWorkspaceUser({
+            workspaceId: workspace.id,
+            member: newUser(),
+          }),
+          newWorkspaceUser({
+            member: owner,
+            workspaceId: workspace.id,
+          }),
+        ];
 
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(owner);
         jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceUseCases, 'deleteWorkspaceContent')
+          .mockResolvedValue(workspaceMembers);
 
         await service.destroyWorkspace(owner.uuid);
 
         expect(workspaceUseCases.deleteWorkspaceContent).toHaveBeenCalledWith(
           workspace.id,
           owner,
+        );
+
+        expect(storageNotificationService.workspaceLeft).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(storageNotificationService.workspaceLeft).toHaveBeenCalledWith(
+          expect.anything(),
         );
       });
     });
