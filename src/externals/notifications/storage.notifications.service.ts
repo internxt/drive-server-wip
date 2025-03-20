@@ -130,7 +130,10 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.WORKSPACE_JOINED },
+    });
   }
 
   workspaceLeft({ payload, user, clientId }: EventArguments) {
@@ -144,7 +147,10 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.WORKSPACE_LEFT },
+    });
   }
 
   async getTokensAndSendApnNotification(
