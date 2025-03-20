@@ -188,4 +188,55 @@ describe('ThumbnailUseCases', () => {
       expect(result).toEqual(existingThumbnail);
     });
   });
+
+  describe('deleteThumbnailByFileId', () => {
+    it('When the thumbnail exists, it should delete the thumbnail and call the network service', async () => {
+      jest
+        .spyOn(thumbnailRepository, 'findByFileId')
+        .mockResolvedValue(existingThumbnail);
+      jest.spyOn(networkService, 'deleteFile').mockResolvedValue(undefined);
+      jest.spyOn(thumbnailRepository, 'deleteBy').mockResolvedValue(undefined);
+
+      await thumbnailUseCases.deleteThumbnailByFileId(
+        userMocked,
+        createThumbnailDto.fileId,
+      );
+
+      expect(networkService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        existingThumbnail.bucket_id,
+        existingThumbnail.bucket_file,
+      );
+      expect(thumbnailRepository.deleteBy).toHaveBeenCalledWith({
+        fileId: createThumbnailDto.fileId,
+      });
+    });
+
+    it('When an error occurs while deleting the file in the network service, it should propagate the error', async () => {
+      jest
+        .spyOn(thumbnailRepository, 'findByFileId')
+        .mockResolvedValue(existingThumbnail);
+      jest
+        .spyOn(networkService, 'deleteFile')
+        .mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        thumbnailUseCases.deleteThumbnailByFileId(
+          userMocked,
+          createThumbnailDto.fileId,
+        ),
+      ).rejects.toThrow('Network error');
+    });
+
+    it('When the thumbnail is not found then should return without throw an error', async () => {
+      jest.spyOn(thumbnailRepository, 'findByFileId').mockResolvedValue(null);
+
+      await expect(
+        thumbnailUseCases.deleteThumbnailByFileId(
+          userMocked,
+          createThumbnailDto.fileId,
+        ),
+      ).resolves.not.toThrow();
+    });
+  });
 });

@@ -57,9 +57,24 @@ export class ThumbnailUseCases {
       updatedAt: new Date(),
     });
   }
+
+  async deleteThumbnailByFileId(user: User, fileId: number) {
+    const thumbnail = await this.thumbnailRepository.findByFileId(fileId);
+    if (!thumbnail) {
+      return;
+    }
+    await this.network.deleteFile(
+      user,
+      thumbnail.bucket_id,
+      thumbnail.bucket_file,
+    );
+    await this.thumbnailRepository.deleteBy({ fileId });
+  }
+
   async findAll(where: Partial<ThumbnailAttributes>): Promise<Thumbnail[]> {
     return this.thumbnailRepository.findAll(where);
   }
+
   async deleteBy(where: Partial<ThumbnailAttributes>): Promise<void> {
     return this.thumbnailRepository.deleteBy(where);
   }

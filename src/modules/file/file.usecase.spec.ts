@@ -1048,19 +1048,24 @@ describe('FileUseCases', () => {
   });
 
   describe('deleteFilePermanently', () => {
-    const mockFile = newFile();
+    const mockFile = newFile({ owner: userMocked });
+
     it('When the file exists and is owned by the user, then it should delete the file and return its id and uuid', async () => {
-      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue({
+      const mockFileFound = {
         ...mockFile,
-        userId: userMocked.id,
         isOwnedBy: (user: User) => user.id === userMocked.id,
-      } as any);
-      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue(undefined);
+      } as any;
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFileFound);
+
       jest
         .spyOn(sharingService, 'bulkRemoveSharings')
         .mockResolvedValue(undefined);
-      jest.spyOn(thumbnailUseCases, 'deleteBy').mockResolvedValue(undefined);
-      jest.spyOn(fileRepository, 'destroyFile').mockResolvedValue(undefined);
+      jest
+        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileId')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(fileRepository, 'deleteFilesByUser')
+        .mockResolvedValue(undefined);
 
       const result = await service.deleteFilePermanently(userMocked, {
         id: mockFile.id,
@@ -1069,25 +1074,21 @@ describe('FileUseCases', () => {
       expect(result).toEqual({ id: mockFile.id, uuid: mockFile.uuid });
       expect(fileRepository.findOneBy).toHaveBeenCalledWith({
         id: mockFile.id,
+        removed: false,
       });
-      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
-        userMocked,
-        mockFile.bucket,
-        mockFile.fileId,
-      );
       expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
         userMocked,
         [mockFile.uuid],
         SharingItemType.File,
       );
-      expect(thumbnailUseCases.deleteBy).toHaveBeenCalledWith({
-        fileId: mockFile.id,
-      });
-      expect(fileRepository.destroyFile).toHaveBeenCalledWith({
-        userId: userMocked.id,
-        fileId: mockFile.fileId,
-        bucket: mockFile.bucket,
-      });
+      expect(thumbnailUseCases.deleteThumbnailByFileId).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.id,
+      );
+      expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
+        userMocked,
+        [mockFileFound],
+      );
     });
 
     it('When the file does not exist, then it should throw a NotFoundException', async () => {

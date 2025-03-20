@@ -553,8 +553,6 @@ describe('FileRepository', () => {
           removedAt: expect.any(Date),
           status: expect.any(String),
           updatedAt: expect.any(Date),
-          deleted: true,
-          deletedAt: expect.any(Date),
         },
         {
           where: {

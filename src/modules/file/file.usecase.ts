@@ -83,30 +83,33 @@ export class FileUseCases {
     user: User,
     where: Partial<File>,
   ): Promise<{ id: number; uuid: string }> {
-    const file = await this.fileRepository.findOneBy(where);
+    const file = await this.fileRepository.findOneBy({
+      ...where,
+      removed: false,
+    });
 
     if (!file) {
-      throw new NotFoundException(`File not found`);
+      throw new NotFoundException('File not found');
     }
 
     if (!file.isOwnedBy(user)) {
       throw new ForbiddenException('This file is not yours');
     }
 
-    const { id, uuid, fileId, bucket } = file;
-    await this.network.deleteFile(user, bucket, fileId);
-    await this.shareUsecases.deleteFileShare(id, user);
-    await this.sharingUsecases.bulkRemoveSharings(
-      user,
-      [uuid],
-      SharingItemType.File,
-    );
-    await this.thumbnailUsecases.deleteBy({ fileId: id });
-    await this.fileRepository.destroyFile({
-      userId: user.id,
-      fileId,
-      bucket,
-    });
+    const { id, uuid } = file;
+
+    await Promise.all([
+      this.shareUsecases.deleteFileShare(id, user),
+      this.sharingUsecases.bulkRemoveSharings(
+        user,
+        [uuid],
+        SharingItemType.File,
+      ),
+      this.thumbnailUsecases.deleteThumbnailByFileId(user, id),
+    ]);
+
+    await this.fileRepository.deleteFilesByUser(user, [file]);
+
     return { id, uuid };
   }
 
