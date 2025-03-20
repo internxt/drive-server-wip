@@ -12,6 +12,8 @@ enum StorageEvents {
   FOLDER_UPDATED = 'FOLDER_UPDATED',
   ITEMS_TO_TRASH = 'ITEMS_TO_TRASH',
   PLAN_UPDATED = 'PLAN_UPDATED',
+  WORKSPACE_JOINED = 'WORKSPACE_JOINED',
+  WORKSPACE_LEFT = 'WORKSPACE_LEFT',
 }
 
 interface EventArguments {
@@ -115,6 +117,34 @@ export class StorageNotificationService {
       isStorageNotification: false,
       customKeys: { event: StorageEvents.PLAN_UPDATED },
     });
+  }
+
+  workspaceJoined({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.workspaceJoined',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.WORKSPACE_JOINED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid);
+  }
+
+  workspaceLeft({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.workspaceLeft',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.WORKSPACE_LEFT,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid);
   }
 
   async getTokensAndSendApnNotification(

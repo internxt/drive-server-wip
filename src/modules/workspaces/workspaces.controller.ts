@@ -151,11 +151,16 @@ export class WorkspacesController {
   })
   async acceptWorkspaceInvitation(
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() acceptInvitationDto: AcceptWorkspaceInviteDto,
   ) {
     const { inviteId } = acceptInvitationDto;
 
-    return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
+    return this.workspaceUseCases.acceptWorkspaceInvite(
+      user,
+      inviteId,
+      clientId,
+    );
   }
 
   @Get('/invitations/:inviteId/validate')
@@ -1047,10 +1052,11 @@ export class WorkspacesController {
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async leaveWorkspace(
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    return this.workspaceUseCases.leaveWorkspace(workspaceId, user);
+    return this.workspaceUseCases.leaveWorkspace(workspaceId, user, clientId);
   }
 
   @Get(':workspaceId/members/:memberId')

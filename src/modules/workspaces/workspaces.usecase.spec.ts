@@ -63,7 +63,7 @@ import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
 } from './attributes/workspace-logs.attributes';
-
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
   return {
@@ -91,6 +91,7 @@ describe('WorkspacesUsecases', () => {
   let sharingUseCases: SharingService;
   let paymentsService: PaymentsService;
   let fuzzySearchUseCases: FuzzySearchUseCases;
+  let storageNotificationsService: StorageNotificationService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -119,6 +120,10 @@ describe('WorkspacesUsecases', () => {
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
     fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
+    storageNotificationsService = module.get<StorageNotificationService>(
+      StorageNotificationService,
+    );
+    ``;
   });
 
   it('should be defined', () => {
@@ -1323,7 +1328,7 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUser);
       jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
-
+      jest.spyOn(storageNotificationsService, 'workspaceJoined');
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
       expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
@@ -1337,6 +1342,11 @@ describe('WorkspacesUsecases', () => {
         invite.spaceLimit,
         'DEDUCT',
       );
+      expect(storageNotificationsService.workspaceJoined).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user: invitedUser,
+        clientId: 'drive-web',
+      });
     });
 
     it('When invite is valid, then add user to default team', async () => {
@@ -4856,14 +4866,32 @@ describe('WorkspacesUsecases', () => {
       it('When workspace is found and user is the owner, then it should delete all workspace content', async () => {
         const user = newUser();
         const workspace = newWorkspace({ attributes: { ownerId: user.uuid } });
+        const workspaceMembers = [
+          newWorkspaceUser({
+            workspaceId: workspace.id,
+            memberId: user.uuid,
+            member: user,
+          }),
+          newWorkspaceUser({
+            workspaceId: workspace.id,
+          }),
+        ];
         jest
           .spyOn(workspaceRepository, 'findById')
           .mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUsers')
+          .mockResolvedValue(workspaceMembers);
+        jest.spyOn(storageNotificationsService, 'workspaceLeft');
 
         await service.deleteWorkspaceContent(workspace.id, user);
 
         expect(workspaceRepository.deleteById).toHaveBeenCalledWith(
           workspace.id,
+        );
+
+        expect(storageNotificationsService.workspaceLeft).toHaveBeenCalledTimes(
+          workspaceMembers.length,
         );
       });
     });
@@ -5145,6 +5173,7 @@ describe('WorkspacesUsecases', () => {
           .spyOn(teamRepository, 'getTeamsUserBelongsTo')
           .mockResolvedValueOnce([team]);
         jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
+        jest.spyOn(storageNotificationsService, 'workspaceLeft');
 
         expect(
           await service.removeWorkspaceMember(workspace.id, member.uuid),
@@ -5158,6 +5187,12 @@ describe('WorkspacesUsecases', () => {
           member.uuid,
           team.id,
         );
+
+        expect(storageNotificationsService.workspaceLeft).toHaveBeenCalledWith({
+          payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+          user: member,
+          clientId: 'drive-web',
+        });
       });
     });
 
@@ -5249,6 +5284,7 @@ describe('WorkspacesUsecases', () => {
           .mockResolvedValueOnce(483183820800) // 450 GB
           .mockResolvedValueOnce(483183820800); // 450 GB
         jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
+        jest.spyOn(storageNotificationsService, 'workspaceLeft');
 
         await service.leaveWorkspace(workspace.id, user);
 
@@ -5264,6 +5300,12 @@ describe('WorkspacesUsecases', () => {
         expect(
           workspaceRepository.deleteUserFromWorkspace,
         ).toHaveBeenCalledWith(user.uuid, workspace.id);
+
+        expect(storageNotificationsService.workspaceLeft).toHaveBeenCalledWith({
+          payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+          user,
+          clientId: 'drive-web',
+        });
       });
 
       it('When user is not a manager of any teams and has no items in the workspace, then they should leave the workspace', async () => {

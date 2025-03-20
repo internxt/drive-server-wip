@@ -75,6 +75,7 @@ import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interfa
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { WorkspaceLog } from './domains/workspace-log.domain';
 import { TrashItem } from './interceptors/workspaces-logs.interceptor';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -92,6 +93,7 @@ export class WorkspacesUsecases {
     private readonly folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,
+    private readonly storageNotificationsService: StorageNotificationService,
   ) {}
 
   async initiateWorkspace(
@@ -1665,7 +1667,11 @@ export class WorkspacesUsecases {
     );
   }
 
-  async acceptWorkspaceInvite(user: User, inviteId: WorkspaceInvite['id']) {
+  async acceptWorkspaceInvite(
+    user: User,
+    inviteId: WorkspaceInvite['id'],
+    clientId: string = 'drive-web',
+  ) {
     const invite = await this.workspaceRepository.findInvite({
       id: inviteId,
       invitedUser: user.uuid,
@@ -1753,6 +1759,12 @@ export class WorkspacesUsecases {
       await this.workspaceRepository.deleteInviteBy({ id: invite.id });
 
       await this.adjustOwnerStorage(workspace.id, invite.spaceLimit, 'DEDUCT');
+
+      this.storageNotificationsService.workspaceJoined({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user,
+        clientId,
+      });
 
       return workspaceUser.toJSON();
     } catch (error) {
@@ -2630,9 +2642,20 @@ export class WorkspacesUsecases {
       workspace.rootFolderId,
     );
 
+    const workspaceMembers =
+      await this.workspaceRepository.findWorkspaceUsers(workspaceId);
+
     await this.folderUseCases.deleteByUser(workspaceUser, [rootFolder]);
 
     await this.workspaceRepository.deleteById(workspaceId);
+
+    for (const member of workspaceMembers) {
+      this.storageNotificationsService.workspaceLeft({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user: member.member,
+        clientId: 'drive-web',
+      });
+    }
   }
 
   async transferPersonalItemsToWorkspaceOwner(
@@ -2749,6 +2772,7 @@ export class WorkspacesUsecases {
   async removeWorkspaceMember(
     workspaceId: Workspace['id'],
     memberId: User['uuid'],
+    clientId: string = 'drive-web',
   ): Promise<void> {
     const workspaceUserToRemove =
       await this.workspaceRepository.findWorkspaceUser(
@@ -2763,12 +2787,17 @@ export class WorkspacesUsecases {
       throw new NotFoundException('User not found in workspace');
     }
 
-    await this.leaveWorkspace(workspaceId, workspaceUserToRemove.member);
+    await this.leaveWorkspace(
+      workspaceId,
+      workspaceUserToRemove.member,
+      clientId,
+    );
   }
 
   async leaveWorkspace(
     workspaceId: Workspace['id'],
     user: User,
+    clientId: string = 'drive-web',
   ): Promise<void> {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -2819,6 +2848,12 @@ export class WorkspacesUsecases {
       user.uuid,
       workspaceId,
     );
+
+    this.storageNotificationsService.workspaceLeft({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user,
+      clientId,
+    });
   }
 
   async validateWorkspaceInvite(
