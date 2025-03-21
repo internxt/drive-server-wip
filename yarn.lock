@@ -995,6 +995,11 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
+"@dashlane/pqc-kem-kyber512-node@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@dashlane/pqc-kem-kyber512-node/-/pqc-kem-kyber512-node-1.0.0.tgz#0305f8a6c86595a1dc3b0d16184237c71e912d8c"
+  integrity sha512-gVzQwP/1OqKLyYZ/oRI9uECSnYIcLUcZbnAA34Q2l8X1eXq5JWf304tDp1UTdYdJ+ZE58SmQ68VCa/WvpCviGw==
+
 "@eslint-community/eslint-utils@^4.2.0", "@eslint-community/eslint-utils@^4.4.0":
   version "4.4.0"
   resolved "https://registry.yarnpkg.com/@eslint-community/eslint-utils/-/eslint-utils-4.4.0.tgz#a23514e8fb9af1269d5f7788aa556798d61c6b59"
@@ -6201,6 +6206,11 @@ hash-base@^3.0.0:
     inherits "^2.0.4"
     readable-stream "^3.6.0"
     safe-buffer "^5.2.0"
+
+hash-wasm@^4.12.0:
+  version "4.12.0"
+  resolved "https://registry.yarnpkg.com/hash-wasm/-/hash-wasm-4.12.0.tgz#f9f1a9f9121e027a9acbf6db5d59452ace1ef9bb"
+  integrity sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==
 
 hash.js@^1.1.7:
   version "1.1.7"
