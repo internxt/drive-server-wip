@@ -78,6 +78,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     forwardRef(() => WorkspacesModule),
     forwardRef(() => BackupModule),
     CacheManagerModule,
+    // Just small change to trigger the pipeline
   ],
   controllers: [UserController],
   providers: [
