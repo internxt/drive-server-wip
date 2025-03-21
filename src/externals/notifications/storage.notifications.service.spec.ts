@@ -236,6 +236,10 @@ describe('StorageNotificationService', () => {
       );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
+        {
+          isStorageNotification: false,
+          customKeys: { event: 'WORKSPACE_JOINED' },
+        },
       );
     });
   });
@@ -263,6 +267,10 @@ describe('StorageNotificationService', () => {
       );
       expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
         user.uuid,
+        {
+          isStorageNotification: false,
+          customKeys: { event: 'WORKSPACE_LEFT' },
+        },
       );
     });
   });
