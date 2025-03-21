@@ -5,7 +5,7 @@ import { newFile, newUser, newWorkspace } from '../../../test/fixtures';
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 
 describe('FileRepository', () => {
@@ -492,6 +492,112 @@ describe('FileRepository', () => {
           },
         },
       });
+    });
+  });
+
+  describe('sumExistentFileSizes', () => {
+    const userId = 123;
+
+    it('When called with valid userId, then it should return the sum of file sizes that are not deleted', async () => {
+      const totalSize = 5000;
+      const sizesSum = [{ total: totalSize }];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
+
+      const result = await repository.sumExistentFileSizes(userId);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+        where: {
+          userId,
+          status: {
+            [Op.ne]: 'DELETED',
+          },
+        },
+        raw: true,
+      });
+      expect(result).toEqual(totalSize);
+    });
+
+    it('When no files are found or total size is null, then it should return 0', async () => {
+      const sizesSum = [{ total: null }];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
+
+      const result = await repository.sumExistentFileSizes(userId);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId,
+            status: {
+              [Op.ne]: 'DELETED',
+            },
+          },
+        }),
+      );
+      expect(result).toEqual(0);
+    });
+  });
+
+  describe('deleteFilesByUser ', () => {
+    it('When files are deleted successfully, then it should call update with correct parameters', async () => {
+      const user = newUser();
+      const files = [{ id: 123456 }, { id: 654321 }] as any;
+
+      await repository.deleteFilesByUser(user, files);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        {
+          removed: true,
+          removedAt: expect.any(Date),
+          status: expect.any(String),
+          updatedAt: expect.any(Date),
+        },
+        {
+          where: {
+            userId: user.id,
+            id: {
+              [Op.in]: files.map(({ id }) => id),
+            },
+          },
+        },
+      );
+    });
+
+    it('When an error occurs during the update, then it should throw an error', async () => {
+      const user = newUser();
+      const files = [{ id: 123456 }, { id: 654321 }] as any;
+
+      jest
+        .spyOn(fileModel, 'update')
+        .mockRejectedValue(new Error('Update failed'));
+
+      await expect(repository.deleteFilesByUser(user, files)).rejects.toThrow(
+        'Update failed',
+      );
+    });
+  });
+
+  describe('destroyFile', () => {
+    it('When destroyFile is called, then it should call destroy with correct parameters', async () => {
+      const where = { id: 1234567 };
+
+      await repository.destroyFile(where);
+
+      expect(fileModel.destroy).toHaveBeenCalledWith({ where });
+    });
+
+    it('When an error occurs during the destroy, then it should throw an error', async () => {
+      const where = { id: 1234567 };
+
+      jest
+        .spyOn(fileModel, 'destroy')
+        .mockRejectedValue(new Error('Destroy failed'));
+
+      await expect(repository.destroyFile(where)).rejects.toThrow(
+        'Destroy failed',
+      );
     });
   });
 });

@@ -4,17 +4,32 @@ import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { GatewayUseCases } from './gateway.usecase';
 import { GatewayController } from './gateway.controller';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { newUser, newWorkspace } from '../../../test/fixtures';
 import { v4 } from 'uuid';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Test } from '@nestjs/testing';
 
 describe('Gateway Controller', () => {
   let gatewayController: GatewayController;
   let gatewayUsecases: DeepMocked<GatewayUseCases>;
+  let storageNotificationsService: DeepMocked<StorageNotificationService>;
+  let loggerMock: DeepMocked<Logger>;
 
   beforeEach(async () => {
-    gatewayUsecases = createMock<GatewayUseCases>();
-    gatewayController = new GatewayController(gatewayUsecases);
+    const moduleRef = await Test.createTestingModule({
+      imports: [],
+      controllers: [],
+      providers: [GatewayController],
+    })
+      .useMocker(() => createMock())
+      .compile();
+
+    loggerMock = createMock<Logger>();
+    moduleRef.useLogger(loggerMock);
+    gatewayController = moduleRef.get(GatewayController);
+    gatewayUsecases = moduleRef.get(GatewayUseCases);
+    storageNotificationsService = moduleRef.get(StorageNotificationService);
   });
 
   it('should be defined', () => {
@@ -174,6 +189,84 @@ describe('Gateway Controller', () => {
       ).resolves.toStrictEqual(user);
 
       expect(gatewayUsecases.getUserByEmail).toHaveBeenCalledWith(user.email);
+    });
+  });
+
+  describe('GET /users/storage/stackability', () => {
+    const user = newUser();
+
+    it('When called, it should call service with respective params', async () => {
+      const userUuid = user.uuid;
+      const additionalBytes = 10;
+
+      await gatewayController.checkUserStorageExpansion({
+        userUuid,
+        additionalBytes,
+      });
+
+      expect(gatewayUsecases.checkUserStorageExpansion).toHaveBeenCalledWith(
+        userUuid,
+        additionalBytes,
+      );
+    });
+  });
+
+  describe('PATCH /users/:uuid', () => {
+    const user = newUser();
+    const updateUserDto = {
+      maxSpaceBytes: 2000000,
+    };
+
+    it('When user is found and updated successfully, then it should send notification', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(user);
+
+      await gatewayController.updateUser(user.uuid, updateUserDto);
+
+      expect(gatewayUsecases.getUserByUuid).toHaveBeenCalledWith(user.uuid);
+      expect(gatewayUsecases.updateUser).toHaveBeenCalledWith(
+        user,
+        updateUserDto.maxSpaceBytes,
+      );
+      expect(storageNotificationsService.planUpdated).toHaveBeenCalledWith({
+        payload: { maxSpaceBytes: updateUserDto.maxSpaceBytes },
+        user,
+        clientId: 'gateway',
+      });
+    });
+
+    it('When user is not found, then it should throw.', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        gatewayController.updateUser(user.uuid, updateUserDto),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When update operation fails, then it should throw.', async () => {
+      const error = new Error('Failed to update user');
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(user);
+      jest.spyOn(gatewayUsecases, 'updateUser').mockRejectedValueOnce(error);
+
+      await expect(
+        gatewayController.updateUser(user.uuid, updateUserDto),
+      ).rejects.toThrow(error);
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When updating user fails, it should log the error and propagate it', async () => {
+      const error = new Error('Failed to update user');
+      const errorSpy = jest.spyOn(loggerMock, 'error');
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(user);
+      jest.spyOn(gatewayUsecases, 'updateUser').mockRejectedValueOnce(error);
+
+      await expect(
+        gatewayController.updateUser(user.uuid, updateUserDto),
+      ).rejects.toThrow(error);
+
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 });

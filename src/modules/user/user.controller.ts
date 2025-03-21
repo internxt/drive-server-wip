@@ -79,6 +79,7 @@ import { avatarStorageS3Config } from '../../externals/multer';
 import { Client } from '../auth/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
+import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -974,5 +975,37 @@ export class UserController {
     const { token } = body;
 
     return this.userUseCases.confirmDeactivation(token);
+  }
+
+  @Get('/usage')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get User used storage space',
+  })
+  @ApiOkResponse({ type: GetUserUsageDto })
+  async getUserUsage(@UserDecorator() user: User): Promise<GetUserUsageDto> {
+    const usage = await this.userUseCases.getUserUsage(user);
+
+    return usage;
+  }
+
+  @Get('/limit')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Get user space limit',
+  })
+  async limit(@UserDecorator() user: User) {
+    try {
+      const maxSpaceBytes = await this.userUseCases.getSpaceLimit(user);
+      return { maxSpaceBytes };
+    } catch (err) {
+      Logger.error(
+        `[USER/SPACE_LIMIT] Error getting space limit for user: ${
+          user.id
+        }. Error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
   }
 }

@@ -3,14 +3,19 @@ import { InjectModel } from '@nestjs/sequelize';
 import { ThumbnailModel } from './thumbnail.model';
 import { Thumbnail } from './thumbnail.domain';
 import { FileAttributes } from '../file/file.domain';
+import { ThumbnailAttributes } from './thumbnail.attributes';
 
 export interface ThumbnailRepository {
   findById(id: Thumbnail['id']): Promise<Thumbnail | null>;
   findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null>;
-  findAll(): Promise<Thumbnail[]>;
-  create(thumbnail: Thumbnail): Promise<Thumbnail>;
-  update(thumbnail: Thumbnail): Promise<void>;
+  findAll(where?: Partial<ThumbnailAttributes>): Promise<Thumbnail[]>;
+  create(thumbnail: Omit<ThumbnailAttributes, 'id'>): Promise<Thumbnail>;
+  update(
+    thumbnail: Partial<Thumbnail>,
+    where: Partial<Thumbnail>,
+  ): Promise<void>;
   deleteById(id: Thumbnail['id']): Promise<void>;
+  deleteBy(where: Partial<Thumbnail>): Promise<void>;
 }
 
 @Injectable()
@@ -32,25 +37,33 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
     return thumbnail ? this.toDomain(thumbnail) : null;
   }
 
-  async findAll(): Promise<Thumbnail[]> {
-    const thumbnails = await this.thumbnailModel.findAll();
+  async findAll(where?: Partial<ThumbnailAttributes>): Promise<Thumbnail[]> {
+    const thumbnails = await this.thumbnailModel.findAll({ where });
     return thumbnails.map(this.toDomain.bind(this));
   }
 
-  async create(thumbnail: Thumbnail): Promise<Thumbnail> {
-    const thumbnailModel = this.toModel(thumbnail);
-    const createdThumbnail = await this.thumbnailModel.create(thumbnailModel);
-    return this.toDomain(createdThumbnail);
+  async create(
+    newThumbnail: Omit<ThumbnailAttributes, 'id'>,
+  ): Promise<Thumbnail> {
+    const thumbnail = await this.thumbnailModel.create(newThumbnail);
+    return this.toDomain(thumbnail);
   }
 
-  async update(thumbnail: Thumbnail): Promise<void> {
-    await this.thumbnailModel.update(this.toModel(thumbnail), {
-      where: { id: thumbnail.id },
+  async update(
+    thumbnail: Partial<Thumbnail>,
+    where: Partial<Thumbnail>,
+  ): Promise<void> {
+    await this.thumbnailModel.update(thumbnail, {
+      where,
     });
   }
 
   async deleteById(id: number): Promise<void> {
     await this.thumbnailModel.destroy({ where: { id } });
+  }
+
+  async deleteBy(where: Partial<Thumbnail>): Promise<void> {
+    await this.thumbnailModel.destroy({ where });
   }
 
   private toDomain(model: ThumbnailModel): Thumbnail {

@@ -3,15 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
+  NotFoundException,
+  Param,
+  Patch,
   Post,
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
@@ -22,12 +28,23 @@ import { GatewayGuard } from '../auth/gateway.guard';
 import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
 import { User } from '../user/user.domain';
+import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
+import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @ApiTags('Gateway')
 @Controller('gateway')
 @DisableGlobalAuth()
+@UseInterceptors(ExtendedHttpExceptionFilter)
 export class GatewayController {
-  constructor(private gatewayUseCases: GatewayUseCases) {}
+  private readonly logger = new Logger(GatewayController.name);
+
+  constructor(
+    private readonly gatewayUseCases: GatewayUseCases,
+    private readonly storageNotificationsService: StorageNotificationService,
+  ) {}
 
   @Post('/workspaces')
   @ApiOperation({
@@ -99,5 +116,70 @@ export class GatewayController {
   @UseGuards(GatewayGuard)
   async getUserByEmail(@Query('email') email: User['email']) {
     return this.gatewayUseCases.getUserByEmail(email);
+  }
+
+  @Get('/users/storage/stackability')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Check if user can expand storage space',
+  })
+  @ApiQuery({ name: 'userUuid', type: String, required: true })
+  @ApiQuery({ name: 'additionalBytes', type: Number, required: true })
+  @UseGuards(GatewayGuard)
+  async checkUserStorageExpansion(@Query() queryDto: CheckStorageExpansionDto) {
+    const { userUuid, additionalBytes } = queryDto;
+
+    return this.gatewayUseCases.checkUserStorageExpansion(
+      userUuid,
+      additionalBytes,
+    );
+  }
+
+  @Patch('/users/:uuid')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update user plan and storage',
+  })
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'User UUID',
+  })
+  @UseGuards(GatewayGuard)
+  async updateUser(
+    @Param('uuid', ValidateUUIDPipe) userUuid: string,
+    @Body() body: UpdateUserDto,
+  ) {
+    this.logger.log(`[UPDATE_USER] Updating user ${userUuid}`);
+
+    const { maxSpaceBytes } = body;
+
+    try {
+      const user = await this.gatewayUseCases.getUserByUuid(userUuid);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      await this.gatewayUseCases.updateUser(user, maxSpaceBytes);
+
+      this.storageNotificationsService.planUpdated({
+        payload: { maxSpaceBytes },
+        user,
+        clientId: 'gateway',
+      });
+
+      this.logger.log(
+        `[UPDATE_USER] Updated user ${userUuid} space to ${maxSpaceBytes}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[UPDATE_USER] Error updating user ${userUuid}, error: ${JSON.stringify(
+          error,
+        )}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 }

@@ -49,6 +49,7 @@ import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspa
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { BackupModule } from '../backups/backup.module';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
   imports: [
@@ -78,6 +79,8 @@ import { BackupModule } from '../backups/backup.module';
     forwardRef(() => WorkspacesModule),
     AsymmetricEncryptionModule,
     BackupModule,
+    forwardRef(() => BackupModule),
+    CacheManagerModule,
   ],
   controllers: [UserController],
   providers: [

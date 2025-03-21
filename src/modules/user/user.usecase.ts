@@ -52,6 +52,10 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 
+import {
+  decryptMessageWithPrivateKey,
+  encryptMessageWithPublicKey,
+} from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
@@ -76,13 +80,11 @@ import { isUUID } from 'class-validator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
-import {
-  decryptMessageWithPrivateKey,
-  encryptMessageWithPublicKey,
-} from '../../externals/asymmetric-encryption/openpgp';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
+import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -158,6 +160,7 @@ export class UserUseCases {
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
     private readonly appSumoUseCases: AppSumoUseCase,
     private readonly backupUseCases: BackupUseCase,
+    private readonly cacheManager: CacheManagerService,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -294,7 +297,7 @@ export class UserUseCases {
    * @param bucketId Network bucket
    * @returns Created folders
    */
-  private async createInitialFolders(
+  async createInitialFolders(
     user: User,
     bucketId: string,
   ): Promise<[Folder, Folder, Folder]> {
@@ -404,9 +407,15 @@ export class UserUseCases {
       tierId: freeTier?.id,
     });
 
+    let rootFolder: Folder;
+
     try {
       const bucket = await this.networkService.createBucket(email, networkPass);
-      const [rootFolder] = await this.createInitialFolders(user, bucket.id);
+      const [createdRootFolder] = await this.createInitialFolders(
+        user,
+        bucket.id,
+      );
+      rootFolder = createdRootFolder;
 
       const hasReferrer = !!newUser.referrer;
       if (hasReferrer) {
@@ -445,12 +454,24 @@ export class UserUseCases {
         uuid: userUuid,
       };
     } catch (err) {
-      Logger.error(
-        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
-        }`,
-      );
+      const error = {
+        message: err.message,
+        stack: err.stack || 'NO STACK',
+        body: newUser,
+      };
+
+      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${JSON.stringify(error)}`);
       notifySignUpError(err);
+
+      if (user) {
+        Logger.warn(
+          `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
+        );
+        await this.userRepository.deleteBy({ uuid: user.uuid });
+        if (rootFolder) {
+          await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
+        }
+      }
 
       throw err;
     }
@@ -746,6 +767,26 @@ export class UserUseCases {
     const isLifetime = maxSpaceBytes > MAX_FREE_PLAN_BYTES;
 
     return hasSubscriptions || isLifetime;
+  }
+
+  async canUserExpandStorage(user: User, additionalBytes = 0) {
+    const MAX_STORAGE_BYTES = convertSizeToBytes(100, 'TB');
+
+    const currentMaxSpaceBytes = await this.networkService.getLimit(
+      user.bridgeUser,
+      user.userId,
+    );
+
+    const expandableBytes = MAX_STORAGE_BYTES - currentMaxSpaceBytes;
+
+    const canExpand =
+      currentMaxSpaceBytes + additionalBytes <= MAX_STORAGE_BYTES;
+
+    return { canExpand, currentMaxSpaceBytes, expandableBytes };
+  }
+
+  async updateUserStorage(user: User, maxSpaceBytes: number) {
+    await this.networkService.setStorage(user.username, maxSpaceBytes);
   }
 
   async hasReferralsProgram(
@@ -1303,9 +1344,9 @@ export class UserUseCases {
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
 
-    const rootFolder = await this.folderUseCases.getUserRootFolder(userData);
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
 
-    const userBucket = rootFolder.bucket;
+    const userBucket = rootFolder?.bucket;
 
     const newKeys = loginAccessDto?.keys;
 
@@ -1336,7 +1377,7 @@ export class UserUseCases {
       email: userData.email,
       userId: userData.userId,
       mnemonic: userData.mnemonic.toString(),
-      root_folder_id: userData.rootFolderId,
+      root_folder_id: rootFolder?.id,
       rootFolderId: rootFolder?.uuid,
       name: userData.name,
       lastname: userData.lastname,
@@ -1371,6 +1412,22 @@ export class UserUseCases {
     };
 
     return { user, token, userTeam: null, newToken };
+  }
+
+  async getOrCreateUserRootFolderAndBucket(user: User) {
+    const rootFolder = await this.folderUseCases.getFolder(user.rootFolderId);
+
+    if (rootFolder) {
+      return rootFolder;
+    }
+
+    const bucket = await this.networkService.createBucket(
+      user.username,
+      user.userId,
+    );
+    const [newRootFolder] = await this.createInitialFolders(user, bucket.id);
+
+    return newRootFolder;
   }
 
   areCredentialsCorrect(user: User, hashedPassword: User['password']) {
@@ -1511,6 +1568,21 @@ export class UserUseCases {
     );
   }
 
+  async getUserUsage(user: User): Promise<{ drive: number }> {
+    let totalDriveUsage = 0;
+    const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
+
+    if (cachedUsage) {
+      totalDriveUsage = cachedUsage.usage;
+    } else {
+      const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
+      await this.cacheManager.setUserUsage(user.uuid, driveUsage);
+      totalDriveUsage = driveUsage;
+    }
+
+    return { drive: totalDriveUsage };
+  }
+
   async confirmDeactivation(token: string) {
     const userEmail = await this.networkService.confirmDeactivation(token);
     const user = await this.userRepository.findByEmail(userEmail);
@@ -1563,5 +1635,9 @@ export class UserUseCases {
         throw err;
       }
     }
+  }
+
+  getSpaceLimit(user: User): Promise<number> {
+    return this.networkService.getLimit(user.bridgeUser, user.userId);
   }
 }

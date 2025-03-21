@@ -9,6 +9,7 @@ import {
   MailLimitReachedException,
   UserUseCases,
   ReferralsNotAvailableError,
+  UserAlreadyRegisteredError,
 } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
@@ -75,6 +76,8 @@ import { SharingInvite } from '../sharing/sharing.domain';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
+import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -110,6 +113,7 @@ describe('User use cases', () => {
   let keyServerUseCases: KeyServerUseCases;
   let appSumoUseCases: AppSumoUseCase;
   let backupUseCases: BackupUseCase;
+  let cacheManagerService: CacheManagerService;
 
   const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
@@ -193,6 +197,9 @@ describe('User use cases', () => {
 
     appSumoUseCases = moduleRef.get<AppSumoUseCase>(AppSumoUseCase);
     backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
+    cacheManagerService =
+      moduleRef.get<CacheManagerService>(CacheManagerService);
+
     jest.clearAllMocks();
   });
 
@@ -1298,7 +1305,7 @@ describe('User use cases', () => {
       });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
-        .spyOn(folderUseCases, 'getUserRootFolder')
+        .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
         .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
@@ -1373,7 +1380,7 @@ describe('User use cases', () => {
       });
       jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
       jest
-        .spyOn(folderUseCases, 'getUserRootFolder')
+        .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
         .mockResolvedValueOnce(folder);
       jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
       jest.spyOn(keyServerRepository, 'create').mockResolvedValue(keyServer);
@@ -2057,6 +2064,346 @@ describe('User use cases', () => {
       );
       expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
         mockUser.id,
+      );
+    });
+  });
+
+  describe('canUserExpandStorage', () => {
+    const userMock = newUser();
+
+    it('When the user has enough space left, then it should return canExpand as true', async () => {
+      const userCurrentStorage = convertSizeToBytes(50, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        convertSizeToBytes(20, 'TB'),
+      );
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: convertSizeToBytes(50, 'TB'),
+      });
+    });
+
+    it('When the user has reached the maximum storage limit, then it should return canExpand as false', async () => {
+      const userCurrentStorage = convertSizeToBytes(100, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        convertSizeToBytes(20, 'MB'),
+      );
+
+      expect(result).toEqual({
+        canExpand: false,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: 0,
+      });
+    });
+
+    it('When the user is just below the maximum storage limit, then it should return canExpand as true', async () => {
+      const userCurrentStorage = convertSizeToBytes(99, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(
+        userMock,
+        convertSizeToBytes(1, 'TB'),
+      );
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: convertSizeToBytes(1, 'TB'),
+      });
+    });
+
+    it('When no additional space is requested, then it should return canExpand based only on the current usage', async () => {
+      const userCurrentStorage = convertSizeToBytes(20, 'TB');
+
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockResolvedValue(userCurrentStorage);
+
+      const result = await userUseCases.canUserExpandStorage(userMock);
+
+      expect(result).toEqual({
+        canExpand: true,
+        currentMaxSpaceBytes: userCurrentStorage,
+        expandableBytes: convertSizeToBytes(80, 'TB'),
+      });
+    });
+  });
+
+  describe('getOrCreateUserRootFolderAndBucket', () => {
+    const user = newUser();
+    const rootFolder = newFolder();
+    rootFolder.userId = user.id;
+    const bucket = {
+      id: 'bucket-123',
+      name: 'user-bucket',
+      user: user.userId,
+      encryptionKey: 'encryption-key',
+      publicPermissions: [],
+      created: new Date().toISOString(),
+      maxFrameSize: 1024,
+      pubkeys: [],
+      transfer: 0,
+      storage: 0,
+    };
+
+    it('When root folder exists, then it should return the folder without creating a new one', async () => {
+      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(rootFolder);
+
+      const result =
+        await userUseCases.getOrCreateUserRootFolderAndBucket(user);
+
+      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(bridgeService.createBucket).not.toHaveBeenCalled();
+      expect(result).toEqual(rootFolder);
+    });
+
+    it('When root folder does not exist, then it should create a new bucket and folder', async () => {
+      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(null);
+
+      jest.spyOn(bridgeService, 'createBucket').mockResolvedValueOnce(bucket);
+      jest
+        .spyOn(userUseCases, 'createInitialFolders')
+        .mockResolvedValueOnce([rootFolder, newFolder(), newFolder()]);
+
+      const result =
+        await userUseCases.getOrCreateUserRootFolderAndBucket(user);
+
+      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(bridgeService.createBucket).toHaveBeenCalledWith(
+        user.username,
+        user.userId,
+      );
+      expect(userUseCases.createInitialFolders).toHaveBeenCalledWith(
+        user,
+        bucket.id,
+      );
+      expect(result).toEqual(rootFolder);
+    });
+  });
+
+  describe('createUser', () => {
+    const decryptedPassword = 'decrypted-password-hash';
+    const password = 'encrypted-password-hash';
+    const decryptedSalt = 'decrypted-salt';
+    const salt = 'encrypted-salt';
+    const networkPass = 'network-pass';
+    const bucketId = 'bucket-id';
+
+    const userMock = newUser({
+      attributes: {
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+        userId: networkPass,
+      },
+    });
+
+    it('When user already exists, then it should throw', async () => {
+      const existentUser = newUser();
+
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(existentUser);
+
+      await expect(
+        userUseCases.createUser({ ...existentUser, salt }),
+      ).rejects.toThrow(UserAlreadyRegisteredError);
+
+      expect(bridgeService.createUser).not.toHaveBeenCalled();
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When creating a user successfully, then should return user data', async () => {
+      const rootFolder = newFolder();
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === password) return decryptedPassword;
+        if (text === salt) return decryptedSalt;
+        return '';
+      });
+      jest
+        .spyOn(bridgeService, 'createUser')
+        .mockResolvedValue({ userId: networkPass, uuid: user.uuid });
+      jest.spyOn(userRepository, 'create').mockResolvedValue(userMock);
+      jest
+        .spyOn(bridgeService, 'createBucket')
+        .mockResolvedValue({ id: bucketId } as any);
+      jest
+        .spyOn(userUseCases, 'createInitialFolders')
+        .mockResolvedValue([rootFolder, newFolder(), newFolder()]);
+
+      jest.spyOn(configService, 'get').mockReturnValue('jwt-secret');
+      jest
+        .spyOn(userUseCases, 'getNewTokenPayload')
+        .mockReturnValue({ uuid: userMock.uuid } as any);
+
+      const result = await userUseCases.createUser({
+        email: userMock.email,
+        password,
+        salt,
+        name: userMock.name,
+        mnemonic: 'mnemonic',
+        lastname: userMock.lastname,
+      });
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(
+        userMock.email,
+      );
+      expect(bridgeService.createUser).toHaveBeenCalledWith(userMock.email);
+      expect(bridgeService.createBucket).toHaveBeenCalledWith(
+        userMock.email,
+        networkPass,
+      );
+
+      expect(userUseCases.createInitialFolders).toHaveBeenCalledWith(
+        userMock,
+        bucketId,
+      );
+
+      expect(result).toEqual({
+        token: expect.any(String),
+        newToken: expect.any(String),
+        user: expect.objectContaining({
+          rootFolderId: rootFolder.id,
+          rootFolderUuid: rootFolder.uuid,
+          bucket: bucketId,
+          uuid: user.uuid,
+          userId: networkPass,
+          hasReferralsProgram: false,
+        }),
+        uuid: user.uuid,
+      });
+    });
+
+    it('When error occurs after user creation, then should rollback and notify', async () => {
+      const bucketError = new Error('Bucket creation failed');
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValueOnce(null);
+      jest.spyOn(userRepository, 'create').mockResolvedValueOnce(userMock);
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === password) return decryptedPassword;
+        if (text === salt) return decryptedSalt;
+        return '';
+      });
+      jest
+        .spyOn(bridgeService, 'createUser')
+        .mockResolvedValueOnce({ userId: networkPass, uuid: userMock.uuid });
+      jest.spyOn(bridgeService, 'createBucket').mockRejectedValue(bucketError);
+
+      const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
+      const loggerWarnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+
+      await expect(
+        userUseCases.createUser({
+          email: userMock.email,
+          password,
+          salt,
+          name: userMock.name,
+          mnemonic: 'mnemonic',
+          lastname: userMock.lastname,
+        }),
+      ).rejects.toThrow(bucketError);
+
+      expect(loggerErrorSpy).toHaveBeenCalled();
+      expect(loggerWarnSpy).toHaveBeenCalled();
+
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({
+        uuid: userMock.uuid,
+      });
+    });
+  });
+
+  describe('getUserUsage', () => {
+    it('When cache has user usage data, then it should return the cached data', async () => {
+      const cachedUsage = { usage: 1024 };
+
+      jest
+        .spyOn(cacheManagerService, 'getUserUsage')
+        .mockResolvedValue(cachedUsage);
+      jest.spyOn(fileUseCases, 'getUserUsedStorage');
+      jest.spyOn(cacheManagerService, 'setUserUsage');
+
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
+      expect(fileUseCases.getUserUsedStorage).not.toHaveBeenCalled();
+      expect(cacheManagerService.setUserUsage).not.toHaveBeenCalled();
+      expect(result).toEqual({ drive: cachedUsage.usage });
+    });
+
+    it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
+      const driveUsage = 2048;
+
+      jest.spyOn(cacheManagerService, 'getUserUsage').mockResolvedValue(null);
+      jest
+        .spyOn(fileUseCases, 'getUserUsedStorage')
+        .mockResolvedValue(driveUsage);
+      jest
+        .spyOn(cacheManagerService, 'setUserUsage')
+        .mockResolvedValue(undefined);
+
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
+      expect(fileUseCases.getUserUsedStorage).toHaveBeenCalledWith(user);
+      expect(cacheManagerService.setUserUsage).toHaveBeenCalledWith(
+        user.uuid,
+        driveUsage,
+      );
+      expect(result).toEqual({ drive: driveUsage });
+    });
+  });
+
+  describe('updateUserStorage', () => {
+    const newStorage = 1024;
+    it('When called, then it should set user new storage', async () => {
+      await userUseCases.updateUserStorage(user, newStorage);
+
+      expect(bridgeService.setStorage).toHaveBeenCalledWith(
+        user.username,
+        newStorage,
+      );
+    });
+  });
+
+  describe('getSpaceLimit', () => {
+    it('When a valid user is provided, then it should return the space limit', async () => {
+      const expectedLimit = 1000000000;
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(expectedLimit);
+
+      const result = await userUseCases.getSpaceLimit(user);
+
+      expect(bridgeService.getLimit).toHaveBeenCalledWith(
+        user.bridgeUser,
+        user.userId,
+      );
+      expect(result).toEqual(expectedLimit);
+    });
+
+    it('When an error occurs while getting the space limit, then it should throw an error', async () => {
+      const errorMessage = 'Error getting space limit';
+      jest
+        .spyOn(bridgeService, 'getLimit')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(userUseCases.getSpaceLimit(user)).rejects.toThrow(
+        errorMessage,
       );
     });
   });

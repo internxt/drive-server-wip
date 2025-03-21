@@ -199,6 +199,7 @@ export class BridgeService {
         error,
       )}
       `);
+      throw error;
     }
   }
 
