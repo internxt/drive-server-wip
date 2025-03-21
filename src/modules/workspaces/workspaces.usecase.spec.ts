@@ -1323,7 +1323,6 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUser);
       jest.spyOn(service, 'getOwnerAvailableSpace').mockResolvedValueOnce(3000);
       jest.spyOn(service, 'adjustOwnerStorage').mockResolvedValueOnce();
-
       await service.acceptWorkspaceInvite(invitedUser, 'anyUuid');
 
       expect(workspaceRepository.addUserToWorkspace).toHaveBeenCalledWith(
@@ -4856,9 +4855,22 @@ describe('WorkspacesUsecases', () => {
       it('When workspace is found and user is the owner, then it should delete all workspace content', async () => {
         const user = newUser();
         const workspace = newWorkspace({ attributes: { ownerId: user.uuid } });
+        const workspaceMembers = [
+          newWorkspaceUser({
+            workspaceId: workspace.id,
+            memberId: user.uuid,
+            member: user,
+          }),
+          newWorkspaceUser({
+            workspaceId: workspace.id,
+          }),
+        ];
         jest
           .spyOn(workspaceRepository, 'findById')
           .mockResolvedValue(workspace);
+        jest
+          .spyOn(workspaceRepository, 'findWorkspaceUsers')
+          .mockResolvedValue(workspaceMembers);
 
         await service.deleteWorkspaceContent(workspace.id, user);
 

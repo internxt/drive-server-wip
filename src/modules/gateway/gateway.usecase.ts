@@ -10,6 +10,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @Injectable()
 export class GatewayUseCases {
@@ -18,6 +19,7 @@ export class GatewayUseCases {
     private readonly userRepository: SequelizeUserRepository,
     private readonly userUseCases: UserUseCases,
     private readonly cacheManagerService: CacheManagerService,
+    private readonly storageNotificationService: StorageNotificationService,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -120,7 +122,16 @@ export class GatewayUseCases {
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
-    await this.workspaceUseCases.deleteWorkspaceContent(workspace.id, owner);
+    const workspaceMembers =
+      await this.workspaceUseCases.deleteWorkspaceContent(workspace.id, owner);
+
+    workspaceMembers.forEach((workspaceUser) => {
+      this.storageNotificationService.workspaceLeft({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user: workspaceUser.member,
+        clientId: 'gateway',
+      });
+    });
   }
 
   async getUserByEmail(email: string): Promise<User> {

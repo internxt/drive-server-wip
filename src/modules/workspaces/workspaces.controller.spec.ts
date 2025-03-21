@@ -243,8 +243,22 @@ describe('Workspace Controller', () => {
     const user = newUser();
     it('When invitation is accepted successfully, then it returns.', async () => {
       const invite = newWorkspaceInvite({ invitedUser: user.uuid });
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
 
-      await workspacesController.acceptWorkspaceInvitation(user, {
+      jest
+        .spyOn(workspacesUsecases, 'acceptWorkspaceInvite')
+        .mockResolvedValueOnce(workspaceUser.toJSON());
+
+      jest
+        .spyOn(workspacesUsecases, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      const clientId = 'test-client';
+      await workspacesController.acceptWorkspaceInvitation(user, clientId, {
         inviteId: invite.id,
       });
 
@@ -252,6 +266,12 @@ describe('Workspace Controller', () => {
         user,
         invite.id,
       );
+
+      expect(storageNotificationService.workspaceJoined).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user,
+        clientId,
+      });
     });
   });
 
@@ -259,10 +279,22 @@ describe('Workspace Controller', () => {
     const user = newUser();
     it('When a member leaves workspace, then return', async () => {
       const workspace = newWorkspace({ owner: user });
+      const clientId = 'drive-web';
 
-      await expect(
-        workspacesController.leaveWorkspace(user, workspace.id),
-      ).resolves.toBeTruthy();
+      workspacesUsecases.findById.mockResolvedValueOnce(workspace);
+
+      await workspacesController.leaveWorkspace(user, clientId, workspace.id);
+
+      expect(workspacesUsecases.leaveWorkspace).toHaveBeenCalledWith(
+        workspace.id,
+        user,
+      );
+
+      expect(storageNotificationService.workspaceLeft).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user,
+        clientId,
+      });
     });
   });
 
@@ -695,22 +727,41 @@ describe('Workspace Controller', () => {
   });
 
   describe('DELETE /:workspaceId/members/:memberId', () => {
-    it('When a member is removed from the workspace, then it should call the service with the respective arguments', async () => {
-      const workspaceId = v4();
+    it('When a member is removed from the workspace, then it should call the service with the respective arguments and send the workspaceLeft notification', async () => {
+      const workspace = newWorkspace();
       const memberId = v4();
+      const workspaceId = workspace.id;
+      const member = newUser();
+      const workspaceUser = newWorkspaceUser({
+        memberId,
+        workspaceId,
+        member,
+      });
+      const clientId = 'drive-web';
 
       jest
-        .spyOn(workspacesUsecases, 'removeWorkspaceMember')
-        .mockResolvedValue(Promise.resolve());
+        .spyOn(workspacesUsecases, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(workspacesUsecases, 'findUserInWorkspace')
+        .mockResolvedValueOnce(workspaceUser);
 
-      await expect(
-        workspacesController.removeWorkspaceMember(workspaceId, memberId),
-      ).resolves.toBeUndefined();
+      await workspacesController.removeWorkspaceMember(
+        workspaceId,
+        memberId,
+        clientId,
+      );
 
       expect(workspacesUsecases.removeWorkspaceMember).toHaveBeenCalledWith(
         workspaceId,
         memberId,
       );
+
+      expect(storageNotificationService.workspaceLeft).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user: member,
+        clientId,
+      });
     });
   });
 

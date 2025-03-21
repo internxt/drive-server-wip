@@ -14,6 +14,8 @@ enum StorageEvents {
   FILE_DELETED = 'FILE_DELETED',
   FOLDER_DELETED = 'FOLDER_DELETED',
   PLAN_UPDATED = 'PLAN_UPDATED',
+  WORKSPACE_JOINED = 'WORKSPACE_JOINED',
+  WORKSPACE_LEFT = 'WORKSPACE_LEFT',
 }
 
 interface EventArguments {
@@ -144,6 +146,40 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid, {
       isStorageNotification: false,
       customKeys: { event: StorageEvents.PLAN_UPDATED },
+    });
+  }
+
+  workspaceJoined({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.workspaceJoined',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.WORKSPACE_JOINED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.WORKSPACE_JOINED },
+    });
+  }
+
+  workspaceLeft({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.workspaceLeft',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.WORKSPACE_LEFT,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.WORKSPACE_LEFT },
     });
   }
 

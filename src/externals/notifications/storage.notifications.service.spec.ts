@@ -213,6 +213,68 @@ describe('StorageNotificationService', () => {
     });
   });
 
+  describe('workspaceJoined', () => {
+    const user = newUser();
+    const payload = { workspaceId: '123', workspaceName: 'test-workspace' };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.workspaceJoined',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'WORKSPACE_JOINED',
+      );
+
+      service.workspaceJoined({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+        {
+          isStorageNotification: false,
+          customKeys: { event: 'WORKSPACE_JOINED' },
+        },
+      );
+    });
+  });
+
+  describe('workspaceLeft', () => {
+    const user = newUser();
+    const payload = { workspaceId: '123', workspaceName: 'test-workspace' };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and send APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const notification = new NotificationEvent(
+        'notification.workspaceLeft',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'WORKSPACE_LEFT',
+      );
+
+      service.workspaceLeft({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        user.uuid,
+        {
+          isStorageNotification: false,
+          customKeys: { event: 'WORKSPACE_LEFT' },
+        },
+      );
+    });
+  });
+
   describe('getTokensAndSendApnNotification', () => {
     const user = newUser();
 
