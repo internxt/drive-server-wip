@@ -8,7 +8,6 @@ import { UserEmailAlreadyInUseException } from './exception/user-email-already-i
 import {
   MailLimitReachedException,
   UserUseCases,
-  ReferralsNotAvailableError,
   UserAlreadyRegisteredError,
 } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
@@ -114,8 +113,6 @@ describe('User use cases', () => {
   let appSumoUseCases: AppSumoUseCase;
   let backupUseCases: BackupUseCase;
   let cacheManagerService: CacheManagerService;
-
-  const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
     id: 1,

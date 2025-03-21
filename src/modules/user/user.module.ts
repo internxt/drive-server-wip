@@ -78,7 +78,6 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     forwardRef(() => FeatureLimitModule),
     forwardRef(() => WorkspacesModule),
     AsymmetricEncryptionModule,
-    BackupModule,
     forwardRef(() => BackupModule),
     CacheManagerModule,
   ],
