@@ -128,4 +128,101 @@ describe('BackupController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('getBackupsByMac', () => {
+    const mockResponse = {
+      id: 1,
+      deviceId: 1,
+      path: 'add_path',
+      interval: 1,
+      enabled: true,
+      encrypt_version: '03-aes256',
+    };
+    it('When getBackupsByMac is called, then it should return backups for the device', async () => {
+      jest
+        .spyOn(backupUseCase, 'getBackupsByMac')
+        .mockResolvedValue(mockResponse as any);
+
+      const result = await backupController.getBackupsByMac(
+        userMocked,
+        'mac-address',
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('When device is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupUseCase, 'getBackupsByMac')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        backupController.getBackupsByMac(userMocked, 'mac-address'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getAllDevices', () => {
+    it('When getAllDevices is called, then it should return all user devices', async () => {
+      const mockResponse = [
+        { id: 1, name: 'Device 1' },
+        { id: 2, name: 'Device 2' },
+      ];
+      jest
+        .spyOn(backupUseCase, 'getAllDevices')
+        .mockResolvedValue(mockResponse as any);
+
+      const result = await backupController.getAllDevices(userMocked);
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('When no devices are found, then it should return an empty array', async () => {
+      const mockResponse = [];
+      jest
+        .spyOn(backupUseCase, 'getAllDevices')
+        .mockResolvedValue(mockResponse as any);
+
+      const result = await backupController.getAllDevices(userMocked);
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('deleteDevice', () => {
+    it('When deleteDevice is called with a valid deviceId, then it should return the number of deleted devices', async () => {
+      const mockResponse = 1;
+      jest.spyOn(backupUseCase, 'deleteDevice').mockResolvedValue(mockResponse);
+
+      const result = await backupController.deleteDevice(userMocked, 1);
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('When device is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupUseCase, 'deleteDevice')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        backupController.deleteDevice(userMocked, 1),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteBackup', () => {
+    it('When deleteBackup is called, then it should return the number of deleted backups', async () => {
+      const mockResponse = 1;
+      jest.spyOn(backupUseCase, 'deleteBackup').mockResolvedValue(mockResponse);
+
+      const result = await backupController.deleteBackup(userMocked, 1);
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('When backup is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupUseCase, 'deleteBackup')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        backupController.deleteBackup(userMocked, 1),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

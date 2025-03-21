@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -68,5 +76,50 @@ export class BackupController {
   @ApiBearerAuth()
   async getDevicesAsFolder(@UserDecorator() user: User) {
     return this.backupUseCases.getDevicesAsFolder(user);
+  }
+
+  @Get('/devices')
+  @ApiOperation({
+    summary: 'Get all user devices',
+  })
+  @ApiBearerAuth()
+  async getAllDevices(@UserDecorator() user: User) {
+    return this.backupUseCases.getAllDevices(user);
+  }
+
+  @Delete('/devices/:deviceId')
+  @ApiOperation({
+    summary: 'Delete user device',
+  })
+  @ApiBearerAuth()
+  async deleteDevice(
+    @UserDecorator() user: User,
+    @Param('deviceId') deviceId: number,
+  ) {
+    return this.backupUseCases.deleteDevice(user, deviceId);
+  }
+
+  @Get('/:mac')
+  @ApiOperation({
+    summary: 'Get backups by mac',
+  })
+  @ApiBearerAuth()
+  async getBackupsByMac(
+    @UserDecorator() user: User,
+    @Param('mac') mac: string,
+  ) {
+    return this.backupUseCases.getBackupsByMac(user, mac);
+  }
+
+  @Delete('/:backupId')
+  @ApiOperation({
+    summary: 'Delete backup',
+  })
+  @ApiBearerAuth()
+  async deleteBackup(
+    @UserDecorator() user: User,
+    @Param('backupId') backupId: number,
+  ) {
+    return this.backupUseCases.deleteBackup(user, backupId);
   }
 }
