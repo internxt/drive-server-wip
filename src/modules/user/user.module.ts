@@ -48,6 +48,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { BackupModule } from '../backups/backup.module';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
   imports: [
@@ -75,7 +76,8 @@ import { BackupModule } from '../backups/backup.module';
     SecurityModule,
     forwardRef(() => FeatureLimitModule),
     forwardRef(() => WorkspacesModule),
-    BackupModule,
+    forwardRef(() => BackupModule),
+    CacheManagerModule,
   ],
   controllers: [UserController],
   providers: [

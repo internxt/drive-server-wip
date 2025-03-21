@@ -41,6 +41,7 @@ export interface FolderRepository {
   createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
   ): Promise<Folder>;
+  deleteByUser(user: User, folders: Folder[]): Promise<void>;
   findAll(): Promise<Array<Folder> | []>;
   findAllByParentIdAndUserId(
     parentId: FolderAttributes['parentId'],
@@ -516,6 +517,17 @@ export class SequelizeFolderRepository implements FolderRepository {
       parentUuid,
     });
 
+    return this.toDomain(folder);
+  }
+
+  async createFolder(
+    userId: UserAttributes['id'],
+    folderData: Partial<FolderAttributes>,
+  ) {
+    const folder = await this.folderModel.create({
+      ...folderData,
+      userId,
+    });
     return this.toDomain(folder);
   }
 

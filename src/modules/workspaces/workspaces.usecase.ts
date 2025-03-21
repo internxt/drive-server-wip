@@ -2611,7 +2611,7 @@ export class WorkspacesUsecases {
   async deleteWorkspaceContent(
     workspaceId: Workspace['id'],
     user: User,
-  ): Promise<void> {
+  ): Promise<WorkspaceUser[]> {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
     if (!workspace) {
@@ -2630,9 +2630,14 @@ export class WorkspacesUsecases {
       workspace.rootFolderId,
     );
 
+    const workspaceMembers =
+      await this.workspaceRepository.findWorkspaceUsers(workspaceId);
+
     await this.folderUseCases.deleteByUser(workspaceUser, [rootFolder]);
 
     await this.workspaceRepository.deleteById(workspaceId);
+
+    return workspaceMembers;
   }
 
   async transferPersonalItemsToWorkspaceOwner(

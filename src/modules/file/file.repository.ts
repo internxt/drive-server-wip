@@ -22,6 +22,8 @@ import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attribut
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
+  deleteFilesByUser(user: User, files: File[]): Promise<void>;
+  destroyFile(where: Partial<FileModel>): Promise<void>;
   findByIdNotDeleted(
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
@@ -113,6 +115,7 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
+  sumExistentFileSizes(userId: FileAttributes['userId']): Promise<number>;
 }
 
 @Injectable()
@@ -763,6 +766,10 @@ export class SequelizeFileRepository implements FileRepository {
     );
   }
 
+  async destroyFile(where: Partial<FileModel>): Promise<void> {
+    await this.fileModel.destroy({ where });
+  }
+
   private toDomain(model: FileModel): File {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
@@ -777,5 +784,22 @@ export class SequelizeFileRepository implements FileRepository {
 
   private toModel(domain: File): Partial<FileAttributes> {
     return domain.toJSON();
+  }
+
+  async sumExistentFileSizes(
+    userId: FileAttributes['userId'],
+  ): Promise<number> {
+    const result = await this.fileModel.findAll({
+      attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+      where: {
+        userId,
+        status: {
+          [Op.ne]: 'DELETED',
+        },
+      },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) as unknown as number;
   }
 }

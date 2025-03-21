@@ -13,35 +13,6 @@ describe('Trash Use Cases', () => {
   let service: TrashUseCases,
     fileUseCases: FileUseCases,
     folderUseCases: FolderUseCases;
-  const userMock = User.build({
-    id: 2,
-    userId: 'userId',
-    name: 'User Owner',
-    lastname: 'Lastname',
-    email: 'fake@internxt.com',
-    username: 'fake',
-    bridgeUser: null,
-    rootFolderId: 1,
-    errorLoginCount: 0,
-    isEmailActivitySended: 1,
-    referralCode: null,
-    referrer: null,
-    syncDate: new Date(),
-    uuid: 'uuid',
-    lastResend: new Date(),
-    credit: null,
-    welcomePack: true,
-    registerCompleted: true,
-    backupsBucket: 'bucket',
-    sharedWorkspace: true,
-    avatar: 'avatar',
-    password: '',
-    mnemonic: '',
-    hKey: undefined,
-    secret_2FA: '',
-    lastPasswordChangedAt: new Date(),
-    emailVerified: false,
-  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -57,113 +28,6 @@ describe('Trash Use Cases', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  describe('clear trash', () => {
-    it.skip('should delete orphaned folders', async () => {
-      jest
-        .spyOn(fileUseCases, 'getByFolderAndUser')
-        .mockImplementationOnce(() => Promise.resolve([]));
-      jest
-        .spyOn(folderUseCases, 'getFoldersToUser')
-        .mockResolvedValueOnce([{} as Folder]);
-      jest
-        .spyOn(folderUseCases, 'deleteFolderPermanently')
-        .mockImplementationOnce(() => Promise.resolve());
-      jest
-        .spyOn(folderUseCases, 'deleteOrphansFolders')
-        .mockImplementationOnce(() => Promise.resolve(3));
-
-      await service.clearTrash(userMock);
-
-      expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(1);
-    });
-
-    it.skip('should not try to delete orphaned folders if no folders where found in the trash', async () => {
-      jest
-        .spyOn(fileUseCases, 'getByFolderAndUser')
-        .mockImplementationOnce(() => Promise.resolve([]));
-      jest.spyOn(folderUseCases, 'getFoldersToUser').mockResolvedValueOnce([]);
-      jest
-        .spyOn(folderUseCases, 'deleteFolderPermanently')
-        .mockImplementationOnce(() => Promise.resolve());
-      jest
-        .spyOn(folderUseCases, 'deleteOrphansFolders')
-        .mockImplementationOnce(() => Promise.resolve(0));
-
-      await service.clearTrash(userMock);
-
-      expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(0);
-    });
-
-    it.skip('should delete all files and folder founded', async () => {
-      const filesToDelete: Array<File> = Array(32).fill({} as File);
-      const foldersToDelete: Array<Folder> = Array(26).fill({} as Folder);
-
-      jest
-        .spyOn(fileUseCases, 'getByUserExceptParents')
-        .mockResolvedValueOnce(filesToDelete);
-      jest
-        .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementation(() => Promise.resolve());
-      jest
-        .spyOn(folderUseCases, 'getFoldersToUser')
-        .mockResolvedValueOnce(foldersToDelete);
-      jest
-        .spyOn(folderUseCases, 'deleteFolderPermanently')
-        .mockImplementation(() => Promise.resolve());
-      jest
-        .spyOn(folderUseCases, 'deleteOrphansFolders')
-        .mockImplementationOnce(() => Promise.resolve(filesToDelete.length));
-
-      await service.clearTrash(userMock);
-
-      expect(fileUseCases.getByUserExceptParents).toHaveBeenCalledTimes(1);
-      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
-        filesToDelete.length,
-      );
-      expect(folderUseCases.getFoldersToUser).toHaveBeenCalledTimes(1);
-      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
-        foldersToDelete.length,
-      );
-      expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(1);
-    });
-
-    it.skip('should continue deleting if a item cannot be deleted', async () => {
-      const errorToBeThrown = new Error('an error');
-      const foldersToDelete: Array<Folder> = Array(3).fill({} as Folder);
-      const filesToDelete: Array<File> = Array(6).fill({} as File);
-
-      jest
-        .spyOn(fileUseCases, 'getByUserExceptParents')
-        .mockResolvedValueOnce(filesToDelete);
-      jest
-        .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementationOnce(() => Promise.reject(errorToBeThrown))
-        .mockImplementation(() => Promise.resolve());
-      jest
-        .spyOn(folderUseCases, 'getFoldersToUser')
-        .mockResolvedValueOnce(foldersToDelete);
-      jest
-        .spyOn(folderUseCases, 'deleteFolderPermanently')
-        .mockImplementation(() => Promise.resolve())
-        .mockImplementationOnce(() => Promise.reject(errorToBeThrown));
-      jest
-        .spyOn(folderUseCases, 'deleteOrphansFolders')
-        .mockImplementation(() => Promise.resolve(filesToDelete.length));
-
-      await service.clearTrash(userMock);
-
-      expect(fileUseCases.getByUserExceptParents).toHaveBeenCalledTimes(1);
-      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
-        filesToDelete.length,
-      );
-      expect(folderUseCases.getFoldersToUser).toHaveBeenCalledTimes(1);
-      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
-        foldersToDelete.length,
-      );
-      expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('delete items', () => {
@@ -184,7 +48,12 @@ describe('Trash Use Cases', () => {
       jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementation(() => Promise.resolve());
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            id: 2176796544,
+            uuid: 'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+          }),
+        );
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')
         .mockImplementation(() => Promise.resolve());
@@ -286,10 +155,20 @@ describe('Trash Use Cases', () => {
       jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            id: 2176796544,
+            uuid: 'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
+          }),
+        )
         .mockImplementationOnce(() => Promise.reject(error))
         .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() => Promise.resolve())
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            id: 2751197087,
+            uuid: '38473164-6261-51af-8eb3-223c334986ce',
+          }),
+        )
         .mockImplementationOnce(() => Promise.reject(error));
       jest
         .spyOn(folderUseCases, 'deleteFolderPermanently')

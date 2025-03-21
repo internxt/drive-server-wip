@@ -9,6 +9,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -282,36 +283,8 @@ describe('FolderUseCases', () => {
   });
 
   describe('delete folder use case', () => {
-    it('should be able to delete a trashed folder', async () => {
-      const userOwnerMock = User.build({
-        id: 1,
-        userId: 'userId',
-        name: 'User Owner',
-        lastname: 'Lastname',
-        email: 'fake@internxt.com',
-        username: 'fake',
-        bridgeUser: null,
-        rootFolderId: 1,
-        errorLoginCount: 0,
-        isEmailActivitySended: 1,
-        referralCode: null,
-        referrer: null,
-        syncDate: new Date(),
-        uuid: 'uuid',
-        lastResend: new Date(),
-        credit: null,
-        welcomePack: true,
-        registerCompleted: true,
-        backupsBucket: 'bucket',
-        sharedWorkspace: true,
-        avatar: 'avatar',
-        password: '',
-        mnemonic: '',
-        hKey: undefined,
-        secret_2FA: '',
-        lastPasswordChangedAt: new Date(),
-        emailVerified: false,
-      });
+    it('When called, then it should be able to delete folder', async () => {
+      const userOwnerMock = newUser({ attributes: { id: 1 } });
       const folderId = 2713105696;
       const folder = newFolder({
         attributes: {
@@ -333,121 +306,6 @@ describe('FolderUseCases', () => {
       await service.deleteFolderPermanently(folder, userOwnerMock);
 
       expect(folderRepository.deleteById).toHaveBeenCalledWith(folderId);
-    });
-
-    it('should fail when the folder trying to delete has not been trashed', async () => {
-      const userOwnerMock = User.build({
-        id: 1,
-        userId: 'userId',
-        name: 'User Owner',
-        lastname: 'Lastname',
-        email: 'fake@internxt.com',
-        username: 'fake',
-        bridgeUser: null,
-        rootFolderId: 1,
-        errorLoginCount: 0,
-        isEmailActivitySended: 1,
-        referralCode: null,
-        referrer: null,
-        syncDate: new Date(),
-        uuid: 'uuid',
-        lastResend: new Date(),
-        credit: null,
-        welcomePack: true,
-        registerCompleted: true,
-        backupsBucket: 'bucket',
-        sharedWorkspace: true,
-        avatar: 'avatar',
-        password: '',
-        mnemonic: '',
-        hKey: undefined,
-        secret_2FA: '',
-        lastPasswordChangedAt: new Date(),
-        emailVerified: false,
-      });
-      const folderId = 2713105696;
-      const folder = newFolder({
-        attributes: {
-          id: folderId,
-          parentId: 3388762609,
-          name: 'name',
-          bucket: 'bucket',
-          userId: 1,
-          encryptVersion: '03-aes',
-          deleted: false,
-          deletedAt: new Date(),
-        },
-      });
-      jest
-        .spyOn(folderRepository, 'deleteById')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      expect(
-        service.deleteFolderPermanently(folder, userOwnerMock),
-      ).rejects.toThrow(
-        new UnprocessableEntityException(
-          `folder with id ${folderId} cannot be permanently deleted`,
-        ),
-      );
-      expect(folderRepository.deleteById).toHaveBeenCalledTimes(0);
-    });
-
-    it('should fail when the folder trying to delete is a root folder', async () => {
-      const userOwnerMock = User.build({
-        id: 1,
-        userId: 'userId',
-        name: 'User Owner',
-        lastname: 'Lastname',
-        email: 'fake@internxt.com',
-        username: 'fake',
-        bridgeUser: null,
-        rootFolderId: 1,
-        errorLoginCount: 0,
-        isEmailActivitySended: 1,
-        referralCode: null,
-        referrer: null,
-        syncDate: new Date(),
-        uuid: 'uuid',
-        lastResend: new Date(),
-        credit: null,
-        welcomePack: true,
-        registerCompleted: true,
-        backupsBucket: 'bucket',
-        sharedWorkspace: true,
-        avatar: 'avatar',
-        password: '',
-        mnemonic: '',
-        hKey: undefined,
-        secret_2FA: '',
-        lastPasswordChangedAt: new Date(),
-        emailVerified: false,
-      });
-      const folderId = 2713105696;
-      const folder = newFolder({
-        attributes: {
-          id: folderId,
-          parentId: null,
-          name: 'name',
-          bucket: 'bucket',
-          userId: 1,
-          encryptVersion: '03-aes',
-          deleted: true,
-          deletedAt: new Date(),
-        },
-      });
-
-      jest
-        .spyOn(folderRepository, 'deleteById')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      expect(
-        service.deleteFolderPermanently(folder, userOwnerMock),
-      ).rejects.toThrow(
-        new UnprocessableEntityException(
-          `folder with id ${folderId} is a root folder`,
-        ),
-      );
-      expect(folderRepository.deleteById).toHaveBeenCalledTimes(0);
     });
   });
 
@@ -516,6 +374,8 @@ describe('FolderUseCases', () => {
           name: 'not encrypted name',
         },
       });
+
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValue('');
 
       expect(() => service.decryptFolderName(folder)).toThrow(
         'Unable to decrypt folder name',
@@ -1539,6 +1399,46 @@ describe('FolderUseCases', () => {
       const result = await service.getUserRootFolder(mockUser);
 
       expect(result).toBe(mockFolder);
+    });
+  });
+
+  describe('deleteByUser ', () => {
+    const userMocked = newUser();
+    userMocked.rootFolderId = 1;
+    const folderMocked: Folder[] = [
+      { id: 2, parentId: 1 } as Folder,
+      { id: 3, parentId: null } as Folder,
+    ];
+
+    it('When folders are deleted successfully, then it should call deleteByUser ', async () => {
+      jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
+
+      await service.deleteByUser(userMocked, [folderMocked[0]]);
+
+      expect(folderRepository.deleteByUser).toHaveBeenCalledWith(userMocked, [
+        folderMocked[0],
+      ]);
+    });
+
+    it('When trying to delete the root folder, then it should throw an error', async () => {
+      const rootFolder = {
+        id: userMocked.rootFolderId,
+        parentId: null,
+      } as Folder;
+
+      await expect(
+        service.deleteByUser(userMocked, [rootFolder]),
+      ).rejects.toThrow(NotAcceptableException);
+    });
+
+    it('When an error occurs during deletion, then it should throw an error', async () => {
+      jest
+        .spyOn(folderRepository, 'deleteByUser')
+        .mockRejectedValue(new Error('Deletion failed'));
+
+      await expect(
+        service.deleteByUser(userMocked, [folderMocked[0]]),
+      ).rejects.toThrow('Deletion failed');
     });
   });
 });

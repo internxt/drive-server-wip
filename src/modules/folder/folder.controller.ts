@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   NotImplementedException,
@@ -61,6 +62,7 @@ import {
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
 import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
+import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -479,6 +481,7 @@ export class FolderController {
   @ApiParam({ name: 'uuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Current folder with children folders and files',
+    type: GetFolderContentDto,
   })
   @GetDataFromRequest([
     {
@@ -496,7 +499,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: BasicPaginationDto,
-  ) {
+  ): Promise<GetFolderContentDto> {
     const [currentFolder, childrenFolders, files] = await Promise.all([
       this.folderUseCases.getFolderByUuid(folderUuid, user),
       this.folderUseCases.getFolders(
@@ -899,5 +902,25 @@ export class FolderController {
       throw new NotFoundException('Folder not found');
     }
     return folder;
+  }
+
+  @Delete('/:uuid')
+  @HttpCode(204)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete Folder',
+  })
+  async deleteFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Client() clientId: string,
+  ) {
+    const folder = await this.folderUseCases.getFolderByUuidAndUser(uuid, user);
+    await this.folderUseCases.deleteByUser(user, [folder]);
+    this.storageNotificationService.folderDeleted({
+      payload: { id: folder.id, uuid, userId: user.id },
+      user: user,
+      clientId,
+    });
   }
 }
