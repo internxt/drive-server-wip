@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   NotImplementedException,
@@ -899,5 +900,25 @@ export class FolderController {
       throw new NotFoundException('Folder not found');
     }
     return folder;
+  }
+
+  @Delete('/:uuid')
+  @HttpCode(204)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete Folder',
+  })
+  async deleteFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Client() clientId: string,
+  ) {
+    const folder = await this.folderUseCases.getFolderByUuidAndUser(uuid, user);
+    await this.folderUseCases.deleteByUser(user, [folder]);
+    this.storageNotificationService.folderDeleted({
+      payload: { id: folder.id, uuid, userId: user.id },
+      user: user,
+      clientId,
+    });
   }
 }

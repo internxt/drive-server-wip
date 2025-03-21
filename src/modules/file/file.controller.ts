@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Logger,
   NotFoundException,
@@ -463,5 +464,28 @@ export class FileController {
     @Body() createThumbnailDto: CreateThumbnailDto,
   ): Promise<ThumbnailDto> {
     return this.thumbnailUseCases.createThumbnail(user, createThumbnailDto);
+  }
+
+  @Delete('/:uuid')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage and database',
+  })
+  async deleteFileByUuid(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Client() clientId: string,
+  ) {
+    const { id } = await this.fileUseCases.deleteFilePermanently(user, {
+      uuid,
+    });
+
+    this.storageNotificationService.fileDeleted({
+      payload: { id, uuid },
+      user,
+      clientId,
+    });
+
+    return { deleted: true };
   }
 }

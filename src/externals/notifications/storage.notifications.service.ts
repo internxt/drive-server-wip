@@ -11,6 +11,8 @@ enum StorageEvents {
   FILE_UPDATED = 'FILE_UPDATED',
   FOLDER_UPDATED = 'FOLDER_UPDATED',
   ITEMS_TO_TRASH = 'ITEMS_TO_TRASH',
+  FILE_DELETED = 'FILE_DELETED',
+  FOLDER_DELETED = 'FOLDER_DELETED',
   PLAN_UPDATED = 'PLAN_UPDATED',
 }
 
@@ -58,6 +60,20 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
+  fileDeleted({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.itemDeleted',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.FILE_DELETED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid);
+  }
+
   folderCreated({ payload, user, clientId }: EventArguments) {
     const event = new NotificationEvent(
       'notification.itemCreated',
@@ -80,6 +96,20 @@ export class StorageNotificationService {
       clientId,
       user.uuid,
       StorageEvents.FOLDER_UPDATED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid);
+  }
+
+  folderDeleted({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.itemDeleted',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.FOLDER_DELETED,
     );
 
     this.notificationService.add(event);
