@@ -33,7 +33,7 @@ export class AsymmetricEncryptionService {
     return {
       privateKeyArmored: eccKeys.privateKeyArmored,
       publicKeyArmored: eccKeys.publicKeyArmored,
-      revocationCertificate: eccKeys.privateKeyArmored,
+      revocationCertificate: eccKeys.revocationCertificate,
       publicKyberKeyBase64: kyberKeys.publicKey,
       privateKyberKeyBase64: kyberKeys.privateKey,
     };
