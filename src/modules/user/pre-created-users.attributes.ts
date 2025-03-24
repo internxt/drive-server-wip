@@ -11,8 +11,6 @@ export interface PreCreatedUserAttributes {
   uuid: UserAttributes['uuid'];
   publicKey: KeyServerAttributes['publicKey'];
   privateKey: KeyServerAttributes['privateKey'];
-  publicKyberKey?: KeyServerAttributes['publicKey'];
-  privateKyberKey?: KeyServerAttributes['privateKey'];
   revocationKey: KeyServerAttributes['revocationKey'];
   encryptVersion: KeyServerAttributes['encryptVersion'];
 }
