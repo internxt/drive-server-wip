@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
+import { aes } from '@internxt/lib';
+
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
 import {
   MailLimitReachedException,
   UserUseCases,
-  ReferralsNotAvailableError,
   UserAlreadyRegisteredError,
 } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
@@ -45,6 +46,7 @@ import {
   newFile,
   newFolder,
   newKeyServer,
+  newPreCreatedUser,
   newWorkspace,
   newWorkspaceUser,
 } from '../../../test/fixtures';
@@ -66,8 +68,13 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
+import { SharingInvite } from '../sharing/sharing.domain';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
+import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
@@ -91,6 +98,10 @@ describe('User use cases', () => {
   let keyServerRepository: SequelizeKeyServerRepository;
   let bridgeService: BridgeService;
   let sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository;
+  let sharingRepository: SequelizeSharingRepository;
+  let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
+  let asymmetricEncryptionService: AsymmetricEncryptionService;
+
   let cryptoService: CryptoService;
   let attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository;
   let configService: ConfigService;
@@ -102,8 +113,6 @@ describe('User use cases', () => {
   let appSumoUseCases: AppSumoUseCase;
   let backupUseCases: BackupUseCase;
   let cacheManagerService: CacheManagerService;
-
-  const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
   const user = User.build({
     id: 1,
@@ -172,6 +181,16 @@ describe('User use cases', () => {
     mailerService = moduleRef.get<MailerService>(MailerService);
     avatarService = moduleRef.get<AvatarService>(AvatarService);
     keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
+    sharingRepository = moduleRef.get<SequelizeSharingRepository>(
+      SequelizeSharingRepository,
+    );
+    preCreatedUsersRepository =
+      moduleRef.get<SequelizePreCreatedUsersRepository>(
+        SequelizePreCreatedUsersRepository,
+      );
+    asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
+      AsymmetricEncryptionService,
+    );
 
     appSumoUseCases = moduleRef.get<AppSumoUseCase>(AppSumoUseCase);
     backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
@@ -388,6 +407,276 @@ describe('User use cases', () => {
       expect(
         workspaceRepository.bulkUpdateInvitesKeysAndUsers,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('replacePreCreatedUser', () => {
+    beforeEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When pre-created user exists, then replace invitations with new user keys and uuid', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const newUserUuid = v4();
+
+      const newPublicKey = 'new-public-key';
+      const newPublicKyberKey = 'new-public-kyber-key';
+      const preCreatedUserDecryptedKey = 'decrypted-private-key';
+      const preCreatedUserDecryptedKyberKey = 'decrypted-private-kyber-key';
+
+      const sharingDecryptedEccKey = 'decrypted-encryption-key-ecc';
+      const sharingDecryptedHybridKey = 'decrypted-encryption-key-hybrid';
+      const newSharingEncryptedEccKey = 'new-encrypted-encryption-key-ecc';
+      const newSharingEncryptedHybridKey =
+        'new-encrypted-encryption-key-hybrid';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'ecc',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedUserDecryptedKey)
+        .mockReturnValueOnce(preCreatedUserDecryptedKyberKey);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+      jest
+        .spyOn(
+          asymmetricEncryptionService,
+          'hybridDecryptMessageWithPrivateKey',
+        )
+        .mockResolvedValueOnce(sharingDecryptedEccKey)
+        .mockResolvedValueOnce(sharingDecryptedHybridKey);
+
+      jest
+        .spyOn(asymmetricEncryptionService, 'hybridEncryptMessageWithPublicKey')
+        .mockResolvedValueOnce(newSharingEncryptedEccKey)
+        .mockResolvedValueOnce(newSharingEncryptedHybridKey);
+      jest.spyOn(sharingRepository, 'bulkUpdate');
+      jest.spyOn(userUseCases, 'replacePreCreatedUserWorkspaceInvitations');
+      jest.spyOn(preCreatedUsersRepository, 'deleteByUuid');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newPublicKey,
+        newPublicKyberKey,
+      );
+
+      expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalledWith(
+        preCreatedUser.email,
+      );
+      expect(sharingRepository.getInvitesBySharedwith).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+      );
+
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([
+        expect.objectContaining({
+          encryptionKey: newSharingEncryptedEccKey,
+          sharedWith: newUserUuid,
+        }),
+        expect.objectContaining({
+          encryptionKey: newSharingEncryptedHybridKey,
+          sharedWith: newUserUuid,
+        }),
+      ]);
+
+      expect(
+        userUseCases.replacePreCreatedUserWorkspaceInvitations,
+      ).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        newUserUuid,
+        preCreatedUserDecryptedKey,
+        newPublicKey,
+      );
+      expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+      );
+    });
+
+    it('When pre-created user does not exist, then do nothing', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      await userUseCases.replacePreCreatedUser(
+        'non-existent-email',
+        'new-user-uuid',
+        'new-public-key',
+        'new-public-kyber-key',
+      );
+
+      expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalled();
+      expect(sharingRepository.getInvitesBySharedwith).not.toHaveBeenCalled();
+      expect(sharingRepository.bulkUpdate).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.deleteByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When invite is hybrid and no Kyber keys are provided, then delete the invite', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const newUserUuid = v4();
+
+      const newPublicKey = 'new-public-key';
+      const preCreatedUserDecryptedKey = 'decrypted-private-key';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedUserDecryptedKey)
+        .mockReturnValueOnce(null);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+
+      jest.spyOn(sharingRepository, 'deleteInvite');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newPublicKey,
+      );
+
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
+    });
+
+    it('When pre created user is replaced, then sharing invitations encrypted keys should match original message if decrypted with new asymmetric keys', async () => {
+      const [preCreatedKeys, newKeys] = await Promise.all([
+        asymmetricEncryptionService.generateNewKeys(),
+        asymmetricEncryptionService.generateNewKeys(),
+      ]);
+      const newUserUuid = v4();
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.publicKey = preCreatedKeys.publicKeyArmored;
+      preCreatedUser.publicKyberKey = preCreatedKeys.publicKyberKeyBase64;
+
+      const sharingDecryptedKey =
+        'until bonus summer risk chunk oyster census ability frown win pull steel measure employ rigid improve riot remind system earn inch broken chalk clip';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'ecc',
+          encryptionKey:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: sharingDecryptedKey,
+                publicKeyInBase64: preCreatedKeys.publicKeyArmored,
+              },
+            ),
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: sharingDecryptedKey,
+                publicKeyInBase64: preCreatedKeys.publicKeyArmored,
+                publicKyberKeyBase64: preCreatedKeys.publicKyberKeyBase64,
+              },
+            ),
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedKeys.privateKeyArmored)
+        .mockReturnValueOnce(preCreatedKeys.privateKyberKeyBase64);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+
+      jest.spyOn(sharingRepository, 'bulkUpdate');
+      jest.spyOn(userUseCases, 'replacePreCreatedUserWorkspaceInvitations');
+      jest.spyOn(preCreatedUsersRepository, 'deleteByUuid');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newKeys.publicKeyArmored,
+        newKeys.publicKyberKeyBase64,
+      );
+
+      const newInviteEccEncryptedKey =
+        await asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey({
+          encryptedMessageInBase64: invites[0].encryptionKey,
+          privateKeyInBase64: newKeys.privateKeyArmored,
+        });
+      const newInviteHybridEncryptedKey =
+        await asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey({
+          encryptedMessageInBase64: invites[1].encryptionKey,
+          privateKeyInBase64: newKeys.privateKeyArmored,
+          privateKyberKeyInBase64: newKeys.privateKyberKeyBase64,
+        });
+
+      expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
+      expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     });
   });
 
@@ -1237,54 +1526,6 @@ describe('User use cases', () => {
       expect(userRepository.updateByUuid).toHaveBeenCalledWith(
         userUuid,
         payload,
-      );
-    });
-  });
-
-  describe('logReferralError', () => {
-    it('When an undefined error is logged, then it should log error message for undefined error', () => {
-      const userId = v4();
-
-      userUseCases.logReferralError(userId, new Error());
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        '[STORAGE]: ERROR message undefined applying referral for user %s',
-        userId,
-      );
-    });
-
-    it('When a ReferralsNotAvailableError is logged, then it should not log anything', () => {
-      const userId = v4();
-      const error = new ReferralsNotAvailableError();
-
-      userUseCases.logReferralError(userId, error);
-
-      expect(loggerErrorSpy).not.toHaveBeenCalled();
-    });
-
-    it('When another error is logged, then it should log error message for other errors', () => {
-      const userId = v4();
-      const errorMessage = 'Some error occurred';
-
-      userUseCases.logReferralError(userId, new Error(errorMessage));
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        '[STORAGE]: ERROR applying referral for user %s: %s',
-        userId,
-        errorMessage,
-      );
-    });
-
-    it('When a non-Error object is logged, Then it should log "Unknown error"', () => {
-      const userId = v4();
-      const error = 'This is a string error';
-
-      userUseCases.logReferralError(userId, error);
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        '[STORAGE]: ERROR applying referral for user %s: %s',
-        userId,
-        'Unknown error',
       );
     });
   });
@@ -2168,7 +2409,7 @@ describe('User use cases', () => {
 const createTestingModule = (): Promise<TestingModule> => {
   return Test.createTestingModule({
     controllers: [],
-    providers: [UserUseCases],
+    providers: [UserUseCases, AsymmetricEncryptionService, KyberProvider],
   })
     .useMocker(() => createMock())
     .compile();
