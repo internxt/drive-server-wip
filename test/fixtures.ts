@@ -226,8 +226,6 @@ export const newPreCreatedUser = (): PreCreatedUser => {
     privateKey: '',
     revocationKey: '',
     encryptVersion: UserKeysEncryptVersions.Ecc,
-    privateKyberKey: 'private-kyber-key',
-    publicKyberKey: 'public-kyber-key',
   });
 };
 

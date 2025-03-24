@@ -48,14 +48,6 @@ export class PreCreatedUserModel
   @Column(DataType.STRING)
   encryptVersion: KeyServerAttributes['encryptVersion'];
 
-  @AllowNull(true)
-  @Column(DataType.STRING(4000))
-  privateKyberKey?: string;
-
-  @AllowNull(true)
-  @Column(DataType.STRING(2000))
-  publicKyberKey?: string;
-
   @Column
   password: string;
 

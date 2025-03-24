@@ -51,10 +51,10 @@ import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
-
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
+  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -79,8 +79,6 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
-import { SharingInvite } from '../sharing/sharing.domain';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
@@ -157,7 +155,6 @@ export class UserUseCases {
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
     private readonly keyServerUseCases: KeyServerUseCases,
-    private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
     private readonly appSumoUseCases: AppSumoUseCase,
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
@@ -481,7 +478,6 @@ export class UserUseCases {
     email: string,
     newUserUuid: string,
     newPublicKey: string,
-    newPublicKyberKey?: string,
   ) {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
@@ -491,54 +487,35 @@ export class UserUseCases {
     }
 
     const defaultPass = this.configService.get('users.preCreatedPassword');
-    const { privateKey: encPrivateKey, privateKyberKey: encPrivateKyberKey } =
-      preCreatedUser;
-
+    const { privateKey: encPrivateKey } = preCreatedUser;
     const privateKey = aes.decrypt(encPrivateKey, defaultPass);
-    const privateKyberKey = encPrivateKyberKey
-      ? aes.decrypt(encPrivateKyberKey, defaultPass)
-      : null;
 
     const invites = await this.sharingRepository.getInvitesBySharedwith(
       preCreatedUser.uuid,
     );
 
-    const invitesToUpdate: SharingInvite[] = [];
-
     for (const invite of invites) {
-      const { encryptionKey } = invite;
+      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
+        encryptedMessage: Buffer.from(invite.encryptionKey, 'base64').toString(
+          'binary',
+        ),
+        privateKeyInBase64: privateKey,
+      });
 
-      if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
-        await this.sharingRepository.deleteInvite(invite);
-        continue;
-      }
+      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
+        message: decryptedEncryptionKey.toString(),
+        publicKeyInBase64: newPublicKey,
+      });
 
-      const decryptedEncryptionKey =
-        await this.asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey(
-          {
-            encryptedMessageInBase64: encryptionKey,
-            privateKeyInBase64: privateKey,
-            privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
-          },
-        );
-
-      const newEncryptedEncryptionKey =
-        await this.asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
-          {
-            message: decryptedEncryptionKey.toString(),
-            publicKeyInBase64: newPublicKey,
-            publicKyberKeyBase64: invite.isHybrid() ? newPublicKyberKey : null,
-          },
-        );
-
-      invite.encryptionKey = newEncryptedEncryptionKey;
+      invite.encryptionKey = Buffer.from(
+        newEncryptedEncryptionKey.toString(),
+        'binary',
+      ).toString('base64');
 
       invite.sharedWith = newUserUuid;
-
-      invitesToUpdate.push(invite);
     }
 
-    await this.sharingRepository.bulkUpdate(invitesToUpdate);
+    await this.sharingRepository.bulkUpdate(invites);
 
     await this.replacePreCreatedUserWorkspaceInvitations(
       preCreatedUser.uuid,
@@ -608,7 +585,6 @@ export class UserUseCases {
     if (preCreatedUser) {
       return {
         ...preCreatedUser.toJSON(),
-        publicKyberKey: preCreatedUser.publicKey,
         publicKey: preCreatedUser.publicKey.toString(),
         password: preCreatedUser.password.toString(),
       };
@@ -627,17 +603,9 @@ export class UserUseCases {
     keysCreationDate.setHours(keysCreationDate.getHours() - 1);
 
     const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
-      await this.asymmetricEncryptionService.generateNewKeys(keysCreationDate);
+      await generateNewKeys(keysCreationDate);
 
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
-      iv: this.configService.get('secrets.magicIv'),
-      salt: this.configService.get('secrets.magicSalt'),
-    });
-
-    const kyberKeys =
-      await this.asymmetricEncryptionService.generateKyberKeys();
-
-    const encPrivateKyberKey = aes.encrypt(kyberKeys.privateKey, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
       salt: this.configService.get('secrets.magicSalt'),
     });
@@ -651,8 +619,6 @@ export class UserUseCases {
       mnemonic: encMnemonic,
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
-      privateKyberKey: encPrivateKyberKey,
-      publicKyberKey: kyberKeys.publicKey,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
     });
@@ -660,7 +626,6 @@ export class UserUseCases {
     return {
       ...user.toJSON(),
       publicKey: user.publicKey.toString(),
-      publicKyberKey: user.publicKyberKey,
       password: user.password.toString(),
     };
   }
@@ -1528,6 +1493,25 @@ export class UserUseCases {
 
   async updateProfile(user: User, payload: UpdateProfileDto) {
     await this.userRepository.updateByUuid(user.uuid, payload);
+  }
+
+  logReferralError(userId: number | string, err: unknown) {
+    if (err instanceof ReferralsNotAvailableError) {
+      return;
+    }
+
+    if (err instanceof Error && !err.message) {
+      return Logger.error(
+        '[STORAGE]: ERROR message undefined applying referral for user %s',
+        userId,
+      );
+    }
+
+    return Logger.error(
+      '[STORAGE]: ERROR applying referral for user %s: %s',
+      userId,
+      err instanceof Error ? err.message : 'Unknown error',
+    );
   }
 
   async sendDeactivationEmail(user: User) {
