@@ -590,6 +590,8 @@ export class FolderController {
   @ApiOkResponse({ isArray: true, type: FolderDto })
   @ApiQuery({ name: 'updatedAt', required: false })
   @ApiQuery({ name: 'status', enum: FolderStatusQuery })
+  @ApiQuery({ name: 'offset', type: Number })
+  @ApiQuery({ name: 'limit', type: Number })
   async getFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
@@ -763,10 +765,11 @@ export class FolderController {
   }
 
   @Get('/:id/metadata')
+  @ApiOkResponse({ type: FolderDto })
   async getFolderById(
     @UserDecorator() user: User,
-    @Param('id') folderId: Folder['id'],
-  ) {
+    @Param('id') folderId: number,
+  ): Promise<FolderDto> {
     if (folderId < 0) {
       throw new BadRequestException('Invalid id provided');
     }
@@ -777,7 +780,7 @@ export class FolderController {
         user.id,
       );
 
-      return folder;
+      return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
