@@ -949,7 +949,11 @@ export class UserUseCases {
       mnemonic: string;
       password: string;
       salt: string;
-      privateKey?: string;
+      privateKeys?: {
+        ecc?: string;
+        kyber?: string;
+        [key: string]: string;
+      };
     },
     withReset = false,
   ): Promise<void> {
@@ -971,9 +975,24 @@ export class UserUseCases {
       });
     }
 
-    // TODO: Replace with updating the private key once AFS is ready.
-    // Requires to send the private key encrypted with the user's password
-    await this.keyServerRepository.deleteByUserId(user.id);
+    if (
+      newCredentials.privateKeys &&
+      Object.keys(newCredentials.privateKeys).length > 0
+    ) {
+      for (const [version, privateKey] of Object.entries(
+        newCredentials.privateKeys,
+      )) {
+        if (privateKey) {
+          await this.keyServerUseCases.updateByUserAndEncryptVersion(
+            user.id,
+            version as UserKeysEncryptVersions,
+            { privateKey },
+          );
+        }
+      }
+    } else {
+      await this.keyServerRepository.deleteByUserId(user.id);
+    }
   }
 
   async resetUser(

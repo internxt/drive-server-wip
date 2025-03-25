@@ -2530,4 +2530,186 @@ describe('User use cases', () => {
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     });
   });
+
+  describe('updateCredentials', () => {
+    const mockUser = newUser();
+    const mockCredentials = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKeys: {
+        ecc: 'encrypted_ecc_key',
+        kyber: 'encrypted_kyber_key',
+      },
+    };
+
+    const decryptedPassword = 'decrypted_password';
+    const decryptedSalt = 'decrypted_salt';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === mockCredentials.password) return decryptedPassword;
+        if (text === mockCredentials.salt) return decryptedSalt;
+        return text;
+      });
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(mockUser);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+    });
+
+    it('When updating credentials without reset and private keys, then it should update user and keys', async () => {
+      await userUseCases.updateCredentials(mockUser.uuid, mockCredentials);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: mockCredentials.privateKeys.ecc,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: mockCredentials.privateKeys.kyber,
+      });
+
+      expect(userUseCases.resetUser).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with reset, then it should reset user data', async () => {
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        mockCredentials,
+        true,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+      });
+    });
+
+    it('When updating credentials without private keys, then it should delete all keys', async () => {
+      const credentialsWithoutKeys = {
+        mnemonic: mockCredentials.mnemonic,
+        password: mockCredentials.password,
+        salt: mockCredentials.salt,
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithoutKeys,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with empty private keys object, then it should delete all keys', async () => {
+      const credentialsWithEmptyKeys = {
+        ...mockCredentials,
+        privateKeys: {},
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithEmptyKeys,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with partial private keys, then it should only update provided keys', async () => {
+      const credentialsWithPartialKeys = {
+        ...mockCredentials,
+        privateKeys: {
+          ecc: mockCredentials.privateKeys.ecc,
+        },
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithPartialKeys,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: mockCredentials.privateKeys.ecc,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber);
+    });
+
+    it('When updating credentials with null private key, then it should skip that key', async () => {
+      const credentialsWithNullKey = {
+        ...mockCredentials,
+        privateKeys: {
+          ecc: null,
+          kyber: mockCredentials.privateKeys.kyber,
+        },
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithNullKey,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: mockCredentials.privateKeys.kyber,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc);
+    });
+  });
 });
