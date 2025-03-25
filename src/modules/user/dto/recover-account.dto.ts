@@ -24,11 +24,16 @@ export class RecoverAccountDto {
   mnemonic: string;
 
   @ApiProperty({
-    example: 'encrypted private key',
-    description: "User's private key encrypted with the user's plain password",
+    example: {
+      ecc: 'encrypted private key',
+      kyber: 'encrypted kyber private key',
+    },
+    description: "User's private keys encrypted with the user's plain password",
   })
-  // @IsNotEmpty()
-  privateKey: string;
+  privateKeys: {
+    ecc?: string;
+    kyber?: string;
+  };
 }
 
 export class ResetAccountDto {
