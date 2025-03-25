@@ -675,13 +675,13 @@ export class UserController {
           true,
         );
       } else {
-        const { privateKey } = body as RecoverAccountDto;
+        const recoverAccountDto = body as RecoverAccountDto;
 
         await this.userUseCases.updateCredentials(userUuid, {
           mnemonic,
           password,
           salt,
-          privateKey,
+          privateKeys: recoverAccountDto.privateKeys,
         });
       }
     } catch (err) {
