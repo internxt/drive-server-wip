@@ -102,11 +102,13 @@ export class BackupUseCase {
       throw new ConflictException('Folder with the same name already exists');
     }
 
-    return this.folderUsecases.createFolderDevice(user, {
+    const createdFolder = await this.folderUsecases.createFolderDevice(user, {
       name: encryptedName,
       plainName: deviceName,
       bucket,
     });
+
+    return this.addDeviceProperties(user, createdFolder);
   }
 
   async getDevicesAsFolder(user: User) {
@@ -121,10 +123,8 @@ export class BackupUseCase {
 
     return Promise.all(
       folders.map(async (folder) => ({
-        ...folder,
+        ...this.addDeviceProperties(user, folder),
         plainName: this.cryptoService.decryptName(folder.name, folder.bucket),
-        hasBackups: !(await this.isFolderEmpty(user, folder)),
-        lastBackupAt: folder.updatedAt,
       })),
     );
   }
@@ -135,11 +135,7 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    return {
-      ...folder,
-      hasBackups: !(await this.isFolderEmpty(user, folder)),
-      lastBackupAt: folder.updatedAt,
-    };
+    return this.addDeviceProperties(user, folder);
   }
 
   async updateDeviceAsFolder(
@@ -157,10 +153,12 @@ export class BackupUseCase {
       folder.bucket,
     );
 
-    return this.folderUsecases.updateByFolderId(folder, {
+    const updatedFolder = await this.folderUsecases.updateByFolderId(folder, {
       name: encryptedName,
       plainName: deviceName,
     });
+
+    return this.addDeviceProperties(user, updatedFolder);
   }
 
   async getBackupsByMac(user: User, mac: string) {
@@ -198,5 +196,15 @@ export class BackupUseCase {
       { deleted: false },
     );
     return folders.length === 0 && files.length === 0;
+  }
+
+  private async addDeviceProperties(user: User, folder: Folder) {
+    const isEmpty = await this.isFolderEmpty(user, folder);
+    return {
+      ...folder,
+      hasBackups: !isEmpty,
+      lastBackupAt: folder.updatedAt,
+      status: folder.getFolderStatus(),
+    };
   }
 }
