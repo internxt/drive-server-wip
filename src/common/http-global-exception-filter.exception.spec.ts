@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpAdapterHost } from '@nestjs/core';
+import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
 import { ValidationError } from 'sequelize';
 import { AxiosError } from 'axios';
 import { HttpGlobalExceptionFilter } from './http-global-exception-filter.exception';
@@ -156,6 +156,31 @@ describe('HttpGlobalExceptionFilter', () => {
         }),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    });
+  });
+
+  describe('Parent class fallback', () => {
+    it('When an error occurs in the exception handler, it should let the parent class handle it', () => {
+      const mockUser = newUser();
+      const mockException = new Error('Original error');
+      const mockHost = createMockArgumentsHost('/test-url', 'GET', mockUser);
+
+      loggerMock.error.mockImplementationOnce(() => {
+        throw new Error('Error in filter');
+      });
+
+      const superCatchSpy = jest.spyOn(BaseExceptionFilter.prototype, 'catch');
+
+      filter.catch(mockException, mockHost);
+
+      expect(superCatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Error in filter',
+        }),
+        mockHost,
+      );
+
+      superCatchSpy.mockRestore();
     });
   });
 
