@@ -54,7 +54,6 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import {
   ExistingFoldersDto,
   FolderDto,
@@ -856,7 +855,6 @@ export class FolderController {
     },
   ])
   @WorkspacesInBehalfValidationFolder()
-  @UseFilters(ExtendedHttpExceptionFilter)
   async moveFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,

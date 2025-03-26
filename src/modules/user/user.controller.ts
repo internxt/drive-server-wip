@@ -80,11 +80,9 @@ import { Client } from '../auth/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 
 @ApiTags('User')
 @Controller('users')
-@UseFilters(ExtendedHttpExceptionFilter)
 export class UserController {
   constructor(
     private userUseCases: UserUseCases,

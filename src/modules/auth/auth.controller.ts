@@ -14,7 +14,6 @@ import {
   Put,
   UnauthorizedException,
   HttpException,
-  UseFilters,
   Query,
 } from '@nestjs/common';
 import {
@@ -37,7 +36,6 @@ import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
 import { LoginAccessResponseDto } from './dto/responses/login-access-response.dto';
 import { LoginResponseDto } from './dto/responses/login-response.dto';
