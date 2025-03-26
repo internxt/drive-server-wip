@@ -53,15 +53,19 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         stack: (exception as Error)?.stack,
       };
 
-      let errorType = '[UNEXPECTED_ERROR]';
+      let errorSubtype = '';
       if (exception instanceof SequelizeError) {
-        errorType = '[DATABASE]';
+        errorSubtype = 'DATABASE';
       } else if (exception instanceof AxiosError) {
-        errorType = '[EXTERNAL_SERVICE]';
+        errorSubtype = 'EXTERNAL_SERVICE';
       }
 
+      const errorCategory = errorSubtype
+        ? `UNEXPECTED_ERROR/${errorSubtype}`
+        : 'UNEXPECTED_ERROR';
+
       this.logger.error(
-        `${errorType} - Details: ${JSON.stringify(errorResponse)}`,
+        `[${errorCategory}] - Details: ${JSON.stringify(errorResponse)}`,
       );
 
       return httpAdapter.reply(

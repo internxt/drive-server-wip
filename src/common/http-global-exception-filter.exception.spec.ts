@@ -99,7 +99,9 @@ describe('HttpGlobalExceptionFilter', () => {
       filter.catch(mockException, mockHost);
 
       expect(loggerMock.error).toHaveBeenCalled();
-      expect(loggerMock.error.mock.calls[0][0]).toContain('[DATABASE]');
+      expect(loggerMock.error.mock.calls[0][0]).toContain(
+        'UNEXPECTED_ERROR/DATABASE',
+      );
       expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
@@ -130,7 +132,9 @@ describe('HttpGlobalExceptionFilter', () => {
       filter.catch(mockException, mockHost);
 
       expect(loggerMock.error).toHaveBeenCalled();
-      expect(loggerMock.error.mock.calls[0][0]).toContain('[EXTERNAL_SERVICE]');
+      expect(loggerMock.error.mock.calls[0][0]).toContain(
+        'UNEXPECTED_ERROR/EXTERNAL_SERVICE',
+      );
       expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
