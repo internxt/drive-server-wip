@@ -12,7 +12,6 @@ import {
   UseGuards,
   UseInterceptors,
   InternalServerErrorException,
-  UseFilters,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -58,7 +57,6 @@ import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import { OrderBy } from '../../common/order.type';
 import { GetDataFromRequest } from './../../common/extract-data-from-request';
@@ -91,7 +89,6 @@ import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
-@UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
   constructor(
     private readonly workspaceUseCases: WorkspacesUsecases,
