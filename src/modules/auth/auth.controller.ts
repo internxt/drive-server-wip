@@ -44,7 +44,6 @@ import { LoginResponseDto } from './dto/responses/login-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
-@UseFilters(ExtendedHttpExceptionFilter)
 export class AuthController {
   constructor(
     private userUseCases: UserUseCases,

@@ -25,6 +25,8 @@ import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
+import { APP_FILTER } from '@nestjs/core';
+import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 
 @Module({
   imports: [
@@ -120,6 +122,11 @@ import { GatewayModule } from './modules/gateway/gateway.module';
     GatewayModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: HttpGlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}
