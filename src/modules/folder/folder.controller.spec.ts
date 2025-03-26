@@ -20,6 +20,7 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { InvalidParentFolderException } from './exception/invalid-parent-folder';
+import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 
 const requester = newUser();
 
@@ -28,6 +29,7 @@ describe('FolderController', () => {
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let folder: Folder;
+  let storageNotificationService: StorageNotificationService;
 
   const userMocked = User.build({
     id: 1,
@@ -73,6 +75,9 @@ describe('FolderController', () => {
     folderController = module.get<FolderController>(FolderController);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
+    storageNotificationService = module.get<StorageNotificationService>(
+      StorageNotificationService,
+    );
     folder = newFolder();
   });
 
@@ -642,6 +647,79 @@ describe('FolderController', () => {
       expect(
         folderController.getFolderMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
+    });
+  });
+
+  describe('deleteFolder', () => {
+    const folderUuidToDelete = 'uuid-to-delete';
+    const userMocked = newUser();
+    const folder = newFolder({
+      attributes: { id: 1, uuid: folderUuidToDelete, userId: userMocked.id },
+    });
+
+    it('When a valid folderUuid is provided, then it should delete the folder and send a notification', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(folder);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+      jest
+        .spyOn(storageNotificationService, 'folderDeleted')
+        .mockImplementation(() => {});
+
+      const result = await folderController.deleteFolder(
+        userMocked,
+        folderUuidToDelete,
+        'clientId',
+      );
+
+      expect(result).toBeUndefined();
+      expect(folderUseCases.getFolderByUuidAndUser).toHaveBeenCalledWith(
+        folderUuidToDelete,
+        userMocked,
+      );
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
+        folder,
+      ]);
+      expect(storageNotificationService.folderDeleted).toHaveBeenCalledWith({
+        payload: {
+          id: folder.id,
+          uuid: folderUuidToDelete,
+          userId: userMocked.id,
+        },
+        user: userMocked,
+        clientId: 'clientId',
+      });
+    });
+
+    it('When a non-existent folderUuid is provided, then it should throw an error', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        folderController.deleteFolder(
+          userMocked,
+          folderUuidToDelete,
+          'clientId',
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When an error occurs during deletion, then it should throw an error', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(folder);
+      jest
+        .spyOn(folderUseCases, 'deleteByUser')
+        .mockRejectedValue(new Error('Deletion failed'));
+
+      await expect(
+        folderController.deleteFolder(
+          userMocked,
+          folderUuidToDelete,
+          'clientId',
+        ),
+      ).rejects.toThrow('Deletion failed');
     });
   });
 });

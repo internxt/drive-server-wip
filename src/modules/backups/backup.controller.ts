@@ -1,8 +1,8 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
-  HttpCode,
   Param,
   Patch,
   Post,
@@ -20,7 +20,6 @@ export class BackupController {
   constructor(private readonly backupUseCases: BackupUseCase) {}
 
   @Post('/activate')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Activate user backup',
   })
@@ -30,7 +29,6 @@ export class BackupController {
   }
 
   @Post('/deviceAsFolder')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Create a folder using device name',
   })
@@ -43,7 +41,6 @@ export class BackupController {
   }
 
   @Get('/deviceAsFolder/:uuid')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Get device as folder by uuid',
   })
@@ -56,7 +53,6 @@ export class BackupController {
   }
 
   @Patch('/deviceAsFolder/:uuid')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Update device as folder by uuid',
   })
@@ -74,12 +70,56 @@ export class BackupController {
   }
 
   @Get('/deviceAsFolder')
-  @HttpCode(200)
   @ApiOperation({
     summary: 'Get all devices as folder',
   })
   @ApiBearerAuth()
   async getDevicesAsFolder(@UserDecorator() user: User) {
     return this.backupUseCases.getDevicesAsFolder(user);
+  }
+
+  @Get('/devices')
+  @ApiOperation({
+    summary: 'Get all user devices',
+  })
+  @ApiBearerAuth()
+  async getAllDevices(@UserDecorator() user: User) {
+    return this.backupUseCases.getAllDevices(user);
+  }
+
+  @Delete('/devices/:deviceId')
+  @ApiOperation({
+    summary: 'Delete user device',
+  })
+  @ApiBearerAuth()
+  async deleteDevice(
+    @UserDecorator() user: User,
+    @Param('deviceId') deviceId: number,
+  ) {
+    return this.backupUseCases.deleteDevice(user, deviceId);
+  }
+
+  @Get('/:mac')
+  @ApiOperation({
+    summary: 'Get backups by mac',
+  })
+  @ApiBearerAuth()
+  async getBackupsByMac(
+    @UserDecorator() user: User,
+    @Param('mac') mac: string,
+  ) {
+    return this.backupUseCases.getBackupsByMac(user, mac);
+  }
+
+  @Delete('/:backupId')
+  @ApiOperation({
+    summary: 'Delete backup',
+  })
+  @ApiBearerAuth()
+  async deleteBackup(
+    @UserDecorator() user: User,
+    @Param('backupId') backupId: number,
+  ) {
+    return this.backupUseCases.deleteBackup(user, backupId);
   }
 }

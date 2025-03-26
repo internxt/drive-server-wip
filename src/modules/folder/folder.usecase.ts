@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
   forwardRef,
@@ -911,6 +912,12 @@ export class FolderUseCases {
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    const isRootFolder = folders.some(
+      (folder) => folder.id === user.rootFolderId || folder.parentId === null,
+    );
+    if (isRootFolder) {
+      throw new NotAcceptableException('Cannot delete root folder');
+    }
     await this.folderRepository.deleteByUser(user, folders);
   }
 

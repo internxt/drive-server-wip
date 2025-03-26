@@ -55,7 +55,7 @@ import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
   generateNewKeys,
-} from '../../lib/openpgp';
+} from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';

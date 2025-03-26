@@ -17,11 +17,13 @@ import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
+import { BridgeModule } from './../../externals/bridge/bridge.module';
 
 describe('FileController', () => {
   let fileController: FileController;
   let fileUseCases: FileUseCases;
   let thumbnailUseCases: ThumbnailUseCases;
+
   let file: File;
   const clientId = 'drive-web';
 
@@ -59,7 +61,8 @@ describe('FileController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [FileController, ThumbnailModule],
+      imports: [BridgeModule, ThumbnailModule],
+      controllers: [FileController],
       providers: [FileUseCases],
     })
       .useMocker(() => createMock())
@@ -318,6 +321,35 @@ describe('FileController', () => {
       await expect(
         fileController.createThumbnail(userMocked, createThumbnailDto),
       ).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
+  describe('deleteFileByUuid', () => {
+    const uuid = v4();
+    const clientId = 'clientId';
+    it('When a valid uuid is provided, then it should return a success response', async () => {
+      jest
+        .spyOn(fileUseCases, 'deleteFilePermanently')
+        .mockResolvedValue({ id: 1234, uuid: file.uuid });
+      const result = await fileController.deleteFileByUuid(
+        userMocked,
+        uuid,
+        clientId,
+      );
+      expect(result).toEqual({ deleted: true });
+      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledWith(
+        userMocked,
+        { uuid },
+      );
+    });
+
+    it('When an error occurs during deletion, then it should throw', async () => {
+      jest
+        .spyOn(fileUseCases, 'deleteFilePermanently')
+        .mockRejectedValue(new NotFoundException());
+      await expect(
+        fileController.deleteFileByUuid(userMocked, uuid, clientId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   NotImplementedException,
@@ -589,6 +590,8 @@ export class FolderController {
   @ApiOkResponse({ isArray: true, type: FolderDto })
   @ApiQuery({ name: 'updatedAt', required: false })
   @ApiQuery({ name: 'status', enum: FolderStatusQuery })
+  @ApiQuery({ name: 'offset', type: Number })
+  @ApiQuery({ name: 'limit', type: Number })
   async getFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
@@ -762,10 +765,11 @@ export class FolderController {
   }
 
   @Get('/:id/metadata')
+  @ApiOkResponse({ type: FolderDto })
   async getFolderById(
     @UserDecorator() user: User,
-    @Param('id') folderId: Folder['id'],
-  ) {
+    @Param('id') folderId: number,
+  ): Promise<FolderDto> {
     if (folderId < 0) {
       throw new BadRequestException('Invalid id provided');
     }
@@ -776,7 +780,7 @@ export class FolderController {
         user.id,
       );
 
-      return folder;
+      return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
@@ -899,5 +903,25 @@ export class FolderController {
       throw new NotFoundException('Folder not found');
     }
     return folder;
+  }
+
+  @Delete('/:uuid')
+  @HttpCode(204)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete Folder',
+  })
+  async deleteFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Client() clientId: string,
+  ) {
+    const folder = await this.folderUseCases.getFolderByUuidAndUser(uuid, user);
+    await this.folderUseCases.deleteByUser(user, [folder]);
+    this.storageNotificationService.folderDeleted({
+      payload: { id: folder.id, uuid, userId: user.id },
+      user: user,
+      clientId,
+    });
   }
 }

@@ -223,4 +223,97 @@ describe('BackupUseCase', () => {
       expect(result).toEqual(updatedFolder);
     });
   });
+
+  describe('deleteBackup', () => {
+    it('When backup is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupRepository, 'findBackupByUserAndId')
+        .mockResolvedValue(null);
+
+      await expect(backupUseCase.deleteBackup(userMocked, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When backup is found, then it should delete the backup', async () => {
+      const mockBackup = { id: 1, deviceId: 1, path: 'add_path' };
+      jest
+        .spyOn(backupRepository, 'findBackupByUserAndId')
+        .mockResolvedValue(mockBackup as any);
+      jest
+        .spyOn(backupRepository, 'deleteBackupByUserAndId')
+        .mockResolvedValue(1);
+
+      const result = await backupUseCase.deleteBackup(userMocked, 1);
+      expect(result).toEqual(1);
+    });
+  });
+
+  describe('getAllDevices', () => {
+    it('When fetching all devices, then it should return all devices for the user', async () => {
+      const mockDevices = [{ id: 1, name: 'Device 1' }];
+      jest
+        .spyOn(backupRepository, 'findAllDevices')
+        .mockResolvedValue(mockDevices as any);
+
+      const result = await backupUseCase.getAllDevices(userMocked);
+      expect(result).toEqual(mockDevices);
+    });
+  });
+
+  describe('deleteDevice', () => {
+    it('When the device is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(null);
+
+      await expect(backupUseCase.deleteDevice(userMocked, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When the device is found, then it should delete the device and its backups', async () => {
+      const mockDevice = {
+        id: 1,
+        backups: [{ fileId: 'file-id', bucket: 'bucket-id' }],
+      };
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice as any);
+      jest.spyOn(backupRepository, 'deleteBackupsBy').mockResolvedValue(1);
+      jest.spyOn(backupRepository, 'deleteDevicesBy').mockResolvedValue(1);
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue(undefined);
+
+      const result = await backupUseCase.deleteDevice(userMocked, 1);
+      expect(result).toEqual(1);
+    });
+  });
+
+  describe('getBackupsByMac', () => {
+    it('When the device is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndMac')
+        .mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.getBackupsByMac(userMocked, 'mac-address'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the device is found, then it should return backups for the device', async () => {
+      const mockBackups = [{ id: 1, path: 'backup-path' }];
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndMac')
+        .mockResolvedValue({ id: 1 } as any);
+      jest
+        .spyOn(backupRepository, 'findAllBackupsByUserAndDevice')
+        .mockResolvedValue(mockBackups as any);
+
+      const result = await backupUseCase.getBackupsByMac(
+        userMocked,
+        'mac-address',
+      );
+      expect(result).toEqual(mockBackups);
+    });
+  });
 });
