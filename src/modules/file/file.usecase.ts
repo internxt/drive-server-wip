@@ -7,6 +7,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -45,15 +46,15 @@ export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 @Injectable()
 export class FileUseCases {
   constructor(
-    private fileRepository: SequelizeFileRepository,
+    private readonly fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => FolderUseCases))
-    private folderUsecases: FolderUseCases,
+    private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
-    private sharingUsecases: SharingService,
-    private network: BridgeService,
-    private cryptoService: CryptoService,
-    private shareUsecases: ShareUseCases,
-    private thumbnailUsecases: ThumbnailUseCases,
+    private readonly sharingUsecases: SharingService,
+    private readonly network: BridgeService,
+    private readonly cryptoService: CryptoService,
+    private readonly shareUsecases: ShareUseCases,
+    private readonly thumbnailUsecases: ThumbnailUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -111,6 +112,32 @@ export class FileUseCases {
     await this.fileRepository.deleteFilesByUser(user, [file]);
 
     return { id, uuid };
+  }
+
+  async deleteFileByFileId(
+    user: User,
+    bucketId: string,
+    fileId: string,
+  ): Promise<{ fileExistedInDb: boolean; id?: number; uuid?: string }> {
+    const file = await this.fileRepository.findOneBy({
+      fileId,
+    });
+
+    if (file) {
+      const { id, uuid } = await this.deleteFilePermanently(user, {
+        uuid: file.uuid,
+      });
+      return { fileExistedInDb: true, id, uuid };
+    }
+
+    try {
+      await this.network.deleteFile(user, bucketId, fileId);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error deleting file from network',
+      );
+    }
+    return { fileExistedInDb: false };
   }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {

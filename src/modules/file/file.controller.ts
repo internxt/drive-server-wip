@@ -485,4 +485,27 @@ export class FileController {
 
     return { deleted: true };
   }
+
+  @Delete('/:bucketId/:fileId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage by fileId',
+  })
+  async deleteFileByFileId(
+    @UserDecorator() user: User,
+    @Param('bucketId') bucketId: string,
+    @Param('fileId') fileId: string,
+    @Client() clientId: string,
+  ) {
+    const { fileExistedInDb, id, uuid } =
+      await this.fileUseCases.deleteFileByFileId(user, bucketId, fileId);
+
+    if (fileExistedInDb) {
+      this.storageNotificationService.fileDeleted({
+        payload: { id, uuid },
+        user,
+        clientId,
+      });
+    }
+  }
 }

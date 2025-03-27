@@ -352,4 +352,88 @@ describe('FileController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('deleteFileByFileId', () => {
+    const bucketId = 'test-bucket';
+    const fileId = 'test-file-id';
+
+    it('when file exists in db, should call usecase and send notification', async () => {
+      const deleteResult = {
+        fileExistedInDb: true,
+        id: 123,
+        uuid: 'test-uuid',
+      };
+
+      jest
+        .spyOn(fileUseCases, 'deleteFileByFileId')
+        .mockResolvedValue(deleteResult);
+      const storageNotificationSpy = jest.spyOn(
+        fileController['storageNotificationService'],
+        'fileDeleted',
+      );
+
+      await fileController.deleteFileByFileId(
+        userMocked,
+        bucketId,
+        fileId,
+        clientId,
+      );
+
+      expect(fileUseCases.deleteFileByFileId).toHaveBeenCalledWith(
+        userMocked,
+        bucketId,
+        fileId,
+      );
+      expect(storageNotificationSpy).toHaveBeenCalledWith({
+        payload: { id: deleteResult.id, uuid: deleteResult.uuid },
+        user: userMocked,
+        clientId,
+      });
+    });
+
+    it('when file does not exist in db, should call usecase without sending notification', async () => {
+      const deleteResult = {
+        fileExistedInDb: false,
+      };
+
+      jest
+        .spyOn(fileUseCases, 'deleteFileByFileId')
+        .mockResolvedValue(deleteResult);
+      const storageNotificationSpy = jest.spyOn(
+        fileController['storageNotificationService'],
+        'fileDeleted',
+      );
+
+      await fileController.deleteFileByFileId(
+        userMocked,
+        bucketId,
+        fileId,
+        clientId,
+      );
+
+      expect(fileUseCases.deleteFileByFileId).toHaveBeenCalledWith(
+        userMocked,
+        bucketId,
+        fileId,
+      );
+      expect(storageNotificationSpy).not.toHaveBeenCalled();
+    });
+
+    it('when fileUseCase throws an error, it should be propagated', async () => {
+      jest
+        .spyOn(fileUseCases, 'deleteFileByFileId')
+        .mockRejectedValue(
+          new InternalServerErrorException('Error deleting file from network'),
+        );
+
+      await expect(
+        fileController.deleteFileByFileId(
+          userMocked,
+          bucketId,
+          fileId,
+          clientId,
+        ),
+      ).rejects.toThrow('Error deleting file from network');
+    });
+  });
 });
