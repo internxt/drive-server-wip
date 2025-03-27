@@ -81,6 +81,7 @@ import { DeactivationRequestEvent } from '../../externals/notifications/events/d
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
+import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -990,8 +991,9 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOkResponse({
     description: 'Get user space limit',
+    type: GetUserLimitDto,
   })
-  async limit(@UserDecorator() user: User) {
+  async limit(@UserDecorator() user: User): Promise<GetUserLimitDto> {
     try {
       const maxSpaceBytes = await this.userUseCases.getSpaceLimit(user);
       return { maxSpaceBytes };
