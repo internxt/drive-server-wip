@@ -47,7 +47,11 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         path: request.url,
         method: request.method,
         body: request.body || {},
-        user: { email: request?.user?.email, uuid: request?.user?.uuid },
+        user: {
+          email: request?.user?.email,
+          uuid: request?.user?.uuid,
+          id: request?.user?.id,
+        },
         client: getClientIdFromHeaders(request),
         message: (exception as Error)?.message,
         stack: (exception as Error)?.stack,
@@ -79,7 +83,11 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       );
     } catch (error) {
       const errorDetails = {
-        user: { email: request?.user?.email, uuid: request?.user?.uuid },
+        user: {
+          email: request?.user?.email,
+          uuid: request?.user?.uuid,
+          id: request?.user?.id,
+        },
         method: request.method,
         path: request.url,
         message: error.message,
