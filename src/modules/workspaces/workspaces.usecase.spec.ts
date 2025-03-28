@@ -6271,4 +6271,95 @@ describe('WorkspacesUsecases', () => {
       expect(result).toEqual(expectedAncestors);
     });
   });
+
+  describe('findUserInWorkspace', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+    const workspaceUser = newWorkspaceUser({
+      workspaceId: workspace.id,
+      memberId: user.uuid,
+      member: user,
+    });
+
+    it('When user exists in workspace, then it should return the workspace user', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+
+      const result = await service.findUserInWorkspace(user.uuid, workspace.id);
+
+      expect(result).toEqual(workspaceUser);
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith(
+        {
+          workspaceId: workspace.id,
+          memberId: user.uuid,
+        },
+        false,
+      );
+    });
+
+    it('When user does not exist in workspace, then it should return null', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+
+      const result = await service.findUserInWorkspace(user.uuid, workspace.id);
+
+      expect(result).toBeNull();
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith(
+        {
+          workspaceId: workspace.id,
+          memberId: user.uuid,
+        },
+        false,
+      );
+    });
+
+    it('When includeUser is true, then it should return workspace user with user data', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+
+      const result = await service.findUserInWorkspace(
+        user.uuid,
+        workspace.id,
+        true,
+      );
+
+      expect(result).toEqual(workspaceUser);
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith(
+        {
+          workspaceId: workspace.id,
+          memberId: user.uuid,
+        },
+        true,
+      );
+    });
+
+    it('When includeUser is false, then it should return workspace user without user data', async () => {
+      const workspaceUserWithoutMember = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUserWithoutMember);
+
+      const result = await service.findUserInWorkspace(
+        user.uuid,
+        workspace.id,
+        false,
+      );
+
+      expect(result).toEqual(workspaceUserWithoutMember);
+      expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith(
+        {
+          workspaceId: workspace.id,
+          memberId: user.uuid,
+        },
+        false,
+      );
+    });
+  });
 });

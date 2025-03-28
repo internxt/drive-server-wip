@@ -1186,6 +1186,7 @@ export class WorkspacesController {
     const workspaceUser = await this.workspaceUseCases.findUserInWorkspace(
       memberId,
       workspaceId,
+      true,
     );
 
     if (!workspaceUser) {
