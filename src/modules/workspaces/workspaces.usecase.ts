@@ -2601,11 +2601,15 @@ export class WorkspacesUsecases {
   findUserInWorkspace(
     userUuid: User['uuid'],
     workspaceId: Workspace['id'],
+    includeUser = false,
   ): Promise<WorkspaceUser | null> {
-    return this.workspaceRepository.findWorkspaceUser({
-      workspaceId,
-      memberId: userUuid,
-    });
+    return this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId,
+        memberId: userUuid,
+      },
+      includeUser,
+    );
   }
 
   async deleteWorkspaceContent(
