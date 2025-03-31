@@ -1139,4 +1139,80 @@ describe('FileUseCases', () => {
       });
     });
   });
+
+  describe('deleteFileByFileId', () => {
+    const testBucketId = 'test-bucket';
+    const testFileId = 'test-file-id';
+    const mockFile = newFile({
+      attributes: {
+        fileId: testFileId,
+        name: 'encrypted-name',
+        type: 'jpg',
+        size: BigInt(1000),
+        bucket: testBucketId,
+        folderId: 4,
+        encryptVersion: '1',
+      },
+    });
+
+    it('when file exists in db, should delete it permanently and return fileExistedInDb=true with id and uuid', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
+      jest.spyOn(service, 'deleteFilePermanently').mockResolvedValue({
+        id: mockFile.id,
+        uuid: mockFile.uuid,
+      });
+
+      const result = await service.deleteFileByFileId(
+        userMocked,
+        testBucketId,
+        testFileId,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        fileId: testFileId,
+      });
+      expect(service.deleteFilePermanently).toHaveBeenCalledWith(userMocked, {
+        uuid: mockFile.uuid,
+      });
+      expect(result).toEqual({
+        fileExistedInDb: true,
+        id: mockFile.id,
+        uuid: mockFile.uuid,
+      });
+    });
+
+    it('when file does not exist in db, should delete from network and return fileExistedInDb=false', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue(undefined);
+
+      const result = await service.deleteFileByFileId(
+        userMocked,
+        testBucketId,
+        testFileId,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        fileId: testFileId,
+      });
+      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        testBucketId,
+        testFileId,
+      );
+      expect(result).toEqual({
+        fileExistedInDb: false,
+      });
+    });
+
+    it('when file does not exist in db and network deletion fails, should throw InternalServerErrorException', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+      jest
+        .spyOn(bridgeService, 'deleteFile')
+        .mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        service.deleteFileByFileId(userMocked, testBucketId, testFileId),
+      ).rejects.toThrow('Error deleting file from network');
+    });
+  });
 });

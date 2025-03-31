@@ -11,7 +11,6 @@ import {
   Put,
   Query,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -31,13 +30,11 @@ import { User } from '../user/user.domain';
 import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @ApiTags('Gateway')
 @Controller('gateway')
 @DisableGlobalAuth()
-@UseInterceptors(ExtendedHttpExceptionFilter)
 export class GatewayController {
   private readonly logger = new Logger(GatewayController.name);
 
