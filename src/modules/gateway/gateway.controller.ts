@@ -28,7 +28,7 @@ import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
 import { User } from '../user/user.domain';
 import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
-import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 

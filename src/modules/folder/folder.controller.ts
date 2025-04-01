@@ -37,7 +37,6 @@ import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
 
-import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
@@ -62,6 +61,7 @@ import {
 } from './dto/responses/folder.dto';
 import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
 import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 

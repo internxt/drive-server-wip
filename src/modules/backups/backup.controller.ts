@@ -12,7 +12,7 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { BackupUseCase } from './backup.usecase';
 import { CreateDeviceAsFolderDto } from './dto/create-device-as-folder.dto';
-import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 
 @ApiTags('Backup')
 @Controller('backup')

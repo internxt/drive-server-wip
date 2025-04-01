@@ -135,9 +135,6 @@ export class File implements FileAttributes {
     this.shares = shares;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
-    if (!this.isFilenameValid()) {
-      throw new Error('Filename cannot be empty');
-    }
   }
 
   static build(file: FileAttributes): File {
