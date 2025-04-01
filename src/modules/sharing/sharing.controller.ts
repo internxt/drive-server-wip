@@ -65,6 +65,7 @@ import {
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -87,7 +88,7 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
-    @Param('sharingId') sharingId: Sharing['id'],
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
     @Query('code') code: string,
     @Headers('x-share-password') password: string | null,
   ) {
