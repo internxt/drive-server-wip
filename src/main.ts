@@ -44,12 +44,13 @@ async function bootstrap() {
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
     },
-    // logger: WinstonLogger.getLogger(),
   });
 
   const enableTrustProxy = config.isProduction;
 
   app.set('trust proxy', enableTrustProxy);
+  // Express v5 changed this to 'simple' by default, we need the same behavior as v4
+  app.set('query parser', 'extended');
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
 
