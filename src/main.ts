@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
 import './newrelic';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, ConsoleLogger } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import apiMetrics from 'prometheus-api-metrics';
@@ -44,6 +44,10 @@ async function bootstrap() {
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
     },
+    logger: new ConsoleLogger({
+      colors: config.isDevelopment,
+      prefix: 'Drive-server',
+    }),
   });
 
   const enableTrustProxy = config.isProduction;
