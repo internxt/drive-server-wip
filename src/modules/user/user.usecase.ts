@@ -83,6 +83,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -771,7 +772,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-  ): Promise<{ token: string; newToken: string }> {
+  ): Promise<RefreshTokenResponseDto> {
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
 
