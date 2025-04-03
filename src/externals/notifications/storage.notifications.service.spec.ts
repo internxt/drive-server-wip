@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Logger } from '@nestjs/common';
 import { StorageNotificationService } from './storage.notifications.service';
 import { NotificationService } from './notification.service';
@@ -16,19 +16,20 @@ describe('StorageNotificationService', () => {
   let notificationService: NotificationService;
   let apnService: ApnService;
   let userRepository: SequelizeUserRepository;
-  let loggerMock: Logger;
+  let loggerMock: DeepMocked<Logger>;
 
   beforeEach(async () => {
+    loggerMock = createMock<Logger>();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [StorageNotificationService],
     })
+      .setLogger(loggerMock)
       .useMocker(createMock)
       .compile();
 
     jest.useFakeTimers();
     jest.setSystemTime(fixedSystemCurrentDate);
-    loggerMock = createMock<Logger>();
-    module.useLogger(loggerMock);
 
     service = module.get<StorageNotificationService>(
       StorageNotificationService,

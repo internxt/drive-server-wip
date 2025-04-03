@@ -25,13 +25,14 @@ describe('GatewayUseCases', () => {
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
   beforeEach(async () => {
+    loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
       providers: [GatewayUseCases],
     })
+      .setLogger(loggerMock)
       .useMocker(createMock)
       .compile();
-    loggerMock = createMock<Logger>();
-    module.useLogger(loggerMock);
+
     service = module.get<GatewayUseCases>(GatewayUseCases);
     userRepository = module.get<SequelizeUserRepository>(
       SequelizeUserRepository,

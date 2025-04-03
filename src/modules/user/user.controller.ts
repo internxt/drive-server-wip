@@ -23,6 +23,7 @@ import {
   InternalServerErrorException,
   HttpException,
   UseInterceptors,
+  ConflictException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -85,6 +86,8 @@ import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 @ApiTags('User')
 @Controller('users')
 export class UserController {
+  private logger = new Logger(UserController.name);
+
   constructor(
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
@@ -111,9 +114,10 @@ export class UserController {
   async createUser(
     @Body() createUserDto: CreateUserDto,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
+    @Client() clientId: string,
   ) {
-    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+    // TODO: Remove magic string and use clientId Enum
+    const isDriveWeb = clientId === 'drive-web';
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
@@ -143,9 +147,7 @@ export class UserController {
         );
       }
 
-      this.notificationsService.add(
-        new SignUpSuccessEvent(response.user as unknown as User, req),
-      );
+      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
 
       // TODO: Move to EventBus
       this.userUseCases
@@ -179,25 +181,21 @@ export class UserController {
         uuid: response.uuid,
       };
     } catch (err) {
-      let errorMessage = err.message;
-
       if (err instanceof InvalidReferralCodeError) {
-        res.status(HttpStatus.BAD_REQUEST);
+        throw new BadRequestException(err.message);
       } else if (err instanceof UserAlreadyRegisteredError) {
-        res.status(HttpStatus.CONFLICT);
-      } else {
-        new Logger().error(
-          `[AUTH/REGISTER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
+        throw new ConflictException(err.message);
       }
 
-      return { error: errorMessage };
+      this.logger.error(
+        `[AUTH/REGISTER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
     }
   }
 
@@ -277,10 +275,11 @@ export class UserController {
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   @Public()
   async registerPreCreatedUser(
-    @Body() { invitationId, ...createUserDto }: RegisterPreCreatedUserDto,
+    @Body() bodyDto: RegisterPreCreatedUserDto,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
   ) {
+    const { invitationId, ...createUserDto } = bodyDto;
+
     try {
       const preCreatedUser = await this.userUseCases.findPreCreatedByEmail(
         createUserDto.email,
@@ -318,7 +317,7 @@ export class UserController {
       }
 
       this.notificationsService.add(
-        new SignUpSuccessEvent(userCreated.user as unknown as User, req),
+        new SignUpSuccessEvent(userCreated.user, req),
       );
 
       // TODO: Move to EventBus
@@ -362,28 +361,25 @@ export class UserController {
         uuid: userCreated.uuid,
       };
     } catch (err) {
-      let errorMessage = err.message;
+      const errorMessage = err.message;
 
       if (err instanceof InvalidReferralCodeError) {
-        res.status(HttpStatus.BAD_REQUEST);
+        throw new BadRequestException(errorMessage);
       } else if (err instanceof UserAlreadyRegisteredError) {
-        res.status(HttpStatus.CONFLICT);
+        throw new ConflictException(errorMessage);
       } else if (err instanceof NotFoundException) {
-        res.status(HttpStatus.NOT_FOUND);
-      } else {
-        new Logger().error(
-          `[AUTH/REGISTER-PRE-CREATED-USER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify({
-            ...createUserDto,
-            invitationId,
-          })}, STACK: ${(err as Error).stack}`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
+        throw new NotFoundException(errorMessage);
       }
 
-      return { error: errorMessage };
+      this.logger.error(
+        `[AUTH/REGISTER-PRE-CREATED-USER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...createUserDto,
+          invitationId,
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
     }
   }
 
@@ -394,39 +390,16 @@ export class UserController {
   })
   @ApiOkResponse({ description: 'Pre creates a user' })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
-  async preCreateUser(
-    @Body() createUserDto: PreCreateUserDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    try {
-      const user = await this.userUseCases.preCreateUser(createUserDto);
+  async preCreateUser(@Body() createUserDto: PreCreateUserDto) {
+    const user = await this.userUseCases.preCreateUser(createUserDto);
 
-      return {
-        user: {
-          email: user.email,
-          uuid: user.uuid,
-        },
-        publicKey: user.publicKey,
-      };
-    } catch (err) {
-      let errorMessage = err.message;
-
-      if (err instanceof UserAlreadyRegisteredError) {
-        res.status(HttpStatus.CONFLICT);
-      } else {
-        new Logger().error(
-          `[AUTH/PREREGISTER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
-    }
+    return {
+      user: {
+        email: user.email,
+        uuid: user.uuid,
+      },
+      publicKey: user.publicKey,
+    };
   }
 
   @Get('/c/:uuid')
@@ -435,14 +408,12 @@ export class UserController {
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
   })
-  async getUserCredentials(@Req() req, @Param('uuid') uuid: string) {
-    if (uuid !== req.user.uuid) {
+  async getUserCredentials(
+    @UserDecorator() user: User,
+    @Param('uuid') uuid: string,
+  ) {
+    if (uuid !== user.uuid) {
       throw new ForbiddenException();
-    }
-    const user = await this.userUseCases.getUser(uuid);
-
-    if (!user) {
-      throw new NotFoundException();
     }
 
     const { token, newToken } = await this.userUseCases.getAuthTokens(user);
@@ -531,16 +502,13 @@ export class UserController {
     summary: 'Request account recovery',
   })
   @Public()
-  async requestAccountRecovery(
-    @Body() body: RequestRecoverAccountDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async requestAccountRecovery(@Body() body: RequestRecoverAccountDto) {
     try {
       await this.userUseCases.sendAccountRecoveryEmail(
         body.email.toLowerCase(),
       );
     } catch (err) {
-      new Logger().error(
+      this.logger.error(
         `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify({
@@ -549,9 +517,7 @@ export class UserController {
         })}, STACK: ${(err as Error).stack}`,
       );
 
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-
-      return { error: 'Internal Server Error' };
+      throw err;
     }
   }
 
@@ -569,20 +535,18 @@ export class UserController {
       );
       return response;
     } catch (err) {
-      if (err instanceof HttpException) {
-        throw err;
+      if (!(err instanceof HttpException)) {
+        this.logger.error(
+          `[USERS/UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify({
+            ...body,
+            user: { email: body.email },
+          })}, STACK: ${(err as Error).stack}`,
+        );
       }
 
-      new Logger().error(
-        `[USERS/UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify({
-          ...body,
-          user: { email: body.email },
-        })}, STACK: ${(err as Error).stack}`,
-      );
-
-      throw new InternalServerErrorException();
+      throw err;
     }
   }
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -579,7 +580,7 @@ export class UserUseCases {
     ]);
 
     if (existentUser) {
-      throw new UserAlreadyRegisteredError(newUser.email);
+      throw new ConflictException(newUser.email);
     }
 
     if (preCreatedUser) {

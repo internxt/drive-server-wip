@@ -17,16 +17,16 @@ describe('Gateway Controller', () => {
   let loggerMock: DeepMocked<Logger>;
 
   beforeEach(async () => {
+    loggerMock = createMock<Logger>();
     const moduleRef = await Test.createTestingModule({
       imports: [],
       controllers: [],
       providers: [GatewayController],
     })
+      .setLogger(loggerMock)
       .useMocker(() => createMock())
       .compile();
 
-    loggerMock = createMock<Logger>();
-    moduleRef.useLogger(loggerMock);
     gatewayController = moduleRef.get(GatewayController);
     gatewayUsecases = moduleRef.get(GatewayUseCases);
     storageNotificationsService = moduleRef.get(StorageNotificationService);

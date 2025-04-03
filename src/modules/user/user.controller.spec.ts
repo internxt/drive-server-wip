@@ -30,6 +30,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { Request, Response } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
+import { Test } from '@nestjs/testing';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -70,22 +71,19 @@ describe('User Controller', () => {
   let notificationService: DeepMocked<NotificationService>;
   let keyServerUseCases: DeepMocked<KeyServerUseCases>;
   let cryptoService: DeepMocked<CryptoService>;
-  let sharingService: DeepMocked<SharingService>;
 
   beforeEach(async () => {
-    userUseCases = createMock<UserUseCases>();
-    notificationService = createMock<NotificationService>();
-    keyServerUseCases = createMock<KeyServerUseCases>();
-    cryptoService = createMock<CryptoService>();
-    sharingService = createMock<SharingService>();
-
-    userController = new UserController(
-      userUseCases,
-      notificationService,
-      keyServerUseCases,
-      cryptoService,
-      sharingService,
-    );
+    const moduleRef = await Test.createTestingModule({
+      controllers: [UserController],
+    })
+      .setLogger(createMock<Logger>())
+      .useMocker(() => createMock())
+      .compile();
+    userController = moduleRef.get(UserController);
+    userUseCases = moduleRef.get(UserUseCases);
+    notificationService = moduleRef.get(NotificationService);
+    keyServerUseCases = moduleRef.get(KeyServerUseCases);
+    cryptoService = moduleRef.get(CryptoService);
   });
 
   it('should be defined', () => {
@@ -93,11 +91,12 @@ describe('User Controller', () => {
   });
 
   describe('POST /unblock-account', () => {
-    it('When an unhandled error is returned, then error 500 is shown', async () => {
-      userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(new Error());
+    it('When an error is returned, then it should throw the error again to be catched by global exception filter', async () => {
+      const error = new Error('Not http error');
+      userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(error);
       await expect(
         userController.requestAccountUnblock({ email: '' }),
-      ).rejects.toThrow(InternalServerErrorException);
+      ).rejects.toThrow(error);
     });
 
     it('When mail Limit is reached, then 429 error is shown', async () => {
@@ -587,10 +586,8 @@ describe('User Controller', () => {
   });
 
   describe('POST /create-user', () => {
-    const req = createMock<Request>({
-      headers: { 'internxt-client': 'drive-web' } as any,
-    });
-    const res = createMock<Response>();
+    const clientId = 'drive-web';
+    const req = createMock<Request>();
 
     const mockUser = newUser();
     const mockCreateUserResponse = {
@@ -639,7 +636,11 @@ describe('User Controller', () => {
         ecc: newEccKeys,
       });
 
-      const result = await userController.createUser(createUserDto, req, res);
+      const result = await userController.createUser(
+        createUserDto,
+        req,
+        clientId,
+      );
 
       expect(userUseCases.createUser).toHaveBeenCalledWith(createUserDto);
       expect(keyServerUseCases.addKeysToUser).toHaveBeenCalledWith(
@@ -682,14 +683,13 @@ describe('User Controller', () => {
         ecc: existentEccKey,
       });
 
-      await userController.createUser(createUserDto, req, res);
+      await userController.createUser(createUserDto, req, clientId);
 
       expect(userUseCases.replacePreCreatedUser).toHaveBeenCalled();
     });
   });
 
   describe('POST /pre-created-users/register', () => {
-    const res = createMock<Response>();
     const req = createMock<Request>({
       headers: { 'internxt-client': 'drive-web' } as any,
     });
@@ -748,7 +748,6 @@ describe('User Controller', () => {
       const result = await userController.registerPreCreatedUser(
         preCreateUserDto,
         req,
-        res,
       );
 
       expect((result as any).user).toMatchObject({
@@ -777,7 +776,7 @@ describe('User Controller', () => {
         ecc: null,
       });
 
-      await userController.registerPreCreatedUser(preCreateUserDto, req, res);
+      await userController.registerPreCreatedUser(preCreateUserDto, req);
 
       expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
     });
