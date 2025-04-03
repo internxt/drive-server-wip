@@ -7,12 +7,18 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { BackupUseCase } from './backup.usecase';
 import { CreateDeviceAsFolderDto } from './dto/create-device-as-folder.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
+import { DeviceDto } from './dto/responses/device.dto';
 
 @ApiTags('Backup')
 @Controller('backup')
@@ -32,11 +38,12 @@ export class BackupController {
   @ApiOperation({
     summary: 'Create a folder using device name',
   })
+  @ApiOkResponse({ type: DeviceDto })
   @ApiBearerAuth()
   async createDeviceAsFolder(
     @UserDecorator() user: User,
     @Body() body: CreateDeviceAsFolderDto,
-  ) {
+  ): Promise<DeviceDto> {
     return this.backupUseCases.createDeviceAsFolder(user, body.deviceName);
   }
 
@@ -44,11 +51,12 @@ export class BackupController {
   @ApiOperation({
     summary: 'Get device as folder by uuid',
   })
+  @ApiOkResponse({ type: DeviceDto })
   @ApiBearerAuth()
   async getDeviceAsFolder(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) uuid: string,
-  ) {
+  ): Promise<DeviceDto> {
     return this.backupUseCases.getDeviceAsFolder(user, uuid);
   }
 
@@ -56,12 +64,13 @@ export class BackupController {
   @ApiOperation({
     summary: 'Update device as folder by uuid',
   })
+  @ApiOkResponse({ type: DeviceDto })
   @ApiBearerAuth()
   async updateDeviceAsFolder(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) uuid: string,
     @Body() body: CreateDeviceAsFolderDto,
-  ) {
+  ): Promise<DeviceDto> {
     return this.backupUseCases.updateDeviceAsFolder(
       user,
       uuid,
@@ -73,8 +82,9 @@ export class BackupController {
   @ApiOperation({
     summary: 'Get all devices as folder',
   })
+  @ApiOkResponse({ type: DeviceDto, isArray: true })
   @ApiBearerAuth()
-  async getDevicesAsFolder(@UserDecorator() user: User) {
+  async getDevicesAsFolder(@UserDecorator() user: User): Promise<DeviceDto[]> {
     return this.backupUseCases.getDevicesAsFolder(user);
   }
 
