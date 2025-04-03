@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { FolderDto } from 'src/modules/folder/dto/responses/folder.dto';
+import { FolderDto } from '../../../folder/dto/responses/folder.dto';
 
 export class DeviceDto extends FolderDto {
   @ApiProperty()

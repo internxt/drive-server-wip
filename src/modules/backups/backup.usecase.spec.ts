@@ -1,4 +1,4 @@
-import { newUser } from './../../../test/fixtures';
+import { newFolder, newUser } from './../../../test/fixtures';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { BackupUseCase } from './backup.usecase';
@@ -12,6 +12,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { Folder } from '../folder/folder.domain';
 
 describe('BackupUseCase', () => {
   let backupUseCase: BackupUseCase;
@@ -28,6 +29,12 @@ describe('BackupUseCase', () => {
       email: 'test@example.com',
       backupsBucket: 'bucket-id',
     },
+  });
+
+  beforeAll(() => {
+    const fixedSystemCurrentDate = new Date('2022-01-01');
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedSystemCurrentDate);
   });
 
   beforeEach(async () => {
@@ -77,17 +84,19 @@ describe('BackupUseCase', () => {
     });
 
     it('When no folder with the same name exists, then it should create the folder', async () => {
-      const mockFolder = { id: 1, name: 'Device Folder' };
+      const mockFolder = newFolder();
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([]);
       jest
         .spyOn(folderUseCases, 'createFolderDevice')
-        .mockResolvedValue(mockFolder as any);
+        .mockResolvedValue(mockFolder);
 
       const result = await backupUseCase.createDeviceAsFolder(
         userMocked,
         'Device Folder',
       );
-      expect(result).toEqual(mockFolder);
+      expect(result).toEqual({
+        ...newBackupFolder(mockFolder),
+      });
     });
   });
 
@@ -100,13 +109,19 @@ describe('BackupUseCase', () => {
     });
 
     it('When backups are activated, then it should return all devices as folders', async () => {
-      const mockFolders = [{ id: 1, name: 'Device Folder' }];
+      const mockFolder = newFolder();
       jest
         .spyOn(folderUseCases, 'getFoldersByUserId')
-        .mockResolvedValue(mockFolders as any);
+        .mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(mockFolder.plainName as never);
 
       const result = await backupUseCase.getDevicesAsFolder(userMocked);
-      expect(result).toEqual(expect.any(Array));
+
+      result.forEach((folder) => {
+        expect(folder).toEqual({ ...newBackupFolder(mockFolder) });
+      });
     });
   });
 
@@ -156,26 +171,20 @@ describe('BackupUseCase', () => {
     });
 
     it('When the folder exists, then it should return the folder', async () => {
-      const mockFolder = {
-        uuid: 'folder-uuid',
-        name: 'Encrypted Folder',
-        bucket: 'bucket-id',
-        updatedAt: new Date(),
-      };
+      const mockFolder = newFolder();
+      const mockFolderWithBackupAttributes = newBackupFolder(mockFolder);
+      mockFolderWithBackupAttributes.hasBackups = true;
+
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
-        .mockResolvedValue(mockFolder as any);
+        .mockResolvedValue(mockFolder);
       jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(false);
 
       const result = await backupUseCase.getDeviceAsFolder(
         userMocked,
         'folder-uuid',
       );
-      expect(result).toEqual({
-        ...mockFolder,
-        hasBackups: true,
-        lastBackupAt: mockFolder.updatedAt,
-      });
+      expect(result).toEqual(mockFolderWithBackupAttributes);
     });
   });
 
@@ -195,32 +204,31 @@ describe('BackupUseCase', () => {
     });
 
     it('When the folder exists, then it should update the folder with the new name', async () => {
-      const mockFolder = {
-        uuid: 'folder-uuid',
-        name: 'Old Encrypted Name',
-        bucket: 'bucket-id',
-      };
-      const updatedFolder = {
-        ...mockFolder,
-        name: 'New Encrypted Name',
-        plainName: 'New Device Name',
-      };
+      const mockFolder = newFolder();
+      const updatedFolder = newFolder({
+        attributes: {
+          ...mockFolder,
+          name: 'New Encrypted Name',
+          plainName: 'New Device Name',
+        },
+      });
+
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
-        .mockResolvedValue(mockFolder as any);
+        .mockResolvedValue(mockFolder);
       jest
         .spyOn(cryptoService, 'encryptName')
         .mockReturnValue('New Encrypted Name');
       jest
         .spyOn(folderUseCases, 'updateByFolderId')
-        .mockResolvedValue(updatedFolder as any);
+        .mockResolvedValue(updatedFolder);
 
       const result = await backupUseCase.updateDeviceAsFolder(
         userMocked,
         'folder-uuid',
         'New Device Name',
       );
-      expect(result).toEqual(updatedFolder);
+      expect(result).toEqual({ ...newBackupFolder(updatedFolder) });
     });
   });
 
@@ -317,3 +325,14 @@ describe('BackupUseCase', () => {
     });
   });
 });
+
+const newBackupFolder = (folder: Folder) => {
+  const backupFolder = folder || newFolder();
+
+  return {
+    ...backupFolder,
+    hasBackups: false,
+    lastBackupAt: folder.updatedAt,
+    status: folder.getFolderStatus(),
+  };
+};

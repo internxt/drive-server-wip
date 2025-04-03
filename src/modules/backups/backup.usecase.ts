@@ -123,7 +123,7 @@ export class BackupUseCase {
 
     return Promise.all(
       folders.map(async (folder) => ({
-        ...this.addDeviceProperties(user, folder),
+        ...(await this.addDeviceProperties(user, folder)),
         plainName: this.cryptoService.decryptName(folder.name, folder.bucket),
       })),
     );
