@@ -267,7 +267,10 @@ export class SharingService {
     const sharing = await this.sharingRepository.findOneSharing({
       id,
     });
-    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
 
     if (!sharing.isPublic()) {
       throw new ForbiddenException();
@@ -285,6 +288,8 @@ export class SharingService {
     }
 
     const response: Partial<PublicSharingInfo> = { ...sharing };
+
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
     let item: Item;
 

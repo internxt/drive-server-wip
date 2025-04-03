@@ -11,7 +11,6 @@ import {
   Post,
   Put,
   Query,
-  UseFilters,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -35,7 +34,7 @@ import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
@@ -46,7 +45,6 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { FileDto } from './dto/responses/file.dto';
 import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
@@ -351,7 +349,6 @@ export class FileController {
     },
   ])
   @WorkspacesInBehalfValidationFile()
-  @UseFilters(ExtendedHttpExceptionFilter)
   async moveFile(
     @UserDecorator() user: User,
     @Param('uuid') fileUuid: string,
@@ -487,5 +484,28 @@ export class FileController {
     });
 
     return { deleted: true };
+  }
+
+  @Delete('/:bucketId/:fileId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage by fileId',
+  })
+  async deleteFileByFileId(
+    @UserDecorator() user: User,
+    @Param('bucketId') bucketId: string,
+    @Param('fileId') fileId: string,
+    @Client() clientId: string,
+  ) {
+    const { fileExistedInDb, id, uuid } =
+      await this.fileUseCases.deleteFileByFileId(user, bucketId, fileId);
+
+    if (fileExistedInDb) {
+      this.storageNotificationService.fileDeleted({
+        payload: { id, uuid },
+        user,
+        clientId,
+      });
+    }
   }
 }
