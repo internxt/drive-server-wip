@@ -80,6 +80,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
+import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -459,8 +460,11 @@ export class UserController {
   @ApiOperation({
     summary: 'Refresh session token',
   })
-  @ApiOkResponse({ description: 'Returns a new token' })
-  refreshToken(@UserDecorator() user: User) {
+  @ApiOkResponse({
+    description: 'Returns a new token',
+    type: RefreshTokenResponseDto,
+  })
+  refreshToken(@UserDecorator() user: User): Promise<RefreshTokenResponseDto> {
     return this.userUseCases.getAuthTokens(user);
   }
 
