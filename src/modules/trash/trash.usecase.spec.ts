@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 
 import { TrashUseCases } from './trash.usecase';
@@ -18,6 +18,7 @@ describe('Trash Use Cases', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [TrashUseCases],
     })
+      .setLogger(createMock<Logger>())
       .useMocker(() => createMock())
       .compile();
 
