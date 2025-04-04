@@ -40,4 +40,21 @@ export class CacheManagerService {
       this.cacheManager.del(`${this.LIMIT_KEY_PREFIX}${userUuid}`),
     ]);
   }
+
+  async getUserStorageLimit(userUuid: string) {
+    const cachedLimit = this.cacheManager.get<{ limit: number }>(
+      `${this.LIMIT_KEY_PREFIX}${userUuid}`,
+    );
+
+    return cachedLimit;
+  }
+
+  async setUserStorageLimit(userUuid: string, limit: number) {
+    const cachedLimit = await this.cacheManager.set(
+      `${this.LIMIT_KEY_PREFIX}${userUuid}`,
+      { limit },
+      10000 * 60,
+    );
+    return cachedLimit;
+  }
 }
