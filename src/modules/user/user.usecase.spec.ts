@@ -2145,6 +2145,9 @@ describe('User use cases', () => {
   describe('getSpaceLimit', () => {
     it('When a valid user is provided, then it should return the space limit', async () => {
       const expectedLimit = 1000000000;
+      jest
+        .spyOn(cacheManagerService, 'getUserStorageLimit')
+        .mockResolvedValue(null);
       jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(expectedLimit);
 
       const result = await userUseCases.getSpaceLimit(user);
@@ -2156,8 +2159,25 @@ describe('User use cases', () => {
       expect(result).toEqual(expectedLimit);
     });
 
+    it('When limit is cached, then it should return the cached space limit', async () => {
+      const expectedLimit = 1000000000;
+      jest
+        .spyOn(cacheManagerService, 'getUserStorageLimit')
+        .mockResolvedValue({ limit: expectedLimit });
+
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(expectedLimit);
+
+      const result = await userUseCases.getSpaceLimit(user);
+
+      expect(bridgeService.getLimit).not.toHaveBeenCalled();
+      expect(result).toEqual(expectedLimit);
+    });
+
     it('When an error occurs while getting the space limit, then it should throw an error', async () => {
       const errorMessage = 'Error getting space limit';
+      jest
+        .spyOn(cacheManagerService, 'getUserStorageLimit')
+        .mockResolvedValue(null);
       jest
         .spyOn(bridgeService, 'getLimit')
         .mockRejectedValue(new Error(errorMessage));

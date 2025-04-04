@@ -1623,7 +1623,18 @@ export class UserUseCases {
     }
   }
 
-  getSpaceLimit(user: User): Promise<number> {
-    return this.networkService.getLimit(user.bridgeUser, user.userId);
+  async getSpaceLimit(user: User): Promise<number> {
+    const cachedLimit = await this.cacheManager.getUserStorageLimit(user.uuid);
+    if (cachedLimit) {
+      return cachedLimit.limit;
+    }
+
+    const limit = await this.networkService.getLimit(
+      user.bridgeUser,
+      user.userId,
+    );
+    await this.cacheManager.setUserStorageLimit(user.uuid, limit);
+
+    return limit;
   }
 }
