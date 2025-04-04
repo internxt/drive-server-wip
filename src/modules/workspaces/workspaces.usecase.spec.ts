@@ -27,6 +27,7 @@ import {
   ConflictException,
   ForbiddenException,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PreCreatedUser } from '../user/pre-created-user.domain';
@@ -96,6 +97,7 @@ describe('WorkspacesUsecases', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [WorkspacesUsecases],
     })
+      .setLogger(createMock<Logger>())
       .useMocker(createMock)
       .compile();
 

@@ -5,17 +5,22 @@ import {
   InvalidKeyServerException,
   KeyServerUseCases,
 } from './key-server.usecase';
-import { BadRequestException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 
 describe('Key Server Use Cases', () => {
   let service: KeyServerUseCases;
   let keyServerRepository: DeepMocked<SequelizeKeyServerRepository>;
 
   beforeEach(async () => {
-    keyServerRepository = createMock<SequelizeKeyServerRepository>();
-    keyServerRepository.findUserKeysOrCreate.mockResolvedValue({} as any);
-
-    service = new KeyServerUseCases(keyServerRepository);
+    const moduleRef = await Test.createTestingModule({
+      providers: [KeyServerUseCases],
+    })
+      .setLogger(createMock<Logger>())
+      .useMocker(() => createMock())
+      .compile();
+    service = moduleRef.get(KeyServerUseCases);
+    keyServerRepository = moduleRef.get(SequelizeKeyServerRepository);
   });
 
   it('when the service is instantiated, then it should be defined', () => {

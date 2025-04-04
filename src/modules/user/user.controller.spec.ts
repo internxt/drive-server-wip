@@ -18,7 +18,6 @@ import { MailLimitReachedException, UserUseCases } from './user.usecase';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
 import { AccountTokenAction, User } from './user.domain';
 import { v4 } from 'uuid';
@@ -28,7 +27,7 @@ import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
 

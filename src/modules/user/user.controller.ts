@@ -86,7 +86,7 @@ import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 @ApiTags('User')
 @Controller('users')
 export class UserController {
-  private logger = new Logger(UserController.name);
+  private readonly logger = new Logger(UserController.name);
 
   constructor(
     private userUseCases: UserUseCases,
