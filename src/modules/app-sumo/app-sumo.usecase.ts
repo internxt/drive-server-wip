@@ -6,7 +6,7 @@ import { PlanNotFoundException } from '../plan/exception/plan-not-found.exceptio
 
 @Injectable()
 export class AppSumoUseCase {
-  private logger = new Logger('AppSumoUseCase');
+  private readonly logger = new Logger('AppSumoUseCase');
 
   constructor(
     private readonly appSumoRepository: SequelizeAppSumoRepository,

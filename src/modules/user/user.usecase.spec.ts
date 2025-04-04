@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
+import { Test } from '@nestjs/testing';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
@@ -102,8 +102,7 @@ describe('User use cases', () => {
   let appSumoUseCases: AppSumoUseCase;
   let backupUseCases: BackupUseCase;
   let cacheManagerService: CacheManagerService;
-
-  const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
+  let loggerMock: DeepMocked<Logger>;
 
   const user = User.build({
     id: 1,
@@ -136,7 +135,15 @@ describe('User use cases', () => {
   });
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule();
+    loggerMock = createMock<Logger>();
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [],
+      providers: [UserUseCases],
+    })
+      .useMocker(() => createMock())
+      .setLogger(loggerMock)
+      .compile();
 
     shareUseCases = moduleRef.get<ShareUseCases>(ShareUseCases);
     folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);
@@ -1247,7 +1254,7 @@ describe('User use cases', () => {
 
       userUseCases.logReferralError(userId, new Error());
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect(loggerMock.error).toHaveBeenCalledWith(
         '[STORAGE]: ERROR message undefined applying referral for user %s',
         userId,
       );
@@ -1259,7 +1266,7 @@ describe('User use cases', () => {
 
       userUseCases.logReferralError(userId, error);
 
-      expect(loggerErrorSpy).not.toHaveBeenCalled();
+      expect(loggerMock.error).not.toHaveBeenCalled();
     });
 
     it('When another error is logged, then it should log error message for other errors', () => {
@@ -1268,7 +1275,7 @@ describe('User use cases', () => {
 
       userUseCases.logReferralError(userId, new Error(errorMessage));
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect(loggerMock.error).toHaveBeenCalledWith(
         '[STORAGE]: ERROR applying referral for user %s: %s',
         userId,
         errorMessage,
@@ -1281,7 +1288,7 @@ describe('User use cases', () => {
 
       userUseCases.logReferralError(userId, error);
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect(loggerMock.error).toHaveBeenCalledWith(
         '[STORAGE]: ERROR applying referral for user %s: %s',
         userId,
         'Unknown error',
@@ -2062,9 +2069,6 @@ describe('User use cases', () => {
         .mockResolvedValueOnce({ userId: networkPass, uuid: userMock.uuid });
       jest.spyOn(bridgeService, 'createBucket').mockRejectedValue(bucketError);
 
-      const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
-      const loggerWarnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
-
       await expect(
         userUseCases.createUser({
           email: userMock.email,
@@ -2076,8 +2080,8 @@ describe('User use cases', () => {
         }),
       ).rejects.toThrow(bucketError);
 
-      expect(loggerErrorSpy).toHaveBeenCalled();
-      expect(loggerWarnSpy).toHaveBeenCalled();
+      expect(loggerMock.error).toHaveBeenCalled();
+      expect(loggerMock.warn).toHaveBeenCalled();
 
       expect(userRepository.deleteBy).toHaveBeenCalledWith({
         uuid: userMock.uuid,
@@ -2164,12 +2168,3 @@ describe('User use cases', () => {
     });
   });
 });
-
-const createTestingModule = (): Promise<TestingModule> => {
-  return Test.createTestingModule({
-    controllers: [],
-    providers: [UserUseCases],
-  })
-    .useMocker(() => createMock())
-    .compile();
-};

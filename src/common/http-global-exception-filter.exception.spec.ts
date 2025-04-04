@@ -27,6 +27,7 @@ describe('HttpGlobalExceptionFilter', () => {
     mockHttpAdapterHost = createMock<HttpAdapterHost>({
       httpAdapter: mockHttpAdapter,
     });
+    loggerMock = createMock<Logger>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -36,9 +37,9 @@ describe('HttpGlobalExceptionFilter', () => {
           useValue: mockHttpAdapterHost,
         },
       ],
-    }).compile();
-    loggerMock = createMock<Logger>();
-    module.useLogger(loggerMock);
+    })
+      .setLogger(loggerMock)
+      .compile();
     filter = module.get<HttpGlobalExceptionFilter>(HttpGlobalExceptionFilter);
   });
 

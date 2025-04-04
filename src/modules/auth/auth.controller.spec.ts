@@ -9,6 +9,7 @@ import { Response } from 'express';
 import {
   BadRequestException,
   ConflictException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { GeneratedSecret } from 'speakeasy';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { Test } from '@nestjs/testing';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -28,17 +30,17 @@ describe('AuthController', () => {
   let twoFactorAuthService: DeepMocked<TwoFactorAuthService>;
 
   beforeEach(async () => {
-    userUseCases = createMock<UserUseCases>();
-    keyServerUseCases = createMock<KeyServerUseCases>();
-    cryptoService = createMock<CryptoService>();
-    twoFactorAuthService = createMock<TwoFactorAuthService>();
-
-    authController = new AuthController(
-      userUseCases,
-      keyServerUseCases,
-      cryptoService,
-      twoFactorAuthService,
-    );
+    const moduleRef = await Test.createTestingModule({
+      controllers: [AuthController],
+    })
+      .setLogger(createMock<Logger>())
+      .useMocker(() => createMock())
+      .compile();
+    authController = moduleRef.get(AuthController);
+    userUseCases = moduleRef.get(UserUseCases);
+    keyServerUseCases = moduleRef.get(KeyServerUseCases);
+    cryptoService = moduleRef.get(CryptoService);
+    twoFactorAuthService = moduleRef.get(TwoFactorAuthService);
   });
 
   it('should be defined', () => {
