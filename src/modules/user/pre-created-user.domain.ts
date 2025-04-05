@@ -13,6 +13,8 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   privateKey: string;
   revocationKey: string;
   encryptVersion: UserKeysEncryptVersions;
+  publicKyberKey?: string;
+  privateKyberKey?: string;
   constructor({
     id,
     email,
@@ -25,6 +27,8 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     privateKey,
     revocationKey,
     encryptVersion,
+    publicKyberKey,
+    privateKyberKey,
   }: PreCreatedUserAttributes) {
     this.id = id;
     this.uuid = uuid;
@@ -33,6 +37,8 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     this.privateKey = privateKey;
     this.revocationKey = revocationKey;
     this.encryptVersion = encryptVersion;
+    this.publicKyberKey = publicKyberKey;
+    this.privateKyberKey = privateKyberKey;
     this.username = username;
     this.password = password;
     this.mnemonic = mnemonic;
