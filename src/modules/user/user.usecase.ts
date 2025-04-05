@@ -85,6 +85,8 @@ import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
+import { SharingInvite } from '../sharing/sharing.domain';
+import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -160,6 +162,7 @@ export class UserUseCases {
     private readonly appSumoUseCases: AppSumoUseCase,
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
+    private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -480,6 +483,7 @@ export class UserUseCases {
     email: string,
     newUserUuid: string,
     newPublicKey: string,
+    newPublicKyberKey?: string,
   ) {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
@@ -489,35 +493,53 @@ export class UserUseCases {
     }
 
     const defaultPass = this.configService.get('users.preCreatedPassword');
-    const { privateKey: encPrivateKey } = preCreatedUser;
+    const { privateKey: encPrivateKey, privateKyberKey: encPrivateKyberKey } =
+      preCreatedUser;
+
     const privateKey = aes.decrypt(encPrivateKey, defaultPass);
+    const privateKyberKey = encPrivateKyberKey
+      ? aes.decrypt(encPrivateKyberKey, defaultPass)
+      : null;
 
     const invites = await this.sharingRepository.getInvitesBySharedwith(
       preCreatedUser.uuid,
     );
 
+    const invitesToUpdate: SharingInvite[] = [];
+
     for (const invite of invites) {
-      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
-        encryptedMessage: Buffer.from(invite.encryptionKey, 'base64').toString(
-          'binary',
-        ),
-        privateKeyInBase64: privateKey,
-      });
+      const { encryptionKey } = invite;
 
-      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
-        message: decryptedEncryptionKey.toString(),
-        publicKeyInBase64: newPublicKey,
-      });
+      if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
+        await this.sharingRepository.deleteInvite(invite);
+        continue;
+      }
 
-      invite.encryptionKey = Buffer.from(
-        newEncryptedEncryptionKey.toString(),
-        'binary',
-      ).toString('base64');
+      const decryptedEncryptionKey =
+        await this.asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey(
+          {
+            encryptedMessageInBase64: encryptionKey,
+            privateKeyInBase64: privateKey,
+            privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
+          },
+        );
 
+      const newEncryptedEncryptionKey =
+        await this.asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+          {
+            message: decryptedEncryptionKey.toString(),
+            publicKeyInBase64: newPublicKey,
+            publicKyberKeyBase64: invite.isHybrid() ? newPublicKyberKey : null,
+          },
+        );
+
+      invite.encryptionKey = newEncryptedEncryptionKey;
       invite.sharedWith = newUserUuid;
+
+      invitesToUpdate.push(invite);
     }
 
-    await this.sharingRepository.bulkUpdate(invites);
+    await this.sharingRepository.bulkUpdate(invitesToUpdate);
 
     await this.replacePreCreatedUserWorkspaceInvitations(
       preCreatedUser.uuid,

@@ -721,7 +721,7 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
     });
 
-    return invites.map((i) => i.toJSON<SharingInvite>());
+    return invites.map((i) => SharingInvite.build(i.toJSON<SharingInvite>()));
   }
 
   async bulkUpdate(invites: Partial<SharingInvite>[]): Promise<void> {
