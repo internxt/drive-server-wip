@@ -1,6 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import {
+  IsBooleanString,
+  IsNotEmpty,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 
+class PrivateKeysDto {
+  @ApiProperty()
+  ecc: string;
+
+  @ApiProperty()
+  @IsOptional()
+  kyber?: string;
+}
 export class RecoverAccountDto {
   @ApiProperty({
     example: 'some_hashed_pass',
@@ -30,33 +43,19 @@ export class RecoverAccountDto {
     },
     description: "User's private keys encrypted with the user's plain password",
   })
-  privateKeys: {
-    ecc?: string;
-    kyber?: string;
-  };
+  @IsOptional()
+  @ValidateNested()
+  privateKeys?: PrivateKeysDto;
 }
 
-export class ResetAccountDto {
-  @ApiProperty({
-    example: 'some_hashed_pass',
-    description: 'New user pass hashed',
-  })
+export class RecoverAccountQueryDto {
+  @ApiProperty()
   @IsNotEmpty()
-  password: string;
+  token: string;
 
-  @ApiProperty({
-    example: 'some_salt',
-    description: 'Hashed password salt',
-  })
-  @IsNotEmpty()
-  salt: string;
-
-  @ApiProperty({
-    example: 'some_encrypted_mnemonic',
-    description: 'User mnemonic encrypted with the new pass',
-  })
-  @IsNotEmpty()
-  mnemonic: string;
+  @ApiProperty()
+  @IsBooleanString()
+  reset: string;
 }
 
 export class RequestRecoverAccountDto {
