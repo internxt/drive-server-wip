@@ -52,8 +52,8 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
+  RecoverAccountQueryDto,
   RequestRecoverAccountDto,
-  ResetAccountDto,
 } from './dto/recover-account.dto';
 import {
   generateJitsiJWT,
@@ -625,10 +625,10 @@ export class UserController {
   })
   @Public()
   async recoverAccount(
-    @Query('token') token: string,
-    @Query('reset') reset: string,
-    @Body() body: RecoverAccountDto | ResetAccountDto,
+    @Query() query: RecoverAccountQueryDto,
+    @Body() body: RecoverAccountDto,
   ) {
+    const { token, reset } = query;
     const { mnemonic, password, salt } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
@@ -642,47 +642,43 @@ export class UserController {
       decodedContent = decoded as {
         payload?: { uuid?: string; action?: string };
       };
+
+      if (
+        !decodedContent.payload ||
+        !decodedContent.payload.action ||
+        !decodedContent.payload.uuid ||
+        decodedContent.payload.action !== 'recover-account' ||
+        !validate(decodedContent.payload.uuid)
+      ) {
+        throw new ForbiddenException();
+      }
     } catch (err) {
       throw new ForbiddenException();
     }
 
-    if (
-      !decodedContent.payload ||
-      !decodedContent.payload.action ||
-      !decodedContent.payload.uuid ||
-      decodedContent.payload.action !== 'recover-account' ||
-      !validate(decodedContent.payload.uuid)
-    ) {
-      throw new ForbiddenException();
-    }
-
-    if (reset && reset !== 'true' && reset !== 'false') {
-      throw new BadRequestException('Invalid value for parameter "reset"');
-    }
-
     const userUuid = decodedContent.payload.uuid;
+    const shouldResetAccount = reset === 'true';
+    const invalidRecoverInput = !shouldResetAccount && !body.privateKeys;
+
+    if (invalidRecoverInput) {
+      throw new BadRequestException(
+        'You must provide private keys if you want to recover account without resetting',
+      );
+    }
 
     try {
-      if (reset === 'true') {
-        await this.userUseCases.updateCredentials(
-          userUuid,
-          {
-            mnemonic,
-            password,
-            salt,
-          },
-          true,
-        );
-      } else {
-        const recoverAccountDto = body as RecoverAccountDto;
-
-        await this.userUseCases.updateCredentials(userUuid, {
+      await this.userUseCases.updateCredentials(
+        userUuid,
+        {
           mnemonic,
           password,
           salt,
-          privateKeys: recoverAccountDto.privateKeys,
-        });
-      }
+          ...(shouldResetAccount
+            ? undefined
+            : { privateKeys: body.privateKeys }),
+        },
+        shouldResetAccount,
+      );
     } catch (err) {
       new Logger().error(
         `[USERS/RECOVER_ACCOUNT] ERROR: ${

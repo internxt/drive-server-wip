@@ -30,7 +30,7 @@ import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
-import { RecoverAccountDto, ResetAccountDto } from './dto/recover-account.dto';
+import { RecoverAccountDto } from './dto/recover-account.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -960,7 +960,7 @@ describe('User Controller', () => {
       },
     };
 
-    const mockResetAccountDto: ResetAccountDto = {
+    const mockRecoverAccountNoKeys: RecoverAccountDto = {
       mnemonic: 'encrypted_mnemonic',
       password: 'encrypted_password',
       salt: 'encrypted_salt',
@@ -985,8 +985,10 @@ describe('User Controller', () => {
       const invalidToken = 'invalid_token';
       await expect(
         userController.recoverAccount(
-          invalidToken,
-          'false',
+          {
+            token: invalidToken,
+            reset: 'false',
+          },
           mockRecoverAccountDto,
         ),
       ).rejects.toThrow(ForbiddenException);
@@ -1002,55 +1004,41 @@ describe('User Controller', () => {
 
       await expect(
         userController.recoverAccount(
-          validToken,
-          'false',
+          {
+            token: validToken,
+            reset: 'false',
+          },
           mockRecoverAccountDto,
         ),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When reset parameter is invalid, then it throws BadRequestException', async () => {
-      await expect(
-        userController.recoverAccount(
-          validToken,
-          'invalid',
-          mockRecoverAccountDto,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
     it('When reset is true, then it updates credentials with reset option', async () => {
-      const mockResponse = {} as Response;
-      jest
-        .spyOn(userUseCases, 'updateCredentials')
-        .mockResolvedValueOnce(undefined);
-
       await userController.recoverAccount(
-        validToken,
-        'true',
-        mockResetAccountDto,
+        {
+          token: validToken,
+          reset: 'true',
+        },
+        mockRecoverAccountNoKeys,
       );
 
       expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
         mockUser.uuid,
         {
-          mnemonic: mockResetAccountDto.mnemonic,
-          password: mockResetAccountDto.password,
-          salt: mockResetAccountDto.salt,
+          mnemonic: mockRecoverAccountNoKeys.mnemonic,
+          password: mockRecoverAccountNoKeys.password,
+          salt: mockRecoverAccountNoKeys.salt,
         },
         true,
       );
     });
 
     it('When reset is false and private keys are provided, then it updates credentials with private keys', async () => {
-      const mockResponse = {} as Response;
-      jest
-        .spyOn(userUseCases, 'updateCredentials')
-        .mockResolvedValueOnce(undefined);
-
       await userController.recoverAccount(
-        validToken,
-        'false',
+        {
+          token: validToken,
+          reset: 'false',
+        },
         mockRecoverAccountDto,
       );
 
@@ -1062,7 +1050,20 @@ describe('User Controller', () => {
           salt: mockRecoverAccountDto.salt,
           privateKeys: mockRecoverAccountDto.privateKeys,
         },
+        false,
       );
+    });
+
+    it('When reset is false but no private keys are provided, then it throws BadRequestException', async () => {
+      await expect(
+        userController.recoverAccount(
+          {
+            token: validToken,
+            reset: 'false',
+          },
+          mockRecoverAccountNoKeys,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

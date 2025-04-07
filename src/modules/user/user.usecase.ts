@@ -952,7 +952,6 @@ export class UserUseCases {
       privateKeys?: {
         ecc?: string;
         kyber?: string;
-        [key: string]: string;
       };
     },
     withReset = false,
@@ -1005,6 +1004,8 @@ export class UserUseCases {
   ): Promise<void> {
     if (options.deleteShares) {
       await this.shareUseCases.deleteByUser(user);
+      await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid });
+      await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid });
     }
 
     if (options.deleteFolders) {
