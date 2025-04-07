@@ -988,7 +988,6 @@ describe('User Controller', () => {
           invalidToken,
           'false',
           mockRecoverAccountDto,
-          {} as Response,
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -1006,7 +1005,6 @@ describe('User Controller', () => {
           validToken,
           'false',
           mockRecoverAccountDto,
-          {} as Response,
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -1017,7 +1015,6 @@ describe('User Controller', () => {
           validToken,
           'invalid',
           mockRecoverAccountDto,
-          {} as Response,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -1032,7 +1029,6 @@ describe('User Controller', () => {
         validToken,
         'true',
         mockResetAccountDto,
-        mockResponse,
       );
 
       expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
@@ -1056,7 +1052,6 @@ describe('User Controller', () => {
         validToken,
         'false',
         mockRecoverAccountDto,
-        mockResponse,
       );
 
       expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
