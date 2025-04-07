@@ -628,7 +628,6 @@ export class UserController {
     @Query('token') token: string,
     @Query('reset') reset: string,
     @Body() body: RecoverAccountDto | ResetAccountDto,
-    @Res({ passthrough: true }) res: Response,
   ) {
     const { mnemonic, password, salt } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
@@ -693,9 +692,7 @@ export class UserController {
           user: { uuid: userUuid },
         })}, STACK: ${(err as Error).stack}`,
       );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-
-      return { error: 'Internal Server Error' };
+      throw err;
     }
   }
 
