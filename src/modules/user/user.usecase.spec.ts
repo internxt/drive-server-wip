@@ -47,6 +47,7 @@ import {
   newKeyServer,
   newWorkspace,
   newWorkspaceUser,
+  newPreCreatedUser,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -70,6 +71,12 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
+import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { SharingInvite } from '../sharing/sharing.domain';
+import { aes } from '@internxt/lib';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -103,6 +110,9 @@ describe('User use cases', () => {
   let backupUseCases: BackupUseCase;
   let cacheManagerService: CacheManagerService;
   let loggerMock: DeepMocked<Logger>;
+  let sharingRepository: SequelizeSharingRepository;
+  let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
+  let asymmetricEncryptionService: AsymmetricEncryptionService;
 
   const user = User.build({
     id: 1,
@@ -135,11 +145,12 @@ describe('User use cases', () => {
   });
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     loggerMock = createMock<Logger>();
 
     const moduleRef = await Test.createTestingModule({
       controllers: [],
-      providers: [UserUseCases],
+      providers: [UserUseCases, AsymmetricEncryptionService, KyberProvider],
     })
       .useMocker(() => createMock())
       .setLogger(loggerMock)
@@ -184,8 +195,16 @@ describe('User use cases', () => {
     backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
     cacheManagerService =
       moduleRef.get<CacheManagerService>(CacheManagerService);
-
-    jest.clearAllMocks();
+    sharingRepository = moduleRef.get<SequelizeSharingRepository>(
+      SequelizeSharingRepository,
+    );
+    preCreatedUsersRepository =
+      moduleRef.get<SequelizePreCreatedUsersRepository>(
+        SequelizePreCreatedUsersRepository,
+      );
+    asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
+      AsymmetricEncryptionService,
+    );
   });
 
   describe('Resetting a user', () => {
@@ -2185,6 +2204,328 @@ describe('User use cases', () => {
       await expect(userUseCases.getSpaceLimit(user)).rejects.toThrow(
         errorMessage,
       );
+    });
+  });
+
+  describe('replacePreCreatedUser', () => {
+    beforeEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When pre-created user does not exist, then do nothing', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      await userUseCases.replacePreCreatedUser(
+        'non-existent-email',
+        'new-user-uuid',
+        'new-public-key',
+        'new-public-kyber-key',
+      );
+
+      expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalled();
+      expect(sharingRepository.getInvitesBySharedwith).not.toHaveBeenCalled();
+      expect(sharingRepository.bulkUpdate).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.deleteByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When pre-created user exists, then replace invitations with new user keys and uuid', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const newUserUuid = v4();
+
+      const newPublicKey = 'new-public-key';
+      const newPublicKyberKey = 'new-public-kyber-key';
+      const preCreatedUserDecryptedKey = 'decrypted-private-key';
+      const preCreatedUserDecryptedKyberKey = 'decrypted-private-kyber-key';
+
+      const sharingDecryptedEccKey = 'decrypted-encryption-key-ecc';
+      const sharingDecryptedHybridKey = 'decrypted-encryption-key-hybrid';
+      const newSharingEncryptedEccKey = 'new-encrypted-encryption-key-ecc';
+      const newSharingEncryptedHybridKey =
+        'new-encrypted-encryption-key-hybrid';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'ecc',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedUserDecryptedKey)
+        .mockReturnValueOnce(preCreatedUserDecryptedKyberKey);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+      jest
+        .spyOn(
+          asymmetricEncryptionService,
+          'hybridDecryptMessageWithPrivateKey',
+        )
+        .mockResolvedValueOnce(sharingDecryptedEccKey)
+        .mockResolvedValueOnce(sharingDecryptedHybridKey);
+
+      jest
+        .spyOn(asymmetricEncryptionService, 'hybridEncryptMessageWithPublicKey')
+        .mockResolvedValueOnce(newSharingEncryptedEccKey)
+        .mockResolvedValueOnce(newSharingEncryptedHybridKey);
+      jest.spyOn(sharingRepository, 'bulkUpdate');
+      jest.spyOn(userUseCases, 'replacePreCreatedUserWorkspaceInvitations');
+      jest.spyOn(preCreatedUsersRepository, 'deleteByUuid');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newPublicKey,
+        newPublicKyberKey,
+      );
+
+      expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalledWith(
+        preCreatedUser.email,
+      );
+      expect(sharingRepository.getInvitesBySharedwith).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+      );
+
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([
+        expect.objectContaining({
+          encryptionKey: newSharingEncryptedEccKey,
+          sharedWith: newUserUuid,
+        }),
+        expect.objectContaining({
+          encryptionKey: newSharingEncryptedHybridKey,
+          sharedWith: newUserUuid,
+        }),
+      ]);
+
+      expect(
+        userUseCases.replacePreCreatedUserWorkspaceInvitations,
+      ).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        newUserUuid,
+        preCreatedUserDecryptedKey,
+        newPublicKey,
+      );
+      expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+      );
+    });
+
+    it('When invitation is hybrid and no public Kyber key is provided, then delete the invitation', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const newUserUuid = v4();
+
+      const newPublicKey = 'new-public-key';
+      const preCreatedUserDecryptedKey = 'decrypted-private-key';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedUserDecryptedKey)
+        .mockReturnValueOnce(null);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+
+      jest.spyOn(sharingRepository, 'deleteInvite');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newPublicKey,
+      );
+
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
+    });
+
+    it('When invitation is hybrid and new generated public kyber key is provided but pre created user does not have kyber keys, then delete the invitation', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.publicKyberKey = null;
+      preCreatedUser.privateKyberKey = null;
+
+      const newUserUuid = v4();
+
+      const newPublicKyberKey = 'new-public-kyber-key';
+      const newPublicKey = 'new-public-key';
+      const preCreatedUserDecryptedKey = 'decrypted-private-key';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey: 'encrypted-key-1',
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedUserDecryptedKey)
+        .mockReturnValueOnce(null);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+
+      jest.spyOn(sharingRepository, 'deleteInvite');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newPublicKey,
+        newPublicKyberKey,
+      );
+
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
+    });
+
+    it('When pre created user is replaced, then sharing invitations encrypted keys should match original message if decrypted with new asymmetric keys', async () => {
+      const [preCreatedKeys, newKeys] = await Promise.all([
+        asymmetricEncryptionService.generateNewKeys(),
+        asymmetricEncryptionService.generateNewKeys(),
+      ]);
+      const newUserUuid = v4();
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.publicKey = preCreatedKeys.publicKeyArmored;
+      preCreatedUser.publicKyberKey = preCreatedKeys.publicKyberKeyBase64;
+
+      const sharingDecryptedKey =
+        'until bonus summer risk chunk oyster census ability frown win pull steel measure employ rigid improve riot remind system earn inch broken chalk clip';
+
+      const invites: SharingInvite[] = [
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'ecc',
+          encryptionKey:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: sharingDecryptedKey,
+                publicKeyInBase64: preCreatedKeys.publicKeyArmored,
+              },
+            ),
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+        SharingInvite.build({
+          id: v4(),
+          type: 'OWNER',
+          roleId: v4(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          encryptionAlgorithm: 'hybrid',
+          encryptionKey:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: sharingDecryptedKey,
+                publicKeyInBase64: preCreatedKeys.publicKeyArmored,
+                publicKyberKeyBase64: preCreatedKeys.publicKyberKeyBase64,
+              },
+            ),
+          sharedWith: preCreatedUser.uuid,
+          itemId: v4(),
+          itemType: 'file',
+        }),
+      ];
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest
+        .spyOn(aes, 'decrypt')
+        .mockReturnValueOnce(preCreatedKeys.privateKeyArmored)
+        .mockReturnValueOnce(preCreatedKeys.privateKyberKeyBase64);
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce(invites);
+
+      jest.spyOn(sharingRepository, 'bulkUpdate');
+      jest.spyOn(userUseCases, 'replacePreCreatedUserWorkspaceInvitations');
+      jest.spyOn(preCreatedUsersRepository, 'deleteByUuid');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        newKeys.publicKeyArmored,
+        newKeys.publicKyberKeyBase64,
+      );
+
+      const newInviteEccEncryptedKey =
+        await asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey({
+          encryptedMessageInBase64: invites[0].encryptionKey,
+          privateKeyInBase64: newKeys.privateKeyArmored,
+        });
+      const newInviteHybridEncryptedKey =
+        await asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey({
+          encryptedMessageInBase64: invites[1].encryptionKey,
+          privateKeyInBase64: newKeys.privateKeyArmored,
+          privateKyberKeyInBase64: newKeys.privateKyberKeyBase64,
+        });
+
+      expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
+      expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     });
   });
 });

@@ -136,6 +136,10 @@ export class Sharing implements SharingAttributes {
     return this.type === SharingType.Public;
   }
 
+  isHybrid(): boolean {
+    return this.encryptionAlgorithm === 'hybrid';
+  }
+
   isProtected(): boolean {
     return this.encryptedPassword !== null;
   }
@@ -264,6 +268,10 @@ export class SharingInvite implements SharingInviteAttributes {
 
   isSharedWith(user: User): boolean {
     return user.uuid === this.sharedWith;
+  }
+
+  isHybrid(): boolean {
+    return this.encryptionAlgorithm === 'hybrid';
   }
 
   toJSON(): SharingInviteAttributes {

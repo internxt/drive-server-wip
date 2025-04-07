@@ -13,4 +13,6 @@ export interface PreCreatedUserAttributes {
   privateKey: KeyServerAttributes['privateKey'];
   revocationKey: KeyServerAttributes['revocationKey'];
   encryptVersion: KeyServerAttributes['encryptVersion'];
+  publicKyberKey?: KeyServerAttributes['publicKey'];
+  privateKyberKey?: KeyServerAttributes['privateKey'];
 }
