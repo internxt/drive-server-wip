@@ -2643,6 +2643,10 @@ export class WorkspacesUsecases {
       nonOwnerMembers.map((member) => member.memberId),
     );
 
+    await this.workspaceRepository.deleteAllInvitationsByWorkspace(
+      workspace.id,
+    );
+
     const workspaceTotalSpace = await this.getWorkspaceNetworkLimit(workspace);
 
     await this.workspaceRepository.updateWorkspaceUserBy(
@@ -2673,6 +2677,8 @@ export class WorkspacesUsecases {
           (workspace) => workspace.id === membership.workspaceId,
         ),
     );
+
+    await this.workspaceRepository.deleteAllInvitationByUser(user.uuid);
 
     await Promise.all(
       nonOwnedWorkspaceMemberships.map((membership) =>
