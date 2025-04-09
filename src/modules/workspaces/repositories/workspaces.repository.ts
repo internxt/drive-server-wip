@@ -284,6 +284,22 @@ export class SequelizeWorkspaceRepository {
     });
   }
 
+  async deleteAllInvitationsByWorkspace(
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<void> {
+    await this.modelWorkspaceInvite.destroy({
+      where: { workspaceId },
+    });
+  }
+
+  async deleteAllInvitationByUser(
+    userUUid: WorkspaceInviteAttributes['invitedUser'],
+  ): Promise<void> {
+    await this.modelWorkspaceInvite.destroy<WorkspaceInviteModel>({
+      where: { invitedUser: userUUid },
+    });
+  }
+
   async getWorkspaceUsersCount(
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number> {
