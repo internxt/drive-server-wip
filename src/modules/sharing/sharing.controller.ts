@@ -23,6 +23,7 @@ import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -66,6 +67,7 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
+import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -193,6 +195,11 @@ export class SharingController {
   }
 
   @Get('/:itemType/:itemId/type')
+  @ApiOperation({
+    deprecated: true,
+    description:
+      'Get sharing (private or public) type, deprecated in favor of :itemType/:itemId/info',
+  })
   getSharingType(
     @UserDecorator() user: User,
     @Param('itemType') itemType: Sharing['itemType'],
@@ -202,6 +209,25 @@ export class SharingController {
       throw new BadRequestException('Invalid item type');
     }
     return this.sharingService.getSharingType(user, itemId, itemType);
+  }
+
+  @Get(':itemType/:itemId/info')
+  @ApiOperation({
+    summary: 'Get info related to item sharing',
+  })
+  @ApiResponse({ type: ItemSharingInfoDto })
+  @ApiNotFoundResponse({
+    description: 'Item has no active sharings or invitations',
+  })
+  getItemSharingStatus(
+    @UserDecorator() user: User,
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Param('itemId') itemId: Sharing['itemId'],
+  ) {
+    if (itemType !== 'file' && itemType !== 'folder') {
+      throw new BadRequestException('Invalid item type');
+    }
+    return this.sharingService.getItemSharingInfo(user, itemId, itemType);
   }
 
   @Get('/invites')
