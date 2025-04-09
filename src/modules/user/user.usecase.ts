@@ -87,6 +87,7 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
+import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -147,6 +148,8 @@ export class UserUseCases {
     private fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
+    @Inject(forwardRef(() => WorkspacesUsecases))
+    private workspaceUseCases: WorkspacesUsecases,
     private shareUseCases: ShareUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
@@ -971,6 +974,7 @@ export class UserUseCases {
         deleteFiles: true,
         deleteFolders: true,
         deleteShares: true,
+        deleteWorkspaces: true,
       });
     }
 
@@ -1000,11 +1004,13 @@ export class UserUseCases {
       deleteFiles: boolean;
       deleteFolders: boolean;
       deleteShares: boolean;
+      deleteWorkspaces: boolean;
     },
   ): Promise<void> {
     if (options.deleteShares) {
       await this.shareUseCases.deleteByUser(user);
       await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid });
+      await this.sharingRepository.deleteSharingsBy({ ownerId: user.uuid });
       await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid });
     }
 
@@ -1050,6 +1056,11 @@ export class UserUseCases {
 
         done = files.length < limit || files.length === 0;
       } while (!done);
+    }
+
+    if (options.deleteWorkspaces) {
+      await this.workspaceUseCases.emptyAllUserOwnedWorkspaces(user);
+      await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user);
     }
   }
 

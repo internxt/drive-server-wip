@@ -80,6 +80,15 @@ export class SequelizeWorkspaceRepository {
     return workspaces.map((workspace) => this.toDomain(workspace));
   }
 
+  async findWorkspaceUsersByUserUuid(
+    userUuid: string,
+  ): Promise<WorkspaceUser[]> {
+    const workspaceUsers = await this.modelWorkspaceUser.findAll({
+      where: { memberId: userUuid },
+    });
+    return workspaceUsers.map((user) => this.workspaceUserToDomain(user));
+  }
+
   createTransaction(): Promise<Transaction> {
     return this.modelWorkspace.sequelize.transaction();
   }
@@ -264,6 +273,15 @@ export class SequelizeWorkspaceRepository {
     workspaceId: WorkspaceUser['id'],
   ): Promise<void> {
     await this.modelWorkspaceUser.destroy({ where: { memberId, workspaceId } });
+  }
+
+  async deleteUsersFromWorkspace(
+    workspaceId: WorkspaceUser['id'],
+    memberIds: WorkspaceUser['memberId'][],
+  ): Promise<void> {
+    await this.modelWorkspaceUser.destroy({
+      where: { memberId: { [Op.in]: memberIds }, workspaceId },
+    });
   }
 
   async getWorkspaceUsersCount(

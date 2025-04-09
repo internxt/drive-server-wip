@@ -98,10 +98,6 @@ import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryptio
     PaymentsService,
     NewsletterService,
     AvatarService,
-    BridgeService,
-    PaymentsService,
-    AppSumoUseCase,
-    SharingService,
     MailerService,
   ],
   exports: [

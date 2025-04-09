@@ -923,6 +923,10 @@ export class FolderUseCases {
     await this.folderRepository.deleteByUser(user, folders);
   }
 
+  async deletByUuids(user: User, uuids: Folder['uuid'][]): Promise<void> {
+    await this.folderRepository.deleteByUserAndUuids(user, uuids);
+  }
+
   getFolderSizeByUuid(
     folderUuid: Folder['uuid'],
     includeTrashedFiles = true,
