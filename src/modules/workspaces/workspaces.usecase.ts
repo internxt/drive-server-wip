@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -81,14 +83,18 @@ export class WorkspacesUsecases {
   constructor(
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
+    @Inject(forwardRef(() => SharingService))
     private readonly sharingUseCases: SharingService,
     private readonly paymentService: PaymentsService,
     private readonly networkService: BridgeService,
     private readonly userRepository: SequelizeUserRepository,
+    @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly configService: ConfigService,
     private readonly mailerService: MailerService,
+    @Inject(forwardRef(() => FileUseCases))
     private readonly fileUseCases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,
@@ -2609,6 +2615,69 @@ export class WorkspacesUsecases {
         memberId: userUuid,
       },
       includeUser,
+    );
+  }
+
+  async resetWorkspace(workspace: Workspace): Promise<void> {
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const allMembers = await this.workspaceRepository.findWorkspaceUsers(
+      workspace.id,
+    );
+    const ownerMember = allMembers.find(
+      (member) => member.memberId === workspace.ownerId,
+    );
+    const nonOwnerMembers = allMembers.filter(
+      (member) => member.id !== ownerMember.id,
+    );
+
+    await this.folderUseCases.deletByUuids(
+      workspaceNetworkUser,
+      nonOwnerMembers.map((members) => members.rootFolderId),
+    );
+
+    await this.workspaceRepository.deleteUsersFromWorkspace(
+      workspace.id,
+      nonOwnerMembers.map((member) => member.memberId),
+    );
+
+    const workspaceTotalSpace = await this.getWorkspaceNetworkLimit(workspace);
+
+    await this.workspaceRepository.updateWorkspaceUserBy(
+      { workspaceId: workspace.id, memberId: workspace.ownerId },
+      { spaceLimit: workspaceTotalSpace },
+    );
+  }
+
+  async emptyAllUserOwnedWorkspaces(user: User): Promise<void> {
+    const workspaces = await this.workspaceRepository.findByOwner(user.uuid);
+
+    await Promise.all(
+      workspaces.map((workspace) => this.resetWorkspace(workspace)),
+    );
+  }
+
+  async removeUserFromNonOwnedWorkspaces(user: User): Promise<void> {
+    const ownedWorkspaces = await this.workspaceRepository.findByOwner(
+      user.uuid,
+    );
+
+    const allWorkspaceMemberships =
+      await this.workspaceRepository.findWorkspaceUsersByUserUuid(user.uuid);
+
+    const nonOwnedWorkspaceMemberships = allWorkspaceMemberships.filter(
+      (membership) =>
+        !ownedWorkspaces.some(
+          (workspace) => workspace.id === membership.workspaceId,
+        ),
+    );
+
+    await Promise.all(
+      nonOwnedWorkspaceMemberships.map((membership) =>
+        this.leaveWorkspace(membership.workspaceId, user),
+      ),
     );
   }
 

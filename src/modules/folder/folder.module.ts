@@ -7,7 +7,6 @@ import { FileModule } from '../file/file.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderController } from './folder.controller';
-import { UserModel } from '../user/user.model';
 import { UserModule } from '../user/user.module';
 import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
@@ -15,7 +14,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FolderModel, UserModel]),
+    SequelizeModule.forFeature([FolderModel]),
     forwardRef(() => FileModule),
     forwardRef(() => UserModule),
     CryptoModule,
