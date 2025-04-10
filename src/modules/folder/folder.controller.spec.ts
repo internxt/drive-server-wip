@@ -19,7 +19,6 @@ import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
-import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 
 const requester = newUser();
@@ -536,7 +535,7 @@ describe('FolderController', () => {
 
       await expect(
         folderController.checkFilesExistenceInFolder(user, folderUuid, query),
-      ).rejects.toThrow(InvalidParentFolderException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

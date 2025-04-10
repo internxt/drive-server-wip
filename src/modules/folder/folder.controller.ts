@@ -41,7 +41,6 @@ import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
-import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
@@ -461,7 +460,7 @@ export class FolderController {
     );
 
     if (!parentFolder) {
-      throw new InvalidParentFolderException('Parent folder not valid!');
+      throw new BadRequestException('Parent folder not valid!');
     }
 
     const files = await this.fileUseCases.searchFilesInFolder(

@@ -53,8 +53,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
           id: request?.user?.id,
         },
         client: getClientIdFromHeaders(request),
-        message: (exception as Error)?.message,
-        stack: (exception as Error)?.stack,
+        error: exception,
       };
 
       let errorSubtype = '';

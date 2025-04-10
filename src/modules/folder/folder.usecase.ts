@@ -17,7 +17,6 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
   FolderOptions,
-  FolderStatus,
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
@@ -25,7 +24,6 @@ import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
-import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
@@ -33,7 +31,6 @@ import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
-import { FolderDto } from './dto/responses/folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -410,7 +407,7 @@ export class FolderUseCases {
     });
 
     if (!parentFolder) {
-      throw new InvalidParentFolderException(
+      throw new BadRequestException(
         'Parent folder does not exist or is not yours',
       );
     }
