@@ -673,6 +673,28 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folder as FindInTreeResponse;
   }
 
+  async deleteByUserAndUuids(
+    user: User,
+    folderUuids: Folder['uuid'][],
+  ): Promise<void> {
+    await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+        deleted: true,
+        deletedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          uuid: {
+            [Op.in]: folderUuids,
+          },
+        },
+      },
+    );
+  }
+
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
     await this.folderModel.update(
       {

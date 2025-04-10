@@ -77,6 +77,7 @@ import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
+import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -113,6 +114,7 @@ describe('User use cases', () => {
   let sharingRepository: SequelizeSharingRepository;
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
   let asymmetricEncryptionService: AsymmetricEncryptionService;
+  let workspaceUseCases: WorkspacesUsecases;
 
   const user = User.build({
     id: 1,
@@ -205,6 +207,7 @@ describe('User use cases', () => {
     asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );
+    workspaceUseCases = moduleRef.get<WorkspacesUsecases>(WorkspacesUsecases);
   });
 
   describe('Resetting a user', () => {
@@ -217,6 +220,7 @@ describe('User use cases', () => {
         deleteFiles: false,
         deleteFolders: false,
         deleteShares: false,
+        deleteWorkspaces: false,
       });
 
       expect(deleteSharesSpy).not.toBeCalled();
@@ -234,11 +238,28 @@ describe('User use cases', () => {
           deleteFiles: false,
           deleteFolders: false,
           deleteShares: true,
+          deleteWorkspaces: false,
         });
 
         expect(deleteSharesSpy).toBeCalledWith(user);
         expect(deleteFoldersSpy).not.toBeCalled();
         expect(deleteFilesSpy).not.toBeCalled();
+      });
+
+      it('When delete workspaces is true, then user owned workspaces are reset and user is removed from invited workspaces', async () => {
+        await userUseCases.resetUser(user, {
+          deleteFiles: false,
+          deleteFolders: false,
+          deleteShares: false,
+          deleteWorkspaces: true,
+        });
+
+        expect(
+          workspaceUseCases.emptyAllUserOwnedWorkspaces,
+        ).toHaveBeenCalled();
+        expect(
+          workspaceUseCases.removeUserFromNonOwnedWorkspaces,
+        ).toHaveBeenCalled();
       });
 
       describe('When resources do not exist', () => {
@@ -254,6 +275,7 @@ describe('User use cases', () => {
             deleteFiles: false,
             deleteFolders: true,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFoldersSpy).toBeCalledWith(
@@ -281,6 +303,7 @@ describe('User use cases', () => {
             deleteFiles: true,
             deleteFolders: false,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFilesSpy).toBeCalledWith(
@@ -310,6 +333,7 @@ describe('User use cases', () => {
             deleteFiles: false,
             deleteFolders: true,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFoldersSpy).toBeCalledWith(
@@ -337,6 +361,7 @@ describe('User use cases', () => {
             deleteFiles: true,
             deleteFolders: false,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFilesSpy).toBeCalledWith(
@@ -2526,6 +2551,189 @@ describe('User use cases', () => {
 
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
+    });
+  });
+
+  describe('updateCredentials', () => {
+    const mockUser = newUser();
+    const mockCredentials = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKeys: {
+        ecc: 'encrypted_ecc_key',
+        kyber: 'encrypted_kyber_key',
+      },
+    };
+
+    const decryptedPassword = 'decrypted_password';
+    const decryptedSalt = 'decrypted_salt';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === mockCredentials.password) return decryptedPassword;
+        if (text === mockCredentials.salt) return decryptedSalt;
+        return text;
+      });
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(mockUser);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+    });
+
+    it('When updating credentials without reset and private keys, then it should update user and keys', async () => {
+      await userUseCases.updateCredentials(mockUser.uuid, mockCredentials);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: mockCredentials.privateKeys.ecc,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: mockCredentials.privateKeys.kyber,
+      });
+
+      expect(userUseCases.resetUser).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with reset, then it should reset user data', async () => {
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        mockCredentials,
+        true,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    });
+
+    it('When updating credentials without private keys, then it should delete all keys', async () => {
+      const credentialsWithoutKeys = {
+        mnemonic: mockCredentials.mnemonic,
+        password: mockCredentials.password,
+        salt: mockCredentials.salt,
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithoutKeys,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with empty private keys object, then it should delete all keys', async () => {
+      const credentialsWithEmptyKeys = {
+        ...mockCredentials,
+        privateKeys: {},
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithEmptyKeys,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with partial private keys, then it should only update provided keys', async () => {
+      const credentialsWithPartialKeys = {
+        ...mockCredentials,
+        privateKeys: {
+          ecc: mockCredentials.privateKeys.ecc,
+        },
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithPartialKeys,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: mockCredentials.privateKeys.ecc,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber);
+    });
+
+    it('When updating credentials with null private key, then it should skip that key', async () => {
+      const credentialsWithNullKey = {
+        ...mockCredentials,
+        privateKeys: {
+          ecc: null,
+          kyber: mockCredentials.privateKeys.kyber,
+        },
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithNullKey,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: mockCredentials.privateKeys.kyber,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc);
     });
   });
 });

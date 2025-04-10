@@ -30,6 +30,7 @@ import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
+import { RecoverAccountDto } from './dto/recover-account.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -61,6 +62,7 @@ jest.mock('../../lib/jwt', () => {
     ...jest.requireActual('../../lib/jitsi'),
     generateJitsiJWT: jest.fn(() => 'newJitsiJwt'),
     verifyWithDefaultSecret: jest.fn(() => 'defaultVerifiedSecret'),
+    verifyToken: jest.fn(),
   };
 });
 
@@ -932,6 +934,136 @@ describe('User Controller', () => {
           `[USER/SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
         ),
       );
+    });
+  });
+
+  describe('PUT /recover-account', () => {
+    const mockUser = newUser();
+    const validToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: mockUser.uuid,
+          action: 'recover-account',
+        },
+      },
+      getEnv().secrets.jwt,
+      '30m',
+    );
+
+    const mockRecoverAccountDto: RecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKeys: {
+        ecc: 'encrypted_ecc_key',
+        kyber: 'encrypted_kyber_key',
+      },
+    };
+
+    const mockRecoverAccountNoKeys: RecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
+        payload: {
+          uuid: mockUser.uuid,
+          action: 'recover-account',
+        },
+      });
+    });
+
+    it('When token is invalid, then it throws ForbiddenException', async () => {
+      (jwtUtils.verifyToken as jest.Mock).mockImplementationOnce(() => {
+        throw new Error('Invalid token');
+      });
+
+      const invalidToken = 'invalid_token';
+      await expect(
+        userController.recoverAccount(
+          {
+            token: invalidToken,
+            reset: 'false',
+          },
+          mockRecoverAccountDto,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When token has valid signature but incorrect properties, then it throws ForbiddenException', async () => {
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValueOnce({
+        payload: {
+          uuid: 'invalid_uuid',
+          action: 'wrong_action',
+        },
+      });
+
+      await expect(
+        userController.recoverAccount(
+          {
+            token: validToken,
+            reset: 'false',
+          },
+          mockRecoverAccountDto,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When reset is true, then it updates credentials with reset option', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'true',
+        },
+        mockRecoverAccountNoKeys,
+      );
+
+      expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountNoKeys.mnemonic,
+          password: mockRecoverAccountNoKeys.password,
+          salt: mockRecoverAccountNoKeys.salt,
+        },
+        true,
+      );
+    });
+
+    it('When reset is false and private keys are provided, then it updates credentials with private keys', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'false',
+        },
+        mockRecoverAccountDto,
+      );
+
+      expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountDto.mnemonic,
+          password: mockRecoverAccountDto.password,
+          salt: mockRecoverAccountDto.salt,
+          privateKeys: mockRecoverAccountDto.privateKeys,
+        },
+        false,
+      );
+    });
+
+    it('When reset is false but no private keys are provided, then it throws BadRequestException', async () => {
+      await expect(
+        userController.recoverAccount(
+          {
+            token: validToken,
+            reset: 'false',
+          },
+          mockRecoverAccountNoKeys,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
