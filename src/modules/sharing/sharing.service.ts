@@ -54,6 +54,7 @@ import { SequelizeUserReferralsRepository } from '../user/user-referrals.reposit
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
+import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 
 export class InvalidOwnerError extends Error {
   constructor() {
@@ -2227,6 +2228,51 @@ export class SharingService {
     }
 
     return sharedItem;
+  }
+
+  async getItemSharingInfo(
+    user: User,
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    sharedWithType = SharedWithType.Individual,
+  ): Promise<ItemSharingInfoDto> {
+    const [publicSharing, privateSharing] = await Promise.all([
+      this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        '00000000-0000-0000-0000-000000000000',
+        itemId,
+        itemType,
+        SharingType.Public,
+        sharedWithType,
+      ),
+      this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        user.uuid,
+        itemId,
+        itemType,
+        SharingType.Private,
+        sharedWithType,
+      ),
+    ]);
+
+    const invitationsCount =
+      await this.sharingRepository.getInvitesNumberByItem(itemId, itemType);
+
+    const sharedItem = publicSharing || privateSharing;
+
+    if (!sharedItem && invitationsCount === 0) {
+      throw new NotFoundException('Item is not being shared');
+    }
+
+    return {
+      publicSharing: publicSharing
+        ? {
+            id: publicSharing?.id,
+            isPasswordProtected: !!publicSharing?.encryptedPassword,
+            encryptedCode: publicSharing?.encryptedCode,
+          }
+        : null,
+      type: sharedItem?.type || SharingType.Private,
+      invitationsCount,
+    };
   }
 
   async getPublicSharingFolderSize(

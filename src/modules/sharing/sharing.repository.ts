@@ -85,6 +85,13 @@ export class SequelizeSharingRepository implements SharingRepository {
     return this.sharingInvites.count({ where });
   }
 
+  getInvitesNumberByItem(
+    itemId: SharingInvite['itemId'],
+    itemType: SharingInvite['itemType'],
+  ): Promise<number> {
+    return this.sharingInvites.count({ where: { itemId, itemType } });
+  }
+
   findSharingRole(
     sharingRoleId: SharingRole['id'],
   ): Promise<SharingRole | null> {
