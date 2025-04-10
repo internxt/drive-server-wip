@@ -27,7 +27,6 @@ import {
 } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
-import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FileStatus } from '../file/file.domain';
@@ -716,7 +715,7 @@ describe('FolderUseCases', () => {
           plainName: folderName,
           parentFolderUuid: parentFolder.uuid,
         }),
-      ).rejects.toThrow(InvalidParentFolderException);
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('When the folder name is invalid, then it should throw', async () => {
