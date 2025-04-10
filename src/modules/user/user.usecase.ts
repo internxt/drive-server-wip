@@ -995,6 +995,12 @@ export class UserUseCases {
       }
     } else {
       await this.keyServerRepository.deleteByUserId(user.id);
+      await this.resetUser(user, {
+        deleteFiles: false,
+        deleteFolders: false,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
     }
   }
 
