@@ -896,4 +896,104 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(SharingNotFoundException);
     });
   });
+
+  describe('getItemSharingInfo', () => {
+    const owner = newUser();
+    const item = newFile();
+    const itemType = 'file';
+
+    it('When item has public sharing, then it returns the public sharing info', async () => {
+      const publicSharing = newSharing({
+        owner,
+        item,
+        sharingType: SharingType.Public,
+        encryptedPassword: 'encryptedPassword',
+      });
+      publicSharing.encryptedCode = 'encryptedCode';
+
+      sharingRepository.findOneByOwnerOrSharedWithItem.mockImplementation(
+        (ownerUuid, iId, iType, sharingType) => {
+          if (sharingType === SharingType.Public) {
+            return Promise.resolve(publicSharing);
+          }
+          return Promise.resolve(null);
+        },
+      );
+
+      sharingRepository.getInvitesNumberByItem.mockResolvedValue(2);
+
+      const result = await sharingService.getItemSharingInfo(
+        owner,
+        item.uuid,
+        itemType,
+      );
+
+      expect(result).toEqual({
+        publicSharing: {
+          id: publicSharing.id,
+          isPasswordProtected: true,
+          encryptedCode: 'encryptedCode',
+        },
+        type: SharingType.Public,
+        invitationsCount: 2,
+      });
+    });
+
+    it('When item has private sharing but no public sharing, then it returns no public sharing info', async () => {
+      const privateSharing = newSharing({
+        owner,
+        item,
+        sharingType: SharingType.Private,
+      });
+
+      sharingRepository.findOneByOwnerOrSharedWithItem.mockImplementation(
+        (ownerUuid, iId, iType, sharingType) => {
+          if (sharingType === SharingType.Public) {
+            return Promise.resolve(null);
+          }
+          return Promise.resolve(privateSharing);
+        },
+      );
+
+      sharingRepository.getInvitesNumberByItem.mockResolvedValue(3);
+
+      const result = await sharingService.getItemSharingInfo(
+        owner,
+        item.uuid,
+        itemType,
+      );
+
+      expect(result).toEqual({
+        publicSharing: null,
+        type: SharingType.Private,
+        invitationsCount: 3,
+      });
+    });
+
+    it('When item has no sharing but has invitations, then it returns private type', async () => {
+      sharingRepository.findOneByOwnerOrSharedWithItem.mockResolvedValue(null);
+      sharingRepository.getInvitesNumberByItem.mockResolvedValue(1);
+
+      const result = await sharingService.getItemSharingInfo(
+        owner,
+        item.uuid,
+        itemType,
+      );
+
+      expect(result).toEqual({
+        publicSharing: null,
+        type: SharingType.Private,
+        invitationsCount: 1,
+      });
+    });
+
+    it('When item has no sharing and no invitations, then it throws', async () => {
+      sharingRepository.findOneByOwnerOrSharedWithItem.mockResolvedValue(null);
+      sharingRepository.getInvitesNumberByItem.mockResolvedValue(0);
+
+      await expect(
+        sharingService.getItemSharingInfo(owner, item.uuid, itemType),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });
