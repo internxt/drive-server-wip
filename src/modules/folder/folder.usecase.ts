@@ -464,6 +464,11 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
+
+  async deleteByUuids(user: User, uuids: Folder['uuid'][]): Promise<void> {
+    await this.folderRepository.deleteByUserAndUuids(user, uuids);
+  }
+
   async moveFoldersToTrash(
     user: User,
     folderIds: FolderAttributes['id'][],

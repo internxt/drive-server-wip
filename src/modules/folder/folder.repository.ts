@@ -691,6 +691,27 @@ export class SequelizeFolderRepository implements FolderRepository {
       },
     );
   }
+  async deleteByUserAndUuids(
+    user: User,
+    folderUuids: Folder['uuid'][],
+  ): Promise<void> {
+    await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: new Date(),
+        deleted: true,
+        deletedAt: new Date(),
+      },
+      {
+        where: {
+          userId: user.id,
+          uuid: {
+            [Op.in]: folderUuids,
+          },
+        },
+      },
+    );
+  }
 
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
