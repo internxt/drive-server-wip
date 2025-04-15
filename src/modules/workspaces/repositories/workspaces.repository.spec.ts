@@ -665,4 +665,43 @@ describe('SequelizeWorkspaceRepository', () => {
       );
     });
   });
+
+  describe('findWorkspaceUsersByUserUuid', () => {
+    it('When workspaceUsers are found for respective user, then it should return instances of workspaceUser', async () => {
+      const mockUser = newUser();
+      const mockWorkspaceUser = newWorkspaceUser({ memberId: mockUser.uuid });
+      const mockWorkspaceUserModelResponse = {
+        ...mockWorkspaceUser,
+        toJSON: jest.fn().mockReturnValue({
+          ...mockWorkspaceUser,
+        }),
+      };
+
+      jest
+        .spyOn(workspaceUserModel, 'findAll')
+        .mockResolvedValueOnce([mockWorkspaceUserModelResponse] as any);
+
+      const result = await repository.findWorkspaceUsersByUserUuid(
+        mockUser.uuid,
+      );
+
+      expect(result).toBeInstanceOf(Array);
+      expect(result[0]).toBeInstanceOf(WorkspaceUser);
+      expect(result[0].id).toBe(mockWorkspaceUser.id);
+      expect(result[0].memberId).toBe(mockWorkspaceUser.memberId);
+    });
+
+    it('When workspaceUsers are not found for respective user, then it should return empty array', async () => {
+      const mockUser = newUser();
+
+      jest.spyOn(workspaceUserModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findWorkspaceUsersByUserUuid(
+        mockUser.uuid,
+      );
+
+      expect(result).toBeInstanceOf(Array);
+      expect(result.length).toEqual(0);
+    });
+  });
 });
