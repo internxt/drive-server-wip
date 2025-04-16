@@ -113,7 +113,6 @@ describe('User use cases', () => {
   let sharingRepository: SequelizeSharingRepository;
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
   let asymmetricEncryptionService: AsymmetricEncryptionService;
-  let moduleFixture: TestingModule;
 
   const user = User.build({
     id: 1,
@@ -149,7 +148,7 @@ describe('User use cases', () => {
     jest.clearAllMocks();
     loggerMock = createMock<Logger>();
 
-    moduleFixture = await Test.createTestingModule({
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [],
       providers: [UserUseCases, AsymmetricEncryptionService, KyberProvider],
     })
@@ -209,10 +208,6 @@ describe('User use cases', () => {
       moduleFixture.get<AsymmetricEncryptionService>(
         AsymmetricEncryptionService,
       );
-  });
-
-  afterAll(async () => {
-    await moduleFixture.close();
   });
 
   describe('Resetting a user', () => {

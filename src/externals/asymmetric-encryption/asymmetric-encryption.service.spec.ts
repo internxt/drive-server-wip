@@ -8,10 +8,9 @@ import {
 
 describe('AsymmetricEncryptionService', () => {
   let service: AsymmetricEncryptionService;
-  let moduleFixture: TestingModule;
 
   beforeEach(async () => {
-    moduleFixture = await Test.createTestingModule({
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       providers: [AsymmetricEncryptionService, KyberProvider],
     }).compile();
 
@@ -20,10 +19,6 @@ describe('AsymmetricEncryptionService', () => {
     service = moduleFixture.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );
-  });
-
-  afterAll(async () => {
-    await moduleFixture.close();
   });
 
   it('When tests are created, then expected mocks should be created', () => {
