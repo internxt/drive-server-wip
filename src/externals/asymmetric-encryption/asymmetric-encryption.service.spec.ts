@@ -14,6 +14,8 @@ describe('AsymmetricEncryptionService', () => {
       providers: [AsymmetricEncryptionService, KyberProvider],
     }).compile();
 
+    await module.init();
+
     service = module.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );

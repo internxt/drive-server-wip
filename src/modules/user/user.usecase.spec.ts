@@ -1,4 +1,4 @@
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
@@ -148,13 +148,15 @@ describe('User use cases', () => {
     jest.clearAllMocks();
     loggerMock = createMock<Logger>();
 
-    const moduleRef = await Test.createTestingModule({
+    const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [],
       providers: [UserUseCases, AsymmetricEncryptionService, KyberProvider],
     })
       .useMocker(() => createMock())
       .setLogger(loggerMock)
       .compile();
+
+    await moduleRef.init();
 
     shareUseCases = moduleRef.get<ShareUseCases>(ShareUseCases);
     folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);

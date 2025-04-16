@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
-import { newFile, newUser, newWorkspace } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
@@ -127,6 +132,101 @@ describe('FileRepository', () => {
               plainName: 'Report',
             },
           ],
+        }),
+      });
+    });
+  });
+
+  describe('findByPlainNameAndFolderId', () => {
+    it('When file is searched with empty type, it should find it', async () => {
+      const mockFile = newFile({ attributes: { type: '' } });
+
+      const model: FileModel = {
+        ...mockFile,
+        user: newUser(),
+        folder: newFolder(),
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      await repository.findByPlainNameAndFolderId(
+        mockFile.userId,
+        mockFile.plainName,
+        mockFile.type,
+        mockFile.folderId,
+        mockFile.status,
+      );
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          userId: { [Op.eq]: mockFile.userId },
+          plainName: { [Op.eq]: mockFile.plainName },
+          type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
+          folderId: { [Op.eq]: mockFile.folderId },
+          status: { [Op.eq]: mockFile.status },
+        }),
+      });
+    });
+
+    it('When file is searched with null type, it should find it', async () => {
+      const mockFile = newFile({ attributes: { type: null } });
+
+      const model: FileModel = {
+        ...mockFile,
+        user: newUser(),
+        folder: newFolder(),
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      await repository.findByPlainNameAndFolderId(
+        mockFile.userId,
+        mockFile.plainName,
+        mockFile.type,
+        mockFile.folderId,
+        mockFile.status,
+      );
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          userId: { [Op.eq]: mockFile.userId },
+          plainName: { [Op.eq]: mockFile.plainName },
+          type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
+          folderId: { [Op.eq]: mockFile.folderId },
+          status: { [Op.eq]: mockFile.status },
+        }),
+      });
+    });
+
+    it('When file is searched with type, it should find it', async () => {
+      const mockFile = newFile();
+
+      const model: FileModel = {
+        ...mockFile,
+        user: newUser(),
+        folder: newFolder(),
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      await repository.findByPlainNameAndFolderId(
+        mockFile.userId,
+        mockFile.plainName,
+        mockFile.type,
+        mockFile.folderId,
+        mockFile.status,
+      );
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          userId: { [Op.eq]: mockFile.userId },
+          plainName: { [Op.eq]: mockFile.plainName },
+          type: { [Op.eq]: mockFile.type },
+          folderId: { [Op.eq]: mockFile.folderId },
+          status: { [Op.eq]: mockFile.status },
         }),
       });
     });
