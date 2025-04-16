@@ -10,13 +10,13 @@ describe('AsymmetricEncryptionService', () => {
   let service: AsymmetricEncryptionService;
 
   beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+    const module: TestingModule = await Test.createTestingModule({
       providers: [AsymmetricEncryptionService, KyberProvider],
     }).compile();
 
-    await moduleFixture.init();
+    await module.init();
 
-    service = moduleFixture.get<AsymmetricEncryptionService>(
+    service = module.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );
   });

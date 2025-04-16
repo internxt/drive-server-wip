@@ -148,7 +148,7 @@ describe('User use cases', () => {
     jest.clearAllMocks();
     loggerMock = createMock<Logger>();
 
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+    const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [],
       providers: [UserUseCases, AsymmetricEncryptionService, KyberProvider],
     })
@@ -156,58 +156,57 @@ describe('User use cases', () => {
       .setLogger(loggerMock)
       .compile();
 
-    await moduleFixture.init();
+    await moduleRef.init();
 
-    shareUseCases = moduleFixture.get<ShareUseCases>(ShareUseCases);
-    folderUseCases = moduleFixture.get<FolderUseCases>(FolderUseCases);
-    fileUseCases = moduleFixture.get<FileUseCases>(FileUseCases);
-    userUseCases = moduleFixture.get<UserUseCases>(UserUseCases);
-    configService = moduleFixture.get<ConfigService>(ConfigService);
-    userRepository = moduleFixture.get<SequelizeUserRepository>(
+    shareUseCases = moduleRef.get<ShareUseCases>(ShareUseCases);
+    folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);
+    fileUseCases = moduleRef.get<FileUseCases>(FileUseCases);
+    userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
+    configService = moduleRef.get<ConfigService>(ConfigService);
+    userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
-    keyServerRepository = moduleFixture.get<SequelizeKeyServerRepository>(
+    keyServerRepository = moduleRef.get<SequelizeKeyServerRepository>(
       SequelizeKeyServerRepository,
     );
-    bridgeService = moduleFixture.get<BridgeService>(BridgeService);
-    userRepository = moduleFixture.get<SequelizeUserRepository>(
+    bridgeService = moduleRef.get<BridgeService>(BridgeService);
+    userRepository = moduleRef.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
     sharedWorkspaceRepository =
-      moduleFixture.get<SequelizeSharedWorkspaceRepository>(
+      moduleRef.get<SequelizeSharedWorkspaceRepository>(
         SequelizeSharedWorkspaceRepository,
       );
-    cryptoService = moduleFixture.get<CryptoService>(CryptoService);
+    cryptoService = moduleRef.get<CryptoService>(CryptoService);
     attemptChangeEmailRepository =
-      moduleFixture.get<SequelizeAttemptChangeEmailRepository>(
+      moduleRef.get<SequelizeAttemptChangeEmailRepository>(
         SequelizeAttemptChangeEmailRepository,
       );
-    configService = moduleFixture.get<ConfigService>(ConfigService);
-    mailLimitRepository = moduleFixture.get<SequelizeMailLimitRepository>(
+    configService = moduleRef.get<ConfigService>(ConfigService);
+    mailLimitRepository = moduleRef.get<SequelizeMailLimitRepository>(
       SequelizeMailLimitRepository,
     );
-    workspaceRepository = moduleFixture.get<SequelizeWorkspaceRepository>(
+    workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
       SequelizeWorkspaceRepository,
     );
-    mailerService = moduleFixture.get<MailerService>(MailerService);
-    avatarService = moduleFixture.get<AvatarService>(AvatarService);
-    keyServerUseCases = moduleFixture.get<KeyServerUseCases>(KeyServerUseCases);
+    mailerService = moduleRef.get<MailerService>(MailerService);
+    avatarService = moduleRef.get<AvatarService>(AvatarService);
+    keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
 
-    appSumoUseCases = moduleFixture.get<AppSumoUseCase>(AppSumoUseCase);
-    backupUseCases = moduleFixture.get<BackupUseCase>(BackupUseCase);
+    appSumoUseCases = moduleRef.get<AppSumoUseCase>(AppSumoUseCase);
+    backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
     cacheManagerService =
-      moduleFixture.get<CacheManagerService>(CacheManagerService);
-    sharingRepository = moduleFixture.get<SequelizeSharingRepository>(
+      moduleRef.get<CacheManagerService>(CacheManagerService);
+    sharingRepository = moduleRef.get<SequelizeSharingRepository>(
       SequelizeSharingRepository,
     );
     preCreatedUsersRepository =
-      moduleFixture.get<SequelizePreCreatedUsersRepository>(
+      moduleRef.get<SequelizePreCreatedUsersRepository>(
         SequelizePreCreatedUsersRepository,
       );
-    asymmetricEncryptionService =
-      moduleFixture.get<AsymmetricEncryptionService>(
-        AsymmetricEncryptionService,
-      );
+    asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
+      AsymmetricEncryptionService,
+    );
   });
 
   describe('Resetting a user', () => {
