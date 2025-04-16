@@ -215,11 +215,16 @@ export class SequelizeFileRepository implements FileRepository {
     folderId: FileAttributes['folderId'],
     status: FileAttributes['status'],
   ): Promise<File | null> {
+    const typeCondition =
+      type == null || type.trim() === ''
+        ? { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] }
+        : { [Op.eq]: type };
+
     const file = await this.fileModel.findOne({
       where: {
         userId: { [Op.eq]: userId },
         plainName: { [Op.eq]: plainName },
-        type: { [Op.eq]: type },
+        type: typeCondition,
         folderId: { [Op.eq]: folderId },
         status: { [Op.eq]: status },
       },
