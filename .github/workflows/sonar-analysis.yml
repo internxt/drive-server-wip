@@ -27,6 +27,9 @@ jobs:
       - run: echo //npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_ACCESS_TOKEN }} >> .npmrc
       - run: echo "always-auth=true" >> .npmrc
 
+      - name: Check Node.js version
+        run: node --version
+
       - name: Install dependencies
         run: yarn
 
