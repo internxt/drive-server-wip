@@ -24,8 +24,10 @@ export interface UserAttributes {
   registerCompleted: boolean;
   backupsBucket: string;
   sharedWorkspace: boolean;
-  tempKey: string;
   avatar: string;
   lastPasswordChangedAt?: Date;
   tierId?: string;
+  emailVerified: boolean;
+  updatedAt?: Date;
+  createdAt?: Date;
 }

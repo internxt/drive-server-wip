@@ -4,6 +4,7 @@ import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
+import { isStringEmpty } from '../../lib/validators';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
@@ -34,6 +35,7 @@ export interface FileAttributes {
   removedAt: Date;
   userId: number;
   user?: any;
+  creationTime: Date;
   modificationTime: Date;
   plainName: string;
   createdAt: Date;
@@ -68,6 +70,7 @@ export class File implements FileAttributes {
   deletedAt: Date;
   userId: number;
   user: User;
+  creationTime: Date;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -93,6 +96,7 @@ export class File implements FileAttributes {
     deletedAt,
     userId,
     user,
+    creationTime,
     modificationTime,
     createdAt,
     updatedAt,
@@ -110,7 +114,7 @@ export class File implements FileAttributes {
     this.folderId = folderId;
     this.setFolder(folder);
     this.name = name;
-    this.type = type;
+    this.setType(type);
     this.size = size;
     this.bucket = bucket;
     this.encryptVersion = encryptVersion;
@@ -118,12 +122,13 @@ export class File implements FileAttributes {
     this.deletedAt = deletedAt;
     this.userId = userId;
     this.setUser(user);
+    this.creationTime = creationTime;
     this.modificationTime = modificationTime;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.folderUuid = folderUuid;
     this.uuid = uuid;
-    this.plainName = plainName;
+    this.setPlainName(plainName);
     this.removed = removed;
     this.removedAt = removedAt;
     this.status = status;
@@ -158,12 +163,32 @@ export class File implements FileAttributes {
     }
     this.folder = folder;
   }
+
   setUser(user) {
     if (user && !(user instanceof User)) {
       throw Error('user invalid');
     }
     this.user = user;
   }
+
+  setPlainName(newPlainName?: string) {
+    if (isStringEmpty(newPlainName)) {
+      newPlainName = '';
+    }
+    this.plainName = newPlainName;
+  }
+
+  setType(newType?: string) {
+    if (isStringEmpty(newType)) {
+      newType = null;
+    }
+    this.type = newType;
+  }
+
+  isFilenameValid(): boolean {
+    return !(isStringEmpty(this.plainName) && isStringEmpty(this.type));
+  }
+
   moveToTrash() {
     this.deleted = true;
     this.deletedAt = new Date();
@@ -190,6 +215,7 @@ export class File implements FileAttributes {
       deleted: this.deleted,
       deletedAt: this.deletedAt,
       userId: this.userId,
+      creationTime: this.creationTime,
       modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,

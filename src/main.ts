@@ -2,7 +2,8 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
-import { ValidationPipe, Logger } from '@nestjs/common';
+import './newrelic';
+import { ValidationPipe, Logger, ConsoleLogger } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import apiMetrics from 'prometheus-api-metrics';
@@ -35,18 +36,25 @@ async function bootstrap() {
         'internxt-mnemonic',
         'x-share-password',
         'X-Internxt-Captcha',
+        'x-internxt-workspace',
+        'internxt-resources-token',
       ],
       exposedHeaders: ['sessionId'],
       origin: '*',
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
     },
-    // logger: WinstonLogger.getLogger(),
+    logger: new ConsoleLogger({
+      colors: config.isDevelopment,
+      prefix: 'Drive-server',
+    }),
   });
 
   const enableTrustProxy = config.isProduction;
 
   app.set('trust proxy', enableTrustProxy);
+  // Express v5 changed this to 'simple' by default, we need the same behavior as v4
+  app.set('query parser', 'extended');
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
 
@@ -68,6 +76,7 @@ async function bootstrap() {
     .setDescription('Drive API')
     .setVersion('1.0')
     .addBearerAuth()
+    .addBearerAuth(undefined, 'gateway')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

@@ -4,6 +4,7 @@ import {
   IsDefined,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -18,7 +19,9 @@ export class ItemToTrash {
   @ApiProperty({
     example: '4',
     description: 'Id of file or folder',
+    nullable: true,
   })
+  @IsOptional()
   id?: string;
 
   @ApiProperty({
@@ -43,6 +46,8 @@ export class MoveItemsToTrashDto {
   @IsNotEmpty()
   @ApiProperty({
     description: 'Array of items with files and folders ids',
+    type: ItemToTrash,
+    isArray: true,
   })
   @ArrayMaxSize(50)
   @ValidateNested()

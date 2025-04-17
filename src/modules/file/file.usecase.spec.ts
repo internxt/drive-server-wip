@@ -3,23 +3,41 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { File, FileAttributes, FileStatus } from './file.domain';
+import {
+  File,
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from './file.domain';
 import { User } from '../user/user.domain';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { BridgeService } from '../../externals/bridge/bridge.service';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import { BridgeService } from '../../externals/bridge/bridge.service';
 import {
   FolderRepository,
   SequelizeFolderRepository,
 } from '../folder/folder.repository';
-import { newFile, newFolder } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newWorkspace,
+} from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { CreateFileDto } from './dto/create-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -32,6 +50,7 @@ describe('FileUseCases', () => {
   let sharingService: SharingService;
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
+  let thumbnailUseCases: ThumbnailUseCases;
 
   const userMocked = User.build({
     id: 1,
@@ -59,13 +78,13 @@ describe('FileUseCases', () => {
     mnemonic: '',
     hKey: undefined,
     secret_2FA: '',
-    tempKey: '',
     lastPasswordChangedAt: new Date(),
+    emailVerified: false,
   });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule],
+      imports: [BridgeModule, CryptoModule],
       providers: [FileUseCases, FolderUseCases, SharingService],
     })
       .useMocker(() => createMock())
@@ -78,6 +97,7 @@ describe('FileUseCases', () => {
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
+    thumbnailUseCases = module.get<ThumbnailUseCases>(ThumbnailUseCases);
   });
 
   afterEach(() => {
@@ -93,7 +113,7 @@ describe('FileUseCases', () => {
       id: 1,
       fileId: '',
       name: '',
-      type: '',
+      type: 'jpg',
       size: null,
       bucket: '',
       folderId: 4,
@@ -101,6 +121,7 @@ describe('FileUseCases', () => {
       deleted: false,
       deletedAt: new Date(),
       userId: 1,
+      creationTime: new Date(),
       modificationTime: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -108,7 +129,7 @@ describe('FileUseCases', () => {
       folderUuid: '',
       removed: false,
       removedAt: undefined,
-      plainName: '',
+      plainName: 'test',
       status: FileStatus.EXISTS,
     });
 
@@ -175,7 +196,7 @@ describe('FileUseCases', () => {
         id: 1,
         fileId: '',
         name: '',
-        type: '',
+        type: 'jpg',
         size: null,
         bucket: '',
         folderId: 4,
@@ -183,6 +204,7 @@ describe('FileUseCases', () => {
         deleted: false,
         deletedAt: new Date(),
         userId: 1,
+        creationTime: new Date(),
         modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -190,7 +212,7 @@ describe('FileUseCases', () => {
         folderUuid: '',
         removed: false,
         removedAt: undefined,
-        plainName: '',
+        plainName: 'test',
         status: FileStatus.EXISTS,
       });
       jest
@@ -215,6 +237,8 @@ describe('FileUseCases', () => {
 
   describe('delete file use case', () => {
     const incrementalUserId = 15494;
+    const fileId = '2618494108';
+    const bucket = 'test';
     const userMock = User.build({
       id: incrementalUserId,
       userId: 'userId',
@@ -241,19 +265,11 @@ describe('FileUseCases', () => {
       mnemonic: '',
       hKey: undefined,
       secret_2FA: '',
-      tempKey: '',
       lastPasswordChangedAt: new Date(),
+      emailVerified: false,
     });
 
     it.skip('should be able to delete a trashed file', async () => {
-      const fileId = '6f10f732-59b1-525c-a2d0-ff538f687903';
-      const file = {
-        id: 1,
-        fileId,
-        deleted: true,
-        userId: incrementalUserId,
-      } as File;
-
       jest
         .spyOn(fileRepository, 'deleteByFileId')
         .mockImplementationOnce(() => Promise.resolve());
@@ -262,56 +278,25 @@ describe('FileUseCases', () => {
         .spyOn(bridgeService, 'deleteFile')
         .mockImplementationOnce(() => Promise.resolve());
 
-      await service.deleteFilePermanently(file, userMock);
+      await service.deleteFilePermanently(userMock, { fileId, bucket });
 
       expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
     });
 
     it.skip('should fail when the folder trying to delete has not been trashed', async () => {
-      const fileId = 2618494108;
-      const file = File.build({
-        id: fileId,
-        fileId: '6f10f732-59b1-525c-a2d0-ff538f687903',
-        name: '',
-        type: '',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
-        deleted: false,
-        deletedAt: new Date(),
-        userId: incrementalUserId,
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '',
-        folderUuid: '',
-        removed: false,
-        removedAt: undefined,
-        plainName: '',
-        status: FileStatus.EXISTS,
-      });
-
       jest.spyOn(fileRepository, 'deleteByFileId');
 
-      expect(service.deleteFilePermanently(file, userMock)).rejects.toThrow(
-        new UnprocessableEntityException(
-          `file with id ${fileId} cannot be permanently deleted`,
-        ),
-      );
+      await service.deleteFilePermanently(userMock, { fileId, bucket });
       expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
     });
 
     it.skip('should fail when the folder trying to delete is not owned by the user', async () => {
-      const file = {
-        userId: incrementalUserId + 1,
-        deleted: true,
-      } as File;
-
       jest.spyOn(bridgeService, 'deleteFile');
       jest.spyOn(fileRepository, 'deleteByFileId');
 
-      expect(service.deleteFilePermanently(file, userMock)).rejects.toThrow(
+      expect(
+        service.deleteFilePermanently(userMock, { fileId, bucket }),
+      ).rejects.toThrow(
         new ForbiddenException(`You are not owner of this share`),
       );
       expect(bridgeService.deleteFile).not.toHaveBeenCalled();
@@ -319,30 +304,6 @@ describe('FileUseCases', () => {
     });
 
     it.skip('should not delete a file from storage if delete shares fails', async () => {
-      const fileId = 2618494108;
-      const file = File.build({
-        id: fileId,
-        fileId: '6f10f732-59b1-525c-a2d0-ff538f687903',
-        name: '',
-        type: '',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
-        deleted: true,
-        deletedAt: new Date(),
-        userId: incrementalUserId,
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '',
-        folderUuid: '',
-        removed: false,
-        removedAt: undefined,
-        plainName: '',
-        status: FileStatus.EXISTS,
-      });
-
       const errorReason = new Error('reason');
 
       jest
@@ -352,7 +313,7 @@ describe('FileUseCases', () => {
 
       expect.assertions(3);
       try {
-        await service.deleteFilePermanently(file, userMock);
+        await service.deleteFilePermanently(userMock, { fileId, bucket });
       } catch (err) {
         expect(err).toBe(errorReason);
       }
@@ -362,31 +323,6 @@ describe('FileUseCases', () => {
     });
 
     it.skip('should not delete a file from databse if could not be deleted from storage', async () => {
-      const fileId = 2618494108;
-      const file = File.build({
-        id: fileId,
-        fileId: '6f10f732-59b1-525c-a2d0-ff538f687903',
-        name: '',
-        type: '',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
-        deleted: true,
-        deletedAt: new Date(),
-        userId: incrementalUserId,
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        user: userMock,
-        uuid: '',
-        folderUuid: '',
-        removed: false,
-        removedAt: undefined,
-        plainName: '',
-        status: FileStatus.EXISTS,
-      });
-
       const errorReason = new Error('reason');
 
       jest
@@ -399,7 +335,7 @@ describe('FileUseCases', () => {
 
       expect.assertions(2);
       try {
-        await service.deleteFilePermanently(file, userMock);
+        await service.deleteFilePermanently(userMock, { fileId, bucket });
       } catch (err) {
         expect(err).toBe(errorReason);
       }
@@ -423,6 +359,7 @@ describe('FileUseCases', () => {
       deletedAt: new Date('2022-09-21T11:11:30.742Z'),
       userId: 3431709237,
       user: null,
+      creationTime: new Date('2022-09-21T11:11:30.742Z'),
       modificationTime: new Date('2022-09-21T11:11:30.742Z'),
       createdAt: new Date('2022-09-21T11:11:30.742Z'),
       updatedAt: new Date('2022-09-21T11:11:30.742Z'),
@@ -442,23 +379,30 @@ describe('FileUseCases', () => {
         folderId,
       );
 
-      const file = File.build({
+      const file = {
         ...fileAttributes,
         name: encryptedName,
         folderId,
-      });
+      };
+
+      const decryptedName = 'decryptedName';
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValue(decryptedName);
 
       delete fileAttributes['user'];
 
-      const result = service.decrypFileName(file);
+      const result = service.decrypFileName(file as File);
 
-      expect(result).toStrictEqual({
-        ...fileAttributes,
-        shares: undefined,
-        thumbnails: undefined,
-        sharings: undefined,
-        folderId,
-      });
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        file.name,
+        file.folderId,
+      );
+      expect(result).toEqual(
+        File.build({
+          ...file,
+          name: decryptedName,
+          plainName: decryptedName,
+        }),
+      );
     });
 
     it('fails when name is not encrypted', () => {
@@ -497,19 +441,15 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
 
       jest
         .spyOn(cryptoService, 'encryptName')
         .mockReturnValueOnce(expectedFile.name);
 
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
 
       jest
@@ -555,7 +495,7 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(mockDestinationFolder);
 
       expect(
@@ -572,9 +512,7 @@ describe('FileUseCases', () => {
 
     it('When a file is moved to a non existent folder, then it should throw a not found error', () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
-      jest
-        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
-        .mockResolvedValueOnce(null);
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValueOnce(null);
       expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
@@ -585,12 +523,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(file);
 
       expect(
@@ -609,12 +544,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(file.plainName);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
-        .spyOn(fileRepository, 'findByNameAndFolderUuid')
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(conflictFile);
 
       expect(
@@ -622,6 +554,665 @@ describe('FileUseCases', () => {
       ).rejects.toThrow(
         'A file with the same name already exists in destination folder',
       );
+    });
+  });
+
+  describe('createFile', () => {
+    const newFileDto: CreateFileDto = {
+      bucket: 'test-bucket',
+      fileId: 'file-id',
+      encryptVersion: 'v1',
+      folderUuid: 'folder-uuid',
+      size: BigInt(100),
+      plainName: 'test-file.txt',
+      type: 'text/plain',
+      modificationTime: new Date(),
+      date: new Date(),
+    };
+
+    it('When folder does not exist, then it should throw', async () => {
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(null);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When folder is not owned by user, then it should throw', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id + 1 } });
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When file with same name already exists in folder, then it should throw', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+      const existingFile = newFile({
+        attributes: {
+          folderId: folder.id,
+          plainName: newFileDto.plainName,
+        },
+      });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(existingFile);
+
+      await expect(service.createFile(userMocked, newFileDto)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('When file is created successfully, then it should return the new file', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+
+      const createdFile = newFile({
+        attributes: {
+          ...newFileDto,
+          id: 1,
+          folderId: folder.id,
+          folderUuid: folder.uuid,
+          userId: userMocked.id,
+          uuid: v4(),
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+      const result = await service.createFile(userMocked, newFileDto);
+
+      expect(result).toEqual(createdFile);
+    });
+  });
+
+  describe('updateFileMetaData', () => {
+    it('When a file with the same name already exists in the folder, then it should fail', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+      const mockFile = newFile({ owner: userMocked });
+      const fileWithSameName = newFile({
+        owner: userMocked,
+        attributes: { name: mockFile.name, plainName: mockFile.plainName },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(fileWithSameName);
+
+      try {
+        await service.updateFileMetaData(
+          userMocked,
+          mockFile.uuid,
+          newFileMeta,
+        );
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        expect(error.message).toBe(
+          'A file with this name already exists in this location',
+        );
+      }
+    });
+
+    it('When file is not found (it does not exist, or the user is not the owner), then it should fail', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+
+      try {
+        await service.updateFileMetaData(
+          userMocked,
+          newFile().uuid,
+          newFileMeta,
+        );
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(NotFoundException);
+        expect(error.message).toBe('File not found');
+      }
+    });
+
+    it('When updateFileMetadata has bad properties, then it should fail', async () => {
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {});
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: '',
+          plainName: '',
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: null,
+          plainName: null,
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: '',
+          plainName: null,
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+
+      try {
+        await service.updateFileMetaData(userMocked, newFile().uuid, {
+          type: null,
+          plainName: '',
+        });
+        fail('Expected function to throw an error, but it did not.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.message).toBe('Filename cannot be empty');
+      }
+    });
+
+    it('When the name of the file is updated successfully, then it should update and return updated file', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+      const mockFile = newFile({ owner: userMocked });
+
+      const encryptedName = 'encrypted-name';
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          plainName: newFileMeta.plainName,
+          name: encryptedName,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        userId: mockFile.userId,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
+        mockFile.userId,
+        newFileMeta.plainName,
+        mockFile.type,
+        mockFile.folderId,
+        FileStatus.EXISTS,
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          plainName: newFileMeta.plainName,
+          name: encryptedName,
+        }),
+      );
+      const {
+        modificationTime: resultFileModificationTime,
+        ...resultWithoutModificationTime
+      } = result;
+      const {
+        modificationTime: updatedFileModificationTime,
+        ...updatedFileWithoutModificationTime
+      } = updatedFile;
+
+      expect(resultWithoutModificationTime).toEqual(
+        updatedFileWithoutModificationTime,
+      );
+      expect(mockFile).not.toBe(updatedFileModificationTime);
+    });
+
+    it('When the type of the file is updated successfully, then it should update and return updated file', async () => {
+      const mockFile = newFile({
+        owner: userMocked,
+        attributes: { type: 'jpg' },
+      });
+      const newTypeFileMeta: UpdateFileMetaDto = { type: 'png' };
+
+      const updatedFile = newFile({
+        attributes: {
+          ...mockFile,
+          type: newTypeFileMeta.type,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
+
+      const result = await service.updateFileMetaData(
+        userMocked,
+        mockFile.uuid,
+        newTypeFileMeta,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        uuid: mockFile.uuid,
+        userId: mockFile.userId,
+        status: FileStatus.EXISTS,
+      });
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
+        mockFile.userId,
+        mockFile.plainName,
+        newTypeFileMeta.type,
+        mockFile.folderId,
+        FileStatus.EXISTS,
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          plainName: mockFile.plainName,
+          name: mockFile.name,
+          type: newTypeFileMeta.type,
+        }),
+      );
+      const {
+        modificationTime: resultFileModificationTime,
+        ...resultWithoutModificationTime
+      } = result;
+      const {
+        modificationTime: updatedFileModificationTime,
+        ...updatedFileWithoutModificationTime
+      } = updatedFile;
+
+      expect(resultWithoutModificationTime).toEqual(
+        updatedFileWithoutModificationTime,
+      );
+      expect(mockFile).not.toBe(updatedFileModificationTime);
+    });
+  });
+
+  describe('getWorkspaceFilesSizeSumByStatuses', () => {
+    const user = newUser();
+    const workspace = newWorkspace();
+
+    it('When called with specific statuses and options, then it should use them to fetch files', async () => {
+      const statuses = [FileStatus.EXISTS, FileStatus.TRASHED];
+      const totalSum = 100;
+
+      jest
+        .spyOn(fileRepository, 'getSumSizeOfFilesInWorkspaceByStatuses')
+        .mockResolvedValue(totalSum);
+
+      const result = await service.getWorkspaceFilesSizeSumByStatuses(
+        user.uuid,
+        workspace.id,
+        statuses,
+      );
+
+      expect(
+        fileRepository.getSumSizeOfFilesInWorkspaceByStatuses,
+      ).toHaveBeenCalledWith(user.uuid, workspace.id, statuses);
+      expect(result).toEqual(totalSum);
+    });
+  });
+
+  describe('get file by path', () => {
+    it('When get file metadata by path is requested with a valid path, then the file is returned', async () => {
+      const expectedFile = newFile();
+      const rootFolder = newFolder();
+      const parentFolderFile = newFolder();
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(parentFolderFile);
+      jest
+        .spyOn(service, 'findByPlainNameAndFolderId')
+        .mockResolvedValue(expectedFile);
+
+      const result = await service.getFileMetadataByPath(userMocked, filePath);
+      expect(result).toEqual(expectedFile);
+    });
+
+    it('When get file metadata by path is requested with a valid path but the root folder doesnt exist, then it should throw a not found error', async () => {
+      const filePath = '/test/file.png';
+      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+
+      expect(
+        service.getFileMetadataByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with a valid path but the parent folders dont exist, then it should throw a not found error', async () => {
+      const rootFolder = newFolder();
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(null);
+
+      expect(
+        service.getFileMetadataByPath(userMocked, filePath),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get file metadata by path is requested with a valid path but the file doesnt exist, then it should return null', async () => {
+      const rootFolder = newFolder();
+      const parentFolderFile = newFolder();
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(parentFolderFile);
+      jest.spyOn(service, 'findByPlainNameAndFolderId').mockResolvedValue(null);
+
+      const result = await service.getFileMetadataByPath(userMocked, filePath);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getWorkspaceFilesUpdatedAfter', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const where = { status: FileStatus.EXISTS };
+    const options = {
+      limit: 10,
+      offset: 0,
+      sort: [['updatedAt', 'ASC']] as Array<
+        [SortableFileAttributes, 'ASC' | 'DESC']
+      >,
+    };
+    const mockFiles = [newFile(), newFile()];
+
+    it('When files are found, then it should return those files', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        where,
+        options,
+      );
+
+      expect(result).toEqual(mockFiles);
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        where,
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    });
+
+    it('When no sort options are provided, it should default to updatedAt ASC', async () => {
+      const optionsWithoutSort = { limit: 10, offset: 0 };
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace');
+
+      await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        where,
+        optionsWithoutSort,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        where,
+        updatedAfter,
+        optionsWithoutSort.limit,
+        optionsWithoutSort.offset,
+        [['updatedAt', 'ASC']],
+      );
+    });
+
+    it('When called with no filters, it should handle empty where', async () => {
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterInWorkspace');
+
+      await service.getWorkspaceFilesUpdatedAfter(
+        createdBy,
+        workspaceId,
+        updatedAfter,
+        {},
+        options,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {},
+        updatedAfter,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+    });
+  });
+
+  describe('getUserUsedStorage', () => {
+    it('When called, it should return the user total used space', async () => {
+      const totalUsage = 1000;
+      jest
+        .spyOn(fileRepository, 'sumExistentFileSizes')
+        .mockResolvedValueOnce(totalUsage);
+
+      const result = await service.getUserUsedStorage(userMocked);
+      expect(result).toEqual(totalUsage);
+    });
+  });
+
+  describe('deleteFilePermanently', () => {
+    const mockFile = newFile({ owner: userMocked });
+
+    it('When the file exists and is owned by the user, then it should delete the file and return its id and uuid', async () => {
+      const mockFileFound = {
+        ...mockFile,
+        isOwnedBy: (user: User) => user.id === userMocked.id,
+      } as any;
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFileFound);
+
+      jest
+        .spyOn(sharingService, 'bulkRemoveSharings')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileId')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(fileRepository, 'deleteFilesByUser')
+        .mockResolvedValue(undefined);
+
+      const result = await service.deleteFilePermanently(userMocked, {
+        id: mockFile.id,
+      });
+
+      expect(result).toEqual({ id: mockFile.id, uuid: mockFile.uuid });
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        id: mockFile.id,
+        removed: false,
+      });
+      expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
+        userMocked,
+        [mockFile.uuid],
+        SharingItemType.File,
+      );
+      expect(thumbnailUseCases.deleteThumbnailByFileId).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.id,
+      );
+      expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
+        userMocked,
+        [mockFileFound],
+      );
+    });
+
+    it('When the file does not exist, then it should throw a NotFoundException', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+
+      await expect(
+        service.deleteFilePermanently(userMocked, { id: mockFile.id }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the file is not owned by the user, then it should throw a ForbiddenException', async () => {
+      const anotherUser = newUser();
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue({
+        ...mockFile,
+        userId: anotherUser.id,
+        isOwnedBy: (user: User) => user.id === anotherUser.id,
+      } as any);
+
+      await expect(
+        service.deleteFilePermanently(userMocked, { id: mockFile.id }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getFile', () => {
+    const mockFile = newFile();
+
+    it('When the file exists, then it should return the file', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+
+      const result = await service.getFile({ id: mockFile.id });
+
+      expect(result).toEqual(mockFile);
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        id: mockFile.id,
+      });
+    });
+
+    it('When the file does not exist, then it should return null', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(null);
+
+      const result = await service.getFile({ id: mockFile.id });
+
+      expect(result).toBeNull();
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        id: mockFile.id,
+      });
+    });
+  });
+
+  describe('deleteFileByFileId', () => {
+    const testBucketId = 'test-bucket';
+    const testFileId = 'test-file-id';
+    const mockFile = newFile({
+      attributes: {
+        fileId: testFileId,
+        name: 'encrypted-name',
+        type: 'jpg',
+        size: BigInt(1000),
+        bucket: testBucketId,
+        folderId: 4,
+        encryptVersion: '1',
+      },
+    });
+
+    it('when file exists in db, should delete it permanently and return fileExistedInDb=true with id and uuid', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
+      jest.spyOn(service, 'deleteFilePermanently').mockResolvedValue({
+        id: mockFile.id,
+        uuid: mockFile.uuid,
+      });
+
+      const result = await service.deleteFileByFileId(
+        userMocked,
+        testBucketId,
+        testFileId,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        fileId: testFileId,
+      });
+      expect(service.deleteFilePermanently).toHaveBeenCalledWith(userMocked, {
+        uuid: mockFile.uuid,
+      });
+      expect(result).toEqual({
+        fileExistedInDb: true,
+        id: mockFile.id,
+        uuid: mockFile.uuid,
+      });
+    });
+
+    it('when file does not exist in db, should delete from network and return fileExistedInDb=false', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue(undefined);
+
+      const result = await service.deleteFileByFileId(
+        userMocked,
+        testBucketId,
+        testFileId,
+      );
+
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        fileId: testFileId,
+      });
+      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        testBucketId,
+        testFileId,
+      );
+      expect(result).toEqual({
+        fileExistedInDb: false,
+      });
+    });
+
+    it('when file does not exist in db and network deletion fails, should throw InternalServerErrorException', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+      jest
+        .spyOn(bridgeService, 'deleteFile')
+        .mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        service.deleteFileByFileId(userMocked, testBucketId, testFileId),
+      ).rejects.toThrow('Error deleting file from network');
     });
   });
 });

@@ -72,4 +72,30 @@ export class PaymentsService {
     );
     return res.data;
   }
+
+  async updateBillingInfo(
+    userUuid: UserAttributes['uuid'],
+    payload: {
+      phoneNumber?: string;
+      address?: string;
+    },
+  ): Promise<void> {
+    const jwt = Sign(
+      { payload: { uuid: userUuid } },
+      this.configService.get('secrets.jwt'),
+    );
+
+    const params = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwt}`,
+      },
+    };
+
+    await this.httpClient.patch(
+      `${this.configService.get('apis.payments.url')}/billing`,
+      payload,
+      params,
+    );
+  }
 }

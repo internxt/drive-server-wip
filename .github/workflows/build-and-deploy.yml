@@ -1,4 +1,4 @@
-name: build & deploy
+name: Build & Deploy to Production
 on:
   push:
     branches: ["master", "feature/cd"]
@@ -30,6 +30,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }}
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -37,15 +38,40 @@ jobs:
       name: production
     steps:
       - uses: actions/checkout@master
-      - name: Update drive-server-wip image
-        uses: steebchen/kubectl@v2.0.0
-        with: # defaults to latest kubectl binary version
-          config: ${{ secrets.KUBE_CONFIG_DATA }}
-          version: v1.22.2
-          command: set image --record deployment/drive-server-wip drive-server-wip=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }} -n drive
-      - name: Verify drive-server deployment
+
+      # B2C Deployment
+      - name: Deploy update on B2C cluster
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA }}
-          version: v1.22.2 # specify kubectl binary version explicitly
+          command: set image --record deployment/drive-server-wip drive-server-wip=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }} -n drive
+      - name: Verify update on B2C cluster
+        uses: steebchen/kubectl@v2.0.0
+        with:
+          config: ${{ secrets.KUBE_CONFIG_DATA }}
+          command: rollout status deployment/drive-server-wip -n drive
+      
+      # EU-DC Deployment
+      - name: Deploy update on EU-DC
+        uses: steebchen/kubectl@v2.0.0
+        with:
+          config: ${{ secrets.KUBE_CONFIG_DATA_EU_DC }}
+          version: v1.22.2
+          command: set image --record deployment/drive-server-wip drive-server-wip=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }} -n drive
+      - name: Verify EU-DC update
+        uses: steebchen/kubectl@v2.0.0
+        with:
+          config: ${{ secrets.KUBE_CONFIG_DATA_EU_DC }}
+          command: rollout status deployment/drive-server-wip -n drive
+      
+      # NA-DC Deployment
+      - name: Deploy update on NA-DC
+        uses: steebchen/kubectl@v2.0.0
+        with:
+          config: ${{ secrets.KUBE_CONFIG_DATA_NA_DC }}
+          command: set image --record deployment/drive-server-wip drive-server-wip=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }} -n drive
+      - name: Verify EU-DC update
+        uses: steebchen/kubectl@v2.0.0
+        with:
+          config: ${{ secrets.KUBE_CONFIG_DATA_NA_DC }}
           command: rollout status deployment/drive-server-wip -n drive

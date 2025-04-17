@@ -4,6 +4,7 @@ import sendgrid from '@sendgrid/mail';
 import { User } from '../../modules/user/user.domain';
 import { Folder } from '../../modules/folder/folder.domain';
 import { File } from '../../modules/file/file.domain';
+import { Workspace } from '../../modules/workspaces/domains/workspaces.domain';
 
 type SendInvitationToSharingContext = {
   notification_message: string;
@@ -116,6 +117,70 @@ export class MailerService {
     );
   }
 
+  async sendWorkspaceUserInvitation(
+    senderName: User['name'],
+    invitedUserEmail: User['email'],
+    workspaceName: Workspace['name'],
+    mailInfo: {
+      acceptUrl: string;
+      declineUrl: string;
+    },
+    optionals: {
+      avatar?: {
+        pictureUrl: string;
+        initials: string;
+      };
+      message?: string;
+    },
+  ): Promise<void> {
+    const context = {
+      sender_name: senderName,
+      workspace_name: workspaceName,
+      avatar: {
+        picture_url: optionals?.avatar?.pictureUrl,
+        initials: optionals?.avatar?.initials,
+      },
+      accept_url: mailInfo.acceptUrl,
+      decline_url: mailInfo.declineUrl,
+      message: optionals?.message,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get('mailer.templates.invitationToWorkspaceUser'),
+      context,
+    );
+  }
+
+  async sendWorkspaceUserExternalInvitation(
+    senderName: User['name'],
+    invitedUserEmail: User['email'],
+    workspaceName: Workspace['name'],
+    signUpUrl: string,
+    optionals: {
+      avatar?: {
+        pictureUrl: string;
+        initials: string;
+      };
+      message?: string;
+    },
+  ): Promise<void> {
+    const context = {
+      sender_name: senderName,
+      workspace_name: workspaceName,
+      avatar: {
+        picture_url: optionals?.avatar?.pictureUrl,
+        initials: optionals?.avatar?.initials,
+      },
+      signup_url: signUpUrl,
+      message: optionals?.message,
+    };
+    await this.send(
+      invitedUserEmail,
+      this.configService.get('mailer.templates.invitationToWorkspaceGuestUser'),
+      context,
+    );
+  }
+
   async sendRemovedFromSharingEmail(
     userRemovedFromSharingEmail: User['email'],
     itemName: File['plainName'] | Folder['plainName'],
@@ -173,6 +238,17 @@ export class MailerService {
     await this.send(
       email,
       this.configService.get('mailer.templates.unblockAccountEmail'),
+      context,
+    );
+  }
+
+  async sendVerifyAccountEmail(email: User['email'], url: string) {
+    const context = {
+      verification_url: url,
+    };
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.verifyAccountEmail'),
       context,
     );
   }

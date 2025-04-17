@@ -44,6 +44,12 @@ import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { SecurityModule } from '../security/security.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
+import { UserNotificationTokensModel } from './user-notification-tokens.model';
+import { BackupModule } from '../backups/backup.module';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 
 @Module({
   imports: [
@@ -55,6 +61,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
       FriendInvitationModel,
       KeyServerModel,
       AttemptChangeEmailModel,
+      UserNotificationTokensModel,
     ]),
     forwardRef(() => FolderModule),
     forwardRef(() => FileModule),
@@ -69,6 +76,10 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     forwardRef(() => SharingModule),
     SecurityModule,
     forwardRef(() => FeatureLimitModule),
+    forwardRef(() => WorkspacesModule),
+    forwardRef(() => BackupModule),
+    CacheManagerModule,
+    AsymmetricEncryptionModule,
   ],
   controllers: [UserController],
   providers: [
@@ -79,6 +90,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     SequelizeKeyServerRepository,
     SequelizeUserReferralsRepository,
     SequelizeAttemptChangeEmailRepository,
+    SequelizeWorkspaceRepository,
     UserUseCases,
     CryptoService,
     BridgeService,

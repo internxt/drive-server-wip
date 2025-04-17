@@ -1,11 +1,13 @@
 import { Environment } from '@internxt/inxt-js';
 import { aes } from '@internxt/lib';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -28,23 +30,46 @@ import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { v4 } from 'uuid';
+import { CreateFileDto } from './dto/create-file.dto';
+import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { Folder } from '../folder/folder.domain';
+import { getPathFileData } from '../../lib/path';
+import { isStringEmpty } from '../../lib/validators';
+import { FileModel } from './file.model';
+import { ShareUseCases } from '../share/share.usecase';
+import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 
-type SortParams = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
+export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
 @Injectable()
 export class FileUseCases {
   constructor(
-    private fileRepository: SequelizeFileRepository,
+    private readonly fileRepository: SequelizeFileRepository,
     @Inject(forwardRef(() => FolderUseCases))
-    private folderUsecases: FolderUseCases,
+    private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
-    private sharingUsecases: SharingService,
-    private network: BridgeService,
-    private cryptoService: CryptoService,
+    private readonly sharingUsecases: SharingService,
+    private readonly network: BridgeService,
+    private readonly cryptoService: CryptoService,
+    private readonly shareUsecases: ShareUseCases,
+    private readonly thumbnailUsecases: ThumbnailUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
     return this.fileRepository.findById(uuid);
+  }
+
+  getByUuidsAndUser(
+    user: User,
+    uuids: FileAttributes['uuid'][],
+  ): Promise<File[]> {
+    return this.fileRepository.findByUuids(uuids, { userId: user.id });
+  }
+
+  getUserUsedStorage(user: User) {
+    return this.fileRepository.sumExistentFileSizes(user.id);
   }
 
   getByUserExceptParents(arg: any): Promise<File[]> {
@@ -55,8 +80,64 @@ export class FileUseCases {
     throw new Error('Method not implemented.');
   }
 
-  async deleteFilePermanently(file: File, user: User): Promise<void> {
-    throw new Error('Method not implemented.');
+  async deleteFilePermanently(
+    user: User,
+    where: Partial<File>,
+  ): Promise<{ id: number; uuid: string }> {
+    const file = await this.fileRepository.findOneBy({
+      ...where,
+      removed: false,
+    });
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('This file is not yours');
+    }
+
+    const { id, uuid } = file;
+
+    await Promise.all([
+      this.shareUsecases.deleteFileShare(id, user),
+      this.sharingUsecases.bulkRemoveSharings(
+        user,
+        [uuid],
+        SharingItemType.File,
+      ),
+      this.thumbnailUsecases.deleteThumbnailByFileId(user, id),
+    ]);
+
+    await this.fileRepository.deleteFilesByUser(user, [file]);
+
+    return { id, uuid };
+  }
+
+  async deleteFileByFileId(
+    user: User,
+    bucketId: string,
+    fileId: string,
+  ): Promise<{ fileExistedInDb: boolean; id?: number; uuid?: string }> {
+    const file = await this.fileRepository.findOneBy({
+      fileId,
+    });
+
+    if (file) {
+      const { id, uuid } = await this.deleteFilePermanently(user, {
+        uuid: file.uuid,
+      });
+      return { fileExistedInDb: true, id, uuid };
+    }
+
+    try {
+      await this.network.deleteFile(user, bucketId, fileId);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error deleting file from network',
+      );
+    }
+    return { fileExistedInDb: false };
   }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
@@ -73,10 +154,149 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids);
   }
 
+  async createFile(user: User, newFileDto: CreateFileDto) {
+    const folder = await this.folderUsecases.getByUuid(newFileDto.folderUuid);
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const isTheFolderOwner = folder.isOwnedBy(user);
+
+    if (!isTheFolderOwner) {
+      throw new ForbiddenException('Folder is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFileDto.plainName,
+      folder.id,
+    );
+
+    const exists = await this.fileRepository.findByPlainNameAndFolderId(
+      user.id,
+      newFileDto.plainName,
+      newFileDto.type,
+      folder.id,
+      FileStatus.EXISTS,
+    );
+    if (exists) {
+      throw new ConflictException('File already exists');
+    }
+
+    const newFile = await this.fileRepository.create({
+      uuid: v4(),
+      name: cryptoFileName,
+      plainName: newFileDto.plainName,
+      type: newFileDto.type,
+      size: newFileDto.size,
+      folderId: folder.id,
+      fileId: newFileDto.fileId,
+      bucket: newFileDto.bucket,
+      encryptVersion: newFileDto.encryptVersion,
+      userId: user.id,
+      folderUuid: folder.uuid,
+      deleted: false,
+      deletedAt: null,
+      removed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      status: FileStatus.EXISTS,
+      modificationTime: newFileDto.modificationTime || new Date(),
+      creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
+    });
+
+    return newFile;
+  }
+
+  async searchFilesInFolder(
+    folder: Folder,
+    searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
+  ): Promise<File[]> {
+    return this.fileRepository.findFilesInFolderByName(
+      folder.uuid,
+      searchFilter,
+    );
+  }
+
+  async updateFileMetaData(
+    user: User,
+    fileUuid: File['uuid'],
+    newFileMetadata: UpdateFileMetaDto,
+  ) {
+    if (
+      isStringEmpty(newFileMetadata.plainName) &&
+      isStringEmpty(newFileMetadata.type)
+    ) {
+      throw new BadRequestException('Filename cannot be empty');
+    }
+
+    const file = await this.fileRepository.findOneBy({
+      uuid: fileUuid,
+      status: FileStatus.EXISTS,
+      userId: user.id,
+    });
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('This file is not yours');
+    }
+
+    const plainName =
+      newFileMetadata.plainName ??
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
+    const cryptoFileName = newFileMetadata.plainName
+      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
+      : file.name;
+    const type = newFileMetadata.type ?? file.type;
+
+    const updatedFile = File.build({
+      ...file,
+      name: cryptoFileName,
+      plainName,
+      type,
+    });
+
+    const fileWithSameNameExists = await this.findByPlainNameAndFolderId(
+      updatedFile.userId,
+      updatedFile.plainName,
+      updatedFile.type,
+      updatedFile.folderId,
+    );
+    if (fileWithSameNameExists) {
+      throw new ConflictException(
+        'A file with this name already exists in this location',
+      );
+    }
+
+    const modificationTime = new Date();
+
+    await this.fileRepository.updateByUuidAndUserId(updatedFile.uuid, user.id, {
+      plainName: updatedFile.plainName,
+      name: updatedFile.name,
+      type: updatedFile.type,
+      modificationTime: modificationTime,
+    });
+
+    return {
+      ...updatedFile.toJSON(),
+      modificationTime,
+    };
+  }
+
+  async getFilesByFolderUuid(
+    folderUuid: FileAttributes['folderUuid'],
+    status: FileStatus,
+  ) {
+    return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
+  }
+
   async getFilesByFolderId(
     folderId: FileAttributes['folderId'],
     userId: FileAttributes['userId'],
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFile } = {
       limit: 20,
       offset: 0,
     },
@@ -108,59 +328,72 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParamsFile },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(userId, {}, updatedAfter, options);
+    const where: Partial<FileAttributes> = {};
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      {
-        status: FileStatus.EXISTS,
-      },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      { status: FileStatus.DELETED },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     options: { limit: number; offset: number },
+    bucket?: File['bucket'],
   ): Promise<File[]> {
-    return this.getFilesUpdatedAfter(
-      userId,
-      { status: FileStatus.TRASHED },
-      updatedAfter,
-      options,
-    );
+    const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
   }
 
   async getFilesUpdatedAfter(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParams },
+    options: { limit: number; offset: number; sort?: SortParamsFile },
   ): Promise<File[]> {
-    const additionalOrders: SortParams = options.sort ?? [['updatedAt', 'ASC']];
+    const additionalOrders: SortParamsFile = options.sort ?? [
+      ['updatedAt', 'ASC'],
+    ];
 
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
@@ -172,13 +405,42 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
+  async getWorkspaceFilesUpdatedAfter(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<File[]> {
+    const additionalOrders: Array<[keyof FileModel, string]> = options.sort ?? [
+      ['updatedAt', 'ASC'],
+    ];
+
+    const files =
+      await this.fileRepository.findAllCursorWhereUpdatedAfterInWorkspace(
+        createdBy,
+        workspaceId,
+        { ...where },
+        updatedAfter,
+        options.limit,
+        options.offset,
+        additionalOrders,
+      );
+
+    return files;
+  }
+
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     options: {
       limit: number;
       offset: number;
-      sort?: SortParams;
+      sort?: SortParamsFile;
       withoutThumbnails?: boolean;
     } = {
       limit: 20,
@@ -197,6 +459,63 @@ export class FileUseCases {
       filesWithMaybePlainName =
         await this.fileRepository.findAllCursorWithThumbnails(
           { ...where, userId },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+
+    const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesWithThumbnailsModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getWorkspaceFilesSizeSumByStatuses(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    statuses: FileStatus[],
+  ) {
+    return this.fileRepository.getSumSizeOfFilesInWorkspaceByStatuses(
+      createdBy,
+      workspaceId,
+      statuses,
+    );
+  }
+
+  async getFilesInWorkspace(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FileAttributes>,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+      withoutThumbnails?: boolean;
+    } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<File[]> {
+    let filesWithMaybePlainName;
+    if (options?.withoutThumbnails)
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorInWorkspace(
+          createdBy,
+          workspaceId,
+          { ...where },
+          options.limit,
+          options.offset,
+          options.sort,
+        );
+    else
+      filesWithMaybePlainName =
+        await this.fileRepository.findAllCursorWithThumbnailsInWorkspace(
+          createdBy,
+          workspaceId,
+          { ...where },
           options.limit,
           options.offset,
           options.sort,
@@ -348,7 +667,7 @@ export class FileUseCases {
       );
     }
 
-    const destinationFolder = await this.folderUsecases.getFolderByUuidAndUser(
+    const destinationFolder = await this.folderUsecases.getFolderByUuid(
       destinationUuid,
       user,
     );
@@ -358,19 +677,11 @@ export class FileUseCases {
       );
     }
 
-    const originalPlainName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      originalPlainName,
-      destinationFolder.id,
-    );
-
-    const exists = await this.fileRepository.findByNameAndFolderUuid(
-      destinationEncryptedName,
+    const exists = await this.fileRepository.findByPlainNameAndFolderId(
+      file.userId,
+      file.plainName,
       file.type,
-      destinationFolder.uuid,
+      destinationFolder.id,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -383,6 +694,11 @@ export class FileUseCases {
         'A file with the same name already exists in destination folder',
       );
     }
+
+    const destinationEncryptedName = this.cryptoService.encryptName(
+      file.plainName,
+      destinationFolder.id,
+    );
 
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
@@ -407,14 +723,14 @@ export class FileUseCases {
     );
 
     if (decryptedName === '') {
-      return File.build(file).toJSON();
+      return File.build(file);
     }
 
     return File.build({
       ...file,
       name: decryptedName,
       plainName: decryptedName,
-    }).toJSON();
+    });
   }
 
   addOldAttributes(file: File): any {
@@ -429,7 +745,7 @@ export class FileUseCases {
     return File.build({
       ...file,
       thumbnails: thumbnailsWithOldAttributers,
-    }).toJSON();
+    });
   }
 
   /**
@@ -453,5 +769,47 @@ export class FileUseCases {
       userId,
       status: FileStatus.EXISTS,
     });
+  }
+
+  async findByPlainNameAndFolderId(
+    userId: FileAttributes['userId'],
+    plainName: FileAttributes['plainName'],
+    type: FileAttributes['type'],
+    folderId: FileAttributes['folderId'],
+  ): Promise<File | null> {
+    return this.fileRepository.findByPlainNameAndFolderId(
+      userId,
+      plainName,
+      type,
+      folderId,
+      FileStatus.EXISTS,
+    );
+  }
+
+  async getFileMetadataByPath(
+    user: UserAttributes,
+    filePath: string,
+  ): Promise<File | null> {
+    const path = getPathFileData(filePath);
+
+    const folder = await this.folderUsecases.getFolderMetadataByPath(
+      user,
+      path.folderPath,
+    );
+    if (!folder) {
+      throw new NotFoundException('Parent folders not found');
+    }
+
+    const file = await this.findByPlainNameAndFolderId(
+      user.id,
+      path.fileName,
+      path.fileType,
+      folder.id,
+    );
+    return file;
+  }
+
+  async getFile(where: Partial<File>): Promise<File> {
+    return this.fileRepository.findOneBy(where);
   }
 }

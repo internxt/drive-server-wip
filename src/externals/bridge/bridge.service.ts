@@ -1,5 +1,6 @@
 import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
+import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
 import { User } from '../../modules/user/user.domain';
@@ -176,6 +177,32 @@ export class BridgeService {
     }
   }
 
+  async setStorage(email: UserAttributes['email'], bytes: number) {
+    try {
+      const url = this.configService.get('apis.storage.url');
+      const username = this.configService.get('apis.storage.auth.username');
+      const password = this.configService.get('apis.storage.auth.password');
+
+      const params = {
+        headers: { 'Content-Type': 'application/json' },
+        auth: { username, password },
+      };
+
+      await this.httpClient.post(
+        `${url}/gateway/upgrade`,
+        { email, bytes },
+        params,
+      );
+    } catch (error) {
+      Logger.error(`
+      [BRIDGESERVICE/SETSTORAGE]: There was an error while trying to set user storage space Error: ${JSON.stringify(
+        error,
+      )}
+      `);
+      throw error;
+    }
+  }
+
   async getLimit(
     networkUser: UserAttributes['bridgeUser'],
     networkPass: UserAttributes['userId'],
@@ -222,6 +249,59 @@ export class BridgeService {
         BridgeService.handleUpdateUserEmailError(error);
       }
 
+      throw error;
+    }
+  }
+
+  async sendDeactivationEmail(
+    user: Pick<User, 'bridgeUser' | 'userId' | 'email'>,
+    deactivationRedirectUrl: string,
+    deactivator: string,
+  ): Promise<void> {
+    try {
+      const bridgeApiUrl = this.configService.get('apis.storage.url');
+
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authorizationHeaders(user.bridgeUser, user.userId),
+        },
+      };
+
+      await this.httpClient.delete(
+        `${bridgeApiUrl}/users/${user.email}?redirect=${deactivationRedirectUrl}&deactivator=${deactivator}`,
+        params,
+      );
+    } catch (error) {
+      Logger.error(`
+        [BRIDGE_SERVICE/DEACTIVATION_EMAIL]: There was an error while trying to send deactivation email Error: ${JSON.stringify(
+          error,
+        )}`);
+      throw error;
+    }
+  }
+
+  async confirmDeactivation(token: string): Promise<string> {
+    try {
+      const bridgeApiUrl = this.configService.get('apis.storage.url');
+
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+
+      const response = await this.httpClient.get(
+        `${bridgeApiUrl}/deactivationStripe/${token}`,
+        params,
+      );
+
+      return response.data.email;
+    } catch (error) {
+      Logger.error(`
+        [BRIDGE_SERVICE/DEACTIVATE_USER]: There was an error while trying to deactivate user Error: ${JSON.stringify(
+          error,
+        )}`);
       throw error;
     }
   }

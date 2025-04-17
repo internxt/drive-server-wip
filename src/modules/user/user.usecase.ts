@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -7,12 +8,15 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
+import * as speakeasy from 'speakeasy';
+import crypto from 'crypto';
 
 import { SequelizeUserRepository } from './user.repository';
 import {
@@ -38,7 +42,6 @@ import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { NewsletterService } from '../../externals/newsletter';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
@@ -53,7 +56,7 @@ import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
   generateNewKeys,
-} from '../../lib/openpgp';
+} from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
@@ -69,8 +72,23 @@ import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
+import { UserNotificationTokens } from './user-notification-tokens.domain';
+import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
+import { LoginAccessDto } from '../auth/dto/login-access.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { isUUID } from 'class-validator';
+import { KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
+import { BackupUseCase } from '../backups/backup.usecase';
+import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
+import { SharingInvite } from '../sharing/sharing.domain';
+import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 
-class ReferralsNotAvailableError extends Error {
+export class ReferralsNotAvailableError extends Error {
   constructor() {
     super('Referrals program not available for this user');
   }
@@ -92,13 +110,6 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
-export class KeyServerNotFoundError extends Error {
-  constructor() {
-    super('Key server not found');
-
-    Object.setPrototypeOf(this, KeyServerNotFoundError.prototype);
-  }
-}
 export class UserNotFoundError extends Error {
   constructor() {
     super('User not found');
@@ -107,8 +118,8 @@ export class UserNotFoundError extends Error {
 }
 
 export class MailLimitReachedException extends HttpException {
-  constructor() {
-    super('Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
+  constructor(customMessage?: string) {
+    super(customMessage ?? 'Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
   }
 }
 
@@ -131,6 +142,7 @@ export class UserUseCases {
     private userReferralsRepository: SequelizeUserReferralsRepository,
     private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
     private sharingRepository: SequelizeSharingRepository,
+    private workspaceRepository: SequelizeWorkspaceRepository,
     @Inject(forwardRef(() => FileUseCases))
     private fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
@@ -146,6 +158,11 @@ export class UserUseCases {
     private readonly mailerService: MailerService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
+    private readonly keyServerUseCases: KeyServerUseCases,
+    private readonly appSumoUseCases: AppSumoUseCase,
+    private readonly backupUseCases: BackupUseCase,
+    private readonly cacheManager: CacheManagerService,
+    private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -161,6 +178,17 @@ export class UserUseCases {
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
     return this.userRepository.findByUuids(uuids);
   }
+
+  findPreCreatedUsersByUuids(
+    uuids: PreCreatedUser['uuid'][],
+  ): Promise<PreCreatedUser[]> {
+    return this.preCreatedUserRepository.findByUuids(uuids);
+  }
+
+  findByUuid(uuid: User['uuid']): Promise<User> {
+    return this.userRepository.findByUuid(uuid);
+  }
+
   findById(id: User['id']): Promise<User | null> {
     return this.userRepository.findById(id);
   }
@@ -171,6 +199,10 @@ export class UserUseCases {
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
     return this.userRepository.findAllBy({ bridgeUser });
+  }
+
+  updateByUuid(userUuid: User['uuid'], payload: Partial<User>) {
+    return this.userRepository.updateByUuid(userUuid, payload);
   }
 
   async getNetworkByUserId(id: number, mnemonic: string) {
@@ -267,7 +299,7 @@ export class UserUseCases {
    * @param bucketId Network bucket
    * @returns Created folders
    */
-  private async createInitialFolders(
+  async createInitialFolders(
     user: User,
     bucketId: string,
   ): Promise<[Folder, Folder, Folder]> {
@@ -283,8 +315,16 @@ export class UserUseCases {
       // Relate the root folder to the user
       this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
       this.folderUseCases.createFolders(user, [
-        { name: 'Family', parentFolderId: rootFolder.id },
-        { name: 'Personal', parentFolderId: rootFolder.id },
+        {
+          name: 'Family',
+          parentFolderId: rootFolder.id,
+          parentUuid: rootFolder.uuid,
+        },
+        {
+          name: 'Personal',
+          parentFolderId: rootFolder.id,
+          parentUuid: rootFolder.uuid,
+        },
       ]),
     ]);
 
@@ -326,7 +366,8 @@ export class UserUseCases {
   }
 
   async createUser(newUser: NewUser) {
-    const { email, password, salt } = newUser;
+    const { email: rawEmail, password, salt } = newUser;
+    const email = rawEmail.toLowerCase();
 
     const maybeExistentUser = await this.userRepository.findByUsername(email);
     const userAlreadyExists = !!maybeExistentUser;
@@ -346,20 +387,6 @@ export class UserUseCases {
       this.notificationService.add(
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
-
-    const hasBeenSubscribedPromise = this.hasUserBeenSubscribedAnyTime(
-      email,
-      email,
-      networkPass,
-    ).catch((err) => {
-      Logger.error(
-        `[SIGNUP/SUBSCRIPTION/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
-        }`,
-      );
-      notifySignUpError(err);
-      return false;
-    });
 
     const freeTier = await this.featureLimitRepository.getFreeTier();
 
@@ -382,9 +409,15 @@ export class UserUseCases {
       tierId: freeTier?.id,
     });
 
+    let rootFolder: Folder;
+
     try {
       const bucket = await this.networkService.createBucket(email, networkPass);
-      const [rootFolder] = await this.createInitialFolders(user, bucket.id);
+      const [createdRootFolder] = await this.createInitialFolders(
+        user,
+        bucket.id,
+      );
+      rootFolder = createdRootFolder;
 
       const hasReferrer = !!newUser.referrer;
       if (hasReferrer) {
@@ -395,42 +428,52 @@ export class UserUseCases {
         ).catch(notifySignUpError);
       }
 
-      let hasBeenSubscribed = false;
-      try {
-        hasBeenSubscribed = await hasBeenSubscribedPromise;
-
-        if (!hasBeenSubscribed) {
-          await this.createUserReferrals(user.id);
-        }
-      } catch (err) {
-        notifySignUpError(err);
-      }
-
       const newTokenPayload = this.getNewTokenPayload(user);
 
       return {
-        token: SignEmail(newUser.email, this.configService.get('secrets.jwt')),
-        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        token: SignEmail(
+          newUser.email,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
+        newToken: Sign(
+          newTokenPayload,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
           password: user.password.toString(),
           mnemonic: user.mnemonic.toString(),
           rootFolderId: rootFolder.id,
+          rootFolderUuid: rootFolder.uuid,
           bucket: bucket.id,
           uuid: userUuid,
           userId: networkPass,
-          hasReferralsProgram: !hasBeenSubscribed,
-        } as unknown as User,
+          hasReferralsProgram: false,
+        } as unknown as User & { rootFolderUuid: string },
         uuid: userUuid,
       };
     } catch (err) {
-      Logger.error(
-        `[SIGNUP/ROOT_FOLDER/ERROR]: ${err.message}. ${
-          err.stack || 'NO STACK'
-        }`,
-      );
+      const error = {
+        message: err.message,
+        stack: err.stack || 'NO STACK',
+        body: newUser,
+      };
+
+      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${JSON.stringify(error)}`);
       notifySignUpError(err);
+
+      if (user) {
+        Logger.warn(
+          `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
+        );
+        await this.userRepository.deleteBy({ uuid: user.uuid });
+        if (rootFolder) {
+          await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
+        }
+      }
 
       throw err;
     }
@@ -440,6 +483,7 @@ export class UserUseCases {
     email: string,
     newUserUuid: string,
     newPublicKey: string,
+    newPublicKyberKey?: string,
   ) {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
@@ -449,19 +493,87 @@ export class UserUseCases {
     }
 
     const defaultPass = this.configService.get('users.preCreatedPassword');
-    const { privateKey: encPrivateKey } = preCreatedUser;
+    const { privateKey: encPrivateKey, privateKyberKey: encPrivateKyberKey } =
+      preCreatedUser;
+
     const privateKey = aes.decrypt(encPrivateKey, defaultPass);
+    const privateKyberKey = encPrivateKyberKey
+      ? aes.decrypt(encPrivateKyberKey, defaultPass)
+      : null;
 
     const invites = await this.sharingRepository.getInvitesBySharedwith(
       preCreatedUser.uuid,
     );
 
+    const invitesToUpdate: SharingInvite[] = [];
+
     for (const invite of invites) {
+      const { encryptionKey } = invite;
+
+      if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
+        await this.sharingRepository.deleteInvite(invite);
+        continue;
+      }
+
+      const decryptedEncryptionKey =
+        await this.asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey(
+          {
+            encryptedMessageInBase64: encryptionKey,
+            privateKeyInBase64: privateKey,
+            privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
+          },
+        );
+
+      const newEncryptedEncryptionKey =
+        await this.asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+          {
+            message: decryptedEncryptionKey.toString(),
+            publicKeyInBase64: newPublicKey,
+            publicKyberKeyBase64: invite.isHybrid() ? newPublicKyberKey : null,
+          },
+        );
+
+      invite.encryptionKey = newEncryptedEncryptionKey;
+      invite.sharedWith = newUserUuid;
+
+      invitesToUpdate.push(invite);
+    }
+
+    await this.sharingRepository.bulkUpdate(invitesToUpdate);
+
+    await this.replacePreCreatedUserWorkspaceInvitations(
+      preCreatedUser.uuid,
+      newUserUuid,
+      privateKey,
+      newPublicKey,
+    );
+
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+  }
+
+  async replacePreCreatedUserWorkspaceInvitations(
+    preCreatedUserUuid: PreCreatedUserAttributes['uuid'],
+    newUserUuid: User['uuid'],
+    privateKeyInBase64: string,
+    newPublicKey: string,
+  ) {
+    const invitations = await this.workspaceRepository.findInvitesBy({
+      invitedUser: preCreatedUserUuid,
+    });
+
+    if (invitations.length === 0) {
+      return;
+    }
+
+    const invitationsUpdated = [...invitations];
+
+    for (const invitation of invitationsUpdated) {
       const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
-        encryptedMessage: Buffer.from(invite.encryptionKey, 'base64').toString(
-          'binary',
-        ),
-        privateKeyInBase64: privateKey,
+        encryptedMessage: Buffer.from(
+          invitation.encryptionKey,
+          'base64',
+        ).toString('binary'),
+        privateKeyInBase64,
       });
 
       const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
@@ -469,17 +581,17 @@ export class UserUseCases {
         publicKeyInBase64: newPublicKey,
       });
 
-      invite.encryptionKey = Buffer.from(
+      invitation.encryptionKey = Buffer.from(
         newEncryptedEncryptionKey.toString(),
         'binary',
       ).toString('base64');
 
-      invite.sharedWith = newUserUuid;
+      invitation.invitedUser = newUserUuid;
     }
 
-    await this.sharingRepository.bulkUpdate(invites);
-
-    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+    await this.workspaceRepository.bulkUpdateInvitesKeysAndUsers(
+      invitationsUpdated,
+    );
   }
 
   async preCreateUser(newUser: PreCreateUserDto) {
@@ -491,7 +603,7 @@ export class UserUseCases {
     ]);
 
     if (existentUser) {
-      throw new UserAlreadyRegisteredError(newUser.email);
+      throw new ConflictException(newUser.email);
     }
 
     if (preCreatedUser) {
@@ -532,7 +644,7 @@ export class UserUseCases {
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
       revocationKey: revocationCertificate,
-      encryptVersion: null,
+      encryptVersion: UserKeysEncryptVersions.Ecc,
     });
 
     return {
@@ -646,6 +758,26 @@ export class UserUseCases {
     return hasSubscriptions || isLifetime;
   }
 
+  async canUserExpandStorage(user: User, additionalBytes = 0) {
+    const MAX_STORAGE_BYTES = convertSizeToBytes(100, 'TB');
+
+    const currentMaxSpaceBytes = await this.networkService.getLimit(
+      user.bridgeUser,
+      user.userId,
+    );
+
+    const expandableBytes = MAX_STORAGE_BYTES - currentMaxSpaceBytes;
+
+    const canExpand =
+      currentMaxSpaceBytes + additionalBytes <= MAX_STORAGE_BYTES;
+
+    return { canExpand, currentMaxSpaceBytes, expandableBytes };
+  }
+
+  async updateUserStorage(user: User, maxSpaceBytes: number) {
+    await this.networkService.setStorage(user.username, maxSpaceBytes);
+  }
+
   async hasReferralsProgram(
     userEmail: UserAttributes['email'],
     networkUser: UserAttributes['bridgeUser'],
@@ -660,12 +792,23 @@ export class UserUseCases {
     return !hasBeenSubscribed;
   }
 
-  getAuthTokens(user: User): { token: string; newToken: string } {
+  async getAuthTokens(
+    user: User,
+    customIat?: number,
+  ): Promise<RefreshTokenResponseDto> {
+    const availableWorkspaces =
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+
+    const owners = [
+      ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
+    ];
+
     const expires = true;
     const token = SignEmail(
       user.email,
       this.configService.get('secrets.jwt'),
       expires,
+      customIat,
     );
     const newToken = Sign(
       {
@@ -680,7 +823,9 @@ export class UserUseCases {
             user: user.bridgeUser,
             pass: user.userId,
           },
+          workspaces: { owners },
         },
+        ...(customIat ? { iat: customIat } : null),
       },
       this.configService.get('secrets.jwt'),
       expires,
@@ -759,7 +904,7 @@ export class UserUseCases {
     await this.mailerService.sendAutoAccountUnblockEmail(user.email, url);
 
     const lastMailSentDate = Time.convertTimestampToDate(defaultIat);
-    mailLimit.increaseTodayAttemps(lastMailSentDate);
+    mailLimit.increaseTodayAttempts(lastMailSentDate);
 
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
@@ -892,23 +1037,38 @@ export class UserUseCases {
     user: User,
     updatePasswordDto: UpdatePasswordDto,
   ): Promise<void> {
-    const { newPassword, newSalt, mnemonic, privateKey } = updatePasswordDto;
+    const { newPassword, newSalt, mnemonic, privateKey, privateKyberKey } =
+      updatePasswordDto;
+
+    const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
+      ecc: privateKey,
+      kyber: privateKyberKey,
+    };
+
+    const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+    if (userKeys.kyber?.privateKey && !keysToUpdate.kyber) {
+      throw new BadRequestException(
+        'User has kyber keys, you need to send kyber keys to update user password',
+      );
+    }
 
     await this.userRepository.updateById(user.id, {
       password: newPassword,
       hKey: Buffer.from(newSalt),
       mnemonic,
+      lastPasswordChangedAt: new Date(),
     });
 
-    await this.keyServerRepository.findUserKeysOrCreate(user.id, {
-      userId: user.id,
-      privateKey: privateKey,
-      encryptVersion: updatePasswordDto.encryptVersion,
-    });
-
-    await this.keyServerRepository.update(user.id, {
-      privateKey,
-    });
+    for (const [version, key] of Object.entries(keysToUpdate)) {
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey: key },
+        );
+      }
+    }
   }
 
   async getAvatarUrl(avatarKey: string) {
@@ -1062,8 +1222,16 @@ export class UserUseCases {
     return {
       ...emails,
       newAuthentication: {
-        token: SignEmail(user.email, this.configService.get('secrets.jwt')),
-        newToken: Sign(newTokenPayload, this.configService.get('secrets.jwt')),
+        token: SignEmail(
+          user.email,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
+        newToken: Sign(
+          newTokenPayload,
+          this.configService.get('secrets.jwt'),
+          true,
+        ),
         user,
       },
     };
@@ -1079,5 +1247,416 @@ export class UserUseCases {
 
   getBetaUserFromRoom(room: string) {
     return this.userRepository.getBetaUserFromRoom(room);
+  }
+
+  async registerUserNotificationToken(
+    user: User,
+    registerTokenDto: RegisterNotificationTokenDto,
+  ): Promise<void> {
+    const tokenCount = await this.userRepository.getNotificationTokenCount(
+      user.uuid,
+    );
+
+    if (tokenCount >= 10) {
+      throw new BadRequestException('Max token limit reached');
+    }
+
+    const tokenExists = await this.userRepository.getNotificationTokens(
+      user.uuid,
+      {
+        token: registerTokenDto.token,
+        type: registerTokenDto.type,
+      },
+    );
+
+    if (tokenExists.length > 0) {
+      throw new BadRequestException('Token already exists');
+    }
+
+    return this.userRepository.addNotificationToken(
+      user.uuid,
+      registerTokenDto.token,
+      registerTokenDto.type,
+    );
+  }
+
+  getUserNotificationTokens(user: User): Promise<UserNotificationTokens[]> {
+    return this.userRepository.getNotificationTokens(user.uuid);
+  }
+
+  async loginAccess(
+    loginAccessDto: Omit<
+      LoginAccessDto,
+      'privateKey' | 'publicKey' | 'revocateKey' | 'revocationKey'
+    >,
+  ) {
+    const MAX_LOGIN_FAIL_ATTEMPTS = 10;
+
+    const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
+
+    if (!userData) {
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    const loginAttemptsLimitReached =
+      userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
+
+    if (loginAttemptsLimitReached) {
+      throw new ForbiddenException(
+        'Your account has been blocked for security reasons. Please reach out to us',
+      );
+    }
+
+    const hashedPass = this.cryptoService.decryptText(loginAccessDto.password);
+
+    if (hashedPass !== userData.password.toString()) {
+      await this.userRepository.loginFailed(userData, true);
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    const twoFactorEnabled =
+      userData.secret_2FA && userData.secret_2FA.length > 0;
+    if (twoFactorEnabled) {
+      const tfaResult = speakeasy.totp.verifyDelta({
+        secret: userData.secret_2FA,
+        token: loginAccessDto.tfa,
+        encoding: 'base32',
+        window: 2,
+      });
+
+      if (!tfaResult) {
+        throw new UnauthorizedException('Wrong 2-factor auth code');
+      }
+    }
+    const { token, newToken } = await this.getAuthTokens(userData);
+    await this.userRepository.loginFailed(userData, false);
+
+    this.updateByUuid(userData.uuid, { updatedAt: new Date() });
+
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
+
+    const userBucket = rootFolder?.bucket;
+
+    const newKeys = loginAccessDto?.keys;
+
+    const keys = await this.keyServerUseCases.findUserKeys(userData.id);
+
+    const shouldCreateEccKeys = !keys.ecc && newKeys?.ecc;
+
+    const ecc = shouldCreateEccKeys
+      ? await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+          publicKey: newKeys.ecc.publicKey,
+          privateKey: newKeys.ecc.privateKey,
+          revocationKey: newKeys.ecc.revocationKey,
+          encryptVersion: UserKeysEncryptVersions.Ecc,
+        })
+      : keys.ecc;
+
+    const shouldCreateKyberKeys = !keys.kyber && newKeys?.kyber;
+
+    const kyber = shouldCreateKyberKeys
+      ? await this.keyServerUseCases.findOrCreateKeysForUser(userData.id, {
+          publicKey: newKeys.kyber.publicKey,
+          privateKey: newKeys.kyber.privateKey,
+          encryptVersion: UserKeysEncryptVersions.Kyber,
+        })
+      : keys.kyber;
+
+    const user = {
+      email: userData.email,
+      userId: userData.userId,
+      mnemonic: userData.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: userData.name,
+      lastname: userData.lastname,
+      uuid: userData.uuid,
+      credit: userData.credit,
+      createdAt: userData.createdAt,
+      privateKey: ecc?.privateKey || null,
+      publicKey: ecc?.publicKey || null,
+      revocateKey: ecc?.revocationKey || null,
+      keys: {
+        ecc: {
+          privateKey: ecc?.privateKey || null,
+          publicKey: ecc?.publicKey || null,
+        },
+        kyber: {
+          privateKey: kyber?.privateKey || null,
+          publicKey: kyber?.publicKey || null,
+        },
+      },
+      bucket: userBucket,
+      registerCompleted: userData.registerCompleted,
+      teams: false,
+      username: userData.username,
+      bridgeUser: userData.bridgeUser,
+      sharedWorkspace: userData.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: userData.backupsBucket,
+      avatar: userData.avatar ? await this.getAvatarUrl(userData.avatar) : null,
+      emailVerified: userData.emailVerified,
+      lastPasswordChangedAt: userData.lastPasswordChangedAt,
+    };
+
+    return { user, token, userTeam: null, newToken };
+  }
+
+  async getOrCreateUserRootFolderAndBucket(user: User) {
+    const rootFolder = await this.folderUseCases.getFolder(user.rootFolderId);
+
+    if (rootFolder) {
+      return rootFolder;
+    }
+
+    const bucket = await this.networkService.createBucket(
+      user.username,
+      user.userId,
+    );
+    const [newRootFolder] = await this.createInitialFolders(user, bucket.id);
+
+    return newRootFolder;
+  }
+
+  areCredentialsCorrect(user: User, hashedPassword: User['password']) {
+    if (!hashedPassword) {
+      throw new BadRequestException('Hashed password needed');
+    }
+
+    if (user.password.toString() !== hashedPassword) {
+      throw new UnauthorizedException('Wrong credentials');
+    }
+
+    return true;
+  }
+
+  async verifyUserEmail(verificationToken: string) {
+    const secret = this.configService.get('secrets.jwt');
+
+    let userUuid: string;
+
+    try {
+      userUuid = this.cryptoService.decryptText(verificationToken, secret);
+
+      if (!isUUID(userUuid)) {
+        throw new Error('Token without valid user uuid');
+      }
+    } catch (err) {
+      Logger.error(
+        `[AUTH/EMAIL_VERIFICATION] Error while validating verificationToken: ${err.message}`,
+      );
+      throw new BadRequestException(
+        `Could not verify this verificationToken: "${verificationToken}"`,
+      );
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      emailVerified: true,
+    });
+  }
+
+  async sendAccountEmailVerification(user: User) {
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: user.id,
+        mailType: MailTypes.EmailVerification,
+      },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 10,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException(
+        'Mail verification daily limit reached',
+      );
+    }
+
+    const secret = this.configService.get('secrets.jwt');
+    const verificationToken = this.cryptoService.encryptText(user.uuid, secret);
+    const verificationTokenEncoded = encodeURIComponent(verificationToken);
+
+    const driveWebUrl = this.configService.get('clients.drive.web');
+    const url = `${driveWebUrl}/verify-email/${verificationTokenEncoded}`;
+
+    await this.mailerService.sendVerifyAccountEmail(user.email, url);
+
+    mailLimit.increaseTodayAttempts();
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.EmailVerification,
+      mailLimit,
+    );
+  }
+
+  async upsertAvatar(
+    user: User,
+    avatarKey: string,
+  ): Promise<Error | { avatar: string }> {
+    if (user.avatar) {
+      await this.avatarService.deleteAvatar(user.avatar);
+    }
+    await this.userRepository.updateById(user.id, {
+      avatar: avatarKey,
+    });
+    const avatarUrl = await this.getAvatarUrl(avatarKey);
+    return { avatar: avatarUrl };
+  }
+
+  async deleteAvatar(user: User): Promise<Error | void> {
+    if (user.avatar) {
+      await this.avatarService.deleteAvatar(user.avatar);
+      await this.userRepository.updateById(user.id, {
+        avatar: null,
+      });
+    }
+  }
+
+  async updateProfile(user: User, payload: UpdateProfileDto) {
+    await this.userRepository.updateByUuid(user.uuid, payload);
+  }
+
+  logReferralError(userId: number | string, err: unknown) {
+    if (err instanceof ReferralsNotAvailableError) {
+      return;
+    }
+
+    if (err instanceof Error && !err.message) {
+      return Logger.error(
+        '[STORAGE]: ERROR message undefined applying referral for user %s',
+        userId,
+      );
+    }
+
+    return Logger.error(
+      '[STORAGE]: ERROR applying referral for user %s: %s',
+      userId,
+      err instanceof Error ? err.message : 'Unknown error',
+    );
+  }
+
+  async sendDeactivationEmail(user: User) {
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: user.id,
+        mailType: MailTypes.DeactivateUser,
+      },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 10,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new MailLimitReachedException(
+        'Mail deactivation daily limit reached',
+      );
+    }
+
+    const deactivator = crypto.randomBytes(256).toString('hex');
+    const deactivationUrl = `${this.configService.get(
+      'clients.drive.web',
+    )}/deactivations/${deactivator}`;
+
+    await this.networkService.sendDeactivationEmail(
+      user,
+      deactivationUrl,
+      deactivator,
+    );
+
+    mailLimit.increaseTodayAttempts();
+
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.DeactivateUser,
+      mailLimit,
+    );
+  }
+
+  async getUserUsage(user: User): Promise<{ drive: number }> {
+    let totalDriveUsage = 0;
+    const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
+
+    if (cachedUsage) {
+      totalDriveUsage = cachedUsage.usage;
+    } else {
+      const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
+      await this.cacheManager.setUserUsage(user.uuid, driveUsage);
+      totalDriveUsage = driveUsage;
+    }
+
+    return { drive: totalDriveUsage };
+  }
+
+  async confirmDeactivation(token: string) {
+    const userEmail = await this.networkService.confirmDeactivation(token);
+    const user = await this.userRepository.findByEmail(userEmail);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    try {
+      await this.userRepository.updateByUuid(user.uuid, {
+        rootFolderId: null,
+      });
+
+      // DELETING FOREIGN KEYS (not cascade)
+      await Promise.all([
+        await this.userRepository.deleteUserNotificationTokens(user.uuid),
+        await this.keyServerRepository.deleteByUserId(user.id),
+        await this.appSumoUseCases.deleteByUserId(user.id),
+        await this.backupUseCases.deleteUserBackups(user.id),
+      ]);
+
+      await this.userRepository.deleteBy({ uuid: user.uuid });
+      await this.folderUseCases.removeUserOrphanFolders(user);
+    } catch (err) {
+      if (user) {
+        const tempUsername = `${user.email}-${crypto
+          .randomBytes(5)
+          .toString('hex')}-DELETED`;
+
+        await this.userRepository.updateBy(
+          { uuid: user.uuid },
+          {
+            email: tempUsername,
+            username: tempUsername,
+            bridgeUser: tempUsername,
+          },
+        );
+
+        const errorDetails = {
+          message: err.message,
+          stack: err.stack,
+        };
+
+        throw new Error(
+          `Deactivation error for user: ${
+            user.email
+          } (renamed to ${tempUsername}): ${JSON.stringify(errorDetails)}`,
+        );
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  async getSpaceLimit(user: User): Promise<number> {
+    const cachedLimit = await this.cacheManager.getUserStorageLimit(user.uuid);
+    if (cachedLimit) {
+      return cachedLimit.limit;
+    }
+
+    const limit = await this.networkService.getLimit(
+      user.bridgeUser,
+      user.userId,
+    );
+    await this.cacheManager.setUserStorageLimit(user.uuid, limit);
+
+    return limit;
   }
 }

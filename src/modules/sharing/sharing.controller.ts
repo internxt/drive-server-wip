@@ -23,6 +23,7 @@ import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -56,11 +57,20 @@ import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
-import { UuidDto } from '../../common/uuid.dto';
+import { UuidDto } from '../../common/dto/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { LimitLabels } from '../feature-limit/limits.enum';
 import { ApplyLimit } from '../feature-limit/decorators/apply-limit.decorator';
 import { FeatureLimit } from '../feature-limit/feature-limits.guard';
+import {
+  WorkspaceResourcesAction,
+  WorkspacesInBehalfGuard,
+} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
+import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -83,7 +93,7 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
-    @Param('sharingId') sharingId: Sharing['id'],
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
     @Query('code') code: string,
     @Headers('x-share-password') password: string | null,
   ) {
@@ -122,6 +132,8 @@ export class SharingController {
     description: 'Id of the sharing',
     type: String,
   })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   @ApiOkResponse({ description: 'Sets/edit password for public sharings' })
   async setPublicSharingPassword(
     @UserDecorator() user: User,
@@ -146,6 +158,8 @@ export class SharingController {
     type: String,
   })
   @ApiOkResponse({ description: 'Remove ' })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   async removePublicSharingPassword(
     @UserDecorator() user: User,
     @Param('sharingId') sharingId: Sharing['id'],
@@ -184,6 +198,11 @@ export class SharingController {
   }
 
   @Get('/:itemType/:itemId/type')
+  @ApiOperation({
+    deprecated: true,
+    description:
+      'Get sharing (private or public) type, deprecated in favor of :itemType/:itemId/info',
+  })
   getSharingType(
     @UserDecorator() user: User,
     @Param('itemType') itemType: Sharing['itemType'],
@@ -193,6 +212,25 @@ export class SharingController {
       throw new BadRequestException('Invalid item type');
     }
     return this.sharingService.getSharingType(user, itemId, itemType);
+  }
+
+  @Get(':itemType/:itemId/info')
+  @ApiOperation({
+    summary: 'Get info related to item sharing',
+  })
+  @ApiResponse({ type: ItemSharingInfoDto })
+  @ApiNotFoundResponse({
+    description: 'Item has no active sharings or invitations',
+  })
+  getItemSharingStatus(
+    @UserDecorator() user: User,
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Param('itemId') itemId: Sharing['itemId'],
+  ) {
+    if (itemType !== 'file' && itemType !== 'folder') {
+      throw new BadRequestException('Invalid item type');
+    }
+    return this.sharingService.getItemSharingInfo(user, itemId, itemType);
   }
 
   @Get('/invites')
@@ -607,6 +645,12 @@ export class SharingController {
     dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
   })
   @UseGuards(FeatureLimit)
+  @GetDataFromRequest([
+    { sourceKey: 'body', fieldName: 'itemId' },
+    { sourceKey: 'body', fieldName: 'itemType' },
+  ])
+  @WorkspacesInBehalfGuard()
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Share)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,
@@ -630,6 +674,11 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Item removed from sharing' })
   @ApiBearerAuth()
+  @GetDataFromRequest([
+    { sourceKey: 'params', fieldName: 'itemId' },
+    { sourceKey: 'params', fieldName: 'itemType' },
+  ])
+  @WorkspacesInBehalfGuard()
   removeSharing(
     @UserDecorator() user: User,
     @Param('itemType') itemType: Sharing['itemType'],
@@ -903,39 +952,24 @@ export class SharingController {
   })
   async getItemsSharedsWith(
     @UserDecorator() user: User,
-    @Query('limit') limit = 0,
-    @Query('offset') offset = 50,
     @Param('itemId') itemId: Sharing['itemId'],
     @Param('itemType') itemType: Sharing['itemType'],
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<{ users: Array<any> } | { error: string }> {
+  ): Promise<{ users: Array<any> }> {
     try {
       const users = await this.sharingService.getItemSharedWith(
         user,
         itemId,
         itemType,
-        offset,
-        limit,
       );
 
       return { users };
     } catch (error) {
-      let errorMessage = error.message;
-
-      if (error instanceof InvalidSharedFolderError) {
-        res.status(HttpStatus.BAD_REQUEST);
-      } else if (error instanceof UserNotInvitedError) {
-        res.status(HttpStatus.FORBIDDEN);
-      } else {
-        Logger.error(
-          `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
-            user.uuid
-          }, ${error.stack || 'No stack trace'}`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal server error';
-      }
-      return { error: errorMessage };
+      Logger.error(
+        `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
+          user.uuid
+        }, ${error.stack || 'No stack trace'}`,
+      );
+      throw error;
     }
   }
 

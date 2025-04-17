@@ -10,10 +10,12 @@ import {
   BelongsTo,
   ForeignKey,
   Unique,
+  HasMany,
 } from 'sequelize-typescript';
 
 import { FolderModel } from '../folder/folder.model';
 import { UserAttributes } from './user.attributes';
+import { UserNotificationTokensModel } from './user-notification-tokens.model';
 
 @Table({
   underscored: true,
@@ -113,9 +115,6 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   sharedWorkspace: boolean;
 
-  @Column
-  tempKey: string;
-
   @AllowNull
   @Column
   avatar: string;
@@ -126,5 +125,21 @@ export class UserModel extends Model implements UserAttributes {
 
   @AllowNull
   @Column
+  updatedAt: Date;
+
+  @AllowNull
+  @Column
+  createdAt: Date;
+
+  @AllowNull
+  @Column
   tierId: string;
+
+  @Default(false)
+  @AllowNull(false)
+  @Column
+  emailVerified: boolean;
+
+  @HasMany(() => UserNotificationTokensModel)
+  notificationTokens: UserNotificationTokensModel[];
 }

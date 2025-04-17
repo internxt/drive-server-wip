@@ -7,7 +7,9 @@ import { Folder } from '../folder/folder.domain';
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
+import { UserNotificationTokensModel } from './user-notification-tokens.model';
+import { UserNotificationTokens } from './user-notification-tokens.domain';
 
 export interface UserRepository {
   findById(id: number): Promise<User | null>;
@@ -31,6 +33,16 @@ export interface UserRepository {
   getMeetClosedBetaUsers(): Promise<string[]>;
   setRoomToBetaUser(room: string, user: User): Promise<void>;
   getBetaUserFromRoom(room: string): Promise<User | null>;
+  getNotificationTokens(
+    userId: string,
+    where?: Partial<Omit<UserNotificationTokens, 'userId'>>,
+  ): Promise<UserNotificationTokens[]>;
+  deleteUserNotificationTokens(
+    userUuid: UserAttributes['uuid'],
+    tokens: string[],
+  ): Promise<void>;
+  getNotificationTokenCount(userId: string): Promise<number>;
+  loginFailed(user: User, isFailed: boolean): Promise<void>;
 }
 
 @Injectable()
@@ -38,6 +50,8 @@ export class SequelizeUserRepository implements UserRepository {
   constructor(
     @InjectModel(UserModel)
     private modelUser: typeof UserModel,
+    @InjectModel(UserNotificationTokensModel)
+    private modelUserNotificationTokens: typeof UserNotificationTokensModel,
   ) {}
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
@@ -91,7 +105,7 @@ export class SequelizeUserRepository implements UserRepository {
     return user ? this.toDomain(user) : null;
   }
 
-  async findAllBy(where: any): Promise<Array<User> | []> {
+  async findAllBy(where: any): Promise<Array<User>> {
     const users = await this.modelUser.findAll({ where });
     return users.map((user) => this.toDomain(user));
   }
@@ -146,6 +160,10 @@ export class SequelizeUserRepository implements UserRepository {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
+  async deleteBy(where: Partial<User>): Promise<void> {
+    await this.modelUser.destroy({ where });
+  }
+
   async getMeetClosedBetaUsers(): Promise<string[]> {
     const [rawEmails] = await this.modelUser.sequelize.query(
       'SELECT email FROM meet_closed_beta_users',
@@ -184,6 +202,63 @@ export class SequelizeUserRepository implements UserRepository {
       return user ? this.toDomain(user) : null;
     }
     return null;
+  }
+
+  async getNotificationTokens(
+    userId: string,
+    where?: Partial<Omit<UserNotificationTokens, 'userId'>>,
+  ): Promise<UserNotificationTokens[]> {
+    const tokens = await this.modelUserNotificationTokens.findAll({
+      where: { userId, ...where },
+    });
+
+    return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
+  }
+
+  async getNotificationTokensByUserUuids(
+    userIds: string[],
+  ): Promise<UserNotificationTokens[]> {
+    const tokens = await this.modelUserNotificationTokens.findAll({
+      where: { userId: { [Op.in]: userIds } },
+    });
+
+    return tokens.map((token) => UserNotificationTokens.build(token.toJSON()));
+  }
+
+  async deleteUserNotificationTokens(
+    userUuid: UserAttributes['uuid'],
+    tokens?: string[],
+  ) {
+    const optionalCondition = tokens ? { token: { [Op.in]: tokens } } : null;
+
+    await this.modelUserNotificationTokens.destroy({
+      where: {
+        userId: userUuid,
+        ...optionalCondition,
+      },
+    });
+  }
+
+  async addNotificationToken(
+    userId: string,
+    token: string,
+    type: UserNotificationTokens['type'],
+  ): Promise<void> {
+    await this.modelUserNotificationTokens.create({
+      userId,
+      token,
+      type,
+    });
+  }
+
+  async getNotificationTokenCount(userId: string): Promise<number> {
+    return this.modelUserNotificationTokens.count({ where: { userId } });
+  }
+
+  async loginFailed(user: User, isFailed: boolean): Promise<void> {
+    const { uuid, errorLoginCount } = user;
+    const update = { errorLoginCount: isFailed ? errorLoginCount + 1 : 0 };
+    await this.modelUser.update(update, { where: { uuid } });
   }
 
   toDomain(model: UserModel): User {

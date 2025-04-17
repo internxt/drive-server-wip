@@ -40,9 +40,9 @@ const user = new User({
   registerCompleted: false,
   backupsBucket: '',
   sharedWorkspace: false,
-  tempKey: '',
   avatar: '',
   lastPasswordChangedAt: null,
+  emailVerified: false,
 });
 
 const wrongFolderIdException = new BadRequestWrongFolderIdException();

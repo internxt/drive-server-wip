@@ -29,7 +29,7 @@ export class CryptoService {
     return this.aesService.encrypt(text, buffer);
   }
 
-  encryptName(name: string, salt?: number) {
+  encryptName(name: string, salt?: number | string) {
     if (salt) {
       return this.aesService.encrypt(name, salt, salt === undefined);
     }
@@ -65,11 +65,11 @@ export class CryptoService {
     }
   }
 
-  decryptText(encryptedText: string, salt?: number) {
+  decryptText(encryptedText: string, salt?: number | string) {
     return this.decryptName(encryptedText, salt);
   }
 
-  encryptText(textToEncrypt: string, salt?: number) {
+  encryptText(textToEncrypt: string, salt?: number | string) {
     return this.encryptName(textToEncrypt, salt);
   }
 

@@ -4,6 +4,7 @@ export class NotificationEvent extends Event {
   email: string;
   clientId: string;
   userId: string;
+  event: string;
 
   constructor(
     name: string,
@@ -11,10 +12,12 @@ export class NotificationEvent extends Event {
     email: string,
     clientId: string,
     userId: string,
+    event?: string,
   ) {
     super(name, payload);
     this.email = email;
     this.clientId = clientId;
     this.userId = userId;
+    this.event = event;
   }
 }

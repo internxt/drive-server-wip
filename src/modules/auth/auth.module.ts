@@ -1,4 +1,6 @@
-import { Module } from '@nestjs/common';
+import { KeyServerModule } from './../keyserver/key-server.module';
+import { CryptoService } from './../../externals/crypto/crypto.service';
+import { forwardRef, Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -6,6 +8,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { UserModule } from '../user/user.module';
 import { UserUseCases } from '../user/user.usecase';
 import { BasicStrategy } from './basic.strategy';
+import { GatewayRS256JwtStrategy } from './gateway-rs256jwt.strategy';
+import { AuthController } from './auth.controller';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { TwoFactorAuthService } from './two-factor-auth.service';
 
 @Module({
   imports: [
@@ -24,9 +31,18 @@ import { BasicStrategy } from './basic.strategy';
         };
       },
     }),
+    KeyServerModule,
+    forwardRef(() => WorkspacesModule),
   ],
-  providers: [JwtStrategy, BasicStrategy],
-  controllers: [],
+  providers: [
+    JwtStrategy,
+    BasicStrategy,
+    GatewayRS256JwtStrategy,
+    CryptoService,
+    SequelizeWorkspaceRepository,
+    TwoFactorAuthService,
+  ],
+  controllers: [AuthController],
   exports: [JwtStrategy, BasicStrategy, PassportModule],
 })
 export class AuthModule {}

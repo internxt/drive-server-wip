@@ -8,6 +8,11 @@ export type SortableFolderAttributes = keyof Pick<
   'id' | 'name' | 'plainName' | 'updatedAt'
 >;
 
+export enum FolderStatus {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+}
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
   removed?: FolderAttributes['removed'];
@@ -33,6 +38,8 @@ export class Folder implements FolderAttributes {
   createdAt: Date;
   updatedAt: Date;
   size: number;
+  creationTime: Date;
+  modificationTime: Date;
   sharings?: Sharing[];
 
   private constructor({
@@ -54,6 +61,8 @@ export class Folder implements FolderAttributes {
     removed,
     removedAt,
     sharings,
+    creationTime,
+    modificationTime,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -75,6 +84,8 @@ export class Folder implements FolderAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.sharings = sharings;
+    this.creationTime = creationTime;
+    this.modificationTime = modificationTime;
   }
 
   static build(folder: FolderAttributes): Folder {
@@ -88,6 +99,18 @@ export class Folder implements FolderAttributes {
   moveToTrash() {
     this.deleted = true;
     this.deletedAt = new Date();
+  }
+
+  getFolderStatus() {
+    let folderStatus = FolderStatus.EXISTS;
+
+    if (this.removed) {
+      folderStatus = FolderStatus.DELETED;
+    } else if (this.deleted) {
+      folderStatus = FolderStatus.TRASHED;
+    }
+
+    return folderStatus;
   }
 
   removeFromTrash() {
@@ -129,6 +152,29 @@ export class Folder implements FolderAttributes {
       throw Error('user invalid');
     }
     this.user = user;
+  }
+
+  static getFilterByStatus(
+    status: FolderStatus,
+  ): Partial<Pick<FolderOptions, 'deleted' | 'removed'>> {
+    switch (status) {
+      case FolderStatus.EXISTS:
+        return {
+          deleted: false,
+          removed: false,
+        };
+      case FolderStatus.TRASHED:
+        return {
+          deleted: true,
+          removed: false,
+        };
+      case FolderStatus.DELETED:
+        return {
+          removed: true,
+        };
+      default:
+        return {};
+    }
   }
 
   toJSON(): FolderDto {

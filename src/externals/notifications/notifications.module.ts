@@ -9,18 +9,35 @@ import { AnalyticsListener } from './listeners/analytics.listener';
 import { ShareLinkListener } from './listeners/share-link.listener';
 import { AuthListener } from './listeners/auth.listener';
 import { NewsletterService } from '../newsletter';
+import { StorageNotificationService } from './storage.notifications.service';
+import { ApnModule } from '../apn/apn.module';
+import {
+  SequelizeUserRepository,
+  UserModel,
+} from '../../modules/user/user.repository';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { UserNotificationTokensModel } from '../../modules/user/user-notification-tokens.model';
+
 @Module({
-  imports: [ConfigModule, HttpClientModule, MailerModule],
+  imports: [
+    ConfigModule,
+    HttpClientModule,
+    MailerModule,
+    SequelizeModule.forFeature([UserModel, UserNotificationTokensModel]),
+    ApnModule,
+  ],
   controllers: [],
   providers: [
     NotificationService,
     NotificationListener,
+    StorageNotificationService,
     AnalyticsListener,
     SendLinkListener,
     ShareLinkListener,
     AuthListener,
     NewsletterService,
+    SequelizeUserRepository,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, StorageNotificationService],
 })
 export class NotificationModule {}

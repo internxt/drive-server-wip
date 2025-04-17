@@ -30,20 +30,27 @@ import { Client } from '../auth/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
-import { ItemsToTrashEvent } from '../../externals/notifications/events/items-to-trash.event';
-import { NotificationService } from '../../externals/notifications/notification.service';
 import { User } from '../user/user.domain';
 import { TrashUseCases } from './trash.usecase';
 import {
   DeleteItemsDto,
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
-import { Folder } from '../folder/folder.domain';
-import { File, FileStatus } from '../file/file.domain';
+import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
+import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
-import { Response } from 'express';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
+import {
+  WorkspaceResourcesAction,
+  WorkspacesInBehalfGuard,
+} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { Requester } from '../auth/decorators/requester.decorator';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -52,7 +59,7 @@ export class TrashController {
     private fileUseCases: FileUseCases,
     private folderUseCases: FolderUseCases,
     private userUseCases: UserUseCases,
-    private notificationService: NotificationService,
+    private readonly storageNotificationService: StorageNotificationService,
     private trashUseCases: TrashUseCases,
   ) {}
 
@@ -64,12 +71,12 @@ export class TrashController {
   @ApiOkResponse({ description: 'Files on trash for a given folder' })
   async getTrashedFilesPaginated(
     @UserDecorator() user: User,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
+    @Query() pagination: BasicPaginationDto,
     @Query('type') type: 'files' | 'folders',
-    @Res({ passthrough: true }) res: Response,
+    @Query('sort') sort?: SortableFolderAttributes | SortableFileAttributes,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
-    if (!limit || offset === undefined || !type) {
+    if (!pagination.limit || pagination.offset === undefined || !type) {
       throw new BadRequestException();
     }
 
@@ -77,7 +84,7 @@ export class TrashController {
       throw new BadRequestException();
     }
 
-    if (limit < 1 || limit > 50) {
+    if (pagination.limit < 1 || pagination.limit > 50) {
       throw new BadRequestException('Limit should be between 1 and 50');
     }
 
@@ -88,13 +95,21 @@ export class TrashController {
         result = await this.fileUseCases.getFiles(
           user.id,
           { status: FileStatus.TRASHED },
-          { limit, offset },
+          {
+            limit: pagination.limit,
+            offset: pagination.offset,
+            sort: sort && order && [[sort, order]],
+          },
         );
       } else {
         result = await this.folderUseCases.getFolders(
           user.id,
           { deleted: true, removed: false },
-          { limit, offset },
+          {
+            limit: pagination.limit,
+            offset: pagination.offset,
+            sort: sort && order && [[sort as SortableFolderAttributes, order]],
+          },
         );
       }
 
@@ -109,9 +124,8 @@ export class TrashController {
           uuid,
         })} STACK: ${(error as Error).stack}`,
       );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
 
-      return { error: 'Internal Server Error' };
+      throw new InternalServerErrorException();
     }
   }
 
@@ -123,10 +137,13 @@ export class TrashController {
   })
   @ApiOkResponse({ description: 'All items moved to trash' })
   @ApiBadRequestResponse({ description: 'Any item id is invalid' })
+  @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.AddItemsToTrash)
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (moveItemsDto.items.length === 0) {
       logger('error', {
@@ -164,24 +181,27 @@ export class TrashController {
         }
       }
       await Promise.all([
-        this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids),
+        fileIds.length > 0 || fileUuids.length > 0
+          ? this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids)
+          : Promise.resolve(),
         this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
       ]);
 
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach(
-            ({ email, uuid }: { email: string; uuid: string }) => {
-              const itemsToTrashEvent = new ItemsToTrashEvent(
-                moveItemsDto.items,
-                email,
-                clientId,
-                uuid,
-              );
-              this.notificationService.add(itemsToTrashEvent);
-            },
-          );
+          const usersToNotify = [
+            ...members.filter((m) => m.uuid !== user.uuid),
+            requester,
+          ];
+
+          usersToNotify.forEach((member) => {
+            this.storageNotificationService.itemsTrashed({
+              payload: moveItemsDto.items,
+              user: member,
+              clientId,
+            });
+          });
         })
         .catch((err) => {
           // no op
@@ -246,35 +266,47 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes items from user's trash",
   })
+  @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.DeleteItemsFromTrash)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Delete)
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    // TODO: Uncomment this once all the platforms block deleting more than 50 items
-    // if (deleteItemsDto.items.length > 50) {
-    //   throw new BadRequestException(
-    //     'Items to remove from the trash are limited to 50',
-    //   );
-    // }
+    const { items } = deleteItemsDto;
 
-    const filesIds = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FILE)
-      .map((item) => parseInt(item.id));
+    const filesIds: File['id'][] = [];
+    const filesUuids: File['uuid'][] = [];
+    const foldersIds: Folder['id'][] = [];
+    const foldersUuids: Folder['uuid'][] = [];
 
-    const foldersIds = deleteItemsDto.items
-      .filter((item) => item.type === DeleteItemType.FOLDER)
-      .map((item) => parseInt(item.id));
+    for (const item of items) {
+      if (item.type === DeleteItemType.FILE) {
+        if (item.id) filesIds.push(parseInt(item.id, 10));
+        if (item.uuid) filesUuids.push(item.uuid);
+      } else if (item.type === DeleteItemType.FOLDER) {
+        if (item.id) foldersIds.push(parseInt(item.id, 10));
+        if (item.uuid) foldersUuids.push(item.uuid);
+      }
+    }
 
-    const files =
+    const [files, filesByUuid, folders, foldersByUuid] = await Promise.all([
       filesIds.length > 0
-        ? await this.fileUseCases.getFilesByIds(user, filesIds)
-        : [];
-    const folders =
+        ? this.fileUseCases.getFilesByIds(user, filesIds)
+        : [],
+      filesUuids.length > 0 ? this.fileUseCases.getByUuids(filesUuids) : [],
       foldersIds.length > 0
-        ? await this.folderUseCases.getFoldersByIds(user, foldersIds)
-        : [];
+        ? this.folderUseCases.getFoldersByIds(user, foldersIds)
+        : [],
+      foldersUuids.length > 0
+        ? this.folderUseCases.getByUuids(foldersUuids)
+        : [],
+    ]);
 
-    await this.trashUseCases.deleteItems(user, files, folders);
+    const allFiles = [...files, ...filesByUuid];
+    const allFolders = [...folders, ...foldersByUuid];
+
+    await this.trashUseCases.deleteItems(user, allFiles, allFolders);
   }
 
   @Delete('/file/:fileId')

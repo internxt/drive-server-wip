@@ -1,6 +1,6 @@
 import { validate } from 'class-validator';
 import { UuidDto } from './uuid.dto';
-import { newUser } from '../../test/fixtures';
+import { newUser } from '../../../test/fixtures';
 
 describe('UuidDto Validation', () => {
   const user = newUser();

@@ -7,7 +7,10 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { KeyServerAttributes } from './key-server.domain';
+import {
+  UserKeysEncryptVersions,
+  KeyServerAttributes,
+} from './key-server.domain';
 import { UserModel } from '../user/user.model';
 
 @Table({
@@ -25,15 +28,15 @@ export class KeyServerModel extends Model implements KeyServerAttributes {
   @Column(DataType.INTEGER)
   userId: number;
 
-  @Column(DataType.STRING(920))
+  @Column(DataType.STRING(2000))
   publicKey: string;
 
-  @Column(DataType.STRING(1356))
+  @Column(DataType.STRING(3200))
   privateKey: string;
 
   @Column(DataType.STRING(476))
   revocationKey: string;
 
   @Column(DataType.STRING)
-  encryptVersion: string;
+  encryptVersion: UserKeysEncryptVersions;
 }

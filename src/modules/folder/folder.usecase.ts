@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   Logger,
+  NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
   forwardRef,
@@ -21,10 +23,20 @@ import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
+import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { v4 } from 'uuid';
+import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { FileUseCases } from '../file/file.usecase';
+import { File, FileStatus } from '../file/file.domain';
+import { CreateFolderDto } from './dto/create-folder.dto';
+import { FolderModel } from './folder.model';
 
 const invalidName = /[\\/]|^\s*$/;
 
-type SortParams = Array<[SortableFolderAttributes, 'ASC' | 'DESC']>;
+export type SortParamsFolder = Array<
+  [SortableFolderAttributes, 'ASC' | 'DESC']
+>;
 
 @Injectable()
 export class FolderUseCases {
@@ -33,6 +45,8 @@ export class FolderUseCases {
     private userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => SharingService))
     private sharingUsecases: SharingService,
+    @Inject(forwardRef(() => FileUseCases))
+    private fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -64,6 +78,28 @@ export class FolderUseCases {
   }
 
   async getFolderByUuidAndUser(
+    uuid: FolderAttributes['uuid'],
+    user: User,
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuidAndUser(uuid, user.id);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    return folder;
+  }
+
+  async removeUserOrphanFolders(user: User): Promise<number> {
+    const removedFoldersCount = await this.folderRepository.updateBy(
+      { removed: true, deleted: true },
+      { userId: user.id, parentId: null },
+    );
+
+    return removedFoldersCount;
+  }
+
+  async getFolderByUuid(
     folderUuid: FolderAttributes['uuid'],
     user: User,
   ): Promise<Folder> {
@@ -80,6 +116,58 @@ export class FolderUseCases {
     return folder;
   }
 
+  async getFolderTree(
+    user: User,
+    rootFolderUuid: FolderAttributes['uuid'],
+    deleted = false,
+  ) {
+    const rootElements = [];
+    const pendingFolders = [
+      {
+        folderUuid: rootFolderUuid,
+        elements: rootElements,
+      },
+    ];
+
+    while (pendingFolders.length) {
+      const { folderUuid, elements } = pendingFolders.shift();
+
+      const folder: Folder & { files?: File[]; children?: Folder[] } =
+        await this.folderRepository.findByUuid(folderUuid);
+
+      if (!folder) {
+        throw new NotFoundException('Folder does not exist!');
+      }
+
+      if (!folder.isOwnedBy(user)) {
+        throw new ForbiddenException('Folder does not belong to you!');
+      }
+
+      folder.files = await this.fileUsecases.getFilesByFolderUuid(
+        folder.uuid,
+        deleted ? FileStatus.TRASHED : FileStatus.EXISTS,
+      );
+
+      folder.children = [];
+
+      const folders = await this.folderRepository.findAllByParentUuid(
+        folderUuid,
+        deleted,
+      );
+
+      folders.forEach((f) => {
+        pendingFolders.push({
+          folderUuid: f.uuid,
+          elements: folder.children,
+        });
+      });
+
+      elements.push(folder);
+    }
+
+    return rootElements[0];
+  }
+
   async getFolderByUserId(
     folderId: FolderAttributes['id'],
     userId: UserAttributes['id'],
@@ -92,13 +180,22 @@ export class FolderUseCases {
     return folder;
   }
 
+  async getUserRootFolder(user: User): Promise<Folder | null> {
+    const folder = await this.folderRepository.findOne({
+      id: user.rootFolderId,
+      userId: user.id,
+    });
+
+    return folder;
+  }
+
   async getFolder(
     folderId: FolderAttributes['id'],
     { deleted }: FolderOptions = { deleted: false },
   ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
 
-    return this.decryptFolderName(folder);
+    return folder ? this.decryptFolderName(folder) : null;
   }
 
   async isFolderInsideFolder(
@@ -143,16 +240,11 @@ export class FolderUseCases {
     return folders;
   }
 
-  async getFoldersToUser(
+  async getFoldersByUserId(
     userId: FolderAttributes['userId'],
-    { deleted }: FolderOptions = { deleted: false },
-  ) {
-    const folders = await this.folderRepository.findAll({
-      userId,
-      deleted,
-    });
-
-    return folders;
+    where: Partial<FolderAttributes>,
+  ): Promise<Folder[]> {
+    return this.folderRepository.findAll({ userId, ...where });
   }
 
   async createRootFolder(
@@ -193,7 +285,8 @@ export class FolderUseCases {
     creator: User,
     folders: {
       name: FolderAttributes['name'];
-      parentFolderId: FolderAttributes['id'];
+      parentFolderId: FolderAttributes['parentId'];
+      parentUuid: FolderAttributes['parentUuid'];
     }[],
   ): Promise<Folder[]> {
     for (const { parentFolderId } of folders) {
@@ -226,20 +319,76 @@ export class FolderUseCases {
           encryptVersion: '03-aes',
           bucket: null,
           parentId: folder.parentFolderId,
+          parentUuid: folder.parentUuid,
         };
       }),
     );
   }
 
-  async createFolder(
-    creator: User,
-    name: FolderAttributes['name'],
-    parentFolderId: FolderAttributes['id'],
-  ): Promise<Folder> {
-    if (parentFolderId >= 2147483648) {
-      throw new Error('Invalid parent folder');
+  async createFolderDevice(user: User, folderData: Partial<FolderAttributes>) {
+    if (!folderData.name || !folderData.bucket) {
+      throw new BadRequestException('Folder name and bucket are required');
+    }
+    return this.folderRepository.createFolder(user.id, folderData);
+  }
+
+  async updateFolderMetaData(
+    user: User,
+    folderUuid: Folder['uuid'],
+    newFolderMetadata: UpdateFolderMetaDto,
+  ) {
+    const folder = await this.folderRepository.findOne({
+      uuid: folderUuid,
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
     }
 
+    if (folder.isRemoved()) {
+      throw new UnprocessableEntityException(
+        'Cannot update this folder metadata',
+      );
+    }
+
+    if (!folder.isOwnedBy(user)) {
+      throw new ForbiddenException('This folder is not yours');
+    }
+
+    const cryptoFileName = this.cryptoService.encryptName(
+      newFolderMetadata.plainName,
+      folder.parentId,
+    );
+
+    const folderWithSameNameExists = await this.folderRepository.findOne({
+      name: cryptoFileName,
+      parentId: folder.parentId,
+      deleted: false,
+      removed: false,
+    });
+
+    if (folderWithSameNameExists) {
+      throw new ConflictException(
+        'A folder with this name already exists in this location',
+      );
+    }
+
+    const updatedFolder = await this.folderRepository.updateByFolderId(
+      folder.id,
+      {
+        plainName: newFolderMetadata.plainName,
+        name: cryptoFileName,
+        modificationTime: new Date(),
+      },
+    );
+
+    return updatedFolder;
+  }
+
+  async createFolder(
+    creator: User,
+    newFolderDto: CreateFolderDto,
+  ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
     let user = creator;
 
@@ -252,40 +401,59 @@ export class FolderUseCases {
       user = await this.userRepository.findByUsername(creator.bridgeUser);
     }
 
-    const parentFolderExists = await this.folderRepository.findOne({
-      id: parentFolderId,
+    const parentFolder = await this.folderRepository.findOne({
+      uuid: newFolderDto.parentFolderUuid,
       userId: user.id,
     });
 
-    if (!parentFolderExists) {
-      throw new Error('Parent folder does not exist or is not yours');
+    if (!parentFolder) {
+      throw new BadRequestException(
+        'Parent folder does not exist or is not yours',
+      );
     }
 
-    if (name === '' || invalidName.test(name)) {
-      throw new Error('Invalid folder name');
+    if (
+      newFolderDto.plainName === '' ||
+      invalidName.test(newFolderDto.plainName)
+    ) {
+      throw new BadRequestException('Invalid folder name');
     }
-
-    const encryptedFolderName = this.cryptoService.encryptName(
-      name,
-      parentFolderId,
-    );
 
     const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentId: parentFolderId,
-      name: encryptedFolderName,
+      parentId: parentFolder.id,
+      plainName: newFolderDto.plainName,
+      deleted: false,
     });
 
     if (nameAlreadyInUse) {
-      throw Error('Folder with the same name already exists');
+      throw new BadRequestException(
+        'Folder with the same name already exists in this location',
+      );
     }
 
-    const folder = await this.folderRepository.create(
-      user.id,
-      encryptedFolderName,
-      null,
-      parentFolderId,
-      '03-aes',
+    const encryptedFolderName = this.cryptoService.encryptName(
+      newFolderDto.plainName,
+      parentFolder.id,
     );
+
+    const folder = await this.folderRepository.createWithAttributes({
+      uuid: v4(),
+      userId: user.id,
+      name: encryptedFolderName,
+      plainName: newFolderDto.plainName,
+      parentId: parentFolder.id,
+      parentUuid: parentFolder.uuid,
+      encryptVersion: '03-aes',
+      bucket: null,
+      deleted: false,
+      removed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      removedAt: null,
+      deletedAt: null,
+      modificationTime: newFolderDto.modificationTime || new Date(),
+      creationTime: newFolderDto.creationTime || new Date(),
+    });
 
     return folder;
   }
@@ -296,6 +464,11 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
+
+  async deleteByUuids(user: User, uuids: Folder['uuid'][]): Promise<void> {
+    await this.folderRepository.deleteByUserAndUuids(user, uuids);
+  }
+
   async moveFoldersToTrash(
     user: User,
     folderIds: FolderAttributes['id'][],
@@ -312,7 +485,9 @@ export class FolderUseCases {
     const folders = foldersById.concat(foldersByUuid);
 
     const backups = folders.filter((f) => f.isBackup(driveRootFolder));
-    const driveFolders = folders.filter((f) => !f.isBackup(driveRootFolder));
+    const driveFolders = folders.filter(
+      (f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId,
+    );
 
     await Promise.all([
       driveFolders.length > 0
@@ -405,6 +580,29 @@ export class FolderUseCases {
     );
   }
 
+  async searchFoldersInFolder(
+    user: User,
+    folderUuid: Folder['uuid'],
+    { plainNames }: { plainNames: Folder['plainName'][] },
+  ): Promise<Folder[]> {
+    const parentFolder = await this.folderRepository.findOne({
+      userId: user.id,
+      uuid: folderUuid,
+      removed: false,
+      deleted: false,
+    });
+
+    if (!parentFolder) {
+      throw new BadRequestException('Parent folder not valid');
+    }
+
+    return this.folderRepository.findByParent(parentFolder.id, {
+      plainName: plainNames,
+      deleted: false,
+      removed: false,
+    });
+  }
+
   getFoldersUpdatedAfter(
     userId: UserAttributes['id'],
     where: Partial<FolderAttributes>,
@@ -423,10 +621,31 @@ export class FolderUseCases {
     );
   }
 
+  getWorkspacesFoldersUpdatedAfter(
+    createdBy: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    options: { limit: number; offset: number; sort?: SortParamsFolder },
+  ): Promise<Array<Folder>> {
+    const additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']> =
+      options.sort ?? [['updatedAt', 'ASC']];
+
+    return this.folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter(
+      createdBy,
+      workspaceId,
+      where,
+      updatedAfter,
+      options.limit,
+      options.offset,
+      additionalOrders,
+    );
+  }
+
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -446,7 +665,7 @@ export class FolderUseCases {
   async getFoldersWithParent(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParams } = {
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
       limit: 20,
       offset: 0,
     },
@@ -454,6 +673,30 @@ export class FolderUseCases {
     const foldersWithMaybePlainName =
       await this.folderRepository.findAllCursorWithParent(
         { ...where, userId },
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
+  async getFoldersInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<FolderAttributes>,
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findAllCursorInWorkspace(
+        createdBy,
+        workspaceId,
+        { ...where },
         options.limit,
         options.offset,
         options.sort,
@@ -473,24 +716,18 @@ export class FolderUseCases {
     );
   }
 
+  /**
+   * Permanently deletes a folder from the database
+   * @throws ForbiddenException if the user is not the owner of the folder
+   * @warning This method should NOT be used unless you explicitly want to remove
+   * data from the database permanently.
+   */
   async deleteFolderPermanently(folder: Folder, user: User): Promise<void> {
     if (folder.userId !== user.id) {
       Logger.error(
         `User with id: ${user.id} tried to delete a folder that does not own.`,
       );
       throw new ForbiddenException(`You are not owner of this share`);
-    }
-
-    if (folder.isRootFolder()) {
-      throw new UnprocessableEntityException(
-        `folder with id ${folder.id} is a root folder`,
-      );
-    }
-
-    if (!folder.deleted) {
-      throw new UnprocessableEntityException(
-        `folder with id ${folder.id} cannot be permanently deleted`,
-      );
     }
 
     await this.folderRepository.deleteById(folder.id);
@@ -533,12 +770,33 @@ export class FolderUseCases {
     return this.folderRepository.getFolderAncestors(user, folderUuid);
   }
 
+  getFolderAncestorsInWorkspace(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<Folder[]> {
+    return this.folderRepository.getFolderAncestorsInWorkspace(
+      user,
+      folderUuid,
+    );
+  }
+
   async moveFolder(
     user: User,
     folderUuid: Folder['uuid'],
     destinationUuid: Folder['uuid'],
   ): Promise<Folder> {
-    const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+    const folder = await this.folderRepository.findOne({
+      uuid: folderUuid,
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Folder does not exist');
+    }
+
+    if (!folder.isOwnedBy(user)) {
+      throw new ForbiddenException();
+    }
+
     if (folder.isRootFolder()) {
       throw new UnprocessableEntityException(
         'The root folder can not be moved',
@@ -550,17 +808,18 @@ export class FolderUseCases {
       );
     }
 
-    const parentFolder = await this.folderRepository.findById(folder.parentId);
-    if (parentFolder.removed === true) {
+    const parentFolder = await this.folderRepository.findOne({
+      id: folder.parentId,
+    });
+
+    if (parentFolder?.isRemoved()) {
       throw new UnprocessableEntityException(
         `Folder ${folderUuid} can not be moved`,
       );
     }
 
-    const destinationFolder = await this.getFolderByUuidAndUser(
-      destinationUuid,
-      user,
-    );
+    const destinationFolder = await this.getFolderByUuid(destinationUuid, user);
+
     if (destinationFolder.removed === true) {
       throw new UnprocessableEntityException(
         `Folder can not be moved to ${destinationUuid}`,
@@ -578,6 +837,7 @@ export class FolderUseCases {
 
     const exists = await this.folderRepository.findByNameAndParentUuid(
       destinationEncryptedName,
+      originalPlainName,
       destinationFolder.uuid,
       false,
     );
@@ -607,7 +867,36 @@ export class FolderUseCases {
     return updatedFolder;
   }
 
-  decryptFolderName(folder: Folder): any {
+  async renameFolder(folder: Folder, newName: string): Promise<Folder> {
+    if (newName === '' || invalidName.test(newName)) {
+      throw new BadRequestException('Invalid folder name');
+    }
+
+    const newEncryptedName = this.cryptoService.encryptName(
+      newName,
+      folder.parentId,
+    );
+
+    const exists = await this.folderRepository.findByNameAndParentUuid(
+      newEncryptedName,
+      newName,
+      folder.parentUuid,
+      false,
+    );
+
+    if (exists) {
+      throw new ConflictException(
+        'A folder with the same name already exists in this location',
+      );
+    }
+
+    return await this.folderRepository.updateByFolderId(folder.id, {
+      name: newEncryptedName,
+      plainName: newName,
+    });
+  }
+
+  decryptFolderName(folder: Folder): Folder {
     const decryptedName = this.cryptoService.decryptName(
       folder.name,
       folder.parentId,
@@ -621,14 +910,49 @@ export class FolderUseCases {
       ...folder,
       name: decryptedName,
       plainName: decryptedName,
-    }).toJSON();
+    });
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    const isRootFolder = folders.some(
+      (folder) => folder.id === user.rootFolderId || folder.parentId === null,
+    );
+    if (isRootFolder) {
+      throw new NotAcceptableException('Cannot delete root folder');
+    }
     await this.folderRepository.deleteByUser(user, folders);
   }
 
-  getFolderSizeByUuid(folderUuid: Folder['uuid']): Promise<number> {
-    return this.folderRepository.calculateFolderSize(folderUuid);
+  getFolderSizeByUuid(
+    folderUuid: Folder['uuid'],
+    includeTrashedFiles = true,
+  ): Promise<number> {
+    return this.folderRepository.calculateFolderSize(
+      folderUuid,
+      includeTrashedFiles,
+    );
+  }
+
+  async getFolderMetadataByPath(
+    user: UserAttributes,
+    path: string,
+  ): Promise<Folder | null> {
+    const rootFolder = await this.getFolderByUserId(user.rootFolderId, user.id);
+    if (!rootFolder) {
+      throw new NotFoundException('Root Folder not found');
+    }
+
+    return this.folderRepository.getFolderByPath(
+      user.id,
+      path,
+      rootFolder.uuid,
+    );
+  }
+
+  async updateByFolderId(
+    folder: Folder,
+    folderData: Partial<FolderAttributes>,
+  ): Promise<Folder> {
+    return this.folderRepository.updateByFolderId(folder.id, folderData);
   }
 }

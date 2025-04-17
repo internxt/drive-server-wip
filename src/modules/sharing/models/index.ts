@@ -3,7 +3,10 @@ import {
   BelongsTo,
   Column,
   DataType,
+  Default,
   ForeignKey,
+  HasMany,
+  HasOne,
   Model,
   PrimaryKey,
   Table,
@@ -11,13 +14,40 @@ import {
 import {
   PermissionAttributes,
   RoleAttributes,
+  SharedWithType,
   SharingAttributes,
   SharingInviteAttributes,
+  SharingActionName,
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
 import { FolderModel } from '../../folder/folder.model';
 import { FileModel } from '../../../modules/file/file.model';
 import { PreCreatedUserModel } from '../../../modules/user/pre-created-users.model';
+import { WorkspaceTeamModel } from '../../workspaces/models/workspace-team.model';
+import { SharingRolesModel } from './sharing-roles.model';
+
+@Table({
+  underscored: true,
+  timestamps: true,
+  tableName: 'roles',
+})
+export class RoleModel extends Model implements RoleAttributes {
+  @PrimaryKey
+  @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
+  id: string;
+
+  @Column
+  name: string;
+
+  @HasMany(() => SharingRolesModel, 'roleId')
+  role: SharingRolesModel;
+
+  @Column
+  createdAt: Date;
+
+  @Column
+  updatedAt: Date;
+}
 
 @Table({
   underscored: true,
@@ -33,28 +63,14 @@ export class PermissionModel extends Model implements PermissionAttributes {
   @Column({ type: DataType.UUID })
   roleId: string;
 
-  @Column
-  name: string;
+  @BelongsTo(() => RoleModel, {
+    foreignKey: 'roleId',
+    targetKey: 'id',
+  })
+  role: RoleModel;
 
   @Column
-  createdAt: Date;
-
-  @Column
-  updatedAt: Date;
-}
-
-@Table({
-  underscored: true,
-  timestamps: true,
-  tableName: 'roles',
-})
-export class RoleModel extends Model implements RoleAttributes {
-  @PrimaryKey
-  @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
-
-  @Column
-  name: string;
+  name: SharingActionName;
 
   @Column
   createdAt: Date;
@@ -102,7 +118,6 @@ export class SharingModel extends Model implements SharingAttributes {
   })
   owner: UserModel;
 
-  @ForeignKey(() => UserModel)
   @Column(DataType.UUIDV4)
   sharedWith: SharingAttributes['sharedWith'];
 
@@ -112,6 +127,20 @@ export class SharingModel extends Model implements SharingAttributes {
     as: 'invited',
   })
   sharedWithUser: UserModel;
+
+  @BelongsTo(() => WorkspaceTeamModel, {
+    foreignKey: 'shared_with',
+    targetKey: 'id',
+    as: 'sharedWithTeam',
+  })
+  sharedWithTeam: WorkspaceTeamModel;
+
+  @AllowNull(false)
+  @Default(SharedWithType.Individual)
+  @Column(
+    DataType.ENUM(SharedWithType.Individual, SharedWithType.WorkspaceTeam),
+  )
+  sharedWithType: SharedWithType;
 
   @Column({ type: DataType.STRING, allowNull: true, defaultValue: null })
   encryptedCode: SharingAttributes['encryptedCode'];
@@ -128,6 +157,12 @@ export class SharingModel extends Model implements SharingAttributes {
   @AllowNull(false)
   @Column(DataType.ENUM('public', 'private'))
   type: SharingAttributes['type'];
+
+  @HasOne(() => SharingRolesModel, {
+    foreignKey: 'sharingId',
+    sourceKey: 'id',
+  })
+  role: RoleModel;
 
   @Column
   createdAt: Date;

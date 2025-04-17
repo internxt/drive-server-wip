@@ -1,20 +1,35 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
+  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import * as jwtUtils from '../../lib/jwt';
+import {
+  newKeyServer,
+  newPreCreatedUser,
+  newUser,
+} from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
 import { MailLimitReachedException, UserUseCases } from './user.usecase';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { SharingService } from '../sharing/sharing.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
-import { generateBase64PrivateKeyStub, newUser } from '../../../test/fixtures';
-import { AccountTokenAction } from './user.domain';
+import { AccountTokenAction, User } from './user.domain';
 import { v4 } from 'uuid';
+import { DeviceType } from './dto/register-notification-token.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { Request } from 'express';
+import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
+import { Test } from '@nestjs/testing';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -22,13 +37,30 @@ jest.mock('../../config/configuration', () => {
     default: jest.fn(() => ({
       secrets: {
         jwt: 'Test',
-        jitsiSecret: generateBase64PrivateKeyStub(),
+        jitsiSecret: 'jitsi secret',
       },
       jitsi: {
         appId: 'jitsi-app-id',
         apiKey: 'jitsi-api-key',
       },
+      avatar: {
+        accessKey: 'accessKey',
+        secretKey: 'secretKey',
+        bucket: 'bucket',
+        region: 'region',
+        endpoint: 'http://localhost:9001',
+        endpointForSignedUrls: 'http://localhost:9000',
+        forcePathStyle: true,
+      },
     })),
+  };
+});
+
+jest.mock('../../lib/jwt', () => {
+  return {
+    ...jest.requireActual('../../lib/jitsi'),
+    generateJitsiJWT: jest.fn(() => 'newJitsiJwt'),
+    verifyWithDefaultSecret: jest.fn(() => 'defaultVerifiedSecret'),
   };
 });
 
@@ -38,22 +70,19 @@ describe('User Controller', () => {
   let notificationService: DeepMocked<NotificationService>;
   let keyServerUseCases: DeepMocked<KeyServerUseCases>;
   let cryptoService: DeepMocked<CryptoService>;
-  let sharingService: DeepMocked<SharingService>;
 
   beforeEach(async () => {
-    userUseCases = createMock<UserUseCases>();
-    notificationService = createMock<NotificationService>();
-    keyServerUseCases = createMock<KeyServerUseCases>();
-    cryptoService = createMock<CryptoService>();
-    sharingService = createMock<SharingService>();
-
-    userController = new UserController(
-      userUseCases,
-      notificationService,
-      keyServerUseCases,
-      cryptoService,
-      sharingService,
-    );
+    const moduleRef = await Test.createTestingModule({
+      controllers: [UserController],
+    })
+      .setLogger(createMock<Logger>())
+      .useMocker(() => createMock())
+      .compile();
+    userController = moduleRef.get(UserController);
+    userUseCases = moduleRef.get(UserUseCases);
+    notificationService = moduleRef.get(NotificationService);
+    keyServerUseCases = moduleRef.get(KeyServerUseCases);
+    cryptoService = moduleRef.get(CryptoService);
   });
 
   it('should be defined', () => {
@@ -61,11 +90,12 @@ describe('User Controller', () => {
   });
 
   describe('POST /unblock-account', () => {
-    it('When an unhandled error is returned, then error 500 is shown', async () => {
-      userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(new Error());
+    it('When an error is returned, then it should throw the error again to be catched by global exception filter', async () => {
+      const error = new Error('Not http error');
+      userUseCases.sendAccountUnblockEmail.mockRejectedValueOnce(error);
       await expect(
         userController.requestAccountUnblock({ email: '' }),
-      ).rejects.toThrow(InternalServerErrorException);
+      ).rejects.toThrow(error);
     });
 
     it('When mail Limit is reached, then 429 error is shown', async () => {
@@ -136,6 +166,16 @@ describe('User Controller', () => {
 
     it('When token and user are correct, then resolves', async () => {
       userUseCases.unblockAccount.mockResolvedValueOnce();
+
+      jest.spyOn(jwtUtils, 'verifyWithDefaultSecret').mockReturnValueOnce({
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+        iat: 123123,
+      });
+
       await expect(
         userController.accountUnblock(validToken),
       ).resolves.toBeUndefined();
@@ -188,6 +228,709 @@ describe('User Controller', () => {
 
       await expect(userController.getMeetTokenAnon(v4())).rejects.toThrow(
         ForbiddenException,
+      );
+    });
+  });
+
+  describe('POST /notification-token', () => {
+    const user = newUser();
+    it('When notification token is added, then it adds the token', async () => {
+      userUseCases.registerUserNotificationToken.mockResolvedValueOnce();
+      await expect(
+        userController.addNotificationToken(user, {
+          token: 'test',
+          type: DeviceType.macos,
+        }),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('POST /email-verification', () => {
+    it('When the verification token is valid, then email is verified', async () => {
+      const verifyEmailDto = { verificationToken: 'valid-token' };
+      userUseCases.verifyUserEmail.mockResolvedValueOnce(undefined);
+
+      await expect(
+        userController.verifyAccountEmail(verifyEmailDto),
+      ).resolves.toBeUndefined();
+
+      expect(userUseCases.verifyUserEmail).toHaveBeenCalledWith(
+        verifyEmailDto.verificationToken,
+      );
+    });
+
+    it('When the verification token is invalid, then it throws an error', async () => {
+      const verifyEmailDto = { verificationToken: 'invalid-token' };
+      userUseCases.verifyUserEmail.mockRejectedValueOnce(
+        new BadRequestException(),
+      );
+
+      await expect(
+        userController.verifyAccountEmail(verifyEmailDto),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(userUseCases.verifyUserEmail).toHaveBeenCalledWith(
+        verifyEmailDto.verificationToken,
+      );
+    });
+  });
+
+  describe('POST /email-verification/send', () => {
+    it('When the user has not reached the mail limit, then it sends a verification email', async () => {
+      const user = newUser();
+      userUseCases.sendAccountEmailVerification.mockResolvedValueOnce(
+        undefined,
+      );
+
+      await expect(
+        userController.sendAccountVerifyEmail(user),
+      ).resolves.toBeUndefined();
+
+      expect(userUseCases.sendAccountEmailVerification).toHaveBeenCalledWith(
+        user,
+      );
+    });
+  });
+
+  describe('PATCH /profile', () => {
+    const user = newUser();
+    it('When name is provided and valid, then it should call updateProfile with the correct parameters', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: 'Internxt',
+      };
+
+      await userController.updateProfile(user, updateProfileDto);
+
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(
+        user,
+        updateProfileDto,
+      );
+    });
+
+    it('When lastname is provided as an empty string, then it should call updateProfile with the correct parameters', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        lastname: '',
+      };
+
+      await userController.updateProfile(user, updateProfileDto);
+
+      expect(userUseCases.updateProfile).toHaveBeenCalledWith(
+        user,
+        updateProfileDto,
+      );
+    });
+
+    it('When both name and lastname are not provided, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: undefined,
+        lastname: undefined,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When name is null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When lastname is null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        lastname: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When both name and lastname are null, then it should throw', async () => {
+      const updateProfileDto: UpdateProfileDto = {
+        name: null,
+        lastname: null,
+      };
+
+      await expect(
+        userController.updateProfile(user, updateProfileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('PUT /avatar', () => {
+    const user = newUser();
+    const newAvatarKey = v4();
+    const avatar: Express.Multer.File | any = {
+      stream: undefined,
+      fieldname: undefined,
+      originalname: undefined,
+      encoding: undefined,
+      mimetype: undefined,
+      size: undefined,
+      filename: undefined,
+      destination: undefined,
+      path: undefined,
+      buffer: undefined,
+    };
+
+    it('When uploadAvatar is called with a valid avatar then it should upload the avatar', async () => {
+      avatar.key = newAvatarKey;
+      const avatarURL = 'https://localhost:9000/avatars/' + v4();
+      const mockResponse = { avatar: avatarURL };
+      jest
+        .spyOn(userUseCases, 'upsertAvatar')
+        .mockResolvedValue({ avatar: avatarURL });
+      const result = await userController.uploadAvatar(avatar, user);
+      expect(result).toEqual(mockResponse);
+      expect(userUseCases.upsertAvatar).toHaveBeenCalledWith(
+        user,
+        newAvatarKey,
+      );
+    });
+
+    it('When uploadAvatar is called without an avatar then it should throw', async () => {
+      const mockAvatar = undefined;
+      await expect(
+        userController.uploadAvatar(mockAvatar as any, user),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When uploadAvatar is called without a key then it should throw', async () => {
+      avatar.key = null;
+      await expect(userController.uploadAvatar(avatar, user)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
+
+    it('When upsertAvatar throws an error, then it should log the error and rethrow it', async () => {
+      avatar.key = newAvatarKey;
+      const errorMessage = 'Failed to upload avatar';
+      jest
+        .spyOn(userUseCases, 'upsertAvatar')
+        .mockRejectedValue(new Error(errorMessage));
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await expect(userController.uploadAvatar(avatar, user)).rejects.toThrow(
+        Error,
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        `[USER/UPLOAD_AVATAR] Error uploading avatar for user: ${user.id}. Error: ${errorMessage}`,
+      );
+
+      loggerSpy.mockRestore();
+    });
+  });
+
+  describe('DELETE /avatar', () => {
+    const user = newUser();
+    it('When deleteAvatar is called then it should delete the user avatar', async () => {
+      jest.spyOn(userUseCases, 'deleteAvatar').mockResolvedValue(undefined);
+
+      await userController.deleteAvatar(user);
+      expect(userUseCases.deleteAvatar).toHaveBeenCalledWith(user);
+    });
+
+    it('When deleteAvatar throws an error, then it should log the error and rethrow it', async () => {
+      const errorMessage = 'Failed to delete avatar';
+      jest
+        .spyOn(userUseCases, 'deleteAvatar')
+        .mockRejectedValue(new Error(errorMessage));
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      await expect(userController.deleteAvatar(user)).rejects.toThrow(Error);
+      expect(loggerSpy).toHaveBeenCalledWith(
+        `[USER/DELETE_AVATAR] Error deleting the avatar for the user: ${user.id} has failed. Error: ${errorMessage}`,
+      );
+
+      loggerSpy.mockRestore();
+    });
+  });
+
+  describe('GET /public-key/:email', () => {
+    const mockUser = newUser();
+
+    it('When public keys are requested, then it should return the publicKey field for backward compatibility', async () => {
+      const kyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKeys = newKeyServer({ userId: mockUser.id });
+
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.publicKey).toEqual(eccKeys.publicKey);
+    });
+
+    it('When public keys are requested, then it should return the keys object containing public keys for each encryption method', async () => {
+      const kyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKeys = newKeyServer({ userId: mockUser.id });
+
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.keys).toMatchObject({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+    });
+
+    it('When public keys are requested and user does not have keys, then it should return empty keys object and public key', async () => {
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.keys).toMatchObject({
+        kyber: null,
+        ecc: null,
+      });
+      expect(response.publicKey).toEqual(null);
+    });
+  });
+
+  describe('PATCH /password', () => {
+    const mockUser = newUser();
+    const clientId = 'drive-web';
+    const mockUpdatePasswordDto: UpdatePasswordDto = {
+      currentPassword: 'encryptedCurrentPassword',
+      newPassword: 'encryptedNewPassword',
+      newSalt: 'encryptedNewSalt',
+      mnemonic: 'mockMnemonic',
+      privateKey: 'mockPrivateKey',
+      encryptVersion: 'ecc',
+      privateKyberKey: 'encryptedPrivateKyberKey',
+    };
+
+    it('When client is not drive-web, then it throws', async () => {
+      const invalidClient = 'invalid-client';
+      await expect(
+        userController.updatePassword(
+          mockUpdatePasswordDto,
+          mockUser,
+          invalidClient,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When current password does not match, then it throws', async () => {
+      cryptoService.decryptText.mockReturnValueOnce('decryptedCurrentPassword');
+      mockUser.password = 'differentPassword';
+
+      await expect(
+        userController.updatePassword(
+          mockUpdatePasswordDto,
+          mockUser,
+          clientId,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('When all conditions are met, it updates the password and returns tokens', async () => {
+      const newPassword = 'newPassword';
+      const newSalt = 'newSalt';
+
+      const kyberKey = newKeyServer({
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKey = newKeyServer();
+
+      const mockTokens = { token: 'mockToken', newToken: 'mockNewToken' };
+      cryptoService.decryptText
+        .mockReturnValueOnce(mockUser.password) // currentPassword
+        .mockReturnValueOnce(newPassword)
+        .mockReturnValueOnce(newSalt);
+      keyServerUseCases.findUserKeys.mockResolvedValueOnce({
+        kyber: kyberKey,
+        ecc: eccKey,
+      });
+      userUseCases.getAuthTokens.mockResolvedValueOnce(mockTokens);
+
+      const result = await userController.updatePassword(
+        mockUpdatePasswordDto,
+        mockUser,
+        clientId,
+      );
+
+      expect(userUseCases.updatePassword).toHaveBeenCalledWith(mockUser, {
+        currentPassword: mockUser.password,
+        newPassword: newPassword,
+        newSalt: newSalt,
+        mnemonic: mockUpdatePasswordDto.mnemonic,
+        privateKey: mockUpdatePasswordDto.privateKey,
+        encryptVersion: mockUpdatePasswordDto.encryptVersion,
+        privateKyberKey: mockUpdatePasswordDto.privateKyberKey,
+      });
+      expect(result).toEqual({ status: 'success', ...mockTokens });
+    });
+  });
+
+  describe('POST /create-user', () => {
+    const clientId = 'drive-web';
+    const req = createMock<Request>();
+
+    const mockUser = newUser();
+    const mockCreateUserResponse = {
+      user: { ...mockUser, rootFolderUuid: 'string' } as unknown as User & {
+        rootFolderUuid: string;
+      },
+      token: 'mock-token',
+      newToken: 'new token',
+      uuid: 'mock-uuid',
+    };
+
+    it('When the user is created with new keys object, then the user and keys should be created successfully', async () => {
+      const newKyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const newEccKeys = newKeyServer({ userId: mockUser.id });
+      const newKeys = {
+        kyber: {
+          publicKey: newKyberKeys.publicKey,
+          privateKey: newKyberKeys.privateKey,
+        },
+        ecc: {
+          publicKey: newEccKeys.publicKey,
+          privateKey: newEccKeys.privateKey,
+          revocationKey: newEccKeys.revocationKey,
+        },
+      };
+      const createUserDto: CreateUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: 'test@test.com',
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        privateKey: 'privateKey',
+        publicKey: 'publicKey',
+        revocationKey: 'revocationKey',
+        keys: newKeys,
+      };
+
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce(newKeys);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: newKyberKeys,
+        ecc: newEccKeys,
+      });
+
+      const result = await userController.createUser(
+        createUserDto,
+        req,
+        clientId,
+      );
+
+      expect(userUseCases.createUser).toHaveBeenCalledWith(createUserDto);
+      expect(keyServerUseCases.addKeysToUser).toHaveBeenCalledWith(
+        mockUser.id,
+        {
+          kyber: {
+            publicKey: newKeys.kyber.publicKey,
+            privateKey: newKeys.kyber.privateKey,
+          },
+          ecc: {
+            publicKey: newKeys.ecc.publicKey,
+            privateKey: newKeys.ecc.privateKey,
+            revocationKey: newKeys.ecc.revocationKey,
+          },
+        },
+      );
+      expect((result as any).user).toMatchObject({
+        publicKey: newKeys.ecc.publicKey,
+        privateKey: newKeys.ecc.privateKey,
+        revocationKey: newKeys.ecc.revocationKey,
+        keys: newKeys,
+      });
+    });
+
+    it('When the user is created and ecc keys are found, then it should try to replace pre created user invitations', async () => {
+      const existentEccKey = newKeyServer({ userId: mockUser.id });
+
+      const createUserDto: CreateUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: 'test@test.com',
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: existentEccKey,
+      });
+
+      await userController.createUser(createUserDto, req, clientId);
+
+      expect(userUseCases.replacePreCreatedUser).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /pre-created-users/register', () => {
+    const req = createMock<Request>({
+      headers: { 'internxt-client': 'drive-web' } as any,
+    });
+    const preCreatedUser = newPreCreatedUser();
+    const mockUser = newUser({ attributes: { email: preCreatedUser.email } });
+
+    const mockCreateUserResponse = {
+      user: { ...mockUser, rootFolderUuid: 'string' } as unknown as User & {
+        rootFolderUuid: string;
+      },
+      token: 'mock-token',
+      newToken: 'new token',
+      uuid: v4(),
+    };
+
+    it('When the pre-created user is registered, then the user and keys should be created successfully', async () => {
+      const newKyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const newEccKeys = newKeyServer({ userId: mockUser.id });
+      const newKeys = {
+        kyber: {
+          publicKey: newKyberKeys.publicKey,
+          privateKey: newKyberKeys.privateKey,
+        },
+        ecc: {
+          publicKey: newEccKeys.publicKey,
+          privateKey: newEccKeys.privateKey,
+          revocationKey: newEccKeys.revocationKey,
+        },
+      };
+      const preCreateUserDto: RegisterPreCreatedUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: 'test@test.com',
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        privateKey: newEccKeys.privateKey,
+        publicKey: newEccKeys.publicKey,
+        revocationKey: newEccKeys.revocationKey,
+        invitationId: v4(),
+        referrer: null,
+        registerCompleted: true,
+      };
+
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce(newKeys);
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: newKyberKeys,
+        ecc: newEccKeys,
+      });
+
+      const result = await userController.registerPreCreatedUser(
+        preCreateUserDto,
+        req,
+      );
+
+      expect((result as any).user).toMatchObject({
+        publicKey: newKeys.ecc.publicKey,
+        privateKey: newKeys.ecc.privateKey,
+        revocationKey: newKeys.ecc.revocationKey,
+        keys: newKeys,
+      });
+    });
+
+    it('When the pre-created user is registered without keys, then replacing pre created user invitations should be skipped', async () => {
+      const preCreateUserDto: RegisterPreCreatedUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: 'test@test.com',
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      await userController.registerPreCreatedUser(preCreateUserDto, req);
+
+      expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /public-key/:email', () => {
+    const mockUser = newUser();
+
+    it('When public keys are requested, then it should return the publicKey field for backward compatibility', async () => {
+      const kyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKeys = newKeyServer({ userId: mockUser.id });
+
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.publicKey).toEqual(eccKeys.publicKey);
+    });
+
+    it('When public keys are requested, then it should return the keys object containing public keys for each encryption method', async () => {
+      const kyberKeys = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const eccKeys = newKeyServer({ userId: mockUser.id });
+
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.keys).toMatchObject({
+        kyber: kyberKeys.publicKey,
+        ecc: eccKeys.publicKey,
+      });
+    });
+
+    it('When public keys are requested and user does not have keys, then it should return empty keys object and public key', async () => {
+      keyServerUseCases.getPublicKeys.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      const response = await userController.getPublicKeyByEmail(mockUser.email);
+
+      expect(response.keys).toMatchObject({
+        kyber: null,
+        ecc: null,
+      });
+      expect(response.publicKey).toEqual(null);
+    });
+  });
+
+  describe('POST /deactivation/send', () => {
+    const mockUser = newUser();
+    const mockRequest = createMock<Request>();
+
+    it('When deactivation email is sent successfully, then the notifications service is called', async () => {
+      const notificationsSpy = jest.spyOn(notificationService, 'add');
+
+      await userController.sendUserDeactivationEmail(mockUser, mockRequest);
+
+      expect(userUseCases.sendDeactivationEmail).toHaveBeenCalledWith(mockUser);
+      expect(notificationsSpy).toHaveBeenCalledWith(
+        expect.any(DeactivationRequestEvent),
+      );
+    });
+
+    it('When sending deactivation email fails, then it throws', async () => {
+      userUseCases.sendDeactivationEmail.mockRejectedValueOnce(
+        new Error('Deactivation failed'),
+      );
+
+      await expect(
+        userController.sendUserDeactivationEmail(mockUser, mockRequest),
+      ).rejects.toThrow();
+
+      expect(userUseCases.sendDeactivationEmail).toHaveBeenCalledWith(mockUser);
+      expect(notificationService.add).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /deactivation/confirm', () => {
+    it('When deactivation is confirmed, then the service is called with the received token', async () => {
+      const token = 'deactivationToken';
+      await userController.confirmUserDeactivation({ token });
+
+      expect(userUseCases.confirmDeactivation).toHaveBeenCalledWith(token);
+    });
+  });
+
+  describe('GET /storage/usage', () => {
+    const user = newUser();
+
+    it('When storage usage is requested, then it should return the user usage data', async () => {
+      const mockUsage = {
+        drive: 1024000,
+      };
+
+      userUseCases.getUserUsage.mockResolvedValueOnce(mockUsage);
+
+      const result = await userController.getUserUsage(user);
+
+      expect(userUseCases.getUserUsage).toHaveBeenCalledWith(user);
+      expect(result).toEqual(mockUsage);
+    });
+
+    it('When getUserUsage throws an error, then it should propagate the error', async () => {
+      const errorMessage = 'Failed to get storage usage';
+
+      userUseCases.getUserUsage.mockRejectedValueOnce(new Error(errorMessage));
+
+      await expect(userController.getUserUsage(user)).rejects.toThrow(Error);
+      expect(userUseCases.getUserUsage).toHaveBeenCalledWith(user);
+    });
+  });
+
+  describe('limit', () => {
+    const userMocked = newUser();
+    it('When a valid user is provided, then it should return the space limit', async () => {
+      const maxSpaceBytes = 1000000000;
+      jest
+        .spyOn(userUseCases, 'getSpaceLimit')
+        .mockResolvedValue(maxSpaceBytes);
+
+      const result = await userController.limit(userMocked);
+
+      expect(userUseCases.getSpaceLimit).toHaveBeenCalledWith(userMocked);
+      expect(result).toEqual({ maxSpaceBytes });
+    });
+
+    it('When an error occurs while getting the space limit, then it should log the error and throw it', async () => {
+      const errorMessage = 'Error getting space limit';
+      jest
+        .spyOn(userUseCases, 'getSpaceLimit')
+        .mockRejectedValue(new Error(errorMessage));
+      const consoleErrorSpy = jest
+        .spyOn(Logger, 'error')
+        .mockImplementation(() => {});
+
+      await expect(userController.limit(userMocked)).rejects.toThrow(
+        errorMessage,
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `[USER/SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
+        ),
       );
     });
   });

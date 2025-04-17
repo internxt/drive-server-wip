@@ -13,6 +13,9 @@ import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { UserModule } from '../user/user.module';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -21,9 +24,12 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     forwardRef(() => FolderModule),
     forwardRef(() => ThumbnailModule),
     forwardRef(() => SharingModule),
+    forwardRef(() => WorkspacesModule),
     BridgeModule,
     CryptoModule,
     forwardRef(() => FeatureLimitModule),
+    UserModule,
+    NotificationModule,
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],
