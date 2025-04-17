@@ -200,6 +200,7 @@ export const newUser = (params?: {
     sharedWorkspace: false,
     avatar: null,
     lastPasswordChangedAt: new Date(),
+    tierId: v4(),
     emailVerified: false,
   });
 
