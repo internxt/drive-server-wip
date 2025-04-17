@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -81,14 +83,18 @@ export class WorkspacesUsecases {
   constructor(
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
+    @Inject(forwardRef(() => SharingService))
     private readonly sharingUseCases: SharingService,
     private readonly paymentService: PaymentsService,
     private readonly networkService: BridgeService,
     private readonly userRepository: SequelizeUserRepository,
+    @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly configService: ConfigService,
     private readonly mailerService: MailerService,
+    @Inject(forwardRef(() => FileUseCases))
     private readonly fileUseCases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,

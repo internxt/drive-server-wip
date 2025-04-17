@@ -87,6 +87,7 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
+import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -147,6 +148,8 @@ export class UserUseCases {
     private fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private folderUseCases: FolderUseCases,
+    @Inject(forwardRef(() => WorkspacesUsecases))
+    private workspaceUseCases: WorkspacesUsecases,
     private shareUseCases: ShareUseCases,
     private configService: ConfigService,
     private cryptoService: CryptoService,
@@ -949,7 +952,10 @@ export class UserUseCases {
       mnemonic: string;
       password: string;
       salt: string;
-      privateKey?: string;
+      privateKeys?: {
+        ecc?: string;
+        kyber?: string;
+      };
     },
     withReset = false,
   ): Promise<void> {
@@ -968,12 +974,34 @@ export class UserUseCases {
         deleteFiles: true,
         deleteFolders: true,
         deleteShares: true,
+        deleteWorkspaces: true,
       });
     }
 
-    // TODO: Replace with updating the private key once AFS is ready.
-    // Requires to send the private key encrypted with the user's password
-    await this.keyServerRepository.deleteByUserId(user.id);
+    if (
+      newCredentials.privateKeys &&
+      Object.keys(newCredentials.privateKeys).length > 0
+    ) {
+      for (const [version, privateKey] of Object.entries(
+        newCredentials.privateKeys,
+      )) {
+        if (privateKey) {
+          await this.keyServerUseCases.updateByUserAndEncryptVersion(
+            user.id,
+            version as UserKeysEncryptVersions,
+            { privateKey },
+          );
+        }
+      }
+    } else {
+      await this.keyServerRepository.deleteByUserId(user.id);
+      await this.resetUser(user, {
+        deleteFiles: false,
+        deleteFolders: false,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    }
   }
 
   async resetUser(
@@ -982,10 +1010,14 @@ export class UserUseCases {
       deleteFiles: boolean;
       deleteFolders: boolean;
       deleteShares: boolean;
+      deleteWorkspaces: boolean;
     },
   ): Promise<void> {
     if (options.deleteShares) {
       await this.shareUseCases.deleteByUser(user);
+      await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid });
+      await this.sharingRepository.deleteSharingsBy({ ownerId: user.uuid });
+      await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid });
     }
 
     if (options.deleteFolders) {
@@ -1030,6 +1062,11 @@ export class UserUseCases {
 
         done = files.length < limit || files.length === 0;
       } while (!done);
+    }
+
+    if (options.deleteWorkspaces) {
+      await this.workspaceUseCases.emptyAllUserOwnedWorkspaces(user);
+      await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user);
     }
   }
 
