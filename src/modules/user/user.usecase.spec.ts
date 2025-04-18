@@ -77,6 +77,7 @@ import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
+import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -113,6 +114,7 @@ describe('User use cases', () => {
   let sharingRepository: SequelizeSharingRepository;
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
   let asymmetricEncryptionService: AsymmetricEncryptionService;
+  let workspaceUseCases: WorkspacesUsecases;
 
   const user = User.build({
     id: 1,
@@ -207,6 +209,7 @@ describe('User use cases', () => {
     asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );
+    workspaceUseCases = moduleRef.get<WorkspacesUsecases>(WorkspacesUsecases);
   });
 
   describe('Resetting a user', () => {
@@ -219,6 +222,7 @@ describe('User use cases', () => {
         deleteFiles: false,
         deleteFolders: false,
         deleteShares: false,
+        deleteWorkspaces: false,
       });
 
       expect(deleteSharesSpy).not.toBeCalled();
@@ -236,11 +240,25 @@ describe('User use cases', () => {
           deleteFiles: false,
           deleteFolders: false,
           deleteShares: true,
+          deleteWorkspaces: false,
         });
 
         expect(deleteSharesSpy).toBeCalledWith(user);
         expect(deleteFoldersSpy).not.toBeCalled();
         expect(deleteFilesSpy).not.toBeCalled();
+      });
+
+      it('When delete workspaces is true, then user owned workspaces are reset and user is removed from invited workspaces', async () => {
+        await userUseCases.resetUser(user, {
+          deleteFiles: false,
+          deleteFolders: false,
+          deleteShares: false,
+          deleteWorkspaces: true,
+        });
+
+        expect(
+          workspaceUseCases.removeUserFromNonOwnedWorkspaces,
+        ).toHaveBeenCalled();
       });
 
       describe('When resources do not exist', () => {
@@ -256,6 +274,7 @@ describe('User use cases', () => {
             deleteFiles: false,
             deleteFolders: true,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFoldersSpy).toBeCalledWith(
@@ -283,6 +302,7 @@ describe('User use cases', () => {
             deleteFiles: true,
             deleteFolders: false,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFilesSpy).toBeCalledWith(
@@ -312,6 +332,7 @@ describe('User use cases', () => {
             deleteFiles: false,
             deleteFolders: true,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFoldersSpy).toBeCalledWith(
@@ -339,6 +360,7 @@ describe('User use cases', () => {
             deleteFiles: true,
             deleteFolders: false,
             deleteShares: false,
+            deleteWorkspaces: false,
           });
 
           expect(getFilesSpy).toBeCalledWith(
