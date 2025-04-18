@@ -87,6 +87,7 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
+import { LimitLabels } from '../feature-limit/limits.enum';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -1658,5 +1659,35 @@ export class UserUseCases {
     await this.cacheManager.setUserStorageLimit(user.uuid, limit);
 
     return limit;
+  }
+
+  async getUserUploadLimits(
+    user: User,
+  ): Promise<{ maxFileSize: number | null; tierId: string | null }> {
+    if (!user.tierId) {
+      return { maxFileSize: null, tierId: null };
+    }
+
+    try {
+      const limit = await this.featureLimitRepository.findLimitByLabelAndTier(
+        user.tierId,
+        LimitLabels.MaxFileUploadSize,
+      );
+
+      if (!limit) {
+        return { maxFileSize: null, tierId: user.tierId };
+      }
+
+      return {
+        maxFileSize: parseInt(limit.value, 10),
+        tierId: user.tierId,
+      };
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(
+        `[USER/UPLOAD-LIMITS] Error getting user upload limits. User: ${user.email}, Error: ${err.message}`,
+      );
+      return { maxFileSize: null, tierId: user.tierId };
+    }
   }
 }

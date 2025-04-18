@@ -83,6 +83,7 @@ import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
+import { GetUserUploadLimitsDto } from './dto/responses/get-user-upload-limits.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -971,5 +972,22 @@ export class UserController {
       );
       throw err;
     }
+  }
+
+  @Get('/upload-limits')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get User Upload Limits',
+    description:
+      'Returns the maximum file size allowed for the current user based on their tier.',
+  })
+  @ApiOkResponse({
+    description: 'Returns the maximum file size in bytes',
+    type: GetUserUploadLimitsDto,
+  })
+  async getUserUploadLimits(
+    @UserDecorator() user: User,
+  ): Promise<GetUserUploadLimitsDto> {
+    return this.userUseCases.getUserUploadLimits(user);
   }
 }

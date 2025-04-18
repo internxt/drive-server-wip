@@ -31,6 +31,6 @@ export interface MaxSharedItemsAttribute {
 export interface LimitTypeMapping {
   [LimitLabels.MaxSharedItemInvites]: MaxInviteesPerItemAttribute;
   [LimitLabels.MaxSharedItems]: MaxSharedItemsAttribute;
-  [LimitLabels.MaxFileUploadSize]: MaxSharedItemsAttribute;
+  [LimitLabels.MaxFileUploadSize]: MaxFileUploadSizeAttribute;
   [key: string]: any;
 }

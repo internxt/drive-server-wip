@@ -38,7 +38,7 @@ export class FeatureLimit implements CanActivate {
       throw new BadRequestException(`Missing Metadata`);
     }
 
-    const { limitLabels, dataSources } = metadata;
+    const { limitLabels, dataSources, context: metadataContext } = metadata;
 
     if (!limitLabels) {
       return true;
@@ -53,6 +53,7 @@ export class FeatureLimit implements CanActivate {
             limitLabel,
             user,
             extractedData as LimitTypeMapping[typeof limitLabel],
+            metadataContext,
           );
 
         if (shouldLimitBeEnforced) {

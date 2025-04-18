@@ -56,6 +56,7 @@ import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -73,6 +74,7 @@ export class FileController {
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly thumbnailUseCases: ThumbnailUseCases,
+    private readonly featureLimitUsecases: FeatureLimitUsecases,
   ) {}
 
   @Post('/')
@@ -81,8 +83,18 @@ export class FileController {
   })
   @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
+  @ApplyLimit({
+    limitLabels: [LimitLabels.MaxFileUploadSize],
+    dataSources: [
+      {
+        sourceKey: 'body',
+        fieldName: 'size',
+      },
+    ],
+    context: { transformSizeToFileObject: true },
+  })
   @RequiredSharingPermissions(SharingActionName.UploadFile)
-  @UseGuards(SharingPermissionsGuard, UploadGuard)
+  @UseGuards(SharingPermissionsGuard, FeatureLimit, UploadGuard)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,

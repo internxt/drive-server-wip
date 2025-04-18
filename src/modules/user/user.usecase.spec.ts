@@ -77,6 +77,8 @@ import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { LimitLabels } from '../feature-limit/limits.enum';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -113,6 +115,7 @@ describe('User use cases', () => {
   let sharingRepository: SequelizeSharingRepository;
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
   let asymmetricEncryptionService: AsymmetricEncryptionService;
+  let featureLimitRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
 
   const user = User.build({
     id: 1,
@@ -207,6 +210,7 @@ describe('User use cases', () => {
     asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );
+    featureLimitRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
   });
 
   describe('Resetting a user', () => {
@@ -2528,6 +2532,80 @@ describe('User use cases', () => {
 
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
+    });
+  });
+
+  describe('getUserUploadLimits', () => {
+    const tierId = v4();
+    it('should return null values when user has no tier ID', async () => {
+      const user = newUser({ attributes: { tierId: null } });
+
+      const result = await userUseCases.getUserUploadLimits(user);
+
+      expect(result).toEqual({ maxFileSize: null, tierId: null });
+      expect(
+        featureLimitRepository.findLimitByLabelAndTier,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should return limit from repository when user has tier ID and limit exists', async () => {
+      const user = newUser({ attributes: { tierId: tierId } });
+      const mockLimit = {
+        value: '104857600',
+      };
+
+      featureLimitRepository.findLimitByLabelAndTier.mockResolvedValueOnce(
+        mockLimit as any,
+      );
+
+      const result = await userUseCases.getUserUploadLimits(user);
+
+      expect(result).toEqual({
+        maxFileSize: 104857600,
+        tierId: tierId,
+      });
+      expect(
+        featureLimitRepository.findLimitByLabelAndTier,
+      ).toHaveBeenCalledWith(tierId, LimitLabels.MaxFileUploadSize);
+    });
+
+    it('should return null maxFileSize when limit does not exist for the tier', async () => {
+      const user = newUser({ attributes: { tierId: tierId } });
+
+      featureLimitRepository.findLimitByLabelAndTier.mockResolvedValueOnce(
+        null,
+      );
+
+      const result = await userUseCases.getUserUploadLimits(user);
+
+      expect(result).toEqual({
+        maxFileSize: null,
+        tierId: tierId,
+      });
+    });
+
+    it('should handle errors and return null maxFileSize', async () => {
+      const user = newUser({ attributes: { tierId: tierId } });
+      const error = new Error('Database error');
+
+      featureLimitRepository.findLimitByLabelAndTier.mockRejectedValueOnce(
+        error,
+      );
+      const loggerSpy = jest.spyOn(Logger, 'error').mockImplementation();
+
+      const result = await userUseCases.getUserUploadLimits(user);
+
+      expect(result).toEqual({
+        maxFileSize: null,
+        tierId: tierId,
+      });
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '[USER/UPLOAD-LIMITS] Error getting user upload limits',
+        ),
+      );
+
+      loggerSpy.mockRestore();
     });
   });
 });

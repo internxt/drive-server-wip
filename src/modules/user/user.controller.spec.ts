@@ -934,4 +934,45 @@ describe('User Controller', () => {
       );
     });
   });
+
+  describe('GET /upload-limits', () => {
+    const mockUser = newUser();
+
+    it('should call userUseCases.getUserUploadLimits and return the result', async () => {
+      const mockResponse = {
+        maxFileSize: 104857600,
+        tierId: v4(),
+      };
+
+      userUseCases.getUserUploadLimits.mockResolvedValueOnce(mockResponse);
+
+      const result = await userController.getUserUploadLimits(mockUser);
+
+      expect(userUseCases.getUserUploadLimits).toHaveBeenCalledWith(mockUser);
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle the case when user has no tier', async () => {
+      const mockResponse = {
+        maxFileSize: null,
+        tierId: null,
+      };
+
+      userUseCases.getUserUploadLimits.mockResolvedValueOnce(mockResponse);
+
+      const result = await userController.getUserUploadLimits(mockUser);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should propagate errors from the use case', async () => {
+      const error = new Error('Use case error');
+
+      userUseCases.getUserUploadLimits.mockRejectedValueOnce(error);
+
+      await expect(
+        userController.getUserUploadLimits(mockUser),
+      ).rejects.toThrow(error);
+    });
+  });
 });

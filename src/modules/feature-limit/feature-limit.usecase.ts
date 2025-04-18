@@ -44,9 +44,14 @@ export class FeatureLimitUsecases {
     limitLabel: LimitLabels,
     user: User,
     data: LimitTypeMapping[T],
+    context?: { transformSizeToFileObject?: boolean },
   ): Promise<boolean> {
     if (!user.tierId) {
       return false;
+    }
+
+    if (context?.transformSizeToFileObject && 'size' in data) {
+      data = { file: { size: data.size } } as any;
     }
 
     const limit = await this.limitsRepository.findLimitByLabelAndTier(
