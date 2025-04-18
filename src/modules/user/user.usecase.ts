@@ -629,10 +629,21 @@ export class UserUseCases {
     const keysCreationDate = new Date();
     keysCreationDate.setHours(keysCreationDate.getHours() - 1);
 
-    const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
-      await generateNewKeys(keysCreationDate);
+    const {
+      privateKeyArmored,
+      publicKeyArmored,
+      revocationCertificate,
+      privateKyberKeyBase64,
+      publicKyberKeyBase64,
+    } =
+      await this.asymmetricEncryptionService.generateNewKeys(keysCreationDate);
 
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
+      iv: this.configService.get('secrets.magicIv'),
+      salt: this.configService.get('secrets.magicSalt'),
+    });
+
+    const encPrivateKyberKey = aes.encrypt(privateKyberKeyBase64, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
       salt: this.configService.get('secrets.magicSalt'),
     });
@@ -646,6 +657,8 @@ export class UserUseCases {
       mnemonic: encMnemonic,
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
+      privateKyberKey: encPrivateKyberKey,
+      publicKyberKey: publicKyberKeyBase64,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
     });
