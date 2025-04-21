@@ -811,7 +811,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-  ): Promise<RefreshTokenResponseDto> {
+  ): Promise<{ token: string; newToken: string }> {
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
 
