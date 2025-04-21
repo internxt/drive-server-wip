@@ -554,7 +554,10 @@ describe('User Controller', () => {
       });
       const eccKey = newKeyServer();
 
-      const mockTokens = { token: 'mockToken', newToken: 'mockNewToken' };
+      const mockTokens = {
+        token: 'mockToken',
+        newToken: 'mockNewToken',
+      };
       cryptoService.decryptText
         .mockReturnValueOnce(mockUser.password) // currentPassword
         .mockReturnValueOnce(newPassword)
