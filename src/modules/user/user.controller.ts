@@ -457,6 +457,7 @@ export class UserController {
       name: user.name,
       lastname: user.lastname,
       uuid: user.uuid,
+      bucket: rootFolder?.bucket,
       credit: user.credit,
       createdAt: user.createdAt,
       registerCompleted: user.registerCompleted,
