@@ -80,6 +80,27 @@ export class SequelizeWorkspaceRepository {
     return workspaces.map((workspace) => this.toDomain(workspace));
   }
 
+  async findWorkspaceUsersOfOwnedWorkspaces(
+    ownerId: Workspace['ownerId'],
+  ): Promise<{ workspace: Workspace; workspaceUser: WorkspaceUser }[]> {
+    const workspacesAndUsers = await this.modelWorkspaceUser.findAll({
+      where: { memberId: ownerId },
+      include: {
+        model: WorkspaceModel,
+        as: 'workspace',
+        required: true,
+        where: {
+          ownerId,
+        },
+      },
+    });
+
+    return workspacesAndUsers.map((workspaceAndUser) => ({
+      workspace: this.toDomain(workspaceAndUser.workspace),
+      workspaceUser: this.workspaceUserToDomain(workspaceAndUser),
+    }));
+  }
+
   createTransaction(): Promise<Transaction> {
     return this.modelWorkspace.sequelize.transaction();
   }
@@ -500,6 +521,19 @@ export class SequelizeWorkspaceRepository {
     await this.modelWorkspaceUser.update(update, {
       where: { id: workspaceUserId },
     });
+  }
+
+  async updateWorkspaceUserEncryptedKeyByMemberId(
+    memberId: WorkspaceUserAttributes['memberId'],
+    workspaceId: WorkspaceUserAttributes['workspaceId'],
+    encryptedKey: WorkspaceUserAttributes['key'],
+  ): Promise<void> {
+    await this.modelWorkspaceUser.update(
+      { key: encryptedKey },
+      {
+        where: { memberId, workspaceId },
+      },
+    );
   }
 
   async updateWorkspaceUserBy(
