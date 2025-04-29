@@ -86,6 +86,7 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -991,6 +992,65 @@ export class UserUseCases {
     // TODO: Replace with updating the private key once AFS is ready.
     // Requires to send the private key encrypted with the user's password
     await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async recoverAccountLegacy(
+    userUuid: User['uuid'],
+    credentials: LegacyRecoverAccountDto,
+  ): Promise<void> {
+    const { mnemonic, password, salt, asymmetricEncryptedMnemonic } =
+      credentials;
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const keys = credentials.keys;
+    const keyVersions = Object.values(UserKeysEncryptVersions);
+
+    for (const version of keyVersions) {
+      const key = keys[version];
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version,
+          { privateKey: key.private, publicKey: key.public },
+        );
+      }
+    }
+
+    const ownedWorkspaceAndUsers =
+      await this.workspaceRepository.findWorkspaceUsersOfOwnedWorkspaces(
+        user.uuid,
+      );
+
+    if (ownedWorkspaceAndUsers.length > 0) {
+      //  TODO: this should be updated when we add support for workspace hybrid keys
+      await Promise.all(
+        ownedWorkspaceAndUsers.map((workspaceAndUser) =>
+          this.workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId(
+            workspaceAndUser.workspaceUser.memberId,
+            workspaceAndUser.workspace.id,
+            asymmetricEncryptedMnemonic.ecc,
+          ),
+        ),
+      );
+    }
+
+    await this.resetUser(user, {
+      deleteFiles: false,
+      deleteFolders: false,
+      deleteShares: true,
+      deleteWorkspaces: false,
+    });
   }
 
   async resetUser(
