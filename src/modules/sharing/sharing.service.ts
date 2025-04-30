@@ -750,20 +750,25 @@ export class SharingService {
       getFilesFromFolder(owner.id, folder.id),
     ]);
 
-    const network = await new Environment({
+    const network = new Environment({
       bridgePass: owner.userId,
       bridgeUser: owner.bridgeUser,
       bridgeUrl: getEnv().apis.storage.url,
     });
 
-    for (const file of items) {
-      file.encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
+    const encryptionPromises = items.map(async (file) => {
+      const encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
         file,
         sharing.encryptionKey,
         code,
         network,
       );
-    }
+
+      file.encryptionKey = encryptionKey;
+      return file;
+    });
+
+    await Promise.all(encryptionPromises);
 
     return {
       items,
