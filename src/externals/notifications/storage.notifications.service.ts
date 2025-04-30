@@ -11,6 +11,11 @@ enum StorageEvents {
   FILE_UPDATED = 'FILE_UPDATED',
   FOLDER_UPDATED = 'FOLDER_UPDATED',
   ITEMS_TO_TRASH = 'ITEMS_TO_TRASH',
+  FILE_DELETED = 'FILE_DELETED',
+  FOLDER_DELETED = 'FOLDER_DELETED',
+  PLAN_UPDATED = 'PLAN_UPDATED',
+  WORKSPACE_JOINED = 'WORKSPACE_JOINED',
+  WORKSPACE_LEFT = 'WORKSPACE_LEFT',
 }
 
 interface EventArguments {
@@ -21,6 +26,8 @@ interface EventArguments {
 
 @Injectable()
 export class StorageNotificationService {
+  private readonly logger = new Logger(StorageNotificationService.name);
+
   constructor(
     private notificationService: NotificationService,
     private apnService: ApnService,
@@ -38,7 +45,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid);
   }
 
   fileUpdated({ payload, user, clientId }: EventArguments) {
@@ -52,7 +59,21 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid);
+  }
+
+  fileDeleted({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.itemDeleted',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.FILE_DELETED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid);
   }
 
   folderCreated({ payload, user, clientId }: EventArguments) {
@@ -66,7 +87,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid);
   }
 
   folderUpdated({ payload, user, clientId }: EventArguments) {
@@ -80,7 +101,21 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid);
+  }
+
+  folderDeleted({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.itemDeleted',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.FOLDER_DELETED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid);
   }
 
   itemsTrashed({ payload, user, clientId }: EventArguments) {
@@ -94,11 +129,70 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendNotification(user.uuid);
+    this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  public async getTokensAndSendNotification(userUuid: string) {
-    console.log({ userUuid });
+  planUpdated({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.planUpdated',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.PLAN_UPDATED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.PLAN_UPDATED },
+    });
+  }
+
+  workspaceJoined({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.workspaceJoined',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.WORKSPACE_JOINED,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.WORKSPACE_JOINED },
+    });
+  }
+
+  workspaceLeft({ payload, user, clientId }: EventArguments) {
+    const event = new NotificationEvent(
+      'notification.workspaceLeft',
+      payload,
+      user.email,
+      clientId,
+      user.uuid,
+      StorageEvents.WORKSPACE_LEFT,
+    );
+
+    this.notificationService.add(event);
+    this.getTokensAndSendApnNotification(user.uuid, {
+      isStorageNotification: false,
+      customKeys: { event: StorageEvents.WORKSPACE_LEFT },
+    });
+  }
+
+  async getTokensAndSendApnNotification(
+    userUuid: string,
+    options: {
+      isStorageNotification: boolean;
+      customKeys: Record<string, string>;
+    } = {
+      isStorageNotification: true,
+      customKeys: null,
+    },
+  ) {
     const tokens = await this.userRepository.getNotificationTokens(userUuid, {
       type: 'macos',
     });
@@ -109,11 +203,12 @@ export class StorageNotificationService {
           token,
           {},
           userUuid,
-          true,
+          options.isStorageNotification,
+          options.customKeys,
         );
         return response.statusCode === 410 ? token : null;
       } catch (error) {
-        Logger.error(
+        this.logger.error(
           `Error sending APN notification to ${userUuid}: ${
             (error as Error).message
           }`,

@@ -1,5 +1,6 @@
 import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
+import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
 import { User } from '../../modules/user/user.domain';
@@ -198,6 +199,7 @@ export class BridgeService {
         error,
       )}
       `);
+      throw error;
     }
   }
 
@@ -247,6 +249,59 @@ export class BridgeService {
         BridgeService.handleUpdateUserEmailError(error);
       }
 
+      throw error;
+    }
+  }
+
+  async sendDeactivationEmail(
+    user: Pick<User, 'bridgeUser' | 'userId' | 'email'>,
+    deactivationRedirectUrl: string,
+    deactivator: string,
+  ): Promise<void> {
+    try {
+      const bridgeApiUrl = this.configService.get('apis.storage.url');
+
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authorizationHeaders(user.bridgeUser, user.userId),
+        },
+      };
+
+      await this.httpClient.delete(
+        `${bridgeApiUrl}/users/${user.email}?redirect=${deactivationRedirectUrl}&deactivator=${deactivator}`,
+        params,
+      );
+    } catch (error) {
+      Logger.error(`
+        [BRIDGE_SERVICE/DEACTIVATION_EMAIL]: There was an error while trying to send deactivation email Error: ${JSON.stringify(
+          error,
+        )}`);
+      throw error;
+    }
+  }
+
+  async confirmDeactivation(token: string): Promise<string> {
+    try {
+      const bridgeApiUrl = this.configService.get('apis.storage.url');
+
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+
+      const response = await this.httpClient.get(
+        `${bridgeApiUrl}/deactivationStripe/${token}`,
+        params,
+      );
+
+      return response.data.email;
+    } catch (error) {
+      Logger.error(`
+        [BRIDGE_SERVICE/DEACTIVATE_USER]: There was an error while trying to deactivate user Error: ${JSON.stringify(
+          error,
+        )}`);
       throw error;
     }
   }

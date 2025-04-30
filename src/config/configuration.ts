@@ -32,6 +32,9 @@ export default () => ({
       },
     },
   },
+  cache: {
+    redisConnectionString: process.env.REDIS_CONNECTION_STRING,
+  },
   secrets: {
     magicIv: process.env.MAGIC_IV,
     magicSalt: process.env.MAGIC_SALT,
@@ -95,6 +98,8 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_WELCOME_EMAIL_VERIFICATION || '',
       recoverAccountEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_RECOVER_ACCOUNT || '',
+      verifyAccountEmail:
+        process.env.SENDGRID_TEMPLATE_DRIVE_EMAIL_VERIFICATION || '',
       invitationToSharingReceived:
         process.env.SENDGRID_TEMPLATE_DRIVE_SHARING_INVITE_RECEIVED || '',
       invitationToSharingGuestReceived:

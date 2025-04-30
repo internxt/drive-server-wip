@@ -4,6 +4,7 @@ import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { FileDto } from './dto/file.dto';
+import { isStringEmpty } from '../../lib/validators';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
@@ -113,7 +114,7 @@ export class File implements FileAttributes {
     this.folderId = folderId;
     this.setFolder(folder);
     this.name = name;
-    this.type = type;
+    this.setType(type);
     this.size = size;
     this.bucket = bucket;
     this.encryptVersion = encryptVersion;
@@ -127,7 +128,7 @@ export class File implements FileAttributes {
     this.updatedAt = updatedAt;
     this.folderUuid = folderUuid;
     this.uuid = uuid;
-    this.plainName = plainName;
+    this.setPlainName(plainName);
     this.removed = removed;
     this.removedAt = removedAt;
     this.status = status;
@@ -162,12 +163,32 @@ export class File implements FileAttributes {
     }
     this.folder = folder;
   }
+
   setUser(user) {
     if (user && !(user instanceof User)) {
       throw Error('user invalid');
     }
     this.user = user;
   }
+
+  setPlainName(newPlainName?: string) {
+    if (isStringEmpty(newPlainName)) {
+      newPlainName = '';
+    }
+    this.plainName = newPlainName;
+  }
+
+  setType(newType?: string) {
+    if (isStringEmpty(newType)) {
+      newType = null;
+    }
+    this.type = newType;
+  }
+
+  isFilenameValid(): boolean {
+    return !(isStringEmpty(this.plainName) && isStringEmpty(this.type));
+  }
+
   moveToTrash() {
     this.deleted = true;
     this.deletedAt = new Date();

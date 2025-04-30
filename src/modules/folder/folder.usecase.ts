@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
   forwardRef,
@@ -23,13 +24,13 @@ import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
-import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
+import { FolderModel } from './folder.model';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -77,6 +78,28 @@ export class FolderUseCases {
   }
 
   async getFolderByUuidAndUser(
+    uuid: FolderAttributes['uuid'],
+    user: User,
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuidAndUser(uuid, user.id);
+
+    if (!folder) {
+      throw new NotFoundException();
+    }
+
+    return folder;
+  }
+
+  async removeUserOrphanFolders(user: User): Promise<number> {
+    const removedFoldersCount = await this.folderRepository.updateBy(
+      { removed: true, deleted: true },
+      { userId: user.id, parentId: null },
+    );
+
+    return removedFoldersCount;
+  }
+
+  async getFolderByUuid(
     folderUuid: FolderAttributes['uuid'],
     user: User,
   ): Promise<Folder> {
@@ -157,13 +180,13 @@ export class FolderUseCases {
     return folder;
   }
 
-  async getFolderById(
-    folderId: FolderAttributes['id'],
-    { deleted }: FolderOptions = { deleted: false },
-  ): Promise<Folder | null> {
-    const folder = await this.folderRepository.findById(folderId, deleted);
+  async getUserRootFolder(user: User): Promise<Folder | null> {
+    const folder = await this.folderRepository.findOne({
+      id: user.rootFolderId,
+      userId: user.id,
+    });
 
-    return folder ? Folder.build({ ...this.decryptFolderName(folder) }) : null;
+    return folder;
   }
 
   async getFolder(
@@ -172,7 +195,7 @@ export class FolderUseCases {
   ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
 
-    return this.decryptFolderName(folder);
+    return folder ? this.decryptFolderName(folder) : null;
   }
 
   async isFolderInsideFolder(
@@ -217,16 +240,11 @@ export class FolderUseCases {
     return folders;
   }
 
-  async getFoldersToUser(
+  async getFoldersByUserId(
     userId: FolderAttributes['userId'],
-    { deleted }: FolderOptions = { deleted: false },
-  ) {
-    const folders = await this.folderRepository.findAll({
-      userId,
-      deleted,
-    });
-
-    return folders;
+    where: Partial<FolderAttributes>,
+  ): Promise<Folder[]> {
+    return this.folderRepository.findAll({ userId, ...where });
   }
 
   async createRootFolder(
@@ -307,6 +325,13 @@ export class FolderUseCases {
     );
   }
 
+  async createFolderDevice(user: User, folderData: Partial<FolderAttributes>) {
+    if (!folderData.name || !folderData.bucket) {
+      throw new BadRequestException('Folder name and bucket are required');
+    }
+    return this.folderRepository.createFolder(user.id, folderData);
+  }
+
   async updateFolderMetaData(
     user: User,
     folderUuid: Folder['uuid'],
@@ -314,9 +339,17 @@ export class FolderUseCases {
   ) {
     const folder = await this.folderRepository.findOne({
       uuid: folderUuid,
-      deleted: false,
-      removed: false,
     });
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    if (folder.isRemoved()) {
+      throw new UnprocessableEntityException(
+        'Cannot update this folder metadata',
+      );
+    }
 
     if (!folder.isOwnedBy(user)) {
       throw new ForbiddenException('This folder is not yours');
@@ -374,7 +407,7 @@ export class FolderUseCases {
     });
 
     if (!parentFolder) {
-      throw new InvalidParentFolderException(
+      throw new BadRequestException(
         'Parent folder does not exist or is not yours',
       );
     }
@@ -431,6 +464,11 @@ export class FolderUseCases {
       deletedAt: new Date(),
     });
   }
+
+  async deleteByUuids(user: User, uuids: Folder['uuid'][]): Promise<void> {
+    await this.folderRepository.deleteByUserAndUuids(user, uuids);
+  }
+
   async moveFoldersToTrash(
     user: User,
     folderIds: FolderAttributes['id'][],
@@ -583,6 +621,27 @@ export class FolderUseCases {
     );
   }
 
+  getWorkspacesFoldersUpdatedAfter(
+    createdBy: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    options: { limit: number; offset: number; sort?: SortParamsFolder },
+  ): Promise<Array<Folder>> {
+    const additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']> =
+      options.sort ?? [['updatedAt', 'ASC']];
+
+    return this.folderRepository.findAllCursorInWorkspaceWhereUpdatedAfter(
+      createdBy,
+      workspaceId,
+      where,
+      updatedAfter,
+      options.limit,
+      options.offset,
+      additionalOrders,
+    );
+  }
+
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
@@ -657,24 +716,18 @@ export class FolderUseCases {
     );
   }
 
+  /**
+   * Permanently deletes a folder from the database
+   * @throws ForbiddenException if the user is not the owner of the folder
+   * @warning This method should NOT be used unless you explicitly want to remove
+   * data from the database permanently.
+   */
   async deleteFolderPermanently(folder: Folder, user: User): Promise<void> {
     if (folder.userId !== user.id) {
       Logger.error(
         `User with id: ${user.id} tried to delete a folder that does not own.`,
       );
       throw new ForbiddenException(`You are not owner of this share`);
-    }
-
-    if (folder.isRootFolder()) {
-      throw new UnprocessableEntityException(
-        `folder with id ${folder.id} is a root folder`,
-      );
-    }
-
-    if (!folder.deleted) {
-      throw new UnprocessableEntityException(
-        `folder with id ${folder.id} cannot be permanently deleted`,
-      );
     }
 
     await this.folderRepository.deleteById(folder.id);
@@ -755,17 +808,18 @@ export class FolderUseCases {
       );
     }
 
-    const parentFolder = await this.folderRepository.findById(folder.parentId);
-    if (parentFolder.removed === true) {
+    const parentFolder = await this.folderRepository.findOne({
+      id: folder.parentId,
+    });
+
+    if (parentFolder?.isRemoved()) {
       throw new UnprocessableEntityException(
         `Folder ${folderUuid} can not be moved`,
       );
     }
 
-    const destinationFolder = await this.getFolderByUuidAndUser(
-      destinationUuid,
-      user,
-    );
+    const destinationFolder = await this.getFolderByUuid(destinationUuid, user);
+
     if (destinationFolder.removed === true) {
       throw new UnprocessableEntityException(
         `Folder can not be moved to ${destinationUuid}`,
@@ -842,7 +896,7 @@ export class FolderUseCases {
     });
   }
 
-  decryptFolderName(folder: Folder): any {
+  decryptFolderName(folder: Folder): Folder {
     const decryptedName = this.cryptoService.decryptName(
       folder.name,
       folder.parentId,
@@ -860,6 +914,12 @@ export class FolderUseCases {
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    const isRootFolder = folders.some(
+      (folder) => folder.id === user.rootFolderId || folder.parentId === null,
+    );
+    if (isRootFolder) {
+      throw new NotAcceptableException('Cannot delete root folder');
+    }
     await this.folderRepository.deleteByUser(user, folders);
   }
 
@@ -887,5 +947,12 @@ export class FolderUseCases {
       path,
       rootFolder.uuid,
     );
+  }
+
+  async updateByFolderId(
+    folder: Folder,
+    folderData: Partial<FolderAttributes>,
+  ): Promise<Folder> {
+    return this.folderRepository.updateByFolderId(folder.id, folderData);
   }
 }

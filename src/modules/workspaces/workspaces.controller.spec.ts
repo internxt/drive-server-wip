@@ -1,5 +1,9 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -14,15 +18,28 @@ import { v4 } from 'uuid';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { WorkspaceLog } from './domains/workspace-log.domain';
+import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
+import {
+  WorkspaceLogPlatform,
+  WorkspaceLogType,
+} from './attributes/workspace-logs.attributes';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
   let workspacesUsecases: DeepMocked<WorkspacesUsecases>;
+  let storageNotificationService: DeepMocked<StorageNotificationService>;
 
   beforeEach(async () => {
     workspacesUsecases = createMock<WorkspacesUsecases>();
+    storageNotificationService = createMock<StorageNotificationService>();
 
-    workspacesController = new WorkspacesController(workspacesUsecases);
+    workspacesController = new WorkspacesController(
+      workspacesUsecases,
+      storageNotificationService,
+    );
   });
 
   it('should be defined', () => {
@@ -226,8 +243,22 @@ describe('Workspace Controller', () => {
     const user = newUser();
     it('When invitation is accepted successfully, then it returns.', async () => {
       const invite = newWorkspaceInvite({ invitedUser: user.uuid });
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        memberId: user.uuid,
+        workspaceId: workspace.id,
+      });
 
-      await workspacesController.acceptWorkspaceInvitation(user, {
+      jest
+        .spyOn(workspacesUsecases, 'acceptWorkspaceInvite')
+        .mockResolvedValueOnce(workspaceUser.toJSON());
+
+      jest
+        .spyOn(workspacesUsecases, 'findById')
+        .mockResolvedValueOnce(workspace);
+
+      const clientId = 'test-client';
+      await workspacesController.acceptWorkspaceInvitation(user, clientId, {
         inviteId: invite.id,
       });
 
@@ -235,6 +266,12 @@ describe('Workspace Controller', () => {
         user,
         invite.id,
       );
+
+      expect(storageNotificationService.workspaceJoined).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user,
+        clientId,
+      });
     });
   });
 
@@ -242,10 +279,22 @@ describe('Workspace Controller', () => {
     const user = newUser();
     it('When a member leaves workspace, then return', async () => {
       const workspace = newWorkspace({ owner: user });
+      const clientId = 'drive-web';
 
-      await expect(
-        workspacesController.leaveWorkspace(user, workspace.id),
-      ).resolves.toBeTruthy();
+      workspacesUsecases.findById.mockResolvedValueOnce(workspace);
+
+      await workspacesController.leaveWorkspace(user, clientId, workspace.id);
+
+      expect(workspacesUsecases.leaveWorkspace).toHaveBeenCalledWith(
+        workspace.id,
+        user,
+      );
+
+      expect(storageNotificationService.workspaceLeft).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user,
+        clientId,
+      });
     });
   });
 
@@ -621,6 +670,7 @@ describe('Workspace Controller', () => {
       await workspacesController.createFolder(
         workspaceId,
         user,
+        'clientId',
         createFolderDto,
       );
 
@@ -628,6 +678,36 @@ describe('Workspace Controller', () => {
         user,
         workspaceId,
         createFolderDto,
+      );
+    });
+  });
+
+  describe('POST /:workspaceId/files', () => {
+    it('When a file is created successfully, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const createFileDto: CreateWorkspaceFileDto = {
+        plainName: 'New File',
+        folderUuid: v4(),
+        bucket: v4(),
+        fileId: v4(),
+        encryptVersion: '',
+        size: BigInt(100),
+        type: 'pdf',
+        modificationTime: new Date(),
+      };
+
+      await workspacesController.createFile(
+        workspaceId,
+        user,
+        'clientId',
+        createFileDto,
+      );
+
+      expect(workspacesUsecases.createFile).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        createFileDto,
       );
     });
   });
@@ -647,22 +727,41 @@ describe('Workspace Controller', () => {
   });
 
   describe('DELETE /:workspaceId/members/:memberId', () => {
-    it('When a member is removed from the workspace, then it should call the service with the respective arguments', async () => {
-      const workspaceId = v4();
+    it('When a member is removed from the workspace, then it should call the service with the respective arguments and send the workspaceLeft notification', async () => {
+      const workspace = newWorkspace();
       const memberId = v4();
+      const workspaceId = workspace.id;
+      const member = newUser();
+      const workspaceUser = newWorkspaceUser({
+        memberId,
+        workspaceId,
+        member,
+      });
+      const clientId = 'drive-web';
 
       jest
-        .spyOn(workspacesUsecases, 'removeWorkspaceMember')
-        .mockResolvedValue(Promise.resolve());
+        .spyOn(workspacesUsecases, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(workspacesUsecases, 'findUserInWorkspace')
+        .mockResolvedValueOnce(workspaceUser);
 
-      await expect(
-        workspacesController.removeWorkspaceMember(workspaceId, memberId),
-      ).resolves.toBeUndefined();
+      await workspacesController.removeWorkspaceMember(
+        workspaceId,
+        memberId,
+        clientId,
+      );
 
       expect(workspacesUsecases.removeWorkspaceMember).toHaveBeenCalledWith(
         workspaceId,
         memberId,
       );
+
+      expect(storageNotificationService.workspaceLeft).toHaveBeenCalledWith({
+        payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+        user: member,
+        clientId,
+      });
     });
   });
 
@@ -713,6 +812,227 @@ describe('Workspace Controller', () => {
         workspaceId,
         search,
       );
+    });
+  });
+
+  describe('GET /:workspaceId/access/logs', () => {
+    const workspaceId = v4();
+    const user = newUser({ attributes: { email: 'test@example.com' } });
+    const date = new Date();
+    const summary = true;
+    const workspaceLogtoJson = {
+      id: v4(),
+      workspaceId,
+      creator: user.uuid,
+      type: WorkspaceLogType.Login,
+      platform: WorkspaceLogPlatform.Web,
+      entityId: null,
+      createdAt: date,
+      updatedAt: date,
+    };
+    const mockLogs: WorkspaceLog[] = [
+      {
+        ...workspaceLogtoJson,
+        user: {
+          id: 4,
+          name: user.name,
+          lastname: user.lastname,
+          email: user.email,
+          uuid: user.uuid,
+        },
+        workspace: {
+          id: workspaceId,
+          name: 'My Workspace',
+        },
+        file: null,
+        folder: null,
+        toJSON: () => ({ ...workspaceLogtoJson }),
+      },
+    ];
+
+    it('when valid request is made, then should return access logs successfully', async () => {
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        summary,
+      };
+
+      jest.spyOn(workspacesUsecases, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await workspacesController.accessLogs(
+        workspaceId,
+        user,
+        workspaceLogDto,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspacesUsecases.accessLogs).toHaveBeenCalledWith(
+        workspaceId,
+        { limit: 10, offset: 0 },
+        undefined,
+        undefined,
+        undefined,
+        summary,
+        undefined,
+      );
+    });
+
+    it('when invalid workspaceId is provided, then should throw', async () => {
+      const invalidWorkspaceId = v4();
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        summary,
+      };
+
+      jest
+        .spyOn(workspacesUsecases, 'accessLogs')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        workspacesController.accessLogs(
+          invalidWorkspaceId,
+          user,
+          workspaceLogDto,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('when query parameters are provided, then should handle them correctly', async () => {
+      const username = mockLogs[0].user.name;
+      const workspaceLogDto: GetWorkspaceLogsDto = {
+        limit: 10,
+        offset: 0,
+        member: mockLogs[0].user.name,
+        activity: [WorkspaceLogType.Login],
+        lastDays: 7,
+        orderBy: 'createdAt:DESC',
+        summary: false,
+      };
+
+      jest.spyOn(workspacesUsecases, 'accessLogs').mockResolvedValue(mockLogs);
+
+      const result = await workspacesController.accessLogs(
+        workspaceId,
+        user,
+        workspaceLogDto,
+      );
+
+      expect(result).toEqual(mockLogs);
+      expect(workspacesUsecases.accessLogs).toHaveBeenCalledWith(
+        workspaceId,
+        { limit: 10, offset: 0 },
+        username,
+        [WorkspaceLogType.Login],
+        7,
+        false,
+        [['createdAt', 'DESC']],
+      );
+    });
+  });
+
+  describe('getWorkspaceItemAncestors', () => {
+    it('When provided with an invalid workspaceId then should throw', async () => {
+      const user = newUser();
+      const workspaceId = 'invalid-uuid';
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+      const isSharedItem = true;
+
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+        .mockRejectedValue(new NotFoundException('Workspace not found'));
+
+      await expect(
+        workspacesController.getWorkspaceItemAncestors(
+          user,
+          workspaceId,
+          itemType,
+          itemUuid,
+          isSharedItem,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When provided with valid parameters and isSharedItem is true then returns item ancestors', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const itemType = WorkspaceItemType.Folder;
+      const itemUuid = v4();
+      const isSharedItem = true;
+      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+        .mockResolvedValue(expectedAncestors);
+
+      const result = await workspacesController.getWorkspaceItemAncestors(
+        user,
+        workspaceId,
+        itemType,
+        itemUuid,
+        isSharedItem,
+      );
+
+      expect(workspacesUsecases.getWorkspaceItemAncestors).toHaveBeenCalledWith(
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+      expect(result).toEqual(expectedAncestors);
+    });
+
+    it('When isSharedItem is false and user is not the creator then should throw', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+      const isSharedItem = false;
+
+      jest
+        .spyOn(workspacesUsecases, 'isUserCreatorOfItem')
+        .mockResolvedValue(false);
+
+      await expect(
+        workspacesController.getWorkspaceItemAncestors(
+          user,
+          workspaceId,
+          itemType,
+          itemUuid,
+          isSharedItem,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When isSharedItem is false and user is the creator then returns item ancestors', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const itemType = WorkspaceItemType.File;
+      const itemUuid = v4();
+      const isSharedItem = false;
+      const expectedAncestors = [{ uuid: v4() }, { uuid: v4() }] as any;
+
+      jest
+        .spyOn(workspacesUsecases, 'isUserCreatorOfItem')
+        .mockResolvedValue(true);
+      jest
+        .spyOn(workspacesUsecases, 'getWorkspaceItemAncestors')
+        .mockResolvedValue(expectedAncestors);
+
+      const result = await workspacesController.getWorkspaceItemAncestors(
+        user,
+        workspaceId,
+        itemType,
+        itemUuid,
+        isSharedItem,
+      );
+
+      expect(workspacesUsecases.getWorkspaceItemAncestors).toHaveBeenCalledWith(
+        workspaceId,
+        itemType,
+        itemUuid,
+      );
+      expect(result).toEqual(expectedAncestors);
     });
   });
 });

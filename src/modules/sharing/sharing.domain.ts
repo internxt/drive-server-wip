@@ -28,6 +28,7 @@ export enum SharedWithType {
 export enum SharingActionName {
   UploadFile = 'UPLOAD_FILE',
   RenameItems = 'RENAME_ITEMS',
+  ViewDetails = 'VIEW_DETAILS',
 }
 
 export interface SharingAttributes {
@@ -133,6 +134,10 @@ export class Sharing implements SharingAttributes {
 
   isPublic(): boolean {
     return this.type === SharingType.Public;
+  }
+
+  isHybrid(): boolean {
+    return this.encryptionAlgorithm === 'hybrid';
   }
 
   isProtected(): boolean {
@@ -263,6 +268,10 @@ export class SharingInvite implements SharingInviteAttributes {
 
   isSharedWith(user: User): boolean {
     return user.uuid === this.sharedWith;
+  }
+
+  isHybrid(): boolean {
+    return this.encryptionAlgorithm === 'hybrid';
   }
 
   toJSON(): SharingInviteAttributes {

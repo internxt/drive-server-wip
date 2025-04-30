@@ -18,12 +18,12 @@ import {
   Headers,
   Patch,
   UseFilters,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -64,6 +64,10 @@ import {
   WorkspacesInBehalfGuard,
 } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
+import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -86,7 +90,7 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
-    @Param('sharingId') sharingId: Sharing['id'],
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
     @Query('code') code: string,
     @Headers('x-share-password') password: string | null,
   ) {
@@ -191,6 +195,11 @@ export class SharingController {
   }
 
   @Get('/:itemType/:itemId/type')
+  @ApiOperation({
+    deprecated: true,
+    description:
+      'Get sharing (private or public) type, deprecated in favor of :itemType/:itemId/info',
+  })
   getSharingType(
     @UserDecorator() user: User,
     @Param('itemType') itemType: Sharing['itemType'],
@@ -200,6 +209,25 @@ export class SharingController {
       throw new BadRequestException('Invalid item type');
     }
     return this.sharingService.getSharingType(user, itemId, itemType);
+  }
+
+  @Get(':itemType/:itemId/info')
+  @ApiOperation({
+    summary: 'Get info related to item sharing',
+  })
+  @ApiResponse({ type: ItemSharingInfoDto })
+  @ApiNotFoundResponse({
+    description: 'Item has no active sharings or invitations',
+  })
+  getItemSharingStatus(
+    @UserDecorator() user: User,
+    @Param('itemType') itemType: Sharing['itemType'],
+    @Param('itemId') itemId: Sharing['itemId'],
+  ) {
+    if (itemType !== 'file' && itemType !== 'folder') {
+      throw new BadRequestException('Invalid item type');
+    }
+    return this.sharingService.getItemSharingInfo(user, itemId, itemType);
   }
 
   @Get('/invites')
@@ -619,6 +647,7 @@ export class SharingController {
     { sourceKey: 'body', fieldName: 'itemType' },
   ])
   @WorkspacesInBehalfGuard()
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Share)
   createSharing(
     @UserDecorator() user,
     @Body() acceptInviteDto: CreateSharingDto,

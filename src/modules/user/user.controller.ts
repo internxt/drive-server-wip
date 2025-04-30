@@ -13,15 +13,19 @@ import {
   NotFoundException,
   UseGuards,
   Patch,
-  Request as RequestDecorator,
   Put,
+  UploadedFile,
+  Delete,
   Query,
   UnauthorizedException,
   BadRequestException,
   UseFilters,
   InternalServerErrorException,
   HttpException,
+  UseInterceptors,
+  ConflictException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -39,7 +43,6 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
-  KeyServerNotFoundError,
   UserAlreadyRegisteredError,
   UserUseCases,
 } from './user.usecase';
@@ -69,10 +72,23 @@ import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { getFutureIAT } from '../../middlewares/passport';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { avatarStorageS3Config } from '../../externals/multer';
+import { Client } from '../auth/decorators/client.decorator';
+import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
+import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
+import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
+import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
+import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 
 @ApiTags('User')
 @Controller('users')
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(
     private userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
@@ -99,28 +115,41 @@ export class UserController {
   async createUser(
     @Body() createUserDto: CreateUserDto,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
+    @Client() clientId: string,
   ) {
-    const isDriveWeb = req.headers['internxt-client'] === 'drive-web';
+    // TODO: Remove magic string and use clientId Enum
+    const isDriveWeb = clientId === 'drive-web';
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        response.user.id,
-        createUserDto,
+
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+        {
+          privateKey: createUserDto.privateKey,
+          publicKey: createUserDto.publicKey,
+          revocationKey: createUserDto.revocationKey,
+        },
       );
 
-      if (req.headers['internxt-client'] !== 'drive-mobile') {
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        response.user.id,
+        {
+          kyber,
+          ecc,
+        },
+      );
+
+      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
         await this.userUseCases.replacePreCreatedUser(
           response.user.email,
           response.user.uuid,
-          keys.publicKey,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 
-      this.notificationsService.add(
-        new SignUpSuccessEvent(response.user as unknown as User, req),
-      );
+      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
 
       // TODO: Move to EventBus
       this.userUseCases
@@ -145,31 +174,30 @@ export class UserController {
           ...(isDriveWeb
             ? { rootFolderId: response.user.rootFolderUuid }
             : null),
-          ...keys,
+          publicKey: keys.ecc?.publicKey,
+          privateKey: keys.ecc?.privateKey,
+          revocationKey: keys.ecc?.revocationKey,
+          keys: { ...keys },
         },
         token: response.token,
         uuid: response.uuid,
       };
     } catch (err) {
-      let errorMessage = err.message;
-
       if (err instanceof InvalidReferralCodeError) {
-        res.status(HttpStatus.BAD_REQUEST);
+        throw new BadRequestException(err.message);
       } else if (err instanceof UserAlreadyRegisteredError) {
-        res.status(HttpStatus.CONFLICT);
-      } else {
-        new Logger().error(
-          `[AUTH/REGISTER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
+        throw new ConflictException(err.message);
       }
 
-      return { error: errorMessage };
+      this.logger.error(
+        `[AUTH/REGISTER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
     }
   }
 
@@ -249,10 +277,11 @@ export class UserController {
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   @Public()
   async registerPreCreatedUser(
-    @Body() { invitationId, ...createUserDto }: RegisterPreCreatedUserDto,
+    @Body() bodyDto: RegisterPreCreatedUserDto,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
   ) {
+    const { invitationId, ...createUserDto } = bodyDto;
+
     try {
       const preCreatedUser = await this.userUseCases.findPreCreatedByEmail(
         createUserDto.email,
@@ -264,19 +293,34 @@ export class UserController {
 
       const userCreated = await this.userUseCases.createUser(createUserDto);
 
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+        {
+          privateKey: createUserDto.privateKey,
+          publicKey: createUserDto.publicKey,
+          revocationKey: createUserDto.revocationKey,
+        },
+      );
+
       const keys = await this.keyServerUseCases.addKeysToUser(
         userCreated.user.id,
-        createUserDto,
+        {
+          kyber,
+          ecc,
+        },
       );
 
-      await this.userUseCases.replacePreCreatedUser(
-        userCreated.user.email,
-        userCreated.user.uuid,
-        keys.publicKey,
-      );
+      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+        await this.userUseCases.replacePreCreatedUser(
+          userCreated.user.email,
+          userCreated.user.uuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+      }
 
       this.notificationsService.add(
-        new SignUpSuccessEvent(userCreated.user as unknown as User, req),
+        new SignUpSuccessEvent(userCreated.user, req),
       );
 
       // TODO: Move to EventBus
@@ -311,34 +355,34 @@ export class UserController {
         user: {
           ...userCreated.user,
           root_folder_id: userCreated.user.rootFolderId,
-          ...keys,
+          publicKey: keys.ecc?.publicKey,
+          privateKey: keys.ecc?.privateKey,
+          revocationKey: keys.ecc?.revocationKey,
+          keys: { ...keys },
         },
         token: userCreated.token,
         uuid: userCreated.uuid,
       };
     } catch (err) {
-      let errorMessage = err.message;
+      const errorMessage = err.message;
 
       if (err instanceof InvalidReferralCodeError) {
-        res.status(HttpStatus.BAD_REQUEST);
+        throw new BadRequestException(errorMessage);
       } else if (err instanceof UserAlreadyRegisteredError) {
-        res.status(HttpStatus.CONFLICT);
+        throw new ConflictException(errorMessage);
       } else if (err instanceof NotFoundException) {
-        res.status(HttpStatus.NOT_FOUND);
-      } else {
-        new Logger().error(
-          `[AUTH/REGISTER-PRE-CREATED-USER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify({
-            ...createUserDto,
-            invitationId,
-          })}, STACK: ${(err as Error).stack}`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
+        throw new NotFoundException(errorMessage);
       }
 
-      return { error: errorMessage };
+      this.logger.error(
+        `[AUTH/REGISTER-PRE-CREATED-USER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...createUserDto,
+          invitationId,
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
     }
   }
 
@@ -349,39 +393,16 @@ export class UserController {
   })
   @ApiOkResponse({ description: 'Pre creates a user' })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
-  async preCreateUser(
-    @Body() createUserDto: PreCreateUserDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    try {
-      const user = await this.userUseCases.preCreateUser(createUserDto);
+  async preCreateUser(@Body() createUserDto: PreCreateUserDto) {
+    const user = await this.userUseCases.preCreateUser(createUserDto);
 
-      return {
-        user: {
-          email: user.email,
-          uuid: user.uuid,
-        },
-        publicKey: user.publicKey,
-      };
-    } catch (err) {
-      let errorMessage = err.message;
-
-      if (err instanceof UserAlreadyRegisteredError) {
-        res.status(HttpStatus.CONFLICT);
-      } else {
-        new Logger().error(
-          `[AUTH/PREREGISTER] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
-    }
+    return {
+      user: {
+        email: user.email,
+        uuid: user.uuid,
+      },
+      publicKey: user.publicKey,
+    };
   }
 
   @Get('/c/:uuid')
@@ -390,17 +411,15 @@ export class UserController {
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
   })
-  async getUserCredentials(@Req() req, @Param('uuid') uuid: string) {
-    if (uuid !== req.user.uuid) {
+  async getUserCredentials(
+    @UserDecorator() user: User,
+    @Param('uuid') uuid: string,
+  ) {
+    if (uuid !== user.uuid) {
       throw new ForbiddenException();
     }
-    const user = await this.userUseCases.getUser(uuid);
 
-    if (!user) {
-      throw new NotFoundException();
-    }
-
-    const { token, newToken } = this.userUseCases.getAuthTokens(user);
+    const { token, newToken } = await this.userUseCases.getAuthTokens(user);
     const avatar = await this.userUseCases.getAvatarUrl(user.avatar);
 
     return {
@@ -415,19 +434,64 @@ export class UserController {
   @ApiOperation({
     summary: 'Refresh session token',
   })
-  @ApiOkResponse({ description: 'Returns a new token' })
-  refreshToken(@UserDecorator() user: User) {
-    return this.userUseCases.getAuthTokens(user);
+  @ApiOkResponse({
+    description: 'Returns a new token',
+    type: RefreshTokenResponseDto,
+  })
+  async refreshToken(
+    @UserDecorator() user: User,
+  ): Promise<RefreshTokenResponseDto> {
+    const tokens = await this.userUseCases.getAuthTokens(user);
+
+    const [avatar, rootFolder] = await Promise.all([
+      user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,
+      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
+    ]);
+
+    const userData = {
+      email: user.email,
+      userId: user.userId,
+      mnemonic: user.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: user.name,
+      lastname: user.lastname,
+      uuid: user.uuid,
+      bucket: rootFolder?.bucket,
+      credit: user.credit,
+      createdAt: user.createdAt,
+      registerCompleted: user.registerCompleted,
+      teams: false,
+      username: user.username,
+      bridgeUser: user.bridgeUser,
+      sharedWorkspace: user.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: user.backupsBucket,
+      avatar,
+      emailVerified: user.emailVerified,
+      lastPasswordChangedAt: user.lastPasswordChangedAt,
+    };
+
+    return { ...tokens, user: userData };
   }
 
   @Patch('password')
   @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
   async updatePassword(
-    @RequestDecorator() req,
     @Body() updatePasswordDto: UpdatePasswordDto,
-    @Res({ passthrough: true }) res: Response,
     @UserDecorator() user: User,
+    @Client() clientId: string,
   ) {
+    const isDriveWeb = clientId === 'drive-web';
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
     try {
       const currentPassword = this.cryptoService.decryptText(
         updatePasswordDto.currentPassword,
@@ -437,47 +501,37 @@ export class UserController {
       );
       const newSalt = this.cryptoService.decryptText(updatePasswordDto.newSalt);
 
-      const { mnemonic, privateKey, encryptVersion } = updatePasswordDto;
+      const { mnemonic, encryptVersion } = updatePasswordDto;
 
       if (user.password.toString() !== currentPassword) {
         throw new UnauthorizedException();
       }
 
-      await this.userUseCases.updatePassword(req.user, {
+      await this.userUseCases.updatePassword(user, {
         currentPassword,
         newPassword,
         newSalt,
         mnemonic,
-        privateKey,
+        privateKey: updatePasswordDto.privateKey,
         encryptVersion,
+        privateKyberKey: updatePasswordDto?.privateKyberKey,
       });
 
-      const { token, newToken } = this.userUseCases.getAuthTokens(
+      const { token, newToken } = await this.userUseCases.getAuthTokens(
         user,
         getFutureIAT(),
       );
 
       return { status: 'success', newToken, token };
     } catch (err) {
-      let errorMessage = err.message;
-
-      if (err instanceof UnauthorizedException) {
-        res.status(HttpStatus.BAD_REQUEST);
-      } else if (err instanceof KeyServerNotFoundError) {
-        res.status(HttpStatus.NOT_FOUND);
-      } else {
-        new Logger().error(
-          `[AUTH/UPDATEPASSWORD] ERROR: ${
-            (err as Error).message
-          }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
-            (err as Error).stack
-          }`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
     }
   }
 
@@ -488,14 +542,13 @@ export class UserController {
     summary: 'Request account recovery',
   })
   @Public()
-  async requestAccountRecovery(
-    @Body() body: RequestRecoverAccountDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async requestAccountRecovery(@Body() body: RequestRecoverAccountDto) {
     try {
-      await this.userUseCases.sendAccountRecoveryEmail(body.email);
+      await this.userUseCases.sendAccountRecoveryEmail(
+        body.email.toLowerCase(),
+      );
     } catch (err) {
-      new Logger().error(
+      this.logger.error(
         `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify({
@@ -504,9 +557,7 @@ export class UserController {
         })}, STACK: ${(err as Error).stack}`,
       );
 
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-
-      return { error: 'Internal Server Error' };
+      throw err;
     }
   }
 
@@ -524,20 +575,18 @@ export class UserController {
       );
       return response;
     } catch (err) {
-      if (err instanceof HttpException) {
-        throw err;
+      if (!(err instanceof HttpException)) {
+        this.logger.error(
+          `[USERS/UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify({
+            ...body,
+            user: { email: body.email },
+          })}, STACK: ${(err as Error).stack}`,
+        );
       }
 
-      new Logger().error(
-        `[USERS/UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify({
-          ...body,
-          user: { email: body.email },
-        })}, STACK: ${(err as Error).stack}`,
-      );
-
-      throw new InternalServerErrorException();
+      throw err;
     }
   }
 
@@ -703,9 +752,9 @@ export class UserController {
       throw new NotFoundException();
     }
 
-    return {
-      publicKey: await this.keyServerUseCases.getPublicKey(user.id),
-    };
+    const keys = await this.keyServerUseCases.getPublicKeys(user.id);
+
+    return { publicKey: keys.ecc, keys };
   }
 
   @UseFilters(new HttpExceptionFilter())
@@ -808,5 +857,155 @@ export class UserController {
     @Body() body: RegisterNotificationTokenDto,
   ) {
     return this.userUseCases.registerUserNotificationToken(user, body);
+  }
+
+  @Post('/email-verification/send')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Send account verification email',
+  })
+  @ApiResponse({ status: 201, description: 'Email sent successfully' })
+  async sendAccountVerifyEmail(@UserDecorator() user: User) {
+    return this.userUseCases.sendAccountEmailVerification(user);
+  }
+
+  @Post('/email-verification')
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({
+    summary: 'Verify user email',
+  })
+  @ApiResponse({ status: 201, description: 'Email verified successfully' })
+  @Public()
+  async verifyAccountEmail(@Body() body: VerifyEmailDto) {
+    return this.userUseCases.verifyUserEmail(body.verificationToken);
+  }
+
+  @Patch('/profile')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update user profile',
+  })
+  @ApiOkResponse({
+    description: 'Updated user profile',
+  })
+  async updateProfile(
+    @UserDecorator() user: User,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    if (!updateProfileDto.name && updateProfileDto.lastname == undefined) {
+      throw new BadRequestException(
+        'At least one of name or lastname must be provided.',
+      );
+    }
+    return this.userUseCases.updateProfile(user, updateProfileDto);
+  }
+
+  @Put('/avatar')
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Avatar added to the user',
+  })
+  @UseInterceptors(FileInterceptor('avatar', avatarStorageS3Config))
+  async uploadAvatar(
+    @UploadedFile() avatar: Express.Multer.File | any,
+    @UserDecorator() user: User,
+  ) {
+    if (!avatar) {
+      throw new BadRequestException('avatar is required');
+    }
+    if (!avatar.key) {
+      throw new InternalServerErrorException('Avatar could not be uploaded');
+    }
+
+    try {
+      return await this.userUseCases.upsertAvatar(user, avatar.key);
+    } catch (err) {
+      Logger.error(
+        `[USER/UPLOAD_AVATAR] Error uploading avatar for user: ${user.id}. Error: ${err.message}`,
+      );
+      throw err;
+    }
+  }
+
+  @Delete('/avatar')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Avatar deleted from the workspace',
+  })
+  async deleteAvatar(@UserDecorator() user: User) {
+    try {
+      return await this.userUseCases.deleteAvatar(user);
+    } catch (err) {
+      Logger.error(
+        `[USER/DELETE_AVATAR] Error deleting the avatar for the user: ${
+          user.id
+        } has failed. Error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
+  }
+
+  @Post('/deactivation/send')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Send email to deactivate current user account',
+  })
+  async sendUserDeactivationEmail(
+    @UserDecorator() user: User,
+    @Req() req: Request,
+  ) {
+    const response = await this.userUseCases.sendDeactivationEmail(user);
+
+    this.notificationsService.add(new DeactivationRequestEvent(user, req));
+
+    return response;
+  }
+
+  @Post('/deactivation/confirm')
+  @UseGuards(ThrottlerGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Confirm user deactivation',
+  })
+  async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
+    const { token } = body;
+
+    return this.userUseCases.confirmDeactivation(token);
+  }
+
+  @Get('/usage')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get User used storage space',
+  })
+  @ApiOkResponse({ type: GetUserUsageDto })
+  async getUserUsage(@UserDecorator() user: User): Promise<GetUserUsageDto> {
+    const usage = await this.userUseCases.getUserUsage(user);
+
+    return usage;
+  }
+
+  @Get('/limit')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Get user space limit',
+    type: GetUserLimitDto,
+  })
+  async limit(@UserDecorator() user: User): Promise<GetUserLimitDto> {
+    try {
+      const maxSpaceBytes = await this.userUseCases.getSpaceLimit(user);
+      return { maxSpaceBytes };
+    } catch (err) {
+      Logger.error(
+        `[USER/SPACE_LIMIT] Error getting space limit for user: ${
+          user.id
+        }. Error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
   }
 }

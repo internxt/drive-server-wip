@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   NotImplementedException,
@@ -28,28 +29,18 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import {
-  Folder,
-  FolderAttributes,
-  SortableFolderAttributes,
-} from './folder.domain';
-import {
-  FileAttributes,
-  FileStatus,
-  SortableFileAttributes,
-} from '../file/file.domain';
+import { Folder, SortableFolderAttributes } from './folder.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
 
-import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
-import { InvalidParentFolderException } from './exception/invalid-parent-folder';
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
@@ -60,8 +51,25 @@ import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
+import { Requester } from '../auth/decorators/requester.decorator';
+import {
+  ExistingFoldersDto,
+  FolderDto,
+  FoldersDto,
+  ResultFoldersDto,
+} from './dto/responses/folder.dto';
+import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
+import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
+enum FolderStatusQuery {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+  ALL = 'ALL',
+}
 
 export class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -112,11 +120,13 @@ export class FolderController {
     summary: 'Create Folder',
   })
   @ApiBearerAuth()
+  @ApiOkResponse({ type: FolderDto })
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
-  ) {
+    @Requester() requester: User,
+  ): Promise<FolderDto> {
     const folder = await this.folderUseCases.createFolder(
       user,
       createFolderDto,
@@ -124,11 +134,11 @@ export class FolderController {
 
     this.storageNotificationService.folderCreated({
       payload: folder,
-      user: user,
+      user: requester,
       clientId,
     });
 
-    return folder;
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Get('/count')
@@ -177,6 +187,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/files')
+  @ApiOkResponse({ type: FilesDto })
   async getFolderContentFiles(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
@@ -184,7 +195,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ): Promise<{ files: FileAttributes[] }> {
+  ): Promise<FilesDto> {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
@@ -218,6 +229,9 @@ export class FolderController {
   }
 
   @Get(':id/files')
+  @ApiOkResponse({ type: ResultFilesDto })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
   async getFolderFiles(
     @UserDecorator() user: User,
     @Param('id') folderId: number,
@@ -225,7 +239,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFilesDto> {
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -301,6 +315,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/folders')
+  @ApiOkResponse({ type: FoldersDto })
   async getFolderContentFolders(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
@@ -308,7 +323,7 @@ export class FolderController {
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ): Promise<{ folders: (FolderAttributes & { status: FileStatus })[] }> {
+  ): Promise<FoldersDto> {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
@@ -341,17 +356,7 @@ export class FolderController {
 
     return {
       folders: folders.map((f) => {
-        let folderStatus: FileStatus;
-
-        if (f.removed) {
-          folderStatus = FileStatus.DELETED;
-        } else if (f.deleted) {
-          folderStatus = FileStatus.TRASHED;
-        } else {
-          folderStatus = FileStatus.EXISTS;
-        }
-
-        return { ...f, status: folderStatus };
+        return { ...f, status: f.getFolderStatus() };
       }),
     };
   }
@@ -406,12 +411,13 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiOkResponse({ type: ExistingFoldersDto })
   @WorkspacesInBehalfValidationFolder()
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid') folderUuid: string,
     @Body() query: CheckFoldersExistenceDto,
-  ) {
+  ): Promise<ExistingFoldersDto> {
     const { plainNames } = query;
 
     const folders = await this.folderUseCases.searchFoldersInFolder(
@@ -422,7 +428,12 @@ export class FolderController {
       },
     );
 
-    return { existentFolders: folders };
+    return {
+      existentFolders: folders.map((folder) => ({
+        ...folder,
+        status: folder.getFolderStatus(),
+      })),
+    };
   }
 
   @Post('/content/:uuid/files/existence')
@@ -443,13 +454,13 @@ export class FolderController {
     @Param('uuid') folderUuid: string,
     @Body() query: CheckFileExistenceInFolderDto,
   ) {
-    const parentFolder = await this.folderUseCases.getFolderByUuidAndUser(
+    const parentFolder = await this.folderUseCases.getFolderByUuid(
       folderUuid,
       user,
     );
 
     if (!parentFolder) {
-      throw new InvalidParentFolderException('Parent folder not valid!');
+      throw new BadRequestException('Parent folder not valid!');
     }
 
     const files = await this.fileUseCases.searchFilesInFolder(
@@ -468,6 +479,7 @@ export class FolderController {
   @ApiParam({ name: 'uuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Current folder with children folders and files',
+    type: GetFolderContentDto,
   })
   @GetDataFromRequest([
     {
@@ -485,9 +497,9 @@ export class FolderController {
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: BasicPaginationDto,
-  ) {
+  ): Promise<GetFolderContentDto> {
     const [currentFolder, childrenFolders, files] = await Promise.all([
-      this.folderUseCases.getFolderByUuidAndUser(folderUuid, user),
+      this.folderUseCases.getFolderByUuid(folderUuid, user),
       this.folderUseCases.getFolders(
         user.id,
         {
@@ -523,6 +535,9 @@ export class FolderController {
   }
 
   @Get(':id/folders')
+  @ApiOkResponse({ type: ResultFoldersDto })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
   async getFolderFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
@@ -530,7 +545,7 @@ export class FolderController {
     @Param('id') folderId: number,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFoldersDto> {
     if (folderId < 1 || !isNumber(folderId)) {
       throw new BadRequestWrongFolderIdException();
     }
@@ -562,30 +577,26 @@ export class FolderController {
     );
 
     return {
-      result: folders.map((f) => {
-        let folderStatus: FileStatus;
-
-        if (f.removed) {
-          folderStatus = FileStatus.DELETED;
-        } else if (f.deleted) {
-          folderStatus = FileStatus.TRASHED;
-        } else {
-          folderStatus = FileStatus.EXISTS;
-        }
-
-        return { ...f, status: folderStatus };
-      }),
+      result: folders.map((f) => ({
+        ...f,
+        status: f.getFolderStatus(),
+      })),
     };
   }
 
   @Get('/')
+  @ApiOkResponse({ isArray: true, type: FolderDto })
+  @ApiQuery({ name: 'updatedAt', required: false })
+  @ApiQuery({ name: 'status', enum: FolderStatusQuery })
+  @ApiQuery({ name: 'offset', type: Number })
+  @ApiQuery({ name: 'limit', type: Number })
   async getFolders(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: (typeof foldersStatuses)[number],
+    @Query('status') status: FolderStatusQuery,
     @Query('updatedAt') updatedAt?: string,
-  ) {
+  ): Promise<FolderDto[]> {
     if (!status) {
       throw new BadRequestException('Missing "status" query param');
     }
@@ -630,25 +641,7 @@ export class FolderController {
           f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
         }
 
-        let status: 'EXISTS' | 'TRASHED' | 'DELETED';
-
-        if (f.removed) {
-          status = 'DELETED';
-        } else if (f.deleted) {
-          status = 'TRASHED';
-        } else {
-          status = 'EXISTS';
-        }
-
-        delete f.deleted;
-        delete f.deletedAt;
-        delete f.removed;
-        delete f.removedAt;
-
-        return {
-          ...f,
-          status,
-        };
+        return { ...f, status: f.getFolderStatus() };
       });
     } catch (error) {
       const err = error as Error;
@@ -664,6 +657,7 @@ export class FolderController {
   }
 
   @Get('/:uuid/meta')
+  @ApiOkResponse({ type: FolderDto })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -678,8 +672,8 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async getFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: Folder['uuid'],
-  ) {
+    @Param('uuid') folderUuid: string,
+  ): Promise<FolderDto> {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
     }
@@ -694,16 +688,7 @@ export class FolderController {
         throw new NotFoundException();
       }
 
-      let folderStatus: FileStatus;
-      if (folder.removed) {
-        folderStatus = FileStatus.DELETED;
-      } else if (folder.deleted) {
-        folderStatus = FileStatus.TRASHED;
-      } else {
-        folderStatus = FileStatus.EXISTS;
-      }
-
-      return { ...folder, status: folderStatus };
+      return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
@@ -778,10 +763,11 @@ export class FolderController {
   }
 
   @Get('/:id/metadata')
+  @ApiOkResponse({ type: FolderDto })
   async getFolderById(
     @UserDecorator() user: User,
-    @Param('id') folderId: Folder['id'],
-  ) {
+    @Param('id') folderId: number,
+  ): Promise<FolderDto> {
     if (folderId < 0) {
       throw new BadRequestException('Invalid id provided');
     }
@@ -792,7 +778,7 @@ export class FolderController {
         user.id,
       );
 
-      return folder;
+      return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
@@ -826,10 +812,11 @@ export class FolderController {
   @RequiredSharingPermissions(SharingActionName.RenameItems)
   async updateFolderMetadata(
     @Param('uuid', ValidateUUIDPipe)
-    folderUuid: Folder['uuid'],
+    folderUuid: string,
     @UserDecorator() user: User,
     @Body() updateFolderMetaDto: UpdateFolderMetaDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     const folderUpdated = await this.folderUseCases.updateFolderMetaData(
       user,
@@ -839,7 +826,7 @@ export class FolderController {
 
     this.storageNotificationService.folderUpdated({
       payload: folderUpdated,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -869,9 +856,10 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async moveFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: Folder['uuid'],
+    @Param('uuid') folderUuid: string,
     @Body() moveFolderData: MoveFolderDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -884,7 +872,7 @@ export class FolderController {
 
     this.storageNotificationService.folderUpdated({
       payload: folder,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -912,5 +900,25 @@ export class FolderController {
       throw new NotFoundException('Folder not found');
     }
     return folder;
+  }
+
+  @Delete('/:uuid')
+  @HttpCode(204)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete Folder',
+  })
+  async deleteFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Client() clientId: string,
+  ) {
+    const folder = await this.folderUseCases.getFolderByUuidAndUser(uuid, user);
+    await this.folderUseCases.deleteByUser(user, [folder]);
+    this.storageNotificationService.folderDeleted({
+      payload: { id: folder.id, uuid, userId: user.id },
+      user: user,
+      clientId,
+    });
   }
 }

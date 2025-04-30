@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -35,13 +37,19 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderUseCases, SortParamsFolder } from '../folder/folder.usecase';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  File,
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from '../file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileUseCases, SortParamsFile } from '../file/file.usecase';
 import {
   Folder,
   FolderAttributes,
+  FolderStatus,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
 import {
@@ -67,20 +75,26 @@ import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { WorkspaceLog } from './domains/workspace-log.domain';
+import { TrashItem } from './interceptors/workspaces-logs.interceptor';
 
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
     private readonly teamRepository: SequelizeWorkspaceTeamRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
+    @Inject(forwardRef(() => SharingService))
     private readonly sharingUseCases: SharingService,
     private readonly paymentService: PaymentsService,
     private readonly networkService: BridgeService,
     private readonly userRepository: SequelizeUserRepository,
+    @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly configService: ConfigService,
     private readonly mailerService: MailerService,
+    @Inject(forwardRef(() => FileUseCases))
     private readonly fileUseCases: FileUseCases,
+    @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,
@@ -387,7 +401,7 @@ export class WorkspacesUsecases {
       );
     }
 
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
+    const spaceLeft = await this.getOwnerAvailableSpace(workspace);
 
     const spaceToAssign =
       createInviteDto.spaceLimit ??
@@ -494,9 +508,69 @@ export class WorkspacesUsecases {
     });
   }
 
+  async calculateWorkspaceLimits(
+    workspace: Workspace,
+    newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
+  ) {
+    const currentWorkspaceSpaceLimit =
+      await this.getWorkspaceNetworkLimit(workspace);
+
+    const currentSpacePerUser =
+      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
+
+    const newSpacePerUser =
+      newWorkspaceSpaceLimit / (newNumberOfSeats ?? workspace.numberOfSeats);
+    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+
+    const memberCount = await this.workspaceRepository.getWorkspaceUsersCount(
+      workspace.id,
+    );
+
+    const unusedSpace =
+      newWorkspaceSpaceLimit -
+      currentWorkspaceSpaceLimit -
+      spaceDifference * memberCount;
+
+    return { unusedSpace, spaceDifference };
+  }
+
+  async validateStorageForPlanChange(
+    workspace: Workspace,
+    newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
+  ) {
+    const memberCount = await this.workspaceRepository.getWorkspaceUsersCount(
+      workspace.id,
+    );
+
+    if (newNumberOfSeats && newNumberOfSeats < memberCount) {
+      throw new BadRequestException(
+        'Number of seats must be equal or superior to the number of users in the workspace',
+      );
+    }
+
+    const ownerAvailableSpace = await this.getOwnerAvailableSpace(workspace);
+
+    const { unusedSpace, spaceDifference } =
+      await this.calculateWorkspaceLimits(
+        workspace,
+        newWorkspaceSpaceLimit,
+        newNumberOfSeats,
+      );
+
+    const ownerAvailableSpaceAfterUpdate =
+      ownerAvailableSpace + unusedSpace + spaceDifference;
+
+    if (ownerAvailableSpaceAfterUpdate < 0) {
+      throw new BadRequestException('Insufficient space to update workspace');
+    }
+  }
+
   async updateWorkspaceLimit(
     workspaceId: Workspace['id'],
     newWorkspaceSpaceLimit: number,
+    newNumberOfSeats?: number,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -508,14 +582,12 @@ export class WorkspacesUsecases {
       workspace.workspaceUserId,
     );
 
-    const currentWorkspaceSpaceLimit =
-      await this.getWorkspaceNetworkLimit(workspace);
-
-    const currentSpacePerUser =
-      currentWorkspaceSpaceLimit / workspace.numberOfSeats;
-
-    const newSpacePerUser = newWorkspaceSpaceLimit / workspace.numberOfSeats;
-    const spaceDifference = newSpacePerUser - currentSpacePerUser;
+    const { unusedSpace, spaceDifference } =
+      await this.calculateWorkspaceLimits(
+        workspace,
+        newWorkspaceSpaceLimit,
+        newNumberOfSeats,
+      );
 
     const workspaceUsers =
       await this.workspaceRepository.findWorkspaceUsers(workspaceId);
@@ -528,11 +600,6 @@ export class WorkspacesUsecases {
         workspaceUser,
       );
     }
-
-    const unusedSpace =
-      newWorkspaceSpaceLimit -
-      currentWorkspaceSpaceLimit -
-      spaceDifference * workspaceUsers.length;
 
     await this.networkService.setStorage(
       workspaceNetworkUser.email,
@@ -709,12 +776,15 @@ export class WorkspacesUsecases {
       getItems: (offset: number) => Promise<any[]>,
       deleteItems: (items: (File | Folder)[]) => Promise<void>,
     ) => {
+      const allItems = [];
       const promises = [];
       for (let i = 0; i < itemCount; i += chunkSize) {
         const items = await getItems(i);
+        allItems.push(...items);
         promises.push(deleteItems(items));
       }
       await Promise.all(promises);
+      return allItems;
     };
 
     const [filesCount, foldersCount] = await Promise.all([
@@ -739,7 +809,7 @@ export class WorkspacesUsecases {
 
     const emptyTrashChunkSize = 100;
 
-    await emptyTrashItems(
+    const folders = await emptyTrashItems(
       foldersCount,
       emptyTrashChunkSize,
       (offset) =>
@@ -753,7 +823,7 @@ export class WorkspacesUsecases {
         this.folderUseCases.deleteByUser(workspaceUser, folders),
     );
 
-    await emptyTrashItems(
+    const files = await emptyTrashItems(
       filesCount,
       emptyTrashChunkSize,
       (offset) =>
@@ -765,6 +835,23 @@ export class WorkspacesUsecases {
         ),
       (files: File[]) => this.fileUseCases.deleteByUser(workspaceUser, files),
     );
+
+    const items: TrashItem[] = [
+      ...(Array.isArray(files) ? files : [])
+        .filter((file) => file.uuid != null)
+        .map((file) => ({
+          type: WorkspaceItemType.File,
+          uuid: file.uuid,
+        })),
+      ...(Array.isArray(folders) ? folders : [])
+        .filter((folder) => folder.uuid != null)
+        .map((folder) => ({
+          type: WorkspaceItemType.Folder,
+          uuid: folder.uuid,
+        })),
+    ];
+
+    return { items };
   }
 
   async createFile(
@@ -880,6 +967,79 @@ export class WorkspacesUsecases {
     return { ...createdFolder, item: createdItemFolder };
   }
 
+  async getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    options?: {
+      sort: SortableFileAttributes;
+      order;
+      limit: number;
+      offset: number;
+      status?: FileStatus;
+    },
+    bucket?: string,
+  ) {
+    const where: Partial<FileAttributes> = options?.status
+      ? { status: options.status }
+      : {};
+
+    if (bucket) {
+      where.bucket = bucket;
+    }
+
+    const files = await this.fileUseCases.getWorkspaceFilesUpdatedAfter(
+      userUuid,
+      workspaceId,
+      updatedAfter,
+      {
+        ...where,
+      },
+      {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return files;
+  }
+
+  async getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    updatedAfter: Date,
+    options?: {
+      sort: SortableFolderAttributes;
+      order;
+      limit: number;
+      offset: number;
+      status?: FolderStatus;
+    },
+  ) {
+    const where: Partial<FolderAttributes> = options?.status
+      ? Folder.getFilterByStatus(options.status)
+      : {};
+
+    const folders = await this.folderUseCases.getWorkspacesFoldersUpdatedAfter(
+      userUuid,
+      workspaceId,
+      {
+        ...where,
+      },
+      updatedAfter,
+      {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+        sort: options?.sort &&
+          options?.order && [[options.sort, options.order]],
+      },
+    );
+
+    return folders;
+  }
+
   async getPersonalWorkspaceFoldersInFolder(
     user: User,
     workspaceId: WorkspaceAttributes['id'],
@@ -921,7 +1081,7 @@ export class WorkspacesUsecases {
     );
 
     return {
-      result: folders.map((f) => ({ ...f, status: FileStatus.EXISTS })),
+      result: folders.map((f) => ({ ...f, status: FolderStatus.EXISTS })),
     };
   }
 
@@ -1185,7 +1345,20 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+          sharedWithUserUuid: user.uuid,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getSharedFoldersInWorkspace(
@@ -1208,7 +1381,20 @@ export class WorkspacesUsecases {
         options,
       );
 
-    return { ...response, token: '' };
+    return {
+      ...response,
+      token: generateTokenWithPlainSecret(
+        {
+          workspace: {
+            workspaceId,
+          },
+          isSharedItem: true,
+          sharedWithUserUuid: user.uuid,
+        },
+        '1d',
+        this.configService.get('secrets.jwt'),
+      ),
+    };
   }
 
   async getItemsInSharedFolder(
@@ -1517,7 +1703,7 @@ export class WorkspacesUsecases {
       return userAlreadyInWorkspace.toJSON();
     }
 
-    const isWorkspaceFull = await this.isWorkspaceFull(workspace, true);
+    const isWorkspaceFull = await this.isWorkspaceFull(workspace);
 
     if (isWorkspaceFull) {
       throw new BadRequestException(
@@ -1525,7 +1711,7 @@ export class WorkspacesUsecases {
       );
     }
 
-    const spaceLeft = await this.getAssignableSpaceInWorkspace(workspace);
+    const spaceLeft = await this.getOwnerAvailableSpace(workspace);
 
     if (invite.spaceLimit > spaceLeft) {
       throw new BadRequestException(
@@ -1758,35 +1944,35 @@ export class WorkspacesUsecases {
     const [
       spaceLimit,
       totalSpaceLimitAssigned,
-      totalSpaceAssignedInInvitations,
+      //totalSpaceAssignedInInvitations,
       spaceUsed,
     ] = await Promise.all([
       this.getWorkspaceNetworkLimit(workspace),
       this.workspaceRepository.getTotalSpaceLimitInWorkspaceUsers(workspace.id),
-      this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),
+      /*this.workspaceRepository.getSpaceLimitInInvitations(workspace.id),*/
       this.workspaceRepository.getTotalDriveAndBackupUsageWorkspaceUsers(
         workspace.id,
       ),
     ]);
 
-    const spaceAssigned =
-      totalSpaceLimitAssigned + totalSpaceAssignedInInvitations;
+    const spaceAssigned = totalSpaceLimitAssigned;
 
     return { totalWorkspaceSpace: spaceLimit, spaceAssigned, spaceUsed };
   }
 
   async isWorkspaceFull(
     workspace: Workspace,
-    skipOneInvite = false,
+    //skipOneInvite = false,
   ): Promise<boolean> {
-    const [workspaceUsersCount, workspaceInvitationsCount] = await Promise.all([
-      this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
-      this.workspaceRepository.getWorkspaceInvitationsCount(workspace.id),
-    ]);
+    const [workspaceUsersCount /*workspaceInvitationsCount*/] =
+      await Promise.all([
+        this.workspaceRepository.getWorkspaceUsersCount(workspace.id),
+        //this.workspaceRepository.getWorkspaceInvitationsCount(workspace.id),
+      ]);
 
     return workspace.isWorkspaceFull(
       workspaceUsersCount,
-      skipOneInvite ? workspaceInvitationsCount - 1 : workspaceInvitationsCount,
+      /*skipOneInvite ? workspaceInvitationsCount - 1 : workspaceInvitationsCount,*/
     );
   }
 
@@ -2421,17 +2607,21 @@ export class WorkspacesUsecases {
   findUserInWorkspace(
     userUuid: User['uuid'],
     workspaceId: Workspace['id'],
+    includeUser = false,
   ): Promise<WorkspaceUser | null> {
-    return this.workspaceRepository.findWorkspaceUser({
-      workspaceId,
-      memberId: userUuid,
-    });
+    return this.workspaceRepository.findWorkspaceUser(
+      {
+        workspaceId,
+        memberId: userUuid,
+      },
+      includeUser,
+    );
   }
 
   async deleteWorkspaceContent(
     workspaceId: Workspace['id'],
     user: User,
-  ): Promise<void> {
+  ): Promise<WorkspaceUser[]> {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
     if (!workspace) {
@@ -2450,9 +2640,14 @@ export class WorkspacesUsecases {
       workspace.rootFolderId,
     );
 
+    const workspaceMembers =
+      await this.workspaceRepository.findWorkspaceUsers(workspaceId);
+
     await this.folderUseCases.deleteByUser(workspaceUser, [rootFolder]);
 
     await this.workspaceRepository.deleteById(workspaceId);
+
+    return workspaceMembers;
   }
 
   async transferPersonalItemsToWorkspaceOwner(
@@ -2626,6 +2821,15 @@ export class WorkspacesUsecases {
       'ADD',
     );
 
+    const teamsUserBelongsTo = await this.teamRepository.getTeamsUserBelongsTo(
+      user.uuid,
+      workspaceId,
+    );
+
+    for (const team of teamsUserBelongsTo) {
+      await this.teamRepository.deleteUserFromTeam(user.uuid, team.id);
+    }
+
     await this.workspaceRepository.deleteUserFromWorkspace(
       user.uuid,
       workspaceId,
@@ -2737,5 +2941,145 @@ export class WorkspacesUsecases {
     );
 
     return searchResults;
+  }
+
+  async accessLogs(
+    workspaceId: Workspace['id'],
+    pagination: {
+      limit?: number;
+      offset?: number;
+    },
+    member?: string,
+    logType?: WorkspaceLog['type'][],
+    lastDays?: number,
+    summary: boolean = true,
+    order?: [string, string][],
+  ) {
+    let membersUuids: string[];
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (member) {
+      const workspaceUsers = await this.workspaceRepository.findWorkspaceUsers(
+        workspace.id,
+        member,
+      );
+      membersUuids = workspaceUsers.map((user: WorkspaceUser) => user.memberId);
+    }
+
+    return this.workspaceRepository.accessLogs(
+      workspace.id,
+      summary,
+      membersUuids,
+      logType,
+      pagination,
+      lastDays,
+      order,
+    );
+  }
+
+  async getWorkspaceItemAncestors(
+    workspaceId: Workspace['id'],
+    itemType: WorkspaceItemType,
+    itemUuid: Sharing['itemId'],
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const folderUuid =
+      itemType === WorkspaceItemType.File
+        ? (await this.fileUseCases.getByUuid(itemUuid)).folderUuid
+        : itemUuid;
+
+    if (!folderUuid) {
+      throw new NotFoundException('Folder uuid required');
+    }
+
+    const owner = await this.findWorkspaceResourceOwner(workspace);
+
+    const folders = await this.folderUseCases.getFolderAncestorsInWorkspace(
+      owner,
+      folderUuid,
+    );
+
+    return folders.map((f) => ({
+      uuid: f.uuid,
+      plainName: f.plainName,
+    }));
+  }
+
+  async resetWorkspace(workspace: Workspace): Promise<void> {
+    const workspaceNetworkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const allMembers = await this.workspaceRepository.findWorkspaceUsers(
+      workspace.id,
+    );
+    const ownerMember = allMembers.find(
+      (member) => member.memberId === workspace.ownerId,
+    );
+    const nonOwnerMembers = allMembers.filter(
+      (member) => member.id !== ownerMember.id,
+    );
+
+    await this.folderUseCases.deleteByUuids(
+      workspaceNetworkUser,
+      nonOwnerMembers.map((members) => members.rootFolderId),
+    );
+
+    await this.workspaceRepository.deleteUsersFromWorkspace(
+      workspace.id,
+      nonOwnerMembers.map((member) => member.memberId),
+    );
+
+    await this.workspaceRepository.deleteAllInvitationsByWorkspace(
+      workspace.id,
+    );
+
+    const workspaceTotalSpace = await this.getWorkspaceNetworkLimit(workspace);
+
+    await this.workspaceRepository.updateWorkspaceUserBy(
+      { workspaceId: workspace.id, memberId: workspace.ownerId },
+      { spaceLimit: workspaceTotalSpace },
+    );
+  }
+
+  async emptyAllUserOwnedWorkspaces(user: User): Promise<void> {
+    const workspaces = await this.workspaceRepository.findByOwner(user.uuid);
+
+    await Promise.all(
+      workspaces.map((workspace) => this.resetWorkspace(workspace)),
+    );
+  }
+
+  async removeUserFromNonOwnedWorkspaces(user: User): Promise<void> {
+    const ownedWorkspaces = await this.workspaceRepository.findByOwner(
+      user.uuid,
+    );
+
+    const allWorkspaceMemberships =
+      await this.workspaceRepository.findWorkspaceUsersByUserUuid(user.uuid);
+
+    const nonOwnedWorkspaceMemberships = allWorkspaceMemberships.filter(
+      (membership) =>
+        !ownedWorkspaces.some(
+          (workspace) => workspace.id === membership.workspaceId,
+        ),
+    );
+
+    await this.workspaceRepository.deleteAllInvitationByUser(user.uuid);
+
+    await Promise.all(
+      nonOwnedWorkspaceMemberships.map((membership) =>
+        this.leaveWorkspace(membership.workspaceId, user),
+      ),
+    );
   }
 }

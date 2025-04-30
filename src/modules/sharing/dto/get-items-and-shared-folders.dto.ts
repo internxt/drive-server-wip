@@ -41,6 +41,7 @@ export interface FolderWithSharedInfo extends Folder {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
   };
+  token: string | null;
 }
 
 export interface FileWithSharedInfo extends File {
@@ -53,4 +54,5 @@ export interface FileWithSharedInfo extends File {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
   };
+  token: string | null;
 }

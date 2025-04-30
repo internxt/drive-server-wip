@@ -1,5 +1,5 @@
 import { newFolder } from '../../../test/fixtures';
-import { FolderStatus } from './folder.domain';
+import { Folder, FolderStatus } from './folder.domain';
 
 describe('Folder domain', () => {
   it('When the trash check helper is called, then it reflects the trash status of the folder', () => {
@@ -43,5 +43,27 @@ describe('Folder domain', () => {
     });
 
     expect(folder.getFolderStatus()).toBe(FolderStatus.EXISTS);
+  });
+
+  describe('getFilterByStatus', () => {
+    it('When the status is EXISTS, it should return the correct filter for existing folders', () => {
+      const filter = Folder.getFilterByStatus(FolderStatus.EXISTS);
+      expect(filter).toEqual({ deleted: false, removed: false });
+    });
+
+    it('When the status is TRASHED, it should return the correct filter for trashed folders', () => {
+      const filter = Folder.getFilterByStatus(FolderStatus.TRASHED);
+      expect(filter).toEqual({ deleted: true, removed: false });
+    });
+
+    it('When the status is DELETED, it should return the correct filter for deleted folders', () => {
+      const filter = Folder.getFilterByStatus(FolderStatus.DELETED);
+      expect(filter).toEqual({ removed: true });
+    });
+
+    it('When the status is invalid, it should return an empty filter', () => {
+      const filter = Folder.getFilterByStatus('INVALID_STATUS' as FolderStatus);
+      expect(filter).toEqual({});
+    });
   });
 });

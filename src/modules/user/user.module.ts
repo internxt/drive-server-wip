@@ -33,12 +33,10 @@ import { ShareModule } from '../share/share.module';
 import { KeyServerModel } from '../keyserver/key-server.model';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
-import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { PlanModule } from '../plan/plan.module';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { SharingModule } from '../sharing/sharing.module';
-import { SharingService } from '../sharing/sharing.service';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
@@ -47,6 +45,9 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
+import { BackupModule } from '../backups/backup.module';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 
 @Module({
   imports: [
@@ -74,6 +75,9 @@ import { UserNotificationTokensModel } from './user-notification-tokens.model';
     SecurityModule,
     forwardRef(() => FeatureLimitModule),
     forwardRef(() => WorkspacesModule),
+    forwardRef(() => BackupModule),
+    CacheManagerModule,
+    AsymmetricEncryptionModule,
   ],
   controllers: [UserController],
   providers: [
@@ -92,10 +96,6 @@ import { UserNotificationTokensModel } from './user-notification-tokens.model';
     PaymentsService,
     NewsletterService,
     AvatarService,
-    BridgeService,
-    PaymentsService,
-    AppSumoUseCase,
-    SharingService,
     MailerService,
   ],
   exports: [

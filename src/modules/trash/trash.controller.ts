@@ -48,6 +48,9 @@ import {
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { Requester } from '../auth/decorators/requester.decorator';
+import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
+import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -140,6 +143,7 @@ export class TrashController {
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (moveItemsDto.items.length === 0) {
       logger('error', {
@@ -186,7 +190,12 @@ export class TrashController {
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)
         .then((members) => {
-          members.forEach((member) => {
+          const usersToNotify = [
+            ...members.filter((m) => m.uuid !== user.uuid),
+            requester,
+          ];
+
+          usersToNotify.forEach((member) => {
             this.storageNotificationService.itemsTrashed({
               payload: moveItemsDto.items,
               user: member,
@@ -259,16 +268,11 @@ export class TrashController {
   })
   @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
   @WorkspacesInBehalfGuard(WorkspaceResourcesAction.DeleteItemsFromTrash)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Delete)
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
   ) {
-    // TODO: Uncomment this once all the platforms block deleting more than 50 items
-    // if (deleteItemsDto.items.length > 50) {
-    //   throw new BadRequestException(
-    //     'Items to remove from the trash are limited to 50',
-    //   );
-    // }
     const { items } = deleteItemsDto;
 
     const filesIds: File['id'][] = [];

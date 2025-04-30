@@ -7,7 +7,7 @@ import { Folder } from '../folder/folder.domain';
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 
@@ -42,6 +42,7 @@ export interface UserRepository {
     tokens: string[],
   ): Promise<void>;
   getNotificationTokenCount(userId: string): Promise<number>;
+  loginFailed(user: User, isFailed: boolean): Promise<void>;
 }
 
 @Injectable()
@@ -104,7 +105,7 @@ export class SequelizeUserRepository implements UserRepository {
     return user ? this.toDomain(user) : null;
   }
 
-  async findAllBy(where: any): Promise<Array<User> | []> {
+  async findAllBy(where: any): Promise<Array<User>> {
     const users = await this.modelUser.findAll({ where });
     return users.map((user) => this.toDomain(user));
   }
@@ -157,6 +158,10 @@ export class SequelizeUserRepository implements UserRepository {
 
   async updateByUuid(uuid: User['uuid'], update: Partial<User>): Promise<void> {
     await this.modelUser.update(update, { where: { uuid } });
+  }
+
+  async deleteBy(where: Partial<User>): Promise<void> {
+    await this.modelUser.destroy({ where });
   }
 
   async getMeetClosedBetaUsers(): Promise<string[]> {
@@ -222,14 +227,14 @@ export class SequelizeUserRepository implements UserRepository {
 
   async deleteUserNotificationTokens(
     userUuid: UserAttributes['uuid'],
-    tokens: string[],
+    tokens?: string[],
   ) {
+    const optionalCondition = tokens ? { token: { [Op.in]: tokens } } : null;
+
     await this.modelUserNotificationTokens.destroy({
       where: {
         userId: userUuid,
-        token: {
-          [Op.in]: tokens,
-        },
+        ...optionalCondition,
       },
     });
   }
@@ -248,6 +253,12 @@ export class SequelizeUserRepository implements UserRepository {
 
   async getNotificationTokenCount(userId: string): Promise<number> {
     return this.modelUserNotificationTokens.count({ where: { userId } });
+  }
+
+  async loginFailed(user: User, isFailed: boolean): Promise<void> {
+    const { uuid, errorLoginCount } = user;
+    const update = { errorLoginCount: isFailed ? errorLoginCount + 1 : 0 };
+    await this.modelUser.update(update, { where: { uuid } });
   }
 
   toDomain(model: UserModel): User {

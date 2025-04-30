@@ -12,7 +12,8 @@ import {
   UseGuards,
   UseInterceptors,
   InternalServerErrorException,
-  UseFilters,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -41,13 +42,14 @@ import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
-import { ValidateUUIDPipe } from './pipes/validate-uuid.pipe';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   Folder,
   FolderAttributes,
+  FolderStatus,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
@@ -55,12 +57,12 @@ import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
-import { ExtendedHttpExceptionFilter } from '../../common/http-exception-filter-extended.exception';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import { OrderBy } from '../../common/order.type';
+import { GetDataFromRequest } from './../../common/extract-data-from-request';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { SharingActionName } from '../sharing/sharing.domain';
+import { Sharing, SharingActionName } from '../sharing/sharing.domain';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
@@ -68,12 +70,30 @@ import { Public } from '../auth/decorators/public.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 import { GetSharedWithDto } from './dto/shared-with.dto';
+import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
+import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Client } from '../auth/decorators/client.decorator';
+import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
+import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
+import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
+import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
+import { Requester } from '../auth/decorators/requester.decorator';
+import { ResultFilesDto, FileDto } from '../file/dto/responses/file.dto';
+import {
+  FolderDto,
+  ResultFoldersDto,
+} from '../folder/dto/responses/folder.dto';
+import { GetAvailableWorkspacesResponseDto } from './dto/reponse/workspace.dto';
+import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
-@UseFilters(ExtendedHttpExceptionFilter)
 export class WorkspacesController {
-  constructor(private readonly workspaceUseCases: WorkspacesUsecases) {}
+  constructor(
+    private readonly workspaceUseCases: WorkspacesUsecases,
+    private readonly storageNotificationService: StorageNotificationService,
+  ) {}
 
   @Get('/')
   @ApiOperation({
@@ -81,9 +101,12 @@ export class WorkspacesController {
   })
   @ApiOkResponse({
     description: 'Available workspaces and workspaceUser',
+    type: GetAvailableWorkspacesResponseDto,
   })
   @ApiBearerAuth()
-  async getAvailableWorkspaces(@UserDecorator() user: User) {
+  async getAvailableWorkspaces(
+    @UserDecorator() user: User,
+  ): Promise<GetAvailableWorkspacesResponseDto> {
     return this.workspaceUseCases.getAvailableWorkspaces(user);
   }
 
@@ -126,11 +149,27 @@ export class WorkspacesController {
   })
   async acceptWorkspaceInvitation(
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() acceptInvitationDto: AcceptWorkspaceInviteDto,
   ) {
     const { inviteId } = acceptInvitationDto;
 
-    return this.workspaceUseCases.acceptWorkspaceInvite(user, inviteId);
+    const workspaceUser = await this.workspaceUseCases.acceptWorkspaceInvite(
+      user,
+      inviteId,
+    );
+
+    const workspace = await this.workspaceUseCases.findById(
+      workspaceUser.workspaceId,
+    );
+
+    this.storageNotificationService.workspaceJoined({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user,
+      clientId,
+    });
+
+    return workspaceUser;
   }
 
   @Get('/invitations/:inviteId/validate')
@@ -259,6 +298,75 @@ export class WorkspacesController {
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
+  @Get('/:workspaceId/files')
+  @ApiOkResponse({ isArray: true, type: FileDto })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFiles(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: string,
+    @Query() query: GetWorkspaceFilesQueryDto,
+  ): Promise<FileDto[]> {
+    const { limit, offset, status, bucket, sort, order, updatedAt } = query;
+
+    const files =
+      await this.workspaceUseCases.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
+        user.uuid,
+        workspaceId,
+        new Date(updatedAt || 1),
+        {
+          limit,
+          offset,
+          sort,
+          order,
+          status: status !== 'ALL' ? status : undefined,
+        },
+        bucket,
+      );
+
+    return files.map((f) => {
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      return f;
+    });
+  }
+
+  @Get('/:workspaceId/folders')
+  @ApiOkResponse({ isArray: true, type: FolderDto })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFolders(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: string,
+    @Query() query: GetWorkspaceFoldersQueryDto,
+  ): Promise<FolderDto[]> {
+    const { limit, offset, status, sort, order, updatedAt } = query;
+
+    const folders =
+      await this.workspaceUseCases.getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
+        user.uuid,
+        workspaceId,
+        new Date(updatedAt || 1),
+        {
+          limit,
+          offset,
+          sort,
+          order,
+          status: status !== 'ALL' ? status : undefined,
+        },
+      );
+
+    return folders.map((f) => ({
+      ...f,
+      status: f.getFolderStatus(),
+    }));
+  }
+
   @Patch('/:workspaceId/teams/:teamId/manager')
   @ApiOperation({
     summary: 'Changes the manager of a team',
@@ -368,13 +476,14 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Workspace credentials',
+    type: WorkspaceCredentialsDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getWorkspaceUser(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
-  ) {
+  ): Promise<WorkspaceCredentialsDto> {
     return this.workspaceUseCases.getWorkspaceCredentials(workspaceId);
   }
 
@@ -538,6 +647,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Created File',
+    type: FileDto,
   })
   @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -546,9 +656,22 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() createFileDto: CreateWorkspaceFileDto,
-  ) {
-    return this.workspaceUseCases.createFile(user, workspaceId, createFileDto);
+  ): Promise<FileDto> {
+    const file = await this.workspaceUseCases.createFile(
+      user,
+      workspaceId,
+      createFileDto,
+    );
+
+    this.storageNotificationService.fileCreated({
+      payload: file,
+      user,
+      clientId,
+    });
+
+    return file;
   }
 
   @Post('/:workspaceId/shared/')
@@ -562,6 +685,7 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.Share)
   async shareItemWithMember(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -728,6 +852,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description: 'Created Folder',
+    type: FolderDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -735,13 +860,22 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Body() createFolderDto: CreateWorkspaceFolderDto,
-  ) {
-    return this.workspaceUseCases.createFolder(
+  ): Promise<FolderDto> {
+    const folder = await this.workspaceUseCases.createFolder(
       user,
       workspaceId,
       createFolderDto,
     );
+
+    this.storageNotificationService.folderCreated({
+      payload: folder,
+      user,
+      clientId,
+    });
+
+    return { ...folder, status: FolderStatus.EXISTS };
   }
 
   @Get('/:workspaceId/trash')
@@ -788,6 +922,7 @@ export class WorkspacesController {
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @WorkspaceLogAction(WorkspaceLogGlobalActionType.DeleteAll)
   async emptyTrash(
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
@@ -805,19 +940,20 @@ export class WorkspacesController {
   @ApiParam({ name: 'folderUuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Folders in folder',
+    type: ResultFoldersDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async getFoldersInFolder(
     @Param('workspaceId', ValidateUUIDPipe)
-    workspaceId: WorkspaceAttributes['id'],
+    workspaceId: string,
     @Param('folderUuid', ValidateUUIDPipe)
-    folderUuid: FolderAttributes['uuid'],
+    folderUuid: string,
     @UserDecorator() user: User,
     @Query() pagination: BasicPaginationDto,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFoldersDto> {
     const { limit, offset } = pagination;
 
     return this.workspaceUseCases.getPersonalWorkspaceFoldersInFolder(
@@ -839,6 +975,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'folderUuid', type: String, required: true })
   @ApiOkResponse({
     description: 'Files in folder',
+    type: ResultFilesDto,
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -851,7 +988,7 @@ export class WorkspacesController {
     @Query() pagination: BasicPaginationDto,
     @Query('sort') sort?: SortableFileAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ResultFilesDto> {
     const { limit, offset } = pagination;
     return this.workspaceUseCases.getPersonalWorkspaceFilesInFolder(
       user,
@@ -924,10 +1061,19 @@ export class WorkspacesController {
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
   async leaveWorkspace(
     @UserDecorator() user: User,
+    @Client() clientId: string,
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
-    return this.workspaceUseCases.leaveWorkspace(workspaceId, user);
+    const workspace = await this.workspaceUseCases.findById(workspaceId);
+
+    await this.workspaceUseCases.leaveWorkspace(workspaceId, user);
+
+    this.storageNotificationService.workspaceLeft({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user,
+      clientId,
+    });
   }
 
   @Get(':workspaceId/members/:memberId')
@@ -1033,8 +1179,27 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @Param('memberId', ValidateUUIDPipe)
     memberId: WorkspaceTeamAttributes['id'],
+    @Client() clientId: string,
   ) {
-    return this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
+    const workspace = await this.workspaceUseCases.findById(workspaceId);
+
+    const workspaceUser = await this.workspaceUseCases.findUserInWorkspace(
+      memberId,
+      workspaceId,
+      true,
+    );
+
+    if (!workspaceUser) {
+      throw new NotFoundException('User not found in workspace');
+    }
+
+    await this.workspaceUseCases.removeWorkspaceMember(workspaceId, memberId);
+
+    this.storageNotificationService.workspaceLeft({
+      payload: { workspaceId: workspace.id, workspaceName: workspace.name },
+      user: workspaceUser.member,
+      clientId,
+    });
   }
 
   @Get(':workspaceId/fuzzy/:search')
@@ -1059,6 +1224,100 @@ export class WorkspacesController {
       user,
       workspaceId,
       search,
+    );
+  }
+
+  @Get(':workspaceId/access/logs')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Access Logs',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Access Logs',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
+  async accessLogs(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Query() workspaceLogDto: GetWorkspaceLogsDto,
+  ) {
+    const {
+      limit,
+      offset,
+      member,
+      activity: logType,
+      lastDays,
+      summary,
+      orderBy,
+    } = workspaceLogDto;
+
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
+
+    return this.workspaceUseCases.accessLogs(
+      workspaceId,
+      { limit, offset },
+      member,
+      logType,
+      lastDays,
+      summary,
+      order,
+    );
+  }
+
+  @Get(':workspaceId/:itemType/:uuid/ancestors')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'See item ancestors',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'itemType', type: String, required: true })
+  @ApiParam({ name: 'uuid', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Item ancestors details',
+  })
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemUuid',
+    },
+    {
+      sourceKey: 'params',
+      fieldName: 'itemType',
+    },
+  ])
+  @UseGuards(WorkspaceGuard, SharingPermissionsGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  @RequiredSharingPermissions(SharingActionName.ViewDetails)
+  async getWorkspaceItemAncestors(
+    @Requester() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Param('itemType') itemType: WorkspaceItemType,
+    @Param('uuid', ValidateUUIDPipe)
+    itemUuid: Sharing['itemId'],
+    @IsSharedItem() isSharedItem: boolean,
+  ) {
+    if (!isSharedItem) {
+      const creator = await this.workspaceUseCases.isUserCreatorOfItem(
+        user,
+        itemUuid,
+        itemType,
+      );
+      if (!creator) {
+        throw new ForbiddenException('You cannot access this resource');
+      }
+    }
+
+    return this.workspaceUseCases.getWorkspaceItemAncestors(
+      workspaceId,
+      itemType,
+      itemUuid,
     );
   }
 }

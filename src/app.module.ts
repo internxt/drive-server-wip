@@ -4,7 +4,6 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { format } from 'sql-formatter';
-import { SentryModule } from '@ntegral/nestjs-sentry';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
 import { FolderModule } from './modules/folder/folder.module';
@@ -25,6 +24,8 @@ import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
+import { APP_FILTER } from '@nestjs/core';
+import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 
 @Module({
   imports: [
@@ -32,14 +33,6 @@ import { GatewayModule } from './modules/gateway/gateway.module';
       envFilePath: [`.env.${process.env.NODE_ENV}`],
       load: [configuration],
       isGlobal: true,
-    }),
-    SentryModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        dsn: configService.get('sentry.dsn'),
-        environment: configService.get('environment'),
-      }),
     }),
     SequelizeModule.forRootAsync({
       imports: [ConfigModule],
@@ -120,6 +113,11 @@ import { GatewayModule } from './modules/gateway/gateway.module';
     GatewayModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: HttpGlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}

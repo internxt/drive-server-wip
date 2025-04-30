@@ -5,15 +5,17 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from './trash.usecase';
 import { newUser } from '../../../test/fixtures';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ItemType } from './dto/controllers/move-items-to-trash.dto';
 import {
   DeleteItemType,
   DeleteItemsDto,
 } from './dto/controllers/delete-item.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Test } from '@nestjs/testing';
 
 const user = newUser();
+const requester = newUser();
 
 describe('TrashController', () => {
   let controller: TrashController;
@@ -24,18 +26,18 @@ describe('TrashController', () => {
   let storageNotificationService: StorageNotificationService;
 
   beforeEach(async () => {
-    folderUseCases = createMock<FolderUseCases>();
-    fileUseCases = createMock<FileUseCases>();
-    userUseCases = createMock<UserUseCases>();
-    trashUseCases = createMock<TrashUseCases>();
-    storageNotificationService = createMock<StorageNotificationService>();
-    controller = new TrashController(
-      fileUseCases,
-      folderUseCases,
-      userUseCases,
-      storageNotificationService,
-      trashUseCases,
-    );
+    const moduleRef = await Test.createTestingModule({
+      controllers: [TrashController],
+    })
+      .setLogger(createMock<Logger>())
+      .useMocker(() => createMock())
+      .compile();
+    controller = moduleRef.get(TrashController);
+    fileUseCases = moduleRef.get(FileUseCases);
+    userUseCases = moduleRef.get(UserUseCases);
+    storageNotificationService = moduleRef.get(StorageNotificationService);
+    folderUseCases = moduleRef.get(FolderUseCases);
+    trashUseCases = moduleRef.get(TrashUseCases);
   });
 
   it('should be defined', () => {
@@ -55,6 +57,7 @@ describe('TrashController', () => {
         },
         user,
         'anyid',
+        requester,
       ),
     ).rejects.toThrow(BadRequestException);
   });
@@ -63,7 +66,7 @@ describe('TrashController', () => {
     const body = { items: [] };
     jest.spyOn(fileUseCases, 'moveFilesToTrash');
 
-    await controller.moveItemsToTrash(body, user, '');
+    await controller.moveItemsToTrash(body, user, '', requester);
     expect(fileUseCases.moveFilesToTrash).not.toHaveBeenCalled();
   });
 
@@ -101,6 +104,7 @@ describe('TrashController', () => {
       },
       user,
       '',
+      requester,
     );
 
     expect(fileUseCases.moveFilesToTrash).toHaveBeenCalledWith(

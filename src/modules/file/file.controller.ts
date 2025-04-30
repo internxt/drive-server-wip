@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Logger,
   NotFoundException,
@@ -11,11 +12,15 @@ import {
   Put,
   Query,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -29,7 +34,7 @@ import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { ValidateUUIDPipe } from '../workspaces/pipes/validate-uuid.pipe';
+import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
@@ -39,8 +44,21 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../auth/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
+import { Requester } from '../auth/decorators/requester.decorator';
+import { FileDto } from './dto/responses/file.dto';
+import { UploadGuard } from './guards/upload.guard';
+import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
+import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
+import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
+
+enum FileStatusQuery {
+  EXISTS = 'EXISTS',
+  TRASHED = 'TRASHED',
+  DELETED = 'DELETED',
+  ALL = 'ALL',
+}
 
 @ApiTags('File')
 @Controller('files')
@@ -48,20 +66,22 @@ export class FileController {
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
+    private readonly thumbnailUseCases: ThumbnailUseCases,
   ) {}
 
   @Post('/')
   @ApiOperation({
     summary: 'Create File',
   })
+  @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
-  @UseGuards(SharingPermissionsGuard)
+  @UseGuards(SharingPermissionsGuard, UploadGuard)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
     @Client() clientId: string,
-  ) {
+  ): Promise<FileDto> {
     const file = await this.fileUseCases.createFile(user, createFileDto);
 
     this.storageNotificationService.fileCreated({
@@ -96,6 +116,7 @@ export class FileController {
   }
 
   @Get('/:uuid/meta')
+  @ApiOkResponse({ type: FileDto })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -110,8 +131,8 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async getFileMetadata(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
-  ) {
+    @Param('uuid') fileUuid: string,
+  ): Promise<FileDto> {
     if (!validate(fileUuid)) {
       throw new BadRequestException('Invalid UUID');
     }
@@ -151,9 +172,10 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
+    @Param('uuid') fileUuid: string,
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     try {
       const file = await this.fileUseCases.replaceFile(
@@ -164,7 +186,7 @@ export class FileController {
 
       this.storageNotificationService.fileUpdated({
         payload: file,
-        user: user,
+        user: requester,
         clientId,
       });
 
@@ -206,13 +228,22 @@ export class FileController {
   ])
   @RequiredSharingPermissions(SharingActionName.RenameItems)
   @WorkspacesInBehalfValidationFile()
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+    }),
+  )
   async updateFileMetadata(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe)
     fileUuid: File['uuid'],
     @Body() updateFileMetaDto: UpdateFileMetaDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
+    if (!updateFileMetaDto || Object.keys(updateFileMetaDto).length === 0) {
+      throw new BadRequestException('Missing update file metadata');
+    }
     const result = await this.fileUseCases.updateFileMetaData(
       user,
       fileUuid,
@@ -221,7 +252,7 @@ export class FileController {
 
     this.storageNotificationService.fileUpdated({
       payload: result,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -229,16 +260,22 @@ export class FileController {
   }
 
   @Get('/')
+  @ApiOkResponse({ isArray: true, type: FileDto })
+  @ApiQuery({ name: 'bucket', required: false })
+  @ApiQuery({ name: 'sort', required: false })
+  @ApiQuery({ name: 'order', required: false })
+  @ApiQuery({ name: 'updatedAt', required: false })
+  @ApiQuery({ name: 'status', enum: FileStatusQuery })
   async getFiles(
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Query('status') status: (typeof filesStatuses)[number],
-    @Query('bucket') bucket?: File['bucket'],
+    @Query('status') status: FileStatusQuery,
+    @Query('bucket') bucket?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'ASC' | 'DESC',
     @Query('updatedAt') updatedAt?: string,
-  ) {
+  ): Promise<FileDto[]> {
     if (!isNumber(limit) || !isNumber(offset)) {
       throw new BadRequestException('Limit or offset are not numbers');
     }
@@ -314,9 +351,10 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async moveFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: File['uuid'],
+    @Param('uuid') fileUuid: string,
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
+    @Requester() requester: User,
   ) {
     if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -329,7 +367,7 @@ export class FileController {
 
     this.storageNotificationService.fileUpdated({
       payload: file,
-      user: user,
+      user: requester,
       clientId,
     });
 
@@ -372,10 +410,11 @@ export class FileController {
   }
 
   @Get('/meta')
+  @ApiOkResponse({ type: FileDto })
   async getFileMetaByPath(
     @UserDecorator() user: User,
     @Query('path') filePath: string,
-  ) {
+  ): Promise<FileDto> {
     if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
       throw new BadRequestException('Invalid path provided');
     }
@@ -406,6 +445,67 @@ export class FileController {
           user: { email, uuid },
         })} STACK: ${err.stack || 'NO STACK'}`,
       );
+    }
+  }
+
+  @Post('/thumbnail')
+  @ApiOperation({
+    summary: 'Create Thumbnail',
+  })
+  @ApiOkResponse({ type: ThumbnailDto })
+  @ApiBearerAuth()
+  @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @UseGuards(SharingPermissionsGuard)
+  async createThumbnail(
+    @UserDecorator() user: User,
+    @Body() createThumbnailDto: CreateThumbnailDto,
+  ): Promise<ThumbnailDto> {
+    return this.thumbnailUseCases.createThumbnail(user, createThumbnailDto);
+  }
+
+  @Delete('/:uuid')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage and database',
+  })
+  async deleteFileByUuid(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Client() clientId: string,
+  ) {
+    const { id } = await this.fileUseCases.deleteFilePermanently(user, {
+      uuid,
+    });
+
+    this.storageNotificationService.fileDeleted({
+      payload: { id, uuid },
+      user,
+      clientId,
+    });
+
+    return { deleted: true };
+  }
+
+  @Delete('/:bucketId/:fileId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete file from storage by fileId',
+  })
+  async deleteFileByFileId(
+    @UserDecorator() user: User,
+    @Param('bucketId') bucketId: string,
+    @Param('fileId') fileId: string,
+    @Client() clientId: string,
+  ) {
+    const { fileExistedInDb, id, uuid } =
+      await this.fileUseCases.deleteFileByFileId(user, bucketId, fileId);
+
+    if (fileExistedInDb) {
+      this.storageNotificationService.fileDeleted({
+        payload: { id, uuid },
+        user,
+        clientId,
+      });
     }
   }
 }

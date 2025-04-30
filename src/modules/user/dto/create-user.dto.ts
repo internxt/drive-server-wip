@@ -1,6 +1,28 @@
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserAttributes } from '../user.attributes';
+import { Type } from 'class-transformer';
+import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/keys.dto';
+
+class KeysDto {
+  @Type(() => EccKeysDto)
+  @IsOptional()
+  @ValidateNested()
+  @ApiProperty({
+    type: EccKeysDto,
+    description: 'ECC keys',
+  })
+  ecc: EccKeysDto;
+
+  @Type(() => KyberKeysDto)
+  @IsOptional()
+  @ValidateNested()
+  @ApiProperty({
+    type: KyberKeysDto,
+    description: 'Kyber keys',
+  })
+  kyber?: KyberKeysDto;
+}
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -50,34 +72,47 @@ export class CreateUserDto {
   @ApiProperty({
     example: '',
     description: '',
+    deprecated: true,
   })
-  privateKey: string;
+  privateKey?: string;
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+    deprecated: true,
+  })
+  publicKey?: string;
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+    deprecated: true,
+  })
+  revocationKey?: string;
 
   @IsOptional()
   @ApiProperty({
     example: '',
     description: '',
   })
-  publicKey: string;
+  referrer?: UserAttributes['referrer'];
 
   @IsOptional()
   @ApiProperty({
     example: '',
     description: '',
   })
-  revocationKey: string;
+  registerCompleted?: UserAttributes['registerCompleted'];
 
+  @Type(() => KeysDto)
   @IsOptional()
+  @ValidateNested()
   @ApiProperty({
-    example: '',
-    description: '',
+    type: KeysDto,
+    description:
+      'Keys, if provided, will update the user keys. This object replaces the need for privateKey and encryptVersion.',
   })
-  referrer: UserAttributes['referrer'];
-
-  @IsOptional()
-  @ApiProperty({
-    example: '',
-    description: '',
-  })
-  registerCompleted: UserAttributes['registerCompleted'];
+  keys?: KeysDto;
 }

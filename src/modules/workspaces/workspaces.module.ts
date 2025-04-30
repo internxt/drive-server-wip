@@ -23,6 +23,8 @@ import { HttpClientModule } from 'src/externals/http/http.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
+import { WorkspaceLogModel } from './models/workspace-logs.model';
 
 @Module({
   imports: [
@@ -33,6 +35,7 @@ import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
       WorkspaceTeamUserModel,
       WorkspaceUserModel,
       WorkspaceInviteModel,
+      WorkspaceLogModel,
     ]),
     forwardRef(() => UserModule),
     forwardRef(() => FolderModule),
@@ -43,6 +46,7 @@ import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
     MailerModule,
     HttpClientModule,
     FuzzySearchModule,
+    NotificationModule,
   ],
   controllers: [WorkspacesController],
   providers: [
@@ -55,6 +59,6 @@ import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
     PaymentsService,
     FuzzySearchUseCases,
   ],
-  exports: [WorkspacesUsecases, SequelizeModule],
+  exports: [WorkspacesUsecases, SequelizeModule, SequelizeWorkspaceRepository],
 })
 export class WorkspacesModule {}

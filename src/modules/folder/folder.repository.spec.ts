@@ -6,6 +6,9 @@ import { Folder } from './folder.domain';
 import { newFolder } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op } from 'sequelize';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { v4 } from 'uuid';
+import { randomInt } from 'crypto';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -144,6 +147,121 @@ describe('SequelizeFolderRepository', () => {
           removed: false,
         },
       });
+    });
+  });
+
+  describe('findAllCursorInWorkspaceWhereUpdatedAfter', () => {
+    const createdBy = 'user-uuid';
+    const workspaceId = 'workspace-id';
+    const updatedAfter = new Date('2023-01-01T00:00:00Z');
+    const whereClause = { deleted: false, removed: false };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [
+      ['updatedAt', 'ASC'],
+    ];
+
+    it('When no order is provided, it should default to nothing', async () => {
+      jest.spyOn(folderModel, 'findAll');
+
+      await repository.findAllCursorInWorkspaceWhereUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAfter },
+          parentId: { [Op.not]: null },
+        },
+        include: [
+          {
+            model: WorkspaceItemUserModel,
+            where: {
+              createdBy,
+              workspaceId,
+              itemType: 'folder',
+            },
+          },
+        ],
+        order: [],
+        limit,
+        offset,
+      });
+    });
+
+    it('When no folders are found, it should return nothing', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findAllCursorInWorkspaceWhereUpdatedAfter(
+        createdBy,
+        workspaceId,
+        whereClause,
+        updatedAfter,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findByUuidAndUser', () => {
+    it('When folders are searched by uuid and user, then it should be handle as expected', async () => {
+      const randomFolderUUID = v4();
+      const randomUserId = randomInt(100000);
+      const folder = newFolder();
+      jest.spyOn(folderModel, 'findOne').mockReturnValueOnce(folder as any);
+
+      await repository.findByUuidAndUser(randomFolderUUID, randomUserId);
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: {
+          uuid: randomFolderUUID,
+          userId: randomUserId,
+          removed: false,
+        },
+      });
+    });
+
+    it('When folders are searched by uuid and user but they dont exist, then it should return null', async () => {
+      const randomFolderUUID = v4();
+      const randomUserId = randomInt(100000);
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findByUuidAndUser(
+        randomFolderUUID,
+        randomUserId,
+      );
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: {
+          uuid: randomFolderUUID,
+          userId: randomUserId,
+          removed: false,
+        },
+      });
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateBy', () => {
+    it('When folders are updated, it should update by the fields provided', async () => {
+      const userId = 134455;
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([1]);
+
+      await repository.updateBy({ removed: true }, { userId });
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        { removed: true },
+        { where: { userId } },
+      );
     });
   });
 });
