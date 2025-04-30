@@ -25,6 +25,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -78,6 +79,9 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import * as jwtLibrary from '../../lib/jwt';
+import { JsonWebTokenError } from 'jsonwebtoken';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2567,6 +2571,204 @@ describe('User use cases', () => {
 
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
+    });
+  });
+
+  describe('verifyAndDecodeAccountRecoveryToken', () => {
+    it('When token is valid, then it should return the user UUID', () => {
+      const userUuid = v4();
+      const token = 'validToken';
+      const jwtSecret = 'jwt-secret';
+      const decodedToken = {
+        payload: {
+          uuid: userUuid,
+          action: 'recover-account',
+        },
+      };
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret);
+      const verifyTokenSpy = jest
+        .spyOn(jwtLibrary, 'verifyToken')
+        .mockReturnValue(decodedToken);
+
+      const result = userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+
+      expect(result).toEqual({ userUuid });
+      expect(verifyTokenSpy).toHaveBeenCalledWith(token, jwtSecret);
+    });
+
+    it('When token verification returns a string, then it should throw ForbiddenException', () => {
+      const token = 'invalidToken';
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(token);
+      expect(() =>
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('When decoded content is missing, then it should throw ForbiddenException', () => {
+      const token = 'invalidToken';
+      const decodedToken = { payload: null };
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(decodedToken);
+
+      expect(() =>
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('When token verification throws JsonWebTokenError, then it should throw ForbiddenException with "Invalid token"', () => {
+      const token = 'invalidToken';
+      const error = new JsonWebTokenError('Invalid token');
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockImplementation(() => {
+        throw error;
+      });
+
+      expect(() =>
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).toThrow(new ForbiddenException('Invalid token'));
+    });
+  });
+
+  describe('recoverAccountLegacy', () => {
+    const credentials: LegacyRecoverAccountDto = {
+      mnemonic: 'test mnemonic',
+      password: 'encrypted-password',
+      salt: 'encrypted-salt',
+      asymmetricEncryptedMnemonic: {
+        ecc: 'encrypted-mnemonic',
+        hybrid: 'encrypted-mnemonic-hybrid',
+      },
+      keys: {
+        ecc: {
+          private: 'private-ecc-key',
+          public: 'public-ecc-key',
+          revocationKey: 'revocation-key',
+        },
+        kyber: {
+          private: 'private-kyber-key',
+          public: 'public-kyber-key',
+        },
+      },
+    };
+
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      const userUuid = v4();
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.recoverAccountLegacy(userUuid, credentials),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is found, then it should update user with decrypted credentials', async () => {
+      const userUuid = v4();
+      const userId = 1;
+      const decryptedPassword = 'decrypted-password';
+      const decryptedSalt = 'decrypted-salt';
+
+      const user = newUser({ attributes: { uuid: userUuid, id: userId } });
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest
+        .spyOn(cryptoService, 'decryptText')
+        .mockReturnValueOnce(decryptedPassword)
+        .mockReturnValueOnce(decryptedSalt);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
+        .mockResolvedValue([]);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+
+      await userUseCases.recoverAccountLegacy(userUuid, credentials);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(userUuid, {
+        mnemonic: 'test mnemonic',
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+    });
+
+    it('When credentials contain keys, then it should update each key by version', async () => {
+      const userUuid = v4();
+      const userId = 1;
+
+      const user = newUser({ attributes: { uuid: userUuid, id: userId } });
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
+      jest
+        .spyOn(keyServerUseCases, 'updateByUserAndEncryptVersion')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
+        .mockResolvedValue([]);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+
+      await userUseCases.recoverAccountLegacy(userUuid, credentials);
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(userId, UserKeysEncryptVersions.Ecc, {
+        privateKey: credentials.keys.ecc.private,
+        publicKey: credentials.keys.ecc.public,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(userId, UserKeysEncryptVersions.Kyber, {
+        privateKey: credentials.keys.kyber.private,
+        publicKey: credentials.keys.kyber.public,
+      });
+    });
+
+    it('When user has owned workspaces, then it should update all workspace user encrypted keys', async () => {
+      const userUuid = v4();
+      const userId = 1;
+      const user = newUser({ attributes: { uuid: userUuid, id: userId } });
+      const workspaceAndUsers = [
+        {
+          workspace: newWorkspace(),
+          workspaceUser: newWorkspaceUser({ memberId: user.uuid }),
+        },
+        {
+          workspace: newWorkspace(),
+          workspaceUser: newWorkspaceUser({ memberId: user.uuid }),
+        },
+      ];
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
+        .mockResolvedValue(workspaceAndUsers);
+      jest
+        .spyOn(workspaceRepository, 'updateWorkspaceUserEncryptedKeyByMemberId')
+        .mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+
+      await userUseCases.recoverAccountLegacy(userUuid, credentials);
+
+      expect(
+        workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
+      ).toHaveBeenCalledWith(
+        workspaceAndUsers[0].workspaceUser.memberId,
+        workspaceAndUsers[0].workspace.id,
+        credentials.asymmetricEncryptedMnemonic.ecc,
+      );
+      expect(
+        workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
+      ).toHaveBeenCalledWith(
+        workspaceAndUsers[1].workspaceUser.memberId,
+        workspaceAndUsers[1].workspace.id,
+        credentials.asymmetricEncryptedMnemonic.ecc,
+      );
     });
   });
 });

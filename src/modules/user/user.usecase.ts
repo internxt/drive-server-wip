@@ -1058,9 +1058,10 @@ export class UserUseCases {
     userUuid: string;
   } {
     try {
+      const jwtSecret = this.configService.get('secrets.jwt');
       const decoded = verifyToken<{
         payload: { uuid?: string; action?: string };
-      }>(token, this.configService.get('secrets.jwt'));
+      }>(token, jwtSecret);
 
       if (typeof decoded === 'string') {
         throw new ForbiddenException('Invalid token');
