@@ -1046,12 +1046,12 @@ export class UserUseCases {
       );
     }
 
-    await this.resetUser(user, {
-      deleteFiles: false,
-      deleteFolders: false,
-      deleteShares: true,
-      deleteWorkspaces: false,
-    });
+    //  New keys were created, so we need to delete invitations made with the old keys
+    await Promise.all([
+      await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid }),
+      await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid }),
+      await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user),
+    ]);
   }
 
   verifyAndDecodeAccountRecoveryToken(token: string): {

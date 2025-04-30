@@ -2680,7 +2680,6 @@ describe('User use cases', () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
         .mockResolvedValue([]);
-      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
 
       await userUseCases.recoverAccountLegacy(userUuid, credentials);
 
@@ -2706,7 +2705,6 @@ describe('User use cases', () => {
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
         .mockResolvedValue([]);
-      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
 
       await userUseCases.recoverAccountLegacy(userUuid, credentials);
 
@@ -2748,7 +2746,6 @@ describe('User use cases', () => {
       jest
         .spyOn(workspaceRepository, 'updateWorkspaceUserEncryptedKeyByMemberId')
         .mockResolvedValue(undefined);
-      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
 
       await userUseCases.recoverAccountLegacy(userUuid, credentials);
 
