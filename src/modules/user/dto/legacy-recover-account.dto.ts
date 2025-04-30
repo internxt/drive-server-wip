@@ -14,7 +14,7 @@ class EncryptedMnemonicDto {
     example: 'mnemonic_encrypted_with_hybrid_method',
     description: 'Mnemonic encrypted with hybrid method',
   })
-  @IsOptional()
+  @IsNotEmpty()
   hybrid: string;
 }
 
