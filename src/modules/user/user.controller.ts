@@ -84,6 +84,7 @@ import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { TokenExpiredError } from 'jsonwebtoken';
 
 @ApiTags('User')
 @Controller('users')
@@ -563,21 +564,6 @@ export class UserController {
   }
 
   @UseGuards(ThrottlerGuard)
-  @Put('/legacy-recover-account')
-  @Public()
-  @ApiOperation({
-    description:
-      'Recover account with legacy backup file, mnemonic only files should be used',
-    summary: 'Recover accocunt with legacy backup file',
-  })
-  async requestLegacyAccountRecovery(
-    @UserDecorator() user: User,
-    @Body() body: LegacyRecoverAccountDto,
-  ) {
-    await this.userUseCases.recoverAccountLegacy(user.uuid, body);
-  }
-
-  @UseGuards(ThrottlerGuard)
   @Post('/unblock-account')
   @HttpCode(200)
   @ApiOperation({
@@ -749,6 +735,27 @@ export class UserController {
 
       return { error: 'Internal Server Error' };
     }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Put('/legacy-recover-account')
+  @Public()
+  @ApiOperation({
+    description:
+      'Recover account with legacy backup file, mnemonic only files should be used',
+    summary: 'Recover accocunt with legacy backup file',
+  })
+  async requestLegacyAccountRecovery(
+    @Query('token') token: string,
+    @Body() body: LegacyRecoverAccountDto,
+  ) {
+    if (!token) {
+      throw new BadRequestException('Token is required');
+    }
+    const decodedToken =
+      this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+
+    await this.userUseCases.recoverAccountLegacy(decodedToken.userUuid, body);
   }
 
   @Get('/public-key/:email')
