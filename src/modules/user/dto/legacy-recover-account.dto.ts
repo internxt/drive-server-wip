@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
+import { IsNotEmpty, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class EncryptedMnemonicDto {
@@ -43,7 +43,7 @@ class EccKeysStructureDto extends BaseKeysStructureDto {
   revocationKey: string;
 }
 
-class newGeneratedKeysDto {
+class NewGeneratedKeysDto {
   @ApiProperty({
     type: EccKeysStructureDto,
     description: 'ECC keys (public and private)',
@@ -93,11 +93,11 @@ export class LegacyRecoverAccountDto {
   asymmetricEncryptedMnemonic: EncryptedMnemonicDto;
 
   @ApiProperty({
-    type: newGeneratedKeysDto,
+    type: NewGeneratedKeysDto,
     description: 'User ecc and kyber keys',
   })
   @IsNotEmpty()
   @ValidateNested()
-  @Type(() => newGeneratedKeysDto)
-  keys: newGeneratedKeysDto;
+  @Type(() => NewGeneratedKeysDto)
+  keys: NewGeneratedKeysDto;
 }
