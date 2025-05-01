@@ -18,6 +18,8 @@ import {
   Headers,
   Patch,
   UseFilters,
+  HttpException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -32,11 +34,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import {
-  InvalidSharedFolderError,
-  SharingService,
-  UserNotInvitedError,
-} from './sharing.service';
+import { SharingService } from './sharing.service';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
@@ -1021,22 +1019,15 @@ export class SharingController {
 
       return { users };
     } catch (error) {
-      let errorMessage = error.message;
-
-      if (error instanceof InvalidSharedFolderError) {
-        res.status(HttpStatus.BAD_REQUEST);
-      } else if (error instanceof UserNotInvitedError) {
-        res.status(HttpStatus.FORBIDDEN);
-      } else {
-        Logger.error(
-          `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
-            user.uuid
-          }, ${error.stack || 'No stack trace'}`,
-        );
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal server error';
+      if (error instanceof HttpException) {
+        throw error;
       }
-      return { error: errorMessage };
+      Logger.error(
+        `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
+          user.uuid
+        }, ${error.stack || 'No stack trace'}`,
+      );
+      throw new InternalServerErrorException();
     }
   }
 

@@ -56,69 +56,6 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 
-export class InvalidOwnerError extends Error {
-  constructor() {
-    super('You are not the owner of this folder');
-    Object.setPrototypeOf(this, InvalidOwnerError.prototype);
-  }
-}
-
-export class FolderNotSharedError extends Error {
-  constructor() {
-    super('This folder is not shared');
-    Object.setPrototypeOf(this, FolderNotSharedError.prototype);
-  }
-}
-
-export class ItemNotSharedWithUserError extends Error {
-  constructor() {
-    super(`This item is not shared with the given user`);
-    Object.setPrototypeOf(this, ItemNotSharedWithUserError.prototype);
-  }
-}
-
-export class UserNotInSharedFolder extends Error {
-  constructor() {
-    super('User is not in shared folder');
-    Object.setPrototypeOf(this, UserNotInSharedFolder.prototype);
-  }
-}
-
-export class RoleNotFoundError extends Error {
-  constructor() {
-    super('Role not found');
-    Object.setPrototypeOf(this, RoleNotFoundError.prototype);
-  }
-}
-
-export class InvalidPrivateFolderRoleError extends Error {
-  constructor() {
-    super('Private folder role not found');
-    Object.setPrototypeOf(this, InvalidPrivateFolderRoleError.prototype);
-  }
-}
-
-export class InvalidChildFolderError extends Error {
-  constructor() {
-    super('Folder not found');
-    Object.setPrototypeOf(this, InvalidChildFolderError.prototype);
-  }
-}
-
-export class UserNotInvitedError extends Error {
-  constructor() {
-    super('User not invited');
-    Object.setPrototypeOf(this, UserNotInvitedError.prototype);
-  }
-}
-
-export class InvitedUserNotFoundError extends Error {
-  constructor(email: User['email']) {
-    super(`Invited user: ${email} not found`);
-    Object.setPrototypeOf(this, InvitedUserNotFoundError.prototype);
-  }
-}
-
 export class UserAlreadyHasRole extends BadRequestException {
   constructor() {
     super('User already has a role');
@@ -140,13 +77,6 @@ export class OwnerCannotBeRemovedWithError extends Error {
   }
 }
 
-export class InvalidSharedFolderError extends Error {
-  constructor() {
-    super('This folder is not being shared');
-    Object.setPrototypeOf(this, InvalidSharedFolderError.prototype);
-  }
-}
-
 export class InvalidPermissionsError extends ForbiddenException {
   constructor() {
     super('You dont have permissions on this item');
@@ -154,14 +84,14 @@ export class InvalidPermissionsError extends ForbiddenException {
   }
 }
 
-export class SharedFolderInTheTrashError extends Error {
+export class SharedFolderInTheTrashError extends ForbiddenException {
   constructor() {
     super('This folder is in the trash');
     Object.setPrototypeOf(this, SharedFolderInTheTrashError.prototype);
   }
 }
 
-export class SharedFolderRemovedError extends Error {
+export class SharedFolderRemovedError extends ForbiddenException {
   constructor() {
     super('This folder has been removed');
     Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);
@@ -2073,7 +2003,9 @@ export class SharingService {
     });
 
     if (!sharing) {
-      throw new ConflictException(new ItemNotSharedWithUserError().message);
+      throw new ConflictException(
+        'This item is not shared with the given user',
+      );
     }
 
     let item: File | Folder;
