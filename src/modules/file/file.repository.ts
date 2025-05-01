@@ -434,6 +434,7 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
         {
+          separate: true,
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
@@ -466,6 +467,7 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
         {
+          separate: true,
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
