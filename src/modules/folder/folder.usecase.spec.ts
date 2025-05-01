@@ -759,7 +759,7 @@ describe('FolderUseCases', () => {
           plainName: folderName,
           parentFolderUuid: parentFolder.uuid,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('When new folder is valid, then it should create and return the new folder successfully', async () => {

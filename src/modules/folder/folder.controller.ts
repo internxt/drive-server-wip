@@ -778,6 +778,10 @@ export class FolderController {
         user.id,
       );
 
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
+      }
+
       return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
