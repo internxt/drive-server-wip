@@ -204,6 +204,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       order: appliedOrder,
       include: [
         {
+          separate: true,
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
@@ -270,6 +271,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           ],
         },
         {
+          separate: true,
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
