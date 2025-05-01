@@ -426,7 +426,7 @@ export class FolderUseCases {
     });
 
     if (nameAlreadyInUse) {
-      throw new BadRequestException(
+      throw new ConflictException(
         'Folder with the same name already exists in this location',
       );
     }
