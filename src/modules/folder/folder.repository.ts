@@ -130,6 +130,10 @@ export interface FolderRepository {
     update: Partial<FolderAttributes>,
     where: Partial<FolderAttributes>,
   ): Promise<number>;
+  updateById(
+    folderId: FolderAttributes['id'],
+    update: Partial<Folder>,
+  ): Promise<Folder | null>;
 }
 
 @Injectable()
@@ -467,6 +471,18 @@ export class SequelizeFolderRepository implements FolderRepository {
     folder.set(update);
     await folder.save();
     return this.toDomain(folder);
+  }
+
+  async updateById(
+    folderId: FolderAttributes['id'],
+    update: Partial<Folder>,
+  ): Promise<Folder | null> {
+    const [_, updatedFolder] = await this.folderModel.update(update, {
+      where: { id: folderId },
+      returning: true,
+    });
+
+    return updatedFolder.length > 0 ? this.toDomain(updatedFolder[0]) : null;
   }
 
   async updateManyByFolderId(

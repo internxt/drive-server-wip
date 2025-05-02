@@ -162,10 +162,11 @@ export class BackupUseCase {
       folder.bucket,
     );
 
-    const updatedFolder = await this.folderUsecases.updateByFolderId(folder, {
-      name: encryptedName,
-      plainName: deviceName,
-    });
+    const updatedFolder =
+      await this.folderUsecases.updateByFolderIdAndForceUpdatedAt(folder, {
+        name: encryptedName,
+        plainName: deviceName,
+      });
 
     return this.addDeviceProperties(user, updatedFolder);
   }

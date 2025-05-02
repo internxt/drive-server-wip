@@ -949,10 +949,16 @@ export class FolderUseCases {
     );
   }
 
-  async updateByFolderId(
+  async updateByFolderIdAndForceUpdatedAt(
     folder: Folder,
     folderData: Partial<FolderAttributes>,
   ): Promise<Folder> {
-    return this.folderRepository.updateByFolderId(folder.id, folderData);
+    const updatedFields = { ...folderData };
+
+    if (!updatedFields.updatedAt) {
+      updatedFields.updatedAt = new Date();
+    }
+
+    return this.folderRepository.updateById(folder.id, updatedFields);
   }
 }
