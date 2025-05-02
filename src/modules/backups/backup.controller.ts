@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -58,6 +59,20 @@ export class BackupController {
     @Param('uuid', ValidateUUIDPipe) uuid: string,
   ): Promise<DeviceDto> {
     return this.backupUseCases.getDeviceAsFolder(user, uuid);
+  }
+
+  @Get('/deviceAsFolderById/:id')
+  @ApiOperation({
+    summary: 'Get device as folder by id (deprecated in favor of uuid)',
+    deprecated: true,
+  })
+  @ApiOkResponse({ type: DeviceDto })
+  @ApiBearerAuth()
+  async getDeviceAsFolderById(
+    @UserDecorator() user: User,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<DeviceDto> {
+    return this.backupUseCases.getDeviceAsFolderById(user, id);
   }
 
   @Patch('/deviceAsFolder/:uuid')

@@ -188,6 +188,30 @@ describe('BackupUseCase', () => {
     });
   });
 
+  describe('getDeviceAsFolderById', () => {
+    it('When folder usecase throws, then it should throw the same error', async () => {
+      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.getDeviceAsFolderById(userMocked, 1),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the folder exists, then it should return the folder', async () => {
+      const mockFolder = newFolder();
+      const mockFolderWithBackupAttributes = newBackupFolder(mockFolder);
+      mockFolderWithBackupAttributes.hasBackups = true;
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(false);
+
+      const result = await backupUseCase.getDeviceAsFolderById(userMocked, 1);
+      expect(result).toEqual(mockFolderWithBackupAttributes);
+    });
+  });
+
   describe('updateDeviceAsFolder', () => {
     it('When the folder does not exist, then it should throw a NotFoundException', async () => {
       jest

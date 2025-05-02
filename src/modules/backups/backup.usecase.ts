@@ -138,6 +138,15 @@ export class BackupUseCase {
     return this.addDeviceProperties(user, folder);
   }
 
+  async getDeviceAsFolderById(user: User, id: FolderAttributes['id']) {
+    const folder = await this.folderUsecases.getFolderByUserId(id, user.id);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    return this.addDeviceProperties(user, folder);
+  }
+
   async updateDeviceAsFolder(
     user: User,
     uuid: FolderAttributes['uuid'],
