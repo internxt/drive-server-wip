@@ -244,7 +244,7 @@ describe('BackupUseCase', () => {
         .spyOn(cryptoService, 'encryptName')
         .mockReturnValue('New Encrypted Name');
       jest
-        .spyOn(folderUseCases, 'updateByFolderId')
+        .spyOn(folderUseCases, 'updateByFolderIdAndForceUpdatedAt')
         .mockResolvedValue(updatedFolder);
 
       const result = await backupUseCase.updateDeviceAsFolder(
