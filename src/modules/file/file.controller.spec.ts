@@ -285,6 +285,7 @@ describe('FileController', () => {
   describe('createThumbnail', () => {
     const createThumbnailDto: CreateThumbnailDto = {
       fileId: 1882,
+      fileUuid: v4(),
       maxWidth: 300,
       maxHeight: 300,
       type: 'png',

@@ -50,6 +50,7 @@ import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { WorkspacesResourcesItemsInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-items-in-behalf.guard';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -455,12 +456,24 @@ export class FileController {
   @ApiOkResponse({ type: ThumbnailDto })
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @GetDataFromRequest([
+    {
+      sourceKey: 'body',
+      fieldName: 'fileUuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
   @UseGuards(SharingPermissionsGuard)
   async createThumbnail(
     @UserDecorator() user: User,
-    @Body() createThumbnailDto: CreateThumbnailDto,
+    @Body() body: CreateThumbnailDto,
   ): Promise<ThumbnailDto> {
-    return this.thumbnailUseCases.createThumbnail(user, createThumbnailDto);
+    return this.thumbnailUseCases.createThumbnail(user, body);
   }
 
   @Delete('/:uuid')

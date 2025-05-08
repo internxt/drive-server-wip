@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsUUID } from 'class-validator';
 
 export class CreateThumbnailDto {
   @ApiProperty({
@@ -9,6 +9,14 @@ export class CreateThumbnailDto {
   @IsNotEmpty()
   @IsNumber()
   fileId: number;
+
+  @ApiProperty({
+    description: 'The UUID of the file',
+    example: 'ebe586db-eb56-429f-a037-6ba712b40c3c',
+  })
+  @IsNotEmpty()
+  @IsUUID()
+  fileUuid: string;
 
   @ApiProperty({
     description: 'The type of the file',
