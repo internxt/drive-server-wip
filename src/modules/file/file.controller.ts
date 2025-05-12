@@ -170,6 +170,7 @@ export class FileController {
       value: 'file',
     },
   ])
+  @ApiOkResponse({ type: FileDto })
   @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
@@ -177,7 +178,7 @@ export class FileController {
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FileDto> {
     try {
       const file = await this.fileUseCases.replaceFile(
         user,
@@ -209,6 +210,7 @@ export class FileController {
   @ApiOperation({
     summary: 'Update File data',
   })
+  @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @ApiParam({
     name: 'uuid',
@@ -241,7 +243,7 @@ export class FileController {
     @Body() updateFileMetaDto: UpdateFileMetaDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FileDto> {
     if (!updateFileMetaDto || Object.keys(updateFileMetaDto).length === 0) {
       throw new BadRequestException('Missing update file metadata');
     }
@@ -349,6 +351,7 @@ export class FileController {
       value: 'file',
     },
   ])
+  @ApiOkResponse({ type: FileDto })
   @WorkspacesInBehalfValidationFile()
   async moveFile(
     @UserDecorator() user: User,
@@ -356,7 +359,7 @@ export class FileController {
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FileDto> {
     if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
     }

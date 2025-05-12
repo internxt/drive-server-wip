@@ -298,7 +298,10 @@ describe('FolderController', () => {
         clientId,
         requester,
       );
-      expect(result).toEqual(expectedFolder);
+      expect(result).toEqual({
+        ...expectedFolder,
+        status: expectedFolder.getFolderStatus(),
+      });
     });
 
     it('When move folder is requested with invalid params, then it should throw an error', () => {
