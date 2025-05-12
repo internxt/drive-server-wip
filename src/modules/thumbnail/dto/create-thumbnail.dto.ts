@@ -1,11 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsDefined,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  ValidateIf,
 } from 'class-validator';
+
+const areUuidAndIdDefined = (input: CreateThumbnailDto) =>
+  (!input.fileId && !input.fileUuid) || (!!input.fileId && !!input.fileUuid);
 
 export class CreateThumbnailDto {
   @ApiProperty({
@@ -13,7 +18,7 @@ export class CreateThumbnailDto {
     example: 12345,
     deprecated: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   fileId: number;
 
@@ -24,6 +29,10 @@ export class CreateThumbnailDto {
   @IsOptional()
   @IsUUID()
   fileUuid: string;
+
+  @ValidateIf(areUuidAndIdDefined)
+  @IsDefined({ message: 'Provide either item id or uuid, and not both' })
+  private readonly _areUuidAndIdDefined?: boolean;
 
   @ApiProperty({
     description: 'The type of the file',
