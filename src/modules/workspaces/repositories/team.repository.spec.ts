@@ -13,6 +13,7 @@ import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { v4 } from 'uuid';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 
 describe('SequelizeWorkspaceTeamRepository', () => {
   let repository: SequelizeWorkspaceTeamRepository;
@@ -256,6 +257,47 @@ describe('SequelizeWorkspaceTeamRepository', () => {
 
       expect(result).toEqual([expect.any(WorkspaceTeam)]);
       expect(result[0].id).toEqual(team.id);
+    });
+  });
+
+  describe('addUserToTeam', () => {
+    it('should add a user to a team', async () => {
+      const teamId = v4();
+      const userUuid = v4();
+      const teamUser = newWorkspaceTeamUser({ memberId: userUuid, teamId });
+
+      jest.spyOn(workspaceTeamUserModel, 'create').mockResolvedValueOnce({
+        ...teamUser,
+        toJSON: jest.fn().mockReturnValue(teamUser.toJSON()),
+      } as any);
+
+      const result = await repository.addUserToTeam(teamId, userUuid);
+
+      expect(result).toEqual(teamUser);
+      expect(workspaceTeamUserModel.create).toHaveBeenCalledWith({
+        teamId,
+        memberId: userUuid,
+      });
+    });
+
+    it('should throw BadRequestException when unique constraint is violated', async () => {
+      const teamId = v4();
+      const userUuid = v4();
+
+      const sequelizeError = {
+        name: 'SequelizeUniqueConstraintError',
+        original: {
+          constraint: 'workspace_teams_users_member_id_team_id_key',
+        },
+      };
+
+      jest
+        .spyOn(workspaceTeamUserModel, 'create')
+        .mockRejectedValueOnce(sequelizeError);
+
+      await expect(repository.addUserToTeam(teamId, userUuid)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

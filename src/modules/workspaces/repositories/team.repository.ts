@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
@@ -136,12 +136,24 @@ export class SequelizeWorkspaceTeamRepository {
     teamId: WorkspaceTeamAttributes['id'],
     userUuid: UserAttributes['uuid'],
   ): Promise<WorkspaceTeamUser | null> {
-    const teamUser = await this.teamUserModel.create({
-      teamId,
-      memberId: userUuid,
-    });
+    try {
+      const teamUser = await this.teamUserModel.create({
+        teamId,
+        memberId: userUuid,
+      });
 
-    return this.teamUserToDomain(teamUser);
+      return this.teamUserToDomain(teamUser);
+    } catch (error) {
+      if (
+        error.name === 'SequelizeUniqueConstraintError' &&
+        error.original?.constraint ===
+          'workspace_teams_users_member_id_team_id_key'
+      ) {
+        throw new BadRequestException('User is already part of this team');
+      }
+
+      throw error;
+    }
   }
 
   async deleteUserFromTeam(
