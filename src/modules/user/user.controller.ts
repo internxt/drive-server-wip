@@ -401,6 +401,10 @@ export class UserController {
         email: user.email,
         uuid: user.uuid,
       },
+      keys: {
+        ecc: user.publicKey,
+        kyber: user.publicKyberKey,
+      },
       publicKey: user.publicKey,
     };
   }

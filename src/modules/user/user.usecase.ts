@@ -612,6 +612,7 @@ export class UserUseCases {
     if (preCreatedUser) {
       return {
         ...preCreatedUser.toJSON(),
+        publicKyberKey: preCreatedUser.publicKyberKey.toString(),
         publicKey: preCreatedUser.publicKey.toString(),
         password: preCreatedUser.password.toString(),
       };
@@ -665,6 +666,7 @@ export class UserUseCases {
 
     return {
       ...user.toJSON(),
+      publicKyberKey: user.publicKyberKey.toString(),
       publicKey: user.publicKey.toString(),
       password: user.password.toString(),
     };
