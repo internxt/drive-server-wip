@@ -159,6 +159,17 @@ describe('BackupUseCase', () => {
     });
   });
 
+  describe('sumExistentBackupSizes', () => {
+    it('When sumExistentBackupSizes is called, then it should return the sum of the backup sizes', async () => {
+      jest
+        .spyOn(backupRepository, 'sumExistentBackupSizes')
+        .mockResolvedValue(1024);
+
+      const result = await backupUseCase.sumExistentBackupSizes(userMocked.id);
+      expect(result).toBe(1024);
+    });
+  });
+
   describe('getDeviceAsFolder', () => {
     it('When the folder does not exist, then it should throw a NotFoundException', async () => {
       jest

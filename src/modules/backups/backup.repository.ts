@@ -82,6 +82,10 @@ export class SequelizeBackupRepository {
     });
   }
 
+  async sumExistentBackupSizes(userId: number) {
+    return this.backupModel.sum('size', { where: { userId } });
+  }
+
   private toDomainDevice(deviceModel: DeviceModel): Device {
     const backups =
       deviceModel.backups?.map((b) => Backup.build(b.toJSON())) || [];

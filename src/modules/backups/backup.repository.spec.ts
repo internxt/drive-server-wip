@@ -265,6 +265,15 @@ describe('SequelizeBackupRepository', () => {
     });
   });
 
+  describe('sumExistentBackupSizes', () => {
+    it('When sumExistentBackupSizes is called, then it should return the sum of the backup sizes', async () => {
+      jest.spyOn(backupModel, 'sum').mockResolvedValue(1024);
+
+      const result = await repository.sumExistentBackupSizes(userMocked.id);
+      expect(result).toBe(1024);
+    });
+  });
+
   describe('toDomainDevice', () => {
     const deviceModelMock = {
       toJSON: jest.fn().mockReturnValue({

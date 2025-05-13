@@ -208,6 +208,10 @@ export class BackupUseCase {
     return folders.length === 0 && files.length === 0;
   }
 
+  async sumExistentBackupSizes(userId: number) {
+    return this.backupRepository.sumExistentBackupSizes(userId);
+  }
+
   private async addDeviceProperties(user: User, folder: Folder) {
     const isEmpty = await this.isFolderEmpty(user, folder);
     return {
