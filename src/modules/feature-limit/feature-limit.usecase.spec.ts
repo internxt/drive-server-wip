@@ -6,7 +6,10 @@ import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { newFeatureLimit, newUser } from '../../../test/fixtures';
 import { LimitLabels, LimitTypes } from './limits.enum';
 import { Sharing } from '../sharing/sharing.domain';
-import { InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 
 describe('FeatureLimitUsecases', () => {
   let service: FeatureLimitUsecases;
@@ -258,6 +261,80 @@ describe('FeatureLimitUsecases', () => {
         user,
         data: { itemId: '', itemType: 'file' },
       });
+    });
+  });
+
+  describe('checkMaxFileUploadSizeLimit', () => {
+    it('When size is undefined, then it should throw', async () => {
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '1024',
+      });
+      const data = { file: {} } as any;
+      await expect(
+        service.checkMaxFileUploadSizeLimit({ limit, data }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When size is null, then it should throw', async () => {
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '1024',
+      });
+      const data = { file: { size: null } };
+      await expect(
+        service.checkMaxFileUploadSizeLimit({ limit, data }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When size is not a valid number, then it should throw', async () => {
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '1024',
+      });
+      const data = { file: { size: 'a string' } } as any;
+      await expect(
+        service.checkMaxFileUploadSizeLimit({ limit, data }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When size is between the limit, then it should not enforce limit', async () => {
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '999',
+      });
+      const data = { file: { size: 998 } };
+      const result = await service.checkMaxFileUploadSizeLimit({
+        limit,
+        data,
+      });
+      expect(result).toBeFalsy();
+    });
+
+    it('When size is equal to the limit, then it should not enforce limit', async () => {
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '999',
+      });
+      const data = { file: { size: 999 } };
+      const result = await service.checkMaxFileUploadSizeLimit({
+        limit,
+        data,
+      });
+      expect(result).toBeFalsy();
+    });
+
+    it('When size exceeds the limit, then it should enforce limit', async () => {
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '999',
+      });
+      const data = { file: { size: 1000 } };
+      const result = await service.checkMaxFileUploadSizeLimit({
+        limit,
+        data,
+      });
+      expect(result).toBeTruthy();
     });
   });
 });
