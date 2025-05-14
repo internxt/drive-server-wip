@@ -914,6 +914,13 @@ export class FolderUseCases {
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderRepository.deleteByUser(user, folders);
+  }
+
+  async deleteNotRootFolderByUser(
+    user: User,
+    folders: Folder[],
+  ): Promise<void> {
     const isRootFolder = folders.some(
       (folder) => folder.id === user.rootFolderId || folder.parentId === null,
     );
