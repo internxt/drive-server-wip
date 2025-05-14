@@ -83,7 +83,13 @@ export class SequelizeBackupRepository {
   }
 
   async sumExistentBackupSizes(userId: number) {
-    return this.backupModel.sum('size', { where: { userId } });
+    const result = await this.backupModel.findAll({
+      attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+      where: { userId },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) as unknown as number;
   }
 
   private toDomainDevice(deviceModel: DeviceModel): Device {

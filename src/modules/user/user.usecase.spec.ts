@@ -2136,6 +2136,7 @@ describe('User use cases', () => {
     it('When cache has user usage data, then it should return the cached data', async () => {
       const cachedUsage = { usage: 1024 };
       const backupUsage = 1024;
+      const totalUsage = cachedUsage.usage + backupUsage;
 
       jest
         .spyOn(cacheManagerService, 'getUserUsage')
@@ -2154,12 +2155,14 @@ describe('User use cases', () => {
       expect(result).toEqual({
         drive: cachedUsage.usage,
         backup: backupUsage,
+        total: totalUsage,
       });
     });
 
     it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
       const driveUsage = 2048;
       const backupUsage = 1024;
+      const totalUsage = driveUsage + backupUsage;
       jest.spyOn(cacheManagerService, 'getUserUsage').mockResolvedValue(null);
       jest
         .spyOn(fileUseCases, 'getUserUsedStorage')
@@ -2179,7 +2182,11 @@ describe('User use cases', () => {
         user.uuid,
         driveUsage,
       );
-      expect(result).toEqual({ drive: driveUsage, backup: backupUsage });
+      expect(result).toEqual({
+        drive: driveUsage,
+        backup: backupUsage,
+        total: totalUsage,
+      });
     });
   });
 

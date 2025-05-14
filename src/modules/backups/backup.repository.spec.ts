@@ -5,6 +5,7 @@ import { DeviceModel } from './models/device.model';
 import { BackupModel } from './models/backup.model';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize';
 
 describe('SequelizeBackupRepository', () => {
   let repository: SequelizeBackupRepository;
@@ -267,10 +268,19 @@ describe('SequelizeBackupRepository', () => {
 
   describe('sumExistentBackupSizes', () => {
     it('When sumExistentBackupSizes is called, then it should return the sum of the backup sizes', async () => {
-      jest.spyOn(backupModel, 'sum').mockResolvedValue(1024);
+      const totalSize = 1024;
+      const sizesSum = [{ total: totalSize }];
+
+      jest.spyOn(backupModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
 
       const result = await repository.sumExistentBackupSizes(userMocked.id);
-      expect(result).toBe(1024);
+
+      expect(backupModel.findAll).toHaveBeenCalledWith({
+        attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+        where: { userId: userMocked.id },
+        raw: true,
+      });
+      expect(result).toBe(totalSize);
     });
   });
 

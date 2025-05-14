@@ -6,4 +6,7 @@ export class GetUserUsageDto {
 
   @ApiProperty()
   backup: number;
+
+  @ApiProperty()
+  total: number;
 }
