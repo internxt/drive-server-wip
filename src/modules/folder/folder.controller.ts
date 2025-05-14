@@ -920,7 +920,7 @@ export class FolderController {
     @Client() clientId: string,
   ) {
     const folder = await this.folderUseCases.getFolderByUuidAndUser(uuid, user);
-    await this.folderUseCases.deleteByUser(user, [folder]);
+    await this.folderUseCases.deleteNotRootFolderByUser(user, [folder]);
     this.storageNotificationService.folderDeleted({
       payload: { id: folder.id, uuid, userId: user.id },
       user: user,

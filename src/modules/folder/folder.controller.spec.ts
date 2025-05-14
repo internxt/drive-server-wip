@@ -679,9 +679,10 @@ describe('FolderController', () => {
         folderUuidToDelete,
         userMocked,
       );
-      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
-        folder,
-      ]);
+      expect(folderUseCases.deleteNotRootFolderByUser).toHaveBeenCalledWith(
+        userMocked,
+        [folder],
+      );
       expect(storageNotificationService.folderDeleted).toHaveBeenCalledWith({
         payload: {
           id: folder.id,
@@ -712,7 +713,7 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'getFolderByUuidAndUser')
         .mockResolvedValue(folder);
       jest
-        .spyOn(folderUseCases, 'deleteByUser')
+        .spyOn(folderUseCases, 'deleteNotRootFolderByUser')
         .mockRejectedValue(new Error('Deletion failed'));
 
       await expect(

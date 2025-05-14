@@ -1401,7 +1401,7 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('deleteByUser ', () => {
+  describe('deleteNotRootFolderByUser ', () => {
     const userMocked = newUser();
     userMocked.rootFolderId = 1;
     const folderMocked: Folder[] = [
@@ -1412,7 +1412,7 @@ describe('FolderUseCases', () => {
     it('When folders are deleted successfully, then it should call deleteByUser ', async () => {
       jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
 
-      await service.deleteByUser(userMocked, [folderMocked[0]]);
+      await service.deleteNotRootFolderByUser(userMocked, [folderMocked[0]]);
 
       expect(folderRepository.deleteByUser).toHaveBeenCalledWith(userMocked, [
         folderMocked[0],
@@ -1426,7 +1426,7 @@ describe('FolderUseCases', () => {
       } as Folder;
 
       await expect(
-        service.deleteByUser(userMocked, [rootFolder]),
+        service.deleteNotRootFolderByUser(userMocked, [rootFolder]),
       ).rejects.toThrow(NotAcceptableException);
     });
 
@@ -1436,7 +1436,7 @@ describe('FolderUseCases', () => {
         .mockRejectedValue(new Error('Deletion failed'));
 
       await expect(
-        service.deleteByUser(userMocked, [folderMocked[0]]),
+        service.deleteNotRootFolderByUser(userMocked, [folderMocked[0]]),
       ).rejects.toThrow('Deletion failed');
     });
   });
