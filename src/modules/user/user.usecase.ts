@@ -1603,7 +1603,9 @@ export class UserUseCases {
     );
   }
 
-  async getUserUsage(user: User): Promise<{ drive: number }> {
+  async getUserUsage(
+    user: User,
+  ): Promise<{ drive: number; backup: number; total: number }> {
     let totalDriveUsage = 0;
     const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
 
@@ -1615,7 +1617,15 @@ export class UserUseCases {
       totalDriveUsage = driveUsage;
     }
 
-    return { drive: totalDriveUsage };
+    const backupUsage = await this.backupUseCases.sumExistentBackupSizes(
+      user.id,
+    );
+
+    return {
+      drive: totalDriveUsage,
+      backup: backupUsage,
+      total: totalDriveUsage + backupUsage,
+    };
   }
 
   async confirmDeactivation(token: string) {

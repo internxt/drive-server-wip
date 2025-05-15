@@ -882,8 +882,13 @@ describe('User Controller', () => {
     const user = newUser();
 
     it('When storage usage is requested, then it should return the user usage data', async () => {
+      const driveUsage = 1024000;
+      const backupUsage = 2048000;
+      const totalUsage = driveUsage + backupUsage;
       const mockUsage = {
-        drive: 1024000,
+        drive: driveUsage,
+        backup: backupUsage,
+        total: totalUsage,
       };
 
       userUseCases.getUserUsage.mockResolvedValueOnce(mockUsage);
