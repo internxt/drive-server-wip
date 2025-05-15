@@ -261,7 +261,7 @@ describe('SequelizeWorkspaceTeamRepository', () => {
   });
 
   describe('addUserToTeam', () => {
-    it('should add a user to a team', async () => {
+    it('when a user is added to a team then return the team user', async () => {
       const teamId = v4();
       const userUuid = v4();
       const teamUser = newWorkspaceTeamUser({ memberId: userUuid, teamId });
@@ -280,7 +280,7 @@ describe('SequelizeWorkspaceTeamRepository', () => {
       });
     });
 
-    it('should throw BadRequestException when unique constraint is violated', async () => {
+    it('when unique constraint is violated ', async () => {
       const teamId = v4();
       const userUuid = v4();
 

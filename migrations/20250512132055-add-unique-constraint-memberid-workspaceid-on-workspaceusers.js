@@ -7,7 +7,7 @@ const partialIndexName = 'workspace_users_active_member_workspace_index';
 module.exports = {
   async up(queryInterface) {
     await queryInterface.sequelize.query(`
-      CREATE UNIQUE INDEX ${partialIndexName}
+      CREATE UNIQUE INDEX CONCURRENTLY ${partialIndexName}
       ON ${tableName} (member_id, workspace_id)
       WHERE deactivated = false;
     `);
@@ -15,7 +15,7 @@ module.exports = {
 
   async down(queryInterface) {
     await queryInterface.sequelize.query(
-      `DROP INDEX IF EXISTS ${partialIndexName};`,
+      `DROP INDEX CONCURRENTLY IF EXISTS ${partialIndexName};`,
     );
   },
 };
