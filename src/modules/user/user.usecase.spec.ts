@@ -2135,24 +2135,34 @@ describe('User use cases', () => {
   describe('getUserUsage', () => {
     it('When cache has user usage data, then it should return the cached data', async () => {
       const cachedUsage = { usage: 1024 };
+      const backupUsage = 1024;
+      const totalUsage = cachedUsage.usage + backupUsage;
 
       jest
         .spyOn(cacheManagerService, 'getUserUsage')
         .mockResolvedValue(cachedUsage);
       jest.spyOn(fileUseCases, 'getUserUsedStorage');
       jest.spyOn(cacheManagerService, 'setUserUsage');
+      jest
+        .spyOn(backupUseCases, 'sumExistentBackupSizes')
+        .mockResolvedValue(backupUsage);
 
       const result = await userUseCases.getUserUsage(user);
 
       expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
       expect(fileUseCases.getUserUsedStorage).not.toHaveBeenCalled();
       expect(cacheManagerService.setUserUsage).not.toHaveBeenCalled();
-      expect(result).toEqual({ drive: cachedUsage.usage });
+      expect(result).toEqual({
+        drive: cachedUsage.usage,
+        backup: backupUsage,
+        total: totalUsage,
+      });
     });
 
     it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
       const driveUsage = 2048;
-
+      const backupUsage = 1024;
+      const totalUsage = driveUsage + backupUsage;
       jest.spyOn(cacheManagerService, 'getUserUsage').mockResolvedValue(null);
       jest
         .spyOn(fileUseCases, 'getUserUsedStorage')
@@ -2160,6 +2170,9 @@ describe('User use cases', () => {
       jest
         .spyOn(cacheManagerService, 'setUserUsage')
         .mockResolvedValue(undefined);
+      jest
+        .spyOn(backupUseCases, 'sumExistentBackupSizes')
+        .mockResolvedValue(backupUsage);
 
       const result = await userUseCases.getUserUsage(user);
 
@@ -2169,7 +2182,11 @@ describe('User use cases', () => {
         user.uuid,
         driveUsage,
       );
-      expect(result).toEqual({ drive: driveUsage });
+      expect(result).toEqual({
+        drive: driveUsage,
+        backup: backupUsage,
+        total: totalUsage,
+      });
     });
   });
 

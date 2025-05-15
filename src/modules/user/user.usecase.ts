@@ -612,6 +612,7 @@ export class UserUseCases {
     if (preCreatedUser) {
       return {
         ...preCreatedUser.toJSON(),
+        publicKyberKey: preCreatedUser.publicKyberKey.toString(),
         publicKey: preCreatedUser.publicKey.toString(),
         password: preCreatedUser.password.toString(),
       };
@@ -665,6 +666,7 @@ export class UserUseCases {
 
     return {
       ...user.toJSON(),
+      publicKyberKey: user.publicKyberKey.toString(),
       publicKey: user.publicKey.toString(),
       password: user.password.toString(),
     };
@@ -1601,7 +1603,9 @@ export class UserUseCases {
     );
   }
 
-  async getUserUsage(user: User): Promise<{ drive: number }> {
+  async getUserUsage(
+    user: User,
+  ): Promise<{ drive: number; backup: number; total: number }> {
     let totalDriveUsage = 0;
     const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
 
@@ -1613,7 +1617,15 @@ export class UserUseCases {
       totalDriveUsage = driveUsage;
     }
 
-    return { drive: totalDriveUsage };
+    const backupUsage = await this.backupUseCases.sumExistentBackupSizes(
+      user.id,
+    );
+
+    return {
+      drive: totalDriveUsage,
+      backup: backupUsage,
+      total: totalDriveUsage + backupUsage,
+    };
   }
 
   async confirmDeactivation(token: string) {

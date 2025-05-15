@@ -86,7 +86,7 @@ describe('CacheManagerService', () => {
 
       await cacheManagerService.expireLimit(userUuid);
 
-      expect(cacheManager.del).toHaveBeenCalledWith(`${userUuid}$-limit`);
+      expect(cacheManager.del).toHaveBeenCalledWith(`${userUuid}-limit`);
       expect(cacheManager.del).toHaveBeenCalledWith(`limit:${userUuid}`);
     });
   });

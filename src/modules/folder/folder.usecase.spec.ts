@@ -759,7 +759,7 @@ describe('FolderUseCases', () => {
           plainName: folderName,
           parentFolderUuid: parentFolder.uuid,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('When new folder is valid, then it should create and return the new folder successfully', async () => {
@@ -1401,7 +1401,7 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('deleteByUser ', () => {
+  describe('deleteNotRootFolderByUser ', () => {
     const userMocked = newUser();
     userMocked.rootFolderId = 1;
     const folderMocked: Folder[] = [
@@ -1412,7 +1412,7 @@ describe('FolderUseCases', () => {
     it('When folders are deleted successfully, then it should call deleteByUser ', async () => {
       jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
 
-      await service.deleteByUser(userMocked, [folderMocked[0]]);
+      await service.deleteNotRootFolderByUser(userMocked, [folderMocked[0]]);
 
       expect(folderRepository.deleteByUser).toHaveBeenCalledWith(userMocked, [
         folderMocked[0],
@@ -1426,7 +1426,7 @@ describe('FolderUseCases', () => {
       } as Folder;
 
       await expect(
-        service.deleteByUser(userMocked, [rootFolder]),
+        service.deleteNotRootFolderByUser(userMocked, [rootFolder]),
       ).rejects.toThrow(NotAcceptableException);
     });
 
@@ -1436,8 +1436,77 @@ describe('FolderUseCases', () => {
         .mockRejectedValue(new Error('Deletion failed'));
 
       await expect(
-        service.deleteByUser(userMocked, [folderMocked[0]]),
+        service.deleteNotRootFolderByUser(userMocked, [folderMocked[0]]),
       ).rejects.toThrow('Deletion failed');
+    });
+  });
+
+  describe('updateByFolderIdAndForceUpdatedAt', () => {
+    const folder = newFolder();
+    const folderData = {
+      plainName: 'Updated Folder Name',
+    };
+    const mockedCurrentDate = new Date('2024-10-02T12:00:00Z');
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(mockedCurrentDate);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('When folderData includes updatedAt, then it should use the provided value', async () => {
+      const customDate = new Date('2024-10-01T12:00:00Z');
+      const folderDataWithDate = {
+        ...folderData,
+        updatedAt: customDate,
+      };
+      const updatedFolder = newFolder({
+        attributes: {
+          ...folderDataWithDate,
+        },
+      });
+
+      jest
+        .spyOn(folderRepository, 'updateById')
+        .mockResolvedValueOnce(updatedFolder);
+
+      await service.updateByFolderIdAndForceUpdatedAt(
+        folder,
+        folderDataWithDate,
+      );
+
+      expect(folderRepository.updateById).toHaveBeenCalledWith(
+        folder.id,
+        expect.objectContaining({
+          plainName: folderData.plainName,
+          updatedAt: customDate,
+        }),
+      );
+    });
+
+    it('When folderData does not include updatedAt, then it should add the current date', async () => {
+      const updatedFolder = newFolder({
+        attributes: {
+          ...folderData,
+        },
+      });
+
+      jest
+        .spyOn(folderRepository, 'updateById')
+        .mockResolvedValueOnce(updatedFolder);
+
+      await service.updateByFolderIdAndForceUpdatedAt(folder, folderData);
+
+      expect(folderRepository.updateById).toHaveBeenCalledWith(
+        folder.id,
+        expect.objectContaining({
+          plainName: folderData.plainName,
+          updatedAt: mockedCurrentDate,
+        }),
+      );
     });
   });
 });

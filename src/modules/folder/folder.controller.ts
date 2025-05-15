@@ -778,6 +778,10 @@ export class FolderController {
         user.id,
       );
 
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
+      }
+
       return { ...folder, status: folder.getFolderStatus() };
     } catch (err) {
       if (
@@ -808,6 +812,7 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiOkResponse({ type: FolderDto })
   @WorkspacesInBehalfValidationFolder()
   @RequiredSharingPermissions(SharingActionName.RenameItems)
   async updateFolderMetadata(
@@ -817,7 +822,7 @@ export class FolderController {
     @Body() updateFolderMetaDto: UpdateFolderMetaDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FolderDto> {
     const folderUpdated = await this.folderUseCases.updateFolderMetaData(
       user,
       folderUuid,
@@ -830,7 +835,7 @@ export class FolderController {
       clientId,
     });
 
-    return folderUpdated;
+    return { ...folderUpdated, status: folderUpdated.getFolderStatus() };
   }
 
   @UseFilters(new HttpExceptionFilter())
@@ -853,6 +858,7 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiOkResponse({ type: FolderDto })
   @WorkspacesInBehalfValidationFolder()
   async moveFolder(
     @UserDecorator() user: User,
@@ -860,7 +866,7 @@ export class FolderController {
     @Body() moveFolderData: MoveFolderDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FolderDto> {
     if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
     }
@@ -876,7 +882,7 @@ export class FolderController {
       clientId,
     });
 
-    return folder;
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Get('/meta')
@@ -914,7 +920,7 @@ export class FolderController {
     @Client() clientId: string,
   ) {
     const folder = await this.folderUseCases.getFolderByUuidAndUser(uuid, user);
-    await this.folderUseCases.deleteByUser(user, [folder]);
+    await this.folderUseCases.deleteNotRootFolderByUser(user, [folder]);
     this.storageNotificationService.folderDeleted({
       payload: { id: folder.id, uuid, userId: user.id },
       user: user,

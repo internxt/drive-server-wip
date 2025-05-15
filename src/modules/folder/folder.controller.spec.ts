@@ -298,7 +298,10 @@ describe('FolderController', () => {
         clientId,
         requester,
       );
-      expect(result).toEqual(expectedFolder);
+      expect(result).toEqual({
+        ...expectedFolder,
+        status: expectedFolder.getFolderStatus(),
+      });
     });
 
     it('When move folder is requested with invalid params, then it should throw an error', () => {
@@ -676,9 +679,10 @@ describe('FolderController', () => {
         folderUuidToDelete,
         userMocked,
       );
-      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
-        folder,
-      ]);
+      expect(folderUseCases.deleteNotRootFolderByUser).toHaveBeenCalledWith(
+        userMocked,
+        [folder],
+      );
       expect(storageNotificationService.folderDeleted).toHaveBeenCalledWith({
         payload: {
           id: folder.id,
@@ -709,7 +713,7 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'getFolderByUuidAndUser')
         .mockResolvedValue(folder);
       jest
-        .spyOn(folderUseCases, 'deleteByUser')
+        .spyOn(folderUseCases, 'deleteNotRootFolderByUser')
         .mockRejectedValue(new Error('Deletion failed'));
 
       await expect(

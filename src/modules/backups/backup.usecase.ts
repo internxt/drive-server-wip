@@ -138,6 +138,15 @@ export class BackupUseCase {
     return this.addDeviceProperties(user, folder);
   }
 
+  async getDeviceAsFolderById(user: User, id: FolderAttributes['id']) {
+    const folder = await this.folderUsecases.getFolderByUserId(id, user.id);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    return this.addDeviceProperties(user, folder);
+  }
+
   async updateDeviceAsFolder(
     user: User,
     uuid: FolderAttributes['uuid'],
@@ -153,10 +162,11 @@ export class BackupUseCase {
       folder.bucket,
     );
 
-    const updatedFolder = await this.folderUsecases.updateByFolderId(folder, {
-      name: encryptedName,
-      plainName: deviceName,
-    });
+    const updatedFolder =
+      await this.folderUsecases.updateByFolderIdAndForceUpdatedAt(folder, {
+        name: encryptedName,
+        plainName: deviceName,
+      });
 
     return this.addDeviceProperties(user, updatedFolder);
   }
@@ -196,6 +206,10 @@ export class BackupUseCase {
       { deleted: false },
     );
     return folders.length === 0 && files.length === 0;
+  }
+
+  async sumExistentBackupSizes(userId: number) {
+    return this.backupRepository.sumExistentBackupSizes(userId);
   }
 
   private async addDeviceProperties(user: User, folder: Folder) {

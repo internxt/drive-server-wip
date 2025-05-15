@@ -20,7 +20,12 @@ export class ThumbnailUseCases {
     private fileRepository: SequelizeFileRepository,
   ) {}
   async createThumbnail(user: User, thumbnail: CreateThumbnailDto) {
-    const file = await this.fileRepository.findOneBy({ id: thumbnail.fileId });
+    const searchCondition: { id: number } | { uuid: string } =
+      thumbnail.fileUuid
+        ? { uuid: thumbnail.fileUuid }
+        : { id: thumbnail.fileId };
+
+    const file = await this.fileRepository.findOneBy(searchCondition);
     if (!file) {
       throw new NotFoundException('File not found');
     }
@@ -30,7 +35,7 @@ export class ThumbnailUseCases {
       );
     }
     const existingThumbnail = await this.thumbnailRepository.findByFileId(
-      thumbnail.fileId,
+      file.id,
     );
     if (existingThumbnail) {
       try {
@@ -48,14 +53,17 @@ export class ThumbnailUseCases {
         id: existingThumbnail.id,
         fileId: existingThumbnail.fileId,
       });
-      return this.thumbnailRepository.findByFileId(thumbnail.fileId);
+      return this.thumbnailRepository.findByFileId(file.id);
     }
 
-    return this.thumbnailRepository.create({
+    const newThumbnailObject = {
       ...thumbnail,
+      fileId: file.id,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    };
+
+    return this.thumbnailRepository.create(newThumbnailObject);
   }
 
   async deleteThumbnailByFileId(user: User, fileId: number) {

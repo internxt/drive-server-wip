@@ -50,6 +50,7 @@ import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { WorkspacesResourcesItemsInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-items-in-behalf.guard';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -169,6 +170,7 @@ export class FileController {
       value: 'file',
     },
   ])
+  @ApiOkResponse({ type: FileDto })
   @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
@@ -176,7 +178,7 @@ export class FileController {
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FileDto> {
     try {
       const file = await this.fileUseCases.replaceFile(
         user,
@@ -208,6 +210,7 @@ export class FileController {
   @ApiOperation({
     summary: 'Update File data',
   })
+  @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @ApiParam({
     name: 'uuid',
@@ -240,7 +243,7 @@ export class FileController {
     @Body() updateFileMetaDto: UpdateFileMetaDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FileDto> {
     if (!updateFileMetaDto || Object.keys(updateFileMetaDto).length === 0) {
       throw new BadRequestException('Missing update file metadata');
     }
@@ -348,6 +351,7 @@ export class FileController {
       value: 'file',
     },
   ])
+  @ApiOkResponse({ type: FileDto })
   @WorkspacesInBehalfValidationFile()
   async moveFile(
     @UserDecorator() user: User,
@@ -355,7 +359,7 @@ export class FileController {
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ) {
+  ): Promise<FileDto> {
     if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
       throw new BadRequestException('Invalid UUID provided');
     }
@@ -455,12 +459,24 @@ export class FileController {
   @ApiOkResponse({ type: ThumbnailDto })
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
+  @GetDataFromRequest([
+    {
+      sourceKey: 'body',
+      fieldName: 'fileUuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
   @UseGuards(SharingPermissionsGuard)
   async createThumbnail(
     @UserDecorator() user: User,
-    @Body() createThumbnailDto: CreateThumbnailDto,
+    @Body() body: CreateThumbnailDto,
   ): Promise<ThumbnailDto> {
-    return this.thumbnailUseCases.createThumbnail(user, createThumbnailDto);
+    return this.thumbnailUseCases.createThumbnail(user, body);
   }
 
   @Delete('/:uuid')
