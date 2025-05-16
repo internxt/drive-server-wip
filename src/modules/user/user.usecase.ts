@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
-import { v4 } from 'uuid';
+import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
 import crypto from 'crypto';
@@ -55,7 +55,6 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
-  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -67,7 +66,7 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { getTokenDefaultIat } from '../../lib/jwt';
+import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
@@ -84,10 +83,11 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -993,6 +993,102 @@ export class UserUseCases {
     // TODO: Replace with updating the private key once AFS is ready.
     // Requires to send the private key encrypted with the user's password
     await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async recoverAccountLegacy(
+    userUuid: User['uuid'],
+    credentials: LegacyRecoverAccountDto,
+  ): Promise<void> {
+    const { mnemonic, password, salt, asymmetricEncryptedMnemonic } =
+      credentials;
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const keys = credentials.keys;
+    const keyVersions = Object.values(UserKeysEncryptVersions);
+
+    for (const version of keyVersions) {
+      const key = keys[version];
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version,
+          { privateKey: key.private, publicKey: key.public },
+        );
+      }
+    }
+
+    const ownedWorkspaceAndUsers =
+      await this.workspaceRepository.findWorkspaceUsersOfOwnedWorkspaces(
+        user.uuid,
+      );
+
+    if (ownedWorkspaceAndUsers.length > 0) {
+      //  TODO: this should be updated when we add support for workspace hybrid keys
+      await Promise.all(
+        ownedWorkspaceAndUsers.map((workspaceAndUser) =>
+          this.workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId(
+            workspaceAndUser.workspaceUser.memberId,
+            workspaceAndUser.workspace.id,
+            asymmetricEncryptedMnemonic.ecc,
+          ),
+        ),
+      );
+    }
+
+    //  New keys were created, so we need to delete invitations made with the old keys
+    await Promise.all([
+      await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid }),
+      await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid }),
+      await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user),
+    ]);
+  }
+
+  verifyAndDecodeAccountRecoveryToken(token: string): {
+    userUuid: string;
+  } {
+    try {
+      const jwtSecret = this.configService.get('secrets.jwt');
+      const decoded = verifyToken<{
+        payload: { uuid?: string; action?: string };
+      }>(token, jwtSecret);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      const decodedContent = decoded?.payload;
+
+      if (
+        !decodedContent ||
+        !decodedContent.uuid ||
+        decodedContent.action !== 'recover-account' ||
+        !validate(decodedContent.uuid)
+      ) {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      return { userUuid: decodedContent.uuid };
+    } catch (error) {
+      if (error instanceof JsonWebTokenError) {
+        const isTokenExpired = error instanceof TokenExpiredError;
+
+        throw new ForbiddenException(
+          isTokenExpired ? 'Token expired' : 'Invalid token',
+        );
+      }
+      throw error;
+    }
   }
 
   async resetUser(
