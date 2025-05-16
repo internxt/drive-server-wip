@@ -9,6 +9,7 @@ import {
   NotFoundException,
   NotImplementedException,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Put,
@@ -188,7 +189,7 @@ export class FolderController {
   @ApiOkResponse({ type: FilesDto })
   async getFolderContentFiles(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
@@ -232,7 +233,7 @@ export class FolderController {
   @ApiQuery({ name: 'order', required: false })
   async getFolderFiles(
     @UserDecorator() user: User,
-    @Param('id') folderId: number,
+    @Param('id', ParseIntPipe) folderId: number,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFileAttributes,
@@ -277,7 +278,7 @@ export class FolderController {
   @Get(':id/file')
   async checkFileExistence(
     @UserDecorator() user: User,
-    @Param('id') folderId: number,
+    @Param('id', ParseIntPipe) folderId: number,
     @Query('name') name: string,
     @Query('type') type: string,
   ) {
@@ -316,7 +317,7 @@ export class FolderController {
   @ApiOkResponse({ type: FoldersDto })
   async getFolderContentFolders(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
     @Query('sort') sort?: SortableFolderAttributes,
@@ -378,7 +379,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async checkFoldersExistenceInFolderOld(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: CheckFoldersExistenceOldDto,
   ) {
     const { plainName } = query;
@@ -413,7 +414,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Body() query: CheckFoldersExistenceDto,
   ): Promise<ExistingFoldersDto> {
     const { plainNames } = query;
@@ -449,7 +450,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async checkFilesExistenceInFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Body() query: CheckFileExistenceInFolderDto,
   ) {
     const parentFolder = await this.folderUseCases.getFolderByUuid(
@@ -540,7 +541,7 @@ export class FolderController {
     @UserDecorator() user: User,
     @Query('limit') limit: number,
     @Query('offset') offset: number,
-    @Param('id') folderId: number,
+    @Param('id', ParseIntPipe) folderId: number,
     @Query('sort') sort?: SortableFolderAttributes,
     @Query('order') order?: 'ASC' | 'DESC',
   ): Promise<ResultFoldersDto> {
@@ -670,7 +671,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async getFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
   ): Promise<FolderDto> {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -709,7 +710,7 @@ export class FolderController {
   async getFolderAncestors(
     @UserDecorator() user: User,
     @WorkspaceDecorator() workspace: Workspace,
-    @Param('uuid') folderUuid: Folder['uuid'],
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
   ) {
     if (!validate(folderUuid)) {
       throw new BadRequestException('Invalid UUID provided');
@@ -735,7 +736,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async getFolderTree(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: Folder['uuid'],
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
   ) {
     const folderWithTree = await this.folderUseCases.getFolderTree(
       user,
@@ -748,7 +749,7 @@ export class FolderController {
   @ApiOkResponse({ type: FolderDto })
   async getFolderById(
     @UserDecorator() user: User,
-    @Param('id') folderId: number,
+    @Param('id', ParseIntPipe) folderId: number,
   ): Promise<FolderDto> {
     if (folderId < 0) {
       throw new BadRequestException('Invalid id provided');
@@ -806,7 +807,7 @@ export class FolderController {
 
   @UseFilters(new HttpExceptionFilter())
   @Get(':uuid/size')
-  async getFolderSize(@Param('uuid') folderUuid: Folder['uuid']) {
+  async getFolderSize(@Param('uuid', ValidateUUIDPipe) folderUuid: string) {
     const size = await this.folderUseCases.getFolderSizeByUuid(folderUuid);
 
     return { size };
@@ -828,7 +829,7 @@ export class FolderController {
   @WorkspacesInBehalfValidationFolder()
   async moveFolder(
     @UserDecorator() user: User,
-    @Param('uuid') folderUuid: string,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Body() moveFolderData: MoveFolderDto,
     @Client() clientId: string,
     @Requester() requester: User,
