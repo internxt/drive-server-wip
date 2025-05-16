@@ -47,6 +47,7 @@ async function bootstrap() {
     logger: new ConsoleLogger({
       colors: config.isDevelopment,
       prefix: 'Drive-server',
+      compact: config.isProduction,
     }),
   });
 

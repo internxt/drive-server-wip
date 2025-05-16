@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   HttpCode,
   Logger,
@@ -31,7 +30,6 @@ import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
 import { FileStatus, SortableFileAttributes } from '../file/file.domain';
-import logger from '../../externals/logger';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
@@ -678,32 +676,16 @@ export class FolderController {
       throw new BadRequestException('Invalid UUID provided');
     }
 
-    try {
-      const folder = await this.folderUseCases.getFolderByUuidAndUser(
-        folderUuid,
-        user,
-      );
+    const folder = await this.folderUseCases.getFolderByUuidAndUser(
+      folderUuid,
+      user,
+    );
 
-      if (!folder) {
-        throw new NotFoundException();
-      }
-
-      return { ...folder, status: folder.getFolderStatus() };
-    } catch (err) {
-      if (
-        err instanceof NotFoundException ||
-        err instanceof ForbiddenException
-      ) {
-        throw err;
-      }
-      logger('error', {
-        id: 'get-folder',
-        user: user.uuid,
-        message: `Error getting folder ${err.message}. STACK ${
-          err.stack || 'NO STACK'
-        }`,
-      });
+    if (!folder) {
+      throw new NotFoundException();
     }
+
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Get('/:uuid/ancestors')
@@ -772,32 +754,16 @@ export class FolderController {
       throw new BadRequestException('Invalid id provided');
     }
 
-    try {
-      const folder = await this.folderUseCases.getFolderByUserId(
-        folderId,
-        user.id,
-      );
+    const folder = await this.folderUseCases.getFolderByUserId(
+      folderId,
+      user.id,
+    );
 
-      if (!folder) {
-        throw new NotFoundException('Folder not found');
-      }
-
-      return { ...folder, status: folder.getFolderStatus() };
-    } catch (err) {
-      if (
-        err instanceof NotFoundException ||
-        err instanceof ForbiddenException
-      ) {
-        throw err;
-      }
-      logger('error', {
-        id: 'get-folder-by-id',
-        user: user.uuid,
-        message: `Error getting folder ${err.message}. STACK ${
-          err.stack || 'NO STACK'
-        }`,
-      });
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
     }
+
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Put('/:uuid/meta')
