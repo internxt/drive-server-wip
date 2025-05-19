@@ -35,7 +35,7 @@ export class CacheManagerService {
 
   async expireLimit(userUuid: string): Promise<void> {
     Logger.log(
-      `[CACHE] Expiring limit for user ${userUuid}, keys: ${this.LIMIT_KEY_PREFIX}${userUuid}`,
+      `[CACHE/DEBUG] Expiring limit for user ${userUuid}, keys: ${this.LIMIT_KEY_PREFIX}${userUuid}`,
     );
     const [delOldLimit, delNewLimit] = await Promise.all([
       // TODO: Remove this line when all clients stop using the old API
@@ -43,7 +43,7 @@ export class CacheManagerService {
       this.cacheManager.del(`${this.LIMIT_KEY_PREFIX}${userUuid}`),
     ]);
     Logger.log(
-      `[CACHE] Expired limit for user ${userUuid}, key: ${this.LIMIT_KEY_PREFIX}${userUuid}, delOldLimit: ${delOldLimit}, delNewLimit: ${delNewLimit}`,
+      `[CACHE/DEBUG] Expired limit for user ${userUuid}, key: ${this.LIMIT_KEY_PREFIX}${userUuid}, delOldLimit: ${delOldLimit}, delNewLimit: ${delNewLimit}`,
     );
   }
 
