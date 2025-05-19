@@ -2670,8 +2670,9 @@ describe('User use cases', () => {
       const keys = await asymmetricEncryptionService.generateNewKeys();
       newCredentials = {
         mnemonic: mnemonicEncryptedWithPassword,
-        password: cryptoService.encryptText(decryptedPasswordHash),
-        salt: cryptoService.encryptText(decryptedSalt),
+        password:
+          '53616c7465645f5f48c4064882e75747c5db100136d111d08892ee5db2e1bb8c8d5dc91a0906fcaf0aa66dd13624e05736ef0d4e934e083a84ed7c1c82b7b64a8e51bad006ea18075bdcabcf0c1bd38cd47cca00c4be3cb9a794c4b87bf761be',
+        salt: '53616c7465645f5f0d114ce687f8728ea7db82dff0acea6bfd924275f74cc1c7725a70febf9caef83f2a49651122f8889bfb523513dec25a99910ebd339f15fd',
         asymmetricEncryptedMnemonic: {
           ecc: await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
             {
