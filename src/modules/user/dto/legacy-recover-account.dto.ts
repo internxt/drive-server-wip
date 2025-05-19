@@ -18,7 +18,7 @@ class EncryptedMnemonicDto {
   hybrid: string;
 }
 
-class BaseKeysStructureDto {
+class RecoverAccountKeysPairDto {
   @ApiProperty({
     example: 'public_key',
     description: 'public key',
@@ -34,7 +34,7 @@ class BaseKeysStructureDto {
   private: string;
 }
 
-class EccKeysStructureDto extends BaseKeysStructureDto {
+class RecoverAccountEccKeysDto extends RecoverAccountKeysPairDto {
   @ApiProperty({
     example: 'revocation_key',
     description: 'Key used for revocation',
@@ -45,20 +45,20 @@ class EccKeysStructureDto extends BaseKeysStructureDto {
 
 class NewGeneratedKeysDto {
   @ApiProperty({
-    type: EccKeysStructureDto,
+    type: RecoverAccountEccKeysDto,
     description: 'ECC keys (public and private)',
   })
   @ValidateNested()
-  @Type(() => EccKeysStructureDto)
-  ecc: EccKeysStructureDto;
+  @Type(() => RecoverAccountEccKeysDto)
+  ecc: RecoverAccountEccKeysDto;
 
   @ApiProperty({
-    type: BaseKeysStructureDto,
+    type: RecoverAccountKeysPairDto,
     description: 'Kyber keys (public and private)',
   })
   @ValidateNested()
-  @Type(() => BaseKeysStructureDto)
-  kyber: BaseKeysStructureDto;
+  @Type(() => RecoverAccountKeysPairDto)
+  kyber: RecoverAccountKeysPairDto;
 }
 
 export class LegacyRecoverAccountDto {

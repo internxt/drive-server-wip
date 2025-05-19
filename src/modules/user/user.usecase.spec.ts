@@ -2745,6 +2745,7 @@ describe('User use cases', () => {
       ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
         privateKey: newCredentials.keys.ecc.private,
         publicKey: newCredentials.keys.ecc.public,
+        revocationKey: newCredentials.keys.ecc.revocationKey,
       });
       expect(
         keyServerUseCases.updateByUserAndEncryptVersion,
