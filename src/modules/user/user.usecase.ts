@@ -1012,13 +1012,18 @@ export class UserUseCases {
 
     for (const version of keyVersions) {
       const key = keys[version];
-      if (key) {
-        await this.keyServerUseCases.updateByUserAndEncryptVersion(
-          user.id,
-          version,
-          { privateKey: key.private, publicKey: key.public },
-        );
-      }
+      const revocationKey =
+        'revocationKey' in key ? key.revocationKey : undefined;
+
+      await this.keyServerUseCases.updateByUserAndEncryptVersion(
+        user.id,
+        version,
+        {
+          privateKey: key.private,
+          publicKey: key.public,
+          revocationKey,
+        },
+      );
     }
 
     const ownedWorkspaceAndUsers =
