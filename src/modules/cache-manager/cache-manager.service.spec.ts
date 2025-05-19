@@ -14,6 +14,7 @@ describe('CacheManagerService', () => {
       providers: [CacheManagerService],
     })
       .useMocker(() => createMock())
+      .setLogger(createMock())
       .compile();
 
     cacheManagerService =
@@ -83,7 +84,7 @@ describe('CacheManagerService', () => {
   describe('expireLimit', () => {
     it('When called, then it should expire limit with old and new keys', async () => {
       const userUuid = v4();
-
+      jest.spyOn(cacheManager, 'del').mockResolvedValue(true);
       await cacheManagerService.expireLimit(userUuid);
 
       expect(cacheManager.del).toHaveBeenCalledWith(`${userUuid}-limit`);
