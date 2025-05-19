@@ -999,7 +999,7 @@ export class UserUseCases {
     userUuid: User['uuid'],
     credentials: LegacyRecoverAccountDto,
   ): Promise<void> {
-    const { mnemonic, password, salt, asymmetricEncryptedMnemonic } =
+    const { mnemonic, password, salt, asymmetricEncryptedMnemonic, keys } =
       credentials;
 
     const user = await this.userRepository.findByUuid(userUuid);
@@ -1008,13 +1008,6 @@ export class UserUseCases {
       throw new NotFoundException('User not found');
     }
 
-    await this.userRepository.updateByUuid(userUuid, {
-      mnemonic,
-      password: this.cryptoService.decryptText(password),
-      hKey: this.cryptoService.decryptText(salt),
-    });
-
-    const keys = credentials.keys;
     const keyVersions = Object.values(UserKeysEncryptVersions);
 
     for (const version of keyVersions) {
@@ -1045,6 +1038,12 @@ export class UserUseCases {
         ),
       );
     }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
 
     //  New keys were created, so we need to delete invitations made with the old keys
     await Promise.all([
