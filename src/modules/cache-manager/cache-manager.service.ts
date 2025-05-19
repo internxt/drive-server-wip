@@ -43,7 +43,7 @@ export class CacheManagerService {
       this.cacheManager.del(`${this.LIMIT_KEY_PREFIX}${userUuid}`),
     ]);
     Logger.log(
-      `[CACHE] Expired limit for user ${userUuid}, delOldLimit: ${delOldLimit}, delNewLimit: ${delNewLimit}`,
+      `[CACHE] Expired limit for user ${userUuid}, key: ${this.LIMIT_KEY_PREFIX}${userUuid}, delOldLimit: ${delOldLimit}, delNewLimit: ${delNewLimit}`,
     );
   }
 
