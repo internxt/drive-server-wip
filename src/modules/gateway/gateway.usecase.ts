@@ -166,6 +166,9 @@ export class GatewayUseCases {
   }
 
   async updateUser(user: User, newStorageSpaceBytes?: number) {
+    Logger.log(
+      `[GATEWAY/LIMIT_CACHE] Updating user ${user.uuid} with new storage space bytes: ${newStorageSpaceBytes}`,
+    );
     await this.userUseCases.updateUserStorage(user, newStorageSpaceBytes);
 
     this.cacheManagerService.expireLimit(user.uuid).catch((error) => {
