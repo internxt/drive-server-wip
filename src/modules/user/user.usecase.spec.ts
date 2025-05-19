@@ -2632,26 +2632,75 @@ describe('User use cases', () => {
   });
 
   describe('recoverAccountLegacy', () => {
-    const credentials: LegacyRecoverAccountDto = {
-      mnemonic: 'test mnemonic',
-      password: 'encrypted-password',
-      salt: 'encrypted-salt',
-      asymmetricEncryptedMnemonic: {
-        ecc: 'encrypted-mnemonic',
-        hybrid: 'encrypted-mnemonic-hybrid',
-      },
-      keys: {
-        ecc: {
-          private: 'private-ecc-key',
-          public: 'public-ecc-key',
-          revocationKey: 'revocation-key',
+    const user = newUser();
+    const decryptedPasswordHash =
+      '76b022e345d5c884cf4e77ed42e50ed8a385b70c2642b064f53ef670788a5ef2';
+    const plainMnemonic =
+      'accident direct sustain stomach various squirrel cannon drama risk illness caught claw spirit noodle pyramid poverty dragon strong chimney bullet giraffe ladder bacon coil';
+    const mnemonicEncryptedWithPassword =
+      'Rszx7x6iVQDS6cU3+qBwvx3ON2czERCJX+g21EGPT5ElGbTpB+6d2bwAN4bFS3sB1NDRXpaOfx4DJjxDg053P+4VF6AIbD8TWaSnzSCBD8xkbmfUmu7b4oK4Xt7IpFyhlmVtMQjEeaQopFJ0FxyI0aVj9znLrnEdwmjN67r4YYn6LbvC9XgoeTHVczKGhSb6ZJZUWdX5eWwG973KmZ83xjrYYYd/hvSt6oDa27iKVlq1CfI6r2fEz00J4QG0oBsvY+67Ta+zaTubJl+zA30fCfISClbvgZ/f/8WUtqr9eC/BxJx8kPQnldrTDXzkrDpHZp8Vu1C/mE3vQhxOmR915E77l/yr9Kx2dnM4';
+    const decryptedSalt = 'd06713f9540fd33793a2623c821b8969';
+    let newCredentials: LegacyRecoverAccountDto;
+
+    beforeEach(async () => {
+      const moduleRef: TestingModule = await Test.createTestingModule({
+        providers: [
+          UserUseCases,
+          CryptoService,
+          AsymmetricEncryptionService,
+          KyberProvider,
+        ],
+      })
+        .useMocker(() => createMock())
+        .compile();
+
+      userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
+      userRepository = moduleRef.get<SequelizeUserRepository>(
+        SequelizeUserRepository,
+      );
+      keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
+      cryptoService = moduleRef.get<CryptoService>(CryptoService);
+      workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
+        SequelizeWorkspaceRepository,
+      );
+      asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
+        AsymmetricEncryptionService,
+      );
+
+      const keys = await asymmetricEncryptionService.generateNewKeys();
+      newCredentials = {
+        mnemonic: mnemonicEncryptedWithPassword,
+        password: cryptoService.encryptText(decryptedPasswordHash),
+        salt: cryptoService.encryptText(decryptedSalt),
+        asymmetricEncryptedMnemonic: {
+          ecc: await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+            {
+              message: plainMnemonic,
+              publicKeyInBase64: keys.publicKeyArmored,
+            },
+          ),
+          hybrid:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: plainMnemonic,
+                publicKeyInBase64: keys.publicKeyArmored,
+                publicKyberKeyBase64: keys.publicKyberKeyBase64,
+              },
+            ),
         },
-        kyber: {
-          private: 'private-kyber-key',
-          public: 'public-kyber-key',
+        keys: {
+          ecc: {
+            private: keys.privateKeyArmored,
+            public: keys.publicKeyArmored,
+            revocationKey: keys.revocationCertificate,
+          },
+          kyber: {
+            private: keys.privateKyberKeyBase64,
+            public: keys.publicKyberKeyBase64,
+          },
         },
-      },
-    };
+      };
+    });
 
     it('When user is not found, then it should throw NotFoundException', async () => {
       const userUuid = v4();
@@ -2659,46 +2708,29 @@ describe('User use cases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
 
       await expect(
-        userUseCases.recoverAccountLegacy(userUuid, credentials),
+        userUseCases.recoverAccountLegacy(userUuid, newCredentials),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When user is found, then it should update user with decrypted credentials', async () => {
-      const userUuid = v4();
-      const userId = 1;
-      const decryptedPassword = 'decrypted-password';
-      const decryptedSalt = 'decrypted-salt';
-
-      const user = newUser({ attributes: { uuid: userUuid, id: userId } });
-
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
       jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
-      jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValueOnce(decryptedPassword)
-        .mockReturnValueOnce(decryptedSalt);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
         .mockResolvedValue([]);
 
-      await userUseCases.recoverAccountLegacy(userUuid, credentials);
+      await userUseCases.recoverAccountLegacy(user.uuid, newCredentials);
 
-      expect(userRepository.updateByUuid).toHaveBeenCalledWith(userUuid, {
-        mnemonic: 'test mnemonic',
-        password: decryptedPassword,
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
+        mnemonic: mnemonicEncryptedWithPassword,
+        password: decryptedPasswordHash,
         hKey: decryptedSalt,
       });
     });
 
     it('When credentials contain keys, then it should update each key by version', async () => {
-      const userUuid = v4();
-      const userId = 1;
-
-      const user = newUser({ attributes: { uuid: userUuid, id: userId } });
-
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
       jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
       jest
         .spyOn(keyServerUseCases, 'updateByUserAndEncryptVersion')
         .mockResolvedValue(undefined);
@@ -2706,26 +2738,23 @@ describe('User use cases', () => {
         .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
         .mockResolvedValue([]);
 
-      await userUseCases.recoverAccountLegacy(userUuid, credentials);
+      await userUseCases.recoverAccountLegacy(user.uuid, newCredentials);
 
       expect(
         keyServerUseCases.updateByUserAndEncryptVersion,
-      ).toHaveBeenCalledWith(userId, UserKeysEncryptVersions.Ecc, {
-        privateKey: credentials.keys.ecc.private,
-        publicKey: credentials.keys.ecc.public,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: newCredentials.keys.ecc.private,
+        publicKey: newCredentials.keys.ecc.public,
       });
       expect(
         keyServerUseCases.updateByUserAndEncryptVersion,
-      ).toHaveBeenCalledWith(userId, UserKeysEncryptVersions.Kyber, {
-        privateKey: credentials.keys.kyber.private,
-        publicKey: credentials.keys.kyber.public,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: newCredentials.keys.kyber.private,
+        publicKey: newCredentials.keys.kyber.public,
       });
     });
 
     it('When user has owned workspaces, then it should update all workspace user encrypted keys', async () => {
-      const userUuid = v4();
-      const userId = 1;
-      const user = newUser({ attributes: { uuid: userUuid, id: userId } });
       const workspaceAndUsers = [
         {
           workspace: newWorkspace(),
@@ -2739,7 +2768,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
       jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
       jest
         .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
         .mockResolvedValue(workspaceAndUsers);
@@ -2747,7 +2775,7 @@ describe('User use cases', () => {
         .spyOn(workspaceRepository, 'updateWorkspaceUserEncryptedKeyByMemberId')
         .mockResolvedValue(undefined);
 
-      await userUseCases.recoverAccountLegacy(userUuid, credentials);
+      await userUseCases.recoverAccountLegacy(user.uuid, newCredentials);
 
       expect(
         workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
@@ -2757,14 +2785,14 @@ describe('User use cases', () => {
       ).toHaveBeenCalledWith(
         workspaceAndUsers[0].workspaceUser.memberId,
         workspaceAndUsers[0].workspace.id,
-        credentials.asymmetricEncryptedMnemonic.ecc,
+        newCredentials.asymmetricEncryptedMnemonic.ecc,
       );
       expect(
         workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
       ).toHaveBeenCalledWith(
         workspaceAndUsers[1].workspaceUser.memberId,
         workspaceAndUsers[1].workspace.id,
-        credentials.asymmetricEncryptedMnemonic.ecc,
+        newCredentials.asymmetricEncryptedMnemonic.ecc,
       );
     });
   });
