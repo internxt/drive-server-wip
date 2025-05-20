@@ -84,7 +84,6 @@ import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
-import { TokenExpiredError } from 'jsonwebtoken';
 
 @ApiTags('User')
 @Controller('users')
