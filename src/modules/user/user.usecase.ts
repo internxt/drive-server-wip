@@ -1685,18 +1685,12 @@ export class UserUseCases {
   async getSpaceLimit(user: User): Promise<number> {
     const cachedLimit = await this.cacheManager.getUserStorageLimit(user.uuid);
     if (cachedLimit) {
-      Logger.log(
-        `[CACHE/DEBUG] Cache hit for User ${user.uuid} space limit: ${cachedLimit.limit}`,
-      );
       return cachedLimit.limit;
     }
 
     const limit = await this.networkService.getLimit(
       user.bridgeUser,
       user.userId,
-    );
-    Logger.log(
-      `[CACHE/DEBUG] Cache miss for User ${user.uuid} space limit: ${limit}`,
     );
     await this.cacheManager.setUserStorageLimit(user.uuid, limit);
 

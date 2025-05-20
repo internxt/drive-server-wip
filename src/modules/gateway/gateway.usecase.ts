@@ -166,16 +166,19 @@ export class GatewayUseCases {
   }
 
   async updateUser(user: User, newStorageSpaceBytes?: number) {
-    Logger.log(
-      `[GATEWAY/LIMIT_CACHE] Updating user ${user.uuid} with new storage space bytes: ${newStorageSpaceBytes}`,
-    );
     await this.userUseCases.updateUserStorage(user, newStorageSpaceBytes);
 
-    this.cacheManagerService.expireLimit(user.uuid).catch((error) => {
+    try {
+      await this.cacheManagerService.setUserStorageLimit(
+        user.uuid,
+        newStorageSpaceBytes,
+        1000 * 60,
+      );
+    } catch (error) {
       Logger.error(
-        `[GATEWAY/LIMIT_CACHE] Error deleting cache for user ${user.uuid}`,
+        `[GATEWAY/LIMIT_CACHE] Error proactively setting cache for user ${user.uuid} with new limit ${newStorageSpaceBytes}`,
         error,
       );
-    });
+    }
   }
 }
