@@ -86,7 +86,6 @@ import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
-import { TokenExpiredError } from 'jsonwebtoken';
 
 @ApiTags('User')
 @Controller('users')

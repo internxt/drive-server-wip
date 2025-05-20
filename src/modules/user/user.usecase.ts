@@ -1074,9 +1074,8 @@ export class UserUseCases {
       const decodedContent = decoded?.payload;
 
       if (
-        !decodedContent ||
-        !decodedContent.uuid ||
-        decodedContent.action !== 'recover-account' ||
+        !decodedContent?.uuid ||
+        decodedContent?.action !== 'recover-account' ||
         !validate(decodedContent.uuid)
       ) {
         throw new ForbiddenException('Invalid token');
