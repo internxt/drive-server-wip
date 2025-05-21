@@ -8,7 +8,7 @@ import {
   newUser,
   newWorkspace,
 } from '../../../test/fixtures';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import {
   BadRequestInvalidOffsetException,
   BadRequestOutOfRangeLimitException,
@@ -18,7 +18,7 @@ import { Folder, FolderStatus } from './folder.domain';
 import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';
-import { FileStatus } from '../file/file.domain';
+import { FileStatus } from '../storage/file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 
 const requester = newUser();

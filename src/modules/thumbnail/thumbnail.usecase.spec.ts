@@ -6,7 +6,7 @@ import { BridgeService } from '../../externals/bridge/bridge.service';
 import { newUser } from './../../../test/fixtures';
 import { CreateThumbnailDto } from './dto/create-thumbnail.dto';
 import { createMock } from '@golevelup/ts-jest';
-import { SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFileRepository } from '../storage/file/file.repository';
 
 describe('ThumbnailUseCases', () => {
   let thumbnailUseCases: ThumbnailUseCases;

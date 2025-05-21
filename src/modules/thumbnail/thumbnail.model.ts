@@ -10,7 +10,7 @@ import {
 } from 'sequelize-typescript';
 
 import { ThumbnailAttributes } from './thumbnail.attributes';
-import { FileModel } from '../file/file.model';
+import { FileModel } from '../storage/file/file.model';
 
 @Table({
   underscored: true,

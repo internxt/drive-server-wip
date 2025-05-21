@@ -3,7 +3,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { FolderUseCases } from './folder.usecase';
-import { FileModule } from '../file/file.module';
+import { FileModule } from '../storage/file/file.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderController } from './folder.controller';

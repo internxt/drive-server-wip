@@ -4,7 +4,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { format } from 'sql-formatter';
-import { FileModule } from './modules/file/file.module';
+import { FileModule } from './modules/storage/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
 import { FolderModule } from './modules/folder/folder.module';
 import { AuthModule } from './modules/auth/auth.module';

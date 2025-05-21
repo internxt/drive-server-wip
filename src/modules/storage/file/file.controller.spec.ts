@@ -6,18 +6,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder, newUser } from '../../../test/fixtures';
+import { newFile, newFolder, newUser } from '../../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
-import { User } from '../user/user.domain';
+import { User } from '../../user/user.domain';
 import { File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
-import API_LIMITS from '../../lib/http/limits';
+import API_LIMITS from '../../../lib/http/limits';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
-import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
-import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
-import { ThumbnailModule } from '../thumbnail/thumbnail.module';
-import { BridgeModule } from './../../externals/bridge/bridge.module';
+import { ThumbnailUseCases } from '../../thumbnail/thumbnail.usecase';
+import { ThumbnailDto } from '../../thumbnail/dto/thumbnail.dto';
+import { CreateThumbnailDto } from '../../thumbnail/dto/create-thumbnail.dto';
+import { ThumbnailModule } from '../../thumbnail/thumbnail.module';
+import { BridgeModule } from '../../../externals/bridge/bridge.module';
 
 describe('FileController', () => {
   let fileController: FileController;

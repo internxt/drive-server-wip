@@ -11,7 +11,7 @@ import {
   SharingRole,
   SharingType,
 } from '../src/modules/sharing/sharing.domain';
-import { File, FileStatus } from '../src/modules/file/file.domain';
+import { File, FileStatus } from '../src/modules/storage/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
 import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
 import {

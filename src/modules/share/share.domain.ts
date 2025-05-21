@@ -1,6 +1,6 @@
 import { aes } from '@internxt/lib';
 
-import { File, FileAttributes } from '../file/file.domain';
+import { File, FileAttributes } from '../storage/file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { UserAttributes } from '../user/user.attributes';

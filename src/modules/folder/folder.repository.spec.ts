@@ -4,7 +4,7 @@ import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
 import { newFolder } from '../../../test/fixtures';
-import { FileStatus } from '../file/file.domain';
+import { FileStatus } from '../storage/file/file.domain';
 import { Op } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { v4 } from 'uuid';

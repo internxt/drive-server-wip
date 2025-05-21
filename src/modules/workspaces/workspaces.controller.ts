@@ -54,7 +54,7 @@ import {
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { SortableFileAttributes } from '../file/file.domain';
+import { SortableFileAttributes } from '../storage/file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
@@ -79,7 +79,10 @@ import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator'
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
 import { Requester } from '../auth/decorators/requester.decorator';
-import { ResultFilesDto, FileDto } from '../file/dto/responses/file.dto';
+import {
+  ResultFilesDto,
+  FileDto,
+} from '../storage/file/dto/responses/file.dto';
 import {
   FolderDto,
   ResultFoldersDto,

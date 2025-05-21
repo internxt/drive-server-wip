@@ -2,7 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
-import { FileModule } from '../file/file.module';
+import { FileModule } from '../storage/file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { FolderModel } from '../folder/folder.model';
 import { UserModule } from '../user/user.module';
@@ -14,7 +14,7 @@ import {
 } from './send-link.repository';
 import { SendController } from './send.controller';
 import { SendUseCases } from './send.usecase';
-import { FileModel } from '../file/file.model';
+import { FileModel } from '../storage/file/file.model';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({

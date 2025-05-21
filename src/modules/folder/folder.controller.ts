@@ -28,9 +28,12 @@ import { FolderUseCases } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
-import { FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  FileStatus,
+  SortableFileAttributes,
+} from '../storage/file/file.domain';
 import { validate } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
@@ -57,7 +60,10 @@ import {
   FoldersDto,
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
-import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
+import {
+  FilesDto,
+  ResultFilesDto,
+} from '../storage/file/dto/responses/file.dto';
 import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 

@@ -3,7 +3,7 @@ import {
   LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
-import { FileStatus } from '../src/modules/file/file.domain';
+import { FileStatus } from '../src/modules/storage/file/file.domain';
 import {
   WorkspaceItemContext,
   WorkspaceItemType,

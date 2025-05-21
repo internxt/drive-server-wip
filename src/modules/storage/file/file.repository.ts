@@ -4,20 +4,20 @@ import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
 import { Literal } from 'sequelize/types/utils';
 
-import { User } from '../user/user.domain';
-import { UserModel } from './../user/user.model';
-import { Folder } from '../folder/folder.domain';
-import { Pagination } from '../../lib/pagination';
-import { ShareModel } from '../share/share.repository';
-import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { User } from '../../user/user.domain';
+import { UserModel } from '../../user/user.model';
+import { Folder } from '../../folder/folder.domain';
+import { Pagination } from '../../../lib/pagination';
+import { ShareModel } from '../../share/share.repository';
+import { ThumbnailModel } from '../../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
-import { SharingModel } from '../sharing/models';
+import { SharingModel } from '../../sharing/models';
 import {
   WorkspaceItemType,
   WorkspaceItemUserAttributes,
-} from '../workspaces/attributes/workspace-items-users.attributes';
-import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+} from '../../workspaces/attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../../workspaces/models/workspace-items-users.model';
+import { WorkspaceAttributes } from '../../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;

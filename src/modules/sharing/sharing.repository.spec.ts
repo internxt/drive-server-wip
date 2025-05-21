@@ -14,8 +14,8 @@ import { v4 } from 'uuid';
 import { SharingRolesModel } from './models/sharing-roles.model';
 import { Op, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { FileStatus } from '../file/file.domain';
-import { FileModel } from '../file/file.model';
+import { FileStatus } from '../storage/file/file.domain';
+import { FileModel } from '../storage/file/file.model';
 import { UserModel } from '../user/user.model';
 import { FolderModel } from '../folder/folder.model';
 

@@ -1,7 +1,7 @@
-import { Sharing } from '../../../modules/sharing/sharing.domain';
-import { FolderDto } from '../../folder/dto/folder.dto';
-import { Share } from '../../share/share.domain';
-import { Thumbnail } from '../../thumbnail/thumbnail.domain';
+import { Sharing } from '../../../sharing/sharing.domain';
+import { FolderDto } from '../../../folder/dto/folder.dto';
+import { Share } from '../../../share/share.domain';
+import { Thumbnail } from '../../../thumbnail/thumbnail.domain';
 import { FileStatus } from '../file.domain';
 
 export class FileDto {

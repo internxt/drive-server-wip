@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
 import { TrashController } from './trash.controller';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from './trash.usecase';

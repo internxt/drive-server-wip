@@ -4,11 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { File, FileStatus } from '../file/file.domain';
+import { File, FileStatus } from '../storage/file/file.domain';
 import {
   FileRepository,
   SequelizeFileRepository,
-} from '../file/file.repository';
+} from '../storage/file/file.repository';
 import { Folder } from '../folder/folder.domain';
 import {
   FolderRepository,

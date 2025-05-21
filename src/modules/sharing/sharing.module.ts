@@ -9,7 +9,7 @@ import {
   SharingInviteModel,
   SharingModel,
 } from './models';
-import { FileModule } from '../file/file.module';
+import { FileModule } from '../storage/file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
 import { SharingRolesModel } from './models/sharing-roles.model';

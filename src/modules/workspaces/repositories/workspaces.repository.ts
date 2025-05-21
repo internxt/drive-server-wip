@@ -19,8 +19,8 @@ import {
   WorkspaceItemUserAttributes,
 } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
-import { FileModel } from '../../file/file.model';
-import { File, FileAttributes } from '../../file/file.domain';
+import { FileModel } from '../../storage/file/file.model';
+import { File, FileAttributes } from '../../storage/file/file.domain';
 import { Folder, FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
 import {

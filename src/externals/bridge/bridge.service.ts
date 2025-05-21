@@ -2,7 +2,7 @@ import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { FileAttributes } from '../../modules/file/file.domain';
+import { FileAttributes } from '../../modules/storage/file/file.domain';
 import { User } from '../../modules/user/user.domain';
 import { UserAttributes } from '../../modules/user/user.attributes';
 import { CryptoService } from '../crypto/crypto.service';

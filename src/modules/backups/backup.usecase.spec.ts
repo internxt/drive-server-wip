@@ -6,7 +6,7 @@ import { SequelizeBackupRepository } from './backup.repository';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import {
   NotFoundException,
   ConflictException,

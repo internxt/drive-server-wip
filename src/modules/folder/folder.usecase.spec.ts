@@ -28,8 +28,8 @@ import {
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import { FileUseCases } from '../file/file.usecase';
-import { FileStatus } from '../file/file.domain';
+import { FileUseCases } from '../storage/file/file.usecase';
+import { FileStatus } from '../storage/file/file.domain';
 
 const folderId = 4;
 const user = newUser();

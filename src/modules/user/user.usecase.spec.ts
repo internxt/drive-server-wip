@@ -11,7 +11,7 @@ import {
 } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { AccountTokenAction, User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';

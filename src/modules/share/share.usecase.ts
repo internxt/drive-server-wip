@@ -16,7 +16,7 @@ import { SequelizeShareRepository } from './share.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UpdateShareDto } from './dto/update-share.dto';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFileRepository } from '../storage/file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 

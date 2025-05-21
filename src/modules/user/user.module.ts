@@ -20,7 +20,7 @@ import {
   SequelizeReferralRepository,
 } from './referrals.repository';
 import { FolderModule } from '../folder/folder.module';
-import { FileModule } from '../file/file.module';
+import { FileModule } from '../storage/file/file.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { UserController } from './user.controller';
 import { PaymentsService } from '../../externals/payments/payments.service';

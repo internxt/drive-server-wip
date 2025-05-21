@@ -42,10 +42,10 @@ import {
   FileAttributes,
   FileStatus,
   SortableFileAttributes,
-} from '../file/file.domain';
+} from '../storage/file/file.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { FileUseCases, SortParamsFile } from '../file/file.usecase';
+import { FileUseCases, SortParamsFile } from '../storage/file/file.usecase';
 import {
   Folder,
   FolderAttributes,

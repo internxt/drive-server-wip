@@ -11,12 +11,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { CryptoService } from '../../externals/crypto/crypto.service';
-import { BridgeService } from '../../externals/bridge/bridge.service';
-import { FolderAttributes } from '../folder/folder.attributes';
-import { Share } from '../share/share.domain';
-import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
+import { CryptoService } from '../../../externals/crypto/crypto.service';
+import { BridgeService } from '../../../externals/bridge/bridge.service';
+import { FolderAttributes } from '../../folder/folder.attributes';
+import { Share } from '../../share/share.domain';
+import { User } from '../../user/user.domain';
+import { UserAttributes } from '../../user/user.attributes';
 import {
   File,
   FileAttributes,
@@ -25,21 +25,21 @@ import {
   SortableFileAttributes,
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
-import { SharingService } from '../sharing/sharing.service';
-import { SharingItemType } from '../sharing/sharing.domain';
+import { SharingService } from '../../sharing/sharing.service';
+import { SharingItemType } from '../../sharing/sharing.domain';
 import { v4 } from 'uuid';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { Folder } from '../folder/folder.domain';
-import { getPathFileData } from '../../lib/path';
-import { isStringEmpty } from '../../lib/validators';
+import { WorkspaceAttributes } from '../../workspaces/attributes/workspace.attributes';
+import { Folder } from '../../folder/folder.domain';
+import { getPathFileData } from '../../../lib/path';
+import { isStringEmpty } from '../../../lib/validators';
 import { FileModel } from './file.model';
-import { ShareUseCases } from '../share/share.usecase';
-import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { ShareUseCases } from '../../share/share.usecase';
+import { ThumbnailUseCases } from '../../thumbnail/thumbnail.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 

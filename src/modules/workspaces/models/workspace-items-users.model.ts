@@ -11,7 +11,7 @@ import { WorkspaceModel } from './workspace.model';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
 import { FolderModel } from '../../folder/folder.model';
-import { FileModel } from '../../file/file.model';
+import { FileModel } from '../../storage/file/file.model';
 
 @Table({
   underscored: true,

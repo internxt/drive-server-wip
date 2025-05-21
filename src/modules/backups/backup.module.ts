@@ -9,7 +9,7 @@ import { DeviceModel } from './models/device.model';
 import { UserModel } from '../user/user.model';
 import { BridgeModule } from './../../externals/bridge/bridge.module';
 import { CryptoModule } from './../../externals/crypto/crypto.module';
-import { FileModule } from '../file/file.module';
+import { FileModule } from '../storage/file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { FolderModel } from '../folder/folder.model';

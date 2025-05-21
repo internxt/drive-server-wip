@@ -7,7 +7,7 @@ import { UserAttributes } from '../user/user.attributes';
 import { Sequelize } from 'sequelize';
 import { Op } from 'sequelize';
 import { FolderModel } from '../folder/folder.model';
-import { FileModel } from '../file/file.model';
+import { FileModel } from '../storage/file/file.model';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 type LookUpResult = Array<{

@@ -27,8 +27,8 @@ import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { FileUseCases } from '../file/file.usecase';
-import { File, FileStatus } from '../file/file.domain';
+import { FileUseCases } from '../storage/file/file.usecase';
+import { File, FileStatus } from '../storage/file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
 

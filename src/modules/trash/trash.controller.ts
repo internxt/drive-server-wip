@@ -27,7 +27,7 @@ import {
 } from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Client } from '../auth/decorators/client.decorator';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { User } from '../user/user.domain';
@@ -37,7 +37,11 @@ import {
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
 import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  File,
+  FileStatus,
+  SortableFileAttributes,
+} from '../storage/file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';

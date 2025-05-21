@@ -24,9 +24,9 @@ import {
 import { ReferralKey, User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File, FileStatus } from '../file/file.domain';
+import { File, FileStatus } from '../storage/file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';

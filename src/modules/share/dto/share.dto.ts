@@ -1,5 +1,5 @@
 import { FolderDto } from '../../folder/dto/folder.dto';
-import { FileDto } from '../../file/dto/file.dto';
+import { FileDto } from '../../storage/file/dto/file.dto';
 
 export class ShareDto {
   id: number;

@@ -39,9 +39,9 @@ import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { FileStatus } from '../file/file.domain';
+import { FileStatus } from '../storage/file/file.domain';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import {

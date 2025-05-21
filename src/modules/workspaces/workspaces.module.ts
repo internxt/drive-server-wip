@@ -16,7 +16,7 @@ import { WorkspaceInviteModel } from './models/workspace-invite.model';
 import { MailerModule } from '../../externals/mailer/mailer.module';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { FolderModule } from '../folder/folder.module';
-import { FileModule } from '../file/file.module';
+import { FileModule } from '../storage/file/file.module';
 import { SharingModule } from '../sharing/sharing.module';
 import { PaymentsService } from 'src/externals/payments/payments.service';
 import { HttpClientModule } from 'src/externals/http/http.module';

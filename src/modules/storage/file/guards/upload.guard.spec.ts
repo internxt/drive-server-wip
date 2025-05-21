@@ -1,4 +1,4 @@
-import { newUser } from '../../../../test/fixtures';
+import { newUser } from '../../../../../test/fixtures';
 import { UploadGuard } from './upload.guard';
 import { BadRequestException, ExecutionContext } from '@nestjs/common';
 

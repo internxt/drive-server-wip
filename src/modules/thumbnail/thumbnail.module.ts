@@ -4,8 +4,8 @@ import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { ThumbnailModel } from './thumbnail.model';
 import { ThumbnailUseCases } from './thumbnail.usecase';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { FileModel } from '../file/file.model';
-import { SequelizeFileRepository } from '../file/file.repository';
+import { FileModel } from '../storage/file/file.model';
+import { SequelizeFileRepository } from '../storage/file/file.repository';
 import { ShareModel } from '../share/share.repository';
 
 @Module({

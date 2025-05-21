@@ -15,29 +15,29 @@ import {
   FileStatus,
   SortableFileAttributes,
 } from './file.domain';
-import { User } from '../user/user.domain';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { CryptoModule } from '../../externals/crypto/crypto.module';
-import { CryptoService } from '../../externals/crypto/crypto.service';
-import { BridgeService } from '../../externals/bridge/bridge.service';
+import { User } from '../../user/user.domain';
+import { BridgeModule } from '../../../externals/bridge/bridge.module';
+import { CryptoModule } from '../../../externals/crypto/crypto.module';
+import { CryptoService } from '../../../externals/crypto/crypto.service';
+import { BridgeService } from '../../../externals/bridge/bridge.service';
 import {
   FolderRepository,
   SequelizeFolderRepository,
-} from '../folder/folder.repository';
+} from '../../folder/folder.repository';
 import {
   newFile,
   newFolder,
   newUser,
   newWorkspace,
-} from '../../../test/fixtures';
-import { FolderUseCases } from '../folder/folder.usecase';
+} from '../../../../test/fixtures';
+import { FolderUseCases } from '../../folder/folder.usecase';
 import { v4 } from 'uuid';
-import { SharingService } from '../sharing/sharing.service';
-import { SharingItemType } from '../sharing/sharing.domain';
+import { SharingService } from '../../sharing/sharing.service';
+import { SharingItemType } from '../../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
-import { ThumbnailModule } from '../thumbnail/thumbnail.module';
+import { ThumbnailUseCases } from '../../thumbnail/thumbnail.usecase';
+import { ThumbnailModule } from '../../thumbnail/thumbnail.module';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;

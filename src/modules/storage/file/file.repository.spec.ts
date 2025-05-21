@@ -6,7 +6,7 @@ import {
   newFolder,
   newUser,
   newWorkspace,
-} from '../../../test/fixtures';
+} from '../../../../test/fixtures';
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';

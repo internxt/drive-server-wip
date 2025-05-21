@@ -10,7 +10,7 @@ import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { CreateThumbnailDto } from './dto/create-thumbnail.dto';
 import { ThumbnailAttributes } from './thumbnail.attributes';
 import { Thumbnail } from './thumbnail.domain';
-import { SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFileRepository } from '../storage/file/file.repository';
 
 @Injectable()
 export class ThumbnailUseCases {

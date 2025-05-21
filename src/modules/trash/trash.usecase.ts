@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File, FileStatus } from '../file/file.domain';
+import { File, FileStatus } from '../storage/file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 
 @Injectable()
 export class TrashUseCases {

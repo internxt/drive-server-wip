@@ -46,7 +46,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';

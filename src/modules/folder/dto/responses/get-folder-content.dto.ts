@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { FolderDto } from './folder.dto';
-import { FileDto } from '../../../file/dto/responses/file.dto';
+import { FileDto } from '../../../storage/file/dto/responses/file.dto';
 
 export class GetFolderContentDto extends FolderDto {
   @ApiProperty({ isArray: true, type: FolderDto })

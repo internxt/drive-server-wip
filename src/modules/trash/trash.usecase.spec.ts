@@ -3,10 +3,10 @@ import { Logger, NotFoundException } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 
 import { TrashUseCases } from './trash.usecase';
-import { File, FileAttributes } from '../file/file.domain';
+import { File, FileAttributes } from '../storage/file/file.domain';
 import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
-import { FileUseCases } from '../file/file.usecase';
+import { FileUseCases } from '../storage/file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 
 describe('Trash Use Cases', () => {

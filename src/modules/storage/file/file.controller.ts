@@ -23,34 +23,34 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { User } from '../user/user.domain';
+import { User as UserDecorator } from '../../auth/decorators/user.decorator';
+import { User } from '../../user/user.domain';
 import { FileUseCases } from './file.usecase';
-import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
-import { isNumber } from '../../lib/validators';
-import API_LIMITS from '../../lib/http/limits';
+import { BadRequestParamOutOfRangeException } from '../../../lib/http/errors';
+import { isNumber } from '../../../lib/validators';
+import API_LIMITS from '../../../lib/http/limits';
 import { File, FileStatus } from './file.domain';
 import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
-import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { ValidateUUIDPipe } from '../../../common/pipes/validate-uuid.pipe';
+import { WorkspacesInBehalfValidationFile } from '../../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
-import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { SharingActionName } from '../sharing/sharing.domain';
-import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
-import { GetDataFromRequest } from '../../common/extract-data-from-request';
-import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { Client } from '../auth/decorators/client.decorator';
-import { getPathDepth } from '../../lib/path';
-import { Requester } from '../auth/decorators/requester.decorator';
+import { RequiredSharingPermissions } from '../../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../../sharing/sharing.domain';
+import { SharingPermissionsGuard } from '../../sharing/guards/sharing-permissions.guard';
+import { GetDataFromRequest } from '../../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../../externals/notifications/storage.notifications.service';
+import { Client } from '../../auth/decorators/client.decorator';
+import { getPathDepth } from '../../../lib/path';
+import { Requester } from '../../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
 import { UploadGuard } from './guards/upload.guard';
-import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
-import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
-import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
-import { WorkspacesResourcesItemsInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-items-in-behalf.guard';
+import { ThumbnailDto } from '../../thumbnail/dto/thumbnail.dto';
+import { CreateThumbnailDto } from '../../thumbnail/dto/create-thumbnail.dto';
+import { ThumbnailUseCases } from '../../thumbnail/thumbnail.usecase';
+import { WorkspacesResourcesItemsInBehalfGuard } from '../../workspaces/guards/workspaces-resources-in-items-in-behalf.guard';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 

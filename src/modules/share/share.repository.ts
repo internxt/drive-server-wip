@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Share, ShareAttributes } from './share.domain';
-import { File, FileAttributes } from '../file/file.domain';
+import { File, FileAttributes } from '../storage/file/file.domain';
 import {
   AllowNull,
   AutoIncrement,
@@ -23,7 +23,7 @@ import { Folder } from '../folder/folder.domain';
 import { FolderAttributes } from '../folder/folder.attributes';
 import { Pagination } from '../../lib/pagination';
 import { Op } from 'sequelize';
-import { FileModel } from '../file/file.model';
+import { FileModel } from '../storage/file/file.model';
 
 @Table({
   underscored: true,

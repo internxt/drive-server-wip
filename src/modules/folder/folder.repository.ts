@@ -19,7 +19,7 @@ import {
 } from '../workspaces/attributes/workspace-items-users.attributes';
 import { Literal } from 'sequelize/types/utils';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { FileStatus } from '../file/file.domain';
+import { FileStatus } from '../storage/file/file.domain';
 import { UserModel } from '../user/user.model';
 
 function mapSnakeCaseToCamelCase(data) {

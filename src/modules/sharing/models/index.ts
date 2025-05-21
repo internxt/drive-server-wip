@@ -21,7 +21,7 @@ import {
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';
 import { FolderModel } from '../../folder/folder.model';
-import { FileModel } from '../../../modules/file/file.model';
+import { FileModel } from '../../storage/file/file.model';
 import { PreCreatedUserModel } from '../../../modules/user/pre-created-users.model';
 import { WorkspaceTeamModel } from '../../workspaces/models/workspace-team.model';
 import { SharingRolesModel } from './sharing-roles.model';
