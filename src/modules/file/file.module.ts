@@ -12,6 +12,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
 import { SharingModule } from '../sharing/sharing.module';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserModule } from '../user/user.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
@@ -26,6 +27,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
     forwardRef(() => WorkspacesModule),
     BridgeModule,
     CryptoModule,
+    forwardRef(() => FeatureLimitModule),
     UserModule,
     NotificationModule,
   ],
