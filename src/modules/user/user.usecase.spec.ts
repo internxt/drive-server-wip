@@ -25,6 +25,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -78,6 +79,11 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import * as jwtLibrary from '../../lib/jwt';
+import { JsonWebTokenError } from 'jsonwebtoken';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { CryptoModule } from '../../externals/crypto/crypto.module';
+import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -2567,6 +2573,225 @@ describe('User use cases', () => {
 
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
+    });
+  });
+
+  describe('verifyAndDecodeAccountRecoveryToken', () => {
+    it('When token is valid, then it should return the user UUID', () => {
+      const userUuid = v4();
+      const token = 'validToken';
+      const jwtSecret = 'jwt-secret';
+      const decodedToken = {
+        payload: {
+          uuid: userUuid,
+          action: 'recover-account',
+        },
+      };
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret);
+      const verifyTokenSpy = jest
+        .spyOn(jwtLibrary, 'verifyToken')
+        .mockReturnValue(decodedToken);
+
+      const result = userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+
+      expect(result).toEqual({ userUuid });
+      expect(verifyTokenSpy).toHaveBeenCalledWith(token, jwtSecret);
+    });
+
+    it('When token verification returns a string, then it should throw ForbiddenException', () => {
+      const token = 'invalidToken';
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(token);
+      expect(() =>
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('When decoded content is missing, then it should throw ForbiddenException', () => {
+      const token = 'invalidToken';
+      const decodedToken = { payload: null };
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(decodedToken);
+
+      expect(() =>
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('When token verification throws JsonWebTokenError, then it should throw ForbiddenException with "Invalid token"', () => {
+      const token = 'invalidToken';
+      const error = new JsonWebTokenError('Invalid token');
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockImplementation(() => {
+        throw error;
+      });
+
+      expect(() =>
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).toThrow(new ForbiddenException('Invalid token'));
+    });
+  });
+
+  describe('recoverAccountLegacy', () => {
+    const user = newUser();
+    const decryptedPasswordHash =
+      '76b022e345d5c884cf4e77ed42e50ed8a385b70c2642b064f53ef670788a5ef2';
+    const plainMnemonic =
+      'accident direct sustain stomach various squirrel cannon drama risk illness caught claw spirit noodle pyramid poverty dragon strong chimney bullet giraffe ladder bacon coil';
+    const mnemonicEncryptedWithPassword =
+      'Rszx7x6iVQDS6cU3+qBwvx3ON2czERCJX+g21EGPT5ElGbTpB+6d2bwAN4bFS3sB1NDRXpaOfx4DJjxDg053P+4VF6AIbD8TWaSnzSCBD8xkbmfUmu7b4oK4Xt7IpFyhlmVtMQjEeaQopFJ0FxyI0aVj9znLrnEdwmjN67r4YYn6LbvC9XgoeTHVczKGhSb6ZJZUWdX5eWwG973KmZ83xjrYYYd/hvSt6oDa27iKVlq1CfI6r2fEz00J4QG0oBsvY+67Ta+zaTubJl+zA30fCfISClbvgZ/f/8WUtqr9eC/BxJx8kPQnldrTDXzkrDpHZp8Vu1C/mE3vQhxOmR915E77l/yr9Kx2dnM4';
+    const decryptedSalt = 'd06713f9540fd33793a2623c821b8969';
+    let newCredentials: LegacyRecoverAccountDto;
+
+    beforeEach(async () => {
+      const moduleRef: TestingModule = await Test.createTestingModule({
+        providers: [UserUseCases],
+        imports: [CryptoModule, AsymmetricEncryptionModule],
+      })
+        .useMocker(() => createMock())
+        .compile();
+
+      userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
+      userRepository = moduleRef.get<SequelizeUserRepository>(
+        SequelizeUserRepository,
+      );
+      keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
+      cryptoService = moduleRef.get<CryptoService>(CryptoService);
+      workspaceRepository = moduleRef.get<SequelizeWorkspaceRepository>(
+        SequelizeWorkspaceRepository,
+      );
+      asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
+        AsymmetricEncryptionService,
+      );
+
+      const keys = await asymmetricEncryptionService.generateNewKeys();
+      newCredentials = {
+        mnemonic: mnemonicEncryptedWithPassword,
+        password: cryptoService.encryptText(decryptedPasswordHash),
+        salt: cryptoService.encryptText(decryptedSalt),
+        asymmetricEncryptedMnemonic: {
+          ecc: await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+            {
+              message: plainMnemonic,
+              publicKeyInBase64: keys.publicKeyArmored,
+            },
+          ),
+          hybrid:
+            await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
+              {
+                message: plainMnemonic,
+                publicKeyInBase64: keys.publicKeyArmored,
+                publicKyberKeyBase64: keys.publicKyberKeyBase64,
+              },
+            ),
+        },
+        keys: {
+          ecc: {
+            private: keys.privateKeyArmored,
+            public: keys.publicKeyArmored,
+            revocationKey: keys.revocationCertificate,
+          },
+          kyber: {
+            private: keys.privateKyberKeyBase64,
+            public: keys.publicKyberKeyBase64,
+          },
+        },
+      };
+    });
+
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      const userUuid = v4();
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.recoverAccountLegacy(userUuid, newCredentials),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is found, then it should update user with decrypted credentials', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
+        .mockResolvedValue([]);
+      await userUseCases.recoverAccountLegacy(user.uuid, newCredentials);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(user.uuid, {
+        mnemonic: mnemonicEncryptedWithPassword,
+        password: decryptedPasswordHash,
+        hKey: decryptedSalt,
+      });
+    });
+
+    it('When credentials contain keys, then it should update each key by version', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest
+        .spyOn(keyServerUseCases, 'updateByUserAndEncryptVersion')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
+        .mockResolvedValue([]);
+
+      await userUseCases.recoverAccountLegacy(user.uuid, newCredentials);
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: newCredentials.keys.ecc.private,
+        publicKey: newCredentials.keys.ecc.public,
+        revocationKey: newCredentials.keys.ecc.revocationKey,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(user.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: newCredentials.keys.kyber.private,
+        publicKey: newCredentials.keys.kyber.public,
+      });
+    });
+
+    it('When user has owned workspaces, then it should update all workspace user encrypted keys', async () => {
+      const workspaceAndUsers = [
+        {
+          workspace: newWorkspace(),
+          workspaceUser: newWorkspaceUser({ memberId: user.uuid }),
+        },
+        {
+          workspace: newWorkspace(),
+          workspaceUser: newWorkspaceUser({ memberId: user.uuid }),
+        },
+      ];
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUsersOfOwnedWorkspaces')
+        .mockResolvedValue(workspaceAndUsers);
+      jest
+        .spyOn(workspaceRepository, 'updateWorkspaceUserEncryptedKeyByMemberId')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.recoverAccountLegacy(user.uuid, newCredentials);
+
+      expect(
+        workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
+      ).toHaveBeenCalledWith(
+        workspaceAndUsers[0].workspaceUser.memberId,
+        workspaceAndUsers[0].workspace.id,
+        newCredentials.asymmetricEncryptedMnemonic.ecc,
+      );
+      expect(
+        workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId,
+      ).toHaveBeenCalledWith(
+        workspaceAndUsers[1].workspaceUser.memberId,
+        workspaceAndUsers[1].workspace.id,
+        newCredentials.asymmetricEncryptedMnemonic.ecc,
+      );
     });
   });
 });
