@@ -377,20 +377,24 @@ describe('GatewayUseCases', () => {
       const user = newUser();
       const newStorageSpaceBytes = 5000000;
 
-      it('When updating user storage, then it should call userUseCases and expire cache', async () => {
+      it('When updating user storage, then it should call userUseCases and set the new user storage limit in cache', async () => {
         await service.updateUser(user, newStorageSpaceBytes);
 
         expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
           user,
           newStorageSpaceBytes,
         );
-        expect(cacheManagerService.expireLimit).toHaveBeenCalledWith(user.uuid);
+        expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
+          user.uuid,
+          newStorageSpaceBytes,
+          1000 * 60,
+        );
       });
 
-      it('When updating user storage and cache expiration fails, it should still succeed', async () => {
+      it('When updating user storage and setting cache limit succeeds, it should complete without error', async () => {
         jest
-          .spyOn(cacheManagerService, 'expireLimit')
-          .mockRejectedValue(new Error('Cache error'));
+          .spyOn(cacheManagerService, 'setUserStorageLimit')
+          .mockResolvedValue(undefined);
 
         await expect(
           service.updateUser(user, newStorageSpaceBytes),
@@ -400,7 +404,31 @@ describe('GatewayUseCases', () => {
           user,
           newStorageSpaceBytes,
         );
-        expect(cacheManagerService.expireLimit).toHaveBeenCalledWith(user.uuid);
+        expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
+          user.uuid,
+          newStorageSpaceBytes,
+          1000 * 60,
+        );
+      });
+
+      it('When updating user storage and setting cache limit fails, it should still complete without error', async () => {
+        jest
+          .spyOn(cacheManagerService, 'setUserStorageLimit')
+          .mockRejectedValue(new Error('Cache set error'));
+
+        await expect(
+          service.updateUser(user, newStorageSpaceBytes),
+        ).resolves.not.toThrow();
+
+        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+          user,
+          newStorageSpaceBytes,
+        );
+        expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
+          user.uuid,
+          newStorageSpaceBytes,
+          1000 * 60,
+        );
       });
 
       it('When updating user storage fails, then it should throw the error', async () => {

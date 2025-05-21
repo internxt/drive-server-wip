@@ -125,5 +125,44 @@ describe('CacheManagerService', () => {
       );
       expect(result).toEqual(returnValue);
     });
+
+    it('When setting user storage limit with a custom TTL, then it should store the limit with the custom TTL', async () => {
+      const userUuid = v4();
+      const limit = 4096;
+      const customTtl = 5000 * 60;
+
+      await cacheManagerService.setUserStorageLimit(userUuid, limit, customTtl);
+
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        `limit:${userUuid}`,
+        { limit },
+        customTtl,
+      );
+    });
+  });
+
+  describe('getUserStorageLimit', () => {
+    it('When getting user storage limit, then it should append the user uuid to the limit key prefix', async () => {
+      const userUuid = v4();
+      const cachedLimit = { limit: 1073741824 }; // 1GB
+
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(cachedLimit);
+
+      const result = await cacheManagerService.getUserStorageLimit(userUuid);
+
+      expect(cacheManager.get).toHaveBeenCalledWith(`limit:${userUuid}`);
+      expect(result).toEqual(cachedLimit);
+    });
+
+    it('When cache returns null for user storage limit, then it should return null', async () => {
+      const userUuid = v4();
+
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+
+      const result = await cacheManagerService.getUserStorageLimit(userUuid);
+
+      expect(cacheManager.get).toHaveBeenCalledWith(`limit:${userUuid}`);
+      expect(result).toBeNull();
+    });
   });
 });
