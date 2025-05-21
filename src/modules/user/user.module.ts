@@ -19,7 +19,7 @@ import {
   ReferralModel,
   SequelizeReferralRepository,
 } from './referrals.repository';
-import { FolderModule } from '../folder/folder.module';
+import { FolderModule } from '../storage/folder/folder.module';
 import { FileModule } from '../storage/file/file.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { UserController } from './user.controller';

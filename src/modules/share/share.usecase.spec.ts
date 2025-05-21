@@ -9,11 +9,11 @@ import {
   FileRepository,
   SequelizeFileRepository,
 } from '../storage/file/file.repository';
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 import {
   FolderRepository,
   SequelizeFolderRepository,
-} from '../folder/folder.repository';
+} from '../storage/folder/folder.repository';
 import { User } from '../user/user.domain';
 import { Share, ShareAttributes } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';

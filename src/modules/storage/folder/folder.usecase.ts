@@ -10,10 +10,10 @@ import {
   UnprocessableEntityException,
   forwardRef,
 } from '@nestjs/common';
-import { CryptoService } from '../../externals/crypto/crypto.service';
-import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
-import { SequelizeUserRepository } from '../user/user.repository';
+import { CryptoService } from '../../../externals/crypto/crypto.service';
+import { User } from '../../user/user.domain';
+import { UserAttributes } from '../../user/user.attributes';
+import { SequelizeUserRepository } from '../../user/user.repository';
 import {
   Folder,
   FolderOptions,
@@ -21,14 +21,14 @@ import {
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
-import { SharingService } from '../sharing/sharing.service';
-import { SharingItemType } from '../sharing/sharing.domain';
-import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { SharingService } from '../../sharing/sharing.service';
+import { SharingItemType } from '../../sharing/sharing.domain';
+import { WorkspaceItemUserAttributes } from '../../workspaces/attributes/workspace-items-users.attributes';
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { FileUseCases } from '../storage/file/file.usecase';
-import { File, FileStatus } from '../storage/file/file.domain';
+import { WorkspaceAttributes } from '../../workspaces/attributes/workspace.attributes';
+import { FileUseCases } from '../file/file.usecase';
+import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
 

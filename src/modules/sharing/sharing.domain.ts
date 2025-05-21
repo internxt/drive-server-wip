@@ -1,5 +1,5 @@
 import { File } from '../storage/file/file.domain';
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 import { User } from '../user/user.domain';
 import { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
 

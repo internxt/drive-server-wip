@@ -5,7 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
-import { FolderModel } from '../folder/folder.model';
+import { FolderModel } from '../storage/folder/folder.model';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
 import { SendLink } from './send-link.domain';

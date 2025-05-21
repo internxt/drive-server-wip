@@ -10,9 +10,9 @@ import { SequelizeBackupRepository } from './backup.repository';
 import { User } from '../user/user.domain';
 import { BridgeService } from './../../externals/bridge/bridge.service';
 import { CryptoService } from './../../externals/crypto/crypto.service';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { FileUseCases } from '../storage/file/file.usecase';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../storage/folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { BackupModel } from './models/backup.model';
 

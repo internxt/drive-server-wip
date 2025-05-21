@@ -25,47 +25,41 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FolderUseCases } from './folder.usecase';
-import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
-import { User } from '../user/user.domain';
-import { FileUseCases } from '../storage/file/file.usecase';
+import { User as UserDecorator } from '../../auth/decorators/user.decorator';
+import { Workspace as WorkspaceDecorator } from '../../auth/decorators/workspace.decorator';
+import { User } from '../../user/user.domain';
+import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
-import {
-  FileStatus,
-  SortableFileAttributes,
-} from '../storage/file/file.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { validate } from 'uuid';
-import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import { isNumber } from '../../lib/validators';
+import { HttpExceptionFilter } from '../../../lib/http/http-exception.filter';
+import { isNumber } from '../../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
 
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { WorkspacesInBehalfValidationFolder } from '../../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
-import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { SharingActionName } from '../sharing/sharing.domain';
-import { GetDataFromRequest } from '../../common/extract-data-from-request';
-import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { Client } from '../auth/decorators/client.decorator';
-import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
-import { Workspace } from '../workspaces/domains/workspaces.domain';
-import { getPathDepth } from '../../lib/path';
+import { RequiredSharingPermissions } from '../../sharing/guards/sharing-permissions.decorator';
+import { SharingActionName } from '../../sharing/sharing.domain';
+import { GetDataFromRequest } from '../../../common/extract-data-from-request';
+import { StorageNotificationService } from '../../../externals/notifications/storage.notifications.service';
+import { Client } from '../../auth/decorators/client.decorator';
+import { BasicPaginationDto } from '../../../common/dto/basic-pagination.dto';
+import { Workspace } from '../../workspaces/domains/workspaces.domain';
+import { getPathDepth } from '../../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
-import { Requester } from '../auth/decorators/requester.decorator';
+import { Requester } from '../../auth/decorators/requester.decorator';
 import {
   ExistingFoldersDto,
   FolderDto,
   FoldersDto,
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
-import {
-  FilesDto,
-  ResultFilesDto,
-} from '../storage/file/dto/responses/file.dto';
+import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
 import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
-import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
+import { ValidateUUIDPipe } from '../../../common/pipes/validate-uuid.pipe';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 

@@ -1,4 +1,4 @@
-import { Sharing } from '../sharing/sharing.domain';
+import { Sharing } from '../../sharing/sharing.domain';
 
 export interface FolderAttributes {
   id: number;

@@ -1,4 +1,4 @@
-import { FolderAttributes } from '../../folder/folder.attributes';
+import { FolderAttributes } from '../../storage/folder/folder.attributes';
 import { User } from '../../user/user.domain';
 import { Workspace } from '../../workspaces/domains/workspaces.domain';
 import { WorkspaceItemType } from './../../workspaces/attributes/workspace-items-users.attributes';

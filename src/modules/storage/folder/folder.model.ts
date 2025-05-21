@@ -13,11 +13,11 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { UserModel } from '../user/user.model';
+import { UserModel } from '../../user/user.model';
 import { FolderAttributes } from './folder.attributes';
-import { SharingModel } from '../sharing/models';
-import { Sharing } from '../sharing/sharing.domain';
-import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { SharingModel } from '../../sharing/models';
+import { Sharing } from '../../sharing/sharing.domain';
+import { WorkspaceItemUserModel } from '../../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
 
 @Table({

@@ -13,11 +13,11 @@ import { User } from '../user/user.domain';
 import { CreateShareDto } from './dto/create-share.dto';
 import { Share } from './share.domain';
 import { SequelizeShareRepository } from './share.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { UpdateShareDto } from './dto/update-share.dto';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SequelizeFileRepository } from '../storage/file/file.repository';
-import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { SequelizeFolderRepository } from '../storage/folder/folder.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 
 @Injectable()

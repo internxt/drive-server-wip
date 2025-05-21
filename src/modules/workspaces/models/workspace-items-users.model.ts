@@ -10,7 +10,7 @@ import {
 import { WorkspaceModel } from './workspace.model';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
-import { FolderModel } from '../../folder/folder.model';
+import { FolderModel } from '../../storage/folder/folder.model';
 import { FileModel } from '../../storage/file/file.model';
 
 @Table({

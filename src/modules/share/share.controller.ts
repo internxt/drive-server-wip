@@ -23,7 +23,7 @@ import { CreateShareDto } from './dto/create-share.dto';
 import { Request, Response } from 'express';
 import { GetDownFilesDto } from './dto/get-down-files.dto';
 import { FileUseCases } from '../storage/file/file.usecase';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { UpdateShareDto } from './dto/update-share.dto';
@@ -32,7 +32,7 @@ import { ShareLinkViewEvent } from '../../externals/notifications/events/share-l
 import { ShareLinkCreatedEvent } from '../../externals/notifications/events/share-link-created.event';
 import { File, FileAttributes } from '../storage/file/file.domain';
 import { ShareDto } from './dto/share.dto';
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 import { ReferralKey, User } from '../user/user.domain';
 import getEnv from '../../config/configuration';
 

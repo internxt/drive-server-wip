@@ -1,8 +1,8 @@
 import { aes } from '@internxt/lib';
 
 import { File, FileAttributes } from '../storage/file/file.domain';
-import { Folder } from '../folder/folder.domain';
-import { FolderAttributes } from '../folder/folder.attributes';
+import { Folder } from '../storage/folder/folder.domain';
+import { FolderAttributes } from '../storage/folder/folder.attributes';
 import { UserAttributes } from '../user/user.attributes';
 import { ShareDto } from './dto/share.dto';
 

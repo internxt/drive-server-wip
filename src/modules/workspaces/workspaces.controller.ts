@@ -51,7 +51,7 @@ import {
   FolderAttributes,
   FolderStatus,
   SortableFolderAttributes,
-} from '../folder/folder.domain';
+} from '../storage/folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { SortableFileAttributes } from '../storage/file/file.domain';
@@ -86,7 +86,7 @@ import {
 import {
   FolderDto,
   ResultFoldersDto,
-} from '../folder/dto/responses/folder.dto';
+} from '../storage/folder/dto/responses/folder.dto';
 import { GetAvailableWorkspacesResponseDto } from './dto/reponse/workspace.dto';
 import { WorkspaceCredentialsDto } from './dto/reponse/workspace-credentials.dto';
 

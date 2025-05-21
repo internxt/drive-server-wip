@@ -13,7 +13,7 @@ import {
   HasMany,
 } from 'sequelize-typescript';
 
-import { FolderModel } from '../folder/folder.model';
+import { FolderModel } from '../storage/folder/folder.model';
 import { UserAttributes } from './user.attributes';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOrCreateOptions, Transaction } from 'sequelize/types';
 
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';

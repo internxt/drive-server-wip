@@ -7,7 +7,7 @@ import { ShareModule } from '../../share/share.module';
 import { BridgeModule } from '../../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../../externals/crypto/crypto.module';
 import { FileController } from './file.controller';
-import { FolderModule } from '../../folder/folder.module';
+import { FolderModule } from '../folder/folder.module';
 import { ThumbnailModel } from '../../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';

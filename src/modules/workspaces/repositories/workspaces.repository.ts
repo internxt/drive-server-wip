@@ -21,8 +21,8 @@ import {
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../storage/file/file.model';
 import { File, FileAttributes } from '../../storage/file/file.domain';
-import { Folder, FolderAttributes } from '../../folder/folder.domain';
-import { FolderModel } from '../../folder/folder.model';
+import { Folder, FolderAttributes } from '../../storage/folder/folder.domain';
+import { FolderModel } from '../../storage/folder/folder.model';
 import {
   WorkspaceLogAttributes,
   WorkspaceLogType,

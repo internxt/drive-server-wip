@@ -1,7 +1,7 @@
 import { v4 } from 'uuid';
 import { Chance } from 'chance';
 import { generateKeyPairSync } from 'crypto';
-import { Folder } from '../src/modules/folder/folder.domain';
+import { Folder } from '../src/modules/storage/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
 import {
   Permission,

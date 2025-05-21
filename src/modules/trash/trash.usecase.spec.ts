@@ -5,9 +5,9 @@ import { createMock } from '@golevelup/ts-jest';
 import { TrashUseCases } from './trash.usecase';
 import { File, FileAttributes } from '../storage/file/file.domain';
 import { User } from '../user/user.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../storage/folder/folder.domain';
 import { FileUseCases } from '../storage/file/file.usecase';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,

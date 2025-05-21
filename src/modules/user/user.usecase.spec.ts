@@ -10,7 +10,7 @@ import {
   UserAlreadyRegisteredError,
 } from './user.usecase';
 import { ShareUseCases } from '../share/share.usecase';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { FileUseCases } from '../storage/file/file.usecase';
 import { AccountTokenAction, User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
@@ -19,7 +19,7 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder, FolderAttributes } from '../storage/folder/folder.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import {
   BadRequestException,

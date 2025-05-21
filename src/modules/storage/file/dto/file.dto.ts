@@ -1,5 +1,5 @@
 import { Sharing } from '../../../sharing/sharing.domain';
-import { FolderDto } from '../../../folder/dto/folder.dto';
+import { FolderDto } from '../../folder/dto/folder.dto';
 import { Share } from '../../../share/share.domain';
 import { Thumbnail } from '../../../thumbnail/thumbnail.domain';
 import { FileStatus } from '../file.domain';

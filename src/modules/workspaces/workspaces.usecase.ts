@@ -35,7 +35,10 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
-import { FolderUseCases, SortParamsFolder } from '../folder/folder.usecase';
+import {
+  FolderUseCases,
+  SortParamsFolder,
+} from '../storage/folder/folder.usecase';
 import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import {
   File,
@@ -51,7 +54,7 @@ import {
   FolderAttributes,
   FolderStatus,
   SortableFolderAttributes,
-} from '../folder/folder.domain';
+} from '../storage/folder/folder.domain';
 import {
   WorkspaceItemContext,
   WorkspaceItemType,

@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sendgrid from '@sendgrid/mail';
 import { User } from '../../modules/user/user.domain';
-import { Folder } from '../../modules/folder/folder.domain';
+import { Folder } from '../../modules/storage/folder/folder.domain';
 import { File } from '../../modules/storage/file/file.domain';
 import { Workspace } from '../../modules/workspaces/domains/workspaces.domain';
 

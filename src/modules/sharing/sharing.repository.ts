@@ -19,8 +19,8 @@ import {
   SharingType,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
-import { Folder } from '../folder/folder.domain';
-import { FolderModel } from '../folder/folder.model';
+import { Folder } from '../storage/folder/folder.domain';
+import { FolderModel } from '../storage/folder/folder.model';
 import { UserModel } from '../user/user.model';
 import sequelize, { Op, WhereOptions } from 'sequelize';
 import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';

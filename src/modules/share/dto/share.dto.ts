@@ -1,4 +1,4 @@
-import { FolderDto } from '../../folder/dto/folder.dto';
+import { FolderDto } from '../../storage/folder/dto/folder.dto';
 import { FileDto } from '../../storage/file/dto/file.dto';
 
 export class ShareDto {

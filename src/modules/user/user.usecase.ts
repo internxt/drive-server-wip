@@ -28,7 +28,7 @@ import {
 } from './user.domain';
 import { UserAttributes } from './user.attributes';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { InvitationAcceptedEvent } from '../../externals/notifications/events/invitation-accepted.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -43,7 +43,7 @@ import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../storage/file/file.usecase';

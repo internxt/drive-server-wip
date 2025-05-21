@@ -2,18 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 
-import { TransformInterceptor } from '../../lib/transform.interceptor';
-import { AppModule } from '../../app.module';
+import { TransformInterceptor } from '../../../lib/transform.interceptor';
+import { AppModule } from '../../../app.module';
 import {
   BadRequestWrongFolderIdException,
   BadRequestWrongOffsetOrLimitException,
   BadRequestInvalidOffsetException,
   BadRequestOutOfRangeLimitException,
 } from './folder.controller';
-import { User } from '../user/user.domain';
+import { User } from '../../user/user.domain';
 import { v4 } from 'uuid';
-import { generateJWT } from '../../lib/jwt';
-import getEnv from '../../config/configuration';
+import { generateJWT } from '../../../lib/jwt';
+import getEnv from '../../../config/configuration';
 
 const user = new User({
   id: 1,

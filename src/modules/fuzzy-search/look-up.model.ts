@@ -9,7 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { ItemType, LookUpAttributes } from './look-up.domain';
 import { FileModel } from '../storage/file/file.model';
-import { FolderModel } from '../folder/folder.model';
+import { FolderModel } from '../storage/folder/folder.model';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 

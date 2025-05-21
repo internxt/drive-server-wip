@@ -5,14 +5,14 @@ import { BackupUseCase } from './backup.usecase';
 import { SequelizeBackupRepository } from './backup.repository';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { FileUseCases } from '../storage/file/file.usecase';
 import {
   NotFoundException,
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 
 describe('BackupUseCase', () => {
   let backupUseCase: BackupUseCase;

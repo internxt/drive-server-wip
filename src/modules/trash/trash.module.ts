@@ -1,7 +1,7 @@
 import { Logger, Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { FileModule } from '../storage/file/file.module';
-import { FolderModule } from '../folder/folder.module';
+import { FolderModule } from '../storage/folder/folder.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { UserModule } from '../user/user.module';
 import { TrashController } from './trash.controller';

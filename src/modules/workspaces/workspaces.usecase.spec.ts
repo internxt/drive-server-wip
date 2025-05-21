@@ -36,7 +36,7 @@ import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
-import { FolderUseCases } from '../folder/folder.usecase';
+import { FolderUseCases } from '../storage/folder/folder.usecase';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { FileUseCases } from '../storage/file/file.usecase';
@@ -58,7 +58,7 @@ import {
 } from '../sharing/dto/get-items-and-shared-folders.dto';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
-import { FolderStatus } from '../folder/folder.domain';
+import { FolderStatus } from '../storage/folder/folder.domain';
 import { WorkspaceLog } from './domains/workspace-log.domain';
 import {
   WorkspaceLogPlatform,

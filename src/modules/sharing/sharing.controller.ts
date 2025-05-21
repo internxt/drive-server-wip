@@ -41,7 +41,7 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { Sharing, SharingInvite, SharingRole } from './sharing.domain';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
-import { Folder } from '../folder/folder.domain';
+import { Folder } from '../storage/folder/folder.domain';
 import {
   GetFilesResponse,
   GetItemsReponse,

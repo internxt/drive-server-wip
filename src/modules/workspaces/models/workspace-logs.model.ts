@@ -1,4 +1,4 @@
-import { FolderModel } from '../../folder/folder.model';
+import { FolderModel } from '../../storage/folder/folder.model';
 import { FileModel } from '../../storage/file/file.model';
 import {
   Model,

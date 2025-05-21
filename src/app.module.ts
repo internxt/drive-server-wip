@@ -6,7 +6,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { format } from 'sql-formatter';
 import { FileModule } from './modules/storage/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
-import { FolderModule } from './modules/folder/folder.module';
+import { FolderModule } from './modules/storage/folder/folder.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import configuration from './config/configuration';
@@ -26,6 +26,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter
     PlanModule,
     WorkspacesModule,
     GatewayModule,
+    StorageModule,
   ],
   controllers: [],
   providers: [

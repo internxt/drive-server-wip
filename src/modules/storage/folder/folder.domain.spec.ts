@@ -1,4 +1,4 @@
-import { newFolder } from '../../../test/fixtures';
+import { newFolder } from '../../../../test/fixtures';
 import { Folder, FolderStatus } from './folder.domain';
 
 describe('Folder domain', () => {

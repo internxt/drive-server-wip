@@ -6,7 +6,7 @@ import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../../user/user.domain';
 import { UserModel } from '../../user/user.model';
-import { Folder } from '../../folder/folder.domain';
+import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../../lib/pagination';
 import { ShareModel } from '../../share/share.repository';
 import { ThumbnailModel } from '../../thumbnail/thumbnail.model';

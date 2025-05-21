@@ -8,7 +8,7 @@ import {
   arrayMinSize,
   ArrayMinSize,
 } from 'class-validator';
-import { FileAttributes } from '../../storage/file/file.domain';
+import { FileAttributes } from '../../file/file.domain';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class FilesNameAndType {

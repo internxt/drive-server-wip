@@ -6,7 +6,7 @@ import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-use
 import { UserAttributes } from '../user/user.attributes';
 import { Sequelize } from 'sequelize';
 import { Op } from 'sequelize';
-import { FolderModel } from '../folder/folder.model';
+import { FolderModel } from '../storage/folder/folder.model';
 import { FileModel } from '../storage/file/file.model';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 

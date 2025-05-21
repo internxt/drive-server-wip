@@ -1,5 +1,5 @@
-import { Sharing } from '../sharing/sharing.domain';
-import { User } from '../user/user.domain';
+import { Sharing } from '../../sharing/sharing.domain';
+import { User } from '../../user/user.domain';
 import { FolderDto } from './dto/folder.dto';
 import { FolderAttributes } from './folder.attributes';
 

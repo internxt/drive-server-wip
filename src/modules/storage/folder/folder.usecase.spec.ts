@@ -15,21 +15,21 @@ import {
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { Folder, FolderOptions } from './folder.domain';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
-import { CryptoModule } from '../../externals/crypto/crypto.module';
-import { CryptoService } from '../../externals/crypto/crypto.service';
-import { User } from '../user/user.domain';
+import { BridgeModule } from '../../../externals/bridge/bridge.module';
+import { CryptoModule } from '../../../externals/crypto/crypto.module';
+import { CryptoService } from '../../../externals/crypto/crypto.service';
+import { User } from '../../user/user.domain';
 import {
   newFile,
   newFolder,
   newUser,
   newWorkspace,
-} from '../../../test/fixtures';
+} from '../../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
-import { SharingService } from '../sharing/sharing.service';
+import { SharingService } from '../../sharing/sharing.service';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import { FileUseCases } from '../storage/file/file.usecase';
-import { FileStatus } from '../storage/file/file.domain';
+import { FileUseCases } from '../file/file.usecase';
+import { FileStatus } from '../file/file.domain';
 
 const folderId = 4;
 const user = newUser();

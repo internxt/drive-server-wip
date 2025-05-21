@@ -14,7 +14,7 @@ import {
   Table,
   Unique,
 } from 'sequelize-typescript';
-import { FolderModel } from '../../folder/folder.model';
+import { FolderModel } from '../folder/folder.model';
 import { FileAttributes, FileStatus } from './file.domain';
 import { ShareModel } from '../../share/share.repository';
 import { Share } from '../../share/share.domain';

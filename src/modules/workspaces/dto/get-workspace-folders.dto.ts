@@ -9,7 +9,7 @@ import { BasicPaginationDto } from '../../../common/dto/basic-pagination.dto';
 import {
   FolderStatus,
   SortableFolderAttributes,
-} from '../../folder/folder.domain';
+} from '../../storage/folder/folder.domain';
 
 const allowedStatuses = [...Object.values(FolderStatus), 'ALL'];
 

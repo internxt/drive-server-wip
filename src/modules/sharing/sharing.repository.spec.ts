@@ -17,7 +17,7 @@ import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-use
 import { FileStatus } from '../storage/file/file.domain';
 import { FileModel } from '../storage/file/file.model';
 import { UserModel } from '../user/user.model';
-import { FolderModel } from '../folder/folder.model';
+import { FolderModel } from '../storage/folder/folder.model';
 
 describe('SharingRepository', () => {
   let repository: SequelizeSharingRepository;

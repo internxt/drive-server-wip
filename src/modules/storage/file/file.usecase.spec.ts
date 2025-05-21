@@ -23,14 +23,14 @@ import { BridgeService } from '../../../externals/bridge/bridge.service';
 import {
   FolderRepository,
   SequelizeFolderRepository,
-} from '../../folder/folder.repository';
+} from '../folder/folder.repository';
 import {
   newFile,
   newFolder,
   newUser,
   newWorkspace,
 } from '../../../../test/fixtures';
-import { FolderUseCases } from '../../folder/folder.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../../sharing/sharing.service';
 import { SharingItemType } from '../../sharing/sharing.domain';

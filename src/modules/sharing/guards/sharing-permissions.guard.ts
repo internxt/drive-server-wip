@@ -19,7 +19,7 @@ import {
   PermissionsOptions,
 } from './sharing-permissions.decorator';
 import { Workspace } from '../../workspaces/domains/workspaces.domain';
-import { Folder } from '../../folder/folder.domain';
+import { Folder } from '../../storage/folder/folder.domain';
 import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';
 import { SharingAccessTokenData } from './sharings-token.interface';

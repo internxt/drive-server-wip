@@ -1,4 +1,4 @@
-import { Folder } from '../../folder/folder.domain';
+import { Folder } from '../folder/folder.domain';
 import { Share } from '../../share/share.domain';
 import { Sharing } from '../../sharing/sharing.domain';
 import { Thumbnail } from '../../thumbnail/thumbnail.domain';

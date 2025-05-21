@@ -1,5 +1,5 @@
 import { FileModel } from '../storage/file/file.model';
-import { FolderModel } from '../folder/folder.model';
+import { FolderModel } from '../storage/folder/folder.model';
 import { UserModel } from '../user/user.model';
 
 export const itemTypes = ['file', 'folder'] as const;

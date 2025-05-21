@@ -6,21 +6,21 @@ import { v4 } from 'uuid';
 import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 
-import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
-import { Pagination } from '../../lib/pagination';
+import { User } from '../../user/user.domain';
+import { UserAttributes } from '../../user/user.attributes';
+import { Pagination } from '../../../lib/pagination';
 import { FolderModel } from './folder.model';
-import { SharingModel } from '../sharing/models';
+import { SharingModel } from '../../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
-import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceItemUserModel } from '../../workspaces/models/workspace-items-users.model';
 import {
   WorkspaceItemType,
   WorkspaceItemUserAttributes,
-} from '../workspaces/attributes/workspace-items-users.attributes';
+} from '../../workspaces/attributes/workspace-items-users.attributes';
 import { Literal } from 'sequelize/types/utils';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { FileStatus } from '../storage/file/file.domain';
-import { UserModel } from '../user/user.model';
+import { WorkspaceAttributes } from '../../workspaces/attributes/workspace.attributes';
+import { FileStatus } from '../file/file.domain';
+import { UserModel } from '../../user/user.model';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
