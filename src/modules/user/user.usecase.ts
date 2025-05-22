@@ -55,7 +55,6 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
-  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -84,7 +83,6 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';

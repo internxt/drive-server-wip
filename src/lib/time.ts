@@ -32,7 +32,7 @@ export class Time {
     Time.freeze = null;
   }
 
-  public static isToday = (date: Date) => {
+  public static readonly isToday = (date: Date): boolean => {
     const todayDate = new Date();
     return (
       date.getDate() === todayDate.getDate() &&
@@ -41,7 +41,7 @@ export class Time {
     );
   };
 
-  public static convertTimestampToDate = (timestamp: number) => {
+  public static readonly convertTimestampToDate = (timestamp: number): Date => {
     return new Date(timestamp * 1000);
   };
 }
