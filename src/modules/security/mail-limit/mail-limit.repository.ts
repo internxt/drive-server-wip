@@ -9,7 +9,7 @@ import { MailTypes } from './mailTypes';
 export class SequelizeMailLimitRepository {
   constructor(
     @InjectModel(MailLimitModel)
-    private mailLimitModel: typeof MailLimitModel,
+    private readonly mailLimitModel: typeof MailLimitModel,
   ) {}
 
   async findOrCreate(

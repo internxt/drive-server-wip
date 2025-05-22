@@ -8,13 +8,13 @@ import { Sign } from '../../middlewares/passport';
 
 @Injectable()
 export class PaymentsService {
-  private provider: Stripe;
+  private readonly provider: Stripe;
 
   constructor(
     @Inject(ConfigService)
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
     @Inject(HttpClient)
-    private httpClient: HttpClient,
+    private readonly httpClient: HttpClient,
   ) {
     const stripeTest = new Stripe(process.env.STRIPE_SK_TEST, {
       apiVersion: '2023-10-16',

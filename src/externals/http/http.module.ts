@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import Agent from 'agentkeepalive';
+import { HttpAgent } from 'agentkeepalive';
 
 import { HttpClient } from './http.service';
 
 HttpModule.register({
-  httpsAgent: new Agent.HttpsAgent({
+  httpsAgent: new HttpAgent({
     keepAlive: true,
     maxSockets: 100,
     maxFreeSockets: 10,
