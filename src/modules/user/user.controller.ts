@@ -83,14 +83,14 @@ import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
-
+import { ClientEnum } from '../../common/enums/platform.enum';
 @ApiTags('User')
 @Controller('users')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
 
   constructor(
-    private userUseCases: UserUseCases,
+    private readonly userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
@@ -117,8 +117,7 @@ export class UserController {
     @Req() req: Request,
     @Client() clientId: string,
   ) {
-    // TODO: Remove magic string and use clientId Enum
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
@@ -488,7 +487,7 @@ export class UserController {
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     if (!isDriveWeb) {
       throw new BadRequestException(
