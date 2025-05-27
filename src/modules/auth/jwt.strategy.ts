@@ -19,11 +19,11 @@ export interface JwtPayload {
 const strategyId = 'jwt.standard';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
-  static id = strategyId;
+  static readonly id = strategyId;
 
   constructor(
     @Inject(UserUseCases)
-    private userUseCases: UserUseCases,
+    private readonly userUseCases: UserUseCases,
     configService: ConfigService,
   ) {
     super({
@@ -34,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
 
   async validate(payload): Promise<User> {
     try {
-      if (!payload.payload || !payload.payload.uuid) {
+      if (!payload.payload?.uuid) {
         throw new UnauthorizedException('Old token version detected');
       }
       const { uuid } = payload.payload;

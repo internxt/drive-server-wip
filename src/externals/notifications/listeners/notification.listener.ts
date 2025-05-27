@@ -8,9 +8,9 @@ import { HttpClient } from '../../http/http.service';
 export class NotificationListener {
   constructor(
     @Inject(HttpClient)
-    private http: HttpClient,
+    private readonly http: HttpClient,
     @Inject(ConfigService)
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   @OnEvent('notification.*')
@@ -19,7 +19,7 @@ export class NotificationListener {
       'apis.notifications.url',
     );
     const headers = {
-      'X-API-KEY': this.configService.get('apis.notifications.key') as string,
+      'X-API-KEY': this.configService.get('apis.notifications.key'),
     };
     const eventData = {
       event: event.event,

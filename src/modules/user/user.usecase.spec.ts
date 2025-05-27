@@ -84,7 +84,9 @@ jest.mock('../../middlewares/passport', () => {
   return {
     __esModule: true,
     ...originalModule,
-    SignWithCustomDuration: jest.fn((payload, secret, expiresIn) => 'anyToken'),
+    SignWithCustomDuration: jest.fn(
+      (_payload, _secret, _expiresIn) => 'anyToken',
+    ),
     Sign: jest.fn(() => 'newToken'),
     SignEmail: jest.fn(() => 'token'),
   };
@@ -225,9 +227,9 @@ describe('User use cases', () => {
         deleteWorkspaces: false,
       });
 
-      expect(deleteSharesSpy).not.toBeCalled();
-      expect(deleteFoldersSpy).not.toBeCalled();
-      expect(deleteFilesSpy).not.toBeCalled();
+      expect(deleteSharesSpy).not.toHaveBeenCalled();
+      expect(deleteFoldersSpy).not.toHaveBeenCalled();
+      expect(deleteFilesSpy).not.toHaveBeenCalled();
     });
 
     describe('When options are provided', () => {
@@ -243,9 +245,9 @@ describe('User use cases', () => {
           deleteWorkspaces: false,
         });
 
-        expect(deleteSharesSpy).toBeCalledWith(user);
-        expect(deleteFoldersSpy).not.toBeCalled();
-        expect(deleteFilesSpy).not.toBeCalled();
+        expect(deleteSharesSpy).toHaveBeenCalledWith(user);
+        expect(deleteFoldersSpy).not.toHaveBeenCalled();
+        expect(deleteFilesSpy).not.toHaveBeenCalled();
       });
 
       it('When delete workspaces is true, then user owned workspaces are reset and user is removed from invited workspaces', async () => {
@@ -277,7 +279,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFoldersSpy).toBeCalledWith(
+          expect(getFoldersSpy).toHaveBeenCalledWith(
             user.id,
             { parentId: user.rootFolderId, removed: false },
             {
@@ -285,9 +287,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).toBeCalledWith(user, folders);
-          expect(deleteFilesSpy).not.toBeCalled();
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).toHaveBeenCalledWith(user, folders);
+          expect(deleteFilesSpy).not.toHaveBeenCalled();
         });
 
         it('When delete files is true, then the files are deleted', async () => {
@@ -305,7 +307,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFilesSpy).toBeCalledWith(
+          expect(getFilesSpy).toHaveBeenCalledWith(
             user.id,
             { folderId: user.rootFolderId },
             {
@@ -313,9 +315,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).not.toBeCalled();
-          expect(deleteFilesSpy).toBeCalledWith(user, files);
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).not.toHaveBeenCalled();
+          expect(deleteFilesSpy).toHaveBeenCalledWith(user, files);
         });
       });
 
@@ -335,7 +337,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFoldersSpy).toBeCalledWith(
+          expect(getFoldersSpy).toHaveBeenCalledWith(
             user.id,
             { parentId: user.rootFolderId, removed: false },
             {
@@ -343,9 +345,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).toBeCalledWith(user, folders);
-          expect(deleteFilesSpy).not.toBeCalled();
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).toHaveBeenCalledWith(user, folders);
+          expect(deleteFilesSpy).not.toHaveBeenCalled();
         });
 
         it('When delete files is true, then the files are deleted', async () => {
@@ -363,7 +365,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFilesSpy).toBeCalledWith(
+          expect(getFilesSpy).toHaveBeenCalledWith(
             user.id,
             { folderId: user.rootFolderId },
             {
@@ -371,9 +373,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).not.toBeCalled();
-          expect(deleteFilesSpy).toBeCalledWith(user, files);
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).not.toHaveBeenCalled();
+          expect(deleteFilesSpy).toHaveBeenCalledWith(user, files);
         });
       });
     });

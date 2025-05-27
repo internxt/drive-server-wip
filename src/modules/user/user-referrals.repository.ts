@@ -85,7 +85,7 @@ export class SequelizeUserReferralsRepository
 
   constructor(
     @InjectModel(UserReferralModel)
-    private model: typeof UserReferralModel,
+    private readonly model: typeof UserReferralModel,
     private readonly bridgeService: BridgeService,
     private readonly config: ConfigService,
     private readonly referralsRepository: SequelizeReferralRepository,
@@ -218,15 +218,15 @@ export class SequelizeUserReferralsRepository
         await this.bridgeService.addStorage(uuid, credit);
       } else {
         this.logger.warn(
-          '(usersReferralsService.redeemUserReferral) GATEWAY_USER\
-           || GATEWAY_PASS not found. Skipping storage increasing',
+          '(usersReferralsService.redeemUserReferral) GATEWAY_USER' +
+            ' || GATEWAY_PASS not found. Skipping storage increasing',
         );
       }
     }
 
     this.logger.log(
-      `(usersReferralsService.redeemUserReferral)\
-       The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
+      `(usersReferralsService.redeemUserReferral) ` +
+        `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
 }

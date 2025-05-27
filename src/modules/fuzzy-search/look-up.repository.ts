@@ -4,8 +4,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { LookUpModel } from './look-up.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { UserAttributes } from '../user/user.attributes';
-import { Sequelize } from 'sequelize';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { FolderModel } from '../folder/folder.model';
 import { FileModel } from '../file/file.model';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
@@ -40,7 +39,7 @@ export interface LookUpRepository {
 export class SequelizeLookUpRepository implements LookUpRepository {
   constructor(
     @InjectModel(LookUpModel)
-    private model: typeof LookUpModel,
+    private readonly model: typeof LookUpModel,
   ) {}
 
   private transformResult(result: LookUpModel[]): LookUpResult {
