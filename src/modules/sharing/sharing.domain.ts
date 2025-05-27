@@ -1,7 +1,7 @@
-import { File } from '../file/file.domain';
-import { Folder } from '../folder/folder.domain';
-import { User } from '../user/user.domain';
-import { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
+import type { File } from '../file/file.domain';
+import type { Folder } from '../folder/folder.domain';
+import type { User } from '../user/user.domain';
+import type { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
 
 export type Item = File | Folder;
 type ItemId = File['uuid'] | Folder['uuid'];

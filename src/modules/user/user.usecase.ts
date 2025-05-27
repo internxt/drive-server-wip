@@ -284,15 +284,15 @@ export class UserUseCases {
         await this.networkService.addStorage(uuid, credit);
       } else {
         console.warn(
-          '(usersReferralsService.redeemUserReferral) GATEWAY_USER\
-           || GATEWAY_PASS not found. Skipping storage increasing',
+          '(usersReferralsService.redeemUserReferral) GATEWAY_USER' +
+            ' || GATEWAY_PASS not found. Skipping storage increasing',
         );
       }
     }
 
     console.info(
-      `(usersReferralsService.redeemUserReferral)\
-       The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
+      `(usersReferralsService.redeemUserReferral) ` +
+        `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
 
@@ -457,7 +457,7 @@ export class UserUseCases {
     } catch (err) {
       const error = {
         message: err.message,
-        stack: err.stack || 'NO STACK',
+        stack: err.stack ?? 'NO STACK',
         body: newUser,
       };
 
