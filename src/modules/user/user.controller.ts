@@ -912,7 +912,7 @@ export class UserController {
   })
   @UseInterceptors(FileInterceptor('avatar', avatarStorageS3Config))
   async uploadAvatar(
-    @UploadedFile() avatar: Express.Multer.File | any,
+    @UploadedFile() avatar: Express.MulterS3.File,
     @UserDecorator() user: User,
   ) {
     if (!avatar) {

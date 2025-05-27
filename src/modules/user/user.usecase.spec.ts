@@ -640,17 +640,23 @@ describe('User use cases', () => {
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
 
-      try {
-        await userUseCases.changeUserEmailById(
-          user.uuid,
-          'newuseremail@inxt.com',
-        );
-      } catch (e) {
-        expect(bridgeService.updateUserEmail).toHaveBeenCalledWith(
-          user.uuid,
-          user.email,
-        );
-      }
+      jest
+        .spyOn(bridgeService, 'updateUserEmail')
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      jest
+        .spyOn(userRepository, 'updateByUuid')
+        .mockRejectedValue(new Error('Database error'));
+
+      await expect(
+        userUseCases.changeUserEmailById(user.uuid, 'newuseremail@inxt.com'),
+      ).rejects.toThrow('Database error');
+
+      expect(bridgeService.updateUserEmail).toHaveBeenCalledWith(
+        user.uuid,
+        user.email,
+      );
     });
 
     it('When the user is not found, Then it should throw UserNotFoundException', async () => {
@@ -779,7 +785,7 @@ describe('User use cases', () => {
 
       await expect(
         userUseCases.acceptAttemptChangeEmail('encryptedId'),
-      ).rejects.toThrowError('Change email failed');
+      ).rejects.toThrow('Change email failed');
     });
   });
 
