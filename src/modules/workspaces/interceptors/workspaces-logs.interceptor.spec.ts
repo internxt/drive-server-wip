@@ -9,7 +9,7 @@ import {
 import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { isObservable, lastValueFrom, of } from 'rxjs';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
-import { ClientEnum } from 'src/common/enums/platform.enum';
+import { ClientEnum } from '../../../common/enums/platform.enum';
 
 describe('WorkspacesLogsInterceptor', () => {
   let interceptor: WorkspacesLogsInterceptor;
