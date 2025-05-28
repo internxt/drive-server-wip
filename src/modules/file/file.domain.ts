@@ -4,6 +4,7 @@ import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { isStringEmpty } from '../../lib/validators';
+import type { FileDto } from './dto/file.dto';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
@@ -198,7 +199,7 @@ export class File implements FileAttributes {
     this.deletedAt = null;
   }
 
-  toJSON(): FileAttributes {
+  toJSON(): FileDto {
     return {
       id: this.id,
       uuid: this.uuid,
