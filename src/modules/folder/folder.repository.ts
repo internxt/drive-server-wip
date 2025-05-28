@@ -140,7 +140,7 @@ export interface FolderRepository {
 export class SequelizeFolderRepository implements FolderRepository {
   constructor(
     @InjectModel(FolderModel)
-    private folderModel: typeof FolderModel,
+    private readonly folderModel: typeof FolderModel,
   ) {}
 
   private applyCollateToPlainNameSort(

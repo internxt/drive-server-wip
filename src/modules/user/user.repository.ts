@@ -49,9 +49,9 @@ export interface UserRepository {
 export class SequelizeUserRepository implements UserRepository {
   constructor(
     @InjectModel(UserModel)
-    private modelUser: typeof UserModel,
+    private readonly modelUser: typeof UserModel,
     @InjectModel(UserNotificationTokensModel)
-    private modelUserNotificationTokens: typeof UserNotificationTokensModel,
+    private readonly modelUserNotificationTokens: typeof UserNotificationTokensModel,
   ) {}
   async findById(id: number): Promise<User | null> {
     const user = await this.modelUser.findByPk(id);
