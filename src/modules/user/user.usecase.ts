@@ -1702,4 +1702,9 @@ export class UserUseCases {
 
     return limit;
   }
+
+  async generateMnemonic() {
+    const mnemonic = generateMnemonic(256);
+    return mnemonic;
+  }
 }
