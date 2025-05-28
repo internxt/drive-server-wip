@@ -83,6 +83,7 @@ import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
+import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -1011,5 +1012,22 @@ export class UserController {
       );
       throw err;
     }
+  }
+
+  @Get('/generate-mnemonic')
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Public()
+  @ApiOkResponse({
+    description: 'Returns a mnemonic, it is not saved anywhere',
+    type: GenerateMnemonicResponseDto,
+  })
+  async generateMnemonic(): Promise<GenerateMnemonicResponseDto> {
+    const mnemonic = await this.userUseCases.generateMnemonic();
+    return { mnemonic };
   }
 }
