@@ -11,10 +11,9 @@ import { AxiosError } from 'axios';
 import { HttpGlobalExceptionFilter } from './http-global-exception-filter.exception';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { newUser } from '../../test/fixtures';
-import { ClientEnum } from '../common/enums/platform.enum';
 
 jest.mock('../modules/auth/decorators/client.decorator', () => ({
-  getClientIdFromHeaders: jest.fn().mockReturnValue(ClientEnum.Web),
+  getClientIdFromHeaders: jest.fn().mockReturnValue('drive-web'),
 }));
 
 describe('HttpGlobalExceptionFilter', () => {
