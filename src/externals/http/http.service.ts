@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class HttpClient {
   private defaultOptions = {};
-  constructor(private http: HttpService) {}
+  constructor(private readonly http: HttpService) {}
 
   setDefaultOptions(options: object) {
     this.defaultOptions = options;

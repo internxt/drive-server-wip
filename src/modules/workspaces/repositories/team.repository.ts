@@ -16,9 +16,9 @@ import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.
 export class SequelizeWorkspaceTeamRepository {
   constructor(
     @InjectModel(WorkspaceTeamModel)
-    private teamModel: typeof WorkspaceTeamModel,
+    private readonly teamModel: typeof WorkspaceTeamModel,
     @InjectModel(WorkspaceTeamUserModel)
-    private teamUserModel: typeof WorkspaceTeamUserModel,
+    private readonly teamUserModel: typeof WorkspaceTeamUserModel,
   ) {}
 
   async createTeam(team: Omit<WorkspaceTeam, 'id'>): Promise<WorkspaceTeam> {

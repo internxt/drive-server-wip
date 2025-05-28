@@ -60,7 +60,7 @@ export interface ReferralsRepository {
 export class SequelizeReferralRepository implements ReferralsRepository {
   constructor(
     @InjectModel(ReferralModel)
-    private model: typeof ReferralModel,
+    private readonly model: typeof ReferralModel,
   ) {}
 
   findOne(

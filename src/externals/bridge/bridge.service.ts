@@ -29,7 +29,7 @@ export class BridgeService {
     private readonly cryptoService: CryptoService,
     private readonly httpClient: HttpClient,
     @Inject(ConfigService)
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   static handleUpdateUserEmailError(error: AxiosError) {

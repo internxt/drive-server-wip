@@ -36,8 +36,8 @@ type ActionHandlers = Record<WorkspaceResourcesAction, ActionHandler>;
 @Injectable()
 export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
-    private workspaceUseCases: WorkspacesUsecases,
+    private readonly reflector: Reflector,
+    private readonly workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   protected actionHandlers: ActionHandlers = {
