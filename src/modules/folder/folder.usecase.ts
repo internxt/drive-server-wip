@@ -41,12 +41,12 @@ export type SortParamsFolder = Array<
 @Injectable()
 export class FolderUseCases {
   constructor(
-    private folderRepository: SequelizeFolderRepository,
-    private userRepository: SequelizeUserRepository,
+    private readonly folderRepository: SequelizeFolderRepository,
+    private readonly userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => SharingService))
-    private sharingUsecases: SharingService,
+    private readonly sharingUsecases: SharingService,
     @Inject(forwardRef(() => FileUseCases))
-    private fileUsecases: FileUseCases,
+    private readonly fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
   ) {}
 
@@ -426,7 +426,7 @@ export class FolderUseCases {
     });
 
     if (nameAlreadyInUse) {
-      throw new BadRequestException(
+      throw new ConflictException(
         'Folder with the same name already exists in this location',
       );
     }
@@ -914,6 +914,13 @@ export class FolderUseCases {
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
+    await this.folderRepository.deleteByUser(user, folders);
+  }
+
+  async deleteNotRootFolderByUser(
+    user: User,
+    folders: Folder[],
+  ): Promise<void> {
     const isRootFolder = folders.some(
       (folder) => folder.id === user.rootFolderId || folder.parentId === null,
     );
@@ -949,10 +956,16 @@ export class FolderUseCases {
     );
   }
 
-  async updateByFolderId(
+  async updateByFolderIdAndForceUpdatedAt(
     folder: Folder,
     folderData: Partial<FolderAttributes>,
   ): Promise<Folder> {
-    return this.folderRepository.updateByFolderId(folder.id, folderData);
+    const updatedFields = { ...folderData };
+
+    if (!updatedFields.updatedAt) {
+      updatedFields.updatedAt = new Date();
+    }
+
+    return this.folderRepository.updateById(folder.id, updatedFields);
   }
 }

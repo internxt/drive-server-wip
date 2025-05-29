@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from '@internxt/inxt-js';
-import { v4 } from 'uuid';
+import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
 import crypto from 'crypto';
@@ -55,7 +55,6 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
-  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -67,7 +66,7 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { getTokenDefaultIat } from '../../lib/jwt';
+import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
@@ -84,10 +83,11 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -136,25 +136,25 @@ type NewUser = Pick<
 @Injectable()
 export class UserUseCases {
   constructor(
-    private userRepository: SequelizeUserRepository,
-    private preCreatedUserRepository: SequelizePreCreatedUsersRepository,
-    private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
-    private referralsRepository: SequelizeReferralRepository,
-    private userReferralsRepository: SequelizeUserReferralsRepository,
+    private readonly userRepository: SequelizeUserRepository,
+    private readonly preCreatedUserRepository: SequelizePreCreatedUsersRepository,
+    private readonly sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
+    private readonly referralsRepository: SequelizeReferralRepository,
+    private readonly userReferralsRepository: SequelizeUserReferralsRepository,
     private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
-    private sharingRepository: SequelizeSharingRepository,
-    private workspaceRepository: SequelizeWorkspaceRepository,
+    private readonly sharingRepository: SequelizeSharingRepository,
+    private readonly workspaceRepository: SequelizeWorkspaceRepository,
     @Inject(forwardRef(() => FileUseCases))
-    private fileUseCases: FileUseCases,
+    private readonly fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
-    private folderUseCases: FolderUseCases,
+    private readonly folderUseCases: FolderUseCases,
     @Inject(forwardRef(() => WorkspacesUsecases))
     private workspaceUseCases: WorkspacesUsecases,
-    private shareUseCases: ShareUseCases,
-    private configService: ConfigService,
-    private cryptoService: CryptoService,
-    private networkService: BridgeService,
-    private notificationService: NotificationService,
+    private readonly shareUseCases: ShareUseCases,
+    private readonly configService: ConfigService,
+    private readonly cryptoService: CryptoService,
+    private readonly networkService: BridgeService,
+    private readonly notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
@@ -612,6 +612,7 @@ export class UserUseCases {
     if (preCreatedUser) {
       return {
         ...preCreatedUser.toJSON(),
+        publicKyberKey: preCreatedUser.publicKyberKey.toString(),
         publicKey: preCreatedUser.publicKey.toString(),
         password: preCreatedUser.password.toString(),
       };
@@ -629,10 +630,21 @@ export class UserUseCases {
     const keysCreationDate = new Date();
     keysCreationDate.setHours(keysCreationDate.getHours() - 1);
 
-    const { privateKeyArmored, publicKeyArmored, revocationCertificate } =
-      await generateNewKeys(keysCreationDate);
+    const {
+      privateKeyArmored,
+      publicKeyArmored,
+      revocationCertificate,
+      privateKyberKeyBase64,
+      publicKyberKeyBase64,
+    } =
+      await this.asymmetricEncryptionService.generateNewKeys(keysCreationDate);
 
     const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
+      iv: this.configService.get('secrets.magicIv'),
+      salt: this.configService.get('secrets.magicSalt'),
+    });
+
+    const encPrivateKyberKey = aes.encrypt(privateKyberKeyBase64, defaultPass, {
       iv: this.configService.get('secrets.magicIv'),
       salt: this.configService.get('secrets.magicSalt'),
     });
@@ -646,12 +658,15 @@ export class UserUseCases {
       mnemonic: encMnemonic,
       publicKey: publicKeyArmored,
       privateKey: encPrivateKey,
+      privateKyberKey: encPrivateKyberKey,
+      publicKyberKey: publicKyberKeyBase64,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
     });
 
     return {
       ...user.toJSON(),
+      publicKyberKey: user.publicKyberKey.toString(),
       publicKey: user.publicKey.toString(),
       password: user.password.toString(),
     };
@@ -798,7 +813,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-  ): Promise<RefreshTokenResponseDto> {
+  ): Promise<{ token: string; newToken: string }> {
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
 
@@ -1001,6 +1016,105 @@ export class UserUseCases {
         deleteShares: true,
         deleteWorkspaces: true,
       });
+    }
+  }
+
+  async recoverAccountLegacy(
+    userUuid: User['uuid'],
+    credentials: LegacyRecoverAccountDto,
+  ): Promise<void> {
+    const { mnemonic, password, salt, asymmetricEncryptedMnemonic, keys } =
+      credentials;
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const keyVersions = Object.values(UserKeysEncryptVersions);
+
+    for (const version of keyVersions) {
+      const key = keys[version];
+      const revocationKey =
+        'revocationKey' in key ? key.revocationKey : undefined;
+
+      await this.keyServerUseCases.updateByUserAndEncryptVersion(
+        user.id,
+        version,
+        {
+          privateKey: key.private,
+          publicKey: key.public,
+          revocationKey,
+        },
+      );
+    }
+
+    const ownedWorkspaceAndUsers =
+      await this.workspaceRepository.findWorkspaceUsersOfOwnedWorkspaces(
+        user.uuid,
+      );
+
+    if (ownedWorkspaceAndUsers.length > 0) {
+      //  TODO: this should be updated when we add support for workspace hybrid keys
+      await Promise.all(
+        ownedWorkspaceAndUsers.map((workspaceAndUser) =>
+          this.workspaceRepository.updateWorkspaceUserEncryptedKeyByMemberId(
+            workspaceAndUser.workspaceUser.memberId,
+            workspaceAndUser.workspace.id,
+            asymmetricEncryptedMnemonic.ecc,
+          ),
+        ),
+      );
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    //  New keys were created, so we need to delete invitations made with the old keys
+    await Promise.all([
+      await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid }),
+      await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid }),
+      await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user),
+    ]);
+  }
+
+  verifyAndDecodeAccountRecoveryToken(token: string): {
+    userUuid: string;
+  } {
+    try {
+      const jwtSecret = this.configService.get('secrets.jwt');
+      const decoded = verifyToken<{
+        payload: { uuid?: string; action?: string };
+      }>(token, jwtSecret);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      const decodedContent = decoded?.payload;
+
+      if (
+        !decodedContent?.uuid ||
+        decodedContent?.action !== 'recover-account' ||
+        !validate(decodedContent.uuid)
+      ) {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      return { userUuid: decodedContent.uuid };
+    } catch (error) {
+      if (error instanceof JsonWebTokenError) {
+        const isTokenExpired = error instanceof TokenExpiredError;
+
+        throw new ForbiddenException(
+          isTokenExpired ? 'Token expired' : 'Invalid token',
+        );
+      }
+      throw error;
     }
   }
 
@@ -1613,7 +1727,9 @@ export class UserUseCases {
     );
   }
 
-  async getUserUsage(user: User): Promise<{ drive: number }> {
+  async getUserUsage(
+    user: User,
+  ): Promise<{ drive: number; backup: number; total: number }> {
     let totalDriveUsage = 0;
     const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
 
@@ -1625,7 +1741,15 @@ export class UserUseCases {
       totalDriveUsage = driveUsage;
     }
 
-    return { drive: totalDriveUsage };
+    const backupUsage = await this.backupUseCases.sumExistentBackupSizes(
+      user.id,
+    );
+
+    return {
+      drive: totalDriveUsage,
+      backup: backupUsage,
+      total: totalDriveUsage + backupUsage,
+    };
   }
 
   async confirmDeactivation(token: string) {
@@ -1685,6 +1809,9 @@ export class UserUseCases {
   async getSpaceLimit(user: User): Promise<number> {
     const cachedLimit = await this.cacheManager.getUserStorageLimit(user.uuid);
     if (cachedLimit) {
+      Logger.log(
+        `[CACHE/DEBUG] Cache hit for User ${user.uuid} space limit: ${cachedLimit.limit}`,
+      );
       return cachedLimit.limit;
     }
 
@@ -1692,8 +1819,16 @@ export class UserUseCases {
       user.bridgeUser,
       user.userId,
     );
+    Logger.log(
+      `[CACHE/DEBUG] Cache miss for User ${user.uuid} space limit: ${limit}`,
+    );
     await this.cacheManager.setUserStorageLimit(user.uuid, limit);
 
     return limit;
+  }
+
+  async generateMnemonic() {
+    const mnemonic = generateMnemonic(256);
+    return mnemonic;
   }
 }

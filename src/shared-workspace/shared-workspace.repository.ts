@@ -65,7 +65,7 @@ export class SequelizeSharedWorkspaceRepository
 {
   constructor(
     @InjectModel(FriendInvitationModel)
-    private model: typeof FriendInvitationModel,
+    private readonly model: typeof FriendInvitationModel,
   ) {}
 
   async updateGuestEmail(

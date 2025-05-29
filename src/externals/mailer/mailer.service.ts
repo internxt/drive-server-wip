@@ -34,7 +34,7 @@ type UpdatedSharingRoleContext = {
 export class MailerService {
   constructor(
     @Inject(ConfigService)
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {
     sendgrid.setApiKey(this.configService.get('mailer.apiKey'));
   }

@@ -20,6 +20,7 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 const requester = newUser();
 
@@ -275,7 +276,7 @@ describe('FolderController', () => {
   });
 
   describe('move folder', () => {
-    const clientId = 'drive-web';
+    const clientId = ClientEnum.Web;
 
     it('When move folder is requested with valid params, then the folder is returned with its updated properties', async () => {
       const destinationFolder = newFolder();
@@ -298,7 +299,10 @@ describe('FolderController', () => {
         clientId,
         requester,
       );
-      expect(result).toEqual(expectedFolder);
+      expect(result).toEqual({
+        ...expectedFolder,
+        status: expectedFolder.getFolderStatus(),
+      });
     });
 
     it('When move folder is requested with invalid params, then it should throw an error', () => {
@@ -676,9 +680,10 @@ describe('FolderController', () => {
         folderUuidToDelete,
         userMocked,
       );
-      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
-        folder,
-      ]);
+      expect(folderUseCases.deleteNotRootFolderByUser).toHaveBeenCalledWith(
+        userMocked,
+        [folder],
+      );
       expect(storageNotificationService.folderDeleted).toHaveBeenCalledWith({
         payload: {
           id: folder.id,
@@ -709,7 +714,7 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'getFolderByUuidAndUser')
         .mockResolvedValue(folder);
       jest
-        .spyOn(folderUseCases, 'deleteByUser')
+        .spyOn(folderUseCases, 'deleteNotRootFolderByUser')
         .mockRejectedValue(new Error('Deletion failed'));
 
       await expect(

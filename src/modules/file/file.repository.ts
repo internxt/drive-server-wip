@@ -122,11 +122,11 @@ export interface FileRepository {
 export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
-    private fileModel: typeof FileModel,
+    private readonly fileModel: typeof FileModel,
     @InjectModel(ShareModel)
-    private shareModel: typeof ShareModel,
+    private readonly shareModel: typeof ShareModel,
     @InjectModel(ThumbnailModel)
-    private thumbnailModel: typeof ThumbnailModel,
+    private readonly thumbnailModel: typeof ThumbnailModel,
   ) {}
 
   async deleteByFileId(fileId: any): Promise<unknown> {
@@ -434,6 +434,7 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
         {
+          separate: true,
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,
@@ -466,6 +467,7 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
         {
+          separate: true,
           model: SharingModel,
           attributes: ['type', 'id'],
           required: false,

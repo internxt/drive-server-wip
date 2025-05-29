@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 
@@ -7,7 +7,7 @@ export class CacheManagerService {
   private readonly USAGE_KEY_PREFIX = 'usage:';
   private readonly LIMIT_KEY_PREFIX = 'limit:';
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
   /**
    * Get user's storage usage
@@ -34,11 +34,17 @@ export class CacheManagerService {
   }
 
   async expireLimit(userUuid: string): Promise<void> {
-    await Promise.all([
+    Logger.log(
+      `[CACHE/DEBUG] Expiring limit for user ${userUuid}, keys: ${this.LIMIT_KEY_PREFIX}${userUuid}`,
+    );
+    const [delOldLimit, delNewLimit] = await Promise.all([
       // TODO: Remove this line when all clients stop using the old API
-      this.cacheManager.del(`${userUuid}$-limit`),
+      this.cacheManager.del(`${userUuid}-limit`),
       this.cacheManager.del(`${this.LIMIT_KEY_PREFIX}${userUuid}`),
     ]);
+    Logger.log(
+      `[CACHE/DEBUG] Expired limit for user ${userUuid}, key: ${this.LIMIT_KEY_PREFIX}${userUuid}, delOldLimit: ${delOldLimit}, delNewLimit: ${delNewLimit}`,
+    );
   }
 
   async getUserStorageLimit(userUuid: string) {

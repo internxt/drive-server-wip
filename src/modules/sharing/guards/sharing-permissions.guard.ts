@@ -27,10 +27,10 @@ import { SharingAccessTokenData } from './sharings-token.interface';
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
-    private userUseCases: UserUseCases,
-    private sharingUseCases: SharingService,
-    private workspaceUseCases: WorkspacesUsecases,
+    private readonly reflector: Reflector,
+    private readonly userUseCases: UserUseCases,
+    private readonly sharingUseCases: SharingService,
+    private readonly workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -99,7 +99,7 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('You cannot access this resource');
     }
 
-    if (!isRootToken && (!decoded.owner || !decoded.owner.uuid)) {
+    if (!isRootToken && !decoded.owner?.uuid) {
       throw new ForbiddenException('Owner is required');
     }
 
@@ -112,7 +112,7 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     request.user = resourceOwner;
-    request.requester = request.requester || request.user;
+    request.requester = request.requester ?? request.user;
     request.isSharedItem = true;
 
     return true;

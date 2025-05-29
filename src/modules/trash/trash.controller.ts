@@ -9,9 +9,7 @@ import {
   Param,
   Query,
   NotFoundException,
-  Res,
   Logger,
-  HttpStatus,
   UseFilters,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -56,11 +54,11 @@ import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace
 @Controller('storage/trash')
 export class TrashController {
   constructor(
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
-    private userUseCases: UserUseCases,
+    private readonly fileUseCases: FileUseCases,
+    private readonly folderUseCases: FolderUseCases,
+    private readonly userUseCases: UserUseCases,
     private readonly storageNotificationService: StorageNotificationService,
-    private trashUseCases: TrashUseCases,
+    private readonly trashUseCases: TrashUseCases,
   ) {}
 
   @Get('/paginated')
@@ -247,9 +245,9 @@ export class TrashController {
 
   @UseFilters(new HttpExceptionFilter())
   @Delete('/all/request')
-  requestEmptyTrash(user: User) {
+  async requestEmptyTrash(@UserDecorator() user: User) {
     try {
-      this.trashUseCases.emptyTrash(user);
+      await this.trashUseCases.emptyTrash(user);
     } catch (error) {
       new Logger().error(
         `[TRASH/REQUEST_EMPTY_TRASH] ERROR: ${

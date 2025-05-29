@@ -11,9 +11,9 @@ export enum AsymmetricEncryptionAlgorithms {
 
 @Injectable()
 export class CryptoService {
-  private configService: ConfigService;
-  private aesService: AesService;
-  private cryptoSecret: string;
+  private readonly configService: ConfigService;
+  private readonly aesService: AesService;
+  private readonly cryptoSecret: string;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
@@ -22,7 +22,7 @@ export class CryptoService {
       this.configService.get('secrets.magicSalt'),
       this.configService.get('secrets.cryptoSecret2'),
     );
-    this.cryptoSecret = process.env.CRYPTO_SECRET;
+    this.cryptoSecret = this.configService.get('secrets.cryptoSecret');
   }
 
   encrypt(text: string, buffer?: Buffer) {

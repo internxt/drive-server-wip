@@ -1,6 +1,5 @@
 import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
-import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { FileAttributes } from '../../modules/file/file.domain';
 import { User } from '../../modules/user/user.domain';
@@ -30,7 +29,7 @@ export class BridgeService {
     private readonly cryptoService: CryptoService,
     private readonly httpClient: HttpClient,
     @Inject(ConfigService)
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   static handleUpdateUserEmailError(error: AxiosError) {

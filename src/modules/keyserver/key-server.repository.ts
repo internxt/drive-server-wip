@@ -8,7 +8,7 @@ import { KeyServerModel } from './key-server.model';
 export class SequelizeKeyServerRepository {
   constructor(
     @InjectModel(KeyServerModel)
-    private model: typeof KeyServerModel,
+    private readonly model: typeof KeyServerModel,
   ) {}
 
   async findUserKeysOrCreate(

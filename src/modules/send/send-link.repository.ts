@@ -126,12 +126,12 @@ export interface SendRepository {
 export class SequelizeSendRepository implements SendRepository {
   constructor(
     @InjectModel(SendLinkModel)
-    private sendLinkModel: typeof SendLinkModel,
+    private readonly sendLinkModel: typeof SendLinkModel,
     @InjectModel(SendLinkItemModel)
-    private sendLinkItemModel: typeof SendLinkItemModel,
+    private readonly sendLinkItemModel: typeof SendLinkItemModel,
     @InjectModel(UserModel)
-    private userModel: typeof UserModel,
-    private sequelize: Sequelize,
+    private readonly userModel: typeof UserModel,
+    private readonly sequelize: Sequelize,
   ) {}
 
   async findById(id: SendLinkAttributes['id']) {

@@ -83,6 +83,9 @@ import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
+import { ClientEnum } from '../../common/enums/platform.enum';
+import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -90,7 +93,7 @@ export class UserController {
   private readonly logger = new Logger(UserController.name);
 
   constructor(
-    private userUseCases: UserUseCases,
+    private readonly userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
@@ -117,8 +120,7 @@ export class UserController {
     @Req() req: Request,
     @Client() clientId: string,
   ) {
-    // TODO: Remove magic string and use clientId Enum
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
@@ -145,6 +147,7 @@ export class UserController {
           response.user.email,
           response.user.uuid,
           keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 
@@ -314,6 +317,7 @@ export class UserController {
           userCreated.user.email,
           userCreated.user.uuid,
           keys.ecc.publicKey,
+          keys.kyber?.publicKey,
         );
       }
 
@@ -399,6 +403,10 @@ export class UserController {
         email: user.email,
         uuid: user.uuid,
       },
+      keys: {
+        ecc: user.publicKey,
+        kyber: user.publicKyberKey,
+      },
       publicKey: user.publicKey,
     };
   }
@@ -436,8 +444,42 @@ export class UserController {
     description: 'Returns a new token',
     type: RefreshTokenResponseDto,
   })
-  refreshToken(@UserDecorator() user: User): Promise<RefreshTokenResponseDto> {
-    return this.userUseCases.getAuthTokens(user);
+  async refreshToken(
+    @UserDecorator() user: User,
+  ): Promise<RefreshTokenResponseDto> {
+    const tokens = await this.userUseCases.getAuthTokens(user);
+
+    const [avatar, rootFolder] = await Promise.all([
+      user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,
+      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
+    ]);
+
+    const userData = {
+      email: user.email,
+      userId: user.userId,
+      mnemonic: user.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: user.name,
+      lastname: user.lastname,
+      uuid: user.uuid,
+      bucket: rootFolder?.bucket,
+      credit: user.credit,
+      createdAt: user.createdAt,
+      registerCompleted: user.registerCompleted,
+      teams: false,
+      username: user.username,
+      bridgeUser: user.bridgeUser,
+      sharedWorkspace: user.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: user.backupsBucket,
+      avatar,
+      emailVerified: user.emailVerified,
+      lastPasswordChangedAt: user.lastPasswordChangedAt,
+    };
+
+    return { ...tokens, user: userData };
   }
 
   @Patch('password')
@@ -448,7 +490,7 @@ export class UserController {
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     if (!isDriveWeb) {
       throw new BadRequestException(
@@ -690,6 +732,27 @@ export class UserController {
       );
       throw err;
     }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Put('/legacy-recover-account')
+  @Public()
+  @ApiOperation({
+    description:
+      'Recover account with legacy backup file, mnemonic only files should be used',
+    summary: 'Recover accocunt with legacy backup file',
+  })
+  async requestLegacyAccountRecovery(
+    @Query('token') token: string,
+    @Body() body: LegacyRecoverAccountDto,
+  ) {
+    if (!token) {
+      throw new BadRequestException('Token is required');
+    }
+    const decodedToken =
+      this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+
+    await this.userUseCases.recoverAccountLegacy(decodedToken.userUuid, body);
   }
 
   @Get('/public-key/:email')
@@ -964,5 +1027,22 @@ export class UserController {
       );
       throw err;
     }
+  }
+
+  @Get('/generate-mnemonic')
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Public()
+  @ApiOkResponse({
+    description: 'Returns a mnemonic, it is not saved anywhere',
+    type: GenerateMnemonicResponseDto,
+  })
+  async generateMnemonic(): Promise<GenerateMnemonicResponseDto> {
+    const mnemonic = await this.userUseCases.generateMnemonic();
+    return { mnemonic };
   }
 }
