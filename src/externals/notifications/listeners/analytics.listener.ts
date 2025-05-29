@@ -14,18 +14,6 @@ import { DeactivationRequestEvent } from '../events/deactivation-request.event';
 
 const deviceDetector = new DeviceDetector();
 
-export function logError(err: unknown) {
-  if (err instanceof Error) {
-    Logger.error(`[Analytics] Error: ${err.message}`);
-  }
-}
-
-export function logWarn(err: unknown) {
-  if (err instanceof Error) {
-    Logger.warn(`[Analytics] Error: ${err.message}`);
-  }
-}
-
 function getErrorMessage(err: unknown) {
   if (err instanceof Error) {
     return err.message;
@@ -62,7 +50,7 @@ function getDeviceContext(req: Request) {
       };
     }
   } catch (err) {
-    logError(err);
+    Logger.error(JSON.stringify({ err }), 'AnalyticsListener.getDeviceContext');
   }
 
   return deviceContext;
@@ -71,7 +59,9 @@ function getDeviceContext(req: Request) {
 export async function getContext(req: Request) {
   const ipaddress =
     req.header('x-forwarded-for') || req.socket.remoteAddress || '';
-  const location = await getLocation(ipaddress).catch((err) => logWarn(err));
+  const location = await getLocation(ipaddress).catch((err) =>
+    Logger.warn(JSON.stringify({ err }), 'AnalyticsListener.getContext'),
+  );
 
   const campaign = getCampaign(req);
 
@@ -163,13 +153,16 @@ export async function getLocation(ipaddress: string): Promise<Location> {
 
 @Injectable()
 export class AnalyticsListener {
+  private readonly logger = new Logger(AnalyticsListener.name);
   analytics: Analytics;
+
   constructor() {
     this.analytics = Analytics.getInstance();
   }
+
   @OnEvent('share.created')
   async handleOnShareLinkCreated(event: ShareLinkCreatedEvent) {
-    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+    this.logger.log(`event ${event.name} handled`);
 
     const { user, share, request } = event;
     const requestContext = new RequestContext(request);
@@ -185,9 +178,10 @@ export class AnalyticsListener {
       context: await requestContext.getContext(),
     });
   }
+
   @OnEvent('share.view')
   async handleOnShareLinkView(event: ShareLinkCreatedEvent) {
-    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+    this.logger.log(`event ${event.name} handled`);
 
     const { user, share, request } = event;
     const requestContext = new RequestContext(request);
@@ -203,9 +197,10 @@ export class AnalyticsListener {
       context: await requestContext.getContext(),
     });
   }
+
   @OnEvent('invitation.accepted')
   async handleOnInvitationAccepted(event: InvitationAcceptedEvent) {
-    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+    this.logger.log(`event ${event.name} handled`);
 
     const { whoInvitesEmail, whoInvitesUuid, invitedUuid } = event;
 
@@ -220,9 +215,10 @@ export class AnalyticsListener {
       traits: { referred_by: whoInvitesUuid },
     });
   }
+
   @OnEvent('referral.redeemed')
   async handleOnReferralRedeemed(event: ReferralRedeemedEvent) {
-    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+    this.logger.log(`event ${event.name} handled`);
 
     const { uuid, referralKey } = event;
 
@@ -234,9 +230,10 @@ export class AnalyticsListener {
       },
     });
   }
+
   @OnEvent(SignUpSuccessEvent.id)
   async handleSignUp(event: SignUpSuccessEvent) {
-    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+    this.logger.log(`event ${event.name} handled`);
 
     const { user, req } = event;
 
@@ -280,7 +277,7 @@ export class AnalyticsListener {
 
   @OnEvent(DeactivationRequestEvent.id)
   async handleDeactivationRequest(event: SignUpSuccessEvent) {
-    Logger.log(`event ${event.name} handled`, 'AnalyticsListener');
+    this.logger.log(`event ${event.name} handled`);
 
     const { user, req } = event;
 
