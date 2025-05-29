@@ -23,13 +23,13 @@ import { SequelizeUserRepository } from '../user/user.repository';
 @Injectable()
 export class ShareUseCases {
   constructor(
-    private readonly shareRepository: SequelizeShareRepository,
-    private readonly filesRepository: SequelizeFileRepository,
-    private readonly foldersRepository: SequelizeFolderRepository,
-    private readonly usersRepository: SequelizeUserRepository,
+    private shareRepository: SequelizeShareRepository,
+    private filesRepository: SequelizeFileRepository,
+    private foldersRepository: SequelizeFolderRepository,
+    private usersRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => FolderUseCases))
-    private readonly folderUseCases: FolderUseCases,
-    private readonly cryptoService: CryptoService,
+    private folderUseCases: FolderUseCases,
+    private cryptoService: CryptoService,
   ) {}
 
   getShareById(id: number): Promise<Share> {

@@ -85,7 +85,7 @@ export class SequelizeUserReferralsRepository
 
   constructor(
     @InjectModel(UserReferralModel)
-    private readonly model: typeof UserReferralModel,
+    private model: typeof UserReferralModel,
     private readonly bridgeService: BridgeService,
     private readonly config: ConfigService,
     private readonly referralsRepository: SequelizeReferralRepository,

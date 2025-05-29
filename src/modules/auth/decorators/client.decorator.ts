@@ -7,8 +7,8 @@ export enum ClientHeaders {
 
 export const getClientIdFromHeaders = (request: Request) => {
   return String(
-    request.headers[ClientHeaders.CLIENT_ID] ??
-      request.headers[ClientHeaders.CLIENT] ??
+    request.headers[ClientHeaders.CLIENT_ID] ||
+      request.headers[ClientHeaders.CLIENT] ||
       '',
   );
 };

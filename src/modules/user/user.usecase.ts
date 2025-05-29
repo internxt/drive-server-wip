@@ -55,6 +55,7 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
+  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -83,6 +84,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
@@ -134,23 +136,23 @@ type NewUser = Pick<
 @Injectable()
 export class UserUseCases {
   constructor(
-    private readonly userRepository: SequelizeUserRepository,
-    private readonly preCreatedUserRepository: SequelizePreCreatedUsersRepository,
-    private readonly sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
-    private readonly referralsRepository: SequelizeReferralRepository,
-    private readonly userReferralsRepository: SequelizeUserReferralsRepository,
+    private userRepository: SequelizeUserRepository,
+    private preCreatedUserRepository: SequelizePreCreatedUsersRepository,
+    private sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
+    private referralsRepository: SequelizeReferralRepository,
+    private userReferralsRepository: SequelizeUserReferralsRepository,
     private readonly attemptChangeEmailRepository: SequelizeAttemptChangeEmailRepository,
-    private readonly sharingRepository: SequelizeSharingRepository,
-    private readonly workspaceRepository: SequelizeWorkspaceRepository,
+    private sharingRepository: SequelizeSharingRepository,
+    private workspaceRepository: SequelizeWorkspaceRepository,
     @Inject(forwardRef(() => FileUseCases))
-    private readonly fileUseCases: FileUseCases,
+    private fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
-    private readonly folderUseCases: FolderUseCases,
-    private readonly shareUseCases: ShareUseCases,
-    private readonly configService: ConfigService,
-    private readonly cryptoService: CryptoService,
-    private readonly networkService: BridgeService,
-    private readonly notificationService: NotificationService,
+    private folderUseCases: FolderUseCases,
+    private shareUseCases: ShareUseCases,
+    private configService: ConfigService,
+    private cryptoService: CryptoService,
+    private networkService: BridgeService,
+    private notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,

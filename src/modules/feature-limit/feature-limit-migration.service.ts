@@ -18,10 +18,10 @@ export class FeatureLimitsMigrationService {
   private planIdTierIdMap: Map<string, string>; // PlanId/tierId mapping
 
   constructor(
-    private readonly userRepository: SequelizeUserRepository,
-    private readonly tiersRepository: SequelizeFeatureLimitsRepository,
-    private readonly configService: ConfigService,
-    private readonly httpClient: HttpClient,
+    private userRepository: SequelizeUserRepository,
+    private tiersRepository: SequelizeFeatureLimitsRepository,
+    private configService: ConfigService,
+    private httpClient: HttpClient,
   ) {}
 
   async start() {

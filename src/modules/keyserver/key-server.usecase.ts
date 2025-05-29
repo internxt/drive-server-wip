@@ -19,7 +19,7 @@ type PartialKeys = Partial<Omit<KeyServerAttributes, 'id' | 'userId'>>;
 
 @Injectable()
 export class KeyServerUseCases {
-  constructor(private readonly repository: SequelizeKeyServerRepository) {}
+  constructor(private repository: SequelizeKeyServerRepository) {}
 
   async addKeysToUser(
     userId: UserAttributes['id'],

@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
 
   constructor(
     @Inject(UserUseCases)
-    private readonly userUseCases: UserUseCases,
+    private userUseCases: UserUseCases,
     configService: ConfigService,
   ) {
     super({

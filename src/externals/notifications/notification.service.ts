@@ -4,7 +4,7 @@ import { Event } from './events/event';
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(private eventEmitter: EventEmitter2) {}
   add(event: Event): void {
     this.eventEmitter.emit(event.name, event);
   }

@@ -15,9 +15,9 @@ import { SequelizeFileRepository } from '../file/file.repository';
 @Injectable()
 export class ThumbnailUseCases {
   constructor(
-    private readonly thumbnailRepository: SequelizeThumbnailRepository,
-    private readonly network: BridgeService,
-    private readonly fileRepository: SequelizeFileRepository,
+    private thumbnailRepository: SequelizeThumbnailRepository,
+    private network: BridgeService,
+    private fileRepository: SequelizeFileRepository,
   ) {}
   async createThumbnail(user: User, thumbnail: CreateThumbnailDto) {
     const searchCondition: { id: number } | { uuid: string } =

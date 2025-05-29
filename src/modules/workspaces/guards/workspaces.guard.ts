@@ -21,8 +21,8 @@ import { isUUID } from 'class-validator';
 @Injectable()
 export class WorkspaceGuard implements CanActivate {
   constructor(
-    private readonly reflector: Reflector,
-    private readonly workspaceUseCases: WorkspacesUsecases,
+    private reflector: Reflector,
+    private workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

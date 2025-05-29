@@ -11,9 +11,9 @@ import { PLAN_FREE_TIER_ID } from './limits.enum';
 export class SequelizeFeatureLimitsRepository {
   constructor(
     @InjectModel(Limitmodel)
-    private readonly limitModel: typeof Limitmodel,
+    private limitModel: typeof Limitmodel,
     @InjectModel(PaidPlansModel)
-    private readonly paidPlansModel: typeof PaidPlansModel,
+    private paidPlansModel: typeof PaidPlansModel,
   ) {}
 
   async findLimitByLabelAndTier(

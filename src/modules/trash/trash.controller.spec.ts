@@ -11,6 +11,7 @@ import {
   DeleteItemType,
   DeleteItemsDto,
 } from './dto/controllers/delete-item.dto';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Test } from '@nestjs/testing';
 
 const user = newUser();
@@ -22,6 +23,7 @@ describe('TrashController', () => {
   let fileUseCases: FileUseCases;
   let userUseCases: UserUseCases;
   let trashUseCases: TrashUseCases;
+  let storageNotificationService: StorageNotificationService;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -33,6 +35,7 @@ describe('TrashController', () => {
     controller = moduleRef.get(TrashController);
     fileUseCases = moduleRef.get(FileUseCases);
     userUseCases = moduleRef.get(UserUseCases);
+    storageNotificationService = moduleRef.get(StorageNotificationService);
     folderUseCases = moduleRef.get(FolderUseCases);
     trashUseCases = moduleRef.get(TrashUseCases);
   });

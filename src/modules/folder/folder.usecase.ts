@@ -41,12 +41,12 @@ export type SortParamsFolder = Array<
 @Injectable()
 export class FolderUseCases {
   constructor(
-    private readonly folderRepository: SequelizeFolderRepository,
-    private readonly userRepository: SequelizeUserRepository,
+    private folderRepository: SequelizeFolderRepository,
+    private userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => SharingService))
-    private readonly sharingUsecases: SharingService,
+    private sharingUsecases: SharingService,
     @Inject(forwardRef(() => FileUseCases))
-    private readonly fileUsecases: FileUseCases,
+    private fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
   ) {}
 

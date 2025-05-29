@@ -66,15 +66,15 @@ interface SharingRepository {
 export class SequelizeSharingRepository implements SharingRepository {
   constructor(
     @InjectModel(PermissionModel)
-    private readonly permissions: typeof PermissionModel,
+    private permissions: typeof PermissionModel,
     @InjectModel(RoleModel)
-    private readonly roles: typeof RoleModel,
+    private roles: typeof RoleModel,
     @InjectModel(SharingRolesModel)
-    private readonly sharingRoles: typeof SharingRolesModel,
+    private sharingRoles: typeof SharingRolesModel,
     @InjectModel(SharingModel)
-    private readonly sharings: typeof SharingModel,
+    private sharings: typeof SharingModel,
     @InjectModel(SharingInviteModel)
-    private readonly sharingInvites: typeof SharingInviteModel,
+    private sharingInvites: typeof SharingInviteModel,
   ) {}
 
   getSharingsCountBy(where: Partial<Sharing>): Promise<number> {

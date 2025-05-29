@@ -29,9 +29,9 @@ export class StorageNotificationService {
   private readonly logger = new Logger(StorageNotificationService.name);
 
   constructor(
-    private readonly notificationService: NotificationService,
-    private readonly apnService: ApnService,
-    private readonly userRepository: SequelizeUserRepository,
+    private notificationService: NotificationService,
+    private apnService: ApnService,
+    private userRepository: SequelizeUserRepository,
   ) {}
 
   fileCreated({ payload, user, clientId }: EventArguments) {

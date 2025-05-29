@@ -91,7 +91,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
         this.handleAction(platform, this.logAction, request, res).catch((err) =>
           Logger.error(
             `[WORKSPACE/LOGS] Error logging action: ${
-              err.message ?? err
+              err.message || err
             }. Platform: ${platform}, Action: ${this.logAction}.`,
           ),
         );
@@ -151,7 +151,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   }
 
   async delete(platform: WorkspaceLogPlatform, req: any, res: any) {
-    const items: DeleteItem[] | TrashItem[] = req?.body?.items ?? res?.items;
+    const items: DeleteItem[] | TrashItem[] = req?.body?.items || res?.items;
     if (!items || items.length === 0) {
       Logger.debug('[WORKSPACE/LOGS] The items are required');
       return;
@@ -218,7 +218,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     context: ExecutionContext,
   ): WorkspaceLogType | WorkspaceLogGlobalActionType {
     const handler = context.getHandler();
-    return Reflect.getMetadata('workspaceLogAction', handler) ?? null;
+    return Reflect.getMetadata('workspaceLogAction', handler) || null;
   }
 
   async logWorkspaceAction(
@@ -255,7 +255,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     req: any,
     res: any,
   ) {
-    const user: User = res?.user ?? req?.user;
+    const user: User = res?.user || req?.user;
 
     if (!user?.uuid) {
       Logger.debug('[WORKSPACE/LOGS] User is required');
@@ -301,11 +301,11 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   }
 
   getItemType(req: any): string {
-    return req?.body?.itemType ?? req?.params?.itemType;
+    return req?.body?.itemType || req?.params?.itemType;
   }
 
   getEntity(req: any, res: any): string {
-    return req?.body?.itemId ?? req?.params?.itemId ?? res?.itemId;
+    return req?.body?.itemId || req?.params?.itemId || res?.itemId;
   }
 
   getActionForGlobalLogType(
@@ -339,11 +339,11 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     const { params, requester, workspace, user } = req;
 
     const requesterUuid =
-      requester?.uuid ?? (params?.workspaceId ? user?.uuid : null);
+      requester?.uuid || (params?.workspaceId ? user?.uuid : null);
     if (!requesterUuid) {
       Logger.debug('[WORKSPACE/LOGS] Requester not found');
     }
-    const workspaceId = workspace?.id ?? params?.workspaceId;
+    const workspaceId = workspace?.id || params?.workspaceId;
     if (!workspaceId) {
       Logger.debug('[WORKSPACE/LOGS] Workspace is required');
     }

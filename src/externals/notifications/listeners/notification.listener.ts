@@ -8,9 +8,9 @@ import { HttpClient } from '../../http/http.service';
 export class NotificationListener {
   constructor(
     @Inject(HttpClient)
-    private readonly http: HttpClient,
+    private http: HttpClient,
     @Inject(ConfigService)
-    private readonly configService: ConfigService,
+    private configService: ConfigService,
   ) {}
 
   @OnEvent('notification.*')

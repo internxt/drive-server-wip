@@ -40,7 +40,7 @@ export interface LookUpRepository {
 export class SequelizeLookUpRepository implements LookUpRepository {
   constructor(
     @InjectModel(LookUpModel)
-    private readonly model: typeof LookUpModel,
+    private model: typeof LookUpModel,
   ) {}
 
   private transformResult(result: LookUpModel[]): LookUpResult {
