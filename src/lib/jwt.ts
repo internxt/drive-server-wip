@@ -1,4 +1,4 @@
-import { sign, SignOptions, verify } from 'jsonwebtoken';
+import { JwtPayload, sign, SignOptions, verify } from 'jsonwebtoken';
 import getEnv from '../config/configuration';
 import { SignWithRS256AndHeader } from '../middlewares/passport';
 import {
@@ -41,8 +41,11 @@ export function generateWithDefaultSecret(
   return generateTokenWithPlainSecret(payload, duration, getEnv().secrets.jwt);
 }
 
-export function verifyToken(token: string, secret: string) {
-  return verify(token, secret);
+export function verifyToken<T = JwtPayload>(
+  token: string,
+  secret: string,
+): T | string {
+  return verify(token, secret) as T | string;
 }
 
 export function verifyWithDefaultSecret(token: string) {
