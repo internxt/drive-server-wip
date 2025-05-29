@@ -46,7 +46,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         name: exception.name,
         path: request.url,
         method: request.method,
-        body: request.body || {},
+        body: request.body ?? {},
         user: {
           email: request?.user?.email,
           uuid: request?.user?.uuid,

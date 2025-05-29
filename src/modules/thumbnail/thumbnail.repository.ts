@@ -22,7 +22,7 @@ export interface ThumbnailRepository {
 export class SequelizeThumbnailRepository implements ThumbnailRepository {
   constructor(
     @InjectModel(ThumbnailModel)
-    private thumbnailModel: typeof ThumbnailModel,
+    private readonly thumbnailModel: typeof ThumbnailModel,
   ) {}
 
   async findById(id: number): Promise<Thumbnail | null> {

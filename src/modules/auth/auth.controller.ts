@@ -44,10 +44,10 @@ import { LoginResponseDto } from './dto/responses/login-response.dto';
 @Controller('auth')
 export class AuthController {
   constructor(
-    private userUseCases: UserUseCases,
+    private readonly userUseCases: UserUseCases,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
-    private twoFactorAuthService: TwoFactorAuthService,
+    private readonly twoFactorAuthService: TwoFactorAuthService,
   ) {}
 
   @UseGuards(ThrottlerGuard)

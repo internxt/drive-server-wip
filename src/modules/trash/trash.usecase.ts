@@ -8,8 +8,8 @@ import { FileUseCases } from '../file/file.usecase';
 @Injectable()
 export class TrashUseCases {
   constructor(
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
+    private readonly fileUseCases: FileUseCases,
+    private readonly folderUseCases: FolderUseCases,
   ) {}
 
   /**

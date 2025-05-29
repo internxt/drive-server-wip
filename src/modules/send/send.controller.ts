@@ -24,8 +24,8 @@ import { CaptchaGuard } from '../auth/captcha.guard';
 @Controller('links')
 export class SendController {
   constructor(
-    private sendUseCases: SendUseCases,
-    private userUseCases: UserUseCases,
+    private readonly sendUseCases: SendUseCases,
+    private readonly userUseCases: UserUseCases,
   ) {}
 
   @UseGuards(ThrottlerGuard, CaptchaGuard)
