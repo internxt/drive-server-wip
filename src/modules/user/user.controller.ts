@@ -85,7 +85,6 @@ import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -739,27 +738,6 @@ export class UserController {
 
       return { error: 'Internal Server Error' };
     }
-  }
-
-  @UseGuards(ThrottlerGuard)
-  @Put('/legacy-recover-account')
-  @Public()
-  @ApiOperation({
-    description:
-      'Recover account with legacy backup file, mnemonic only files should be used',
-    summary: 'Recover accocunt with legacy backup file',
-  })
-  async requestLegacyAccountRecovery(
-    @Query('token') token: string,
-    @Body() body: LegacyRecoverAccountDto,
-  ) {
-    if (!token) {
-      throw new BadRequestException('Token is required');
-    }
-    const decodedToken =
-      this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
-
-    await this.userUseCases.recoverAccountLegacy(decodedToken.userUuid, body);
   }
 
   @Get('/public-key/:email')
