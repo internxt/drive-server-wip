@@ -1,5 +1,5 @@
 export class Event {
-  private createdAt: Date;
+  private readonly createdAt: Date;
   constructor(
     public name: string,
     public payload: Record<string, any>,

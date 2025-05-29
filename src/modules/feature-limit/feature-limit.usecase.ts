@@ -23,7 +23,7 @@ export class FeatureLimitUsecases {
     private readonly sharingRepository: SequelizeSharingRepository,
   ) {}
 
-  private limitCheckFunctions: {
+  private readonly limitCheckFunctions: {
     [K in LimitLabels]?: (params: {
       limit: Limit;
       data: LimitTypeMapping[K];

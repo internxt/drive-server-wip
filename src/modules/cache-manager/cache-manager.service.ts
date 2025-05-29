@@ -7,7 +7,7 @@ export class CacheManagerService {
   private readonly USAGE_KEY_PREFIX = 'usage:';
   private readonly LIMIT_KEY_PREFIX = 'limit:';
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
   /**
    * Get user's storage usage

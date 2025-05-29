@@ -40,11 +40,11 @@ import getEnv from '../../config/configuration';
 @Controller('storage/share')
 export class ShareController {
   constructor(
-    private shareUseCases: ShareUseCases,
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
-    private userUseCases: UserUseCases,
-    private notificationService: NotificationService,
+    private readonly shareUseCases: ShareUseCases,
+    private readonly fileUseCases: FileUseCases,
+    private readonly folderUseCases: FolderUseCases,
+    private readonly userUseCases: UserUseCases,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Get('/domains')

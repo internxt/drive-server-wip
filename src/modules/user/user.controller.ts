@@ -92,7 +92,7 @@ export class UserController {
   private readonly logger = new Logger(UserController.name);
 
   constructor(
-    private userUseCases: UserUseCases,
+    private readonly userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,

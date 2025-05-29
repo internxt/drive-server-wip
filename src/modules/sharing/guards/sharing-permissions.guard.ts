@@ -27,10 +27,10 @@ import { SharingAccessTokenData } from './sharings-token.interface';
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
-    private userUseCases: UserUseCases,
-    private sharingUseCases: SharingService,
-    private workspaceUseCases: WorkspacesUsecases,
+    private readonly reflector: Reflector,
+    private readonly userUseCases: UserUseCases,
+    private readonly sharingUseCases: SharingService,
+    private readonly workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

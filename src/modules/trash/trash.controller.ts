@@ -56,11 +56,11 @@ import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace
 @Controller('storage/trash')
 export class TrashController {
   constructor(
-    private fileUseCases: FileUseCases,
-    private folderUseCases: FolderUseCases,
-    private userUseCases: UserUseCases,
+    private readonly fileUseCases: FileUseCases,
+    private readonly folderUseCases: FolderUseCases,
+    private readonly userUseCases: UserUseCases,
     private readonly storageNotificationService: StorageNotificationService,
-    private trashUseCases: TrashUseCases,
+    private readonly trashUseCases: TrashUseCases,
   ) {}
 
   @Get('/paginated')

@@ -10,7 +10,7 @@ import { Op } from 'sequelize';
 export class SequelizePreCreatedUsersRepository {
   constructor(
     @InjectModel(PreCreatedUserModel)
-    private modelUser: typeof PreCreatedUserModel,
+    private readonly modelUser: typeof PreCreatedUserModel,
   ) {}
 
   async findById(id: number): Promise<PreCreatedUser | null> {

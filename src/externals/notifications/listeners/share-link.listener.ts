@@ -7,9 +7,9 @@ import { HttpClient } from '../../http/http.service';
 export class ShareLinkListener {
   constructor(
     @Inject(HttpClient)
-    private http: HttpClient,
+    private readonly http: HttpClient,
     @Inject(ConfigService)
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   @OnEvent('share.created')
