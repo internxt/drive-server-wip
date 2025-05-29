@@ -22,7 +22,7 @@ export class CryptoService {
       this.configService.get('secrets.magicSalt'),
       this.configService.get('secrets.cryptoSecret2'),
     );
-    this.cryptoSecret = this.configService.get('secrets.cryptoSecret');
+    this.cryptoSecret = process.env.CRYPTO_SECRET;
   }
 
   encrypt(text: string, buffer?: Buffer) {
