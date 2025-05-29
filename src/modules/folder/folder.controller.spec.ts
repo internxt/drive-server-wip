@@ -20,7 +20,6 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
-import { ClientEnum } from '../../common/enums/platform.enum';
 
 const requester = newUser();
 
@@ -276,7 +275,7 @@ describe('FolderController', () => {
   });
 
   describe('move folder', () => {
-    const clientId = ClientEnum.Web;
+    const clientId = 'drive-web';
 
     it('When move folder is requested with valid params, then the folder is returned with its updated properties', async () => {
       const destinationFolder = newFolder();

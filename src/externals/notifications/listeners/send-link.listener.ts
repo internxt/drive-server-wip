@@ -9,9 +9,9 @@ import pretty from 'prettysize';
 export class SendLinkListener {
   constructor(
     @Inject(MailerService)
-    private readonly mailer: MailerService,
+    private mailer: MailerService,
     @Inject(ConfigService)
-    private readonly configService: ConfigService,
+    private configService: ConfigService,
   ) {}
 
   @OnEvent('sendLink.created')

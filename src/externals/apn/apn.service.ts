@@ -11,23 +11,23 @@ export class ApnService {
   private client: http2.ClientHttp2Session;
   private readonly maxReconnectAttempts = 3;
   private reconnectAttempts = 0;
-  private readonly reconnectDelay = 1000;
+  private reconnectDelay = 1000;
   private jwt: string | null = null;
   private jwtGeneratedAt = 0;
   private lastActivity = Date.now();
   private readonly pingInterval = 3600 * 1000;
   private pingIntervalId: NodeJS.Timeout | null = null;
-  private readonly topic: string;
+  private topic: string;
 
-  private readonly apnSecret: string;
-  private readonly apnKeyId: string;
-  private readonly apnTeamId: string;
-  private readonly bundleId: string;
-  private readonly apnUrl: string;
+  private apnSecret: string;
+  private apnKeyId: string;
+  private apnTeamId: string;
+  private bundleId: string;
+  private apnUrl: string;
 
   constructor(
     @Inject(ConfigService)
-    private readonly configService: ConfigService,
+    private configService: ConfigService,
   ) {
     this.apnSecret = this.configService.get('apn.secret');
     this.apnKeyId = this.configService.get('apn.keyId');

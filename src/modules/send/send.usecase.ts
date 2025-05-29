@@ -18,9 +18,9 @@ import { SendLinkItemDto } from './dto/create-send-link.dto';
 @Injectable()
 export class SendUseCases {
   constructor(
-    private readonly sendRepository: SequelizeSendRepository,
-    private readonly notificationService: NotificationService,
-    private readonly cryptoService: CryptoService,
+    private sendRepository: SequelizeSendRepository,
+    private notificationService: NotificationService,
+    private cryptoService: CryptoService,
   ) {}
 
   async getById(id: SendLinkAttributes['id']) {

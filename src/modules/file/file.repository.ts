@@ -122,11 +122,11 @@ export interface FileRepository {
 export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
-    private readonly fileModel: typeof FileModel,
+    private fileModel: typeof FileModel,
     @InjectModel(ShareModel)
-    private readonly shareModel: typeof ShareModel,
+    private shareModel: typeof ShareModel,
     @InjectModel(ThumbnailModel)
-    private readonly thumbnailModel: typeof ThumbnailModel,
+    private thumbnailModel: typeof ThumbnailModel,
   ) {}
 
   async deleteByFileId(fileId: any): Promise<unknown> {

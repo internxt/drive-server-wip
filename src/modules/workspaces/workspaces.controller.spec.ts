@@ -26,7 +26,6 @@ import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
 } from './attributes/workspace-logs.attributes';
-import { ClientEnum } from '../../common/enums/platform.enum';
 
 describe('Workspace Controller', () => {
   let workspacesController: WorkspacesController;
@@ -280,7 +279,7 @@ describe('Workspace Controller', () => {
     const user = newUser();
     it('When a member leaves workspace, then return', async () => {
       const workspace = newWorkspace({ owner: user });
-      const clientId = ClientEnum.Web;
+      const clientId = 'drive-web';
 
       workspacesUsecases.findById.mockResolvedValueOnce(workspace);
 
@@ -738,7 +737,7 @@ describe('Workspace Controller', () => {
         workspaceId,
         member,
       });
-      const clientId = ClientEnum.Web;
+      const clientId = 'drive-web';
 
       jest
         .spyOn(workspacesUsecases, 'findById')

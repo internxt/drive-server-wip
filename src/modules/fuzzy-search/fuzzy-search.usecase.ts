@@ -8,7 +8,7 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 export class FuzzySearchUseCases {
   constructor(
     @Inject(SequelizeLookUpRepository)
-    private readonly repository: LookUpRepository,
+    private repository: LookUpRepository,
   ) {}
 
   fuzzySearch(user: string, text: string): Promise<Array<FuzzySearchResult>> {

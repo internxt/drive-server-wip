@@ -30,7 +30,6 @@ import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
-import { ClientEnum } from '../../common/enums/platform.enum';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -398,7 +397,7 @@ describe('User Controller', () => {
     it('When uploadAvatar is called without an avatar then it should throw', async () => {
       const mockAvatar = undefined;
       await expect(
-        userController.uploadAvatar(mockAvatar, user),
+        userController.uploadAvatar(mockAvatar as any, user),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -511,7 +510,7 @@ describe('User Controller', () => {
 
   describe('PATCH /password', () => {
     const mockUser = newUser();
-    const clientId = ClientEnum.Web;
+    const clientId = 'drive-web';
     const mockUpdatePasswordDto: UpdatePasswordDto = {
       currentPassword: 'encryptedCurrentPassword',
       newPassword: 'encryptedNewPassword',
@@ -589,7 +588,7 @@ describe('User Controller', () => {
   });
 
   describe('POST /create-user', () => {
-    const clientId = ClientEnum.Web;
+    const clientId = 'drive-web';
     const req = createMock<Request>();
 
     const mockUser = newUser();
@@ -694,7 +693,7 @@ describe('User Controller', () => {
 
   describe('POST /pre-created-users/register', () => {
     const req = createMock<Request>({
-      headers: { 'internxt-client': ClientEnum.Web } as any,
+      headers: { 'internxt-client': 'drive-web' } as any,
     });
     const preCreatedUser = newPreCreatedUser();
     const mockUser = newUser({ attributes: { email: preCreatedUser.email } });

@@ -8,7 +8,6 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
-  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -134,9 +133,6 @@ export class FileUseCases {
     try {
       await this.network.deleteFile(user, bucketId, fileId);
     } catch (error) {
-      Logger.error(
-        `[FILE/ERROR] deleteFileByFileId Error deleting file with fileId ${fileId} from network: ${error.message}`,
-      );
       throw new InternalServerErrorException(
         'Error deleting file from network',
       );

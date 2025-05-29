@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AvatarService {
-  private readonly configService: ConfigService;
+  private configService: ConfigService;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
