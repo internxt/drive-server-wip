@@ -169,6 +169,9 @@ export class GatewayUseCases {
     await this.userUseCases.updateUserStorage(user, newStorageSpaceBytes);
 
     try {
+      // We first expire cache to make sure the cache of old drive-server is deleted too.
+      await this.cacheManagerService.expireLimit(user.uuid);
+
       await this.cacheManagerService.setUserStorageLimit(
         user.uuid,
         newStorageSpaceBytes,
