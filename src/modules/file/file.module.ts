@@ -31,6 +31,6 @@ import { NotificationModule } from '../../externals/notifications/notifications.
   ],
   controllers: [FileController],
   providers: [SequelizeFileRepository, FileUseCases],
-  exports: [FileUseCases, SequelizeFileRepository],
+  exports: [FileUseCases, SequelizeModule, SequelizeFileRepository],
 })
 export class FileModule {}

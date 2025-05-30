@@ -150,6 +150,8 @@ export class UserUseCases {
     private readonly fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
+    @Inject(forwardRef(() => WorkspacesUsecases))
+    private workspaceUseCases: WorkspacesUsecases,
     private readonly shareUseCases: ShareUseCases,
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
@@ -166,8 +168,6 @@ export class UserUseCases {
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
-    @Inject(forwardRef(() => WorkspacesUsecases))
-    private readonly workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -963,7 +963,10 @@ export class UserUseCases {
     });
   }
 
-  async updateCredentials(
+  /**
+   * @deprecated
+   */
+  async updateCredentialsOld(
     userUuid: User['uuid'],
     newCredentials: {
       mnemonic: string;
@@ -991,10 +994,65 @@ export class UserUseCases {
         deleteWorkspaces: true,
       });
     }
-
-    // TODO: Replace with updating the private key once AFS is ready.
-    // Requires to send the private key encrypted with the user's password
     await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async updateCredentials(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+      salt: string;
+      privateKeys?: {
+        ecc?: string;
+        kyber?: string;
+      };
+    },
+    withReset = false,
+  ): Promise<void> {
+    const { mnemonic, password, salt } = newCredentials;
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (withReset) {
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    }
+
+    if (
+      newCredentials.privateKeys &&
+      Object.keys(newCredentials.privateKeys).length > 0
+    ) {
+      for (const [version, privateKey] of Object.entries(
+        newCredentials.privateKeys,
+      )) {
+        if (privateKey) {
+          await this.keyServerUseCases.updateByUserAndEncryptVersion(
+            user.id,
+            version as UserKeysEncryptVersions,
+            { privateKey },
+          );
+        }
+      }
+    } else {
+      await this.keyServerRepository.deleteByUserId(user.id);
+      await this.resetUser(user, {
+        deleteFiles: false,
+        deleteFolders: false,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    }
   }
 
   async recoverAccountLegacy(
@@ -1157,6 +1215,7 @@ export class UserUseCases {
     }
 
     if (options.deleteWorkspaces) {
+      await this.workspaceUseCases.emptyAllUserOwnedWorkspaces(user);
       await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user);
     }
   }
