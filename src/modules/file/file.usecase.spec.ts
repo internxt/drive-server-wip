@@ -7,6 +7,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import {
   File,
@@ -36,6 +37,7 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;

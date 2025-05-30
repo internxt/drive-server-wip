@@ -99,7 +99,7 @@ export class SharingPermissionsGuard implements CanActivate {
       throw new ForbiddenException('You cannot access this resource');
     }
 
-    if (!isRootToken && !decoded.owner?.uuid) {
+    if (!isRootToken && (!decoded.owner || !decoded.owner.uuid)) {
       throw new ForbiddenException('Owner is required');
     }
 
@@ -112,7 +112,7 @@ export class SharingPermissionsGuard implements CanActivate {
     }
 
     request.user = resourceOwner;
-    request.requester = request.requester ?? request.user;
+    request.requester = request.requester || request.user;
     request.isSharedItem = true;
 
     return true;

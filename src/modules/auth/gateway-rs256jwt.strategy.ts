@@ -9,13 +9,13 @@ export class GatewayRS256JwtStrategy extends PassportStrategy(
   Strategy,
   strategyId,
 ) {
-  static readonly id = strategyId;
+  static id = strategyId;
   constructor(configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: Buffer.from(
-        configService.get('secrets.driveGateway'),
+        configService.get('secrets.driveGateway') as string,
         'base64',
       ).toString('utf8'),
       algorithms: ['RS256'],

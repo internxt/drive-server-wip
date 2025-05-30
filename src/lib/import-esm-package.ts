@@ -10,7 +10,7 @@ export const importEsmPackage = async <ReturnType>(
     const modulePromise = eval(`import('${packageName}')`);
     const module = await modulePromise;
 
-    return (module.default ?? module) as ReturnType;
+    return (module.default || module) as ReturnType;
   } catch (error) {
     console.error(`Error importing ESM package ${packageName}:`, error);
     throw error;

@@ -9,7 +9,9 @@ import {
   Param,
   Query,
   NotFoundException,
+  Res,
   Logger,
+  HttpStatus,
   UseFilters,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -245,9 +247,9 @@ export class TrashController {
 
   @UseFilters(new HttpExceptionFilter())
   @Delete('/all/request')
-  async requestEmptyTrash(@UserDecorator() user: User) {
+  requestEmptyTrash(user: User) {
     try {
-      await this.trashUseCases.emptyTrash(user);
+      this.trashUseCases.emptyTrash(user);
     } catch (error) {
       new Logger().error(
         `[TRASH/REQUEST_EMPTY_TRASH] ERROR: ${

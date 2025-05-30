@@ -1,7 +1,6 @@
 import { newUser } from '../../../../test/fixtures';
 import { UploadGuard } from './upload.guard';
 import { BadRequestException, ExecutionContext } from '@nestjs/common';
-import { ClientEnum } from '../../../common/enums/platform.enum';
 
 const user = newUser();
 
@@ -36,14 +35,14 @@ describe('UploadFileGuard', () => {
       createMockExecutionContext({
         user,
         headers: {
-          'internxt-client': ClientEnum.Web,
+          'internxt-client': 'drive-web',
           'internxt-version': '1.0',
         },
       }),
       createMockExecutionContext({
         user,
         headers: {
-          'internxt-client': ClientEnum.Desktop, //macos
+          'internxt-client': 'drive-desktop', //macos
           'internxt-version': '2.6.0.72',
         },
       }),
@@ -66,7 +65,7 @@ describe('UploadFileGuard', () => {
       createMockExecutionContext({
         user,
         headers: {
-          'internxt-client': ClientEnum.Web,
+          'internxt-client': 'drive-web',
           'internxt-version': 'a.b.c',
         },
       }),

@@ -55,6 +55,7 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
+  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -83,6 +84,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
@@ -1809,18 +1811,12 @@ export class UserUseCases {
   async getSpaceLimit(user: User): Promise<number> {
     const cachedLimit = await this.cacheManager.getUserStorageLimit(user.uuid);
     if (cachedLimit) {
-      Logger.log(
-        `[CACHE/DEBUG] Cache hit for User ${user.uuid} space limit: ${cachedLimit.limit}`,
-      );
       return cachedLimit.limit;
     }
 
     const limit = await this.networkService.getLimit(
       user.bridgeUser,
       user.userId,
-    );
-    Logger.log(
-      `[CACHE/DEBUG] Cache miss for User ${user.uuid} space limit: ${limit}`,
     );
     await this.cacheManager.setUserStorageLimit(user.uuid, limit);
 

@@ -18,7 +18,6 @@ import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { BridgeModule } from './../../externals/bridge/bridge.module';
-import { ClientEnum } from '../../common/enums/platform.enum';
 
 describe('FileController', () => {
   let fileController: FileController;
@@ -26,7 +25,7 @@ describe('FileController', () => {
   let thumbnailUseCases: ThumbnailUseCases;
 
   let file: File;
-  const clientId = ClientEnum.Web;
+  const clientId = 'drive-web';
 
   const requester = newUser();
 
@@ -161,7 +160,7 @@ describe('FileController', () => {
 
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(files);
 
-      fileController.getRecentFiles(userMocked);
+      fileController.getRecentFiles(userMocked, undefined);
 
       expect(fileUseCases.getFiles).toHaveBeenCalledWith(
         userMocked.id,
@@ -328,7 +327,7 @@ describe('FileController', () => {
 
   describe('deleteFileByUuid', () => {
     const uuid = v4();
-    const clientId = ClientEnum.Web;
+    const clientId = 'clientId';
     it('When a valid uuid is provided, then it should return a success response', async () => {
       jest
         .spyOn(fileUseCases, 'deleteFilePermanently')

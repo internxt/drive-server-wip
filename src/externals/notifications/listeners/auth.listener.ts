@@ -1,21 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { SignUpSuccessEvent } from '../events/sign-up-success.event';
 import { NewsletterService } from '../../newsletter';
-import logger from '../../logger';
 import { Ids } from '../../logger/ids';
 import { SignUpErrorEvent } from '../events/sign-up-error.event';
 
 @Injectable()
 export class AuthListener {
+  private readonly logger = new Logger(AuthListener.name);
+
   constructor(private readonly newsletterService: NewsletterService) {}
 
   @OnEvent(SignUpSuccessEvent.id)
   handleSignUpSuccess({ user }: SignUpSuccessEvent) {
     const { email, uuid } = user;
 
-    logger('log', {
+    this.logger.log({
       user: uuid,
       id: Ids.SignUpEventSuccess,
       entity: { email },
@@ -24,13 +25,13 @@ export class AuthListener {
     this.newsletterService
       .subscribe(email)
       .then(() => {
-        logger('log', {
+        this.logger.log({
           user: uuid,
           id: Ids.SubscribeNewsletterSuccess,
         });
       })
       .catch((err) => {
-        logger('error', {
+        this.logger.error({
           user: uuid,
           message: `${err.message}. ${err.stack}`,
           id: Ids.SubscribeNewsletterError,
@@ -42,7 +43,7 @@ export class AuthListener {
   handleSignUpError({ user, err }: SignUpErrorEvent) {
     const { email } = user;
 
-    logger('error', {
+    this.logger.error({
       user: user.uuid || 'no-uuid',
       id: Ids.SignUpEventError,
       entity: { email },

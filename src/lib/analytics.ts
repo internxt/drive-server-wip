@@ -1,4 +1,3 @@
-import AnalyticsSegment from 'analytics-node';
 import AnalyticsRudder from '@rudderstack/rudder-sdk-node';
 
 import { Logger } from '@nestjs/common';
@@ -19,14 +18,25 @@ export enum AnalyticsTrackName {
 }
 
 export default class Analytics {
-  analytics: AnalyticsSegment;
-  logger: Logger;
+  private readonly logger = new Logger(Analytics.name);
+  analytics: AnalyticsRudder;
+
   static instance: Analytics;
   constructor() {
-    this.logger = new Logger();
     try {
       this.analytics = new AnalyticsRudder(process.env.ANALYTICS_RUDDER_KEY, {
         dataPlaneUrl: process.env.ANALYTICS_RUDDER_PLAN_URL,
+        errorHandler: (err: Error) => {
+          const errorResponse = {
+            name: err.name,
+            path: err.stack,
+            message: err.message,
+          };
+
+          this.logger.error(
+            `Error sending request to rudderStack ${JSON.stringify({ error: errorResponse })}`,
+          );
+        },
       });
     } catch (err) {
       this.logger.error(`Error initializing analytics: ${err.message}`);
@@ -44,7 +54,7 @@ export default class Analytics {
     try {
       this.analytics.track(params);
     } catch (err: unknown) {
-      this.logger.error(err);
+      this.logger.error(`track error: ${JSON.stringify(err)}`);
     }
   }
 
@@ -52,7 +62,7 @@ export default class Analytics {
     try {
       this.analytics.identify(params);
     } catch (err: unknown) {
-      this.logger.error(err);
+      this.logger.error(`identify error: ${JSON.stringify({ err })}`);
     }
   }
 
@@ -60,7 +70,7 @@ export default class Analytics {
     try {
       this.analytics.page(params);
     } catch (err: unknown) {
-      this.logger.error(err);
+      this.logger.error(`page error: ${JSON.stringify({ err })}`);
     }
   }
 }
