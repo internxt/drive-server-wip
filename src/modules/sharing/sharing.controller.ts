@@ -57,10 +57,8 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/dto/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import {
-  WorkspaceResourcesAction,
-  WorkspacesInBehalfGuard,
-} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
+import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';

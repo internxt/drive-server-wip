@@ -480,42 +480,54 @@ describe('Workspace Controller', () => {
 
   describe('POST /:workspaceId/avatar', () => {
     const newAvatarKey = v4();
-    const file: Express.Multer.File | any = {
-      stream: undefined,
-      fieldname: undefined,
-      originalname: undefined,
-      encoding: undefined,
-      mimetype: undefined,
-      size: undefined,
-      filename: undefined,
-      destination: undefined,
-      path: undefined,
-      buffer: undefined,
-    };
+    const createMockFile = (key?: string): Express.MulterS3.File =>
+      ({
+        stream: undefined as any,
+        fieldname: 'file',
+        originalname: 'test.jpg',
+        encoding: '7bit',
+        mimetype: 'image/jpeg',
+        size: 1000,
+        filename: 'test.jpg',
+        destination: '',
+        path: '',
+        buffer: Buffer.from(''),
+        key: key || '',
+        bucket: 'test-bucket',
+        acl: 'public-read',
+        contentType: 'image/jpeg',
+        contentDisposition: null,
+        storageClass: 'STANDARD',
+        serverSideEncryption: null,
+        metadata: {},
+        location: 'https://test-bucket.s3.amazonaws.com/test-key',
+        etag: 'test-etag',
+      }) as Express.MulterS3.File;
 
     it('When workspaceId is null, throw error.', async () => {
       const workspaceId = null;
+      const mockFile = createMockFile(newAvatarKey);
       jest
         .spyOn(workspacesUsecases, 'upsertAvatar')
         .mockRejectedValue(BadRequestException);
 
       await expect(
-        workspacesController.uploadAvatar(file, workspaceId),
+        workspacesController.uploadAvatar(mockFile, workspaceId),
       ).rejects.toThrow();
     });
 
     it('When Multer does not return the key field in the file then the file was not uploaded to s3 and we should raise an error', async () => {
       const workspace = newWorkspace();
-      file.key = null;
+      const mockFile = createMockFile(); // Empty key
       await expect(
-        workspacesController.uploadAvatar(file, workspace.id),
+        workspacesController.uploadAvatar(mockFile, workspace.id),
       ).rejects.toThrow();
     });
 
     it('When Multer returns the key field in the file then the file was uploaded to s3 and we must save the key', async () => {
       const workspace = newWorkspace();
-      file.key = newAvatarKey;
-      await workspacesController.uploadAvatar(file, workspace.id);
+      const mockFile = createMockFile(newAvatarKey);
+      await workspacesController.uploadAvatar(mockFile, workspace.id);
       expect(workspacesUsecases.upsertAvatar).toHaveBeenCalledWith(
         workspace.id,
         newAvatarKey,

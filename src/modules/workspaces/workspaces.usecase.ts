@@ -2190,10 +2190,10 @@ export class WorkspacesUsecases {
 
     return {
       activatedUsers: workspaceUserMembers.filter(
-        (workspaceUserMember) => workspaceUserMember.deactivated == false,
+        (workspaceUserMember) => !workspaceUserMember.deactivated,
       ),
       disabledUsers: workspaceUserMembers.filter(
-        (workspaceUserMember) => workspaceUserMember.deactivated == true,
+        (workspaceUserMember) => workspaceUserMember.deactivated,
       ),
     };
   }

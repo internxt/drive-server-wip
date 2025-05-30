@@ -2,21 +2,18 @@ import { applyDecorators, UseGuards, SetMetadata } from '@nestjs/common';
 import { WorkspacesResourcesItemsInBehalfGuard } from './workspaces-resources-in-items-in-behalf.guard';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 import { SharingPermissionsGuard } from '../../sharing/guards/sharing-permissions.guard';
+import {
+  WorkspaceResourcesAction,
+  WORKSPACE_IN_BEHALF_ACTION_META_KEY,
+} from './workspaces-resources-in-behalf.types';
 
 export interface ValidationOptions {
   defaultItemType?: WorkspaceItemType;
   action?: WorkspaceResourcesAction;
 }
 
-export enum WorkspaceResourcesAction {
-  AddItemsToTrash = 'addItemsToTrash',
-  DeleteItemsFromTrash = 'deleteItemsFromTrash',
-  ModifySharingById = 'modifySharingById',
-  Default = 'default',
-}
-
-export const WORKSPACE_IN_BEHALF_ACTION_META_KEY =
-  'workspaceInBehalfActionMetakey';
+// Re-export
+export { WorkspaceResourcesAction, WORKSPACE_IN_BEHALF_ACTION_META_KEY };
 
 const createValidationDecorator = (options?: ValidationOptions) => {
   return applyDecorators(

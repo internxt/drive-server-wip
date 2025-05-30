@@ -442,7 +442,7 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @UseInterceptors(FileInterceptor('file', avatarStorageS3Config))
   async uploadAvatar(
-    @UploadedFile() file: Express.Multer.File | any,
+    @UploadedFile() file: Express.MulterS3.File,
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
   ) {
