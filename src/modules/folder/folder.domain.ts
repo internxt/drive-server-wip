@@ -1,7 +1,7 @@
-import { Sharing } from '../sharing/sharing.domain';
+import type { Sharing } from '../sharing/sharing.domain';
 import { User } from '../user/user.domain';
-import { FolderDto } from './dto/folder.dto';
-import { FolderAttributes } from './folder.attributes';
+import type { FolderDto } from './dto/folder.dto';
+import type { FolderAttributes } from './folder.attributes';
 
 export type SortableFolderAttributes = keyof Pick<
   FolderAttributes,

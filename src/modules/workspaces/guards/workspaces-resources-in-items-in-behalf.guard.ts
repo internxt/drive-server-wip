@@ -11,7 +11,7 @@ import { User } from '../../user/user.domain';
 import {
   WORKSPACE_IN_BEHALF_ACTION_META_KEY,
   WorkspaceResourcesAction,
-} from './workspaces-resources-in-behalf.decorator';
+} from './workspaces-resources-in-behalf.types';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { isUUID } from 'class-validator';

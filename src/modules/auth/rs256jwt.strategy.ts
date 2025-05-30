@@ -6,13 +6,13 @@ import { Injectable } from '@nestjs/common';
 const strategyId = 'jwt.rs256';
 @Injectable()
 export class RS256JwtStrategy extends PassportStrategy(Strategy, strategyId) {
-  static id = strategyId;
+  static readonly id = strategyId;
   constructor(private readonly configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: Buffer.from(
-        configService.get('secrets.gateway') as string,
+        configService.get('secrets.gateway'),
         'base64',
       ).toString('utf8'),
       algorithms: ['RS256'],

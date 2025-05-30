@@ -7,7 +7,7 @@ import { Folder } from '../folder/folder.domain';
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
-import { Op, Sequelize } from 'sequelize';
+import { Op } from 'sequelize';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 

@@ -57,10 +57,8 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/dto/uuid.dto';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import {
-  WorkspaceResourcesAction,
-  WorkspacesInBehalfGuard,
-} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
+import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
@@ -307,12 +305,12 @@ export class SharingController {
     description: 'Id of the invite to validate',
     type: String,
   })
-  validateInvite(
+  async validateInvite(
     @Param('id') id: SharingInvite['id'],
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      return this.sharingService.validateInvite(id);
+      return await this.sharingService.validateInvite(id);
     } catch (error) {
       let errorMessage = error.message;
 
@@ -325,7 +323,7 @@ export class SharingController {
         Logger.error(
           `[SHARING/VALIDATEINVITE] Error while trying to validate invitation ${id}, message: ${
             error.message
-          }, ${error.stack || 'No stack trace'}`,
+          }, ${error.stack ?? 'No stack trace'}`,
         );
 
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -420,7 +418,7 @@ export class SharingController {
         Logger.error(
           `[SHARING/LIST-FOLDERS] Error while getting shared folders by user ${
             user.uuid
-          }, message: ${error.message}, ${error.stack || 'No stack trace'}`,
+          }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
         );
 
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -496,7 +494,7 @@ export class SharingController {
         Logger.error(
           `[SHARING/GETSHAREDFILES] Error while getting shared folders by folder ${
             user.uuid
-          }, message: ${error.message}, ${error.stack || 'No stack trace'}`,
+          }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
         );
 
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -560,7 +558,7 @@ export class SharingController {
         Logger.error(
           `[SHARING/GETPUBLICSHAREDFILES] Error while getting shared files by folder ${sharedFolderId}, message: ${
             error.message
-          }, ${error.stack || 'No stack trace'}`,
+          }, ${error.stack ?? 'No stack trace'}`,
         );
 
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -623,7 +621,7 @@ export class SharingController {
         Logger.error(
           `[SHARING/GETPUBLICSHAREDFOLDERS] Error while getting shared folders by folder ${sharedFolderId}, message: ${
             error.message
-          }, ${error.stack || 'No stack trace'}`,
+          }, ${error.stack ?? 'No stack trace'}`,
         );
 
         res.status(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -783,7 +781,7 @@ export class SharingController {
       Logger.error(
         `[SHARING/GETSHAREDFOLDERS] Error while getting shared folders with user ${
           user.uuid
-        }, ${err.stack || 'No stack trace'}`,
+        }, ${err.stack ?? 'No stack trace'}`,
       );
 
       throw error;
@@ -840,7 +838,7 @@ export class SharingController {
       Logger.error(
         `[SHARING/GETSHAREDBYME] Error while getting shared folders by user ${
           user.uuid
-        }, ${err.stack || 'No stack trace'}`,
+        }, ${err.stack ?? 'No stack trace'}`,
       );
 
       throw error;
@@ -962,7 +960,7 @@ export class SharingController {
       Logger.error(
         `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
           user.uuid
-        }, ${error.stack || 'No stack trace'}`,
+        }, ${error.stack ?? 'No stack trace'}`,
       );
       throw error;
     }
@@ -1025,7 +1023,7 @@ export class SharingController {
       Logger.error(
         `[SHARING/GETSHAREDWITHME] Error while getting shared with by folder id ${
           user.uuid
-        }, ${error.stack || 'No stack trace'}`,
+        }, ${error.stack ?? 'No stack trace'}`,
       );
       throw new InternalServerErrorException();
     }

@@ -120,7 +120,7 @@ describe('Sharing Use Cases', () => {
           owner.uuid,
           notTheOwner,
         ),
-      ).rejects.toThrowError(ForbiddenException);
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('When the owner tries to remove a user that is not invited to the folder then, it fails', async () => {
@@ -137,7 +137,7 @@ describe('Sharing Use Cases', () => {
           'not invited user uudi',
           owner,
         ),
-      ).rejects.toThrowError(ConflictException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('When the owner removes a user which was previously invited then, it should work', async () => {

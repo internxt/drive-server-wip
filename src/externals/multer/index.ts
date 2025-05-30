@@ -1,7 +1,7 @@
 import { S3Client, ObjectCannedACL } from '@aws-sdk/client-s3';
 import { v4 } from 'uuid';
 import multerS3 from 'multer-s3';
-import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
+import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import configuration from '../../config/configuration';
 import { BadRequestException } from '@nestjs/common';
 
@@ -17,13 +17,13 @@ export const avatarStorageS3Config: MulterOptions = {
         secretAccessKey: avatarConfig.secretKey,
       },
       forcePathStyle: avatarConfig.forcePathStyle === 'true',
-    }),
+    }) as any,
     bucket: avatarConfig.bucket,
     acl: ObjectCannedACL.public_read,
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const filenameKeyS3 = v4();
-      req.filenameKeyS3 = filenameKeyS3;
+      (req as any).filenameKeyS3 = filenameKeyS3;
       cb(null, filenameKeyS3);
     },
   }),

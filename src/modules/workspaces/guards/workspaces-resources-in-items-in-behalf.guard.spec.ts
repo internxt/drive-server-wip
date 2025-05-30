@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { WorkspacesUsecases } from '../workspaces.usecase';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
-import { WorkspaceResourcesAction } from './workspaces-resources-in-behalf.decorator';
+import { WorkspaceResourcesAction } from './workspaces-resources-in-behalf.types';
 import { WorkspacesResourcesItemsInBehalfGuard } from './workspaces-resources-in-items-in-behalf.guard';
 import {
   newUser,

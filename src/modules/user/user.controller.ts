@@ -690,9 +690,8 @@ export class UserController {
     }
 
     if (
-      !decodedContent.payload ||
-      !decodedContent.payload.action ||
-      !decodedContent.payload.uuid ||
+      !decodedContent.payload?.action ||
+      !decodedContent.payload?.uuid ||
       decodedContent.payload.action !== 'recover-account' ||
       !validate(decodedContent.payload.uuid)
     ) {
@@ -936,7 +935,7 @@ export class UserController {
   })
   @UseInterceptors(FileInterceptor('avatar', avatarStorageS3Config))
   async uploadAvatar(
-    @UploadedFile() avatar: Express.Multer.File | any,
+    @UploadedFile() avatar: Express.MulterS3.File,
     @UserDecorator() user: User,
   ) {
     if (!avatar) {

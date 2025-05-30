@@ -19,7 +19,7 @@ export class NotificationListener {
       'apis.notifications.url',
     );
     const headers = {
-      'X-API-KEY': this.configService.get('apis.notifications.key') as string,
+      'X-API-KEY': this.configService.get('apis.notifications.key'),
     };
     const eventData = {
       event: event.event,
