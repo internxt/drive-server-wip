@@ -54,7 +54,9 @@ import {
   RecoverAccountDto,
   RecoverAccountQueryDto,
   RequestRecoverAccountDto,
+  DeprecatedRecoverAccountDto,
 } from './dto/recover-account.dto';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import {
   generateJitsiJWT,
   verifyToken,
@@ -84,7 +86,6 @@ import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -664,9 +665,89 @@ export class UserController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Recover account',
+    deprecated: true,
   })
   @Public()
   async recoverAccount(
+    @Query() query: RecoverAccountQueryDto,
+    @Body() body: DeprecatedRecoverAccountDto,
+  ) {
+    const { token, reset } = query;
+    const { mnemonic, password, salt } = body;
+    let decodedContent: { payload?: { uuid?: string; action?: string } };
+
+    try {
+      const decoded = verifyToken(token, getEnv().secrets.jwt);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException();
+      }
+
+      decodedContent = decoded as {
+        payload?: { uuid?: string; action?: string };
+      };
+    } catch (err) {
+      throw new ForbiddenException();
+    }
+
+    if (
+      !decodedContent.payload ||
+      !decodedContent.payload.action ||
+      !decodedContent.payload.uuid ||
+      decodedContent.payload.action !== 'recover-account' ||
+      !validate(decodedContent.payload.uuid)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    if (reset && reset !== 'true' && reset !== 'false') {
+      throw new BadRequestException('Invalid value for parameter "reset"');
+    }
+
+    const userUuid = decodedContent.payload.uuid;
+
+    try {
+      if (reset === 'true') {
+        await this.userUseCases.updateCredentialsOld(
+          userUuid,
+          {
+            mnemonic,
+            password,
+            salt,
+          },
+          true,
+        );
+      } else {
+        const deprecatedRecoverAccountDto = body;
+
+        await this.userUseCases.updateCredentialsOld(userUuid, {
+          mnemonic,
+          password,
+          salt,
+          privateKey: deprecatedRecoverAccountDto.privateKey,
+        });
+      }
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { uuid: userUuid },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Put('/recover-account-v2')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Recover account',
+  })
+  @Public()
+  async recoverAccountV2(
     @Query() query: RecoverAccountQueryDto,
     @Body() body: RecoverAccountDto,
   ) {

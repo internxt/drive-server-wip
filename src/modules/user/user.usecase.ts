@@ -963,6 +963,40 @@ export class UserUseCases {
     });
   }
 
+  /**
+   * @deprecated
+   */
+  async updateCredentialsOld(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+      salt: string;
+      privateKey?: string;
+    },
+    withReset = false,
+  ): Promise<void> {
+    const { mnemonic, password, salt } = newCredentials;
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (withReset) {
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    }
+    await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
   async updateCredentials(
     userUuid: User['uuid'],
     newCredentials: {

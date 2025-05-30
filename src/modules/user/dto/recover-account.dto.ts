@@ -48,6 +48,36 @@ export class RecoverAccountDto {
   privateKeys?: PrivateKeysDto;
 }
 
+export class DeprecatedRecoverAccountDto {
+  @ApiProperty({
+    example: 'some_hashed_pass',
+    description: 'New user pass hashed',
+  })
+  @IsNotEmpty()
+  password: string;
+
+  @ApiProperty({
+    example: 'some_salt',
+    description: 'Hashed password salt',
+  })
+  @IsNotEmpty()
+  salt: string;
+
+  @ApiProperty({
+    example: 'some_encrypted_mnemonic',
+    description: 'User mnemonic encrypted with the new pass',
+  })
+  @IsNotEmpty()
+  mnemonic: string;
+
+  @ApiProperty({
+    example: 'encrypted private key',
+    description: "User's private key encrypted with the user's plain password",
+  })
+  @IsOptional()
+  privateKey?: string;
+}
+
 export class RecoverAccountQueryDto {
   @ApiProperty()
   @IsNotEmpty()

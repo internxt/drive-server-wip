@@ -2762,6 +2762,110 @@ describe('User use cases', () => {
       ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc);
     });
   });
+
+  describe('updateCredentialsOld', () => {
+    const mockUser = newUser();
+    const mockCredentials = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKey: 'encrypted_private_key',
+    };
+
+    const decryptedPassword = 'decrypted_password';
+    const decryptedSalt = 'decrypted_salt';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === mockCredentials.password) return decryptedPassword;
+        if (text === mockCredentials.salt) return decryptedSalt;
+        return text;
+      });
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(mockUser);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockResolvedValue(undefined);
+    });
+
+    it('When updating credentials without reset, then it should update user and delete keys', async () => {
+      await userUseCases.updateCredentialsOld(mockUser.uuid, mockCredentials);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(userUseCases.resetUser).not.toHaveBeenCalled();
+    });
+
+    it('When updating credentials with reset, then it should reset user data', async () => {
+      await userUseCases.updateCredentialsOld(
+        mockUser.uuid,
+        mockCredentials,
+        true,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+    });
+
+    it('When updating credentials without private key, then it should still work', async () => {
+      const credentialsWithoutPrivateKey = {
+        mnemonic: mockCredentials.mnemonic,
+        password: mockCredentials.password,
+        salt: mockCredentials.salt,
+      };
+
+      await userUseCases.updateCredentialsOld(
+        mockUser.uuid,
+        credentialsWithoutPrivateKey,
+      );
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(userUseCases.resetUser).not.toHaveBeenCalled();
+    });
+
+    it('When user is not found, then it should find user after update', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(mockUser);
+
+      await userUseCases.updateCredentialsOld(mockUser.uuid, mockCredentials);
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(mockUser.uuid);
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+    });
+  });
+
   describe('verifyAndDecodeAccountRecoveryToken', () => {
     it('When token is valid, then it should return the user UUID', () => {
       const userUuid = v4();
