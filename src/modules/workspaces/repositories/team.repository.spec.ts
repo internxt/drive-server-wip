@@ -13,6 +13,8 @@ import { WorkspaceTeam } from '../domains/workspace-team.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { v4 } from 'uuid';
+import { UserModel } from '../../user/user.model';
+import { User } from '../../user/user.domain';
 
 describe('SequelizeWorkspaceTeamRepository', () => {
   let repository: SequelizeWorkspaceTeamRepository;
@@ -256,6 +258,203 @@ describe('SequelizeWorkspaceTeamRepository', () => {
 
       expect(result).toEqual([expect.any(WorkspaceTeam)]);
       expect(result[0].id).toEqual(team.id);
+    });
+  });
+
+  describe('getTeamMembers', () => {
+    it('When getting team members, then return users who belong to the team', async () => {
+      const teamId = v4();
+      const user1 = newUser();
+      const user2 = newUser();
+      const mockTeamUsers = [
+        {
+          member: {
+            get: jest.fn().mockReturnValue(user1),
+          },
+        },
+        {
+          member: {
+            get: jest.fn().mockReturnValue(user2),
+          },
+        },
+      ];
+
+      jest
+        .spyOn(workspaceTeamUserModel, 'findAll')
+        .mockResolvedValueOnce(mockTeamUsers as any);
+
+      const result = await repository.getTeamMembers(teamId);
+
+      expect(workspaceTeamUserModel.findAll).toHaveBeenCalledWith({
+        where: { teamId },
+        include: { model: UserModel, required: true },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(User);
+    });
+  });
+
+  describe('getTeamMembersCount', () => {
+    it('When getting team members count, then return the count', async () => {
+      const teamId = v4();
+      const expectedCount = 5;
+
+      jest
+        .spyOn(workspaceTeamUserModel, 'count')
+        .mockResolvedValueOnce(expectedCount);
+
+      const result = await repository.getTeamMembersCount(teamId);
+
+      expect(workspaceTeamUserModel.count).toHaveBeenCalledWith({
+        where: { id: teamId },
+      });
+      expect(result).toEqual(expectedCount);
+    });
+
+    it('When count returns null, then return 0', async () => {
+      const teamId = v4();
+
+      jest.spyOn(workspaceTeamUserModel, 'count').mockResolvedValueOnce(null);
+
+      const result = await repository.getTeamMembersCount(teamId);
+
+      expect(result).toEqual(0);
+    });
+  });
+
+  describe('getTeamUser', () => {
+    it('When team user is found, then return the team user', async () => {
+      const userUuid = v4();
+      const teamId = v4();
+      const mockTeamUser = newWorkspaceTeamUser();
+
+      jest
+        .spyOn(workspaceTeamUserModel, 'findOne')
+        .mockResolvedValueOnce(mockTeamUser as any);
+
+      const result = await repository.getTeamUser(userUuid, teamId);
+
+      expect(workspaceTeamUserModel.findOne).toHaveBeenCalledWith({
+        where: { memberId: userUuid, teamId },
+      });
+      expect(result).toBeInstanceOf(WorkspaceTeamUser);
+    });
+
+    it('When team user is not found, then return null', async () => {
+      const userUuid = v4();
+      const teamId = v4();
+
+      jest.spyOn(workspaceTeamUserModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.getTeamUser(userUuid, teamId);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('removeMemberFromTeam', () => {
+    it('When removing member from team, then call destroy method', async () => {
+      const teamId = v4();
+      const memberId = v4();
+
+      await repository.removeMemberFromTeam(teamId, memberId);
+
+      expect(workspaceTeamUserModel.destroy).toHaveBeenCalledWith({
+        where: { teamId, memberId },
+      });
+    });
+  });
+
+  describe('addUserToTeam', () => {
+    it('When adding user to team, then create and return team user', async () => {
+      const teamId = v4();
+      const userUuid = v4();
+      const mockTeamUser = newWorkspaceTeamUser({ teamId, memberId: userUuid });
+
+      jest
+        .spyOn(workspaceTeamUserModel, 'create')
+        .mockResolvedValueOnce(mockTeamUser as any);
+
+      const result = await repository.addUserToTeam(teamId, userUuid);
+
+      expect(workspaceTeamUserModel.create).toHaveBeenCalledWith({
+        teamId,
+        memberId: userUuid,
+      });
+      expect(result).toBeInstanceOf(WorkspaceTeamUser);
+    });
+  });
+
+  describe('deleteUserFromTeam', () => {
+    it('When deleting user from team, then call destroy method', async () => {
+      const memberId = v4();
+      const teamId = v4();
+
+      await repository.deleteUserFromTeam(memberId, teamId);
+
+      expect(workspaceTeamUserModel.destroy).toHaveBeenCalledWith({
+        where: { memberId, teamId },
+      });
+    });
+  });
+
+  describe('getTeamsAndMembersCountByWorkspace', () => {
+    it('When getting teams and members count, then return teams with member counts', async () => {
+      const workspaceId = v4();
+      const mockTeams = [
+        {
+          ...newWorkspaceTeam().toJSON(),
+          dataValues: { membersCount: '3' },
+          toJSON: jest.fn().mockReturnValue(newWorkspaceTeam().toJSON()),
+        },
+        {
+          ...newWorkspaceTeam().toJSON(),
+          dataValues: { membersCount: '5' },
+          toJSON: jest.fn().mockReturnValue(newWorkspaceTeam().toJSON()),
+        },
+      ];
+
+      jest
+        .spyOn(workspaceTeamModel, 'findAll')
+        .mockResolvedValueOnce(mockTeams as any);
+
+      const result =
+        await repository.getTeamsAndMembersCountByWorkspace(workspaceId);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].team).toBeInstanceOf(WorkspaceTeam);
+      expect(result[0].membersCount).toEqual(3);
+      expect(result[1].membersCount).toEqual(5);
+    });
+  });
+
+  describe('getTeamsInWorkspaceCount', () => {
+    it('When getting teams count in workspace, then return the count', async () => {
+      const workspaceId = v4();
+      const expectedCount = 4;
+
+      jest
+        .spyOn(workspaceTeamModel, 'count')
+        .mockResolvedValueOnce(expectedCount);
+
+      const result = await repository.getTeamsInWorkspaceCount(workspaceId);
+
+      expect(workspaceTeamModel.count).toHaveBeenCalledWith({
+        where: { workspaceId },
+      });
+      expect(result).toEqual(expectedCount);
+    });
+  });
+
+  describe('deleteTeamById', () => {
+    it('When deleting team by ID, then call destroy method', async () => {
+      const teamId = v4();
+
+      await repository.deleteTeamById(teamId);
+
+      expect(workspaceTeamModel.destroy).toHaveBeenCalledWith({
+        where: { id: teamId },
+      });
     });
   });
 });
