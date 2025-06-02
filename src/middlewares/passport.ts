@@ -6,21 +6,25 @@ export const passportAuth = passport.authenticate('jwt', { session: false });
 export function SignEmail(
   email: string,
   secret: string,
-  expires = false,
+  expirationTime?: string,
   customIat?: number,
 ): string {
   const payload = { email, ...(customIat ? { iat: customIat } : null) };
 
-  const token = expires
-    ? jwt.sign(payload, secret, { expiresIn: '14d' })
+  const token = expirationTime
+    ? jwt.sign(payload, secret, { expiresIn: expirationTime })
     : jwt.sign(payload, secret);
 
   return token;
 }
 
-export function Sign(payload: object, secret: string, expires = false): string {
-  const token = expires
-    ? jwt.sign(payload, secret, { expiresIn: '14d' })
+export function Sign(
+  payload: object,
+  secret: string,
+  expirationTime?: string,
+): string {
+  const token = expirationTime
+    ? jwt.sign(payload, secret, { expiresIn: expirationTime })
     : jwt.sign(payload, secret);
 
   return token;
