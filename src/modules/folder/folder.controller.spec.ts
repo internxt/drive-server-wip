@@ -726,4 +726,524 @@ describe('FolderController', () => {
       ).rejects.toThrow('Deletion failed');
     });
   });
+
+  describe('createFolder', () => {
+    const clientId = 'test-client';
+    const requester = newUser();
+    const createFolderDto = {
+      plainName: 'New Folder',
+      parentFolderUuid: v4(),
+    };
+
+    it('When creating a folder with valid data, then it should create and return the folder', async () => {
+      const createdFolder = newFolder({
+        attributes: { plainName: createFolderDto.plainName },
+      });
+
+      jest
+        .spyOn(folderUseCases, 'createFolder')
+        .mockResolvedValue(createdFolder);
+      jest
+        .spyOn(storageNotificationService, 'folderCreated')
+        .mockImplementation(() => {});
+
+      const result = await folderController.createFolder(
+        userMocked,
+        createFolderDto,
+        clientId,
+        requester,
+      );
+
+      expect(result).toEqual({
+        ...createdFolder,
+        status: createdFolder.getFolderStatus(),
+      });
+      expect(folderUseCases.createFolder).toHaveBeenCalledWith(
+        userMocked,
+        createFolderDto,
+      );
+      expect(storageNotificationService.folderCreated).toHaveBeenCalledWith({
+        payload: createdFolder,
+        user: requester,
+        clientId,
+      });
+    });
+
+    it('When folder creation fails, then it should throw an error', async () => {
+      jest
+        .spyOn(folderUseCases, 'createFolder')
+        .mockRejectedValue(new BadRequestException('Invalid folder name'));
+
+      await expect(
+        folderController.createFolder(
+          userMocked,
+          createFolderDto,
+          clientId,
+          requester,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getFolderCount', () => {
+    it('When getting folder count without status, then it should return drive folders count', async () => {
+      const expectedCount = 25;
+      jest
+        .spyOn(folderUseCases, 'getDriveFoldersCount')
+        .mockResolvedValue(expectedCount);
+
+      const result = await folderController.getFolderCount(userMocked);
+
+      expect(result).toEqual({ count: expectedCount });
+      expect(folderUseCases.getDriveFoldersCount).toHaveBeenCalledWith(
+        userMocked.id,
+      );
+    });
+
+    it('When getting orphan folder count, then it should return orphan folders count', async () => {
+      const expectedCount = 5;
+      jest
+        .spyOn(folderUseCases, 'getOrphanFoldersCount')
+        .mockResolvedValue(expectedCount);
+
+      const result = await folderController.getFolderCount(
+        userMocked,
+        'orphan',
+      );
+
+      expect(result).toEqual({ count: expectedCount });
+      expect(folderUseCases.getOrphanFoldersCount).toHaveBeenCalledWith(
+        userMocked.id,
+      );
+    });
+
+    it('When getting trashed folder count, then it should return trashed folders count', async () => {
+      const expectedCount = 10;
+      jest
+        .spyOn(folderUseCases, 'getTrashFoldersCount')
+        .mockResolvedValue(expectedCount);
+
+      const result = await folderController.getFolderCount(
+        userMocked,
+        'trashed',
+      );
+
+      expect(result).toEqual({ count: expectedCount });
+      expect(folderUseCases.getTrashFoldersCount).toHaveBeenCalledWith(
+        userMocked.id,
+      );
+    });
+
+    it('When getting folder count with invalid status, then it should throw an error', async () => {
+      await expect(
+        folderController.getFolderCount(userMocked, 'invalid' as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('deleteFolders', () => {
+    it('When deleting orphan folders, then it should return deleted count', async () => {
+      const deletedCount = 8;
+      jest
+        .spyOn(folderUseCases, 'deleteOrphansFolders')
+        .mockResolvedValue(deletedCount);
+
+      const result = await folderController.deleteFolders(userMocked, 'orphan');
+
+      expect(result).toEqual({ deletedCount });
+      expect(folderUseCases.deleteOrphansFolders).toHaveBeenCalledWith(
+        userMocked.id,
+      );
+    });
+
+    it('When trying to delete trashed folders, then it should throw NotImplementedException', async () => {
+      await expect(
+        folderController.deleteFolders(userMocked, 'trashed'),
+      ).rejects.toThrow('Not Implemented');
+    });
+
+    it('When no status is provided, then it should throw BadRequestException', async () => {
+      await expect(
+        folderController.deleteFolders(userMocked, undefined as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When invalid status is provided, then it should throw BadRequestException', async () => {
+      await expect(
+        folderController.deleteFolders(userMocked, 'invalid' as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getFolderFiles', () => {
+    const folderId = 123;
+    const limit = 20;
+    const offset = 0;
+
+    it('When getting folder files with valid params, then it should return files', async () => {
+      const mockFiles = [
+        newFile({ attributes: { folderId } }),
+        newFile({ attributes: { folderId } }),
+      ];
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
+
+      const result = await folderController.getFolderFiles(
+        userMocked,
+        folderId,
+        limit,
+        offset,
+        'name',
+        'ASC',
+      );
+
+      expect(result).toEqual({ result: mockFiles });
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        { folderId, status: FileStatus.EXISTS },
+        { limit, offset, sort: [['name', 'ASC']] },
+      );
+    });
+
+    it('When getting folder files with invalid limit, then it should throw an error', async () => {
+      await expect(
+        folderController.getFolderFiles(
+          userMocked,
+          folderId,
+          0,
+          offset,
+          'name',
+          'ASC',
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
+
+      await expect(
+        folderController.getFolderFiles(
+          userMocked,
+          folderId,
+          51,
+          offset,
+          'name',
+          'ASC',
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
+    });
+
+    it('When getting folder files with invalid offset, then it should throw an error', async () => {
+      await expect(
+        folderController.getFolderFiles(
+          userMocked,
+          folderId,
+          limit,
+          -1,
+          'name',
+          'ASC',
+        ),
+      ).rejects.toThrow(BadRequestInvalidOffsetException);
+    });
+  });
+
+  describe('checkFileExistence', () => {
+    const folderId = 123;
+    const fileName = 'test.pdf';
+    const fileType = 'document';
+
+    it('When checking file existence and file exists, then it should return the file', async () => {
+      const mockFile = newFile({
+        attributes: { folderId, plainName: fileName, type: fileType },
+      });
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([mockFile]);
+
+      const result = await folderController.checkFileExistence(
+        userMocked,
+        folderId,
+        fileName,
+        fileType,
+      );
+
+      expect(result).toEqual(mockFile);
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        {
+          folderId,
+          status: FileStatus.EXISTS,
+          plainName: fileName,
+          type: fileType,
+        },
+        { limit: 1, offset: 0 },
+      );
+    });
+
+    it('When checking file existence and file does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([]);
+
+      await expect(
+        folderController.checkFileExistence(
+          userMocked,
+          folderId,
+          fileName,
+          fileType,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getFolderFolders', () => {
+    const folderId = 123;
+    const limit = 20;
+    const offset = 0;
+
+    it('When getting folder subfolders with valid params, then it should return folders', async () => {
+      const mockFolders = [
+        newFolder({ attributes: { parentId: folderId } }),
+        newFolder({ attributes: { parentId: folderId } }),
+      ];
+      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
+
+      const result = await folderController.getFolderFolders(
+        userMocked,
+        limit,
+        offset,
+        folderId,
+        'name',
+        'ASC',
+      );
+
+      expect(result).toEqual({
+        result: mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
+      });
+      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+        userMocked.id,
+        { parentId: folderId, deleted: false, removed: false },
+        { limit, offset, sort: [['name', 'ASC']] },
+      );
+    });
+
+    it('When getting folder subfolders with invalid params, then it should throw an error', async () => {
+      await expect(
+        folderController.getFolderFolders(
+          userMocked,
+          0,
+          offset,
+          folderId,
+          'name',
+          'ASC',
+        ),
+      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
+
+      await expect(
+        folderController.getFolderFolders(
+          userMocked,
+          limit,
+          -1,
+          folderId,
+          'name',
+          'ASC',
+        ),
+      ).rejects.toThrow(BadRequestInvalidOffsetException);
+    });
+  });
+
+  describe('getFolders', () => {
+    const limit = 20;
+    const offset = 0;
+
+    it('When getting folders with EXISTS status, then it should return non-deleted folders', async () => {
+      const mockFolders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderUseCases, 'getNotTrashedFoldersUpdatedAfter')
+        .mockResolvedValue(mockFolders);
+      jest
+        .spyOn(folderUseCases, 'decryptFolderName')
+        .mockImplementation((f) => f);
+
+      const result = await folderController.getFolders(
+        userMocked,
+        limit,
+        offset,
+        'EXISTS' as any,
+      );
+
+      expect(result).toEqual(
+        mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
+      );
+      expect(
+        folderUseCases.getNotTrashedFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(userMocked.id, new Date(1), { limit, offset });
+    });
+
+    it('When getting folders with TRASHED status, then it should return deleted folders', async () => {
+      const mockFolders = [newFolder({ attributes: { deleted: true } })];
+      jest
+        .spyOn(folderUseCases, 'getTrashedFoldersUpdatedAfter')
+        .mockResolvedValue(mockFolders);
+      jest
+        .spyOn(folderUseCases, 'decryptFolderName')
+        .mockImplementation((f) => f);
+
+      const result = await folderController.getFolders(
+        userMocked,
+        limit,
+        offset,
+        'TRASHED' as any,
+      );
+
+      expect(result).toEqual(
+        mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
+      );
+      expect(folderUseCases.getTrashedFoldersUpdatedAfter).toHaveBeenCalledWith(
+        userMocked.id,
+        new Date(1),
+        { limit, offset },
+      );
+    });
+
+    it('When getting folders with updatedAt filter, then it should apply the date filter', async () => {
+      const updatedAt = '2023-01-01T00:00:00Z';
+      const mockFolders = [newFolder()];
+      jest
+        .spyOn(folderUseCases, 'getNotTrashedFoldersUpdatedAfter')
+        .mockResolvedValue(mockFolders);
+      jest
+        .spyOn(folderUseCases, 'decryptFolderName')
+        .mockImplementation((f) => f);
+
+      const result = await folderController.getFolders(
+        userMocked,
+        limit,
+        offset,
+        'EXISTS' as any,
+        updatedAt,
+      );
+
+      expect(result).toEqual(
+        mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
+      );
+      expect(
+        folderUseCases.getNotTrashedFoldersUpdatedAfter,
+      ).toHaveBeenCalledWith(userMocked.id, new Date(updatedAt), {
+        limit,
+        offset,
+      });
+    });
+  });
+
+  describe('getFolder', () => {
+    const folderUuid = v4();
+
+    it('When getting folder by uuid, then it should return the folder', async () => {
+      const mockFolder = newFolder({ attributes: { uuid: folderUuid } });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(mockFolder);
+
+      const result = await folderController.getFolder(userMocked, folderUuid);
+
+      expect(result).toEqual({
+        ...mockFolder,
+        status: mockFolder.getFolderStatus(),
+      });
+      expect(folderUseCases.getFolderByUuidAndUser).toHaveBeenCalledWith(
+        folderUuid,
+        userMocked,
+      );
+    });
+
+    it('When folder is not found, then it should throw NotFoundException', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(null);
+
+      await expect(
+        folderController.getFolder(userMocked, folderUuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getFolderById', () => {
+    const folderId = 123;
+
+    it('When getting folder by id, then it should return the folder', async () => {
+      const mockFolder = newFolder({ attributes: { id: folderId } });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(mockFolder);
+
+      const result = await folderController.getFolderById(userMocked, folderId);
+
+      expect(result).toEqual({
+        ...mockFolder,
+        status: mockFolder.getFolderStatus(),
+      });
+      expect(folderUseCases.getFolderByUserId).toHaveBeenCalledWith(
+        folderId,
+        userMocked.id,
+      );
+    });
+
+    it('When folder is not found, then it should throw NotFoundException', async () => {
+      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+
+      await expect(
+        folderController.getFolderById(userMocked, folderId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateFolderMetadata', () => {
+    const folderUuid = v4();
+    const clientId = 'test-client';
+    const requester = newUser();
+    const updateDto = { plainName: 'Updated Name' };
+
+    it('When updating folder metadata with valid data, then it should return updated folder', async () => {
+      const updatedFolder = newFolder({
+        attributes: { uuid: folderUuid, plainName: updateDto.plainName },
+      });
+      jest
+        .spyOn(folderUseCases, 'updateFolderMetaData')
+        .mockResolvedValue(updatedFolder);
+      jest
+        .spyOn(storageNotificationService, 'folderUpdated')
+        .mockImplementation(() => {});
+
+      const result = await folderController.updateFolderMetadata(
+        folderUuid,
+        userMocked,
+        updateDto,
+        clientId,
+        requester,
+      );
+
+      expect(result).toEqual({
+        ...updatedFolder,
+        status: updatedFolder.getFolderStatus(),
+      });
+      expect(folderUseCases.updateFolderMetaData).toHaveBeenCalledWith(
+        userMocked,
+        folderUuid,
+        updateDto,
+      );
+      expect(storageNotificationService.folderUpdated).toHaveBeenCalledWith({
+        payload: updatedFolder,
+        user: requester,
+        clientId,
+      });
+    });
+
+    it('When updating folder metadata with invalid data, then it should throw an error', async () => {
+      jest
+        .spyOn(folderUseCases, 'updateFolderMetaData')
+        .mockRejectedValue(new BadRequestException('Invalid folder name'));
+
+      await expect(
+        folderController.updateFolderMetadata(
+          folderUuid,
+          userMocked,
+          updateDto,
+          clientId,
+          requester,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });
