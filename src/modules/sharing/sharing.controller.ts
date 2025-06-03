@@ -541,32 +541,13 @@ export class SharingController {
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ): Promise<GetFilesResponse | { error: string }> {
-    try {
-      return this.sharingService.getFilesFromPublicFolder(
-        sharedFolderId,
-        token,
-        code,
-        page,
-        perPage,
-      );
-    } catch (error) {
-      let errorMessage = error.message;
-
-      if (error instanceof ForbiddenException) {
-        throw error;
-      } else {
-        Logger.error(
-          `[SHARING/GETPUBLICSHAREDFILES] Error while getting shared files by folder ${sharedFolderId}, message: ${
-            error.message
-          }, ${error.stack ?? 'No stack trace'}`,
-        );
-
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
-    }
+    return this.sharingService.getFilesFromPublicFolder(
+      sharedFolderId,
+      token,
+      code,
+      page,
+      perPage,
+    );
   }
 
   @Get('/public/items/:sharedFolderId/folders')
@@ -605,31 +586,12 @@ export class SharingController {
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ) {
-    try {
-      return this.sharingService.getFoldersFromPublicFolder(
-        sharedFolderId,
-        token,
-        page,
-        perPage,
-      );
-    } catch (error) {
-      let errorMessage = error.message;
-
-      if (error instanceof ForbiddenException) {
-        throw error;
-      } else {
-        Logger.error(
-          `[SHARING/GETPUBLICSHAREDFOLDERS] Error while getting shared folders by folder ${sharedFolderId}, message: ${
-            error.message
-          }, ${error.stack ?? 'No stack trace'}`,
-        );
-
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
-      }
-
-      return { error: errorMessage };
-    }
+    return this.sharingService.getFoldersFromPublicFolder(
+      sharedFolderId,
+      token,
+      page,
+      perPage,
+    );
   }
 
   @Post('/')
