@@ -690,9 +690,8 @@ export class UserController {
     }
 
     if (
-      !decodedContent.payload ||
-      !decodedContent.payload.action ||
-      !decodedContent.payload.uuid ||
+      !decodedContent.payload?.action ||
+      !decodedContent.payload?.uuid ||
       decodedContent.payload.action !== 'recover-account' ||
       !validate(decodedContent.payload.uuid)
     ) {

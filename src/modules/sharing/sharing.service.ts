@@ -226,10 +226,10 @@ export class SharingService {
 
     if (sharing.itemType === 'file') {
       item = await this.fileUsecases.getByUuid(sharing.itemId);
-      if ((item as File).isDeleted()) {
+      if (item.isDeleted()) {
         throw new NotFoundException();
       }
-      const network = await new Environment({
+      const network = new Environment({
         bridgePass: owner.userId,
         bridgeUser: owner.bridgeUser,
         bridgeUrl: getEnv().apis.storage.url,
@@ -250,7 +250,7 @@ export class SharingService {
       response.encryptionKey = encryptionKey.toString('hex');
     } else {
       item = await this.folderUsecases.getByUuid(sharing.itemId);
-      if ((item as Folder).isRemoved()) {
+      if (item.isRemoved()) {
         throw new NotFoundException();
       }
     }
