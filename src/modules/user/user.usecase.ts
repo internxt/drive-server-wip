@@ -431,19 +431,15 @@ export class UserUseCases {
         ).catch(notifySignUpError);
       }
 
-      const newTokenPayload = this.getNewTokenPayload(user);
+      const { newToken, token } = await this.getAuthTokens(
+        user,
+        undefined,
+        '3d',
+      );
 
       return {
-        token: SignEmail(
-          newUser.email,
-          this.configService.get('secrets.jwt'),
-          '3d',
-        ),
-        newToken: Sign(
-          newTokenPayload,
-          this.configService.get('secrets.jwt'),
-          '3d',
-        ),
+        token,
+        newToken,
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
@@ -683,7 +679,6 @@ export class UserUseCases {
         sharedWorkspace: true,
         networkCredentials: {
           user: userData.bridgeUser,
-          pass: userData.userId,
         },
       },
       iat: getTokenDefaultIat(),
@@ -839,7 +834,6 @@ export class UserUseCases {
           sharedWorkspace: true,
           networkCredentials: {
             user: user.bridgeUser,
-            pass: user.userId,
           },
           workspaces: { owners },
         },
@@ -1343,21 +1337,13 @@ export class UserUseCases {
       user.username = emails.newEmail;
     }
 
-    const newTokenPayload = this.getNewTokenPayload(user);
+    const { newToken, token } = await this.getAuthTokens(user, undefined, '3d');
 
     return {
       ...emails,
       newAuthentication: {
-        token: SignEmail(
-          user.email,
-          this.configService.get('secrets.jwt'),
-          '3d',
-        ),
-        newToken: Sign(
-          newTokenPayload,
-          this.configService.get('secrets.jwt'),
-          '3d',
-        ),
+        token,
+        newToken,
         user,
       },
     };

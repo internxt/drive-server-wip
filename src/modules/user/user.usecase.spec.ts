@@ -905,7 +905,6 @@ describe('User use cases', () => {
             sharedWorkspace: true,
             networkCredentials: {
               user: user.bridgeUser,
-              pass: user.userId,
             },
             workspaces: {
               owners: [],
@@ -950,7 +949,6 @@ describe('User use cases', () => {
             sharedWorkspace: true,
             networkCredentials: {
               user: user.bridgeUser,
-              pass: user.userId,
             },
             workspaces: {
               owners: [workspace.ownerId],
@@ -994,7 +992,6 @@ describe('User use cases', () => {
             sharedWorkspace: true,
             networkCredentials: {
               user: user.bridgeUser,
-              pass: user.userId,
             },
             workspaces: {
               owners: [workspace.ownerId],
