@@ -437,12 +437,12 @@ export class UserUseCases {
         token: SignEmail(
           newUser.email,
           this.configService.get('secrets.jwt'),
-          true,
+          '3d',
         ),
         newToken: Sign(
           newTokenPayload,
           this.configService.get('secrets.jwt'),
-          true,
+          '3d',
         ),
         user: {
           ...user.toJSON(),
@@ -813,6 +813,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
+    tokenExpirationTime = '3d',
   ): Promise<{ token: string; newToken: string }> {
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
@@ -821,11 +822,10 @@ export class UserUseCases {
       ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
     ];
 
-    const expires = true;
     const token = SignEmail(
       user.email,
       this.configService.get('secrets.jwt'),
-      expires,
+      tokenExpirationTime,
       customIat,
     );
     const newToken = Sign(
@@ -846,7 +846,7 @@ export class UserUseCases {
         ...(customIat ? { iat: customIat } : null),
       },
       this.configService.get('secrets.jwt'),
-      expires,
+      tokenExpirationTime,
     );
 
     return { token, newToken };
@@ -1351,12 +1351,12 @@ export class UserUseCases {
         token: SignEmail(
           user.email,
           this.configService.get('secrets.jwt'),
-          true,
+          '3d',
         ),
         newToken: Sign(
           newTokenPayload,
           this.configService.get('secrets.jwt'),
-          true,
+          '3d',
         ),
         user,
       },
@@ -1454,7 +1454,11 @@ export class UserUseCases {
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
-    const { token, newToken } = await this.getAuthTokens(userData);
+    const { token, newToken } = await this.getAuthTokens(
+      userData,
+      undefined,
+      '3d',
+    );
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });

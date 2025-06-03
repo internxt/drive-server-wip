@@ -890,7 +890,7 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        true,
+        '3d',
         customIat,
       );
 
@@ -914,7 +914,7 @@ describe('User use cases', () => {
           iat: customIat,
         },
         jwtSecret,
-        true,
+        '3d',
       );
     });
 
@@ -935,7 +935,7 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        true,
+        '3d',
         undefined,
       );
 
@@ -958,7 +958,51 @@ describe('User use cases', () => {
           },
         },
         jwtSecret,
-        true,
+        '3d',
+      );
+    });
+
+    it('When called with custom token expiration, then it should create a token with expected duration', async () => {
+      const workspace = newWorkspace({ owner: user });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValueOnce([{ workspace, workspaceUser }]);
+
+      await userUseCases.getAuthTokens(user, undefined, '14d');
+
+      expect(SignEmail).toHaveBeenCalledWith(
+        user.email,
+        jwtSecret,
+        '14d',
+        undefined,
+      );
+
+      expect(Sign).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            email: user.email,
+            name: user.name,
+            lastname: user.lastname,
+            username: user.username,
+            sharedWorkspace: true,
+            networkCredentials: {
+              user: user.bridgeUser,
+              pass: user.userId,
+            },
+            workspaces: {
+              owners: [workspace.ownerId],
+            },
+          },
+        },
+        jwtSecret,
+        '14d',
       );
     });
   });

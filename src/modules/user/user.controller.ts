@@ -447,7 +447,7 @@ export class UserController {
   async refreshToken(
     @UserDecorator() user: User,
   ): Promise<RefreshTokenResponseDto> {
-    const tokens = await this.userUseCases.getAuthTokens(user);
+    const tokens = await this.userUseCases.getAuthTokens(user, undefined, '7d');
 
     const [avatar, rootFolder] = await Promise.all([
       user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,
