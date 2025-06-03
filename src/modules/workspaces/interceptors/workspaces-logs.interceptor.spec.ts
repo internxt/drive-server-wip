@@ -9,6 +9,7 @@ import {
 import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { isObservable, lastValueFrom, of } from 'rxjs';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
+import { ClientEnum } from '../../../common/enums/platform.enum';
 
 describe('WorkspacesLogsInterceptor', () => {
   let interceptor: WorkspacesLogsInterceptor;
@@ -23,17 +24,17 @@ describe('WorkspacesLogsInterceptor', () => {
 
   describe('determinePlatform()', () => {
     it('When client is drive-web, then it should return WEB platform', () => {
-      const platform = interceptor.determinePlatform('drive-web');
+      const platform = interceptor.determinePlatform(ClientEnum.Web);
       expect(platform).toBe(WorkspaceLogPlatform.Web);
     });
 
     it('When client is drive-mobile, then it should return MOBILE platform', () => {
-      const platform = interceptor.determinePlatform('drive-mobile');
+      const platform = interceptor.determinePlatform(ClientEnum.Mobile);
       expect(platform).toBe(WorkspaceLogPlatform.Mobile);
     });
 
     it('When client is drive-desktop, then it should return DESKTOP platform', () => {
-      const platform = interceptor.determinePlatform('drive-desktop');
+      const platform = interceptor.determinePlatform(ClientEnum.Desktop);
       expect(platform).toBe(WorkspaceLogPlatform.Desktop);
     });
   });
@@ -43,7 +44,7 @@ describe('WorkspacesLogsInterceptor', () => {
     const context: ExecutionContext = {
       switchToHttp: () => ({
         getRequest: () => ({
-          headers: { 'internxt-client': 'drive-web' },
+          headers: { 'internxt-client': ClientEnum.Web },
         }),
       }),
       getHandler: () => mockHandler,

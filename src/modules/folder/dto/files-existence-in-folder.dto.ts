@@ -5,7 +5,6 @@ import {
   IsOptional,
   IsNotEmpty,
   ValidateNested,
-  arrayMinSize,
   ArrayMinSize,
 } from 'class-validator';
 import { FileAttributes } from '../../file/file.domain';

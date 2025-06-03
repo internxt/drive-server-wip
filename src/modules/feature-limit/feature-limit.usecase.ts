@@ -73,7 +73,7 @@ export class FeatureLimitUsecases {
     limit: Limit,
     data: LimitTypeMapping[T],
   ) {
-    const checkFunction = this.limitCheckFunctions[limit.label as LimitLabels];
+    const checkFunction = this.limitCheckFunctions[limit.label];
 
     if (!checkFunction) {
       new Logger().error(

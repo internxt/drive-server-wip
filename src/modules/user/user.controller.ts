@@ -85,6 +85,7 @@ import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 @ApiTags('User')
 @Controller('users')
@@ -119,8 +120,7 @@ export class UserController {
     @Req() req: Request,
     @Client() clientId: string,
   ) {
-    // TODO: Remove magic string and use clientId Enum
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
@@ -490,7 +490,7 @@ export class UserController {
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     if (!isDriveWeb) {
       throw new BadRequestException(
