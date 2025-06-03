@@ -848,7 +848,7 @@ export class UserUseCases {
         ...(customIat ? { iat: customIat } : null),
       },
       this.configService.get('secrets.jwt'),
-      tokenExpirationTime
+      tokenExpirationTime,
     );
 
     return { token, newToken };
@@ -1456,7 +1456,11 @@ export class UserUseCases {
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
-    const { token, newToken } = await this.getAuthTokens(userData);
+    const { token, newToken } = await this.getAuthTokens(
+      userData,
+      undefined,
+      '3d',
+    );
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
