@@ -11,21 +11,26 @@ export class FuzzySearchUseCases {
     private readonly repository: LookUpRepository,
   ) {}
 
-  fuzzySearch(user: string, text: string): Promise<Array<FuzzySearchResult>> {
-    return this.repository.search(user, text, 0);
+  fuzzySearch(
+    user: string,
+    text: string,
+    offset = 0,
+  ): Promise<Array<FuzzySearchResult>> {
+    return this.repository.search(user, text, offset);
   }
 
   workspaceFuzzySearch(
     userUuid: string,
     workspace: Workspace,
     text: string,
+    offset = 0,
   ): Promise<Array<FuzzySearchResult>> {
     return this.repository.workspaceSearch(
       userUuid,
       workspace.workspaceUserId,
       workspace.id,
       text,
-      0,
+      offset,
     );
   }
 }
