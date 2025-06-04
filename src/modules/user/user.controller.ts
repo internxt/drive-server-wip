@@ -86,6 +86,7 @@ import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
 import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 @ApiTags('User')
 @Controller('users')
@@ -120,8 +121,7 @@ export class UserController {
     @Req() req: Request,
     @Client() clientId: string,
   ) {
-    // TODO: Remove magic string and use clientId Enum
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
       const response = await this.userUseCases.createUser(createUserDto);
@@ -448,7 +448,7 @@ export class UserController {
   async refreshToken(
     @UserDecorator() user: User,
   ): Promise<RefreshTokenResponseDto> {
-    const tokens = await this.userUseCases.getAuthTokens(user);
+    const tokens = await this.userUseCases.getAuthTokens(user, undefined, '7d');
 
     const [avatar, rootFolder] = await Promise.all([
       user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,
@@ -491,7 +491,7 @@ export class UserController {
     @UserDecorator() user: User,
     @Client() clientId: string,
   ) {
-    const isDriveWeb = clientId === 'drive-web';
+    const isDriveWeb = clientId === ClientEnum.Web;
 
     if (!isDriveWeb) {
       throw new BadRequestException(
@@ -691,9 +691,8 @@ export class UserController {
     }
 
     if (
-      !decodedContent.payload ||
-      !decodedContent.payload.action ||
-      !decodedContent.payload.uuid ||
+      !decodedContent.payload?.action ||
+      !decodedContent.payload?.uuid ||
       decodedContent.payload.action !== 'recover-account' ||
       !validate(decodedContent.payload.uuid)
     ) {
@@ -1010,7 +1009,7 @@ export class UserController {
   })
   @UseInterceptors(FileInterceptor('avatar', avatarStorageS3Config))
   async uploadAvatar(
-    @UploadedFile() avatar: Express.Multer.File | any,
+    @UploadedFile() avatar: Express.MulterS3.File,
     @UserDecorator() user: User,
   ) {
     if (!avatar) {

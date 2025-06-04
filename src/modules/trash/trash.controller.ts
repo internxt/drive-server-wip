@@ -9,9 +9,7 @@ import {
   Param,
   Query,
   NotFoundException,
-  Res,
   Logger,
-  HttpStatus,
   UseFilters,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -41,10 +39,8 @@ import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
-import {
-  WorkspaceResourcesAction,
-  WorkspacesInBehalfGuard,
-} from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
+import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
+import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
@@ -247,9 +243,9 @@ export class TrashController {
 
   @UseFilters(new HttpExceptionFilter())
   @Delete('/all/request')
-  requestEmptyTrash(user: User) {
+  async requestEmptyTrash(@UserDecorator() user: User) {
     try {
-      this.trashUseCases.emptyTrash(user);
+      await this.trashUseCases.emptyTrash(user);
     } catch (error) {
       new Logger().error(
         `[TRASH/REQUEST_EMPTY_TRASH] ERROR: ${

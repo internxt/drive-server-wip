@@ -90,7 +90,9 @@ jest.mock('../../middlewares/passport', () => {
   return {
     __esModule: true,
     ...originalModule,
-    SignWithCustomDuration: jest.fn((payload, secret, expiresIn) => 'anyToken'),
+    SignWithCustomDuration: jest.fn(
+      (_payload, _secret, _expiresIn) => 'anyToken',
+    ),
     Sign: jest.fn(() => 'newToken'),
     SignEmail: jest.fn(() => 'token'),
   };
@@ -231,9 +233,9 @@ describe('User use cases', () => {
         deleteWorkspaces: false,
       });
 
-      expect(deleteSharesSpy).not.toBeCalled();
-      expect(deleteFoldersSpy).not.toBeCalled();
-      expect(deleteFilesSpy).not.toBeCalled();
+      expect(deleteSharesSpy).not.toHaveBeenCalled();
+      expect(deleteFoldersSpy).not.toHaveBeenCalled();
+      expect(deleteFilesSpy).not.toHaveBeenCalled();
     });
 
     describe('When options are provided', () => {
@@ -249,9 +251,9 @@ describe('User use cases', () => {
           deleteWorkspaces: false,
         });
 
-        expect(deleteSharesSpy).toBeCalledWith(user);
-        expect(deleteFoldersSpy).not.toBeCalled();
-        expect(deleteFilesSpy).not.toBeCalled();
+        expect(deleteSharesSpy).toHaveBeenCalledWith(user);
+        expect(deleteFoldersSpy).not.toHaveBeenCalled();
+        expect(deleteFilesSpy).not.toHaveBeenCalled();
       });
 
       it('When delete workspaces is true, then user owned workspaces are reset and user is removed from invited workspaces', async () => {
@@ -287,7 +289,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFoldersSpy).toBeCalledWith(
+          expect(getFoldersSpy).toHaveBeenCalledWith(
             user.id,
             { parentId: user.rootFolderId, removed: false },
             {
@@ -295,9 +297,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).toBeCalledWith(user, folders);
-          expect(deleteFilesSpy).not.toBeCalled();
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).toHaveBeenCalledWith(user, folders);
+          expect(deleteFilesSpy).not.toHaveBeenCalled();
         });
 
         it('When delete files is true, then the files are deleted', async () => {
@@ -315,7 +317,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFilesSpy).toBeCalledWith(
+          expect(getFilesSpy).toHaveBeenCalledWith(
             user.id,
             { folderId: user.rootFolderId },
             {
@@ -323,9 +325,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).not.toBeCalled();
-          expect(deleteFilesSpy).toBeCalledWith(user, files);
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).not.toHaveBeenCalled();
+          expect(deleteFilesSpy).toHaveBeenCalledWith(user, files);
         });
       });
 
@@ -345,7 +347,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFoldersSpy).toBeCalledWith(
+          expect(getFoldersSpy).toHaveBeenCalledWith(
             user.id,
             { parentId: user.rootFolderId, removed: false },
             {
@@ -353,9 +355,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).toBeCalledWith(user, folders);
-          expect(deleteFilesSpy).not.toBeCalled();
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).toHaveBeenCalledWith(user, folders);
+          expect(deleteFilesSpy).not.toHaveBeenCalled();
         });
 
         it('When delete files is true, then the files are deleted', async () => {
@@ -373,7 +375,7 @@ describe('User use cases', () => {
             deleteWorkspaces: false,
           });
 
-          expect(getFilesSpy).toBeCalledWith(
+          expect(getFilesSpy).toHaveBeenCalledWith(
             user.id,
             { folderId: user.rootFolderId },
             {
@@ -381,9 +383,9 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toBeCalled();
-          expect(deleteFoldersSpy).not.toBeCalled();
-          expect(deleteFilesSpy).toBeCalledWith(user, files);
+          expect(deleteSharesSpy).not.toHaveBeenCalled();
+          expect(deleteFoldersSpy).not.toHaveBeenCalled();
+          expect(deleteFilesSpy).toHaveBeenCalledWith(user, files);
         });
       });
     });
@@ -650,17 +652,23 @@ describe('User use cases', () => {
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(undefined);
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
 
-      try {
-        await userUseCases.changeUserEmailById(
-          user.uuid,
-          'newuseremail@inxt.com',
-        );
-      } catch (e) {
-        expect(bridgeService.updateUserEmail).toHaveBeenCalledWith(
-          user.uuid,
-          user.email,
-        );
-      }
+      jest
+        .spyOn(bridgeService, 'updateUserEmail')
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      jest
+        .spyOn(userRepository, 'updateByUuid')
+        .mockRejectedValue(new Error('Database error'));
+
+      await expect(
+        userUseCases.changeUserEmailById(user.uuid, 'newuseremail@inxt.com'),
+      ).rejects.toThrow('Database error');
+
+      expect(bridgeService.updateUserEmail).toHaveBeenCalledWith(
+        user.uuid,
+        user.email,
+      );
     });
 
     it('When the user is not found, Then it should throw UserNotFoundException', async () => {
@@ -789,7 +797,7 @@ describe('User use cases', () => {
 
       await expect(
         userUseCases.acceptAttemptChangeEmail('encryptedId'),
-      ).rejects.toThrowError('Change email failed');
+      ).rejects.toThrow('Change email failed');
     });
   });
 
@@ -888,7 +896,7 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        true,
+        '3d',
         customIat,
       );
 
@@ -903,7 +911,6 @@ describe('User use cases', () => {
             sharedWorkspace: true,
             networkCredentials: {
               user: user.bridgeUser,
-              pass: user.userId,
             },
             workspaces: {
               owners: [],
@@ -912,7 +919,7 @@ describe('User use cases', () => {
           iat: customIat,
         },
         jwtSecret,
-        true,
+        '3d',
       );
     });
 
@@ -933,7 +940,7 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        true,
+        '3d',
         undefined,
       );
 
@@ -948,7 +955,6 @@ describe('User use cases', () => {
             sharedWorkspace: true,
             networkCredentials: {
               user: user.bridgeUser,
-              pass: user.userId,
             },
             workspaces: {
               owners: [workspace.ownerId],
@@ -956,7 +962,50 @@ describe('User use cases', () => {
           },
         },
         jwtSecret,
-        true,
+        '3d',
+      );
+    });
+
+    it('When called with custom token expiration, then it should create a token with expected duration', async () => {
+      const workspace = newWorkspace({ owner: user });
+      const workspaceUser = newWorkspaceUser({
+        workspaceId: workspace.id,
+        memberId: user.uuid,
+      });
+
+      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret as never);
+      jest
+        .spyOn(workspaceRepository, 'findUserAvailableWorkspaces')
+        .mockResolvedValueOnce([{ workspace, workspaceUser }]);
+
+      await userUseCases.getAuthTokens(user, undefined, '14d');
+
+      expect(SignEmail).toHaveBeenCalledWith(
+        user.email,
+        jwtSecret,
+        '14d',
+        undefined,
+      );
+
+      expect(Sign).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            email: user.email,
+            name: user.name,
+            lastname: user.lastname,
+            username: user.username,
+            sharedWorkspace: true,
+            networkCredentials: {
+              user: user.bridgeUser,
+            },
+            workspaces: {
+              owners: [workspace.ownerId],
+            },
+          },
+        },
+        jwtSecret,
+        '14d',
       );
     });
   });

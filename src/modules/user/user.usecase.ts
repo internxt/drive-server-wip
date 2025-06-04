@@ -55,7 +55,6 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
-  generateNewKeys,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { PreCreatedUserAttributes } from './pre-created-users.attributes';
@@ -84,7 +83,6 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
@@ -286,15 +284,15 @@ export class UserUseCases {
         await this.networkService.addStorage(uuid, credit);
       } else {
         console.warn(
-          '(usersReferralsService.redeemUserReferral) GATEWAY_USER\
-           || GATEWAY_PASS not found. Skipping storage increasing',
+          '(usersReferralsService.redeemUserReferral) GATEWAY_USER' +
+            ' || GATEWAY_PASS not found. Skipping storage increasing',
         );
       }
     }
 
     console.info(
-      `(usersReferralsService.redeemUserReferral)\
-       The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
+      `(usersReferralsService.redeemUserReferral) ` +
+        `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
 
@@ -433,19 +431,15 @@ export class UserUseCases {
         ).catch(notifySignUpError);
       }
 
-      const newTokenPayload = this.getNewTokenPayload(user);
+      const { newToken, token } = await this.getAuthTokens(
+        user,
+        undefined,
+        '3d',
+      );
 
       return {
-        token: SignEmail(
-          newUser.email,
-          this.configService.get('secrets.jwt'),
-          true,
-        ),
-        newToken: Sign(
-          newTokenPayload,
-          this.configService.get('secrets.jwt'),
-          true,
-        ),
+        token,
+        newToken,
         user: {
           ...user.toJSON(),
           hKey: user.hKey.toString(),
@@ -463,7 +457,7 @@ export class UserUseCases {
     } catch (err) {
       const error = {
         message: err.message,
-        stack: err.stack || 'NO STACK',
+        stack: err.stack ?? 'NO STACK',
         body: newUser,
       };
 
@@ -685,7 +679,6 @@ export class UserUseCases {
         sharedWorkspace: true,
         networkCredentials: {
           user: userData.bridgeUser,
-          pass: userData.userId,
         },
       },
       iat: getTokenDefaultIat(),
@@ -815,6 +808,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
+    tokenExpirationTime = '3d',
   ): Promise<{ token: string; newToken: string }> {
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
@@ -823,11 +817,10 @@ export class UserUseCases {
       ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
     ];
 
-    const expires = true;
     const token = SignEmail(
       user.email,
       this.configService.get('secrets.jwt'),
-      expires,
+      tokenExpirationTime,
       customIat,
     );
     const newToken = Sign(
@@ -841,14 +834,13 @@ export class UserUseCases {
           sharedWorkspace: true,
           networkCredentials: {
             user: user.bridgeUser,
-            pass: user.userId,
           },
           workspaces: { owners },
         },
         ...(customIat ? { iat: customIat } : null),
       },
       this.configService.get('secrets.jwt'),
-      expires,
+      tokenExpirationTime,
     );
 
     return { token, newToken };
@@ -1404,21 +1396,13 @@ export class UserUseCases {
       user.username = emails.newEmail;
     }
 
-    const newTokenPayload = this.getNewTokenPayload(user);
+    const { newToken, token } = await this.getAuthTokens(user, undefined, '3d');
 
     return {
       ...emails,
       newAuthentication: {
-        token: SignEmail(
-          user.email,
-          this.configService.get('secrets.jwt'),
-          true,
-        ),
-        newToken: Sign(
-          newTokenPayload,
-          this.configService.get('secrets.jwt'),
-          true,
-        ),
+        token,
+        newToken,
         user,
       },
     };
@@ -1515,7 +1499,11 @@ export class UserUseCases {
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
-    const { token, newToken } = await this.getAuthTokens(userData);
+    const { token, newToken } = await this.getAuthTokens(
+      userData,
+      undefined,
+      '3d',
+    );
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });

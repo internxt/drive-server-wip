@@ -11,6 +11,7 @@ import geoip from 'geoip-lite';
 import DeviceDetector from 'node-device-detector';
 import { Request } from 'express';
 import { DeactivationRequestEvent } from '../events/deactivation-request.event';
+import { ClientEnum } from '../../../common/enums/platform.enum';
 
 const deviceDetector = new DeviceDetector();
 
@@ -239,7 +240,7 @@ export class AnalyticsListener {
 
     const inxtClient = req.headers['internxt-client'];
 
-    if (inxtClient === 'drive-web') {
+    if (inxtClient === ClientEnum.Web) {
       return;
     }
     const userId = user.uuid;

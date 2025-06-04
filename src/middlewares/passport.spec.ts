@@ -20,14 +20,14 @@ describe('JWT Utility Functions', () => {
 
     it('When called with custom iat, then it sets the iat', () => {
       const customIat = Math.floor(Date.now() / 1000 + 60);
-      const token = SignEmail('test@example.com', secret, false, customIat);
+      const token = SignEmail('test@example.com', secret, '3d', customIat);
       const decoded = jwt.verify(token, secret);
 
       expect(decoded).toHaveProperty('iat', customIat);
     });
 
     it('When token should expire, then it sets an expiration date', () => {
-      const token = SignEmail('test@example.com', secret, true);
+      const token = SignEmail('test@example.com', secret, '3d');
       const decoded = jwt.decode(token, { complete: true }) as any;
 
       expect(decoded.payload).toHaveProperty('exp');
@@ -43,7 +43,7 @@ describe('JWT Utility Functions', () => {
     });
 
     it('When token should expire, then it sets an expiration date', () => {
-      const token = Sign(payload, secret, true);
+      const token = Sign(payload, secret, '3d');
       const decoded = jwt.decode(token, { complete: true }) as any;
 
       expect(decoded.payload).toHaveProperty('exp');

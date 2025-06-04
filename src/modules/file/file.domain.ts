@@ -3,8 +3,8 @@ import { Share } from '../share/share.domain';
 import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
-import { FileDto } from './dto/file.dto';
 import { isStringEmpty } from '../../lib/validators';
+import type { FileDto } from './dto/file.dto';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,

@@ -1,4 +1,4 @@
-import { Sharing } from '../../sharing/sharing.domain';
+import type { Sharing } from '../../sharing/sharing.domain';
 
 export class FolderDto {
   id: number;
