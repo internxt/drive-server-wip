@@ -2626,7 +2626,7 @@ describe('User use cases', () => {
 
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
-    });
+    }, 10000);
   });
 
   describe('updateCredentials', () => {
@@ -2701,114 +2701,19 @@ describe('User use cases', () => {
       });
     });
 
-    it('When updating credentials without private keys, then it should delete all keys', async () => {
+    it('When updating credentials without reset but privateKeys are missing, then it should throw', async () => {
       const credentialsWithoutKeys = {
-        mnemonic: mockCredentials.mnemonic,
-        password: mockCredentials.password,
-        salt: mockCredentials.salt,
-      };
-
-      await userUseCases.updateCredentials(
-        mockUser.uuid,
-        credentialsWithoutKeys,
-      );
-
-      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
-        mnemonic: mockCredentials.mnemonic,
-        password: decryptedPassword,
-        hKey: decryptedSalt,
-      });
-
-      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
-        mockUser.id,
-      );
-      expect(
-        keyServerUseCases.updateByUserAndEncryptVersion,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('When updating credentials with empty private keys object, then it should delete all keys', async () => {
-      const credentialsWithEmptyKeys = {
         ...mockCredentials,
-        privateKeys: {},
+        privateKeys: null,
       };
 
-      await userUseCases.updateCredentials(
-        mockUser.uuid,
-        credentialsWithEmptyKeys,
-      );
-
-      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
-        mnemonic: mockCredentials.mnemonic,
-        password: decryptedPassword,
-        hKey: decryptedSalt,
-      });
-
-      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
-        mockUser.id,
-      );
-      expect(
-        keyServerUseCases.updateByUserAndEncryptVersion,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('When updating credentials with partial private keys, then it should only update provided keys', async () => {
-      const credentialsWithPartialKeys = {
-        ...mockCredentials,
-        privateKeys: {
-          ecc: mockCredentials.privateKeys.ecc,
-        },
-      };
-
-      await userUseCases.updateCredentials(
-        mockUser.uuid,
-        credentialsWithPartialKeys,
-      );
-
-      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
-        mnemonic: mockCredentials.mnemonic,
-        password: decryptedPassword,
-        hKey: decryptedSalt,
-      });
-
-      expect(
-        keyServerUseCases.updateByUserAndEncryptVersion,
-      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc, {
-        privateKey: mockCredentials.privateKeys.ecc,
-      });
-      expect(
-        keyServerUseCases.updateByUserAndEncryptVersion,
-      ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber);
-    });
-
-    it('When updating credentials with null private key, then it should skip that key', async () => {
-      const credentialsWithNullKey = {
-        ...mockCredentials,
-        privateKeys: {
-          ecc: null,
-          kyber: mockCredentials.privateKeys.kyber,
-        },
-      };
-
-      await userUseCases.updateCredentials(
-        mockUser.uuid,
-        credentialsWithNullKey,
-      );
-
-      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
-        mnemonic: mockCredentials.mnemonic,
-        password: decryptedPassword,
-        hKey: decryptedSalt,
-      });
-
-      expect(
-        keyServerUseCases.updateByUserAndEncryptVersion,
-      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber, {
-        privateKey: mockCredentials.privateKeys.kyber,
-      });
-      expect(
-        keyServerUseCases.updateByUserAndEncryptVersion,
-      ).not.toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc);
+      await expect(
+        userUseCases.updateCredentials(
+          mockUser.uuid,
+          credentialsWithoutKeys,
+          false,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -956,7 +956,7 @@ export class UserUseCases {
   }
 
   /**
-   * @deprecated
+   * @deprecated in favor of updateCredentials as privateKeys are required
    */
   async updateCredentialsOld(
     userUuid: User['uuid'],
@@ -996,13 +996,33 @@ export class UserUseCases {
       password: string;
       salt: string;
       privateKeys?: {
-        ecc?: string;
-        kyber?: string;
+        ecc: string;
+        kyber: string;
       };
     },
     withReset = false,
   ): Promise<void> {
-    const { mnemonic, password, salt } = newCredentials;
+    const { mnemonic, password, salt, privateKeys } = newCredentials;
+
+    const shouldUpdateKeys = privateKeys && Object.keys(privateKeys).length > 0;
+
+    if (!withReset && !shouldUpdateKeys) {
+      throw new BadRequestException(
+        'Keys are required if the account is not being reset',
+      );
+    }
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (shouldUpdateKeys) {
+      for (const [version, privateKey] of Object.entries(privateKeys)) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey },
+        );
+      }
+    }
 
     await this.userRepository.updateByUuid(userUuid, {
       mnemonic,
@@ -1010,37 +1030,11 @@ export class UserUseCases {
       hKey: this.cryptoService.decryptText(salt),
     });
 
-    const user = await this.userRepository.findByUuid(userUuid);
-
     if (withReset) {
+      await this.keyServerRepository.deleteByUserId(user.id);
       await this.resetUser(user, {
         deleteFiles: true,
         deleteFolders: true,
-        deleteShares: true,
-        deleteWorkspaces: true,
-      });
-    }
-
-    if (
-      newCredentials.privateKeys &&
-      Object.keys(newCredentials.privateKeys).length > 0
-    ) {
-      for (const [version, privateKey] of Object.entries(
-        newCredentials.privateKeys,
-      )) {
-        if (privateKey) {
-          await this.keyServerUseCases.updateByUserAndEncryptVersion(
-            user.id,
-            version as UserKeysEncryptVersions,
-            { privateKey },
-          );
-        }
-      }
-    } else {
-      await this.keyServerRepository.deleteByUserId(user.id);
-      await this.resetUser(user, {
-        deleteFiles: false,
-        deleteFolders: false,
         deleteShares: true,
         deleteWorkspaces: true,
       });

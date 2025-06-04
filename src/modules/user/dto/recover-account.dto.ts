@@ -11,8 +11,7 @@ class PrivateKeysDto {
   ecc: string;
 
   @ApiProperty()
-  @IsOptional()
-  kyber?: string;
+  kyber: string;
 }
 export class RecoverAccountDto {
   @ApiProperty({
