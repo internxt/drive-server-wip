@@ -2927,6 +2927,7 @@ export class WorkspacesUsecases {
     user: User,
     workspaceId: Workspace['id'],
     search: string,
+    offset: number,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -2938,6 +2939,7 @@ export class WorkspacesUsecases {
       user.uuid,
       workspace,
       search,
+      offset,
     );
 
     return searchResults;

@@ -14,6 +14,8 @@ import {
   InternalServerErrorException,
   ForbiddenException,
   NotFoundException,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -1219,11 +1221,13 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Param('search') search: string,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ) {
     return this.workspaceUseCases.searchWorkspaceContent(
       user,
       workspaceId,
       search,
+      offset,
     );
   }
 
