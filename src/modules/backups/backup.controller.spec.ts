@@ -225,4 +225,29 @@ describe('BackupController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('deleteDeviceAsFolder', () => {
+    it('When deleteDeviceAsFolder is called with a valid uuid, then it should call the usecase method', async () => {
+      jest
+        .spyOn(backupUseCase, 'deleteDeviceAsFolder')
+        .mockResolvedValue(undefined);
+
+      await backupController.deleteDeviceAsFolder(userMocked, 'folder-uuid');
+
+      expect(backupUseCase.deleteDeviceAsFolder).toHaveBeenCalledWith(
+        userMocked,
+        'folder-uuid',
+      );
+    });
+
+    it('When folder is not found, then it should throw a NotFoundException', async () => {
+      jest
+        .spyOn(backupUseCase, 'deleteDeviceAsFolder')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        backupController.deleteDeviceAsFolder(userMocked, 'folder-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

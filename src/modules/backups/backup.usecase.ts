@@ -111,6 +111,21 @@ export class BackupUseCase {
     return this.addDeviceProperties(user, createdFolder);
   }
 
+  async deleteDeviceAsFolder(user: User, uuid: FolderAttributes['uuid']) {
+    const folder = await this.folderUsecases.getFolderByUuid(uuid, user);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const { backupsBucket } = user;
+
+    if (folder.bucket !== backupsBucket) {
+      throw new BadRequestException('Folder is not in the backups bucket');
+    }
+
+    await this.folderUsecases.deleteByUser(user, [folder]);
+  }
+
   async getDevicesAsFolder(user: User) {
     const { backupsBucket } = user;
     if (!backupsBucket) {

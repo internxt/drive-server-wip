@@ -359,6 +359,50 @@ describe('BackupUseCase', () => {
       expect(result).toEqual(mockBackups);
     });
   });
+
+  describe('deleteDeviceAsFolder', () => {
+    it('When folder is not found, then it should throw a NotFoundException', async () => {
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.deleteDeviceAsFolder(userMocked, 'folder-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder is found, then it should call deleteByUser', async () => {
+      const mockFolder = newFolder({
+        attributes: {
+          bucket: userMocked.backupsBucket,
+        },
+      });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+
+      await backupUseCase.deleteDeviceAsFolder(userMocked, 'folder-uuid');
+
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
+        mockFolder,
+      ]);
+    });
+
+    it('When folder is not in the backups bucket, then it should throw a BadRequestException', async () => {
+      const mockFolder = newFolder({
+        attributes: {
+          bucket: 'other-bucket',
+        },
+      });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+
+      await expect(
+        backupUseCase.deleteDeviceAsFolder(userMocked, 'folder-uuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });
 
 const newBackupFolder = (folder: Folder) => {
