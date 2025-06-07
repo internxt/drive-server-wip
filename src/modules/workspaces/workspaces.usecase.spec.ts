@@ -4380,6 +4380,66 @@ describe('WorkspacesUsecases', () => {
 
           expect(newMember).toEqual(teamUser);
         });
+
+        it('When user is already part of team, then it should throw a BadRequestException', async () => {
+          const user = newUser();
+          const workspace = newWorkspace();
+          const team = newWorkspaceTeam({
+            workspaceId: workspace.id,
+          });
+          const workspaceUser = newWorkspaceUser({
+            memberId: user.uuid,
+            workspaceId: workspace.id,
+          });
+          const teamUser = newWorkspaceTeamUser({
+            teamId: team.id,
+            memberId: user.uuid,
+          });
+
+          jest
+            .spyOn(service, 'getAndValidateNonDefaultTeamWorkspace')
+            .mockResolvedValueOnce({ team, workspace });
+          jest
+            .spyOn(workspaceRepository, 'findWorkspaceUser')
+            .mockResolvedValue(workspaceUser);
+          jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(teamUser);
+
+          await expect(
+            service.addMemberToTeam(team.id, user.uuid),
+          ).rejects.toThrow(BadRequestException);
+        });
+
+        it('When repository throws a ConflictException, it should be propagated', async () => {
+          const user = newUser();
+          const workspace = newWorkspace();
+          const team = newWorkspaceTeam({
+            workspaceId: workspace.id,
+          });
+          const workspaceUser = newWorkspaceUser({
+            memberId: user.uuid,
+            workspaceId: workspace.id,
+          });
+
+          jest
+            .spyOn(service, 'getAndValidateNonDefaultTeamWorkspace')
+            .mockResolvedValueOnce({ team, workspace });
+          jest
+            .spyOn(workspaceRepository, 'findWorkspaceUser')
+            .mockResolvedValue(workspaceUser);
+          jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(null);
+          jest
+            .spyOn(teamRepository, 'getTeamMembersCount')
+            .mockResolvedValue(10);
+          jest
+            .spyOn(teamRepository, 'addUserToTeam')
+            .mockRejectedValue(
+              new ConflictException('User is already part of this team'),
+            );
+
+          await expect(
+            service.addMemberToTeam(team.id, user.uuid),
+          ).rejects.toThrow(ConflictException);
+        });
       });
 
       describe('removeMemberFromTeam', () => {
