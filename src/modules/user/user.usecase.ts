@@ -1732,6 +1732,13 @@ export class UserUseCases {
 
       // DELETING FOREIGN KEYS (not cascade)
       await Promise.all([
+        await this.sharingRepository.deleteInvitesBy({
+          sharedWith: user.uuid,
+        }),
+        await this.sharingRepository.deleteSharingsBy({ ownerId: user.uuid }),
+        await this.sharingRepository.deleteSharingsBy({
+          sharedWith: user.uuid,
+        }),
         await this.userRepository.deleteUserNotificationTokens(user.uuid),
         await this.keyServerRepository.deleteByUserId(user.id),
         await this.appSumoUseCases.deleteByUserId(user.id),
