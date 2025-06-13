@@ -23,6 +23,13 @@ import {
 } from '../attributes/workspace-logs.attributes';
 import { v4 } from 'uuid';
 import { WorkspaceLog } from '../domains/workspace-log.domain';
+import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
+import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
+import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { FileModel } from '../../file/file.model';
+import { FolderModel } from '../../folder/folder.model';
+import { FileStatus } from '../../file/file.domain';
+import { UserModel } from '../../user/user.model';
 
 describe('SequelizeWorkspaceRepository', () => {
   let repository: SequelizeWorkspaceRepository;
@@ -30,6 +37,7 @@ describe('SequelizeWorkspaceRepository', () => {
   let workspaceUserModel: typeof WorkspaceUserModel;
   let workspaceInviteModel: typeof WorkspaceInviteModel;
   let workspaceLogModel: typeof WorkspaceLogModel;
+  let workspaceItemUserModel: typeof WorkspaceItemUserModel;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -52,6 +60,9 @@ describe('SequelizeWorkspaceRepository', () => {
     );
     workspaceLogModel = module.get<typeof WorkspaceLogModel>(
       getModelToken(WorkspaceLogModel),
+    );
+    workspaceItemUserModel = module.get<typeof WorkspaceItemUserModel>(
+      getModelToken(WorkspaceItemUserModel),
     );
   });
 
@@ -667,41 +678,523 @@ describe('SequelizeWorkspaceRepository', () => {
   });
 
   describe('findWorkspaceUsersByUserUuid', () => {
-    it('When workspaceUsers are found for respective user, then it should return instances of workspaceUser', async () => {
-      const mockUser = newUser();
-      const mockWorkspaceUser = newWorkspaceUser({ memberId: mockUser.uuid });
-      const mockWorkspaceUserModelResponse = {
-        ...mockWorkspaceUser,
-        toJSON: jest.fn().mockReturnValue({
-          ...mockWorkspaceUser,
-        }),
-      };
+    it('When workspace users are found by user UUID, then return them correctly', async () => {
+      const userUuid = v4();
+      const mockWorkspaceUsers = [newWorkspaceUser(), newWorkspaceUser()];
 
       jest
         .spyOn(workspaceUserModel, 'findAll')
-        .mockResolvedValueOnce([mockWorkspaceUserModelResponse] as any);
+        .mockResolvedValueOnce(mockWorkspaceUsers as any);
 
-      const result = await repository.findWorkspaceUsersByUserUuid(
-        mockUser.uuid,
-      );
+      const result = await repository.findWorkspaceUsersByUserUuid(userUuid);
 
-      expect(result).toBeInstanceOf(Array);
+      expect(workspaceUserModel.findAll).toHaveBeenCalledWith({
+        where: { memberId: userUuid },
+      });
+      expect(result).toHaveLength(2);
       expect(result[0]).toBeInstanceOf(WorkspaceUser);
-      expect(result[0].id).toBe(mockWorkspaceUser.id);
-      expect(result[0].memberId).toBe(mockWorkspaceUser.memberId);
+    });
+  });
+
+  describe('findByOwner', () => {
+    it('When workspaces are searched by owner ID, then return all owned workspaces', async () => {
+      const ownerId = v4();
+      const mockWorkspaces = [newWorkspace(), newWorkspace()];
+
+      jest
+        .spyOn(workspaceModel, 'findAll')
+        .mockResolvedValueOnce(mockWorkspaces as any);
+
+      const result = await repository.findByOwner(ownerId);
+
+      expect(workspaceModel.findAll).toHaveBeenCalledWith({
+        where: { ownerId },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Workspace);
+    });
+  });
+
+  describe('findWorkspaceUsersOfOwnedWorkspaces', () => {
+    it('When searching for workspace users of owned workspaces, then return workspace and user pairs', async () => {
+      const ownerId = v4();
+      const mockWorkspaceUser = newWorkspaceUser();
+      const mockWorkspace = newWorkspace();
+      const mockData = [
+        {
+          ...mockWorkspaceUser,
+          workspace: mockWorkspace,
+          toJSON: jest.fn().mockReturnValue(mockWorkspaceUser),
+        },
+      ];
+
+      jest
+        .spyOn(workspaceUserModel, 'findAll')
+        .mockResolvedValueOnce(mockData as any);
+
+      const result =
+        await repository.findWorkspaceUsersOfOwnedWorkspaces(ownerId);
+
+      expect(workspaceUserModel.findAll).toHaveBeenCalledWith({
+        where: { memberId: ownerId },
+        include: {
+          model: WorkspaceModel,
+          as: 'workspace',
+          where: { ownerId },
+          required: true,
+        },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].workspace).toBeInstanceOf(Workspace);
+      expect(result[0].workspaceUser).toBeInstanceOf(WorkspaceUser);
+    });
+  });
+
+  describe('findOne', () => {
+    it('When workspace is found with where clause, then return the workspace', async () => {
+      const mockWorkspace = newWorkspace();
+
+      jest
+        .spyOn(workspaceModel, 'findOne')
+        .mockResolvedValueOnce(mockWorkspace as any);
+
+      const result = await repository.findOne({ name: 'test-workspace' });
+
+      expect(workspaceModel.findOne).toHaveBeenCalledWith({
+        where: { name: 'test-workspace' },
+      });
+      expect(result).toBeInstanceOf(Workspace);
     });
 
-    it('When workspaceUsers are not found for respective user, then it should return empty array', async () => {
-      const mockUser = newUser();
+    it('When workspace is not found, then return null', async () => {
+      jest.spyOn(workspaceModel, 'findOne').mockResolvedValueOnce(null);
 
-      jest.spyOn(workspaceUserModel, 'findAll').mockResolvedValueOnce([]);
+      const result = await repository.findOne({ name: 'non-existent' });
 
-      const result = await repository.findWorkspaceUsersByUserUuid(
-        mockUser.uuid,
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('createItem', () => {
+    it('When creating a workspace item, then return the created item', async () => {
+      const itemData = {
+        itemId: v4(),
+        itemType: WorkspaceItemType.File,
+        createdBy: v4(),
+        workspaceId: v4(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        context: 'workspace' as any,
+      };
+      const mockCreatedItem = {
+        ...itemData,
+        id: v4(),
+        toJSON: jest.fn().mockReturnValue(itemData),
+      };
+
+      jest
+        .spyOn(workspaceItemUserModel, 'create')
+        .mockResolvedValueOnce(mockCreatedItem as any);
+
+      const result = await repository.createItem(itemData as any);
+
+      expect(workspaceItemUserModel.create).toHaveBeenCalledWith(itemData);
+      expect(result).toBeInstanceOf(WorkspaceItemUser);
+    });
+  });
+
+  describe('getItemsBy', () => {
+    it('When getting items by criteria, then return matching items', async () => {
+      const where = { workspaceId: v4() };
+      const mockItems = [
+        {
+          id: v4(),
+          itemType: WorkspaceItemType.File,
+          toJSON: jest
+            .fn()
+            .mockReturnValue({ id: v4(), itemType: WorkspaceItemType.File }),
+        },
+        {
+          id: v4(),
+          itemType: WorkspaceItemType.Folder,
+          toJSON: jest
+            .fn()
+            .mockReturnValue({ id: v4(), itemType: WorkspaceItemType.Folder }),
+        },
+      ];
+
+      jest
+        .spyOn(workspaceItemUserModel, 'findAll')
+        .mockResolvedValueOnce(mockItems as any);
+
+      const result = await repository.getItemsBy(where);
+
+      expect(workspaceItemUserModel.findAll).toHaveBeenCalledWith({ where });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(WorkspaceItemUser);
+    });
+  });
+
+  describe('updateItemBy', () => {
+    it('When updating items by criteria, then call the update method', async () => {
+      const where = { itemId: v4() };
+      const update = { itemType: WorkspaceItemType.Folder };
+
+      await repository.updateItemBy(where, update);
+
+      expect(workspaceItemUserModel.update).toHaveBeenCalledWith(update, {
+        where,
+      });
+    });
+  });
+
+  describe('deleteUserFromWorkspace', () => {
+    it('When deleting user from workspace, then call destroy method', async () => {
+      const memberId = v4();
+      const workspaceId = v4();
+
+      await repository.deleteUserFromWorkspace(memberId, workspaceId);
+
+      expect(workspaceUserModel.destroy).toHaveBeenCalledWith({
+        where: { memberId, workspaceId },
+      });
+    });
+  });
+
+  describe('getWorkspaceUsersCount', () => {
+    it('When getting workspace users count, then return the count', async () => {
+      const workspaceId = v4();
+      const expectedCount = 5;
+
+      jest
+        .spyOn(workspaceUserModel, 'count')
+        .mockResolvedValueOnce(expectedCount);
+
+      const result = await repository.getWorkspaceUsersCount(workspaceId);
+
+      expect(workspaceUserModel.count).toHaveBeenCalledWith({
+        where: { workspaceId },
+      });
+      expect(result).toEqual(expectedCount);
+    });
+  });
+
+  describe('createInvite', () => {
+    it('When creating an invite, then return the created invite', async () => {
+      const inviteData = {
+        invitedUser: 'test@example.com',
+        workspaceId: v4(),
+        spaceLimit: 1024,
+        encryptionKey: 'key',
+        encryptionAlgorithm: 'algorithm',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        toJSON: jest.fn(),
+      };
+      const mockCreatedInvite = { ...inviteData, id: v4() };
+
+      jest
+        .spyOn(workspaceInviteModel, 'create')
+        .mockResolvedValueOnce(mockCreatedInvite as any);
+
+      const result = await repository.createInvite(inviteData);
+
+      expect(workspaceInviteModel.create).toHaveBeenCalledWith(inviteData);
+      expect(result).toBeInstanceOf(WorkspaceInvite);
+    });
+  });
+
+  describe('create', () => {
+    it('When creating a workspace, then return the created workspace', async () => {
+      const workspaceData = { name: 'Test Workspace', ownerId: v4() };
+      const mockCreatedWorkspace = {
+        ...workspaceData,
+        id: v4(),
+        toJSON: jest.fn().mockReturnValue(workspaceData),
+      };
+
+      jest
+        .spyOn(workspaceModel, 'create')
+        .mockResolvedValueOnce(mockCreatedWorkspace as any);
+
+      const result = await repository.create(workspaceData);
+
+      expect(workspaceModel.create).toHaveBeenCalledWith(workspaceData);
+      expect(result).toBeInstanceOf(Workspace);
+    });
+  });
+
+  describe('findAllBy', () => {
+    it('When finding workspaces by criteria, then return matching workspaces', async () => {
+      const where = { ownerId: v4() };
+      const mockWorkspaces = [newWorkspace(), newWorkspace()];
+
+      jest
+        .spyOn(workspaceModel, 'findAll')
+        .mockResolvedValueOnce(mockWorkspaces as any);
+
+      const result = await repository.findAllBy(where);
+
+      expect(workspaceModel.findAll).toHaveBeenCalledWith({ where });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Workspace);
+    });
+  });
+
+  describe('addUserToWorkspace', () => {
+    it('When adding user to workspace, then return the created workspace user', async () => {
+      const workspaceUserData = {
+        memberId: v4(),
+        workspaceId: v4(),
+        spaceLimit: 1024,
+        driveUsage: 0,
+        key: 'encrypted-key',
+      };
+      const mockCreatedUser = {
+        ...workspaceUserData,
+        id: v4(),
+        toJSON: jest.fn().mockReturnValue(workspaceUserData),
+        member: null,
+      };
+
+      jest
+        .spyOn(workspaceUserModel, 'create')
+        .mockResolvedValueOnce(mockCreatedUser as any);
+
+      const result = await repository.addUserToWorkspace(
+        workspaceUserData as any,
       );
 
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toEqual(0);
+      expect(workspaceUserModel.create).toHaveBeenCalledWith(workspaceUserData);
+      expect(result).toBeInstanceOf(WorkspaceUser);
+    });
+  });
+
+  describe('updateById', () => {
+    it('When updating workspace by ID, then call update method', async () => {
+      const workspaceId = v4();
+      const update = { name: 'Updated Name' };
+
+      await repository.updateById(workspaceId, update);
+
+      expect(workspaceModel.update).toHaveBeenCalledWith(update, {
+        where: { id: workspaceId },
+        transaction: undefined,
+      });
+    });
+
+    it('When updating workspace by ID with transaction, then call update method with transaction', async () => {
+      const workspaceId = v4();
+      const update = { name: 'Updated Name' };
+      const mockTransaction = {} as any;
+
+      await repository.updateById(workspaceId, update, mockTransaction);
+
+      expect(workspaceModel.update).toHaveBeenCalledWith(update, {
+        where: { id: workspaceId },
+        transaction: mockTransaction,
+      });
+    });
+  });
+
+  describe('updateBy', () => {
+    it('When updating workspace by criteria, then call update method', async () => {
+      const where = { ownerId: v4() };
+      const update = { name: 'Updated Name' };
+
+      await repository.updateBy(where, update);
+
+      expect(workspaceModel.update).toHaveBeenCalledWith(update, {
+        where,
+        transaction: undefined,
+      });
+    });
+  });
+
+  describe('updateWorkspaceUser', () => {
+    it('When updating workspace user, then call update method', async () => {
+      const workspaceUserId = v4();
+      const update = { spaceLimit: 2048 };
+
+      await repository.updateWorkspaceUser(workspaceUserId, update);
+
+      expect(workspaceUserModel.update).toHaveBeenCalledWith(update, {
+        where: { id: workspaceUserId },
+      });
+    });
+  });
+
+  describe('registerLog', () => {
+    it('When registering a log, then create the log entry', async () => {
+      const logData = {
+        type: WorkspaceLogType.Login,
+        creator: v4(),
+        workspaceId: v4(),
+        platform: WorkspaceLogPlatform.Web,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await repository.registerLog(logData);
+
+      expect(workspaceLogModel.create).toHaveBeenCalledWith(logData);
+    });
+  });
+
+  describe('findInvitesBy', () => {
+    it('When finding invites with criteria, then return matching invites', async () => {
+      const where = { workspaceId: v4() };
+      const limit = 10;
+      const offset = 0;
+      const mockInvites = [newWorkspaceInvite(), newWorkspaceInvite()];
+
+      jest
+        .spyOn(workspaceInviteModel, 'findAll')
+        .mockResolvedValueOnce(mockInvites as any);
+
+      const result = await repository.findInvitesBy(where, limit, offset);
+
+      expect(workspaceInviteModel.findAll).toHaveBeenCalledWith({
+        where,
+        limit,
+        offset,
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(WorkspaceInvite);
+    });
+  });
+
+  describe('deleteInviteBy', () => {
+    it('When deleting invite by criteria, then call destroy method', async () => {
+      const where = { id: v4() };
+
+      await repository.deleteInviteBy(where);
+
+      expect(workspaceInviteModel.destroy).toHaveBeenCalledWith({ where });
+    });
+  });
+
+  describe('deleteWorkspaceInviteById', () => {
+    it('When deleting invite by ID, then call destroy method', async () => {
+      const inviteId = v4();
+
+      await repository.deleteWorkspaceInviteById(inviteId);
+
+      expect(workspaceInviteModel.destroy).toHaveBeenCalledWith({
+        where: { id: inviteId },
+      });
+    });
+  });
+
+  describe('getItemFilesCountBy', () => {
+    it('When getting files count, then return the count', async () => {
+      const where = { workspaceId: v4() };
+      const whereFile = { status: FileStatus.EXISTS };
+      const expectedCount = 3;
+
+      jest
+        .spyOn(workspaceItemUserModel, 'count')
+        .mockResolvedValueOnce(expectedCount);
+
+      const result = await repository.getItemFilesCountBy(where, whereFile);
+
+      expect(workspaceItemUserModel.count).toHaveBeenCalledWith({
+        where: { ...where, itemType: WorkspaceItemType.File },
+        include: {
+          model: FileModel,
+          where: whereFile,
+        },
+      });
+      expect(result).toEqual(expectedCount);
+    });
+  });
+
+  describe('getItemFoldersCountBy', () => {
+    it('When getting folders count, then return the count', async () => {
+      const where = { workspaceId: v4() };
+      const whereFolder = { plainName: 'test-folder' };
+      const expectedCount = 2;
+
+      jest
+        .spyOn(workspaceItemUserModel, 'count')
+        .mockResolvedValueOnce(expectedCount);
+
+      const result = await repository.getItemFoldersCountBy(where, whereFolder);
+
+      expect(workspaceItemUserModel.count).toHaveBeenCalledWith({
+        where: { ...where, itemType: WorkspaceItemType.Folder },
+        include: {
+          model: FolderModel,
+          where: whereFolder,
+        },
+      });
+      expect(result).toEqual(expectedCount);
+    });
+  });
+
+  describe('findWorkspaceResourcesOwner', () => {
+    it('When finding workspace resources owner, then return the owner user', async () => {
+      const workspaceId = v4();
+      const mockUser = newUser();
+      const mockWorkspace = {
+        toJSON: jest.fn().mockReturnValue({}),
+        workpaceUser: {
+          get: jest.fn().mockReturnValue(mockUser),
+        },
+      };
+
+      jest
+        .spyOn(workspaceModel, 'findOne')
+        .mockResolvedValueOnce(mockWorkspace as any);
+
+      const result = await repository.findWorkspaceResourcesOwner(workspaceId);
+
+      expect(workspaceModel.findOne).toHaveBeenCalledWith({
+        where: { id: workspaceId },
+        include: {
+          model: UserModel,
+          as: 'workpaceUser',
+        },
+      });
+      expect(result).toBeInstanceOf(User);
+    });
+
+    it('When workspace is not found, then return null', async () => {
+      jest.spyOn(workspaceModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findWorkspaceResourcesOwner(v4());
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getItemBy', () => {
+    it('When getting item by criteria, then return the item', async () => {
+      const where = { itemId: v4() };
+      const mockItem = {
+        id: v4(),
+        itemType: WorkspaceItemType.File,
+        toJSON: jest
+          .fn()
+          .mockReturnValue({ id: v4(), itemType: WorkspaceItemType.File }),
+      };
+
+      jest
+        .spyOn(workspaceItemUserModel, 'findOne')
+        .mockResolvedValueOnce(mockItem as any);
+
+      const result = await repository.getItemBy(where);
+
+      expect(workspaceItemUserModel.findOne).toHaveBeenCalledWith({ where });
+      expect(result).toBeInstanceOf(WorkspaceItemUser);
+    });
+
+    it('When item is not found, then return null', async () => {
+      jest.spyOn(workspaceItemUserModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.getItemBy({ itemId: v4() });
+
+      expect(result).toBeNull();
     });
   });
 });
