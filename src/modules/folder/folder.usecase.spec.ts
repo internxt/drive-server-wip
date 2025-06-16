@@ -1509,4 +1509,168 @@ describe('FolderUseCases', () => {
       );
     });
   });
+
+  describe('getByUuid', () => {
+    const folderUuid = v4();
+
+    it('When folder exists, then it should decrypt and return the folder', async () => {
+      const folder = newFolder({ attributes: { uuid: folderUuid } });
+      const decryptedName = 'Decrypted Name';
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce(decryptedName);
+
+      const result = await service.getByUuid(folderUuid);
+
+      expect(folderRepository.findByUuid).toHaveBeenCalledWith(
+        folderUuid,
+        false,
+      );
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        folder.name,
+        folder.parentId,
+      );
+      expect(result.plainName).toBe(decryptedName);
+    });
+
+    it('When folder does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(service.getByUuid(folderUuid)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('getFolderByUuid', () => {
+    const user = newUser();
+    const folderUuid = v4();
+
+    it('When folder exists and belongs to user, then it should return the folder', async () => {
+      const folder = newFolder({
+        attributes: { userId: user.id, uuid: folderUuid },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+
+      const result = await service.getFolderByUuid(folderUuid, user);
+
+      expect(result).toEqual(folder);
+    });
+
+    it('When folder does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(service.getFolderByUuid(folderUuid, user)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When folder does not belong to user, then it should throw ForbiddenException', async () => {
+      const folder = newFolder({
+        attributes: { userId: 999, uuid: folderUuid },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+
+      await expect(service.getFolderByUuid(folderUuid, user)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe('getFolderByUserId', () => {
+    it('When finding folder by user id, then it should return the folder', async () => {
+      const folderId = 1;
+      const userId = 2;
+      const folder = newFolder();
+
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
+
+      const result = await service.getFolderByUserId(folderId, userId);
+
+      expect(folderRepository.findOne).toHaveBeenCalledWith({
+        userId,
+        id: folderId,
+      });
+      expect(result).toEqual(folder);
+    });
+  });
+
+  describe('isFolderInsideFolder', () => {
+    const parentId = 1;
+    const folderId = 2;
+    const userId = 3;
+
+    it('When folder exists and is inside tree, then it should return true', async () => {
+      const folder = newFolder();
+      const treeResult = { id: folderId };
+
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(folderRepository, 'findInTree')
+        .mockResolvedValueOnce(treeResult as any);
+
+      const result = await service.isFolderInsideFolder(
+        parentId,
+        folderId,
+        userId,
+      );
+
+      expect(result).toBe(true);
+      expect(folderRepository.findInTree).toHaveBeenCalledWith(
+        parentId,
+        folderId,
+        userId,
+        false,
+      );
+    });
+
+    it('When folder does not exist, then it should return false', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await service.isFolderInsideFolder(
+        parentId,
+        folderId,
+        userId,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('When folder exists but is not inside tree, then it should return false', async () => {
+      const folder = newFolder();
+
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
+      jest.spyOn(folderRepository, 'findInTree').mockResolvedValueOnce(null);
+
+      const result = await service.isFolderInsideFolder(
+        parentId,
+        folderId,
+        userId,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getFoldersByUserId', () => {
+    it('When getting folders by user id with where clause, then it should return matching folders', async () => {
+      const userId = 1;
+      const whereClause = { deleted: false };
+      const folders = [newFolder(), newFolder()];
+
+      jest.spyOn(folderRepository, 'findAll').mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersByUserId(userId, whereClause);
+
+      expect(folderRepository.findAll).toHaveBeenCalledWith({
+        userId,
+        ...whereClause,
+      });
+      expect(result).toEqual(folders);
+    });
+  });
 });
