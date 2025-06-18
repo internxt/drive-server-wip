@@ -27,8 +27,12 @@ export class ThumbnailModel extends Model implements ThumbnailAttributes {
   @Column(DataType.INTEGER)
   fileId: number;
 
-  @BelongsTo(() => FileModel, 'id')
-  file: FileModel;
+  @ForeignKey(() => FileModel)
+  @Column(DataType.UUID)
+  fileUuid: string;
+
+  @BelongsTo(() => FileModel, { foreignKey: 'fileUuid', targetKey: 'uuid' })
+  fileByUuid: FileModel;
 
   @Column
   type: string;
