@@ -10,6 +10,7 @@ module.exports = {
   async up(queryInterface) {
     let updatedCount = 0;
     let attempts = 0;
+    let totalUpdated = 0;
 
     const updateQuery = `
       WITH batch AS (
@@ -35,9 +36,12 @@ module.exports = {
       try {
         const [results] = await queryInterface.sequelize.query(updateQuery);
         updatedCount = results.length;
+        totalUpdated += updatedCount;
         attempts = 0;
 
-        console.info(`Updated ${updatedCount} thumbnails in this batch`);
+        console.info(
+          `Updated ${updatedCount} thumbnails in this batch (total: ${totalUpdated})`,
+        );
       } catch (err) {
         attempts++;
         console.error(
