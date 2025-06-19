@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/sequelize';
 import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { ThumbnailModel } from './thumbnail.model';
 import { createMock } from '@golevelup/ts-jest';
+import { v4 } from 'uuid';
 
 describe('SequelizeThumbnailRepository', () => {
   let repository: SequelizeThumbnailRepository;
@@ -25,12 +26,24 @@ describe('SequelizeThumbnailRepository', () => {
 
   describe('findById', () => {
     it('When id exists then return the corresponding thumbnail', async () => {
-      const mockThumbnail = { id: 1, fileId: 2 } as ThumbnailModel;
-      jest.spyOn(thumbnailModel, 'findByPk').mockResolvedValue(mockThumbnail);
+      const mockThumbnail = {
+        id: 1,
+        fileId: 2,
+        fileUuid: v4(),
+      };
+      jest
+        .spyOn(thumbnailModel, 'findByPk')
+        .mockResolvedValue(mockThumbnail as any);
 
       const result = await repository.findById(1);
 
-      expect(result).toEqual(expect.objectContaining({ id: 1, fileId: 2 }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 1,
+          fileId: 2,
+          fileUuid: mockThumbnail.fileUuid,
+        }),
+      );
       expect(thumbnailModel.findByPk).toHaveBeenCalledWith(1);
     });
 
@@ -44,27 +57,33 @@ describe('SequelizeThumbnailRepository', () => {
     });
   });
 
-  describe('findByFileId', () => {
-    it('When fileId exists then return the corresponding thumbnail', async () => {
-      const mockThumbnail = { id: 1, fileId: 2 } as ThumbnailModel;
+  describe('findByFileUuid', () => {
+    it('When fileUuid exists then return the corresponding thumbnail', async () => {
+      const mockThumbnail = {
+        id: 1,
+        fileId: 2,
+        fileUuid: 'test-uuid',
+      } as ThumbnailModel;
       jest.spyOn(thumbnailModel, 'findOne').mockResolvedValue(mockThumbnail);
 
-      const result = await repository.findByFileId(2);
+      const result = await repository.findByFileUuid('test-uuid');
 
-      expect(result).toEqual(expect.objectContaining({ id: 1, fileId: 2 }));
+      expect(result).toEqual(
+        expect.objectContaining({ id: 1, fileId: 2, fileUuid: 'test-uuid' }),
+      );
       expect(thumbnailModel.findOne).toHaveBeenCalledWith({
-        where: { file_id: 2 },
+        where: { file_uuid: 'test-uuid' },
       });
     });
 
-    it('When fileId does not exist then return null', async () => {
+    it('When fileUuid does not exist then return null', async () => {
       jest.spyOn(thumbnailModel, 'findOne').mockResolvedValue(null);
 
-      const result = await repository.findByFileId(999);
+      const result = await repository.findByFileUuid('non-existent-uuid');
 
       expect(result).toBeNull();
       expect(thumbnailModel.findOne).toHaveBeenCalledWith({
-        where: { file_id: 999 },
+        where: { file_uuid: 'non-existent-uuid' },
       });
     });
   });

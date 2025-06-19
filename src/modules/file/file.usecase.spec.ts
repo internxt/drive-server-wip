@@ -1059,7 +1059,7 @@ describe('FileUseCases', () => {
         .spyOn(sharingService, 'bulkRemoveSharings')
         .mockResolvedValue(undefined);
       jest
-        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileId')
+        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
         .mockResolvedValue(undefined);
       jest
         .spyOn(fileRepository, 'deleteFilesByUser')
@@ -1079,9 +1079,9 @@ describe('FileUseCases', () => {
         [mockFile.uuid],
         SharingItemType.File,
       );
-      expect(thumbnailUseCases.deleteThumbnailByFileId).toHaveBeenCalledWith(
+      expect(thumbnailUseCases.deleteThumbnailByFileUuid).toHaveBeenCalledWith(
         userMocked,
-        mockFile.id,
+        mockFile.uuid,
       );
       expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
         userMocked,

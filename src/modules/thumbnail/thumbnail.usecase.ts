@@ -34,8 +34,8 @@ export class ThumbnailUseCases {
         'You do not have permission to modify this file',
       );
     }
-    const existingThumbnail = await this.thumbnailRepository.findByFileId(
-      file.id,
+    const existingThumbnail = await this.thumbnailRepository.findByFileUuid(
+      file.uuid,
     );
     if (existingThumbnail) {
       try {
@@ -51,14 +51,15 @@ export class ThumbnailUseCases {
       }
       await this.thumbnailRepository.update(thumbnail, {
         id: existingThumbnail.id,
-        fileId: existingThumbnail.fileId,
+        fileUuid: existingThumbnail.fileUuid,
       });
-      return this.thumbnailRepository.findByFileId(file.id);
+      return this.thumbnailRepository.findByFileUuid(file.uuid);
     }
 
     const newThumbnailObject = {
       ...thumbnail,
       fileId: file.id,
+      fileUuid: file.uuid,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -66,8 +67,8 @@ export class ThumbnailUseCases {
     return this.thumbnailRepository.create(newThumbnailObject);
   }
 
-  async deleteThumbnailByFileId(user: User, fileId: number) {
-    const thumbnail = await this.thumbnailRepository.findByFileId(fileId);
+  async deleteThumbnailByFileUuid(user: User, fileUuid: string) {
+    const thumbnail = await this.thumbnailRepository.findByFileUuid(fileUuid);
     if (!thumbnail) {
       return;
     }
@@ -76,7 +77,7 @@ export class ThumbnailUseCases {
       thumbnail.bucket_id,
       thumbnail.bucket_file,
     );
-    await this.thumbnailRepository.deleteBy({ fileId });
+    await this.thumbnailRepository.deleteBy({ fileUuid });
   }
 
   async findAll(where: Partial<ThumbnailAttributes>): Promise<Thumbnail[]> {

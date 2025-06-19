@@ -6,6 +6,8 @@ export class ThumbnailDto {
   @ApiProperty()
   fileId: number;
   @ApiProperty()
+  fileUuid: string;
+  @ApiProperty()
   maxWidth: number;
   @ApiProperty()
   maxHeight: number;
