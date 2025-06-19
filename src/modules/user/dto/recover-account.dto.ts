@@ -1,7 +1,53 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import {
+  IsBooleanString,
+  IsNotEmpty,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 
+class PrivateKeysDto {
+  @ApiProperty()
+  ecc: string;
+
+  @ApiProperty()
+  kyber: string;
+}
 export class RecoverAccountDto {
+  @ApiProperty({
+    example: 'some_hashed_pass',
+    description: 'New user pass hashed',
+  })
+  @IsNotEmpty()
+  password: string;
+
+  @ApiProperty({
+    example: 'some_salt',
+    description: 'Hashed password salt',
+  })
+  @IsNotEmpty()
+  salt: string;
+
+  @ApiProperty({
+    example: 'some_encrypted_mnemonic',
+    description: 'User mnemonic encrypted with the new pass',
+  })
+  @IsNotEmpty()
+  mnemonic: string;
+
+  @ApiProperty({
+    example: {
+      ecc: 'encrypted private key',
+      kyber: 'encrypted kyber private key',
+    },
+    description: "User's private keys encrypted with the user's plain password",
+  })
+  @IsOptional()
+  @ValidateNested()
+  privateKeys?: PrivateKeysDto;
+}
+
+export class DeprecatedRecoverAccountDto {
   @ApiProperty({
     example: 'some_hashed_pass',
     description: 'New user pass hashed',
@@ -27,31 +73,18 @@ export class RecoverAccountDto {
     example: 'encrypted private key',
     description: "User's private key encrypted with the user's plain password",
   })
-  // @IsNotEmpty()
-  privateKey: string;
+  @IsOptional()
+  privateKey?: string;
 }
 
-export class ResetAccountDto {
-  @ApiProperty({
-    example: 'some_hashed_pass',
-    description: 'New user pass hashed',
-  })
+export class RecoverAccountQueryDto {
+  @ApiProperty()
   @IsNotEmpty()
-  password: string;
+  token: string;
 
-  @ApiProperty({
-    example: 'some_salt',
-    description: 'Hashed password salt',
-  })
-  @IsNotEmpty()
-  salt: string;
-
-  @ApiProperty({
-    example: 'some_encrypted_mnemonic',
-    description: 'User mnemonic encrypted with the new pass',
-  })
-  @IsNotEmpty()
-  mnemonic: string;
+  @ApiProperty()
+  @IsBooleanString()
+  reset: string;
 }
 
 export class RequestRecoverAccountDto {
