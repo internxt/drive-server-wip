@@ -15,11 +15,11 @@ import { SharingModule } from '../sharing/sharing.module';
   imports: [
     SequelizeModule.forFeature([FileModel]),
     forwardRef(() => FileModule),
-    forwardRef(() => FolderModule),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => SharingModule),
     NotificationModule,
     UserModule,
+    NotificationModule,
   ],
   controllers: [TrashController],
   providers: [Logger, TrashUseCases],

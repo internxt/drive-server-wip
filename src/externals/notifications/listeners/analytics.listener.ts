@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import Analytics, { AnalyticsTrackName } from '../../../lib/analytics';
-import { RequestContext } from '../../../lib/request-context';
 import { InvitationAcceptedEvent } from '../events/invitation-accepted.event';
 import { ReferralRedeemedEvent } from '../events/referral-redeemed.event';
 import { SignUpSuccessEvent } from '../events/sign-up-success.event';
