@@ -16,8 +16,6 @@ import { FolderModel } from '../folder/folder.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserNotificationTokensModel } from '../user/user-notification-tokens.model';
-import { ShareModel } from '../share/share.repository';
-import { ShareModule } from '../share/share.module';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 
@@ -29,12 +27,10 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
       FolderModel,
       UserModel,
       UserNotificationTokensModel,
-      ShareModel,
       ThumbnailModel,
     ]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
-    forwardRef(() => ShareModule),
     forwardRef(() => ThumbnailModule),
     forwardRef(() => SharingModule),
     forwardRef(() => WorkspacesModule),
