@@ -9,7 +9,6 @@ import {
   ReferralsNotAvailableError,
   UserAlreadyRegisteredError,
 } from './user.usecase';
-import { ShareUseCases } from '../share/share.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { AccountTokenAction, User } from './user.domain';
@@ -100,7 +99,6 @@ jest.mock('../../middlewares/passport', () => {
 
 describe('User use cases', () => {
   let userUseCases: UserUseCases;
-  let shareUseCases: ShareUseCases;
   let folderUseCases: FolderUseCases;
   let fileUseCases: FileUseCases;
   let userRepository: SequelizeUserRepository;
@@ -168,7 +166,6 @@ describe('User use cases', () => {
 
     await moduleRef.init();
 
-    shareUseCases = moduleRef.get<ShareUseCases>(ShareUseCases);
     folderUseCases = moduleRef.get<FolderUseCases>(FolderUseCases);
     fileUseCases = moduleRef.get<FileUseCases>(FileUseCases);
     userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
@@ -222,7 +219,6 @@ describe('User use cases', () => {
 
   describe('Resetting a user', () => {
     it('When all options are false, then the reset does nothing', async () => {
-      const deleteSharesSpy = jest.spyOn(shareUseCases, 'deleteByUser');
       const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
       const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
 
@@ -233,14 +229,12 @@ describe('User use cases', () => {
         deleteWorkspaces: false,
       });
 
-      expect(deleteSharesSpy).not.toHaveBeenCalled();
       expect(deleteFoldersSpy).not.toHaveBeenCalled();
       expect(deleteFilesSpy).not.toHaveBeenCalled();
     });
 
     describe('When options are provided', () => {
       it('When delete shares is true, then the shares are deleted', async () => {
-        const deleteSharesSpy = jest.spyOn(shareUseCases, 'deleteByUser');
         const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
         const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
 
@@ -251,7 +245,6 @@ describe('User use cases', () => {
           deleteWorkspaces: false,
         });
 
-        expect(deleteSharesSpy).toHaveBeenCalledWith(user);
         expect(deleteFoldersSpy).not.toHaveBeenCalled();
         expect(deleteFilesSpy).not.toHaveBeenCalled();
       });
@@ -271,7 +264,6 @@ describe('User use cases', () => {
 
       describe('When resources do not exist', () => {
         it('When delete folders is true, then the folders are deleted', async () => {
-          const deleteSharesSpy = jest.spyOn(shareUseCases, 'deleteByUser');
           const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
           const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
           const getFoldersSpy = jest.spyOn(folderUseCases, 'getFolders');
@@ -293,13 +285,11 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toHaveBeenCalled();
           expect(deleteFoldersSpy).toHaveBeenCalledWith(user, folders);
           expect(deleteFilesSpy).not.toHaveBeenCalled();
         });
 
         it('When delete files is true, then the files are deleted', async () => {
-          const deleteSharesSpy = jest.spyOn(shareUseCases, 'deleteByUser');
           const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
           const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
           const getFilesSpy = jest.spyOn(fileUseCases, 'getFilesNotDeleted');
@@ -321,7 +311,6 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toHaveBeenCalled();
           expect(deleteFoldersSpy).not.toHaveBeenCalled();
           expect(deleteFilesSpy).toHaveBeenCalledWith(user, files);
         });
@@ -329,7 +318,6 @@ describe('User use cases', () => {
 
       describe('When resources exist', () => {
         it('When delete folders is true, then the folders are deleted', async () => {
-          const deleteSharesSpy = jest.spyOn(shareUseCases, 'deleteByUser');
           const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
           const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
           const getFoldersSpy = jest.spyOn(folderUseCases, 'getFolders');
@@ -351,13 +339,11 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toHaveBeenCalled();
           expect(deleteFoldersSpy).toHaveBeenCalledWith(user, folders);
           expect(deleteFilesSpy).not.toHaveBeenCalled();
         });
 
         it('When delete files is true, then the files are deleted', async () => {
-          const deleteSharesSpy = jest.spyOn(shareUseCases, 'deleteByUser');
           const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUser');
           const deleteFilesSpy = jest.spyOn(fileUseCases, 'deleteByUser');
           const getFilesSpy = jest.spyOn(fileUseCases, 'getFilesNotDeleted');
@@ -379,7 +365,6 @@ describe('User use cases', () => {
               offset: 0,
             },
           );
-          expect(deleteSharesSpy).not.toHaveBeenCalled();
           expect(deleteFoldersSpy).not.toHaveBeenCalled();
           expect(deleteFilesSpy).toHaveBeenCalledWith(user, files);
         });

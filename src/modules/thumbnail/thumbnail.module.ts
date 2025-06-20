@@ -6,11 +6,10 @@ import { ThumbnailUseCases } from './thumbnail.usecase';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { FileModel } from '../file/file.model';
 import { SequelizeFileRepository } from '../file/file.repository';
-import { ShareModel } from '../share/share.repository';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([ThumbnailModel, FileModel, ShareModel]),
+    SequelizeModule.forFeature([ThumbnailModel, FileModel]),
     BridgeModule,
   ],
   providers: [
