@@ -2,8 +2,6 @@ import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { SequelizeFileRepository } from './file.repository';
 import { FileUseCases } from './file.usecase';
-import { ShareModel } from '../share/share.repository';
-import { ShareModule } from '../share/share.module';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { FileController } from './file.controller';
@@ -18,8 +16,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FileModel, ShareModel, ThumbnailModel]),
-    forwardRef(() => ShareModule),
+    SequelizeModule.forFeature([FileModel, ThumbnailModel]),
     forwardRef(() => FolderModule),
     forwardRef(() => ThumbnailModule),
     forwardRef(() => SharingModule),

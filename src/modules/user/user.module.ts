@@ -29,7 +29,6 @@ import { KeyServerModule } from '../keyserver/key-server.module';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from '../../shared-workspace/shared-workspace.module';
-import { ShareModule } from '../share/share.module';
 import { KeyServerModel } from '../keyserver/key-server.model';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { AppSumoModule } from '../app-sumo/app-sumo.module';
@@ -67,7 +66,6 @@ import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryptio
     HttpClientModule,
     KeyServerModule,
     CryptoModule,
-    forwardRef(() => ShareModule),
     BridgeModule,
     AppSumoModule,
     PlanModule,

@@ -8,7 +8,6 @@ import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
-import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
@@ -28,6 +27,7 @@ export interface FileRepository {
     id: FileAttributes['id'],
     where: Partial<FileAttributes>,
   ): Promise<File | null>;
+  findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File | null>;
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
@@ -115,6 +115,10 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
+  findByUuids(
+    uuids: FileAttributes['uuid'][],
+    where?: Partial<Omit<FileAttributes, 'uuid'>>,
+  ): Promise<File[]>;
   sumExistentFileSizes(userId: FileAttributes['userId']): Promise<number>;
   getFilesByFolderUuid(
     folderUuid: Folder['uuid'],
@@ -127,8 +131,6 @@ export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
     private readonly fileModel: typeof FileModel,
-    @InjectModel(ShareModel)
-    private readonly shareModel: typeof ShareModel,
     @InjectModel(ThumbnailModel)
     private readonly thumbnailModel: typeof ThumbnailModel,
   ) {}
@@ -421,18 +423,6 @@ export class SequelizeFileRepository implements FileRepository {
       where,
       include: [
         {
-          model: this.shareModel,
-          attributes: [
-            'id',
-            'active',
-            'hashed_password',
-            'code',
-            'token',
-            'is_folder',
-          ],
-          required: false,
-        },
-        {
           separate: true,
           model: this.thumbnailModel,
           required: false,
@@ -509,7 +499,9 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
+  async findByUuidNotDeleted(
+    uuid: FileAttributes['uuid'],
+  ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: { uuid, deleted: false },
     });
