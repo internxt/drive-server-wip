@@ -8,7 +8,6 @@ import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
 import { Pagination } from '../../lib/pagination';
-import { ShareModel } from '../share/share.repository';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
@@ -127,8 +126,6 @@ export class SequelizeFileRepository implements FileRepository {
   constructor(
     @InjectModel(FileModel)
     private readonly fileModel: typeof FileModel,
-    @InjectModel(ShareModel)
-    private readonly shareModel: typeof ShareModel,
     @InjectModel(ThumbnailModel)
     private readonly thumbnailModel: typeof ThumbnailModel,
   ) {}
@@ -420,18 +417,6 @@ export class SequelizeFileRepository implements FileRepository {
       offset,
       where,
       include: [
-        {
-          model: this.shareModel,
-          attributes: [
-            'id',
-            'active',
-            'hashed_password',
-            'code',
-            'token',
-            'is_folder',
-          ],
-          required: false,
-        },
         {
           separate: true,
           model: this.thumbnailModel,
