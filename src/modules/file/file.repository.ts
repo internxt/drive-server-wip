@@ -24,10 +24,6 @@ export interface FileRepository {
   deleteByFileId(fileId: any): Promise<any>;
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
-  findByIdNotDeleted(
-    id: FileAttributes['id'],
-    where: Partial<FileAttributes>,
-  ): Promise<File | null>;
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
     folderId: FileAttributes['folderId'],
@@ -59,11 +55,6 @@ export interface FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
-  findOne(
-    fileId: FileAttributes['id'],
-    userId: FileAttributes['userId'],
-    options: FileOptions,
-  ): Promise<File | null>;
   findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
   findByUuid(
     fileUuid: FileAttributes['uuid'],
@@ -501,14 +492,6 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async findByIdNotDeleted(id: number): Promise<File> {
-    const file = await this.fileModel.findOne({
-      where: { id, deleted: false },
-    });
-
-    return file ? this.toDomain(file) : null;
-  }
-
   async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
     const file = await this.fileModel.findOne({
       where: { uuid, deleted: false },
@@ -587,21 +570,6 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map((file) => {
       return this.toDomain(file);
     });
-  }
-
-  async findOne(
-    fileId: FileAttributes['id'],
-    userId: FileAttributes['userId'],
-    { deleted }: FileOptions,
-  ): Promise<File | null> {
-    const file = await this.fileModel.findOne({
-      where: {
-        id: fileId,
-        userId,
-        deleted,
-      },
-    });
-    return file ? this.toDomain(file) : null;
   }
 
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
@@ -769,8 +737,8 @@ export class SequelizeFileRepository implements FileRepository {
       {
         where: {
           userId: user.id,
-          id: {
-            [Op.in]: files.map(({ id }) => id),
+          uuid: {
+            [Op.in]: files.map(({ uuid }) => uuid),
           },
         },
       },
