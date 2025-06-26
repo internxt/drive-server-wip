@@ -474,22 +474,8 @@ export class FileController {
   async createThumbnail(
     @UserDecorator() user: User,
     @Body() body: CreateThumbnailDto,
-    @Client() clientId: string,
   ): Promise<ThumbnailDto> {
-    if (!body.fileUuid) {
-      Logger.warn(
-        `[FILE/THUMBNAIL] Requested using deprecated fileId platform: ${clientId}, fileId: ${body.fileId}`,
-      );
-    }
-    const thumbnail = await this.thumbnailUseCases.createThumbnail(user, body);
-
-    if (!thumbnail.fileUuid) {
-      Logger.warn(
-        `[FILE/THUMBNAIL] Thumbnail created with null fileUuid: ${clientId}, fileId: ${body.fileId}`,
-      );
-    }
-
-    return thumbnail;
+    return this.thumbnailUseCases.createThumbnail(user, body);
   }
 
   @Delete('/:uuid')
