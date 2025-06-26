@@ -70,7 +70,7 @@
     "multer-s3": "^3.0.1",
     "newrelic": "^11.23.1",
     "node-device-detector": "2.0.17",
-    "openpgp": "^5.11.0",
+    "openpgp": "^5.11.3",
     "passport": "^0.6.0",
     "passport-http": "^0.3.0",
     "passport-jwt": "^4.0.1",
