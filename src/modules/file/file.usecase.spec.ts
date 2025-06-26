@@ -1059,7 +1059,7 @@ describe('FileUseCases', () => {
         .spyOn(sharingService, 'bulkRemoveSharings')
         .mockResolvedValue(undefined);
       jest
-        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileId')
+        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
         .mockResolvedValue(undefined);
       jest
         .spyOn(fileRepository, 'deleteFilesByUser')
@@ -1079,9 +1079,9 @@ describe('FileUseCases', () => {
         [mockFile.uuid],
         SharingItemType.File,
       );
-      expect(thumbnailUseCases.deleteThumbnailByFileId).toHaveBeenCalledWith(
+      expect(thumbnailUseCases.deleteThumbnailByFileUuid).toHaveBeenCalledWith(
         userMocked,
-        mockFile.id,
+        mockFile.uuid,
       );
       expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
         userMocked,
@@ -1211,6 +1211,250 @@ describe('FileUseCases', () => {
       await expect(
         service.deleteFileByFileId(userMocked, testBucketId, testFileId),
       ).rejects.toThrow('Error deleting file from network');
+    });
+  });
+
+  describe('getFileMetadata', () => {
+    it('When file exists, then it should return the file', async () => {
+      const mockFile = newFile({ owner: userMocked });
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+
+      const result = await service.getFileMetadata(userMocked, mockFile.uuid);
+
+      expect(result).toEqual(mockFile);
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+      );
+    });
+
+    it('When file does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.getFileMetadata(userMocked, 'non-existent-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('replaceFile', () => {
+    it('When file exists, then it should replace file data and delete old file from network', async () => {
+      const mockFile = newFile({
+        attributes: { fileId: 'old-file-id-string', bucket: 'test-bucket' },
+      });
+      const replaceData = { fileId: 'new-file-id', size: BigInt(200) };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+      const result = await service.replaceFile(
+        userMocked,
+        mockFile.uuid,
+        replaceData,
+      );
+
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {
+          fileId: replaceData.fileId,
+          size: replaceData.size,
+        },
+      );
+      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.bucket,
+        mockFile.fileId,
+      );
+      expect(result).toEqual({
+        ...mockFile.toJSON(),
+        fileId: replaceData.fileId,
+        size: replaceData.size,
+      });
+    });
+
+    it('When file does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.replaceFile(userMocked, 'non-existent-uuid', {
+          fileId: 'new-id',
+          size: BigInt(100),
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('addOldAttributes', () => {
+    it('When file has thumbnails, then it should add old attributes to thumbnails', () => {
+      const thumbnails = [
+        { bucketId: 'bucket1', bucketFile: 'file1' },
+        { bucketId: 'bucket2', bucketFile: 'file2' },
+      ] as any;
+
+      const mockFile = newFile({
+        attributes: { thumbnails },
+      });
+
+      const result = service.addOldAttributes(mockFile);
+
+      expect(result.thumbnails[0]).toHaveProperty('bucket_id', 'bucket1');
+      expect(result.thumbnails[0]).toHaveProperty('bucket_file', 'file1');
+      expect(result.thumbnails[1]).toHaveProperty('bucket_id', 'bucket2');
+      expect(result.thumbnails[1]).toHaveProperty('bucket_file', 'file2');
+    });
+
+    it('When file has no thumbnails, then it should handle empty array', () => {
+      const mockFile = newFile({
+        attributes: { thumbnails: [] },
+      });
+
+      const result = service.addOldAttributes(mockFile);
+
+      expect(result.thumbnails).toEqual([]);
+    });
+  });
+
+  describe('getOrphanFilesCount', () => {
+    it('When called, then it should return orphan files count', async () => {
+      const count = 5;
+      jest
+        .spyOn(fileRepository, 'getFilesWhoseFolderIdDoesNotExist')
+        .mockResolvedValue(count);
+
+      const result = await service.getOrphanFilesCount(userMocked.id);
+
+      expect(result).toBe(count);
+      expect(
+        fileRepository.getFilesWhoseFolderIdDoesNotExist,
+      ).toHaveBeenCalledWith(userMocked.id);
+    });
+  });
+
+  describe('getTrashFilesCount', () => {
+    it('When called, then it should return trashed files count', async () => {
+      const count = 3;
+      jest.spyOn(fileRepository, 'getFilesCountWhere').mockResolvedValue(count);
+
+      const result = await service.getTrashFilesCount(userMocked.id);
+
+      expect(result).toBe(count);
+      expect(fileRepository.getFilesCountWhere).toHaveBeenCalledWith({
+        userId: userMocked.id,
+        status: FileStatus.TRASHED,
+      });
+    });
+  });
+
+  describe('getDriveFilesCount', () => {
+    it('When called, then it should return drive files count', async () => {
+      const count = 10;
+      jest.spyOn(fileRepository, 'getFilesCountWhere').mockResolvedValue(count);
+
+      const result = await service.getDriveFilesCount(userMocked.id);
+
+      expect(result).toBe(count);
+      expect(fileRepository.getFilesCountWhere).toHaveBeenCalledWith({
+        userId: userMocked.id,
+        status: FileStatus.EXISTS,
+      });
+    });
+  });
+
+  describe('findByPlainNameAndFolderId', () => {
+    it('When file exists, then it should return the file', async () => {
+      const mockFile = newFile();
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValue(mockFile);
+
+      const result = await service.findByPlainNameAndFolderId(
+        userMocked.id,
+        'test-file.txt',
+        'txt',
+        mockFile.folderId,
+      );
+
+      expect(result).toEqual(mockFile);
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
+        userMocked.id,
+        'test-file.txt',
+        'txt',
+        mockFile.folderId,
+        FileStatus.EXISTS,
+      );
+    });
+
+    it('When file does not exist, then it should return null', async () => {
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValue(null);
+
+      const result = await service.findByPlainNameAndFolderId(
+        userMocked.id,
+        'non-existent.txt',
+        'txt',
+        1,
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('deleteByUser', () => {
+    it('When called with files, then it should delete files by user', async () => {
+      const files = [newFile(), newFile()];
+      jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValue();
+
+      await service.deleteByUser(userMocked, files);
+
+      expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
+        userMocked,
+        files,
+      );
+    });
+  });
+
+  describe('searchFilesInFolder', () => {
+    it('When called with search filters, then it should search files in folder', async () => {
+      const folder = newFolder();
+      const searchFilter = [{ plainName: 'test', type: 'txt' }];
+      const mockFiles = [newFile()];
+      jest
+        .spyOn(fileRepository, 'findFilesInFolderByName')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.searchFilesInFolder(folder, searchFilter);
+
+      expect(result).toEqual(mockFiles);
+      expect(fileRepository.findFilesInFolderByName).toHaveBeenCalledWith(
+        folder.uuid,
+        searchFilter,
+      );
+    });
+  });
+
+  describe('getFilesByFolderUuid', () => {
+    it('When called with folder uuid and status, then it should return files', async () => {
+      const folderUuid = v4();
+      const status = FileStatus.EXISTS;
+      const mockFiles = [newFile()];
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValue(mockFiles);
+
+      const result = await service.getFilesByFolderUuid(folderUuid, status);
+
+      expect(result).toEqual(mockFiles);
+      expect(fileRepository.getFilesByFolderUuid).toHaveBeenCalledWith(
+        folderUuid,
+        status,
+      );
     });
   });
 });

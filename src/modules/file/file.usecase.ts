@@ -107,7 +107,7 @@ export class FileUseCases {
         [uuid],
         SharingItemType.File,
       ),
-      this.thumbnailUsecases.deleteThumbnailByFileId(user, id),
+      this.thumbnailUsecases.deleteThumbnailByFileUuid(user, uuid),
     ]);
 
     await this.fileRepository.deleteFilesByUser(user, [file]);
