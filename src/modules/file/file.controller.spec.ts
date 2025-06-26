@@ -315,6 +315,7 @@ describe('FileController', () => {
       const result = await fileController.createThumbnail(
         userMocked,
         createThumbnailDto,
+        ClientEnum.Web,
       );
       expect(result).toEqual(thumbnailDto);
       expect(thumbnailUseCases.createThumbnail).toHaveBeenCalledWith(
@@ -328,7 +329,11 @@ describe('FileController', () => {
         .spyOn(thumbnailUseCases, 'createThumbnail')
         .mockRejectedValue(new InternalServerErrorException());
       await expect(
-        fileController.createThumbnail(userMocked, createThumbnailDto),
+        fileController.createThumbnail(
+          userMocked,
+          createThumbnailDto,
+          ClientEnum.Web,
+        ),
       ).rejects.toThrow(InternalServerErrorException);
     });
   });
