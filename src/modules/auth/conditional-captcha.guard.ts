@@ -2,7 +2,6 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserUseCases } from '../user/user.usecase';
@@ -38,7 +37,6 @@ export class ConditionalCaptchaGuard implements CanActivate {
         );
       }
 
-      Logger.log(`ERROR LOGIN COUNT: ${errorLoginCount}. EMAIL: ${email}`);
       const passed = await this.captchaService.verifyCaptcha(captchaToken, ip);
       if (!passed) {
         throw new UnauthorizedException('Captcha validation failed');
