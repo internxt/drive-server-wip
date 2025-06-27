@@ -39,6 +39,7 @@ import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attrib
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
 import { LoginAccessResponseDto } from './dto/responses/login-access-response.dto';
 import { LoginResponseDto } from './dto/responses/login-response.dto';
+import { ConditionalCaptchaGuard } from './conditional-captcha.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -95,7 +96,7 @@ export class AuthController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, ConditionalCaptchaGuard)
   @Post('/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
