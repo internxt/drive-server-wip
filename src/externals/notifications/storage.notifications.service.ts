@@ -4,9 +4,9 @@ import { User } from '../../modules/user/user.domain';
 import { NotificationEvent } from './events/notification.event';
 import { ApnService } from '../apn/apn.service';
 import { SequelizeUserRepository } from '../../modules/user/user.repository';
-import { FolderDto } from 'src/modules/folder/dto/responses/folder.dto';
-import { FileDto } from 'src/modules/file/dto/responses/file.dto';
-import { ItemToTrash } from 'src/modules/trash/dto/controllers/move-items-to-trash.dto';
+import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { FileDto } from '../../modules/file/dto/responses/file.dto';
+import { ItemToTrash } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 enum StorageEvents {
   FILE_CREATED = 'FILE_CREATED',
