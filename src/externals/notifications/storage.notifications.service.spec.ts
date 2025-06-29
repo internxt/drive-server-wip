@@ -9,12 +9,12 @@ import { NotificationEvent } from './events/notification.event';
 import { newUser } from '../../../test/fixtures';
 import { UserNotificationTokens } from '../../modules/user/user-notification-tokens.domain';
 import { v4 } from 'uuid';
-import { FolderDto } from 'src/modules/folder/dto/responses/folder.dto';
-import { FileDto } from 'src/modules/file/dto/responses/file.dto';
+import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { FileDto } from '../../modules/file/dto/responses/file.dto';
 import {
   ItemToTrash,
   ItemType,
-} from 'src/modules/trash/dto/controllers/move-items-to-trash.dto';
+} from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 describe('StorageNotificationService', () => {
   const fixedSystemCurrentDate = new Date('2021-01-01T00:00:00Z');
