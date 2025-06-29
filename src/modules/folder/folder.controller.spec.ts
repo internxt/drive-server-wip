@@ -763,7 +763,7 @@ describe('FolderController', () => {
         createFolderDto,
       );
       expect(storageNotificationService.folderCreated).toHaveBeenCalledWith({
-        payload: createdFolder,
+        payload: { ...createdFolder, status: createdFolder.getFolderStatus() },
         user: requester,
         clientId,
       });
@@ -1224,7 +1224,7 @@ describe('FolderController', () => {
         updateDto,
       );
       expect(storageNotificationService.folderUpdated).toHaveBeenCalledWith({
-        payload: updatedFolder,
+        payload: result,
         user: requester,
         clientId,
       });

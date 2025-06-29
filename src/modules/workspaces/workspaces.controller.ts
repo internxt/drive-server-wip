@@ -871,13 +871,15 @@ export class WorkspacesController {
       createFolderDto,
     );
 
+    const folderDto = { ...folder, status: FolderStatus.EXISTS };
+
     this.storageNotificationService.folderCreated({
-      payload: folder,
+      payload: folderDto,
       user,
       clientId,
     });
 
-    return { ...folder, status: FolderStatus.EXISTS };
+    return folderDto;
   }
 
   @Get('/:workspaceId/trash')

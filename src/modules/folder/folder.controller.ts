@@ -131,13 +131,15 @@ export class FolderController {
       createFolderDto,
     );
 
+    const folderDto = { ...folder, status: folder.getFolderStatus() };
+
     this.storageNotificationService.folderCreated({
-      payload: folder,
+      payload: folderDto,
       user: requester,
       clientId,
     });
 
-    return { ...folder, status: folder.getFolderStatus() };
+    return folderDto;
   }
 
   @Get('/count')
@@ -733,6 +735,7 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiParam({ name: 'uuid', type: String, required: true })
   @WorkspacesInBehalfValidationFolder()
   async getFolderTree(
     @UserDecorator() user: User,
@@ -796,13 +799,18 @@ export class FolderController {
       updateFolderMetaDto,
     );
 
+    const folderDto = {
+      ...folderUpdated,
+      status: folderUpdated.getFolderStatus(),
+    };
+
     this.storageNotificationService.folderUpdated({
-      payload: folderUpdated,
+      payload: folderDto,
       user: requester,
       clientId,
     });
 
-    return { ...folderUpdated, status: folderUpdated.getFolderStatus() };
+    return folderDto;
   }
 
   @UseFilters(new HttpExceptionFilter())
@@ -843,13 +851,15 @@ export class FolderController {
       moveFolderData.destinationFolder,
     );
 
+    const folderDto = { ...folder, status: folder.getFolderStatus() };
+
     this.storageNotificationService.folderUpdated({
-      payload: folder,
+      payload: folderDto,
       user: requester,
       clientId,
     });
 
-    return { ...folder, status: folder.getFolderStatus() };
+    return folderDto;
   }
 
   @Get('/meta')
