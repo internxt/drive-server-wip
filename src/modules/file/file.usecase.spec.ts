@@ -1457,4 +1457,29 @@ describe('FileUseCases', () => {
       );
     });
   });
+
+  describe('hasUploadedFiles', () => {
+    it('When user has uploaded files, then it should return true', async () => {
+      const mockFile = newFile();
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(mockFile);
+
+      const result = await service.hasUploadedFiles(userMocked);
+
+      expect(result).toBe(true);
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        userId: userMocked.id,
+      });
+    });
+
+    it('When user has not uploaded files, then it should return false', async () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
+
+      const result = await service.hasUploadedFiles(userMocked);
+
+      expect(result).toBe(false);
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith({
+        userId: userMocked.id,
+      });
+    });
+  });
 });

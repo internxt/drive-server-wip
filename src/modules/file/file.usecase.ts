@@ -816,4 +816,9 @@ export class FileUseCases {
   async getFile(where: Partial<File>): Promise<File> {
     return this.fileRepository.findOneBy(where);
   }
+
+  async hasUploadedFiles(user: User) {
+    const file = await this.fileRepository.findOneBy({ userId: user.id });
+    return file !== null;
+  }
 }
