@@ -4,6 +4,9 @@ import { UuidDto } from '../../common/dto/uuid.dto';
 import { createMock } from '@golevelup/ts-jest';
 import { Sharing } from './sharing.domain';
 import { newSharing } from '../../../test/fixtures';
+import getEnv from '../../config/configuration';
+
+jest.mock('../../config/configuration');
 
 describe('SharingController', () => {
   let controller: SharingController;
@@ -34,6 +37,25 @@ describe('SharingController', () => {
       expect(sharingService.getPublicSharingFolderSize).toHaveBeenCalledWith(
         sharing.id,
       );
+    });
+  });
+
+  describe('get public sharing domains', () => {
+    it('When requesting the get sharing domains method, then it should return the list of domains', async () => {
+      const expectedResult = [
+        'https://share.example.com',
+        'https://share.example.org',
+      ];
+
+      jest.mocked(getEnv).mockReturnValue({
+        apis: {
+          share: { url: expectedResult.join(',') },
+        },
+      } as any);
+
+      const result = await controller.getPublicSharingDomains();
+
+      expect(result).toStrictEqual({ list: expectedResult });
     });
   });
 });
