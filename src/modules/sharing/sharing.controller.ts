@@ -33,7 +33,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-
 import { SharingService } from './sharing.service';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
@@ -64,6 +63,7 @@ import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-actio
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
+import getEnv from '../../config/configuration';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -1036,5 +1036,12 @@ export class SharingController {
     const size = await this.sharingService.getPublicSharingFolderSize(param.id);
 
     return { size };
+  }
+
+  @Get('public/domains')
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  async getPublicSharingDomains() {
+    return { list: getEnv().apis.share.url.split(',') };
   }
 }
