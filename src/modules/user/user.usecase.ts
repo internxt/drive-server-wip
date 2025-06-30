@@ -1797,4 +1797,8 @@ export class UserUseCases {
     const mnemonic = generateMnemonic(256);
     return mnemonic;
   }
+
+  async hasUploadedFiles(user: User) {
+    return await this.fileUseCases.hasUploadedFiles(user);
+  }
 }
