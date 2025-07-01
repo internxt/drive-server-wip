@@ -145,7 +145,7 @@ describe('User use cases', () => {
     referralCode: null,
     referrer: null,
     syncDate: new Date(),
-    uuid: 'uuid',
+    uuid: v4(),
     lastResend: new Date(),
     credit: null,
     welcomePack: true,
@@ -905,6 +905,8 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
+          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          sub: user.uuid,
           payload: {
             uuid: user.uuid,
             email: user.email,
@@ -949,6 +951,8 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
+          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          sub: user.uuid,
           payload: {
             uuid: user.uuid,
             email: user.email,
@@ -992,6 +996,8 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
+          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          sub: user.uuid,
           payload: {
             uuid: user.uuid,
             email: user.email,
@@ -3511,6 +3517,40 @@ describe('User use cases', () => {
         publicKey: existingPreCreatedUser.publicKey.toString(),
         password: existingPreCreatedUser.password.toString(),
       });
+    });
+  });
+
+  describe('hasUploadedFiles', () => {
+    const user = newUser();
+
+    it('When user has uploaded files, then it should return true', async () => {
+      jest.spyOn(fileUseCases, 'hasUploadedFiles').mockResolvedValue(true);
+
+      const result = await userUseCases.hasUploadedFiles(user);
+
+      expect(result).toBe(true);
+      expect(fileUseCases.hasUploadedFiles).toHaveBeenCalledWith(user);
+    });
+
+    it('When user has not uploaded files, then it should return false', async () => {
+      jest.spyOn(fileUseCases, 'hasUploadedFiles').mockResolvedValue(false);
+
+      const result = await userUseCases.hasUploadedFiles(user);
+
+      expect(result).toBe(false);
+      expect(fileUseCases.hasUploadedFiles).toHaveBeenCalledWith(user);
+    });
+
+    it('When fileUseCases throws an error, then it should propagate the error', async () => {
+      const errorMessage = 'Database connection failed';
+      jest
+        .spyOn(fileUseCases, 'hasUploadedFiles')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(userUseCases.hasUploadedFiles(user)).rejects.toThrow(
+        errorMessage,
+      );
+      expect(fileUseCases.hasUploadedFiles).toHaveBeenCalledWith(user);
     });
   });
 });

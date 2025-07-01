@@ -128,7 +128,10 @@ export class FileModel extends Model implements FileAttributes {
   @HasMany(() => ShareModel, 'fileId')
   shares: Share[];
 
-  @HasMany(() => ThumbnailModel, 'fileId')
+  @HasMany(() => ThumbnailModel, {
+    foreignKey: 'fileUuid',
+    sourceKey: 'uuid',
+  })
   thumbnails: ThumbnailModel[];
 
   @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
