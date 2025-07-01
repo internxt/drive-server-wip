@@ -48,6 +48,18 @@ export class BackupController {
     return this.backupUseCases.createDeviceAsFolder(user, body.deviceName);
   }
 
+  @Delete('/deviceAsFolder/:uuid')
+  @ApiOperation({
+    summary: 'Delete device as folder by uuid',
+  })
+  @ApiBearerAuth()
+  async deleteDeviceAsFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ) {
+    return this.backupUseCases.deleteDeviceAsFolder(user, uuid);
+  }
+
   @Get('/deviceAsFolder/:uuid')
   @ApiOperation({
     summary: 'Get device as folder by uuid',

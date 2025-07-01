@@ -1348,4 +1348,38 @@ describe('User Controller', () => {
       ).toHaveBeenCalledWith(validToken);
     });
   });
+
+  describe('GET /me/upload-status', () => {
+    const userMocked = newUser();
+
+    it('When user has uploaded files, then it should return hasUploadedFiles as true', async () => {
+      userUseCases.hasUploadedFiles.mockResolvedValueOnce(true);
+
+      const result = await userController.getUploadStatus(userMocked);
+
+      expect(userUseCases.hasUploadedFiles).toHaveBeenCalledWith(userMocked);
+      expect(result).toEqual({ hasUploadedFiles: true });
+    });
+
+    it('When user has not uploaded files, then it should return hasUploadedFiles as false', async () => {
+      userUseCases.hasUploadedFiles.mockResolvedValueOnce(false);
+
+      const result = await userController.getUploadStatus(userMocked);
+
+      expect(userUseCases.hasUploadedFiles).toHaveBeenCalledWith(userMocked);
+      expect(result).toEqual({ hasUploadedFiles: false });
+    });
+
+    it('When an error occurs while checking upload status, then it should throw the error', async () => {
+      const errorMessage = 'Database error';
+      userUseCases.hasUploadedFiles.mockRejectedValueOnce(
+        new Error(errorMessage),
+      );
+
+      await expect(userController.getUploadStatus(userMocked)).rejects.toThrow(
+        errorMessage,
+      );
+      expect(userUseCases.hasUploadedFiles).toHaveBeenCalledWith(userMocked);
+    });
+  });
 });

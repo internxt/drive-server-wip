@@ -116,6 +116,10 @@ export interface FileRepository {
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
   sumExistentFileSizes(userId: FileAttributes['userId']): Promise<number>;
+  getFilesByFolderUuid(
+    folderUuid: Folder['uuid'],
+    status: FileStatus,
+  ): Promise<File[]>;
 }
 
 @Injectable()

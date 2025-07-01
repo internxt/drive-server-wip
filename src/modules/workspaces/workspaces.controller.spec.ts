@@ -818,12 +818,13 @@ describe('Workspace Controller', () => {
       const workspaceId = v4();
       const search = 'search';
 
-      await workspacesController.searchWorkspace(workspaceId, user, search);
+      await workspacesController.searchWorkspace(workspaceId, user, search, 0);
 
       expect(workspacesUsecases.searchWorkspaceContent).toHaveBeenCalledWith(
         user,
         workspaceId,
         search,
+        0,
       );
     });
   });

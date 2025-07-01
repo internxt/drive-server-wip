@@ -149,7 +149,7 @@ export class UserUseCases {
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
     @Inject(forwardRef(() => WorkspacesUsecases))
-    private workspaceUseCases: WorkspacesUsecases,
+    private readonly workspaceUseCases: WorkspacesUsecases,
     private readonly shareUseCases: ShareUseCases,
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
@@ -810,6 +810,8 @@ export class UserUseCases {
     customIat?: number,
     tokenExpirationTime = '3d',
   ): Promise<{ token: string; newToken: string }> {
+    const jti = v4();
+
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
 
@@ -825,6 +827,8 @@ export class UserUseCases {
     );
     const newToken = Sign(
       {
+        jti,
+        sub: user.uuid,
         payload: {
           uuid: user.uuid,
           email: user.email,
@@ -1785,6 +1789,13 @@ export class UserUseCases {
 
       // DELETING FOREIGN KEYS (not cascade)
       await Promise.all([
+        await this.sharingRepository.deleteInvitesBy({
+          sharedWith: user.uuid,
+        }),
+        await this.sharingRepository.deleteSharingsBy({ ownerId: user.uuid }),
+        await this.sharingRepository.deleteSharingsBy({
+          sharedWith: user.uuid,
+        }),
         await this.userRepository.deleteUserNotificationTokens(user.uuid),
         await this.keyServerRepository.deleteByUserId(user.id),
         await this.appSumoUseCases.deleteByUserId(user.id),
@@ -1842,5 +1853,9 @@ export class UserUseCases {
   async generateMnemonic() {
     const mnemonic = generateMnemonic(256);
     return mnemonic;
+  }
+
+  async hasUploadedFiles(user: User) {
+    return await this.fileUseCases.hasUploadedFiles(user);
   }
 }

@@ -7,7 +7,7 @@ import { ThumbnailAttributes } from './thumbnail.attributes';
 
 export interface ThumbnailRepository {
   findById(id: Thumbnail['id']): Promise<Thumbnail | null>;
-  findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null>;
+  findByFileUuid(fileUuid: FileAttributes['uuid']): Promise<Thumbnail | null>;
   findAll(where?: Partial<ThumbnailAttributes>): Promise<Thumbnail[]>;
   create(thumbnail: Omit<ThumbnailAttributes, 'id'>): Promise<Thumbnail>;
   update(
@@ -30,9 +30,11 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
     return thumbnail ? this.toDomain(thumbnail) : null;
   }
 
-  async findByFileId(fileId: FileAttributes['id']): Promise<Thumbnail | null> {
+  async findByFileUuid(
+    fileUuid: FileAttributes['uuid'],
+  ): Promise<Thumbnail | null> {
     const thumbnail = await this.thumbnailModel.findOne({
-      where: { file_id: fileId },
+      where: { file_uuid: fileUuid },
     });
     return thumbnail ? this.toDomain(thumbnail) : null;
   }
@@ -70,6 +72,7 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
     return {
       id: model.id,
       fileId: model.fileId,
+      fileUuid: model.fileUuid,
       type: model.type,
       size: model.size,
       bucketId: model.bucketId,
@@ -86,6 +89,7 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
     return {
       id: thumbnail.id,
       fileId: thumbnail.fileId,
+      fileUuid: thumbnail.fileUuid,
       type: thumbnail.type,
       size: thumbnail.size,
       bucketId: thumbnail.bucket_id,

@@ -117,7 +117,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         [Sequelize.literal('"rank"'), 'DESC'],
         [Sequelize.literal('"similarity"'), 'DESC'],
       ],
-      limit: 5,
+      limit: 10,
       offset: offset,
       replacements: { partialName, partialNameFormatted, userUuid },
       include: [
@@ -198,7 +198,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         [Sequelize.literal('"rank"'), 'DESC'],
         [Sequelize.literal('"similarity"'), 'DESC'],
       ],
-      limit: 5,
+      limit: 10,
       offset: offset,
       replacements: {
         partialName,

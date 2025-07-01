@@ -3,10 +3,14 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
-import { newFolder } from '../../../test/fixtures';
+import { FolderAttributes } from './folder.attributes';
+import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
+import { UserModel } from '../user/user.model';
+import { SharingModel } from '../sharing/models';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
 
@@ -262,6 +266,730 @@ describe('SequelizeFolderRepository', () => {
         { removed: true },
         { where: { userId } },
       );
+    });
+  });
+
+  describe('findAllCursorInWorkspace', () => {
+    const createdBy = 'user-uuid';
+    const workspaceId = 'workspace-id';
+    const whereClause = { deleted: false, removed: false };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [
+      ['updatedAt', 'ASC'],
+    ];
+
+    it('When folders are found in workspace, then they should be returned', async () => {
+      const folder1 = newFolder();
+      const folder2 = newFolder();
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([folder1, folder2] as any);
+
+      const result = await repository.findAllCursorInWorkspace(
+        createdBy,
+        workspaceId,
+        whereClause,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Folder);
+      expect(result[1]).toBeInstanceOf(Folder);
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        include: [
+          {
+            model: WorkspaceItemUserModel,
+            where: {
+              createdBy,
+              workspaceId,
+              itemType: WorkspaceItemType.Folder,
+            },
+            as: 'workspaceUser',
+            include: [
+              {
+                model: UserModel,
+                as: 'creator',
+                attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+              },
+            ],
+          },
+          {
+            separate: true,
+            model: SharingModel,
+            attributes: ['type', 'id'],
+            required: false,
+          },
+        ],
+        limit,
+        offset,
+        where: whereClause,
+        subQuery: false,
+        order,
+      });
+    });
+
+    it('When no folders are found in workspace, then empty array should be returned', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findAllCursorInWorkspace(
+        createdBy,
+        workspaceId,
+        whereClause,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('createWithAttributes', () => {
+    it('When creating a folder with attributes, then it should return the created folder', async () => {
+      const folderAttributes = {
+        uuid: v4(),
+        userId: 1,
+        name: 'encrypted-name',
+        plainName: 'Test Folder',
+        bucket: 'bucket-id',
+        parentId: null,
+        parentUuid: null,
+        encryptVersion: '03-aes' as const,
+        deleted: false,
+        removed: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        removedAt: null,
+        creationTime: new Date(),
+        modificationTime: new Date(),
+      };
+
+      jest.spyOn(folderModel, 'create').mockResolvedValueOnce({
+        toJSON: jest.fn().mockReturnValue(folderAttributes),
+      } as any);
+
+      const result = await repository.createWithAttributes(folderAttributes);
+
+      expect(folderModel.create).toHaveBeenCalledWith(folderAttributes);
+      expect(result).toBeInstanceOf(Folder);
+    });
+  });
+
+  describe('findByUuid', () => {
+    const folderUuid = v4();
+
+    it('When folder is found by uuid, then it should return the folder', async () => {
+      const folder = newFolder({ attributes: { uuid: folderUuid } });
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(folder as any);
+
+      const result = await repository.findByUuid(folderUuid);
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: folderUuid, deleted: false, removed: false },
+      });
+      expect(result).toBeInstanceOf(Folder);
+      expect(result.uuid).toBe(folderUuid);
+    });
+
+    it('When folder is not found by uuid, then it should return null', async () => {
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findByUuid(folderUuid);
+
+      expect(result).toBeNull();
+    });
+
+    it('When searching for deleted folder, then it should include deleted condition', async () => {
+      const deletedFolder = newFolder({
+        attributes: { uuid: folderUuid, deleted: true },
+      });
+      jest
+        .spyOn(folderModel, 'findOne')
+        .mockResolvedValueOnce(deletedFolder as any);
+
+      const result = await repository.findByUuid(folderUuid, true);
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: folderUuid, deleted: true, removed: false },
+      });
+      expect(result).toBeInstanceOf(Folder);
+      expect(result.uuid).toBe(folderUuid);
+    });
+  });
+
+  describe('findOne', () => {
+    it('When folder is found with where conditions, then it should return the folder', async () => {
+      const whereConditions = { userId: 1, parentId: null };
+      const folder = newFolder({ attributes: whereConditions });
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(folder as any);
+
+      const result = await repository.findOne(whereConditions);
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: whereConditions,
+      });
+      expect(result).toBeInstanceOf(Folder);
+      expect(result.userId).toBe(1);
+    });
+
+    it('When no folder is found with where conditions, then it should return null', async () => {
+      const whereConditions = { userId: 999, plainName: 'NonExistent' };
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findOne(whereConditions);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('deleteById', () => {
+    it('When deleting a folder by id, then it should call destroy', async () => {
+      const folderId = 123;
+      jest.spyOn(folderModel, 'destroy').mockResolvedValueOnce(1);
+
+      await repository.deleteById(folderId);
+
+      expect(folderModel.destroy).toHaveBeenCalledWith({
+        where: { id: { [Op.eq]: folderId } },
+      });
+    });
+  });
+
+  describe('clearOrphansFolders', () => {
+    it('When clearing orphan folders, then it should return the number of deleted folders', async () => {
+      const userId = 1;
+      const mockResult = [[{ total_left: 5 }]];
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockResult as any);
+
+      const result = await repository.clearOrphansFolders(userId);
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        'CALL clear_orphan_folders_by_user (:userId, :output)',
+        {
+          replacements: { userId, output: null },
+        },
+      );
+      expect(result).toBe(5);
+    });
+  });
+
+  describe('findAllByParentUuid', () => {
+    const parentUuid = v4();
+
+    it('When folders are found by parent uuid, then they should be returned', async () => {
+      const folder1 = newFolder({ attributes: { parentUuid } });
+      const folder2 = newFolder({ attributes: { parentUuid } });
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([folder1, folder2] as any);
+
+      const result = await repository.findAllByParentUuid(parentUuid);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: { parentUuid, deleted: false },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Folder);
+      expect(result[1]).toBeInstanceOf(Folder);
+    });
+
+    it('When searching for deleted folders by parent uuid, then deleted condition should be applied', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllByParentUuid(parentUuid, true);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: { parentUuid, deleted: true },
+      });
+    });
+  });
+
+  describe('updateManyByFolderId', () => {
+    it('When updating multiple folders by ids, then it should call update with correct conditions', async () => {
+      const folderIds = [1, 2, 3];
+      const updateData = { deleted: true, deletedAt: new Date() };
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([3] as any);
+
+      await repository.updateManyByFolderId(folderIds, updateData);
+
+      expect(folderModel.update).toHaveBeenCalledWith(updateData, {
+        where: { id: { [Op.in]: folderIds } },
+      });
+    });
+  });
+
+  describe('findUserFoldersByUuid', () => {
+    it('When finding user folders by uuids, then it should return matching folders', async () => {
+      const user = newUser();
+      const folderUuids = [v4(), v4()];
+      const folders = [
+        newFolder({ attributes: { uuid: folderUuids[0], userId: user.id } }),
+        newFolder({ attributes: { uuid: folderUuids[1], userId: user.id } }),
+      ];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findUserFoldersByUuid(user, folderUuids);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          uuid: { [Op.in]: folderUuids },
+          userId: user.id,
+          deleted: false,
+          removed: false,
+        },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Folder);
+      expect(result[1]).toBeInstanceOf(Folder);
+    });
+
+    it('When no folders are found for user and uuids, then empty array should be returned', async () => {
+      const user = newUser();
+      const folderUuids = [v4()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findUserFoldersByUuid(user, folderUuids);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findAllCursor', () => {
+    const whereClause = { deleted: false, removed: false };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [['name', 'ASC']];
+
+    it('When finding folders with cursor pagination, then it should return folders', async () => {
+      const folders = [newFolder(), newFolder()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllCursor(
+        whereClause,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        limit,
+        offset,
+        where: whereClause,
+        subQuery: false,
+        order,
+        include: [
+          {
+            separate: true,
+            model: SharingModel,
+            attributes: ['type', 'id'],
+            required: false,
+          },
+        ],
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Folder);
+    });
+  });
+
+  describe('findAllCursorWithParent', () => {
+    const whereClause = { deleted: false };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [['name', 'ASC']];
+
+    it('When finding folders with parent information, then it should include parent data', async () => {
+      const folders = [newFolder(), newFolder()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllCursorWithParent(
+        whereClause,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        include: [
+          {
+            model: FolderModel,
+            as: 'parent',
+            attributes: ['id', 'uuid'],
+            where: {
+              deleted: false,
+              removed: false,
+            },
+          },
+        ],
+        limit,
+        offset,
+        where: whereClause,
+        order,
+      });
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('findByIds', () => {
+    it('When finding folders by ids for a user, then it should return matching folders', async () => {
+      const user = newUser();
+      const folderIds = [1, 2, 3];
+      const folders = [
+        newFolder({ attributes: { id: 1, userId: user.id } }),
+        newFolder({ attributes: { id: 2, userId: user.id } }),
+      ];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findByIds(user, folderIds);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: { id: { [Op.in]: folderIds }, userId: user.id },
+      });
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('findByUuids', () => {
+    it('When finding folders by uuids, then it should return matching folders', async () => {
+      const folderUuids = [v4(), v4()];
+      const folders = [
+        newFolder({ attributes: { uuid: folderUuids[0] } }),
+        newFolder({ attributes: { uuid: folderUuids[1] } }),
+      ];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findByUuids(folderUuids);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: { uuid: { [Op.in]: folderUuids } },
+      });
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('findAllByParentIdCursor', () => {
+    it('When finding folders by parent id with cursor, then it should return ordered folders', async () => {
+      const whereClause = { parentId: 1, deleted: false };
+      const limit = 10;
+      const offset = 0;
+      const folders = [newFolder()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllByParentIdCursor(
+        whereClause,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        limit,
+        offset,
+        where: whereClause,
+        order: [['id', 'ASC']],
+      });
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('findAllNotDeleted', () => {
+    it('When finding non-deleted folders, then it should add removed condition', async () => {
+      const whereClause = { userId: 1 };
+      const limit = 10;
+      const offset = 0;
+      const folders = [newFolder()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllNotDeleted(
+        whereClause,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        limit,
+        offset,
+        where: {
+          ...whereClause,
+          removed: { [Op.eq]: false },
+        },
+      });
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('findAllByParentId', () => {
+    const parentId = 1;
+    const deleted = false;
+
+    it('When finding folders by parent id without pagination, then it should return all folders', async () => {
+      const folders = [newFolder(), newFolder()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllByParentId(parentId, deleted);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: { parentId, deleted },
+        order: [['id', 'ASC']],
+      });
+      expect(result).toHaveLength(2);
+    });
+
+    it('When finding folders by parent id with pagination, then it should apply limit and offset', async () => {
+      const page = 1;
+      const perPage = 5;
+      const folders = [newFolder()];
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllByParentId(
+        parentId,
+        deleted,
+        page,
+        perPage,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: { parentId, deleted },
+        order: [['id', 'ASC']],
+        offset: 5,
+        limit: 5,
+      });
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('create', () => {
+    it('When creating a folder with basic parameters, then it should return the created folder', async () => {
+      const userId = 1;
+      const name = 'encrypted-name';
+      const bucket = 'bucket-id';
+      const parentId = 2;
+      const encryptVersion = '03-aes' as const;
+      const parentUuid = v4();
+
+      const createdFolder = newFolder({
+        attributes: {
+          userId,
+          name,
+          bucket,
+          parentId,
+          encryptVersion,
+          parentUuid,
+        },
+      });
+      jest
+        .spyOn(folderModel, 'create')
+        .mockResolvedValueOnce(createdFolder as any);
+
+      const result = await repository.create(
+        userId,
+        name,
+        bucket,
+        parentId,
+        encryptVersion,
+        parentUuid,
+      );
+
+      expect(folderModel.create).toHaveBeenCalledWith({
+        userId,
+        name,
+        bucket,
+        parentId,
+        encryptVersion,
+        uuid: expect.any(String),
+        parentUuid,
+      });
+      expect(result).toBeInstanceOf(Folder);
+    });
+  });
+
+  describe('createFolder', () => {
+    it('When creating a folder with partial data, then it should merge with userId', async () => {
+      const userId = 1;
+      const folderData = { name: 'test-folder', plainName: 'Test Folder' };
+      const createdFolder = newFolder({
+        attributes: { ...folderData, userId },
+      });
+      jest
+        .spyOn(folderModel, 'create')
+        .mockResolvedValueOnce(createdFolder as any);
+
+      const result = await repository.createFolder(userId, folderData);
+
+      expect(folderModel.create).toHaveBeenCalledWith({
+        ...folderData,
+        userId,
+      });
+      expect(result).toBeInstanceOf(Folder);
+    });
+  });
+
+  describe('bulkCreate', () => {
+    it('When bulk creating folders, then it should return array of created folders', async () => {
+      const foldersData = [
+        {
+          userId: 1,
+          name: 'folder1',
+          bucket: 'bucket1',
+          parentId: 1,
+          encryptVersion: '03-aes' as const,
+          parentUuid: v4(),
+        },
+        {
+          userId: 1,
+          name: 'folder2',
+          bucket: 'bucket2',
+          parentId: 1,
+          encryptVersion: '03-aes' as const,
+          parentUuid: v4(),
+        },
+      ];
+      const createdFolders = foldersData.map((data) =>
+        newFolder({ attributes: data }),
+      );
+      jest
+        .spyOn(folderModel, 'bulkCreate')
+        .mockResolvedValueOnce(createdFolders as any);
+
+      const result = await repository.bulkCreate(foldersData);
+
+      expect(folderModel.bulkCreate).toHaveBeenCalledWith(foldersData);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Folder);
+    });
+  });
+
+  describe('getFolderAncestors', () => {
+    it('When getting folder ancestors, then it should call database function', async () => {
+      const user = newUser();
+      const folderUuid = v4();
+      const mockAncestors = [{ id: 1, parent_id: null, plain_name: 'root' }];
+      const builtFolders = [newFolder()];
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([mockAncestors] as any);
+      jest
+        .spyOn(folderModel, 'bulkBuild')
+        .mockReturnValueOnce(builtFolders as any);
+
+      const result = await repository.getFolderAncestors(user, folderUuid);
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        'SELECT * FROM get_folder_ancestors(:folder_id, :user_id)',
+        {
+          replacements: { folder_id: folderUuid, user_id: user.id },
+        },
+      );
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('getFoldersCountWhere', () => {
+    it('When counting folders with conditions, then it should return count', async () => {
+      const whereConditions = { userId: 1, deleted: false };
+      const mockCount = 5;
+      jest.spyOn(folderModel, 'findAndCountAll').mockResolvedValueOnce({
+        count: mockCount,
+        rows: [],
+      } as any);
+
+      const result = await repository.getFoldersCountWhere(whereConditions);
+
+      expect(folderModel.findAndCountAll).toHaveBeenCalledWith({
+        where: whereConditions,
+      });
+      expect(result).toBe(mockCount);
+    });
+  });
+
+  describe('getFoldersWhoseParentIdDoesNotExist', () => {
+    it('When counting orphan folders, then it should return count of folders with non-existent parent', async () => {
+      const userId = 1;
+      const mockCount = 3;
+
+      jest.spyOn(folderModel, 'findAndCountAll').mockResolvedValueOnce({
+        count: mockCount,
+        rows: [],
+      } as any);
+
+      const result =
+        await repository.getFoldersWhoseParentIdDoesNotExist(userId);
+
+      expect(folderModel.findAndCountAll).toHaveBeenCalledWith({
+        where: {
+          parentId: {
+            [Op.not]: null,
+            [Op.notIn]: expect.anything(),
+          },
+          userId,
+        },
+      });
+      expect(result).toBe(mockCount);
+    });
+  });
+
+  describe('deleteByUserAndUuids', () => {
+    it('When deleting folders by user and uuids, then it should mark them as removed and deleted', async () => {
+      const user = newUser();
+      const folderUuids = [v4(), v4()];
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([2] as any);
+
+      await repository.deleteByUserAndUuids(user, folderUuids);
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        {
+          removed: true,
+          removedAt: expect.any(Date),
+          deleted: true,
+          deletedAt: expect.any(Date),
+        },
+        {
+          where: {
+            userId: user.id,
+            uuid: { [Op.in]: folderUuids },
+          },
+        },
+      );
+    });
+  });
+
+  describe('findAllCursorWhereUpdatedAfter', () => {
+    it('When finding folders updated after a date, then it should apply date filter', async () => {
+      const whereClause = { deleted: false };
+      const updatedAfter = new Date('2023-01-01');
+      const limit = 10;
+      const offset = 0;
+      const order: Array<[keyof FolderAttributes, string]> = [
+        ['updatedAt', 'ASC'],
+      ];
+      const folders = [newFolder()];
+
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAfter,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAfter },
+          parentId: { [Op.not]: null },
+        },
+        order,
+        limit,
+        offset,
+      });
+      expect(result).toHaveLength(1);
     });
   });
 });

@@ -46,7 +46,7 @@
     "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.3",
     "@nestjs/sequelize": "^11.0.0",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.4.0",
@@ -70,7 +70,7 @@
     "multer-s3": "^3.0.1",
     "newrelic": "^11.23.1",
     "node-device-detector": "2.0.17",
-    "openpgp": "^5.11.0",
+    "openpgp": "^5.11.3",
     "passport": "^0.6.0",
     "passport-http": "^0.3.0",
     "passport-jwt": "^4.0.1",
@@ -146,7 +146,10 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   },
   "lint-staged": {
     "./src/**/*.{js,ts}": "yarn run lint"

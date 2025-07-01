@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Logger, NotFoundException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 
 import { TrashUseCases } from './trash.usecase';
-import { File, FileAttributes } from '../file/file.domain';
+import { FileStatus } from '../file/file.domain';
 import { User } from '../user/user.domain';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { newUser, newFile, newFolder } from '../../../test/fixtures';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -31,83 +32,175 @@ describe('Trash Use Cases', () => {
     expect(service).toBeDefined();
   });
 
-  describe('delete items', () => {
-    it.skip('should delete all items', async () => {
-      const filesIdToDelete: Array<FileAttributes['fileId']> = [
-        'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
-        'ca6b473d-221f-5832-a95e-8dd11f2af268',
-        'fda03f0d-3006-5a86-b54b-8216da471fb0',
-      ];
+  describe('emptyTrash', () => {
+    const user = newUser();
 
-      const foldersIdToDelete: Array<FolderAttributes['id']> = [
-        2176796544, 505779655, 724413021,
-      ];
+    it('When emptyTrash is called, then it should delete all trashed files and folders in chunks', async () => {
+      const filesCount = 250;
+      const foldersCount = 150;
+      const mockFiles = Array.from({ length: 100 }, () =>
+        newFile({ attributes: { status: FileStatus.TRASHED } }),
+      );
+      const mockFolders = Array.from({ length: 100 }, () =>
+        newFolder({ attributes: { deleted: true, removed: false } }),
+      );
 
       jest
-        .spyOn(fileUseCases, 'getByFileIdAndUser')
-        .mockResolvedValue({} as File);
-      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
+        .spyOn(fileUseCases, 'getTrashFilesCount')
+        .mockResolvedValue(filesCount);
       jest
-        .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementationOnce(() =>
-          Promise.resolve({
-            id: 2176796544,
-            uuid: 'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
-          }),
-        );
-      jest
-        .spyOn(folderUseCases, 'deleteFolderPermanently')
-        .mockImplementation(() => Promise.resolve());
+        .spyOn(folderUseCases, 'getTrashFoldersCount')
+        .mockResolvedValue(foldersCount);
+      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
 
-      await service.deleteItems(
-        {} as User,
-        filesIdToDelete as unknown as File[], // must be updated to be a list of files
-        foldersIdToDelete as unknown as Folder[], // must be updated to be a list of folders
-      );
+      await service.emptyTrash(user);
 
-      expect(fileUseCases.getByFileIdAndUser).toHaveBeenCalledTimes(
-        filesIdToDelete.length,
-      );
-      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
-        filesIdToDelete.length,
-      );
-      expect(folderUseCases.getFolder).toHaveBeenCalledTimes(
-        foldersIdToDelete.length,
-      );
-      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
-        foldersIdToDelete.length,
-      );
+      expect(fileUseCases.getTrashFilesCount).toHaveBeenCalledWith(user.id);
+      expect(folderUseCases.getTrashFoldersCount).toHaveBeenCalledWith(user.id);
+
+      // Should be called twice for folders (150 count / 100 chunk size = 2 calls)
+      expect(folderUseCases.getFolders).toHaveBeenCalledTimes(2);
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(2);
+
+      // Should be called three times for files (250 count / 100 chunk size = 3 calls)
+      expect(fileUseCases.getFiles).toHaveBeenCalledTimes(3);
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(3);
     });
 
-    it.skip('should fail if a file is not found', async () => {
-      const filesIdToDelete: Array<FileAttributes['fileId']> = [
-        'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
-      ];
+    it('When there are no trashed items, then it should not call delete methods', async () => {
+      jest.spyOn(fileUseCases, 'getTrashFilesCount').mockResolvedValue(0);
+      jest.spyOn(folderUseCases, 'getTrashFoldersCount').mockResolvedValue(0);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
 
-      jest
-        .spyOn(fileUseCases, 'getByFileIdAndUser')
-        .mockResolvedValueOnce(null);
-      jest.spyOn(fileUseCases, 'deleteFilePermanently');
-      jest.spyOn(folderUseCases, 'deleteFolderPermanently');
+      await service.emptyTrash(user);
 
-      try {
-        await service.deleteItems(
-          {} as User,
-          filesIdToDelete as unknown as File[], // must be updated to be a list of files
-          filesIdToDelete as unknown as Folder[], // must be updated to be a list of folders );
-        );
-      } catch (err) {
-        expect(err).toBeInstanceOf(NotFoundException);
-        expect(err.message).toBe(
-          `file with id bbe6d386-e215-53a0-88ef-1e4c318e6ff9 not found`,
-        );
-      }
-
-      expect(fileUseCases.deleteFilePermanently).not.toHaveBeenCalled();
-      expect(folderUseCases.deleteFolderPermanently).not.toHaveBeenCalled();
+      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(fileUseCases.deleteByUser).not.toHaveBeenCalled();
     });
 
-    it('shoul fail if a folder is not found', async () => {
+    it('When only files exist in trash, then it should only delete files', async () => {
+      const filesCount = 50;
+      const mockFiles = Array.from({ length: 50 }, () =>
+        newFile({ attributes: { status: FileStatus.TRASHED } }),
+      );
+
+      jest
+        .spyOn(fileUseCases, 'getTrashFilesCount')
+        .mockResolvedValue(filesCount);
+      jest.spyOn(folderUseCases, 'getTrashFoldersCount').mockResolvedValue(0);
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.emptyTrash(user);
+
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(1);
+      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
+    });
+
+    it('When only folders exist in trash, then it should only delete folders', async () => {
+      const foldersCount = 75;
+      const mockFolders = Array.from({ length: 75 }, () =>
+        newFolder({ attributes: { deleted: true, removed: false } }),
+      );
+
+      jest.spyOn(fileUseCases, 'getTrashFilesCount').mockResolvedValue(0);
+      jest
+        .spyOn(folderUseCases, 'getTrashFoldersCount')
+        .mockResolvedValue(foldersCount);
+      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.emptyTrash(user);
+
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(1);
+      expect(fileUseCases.deleteByUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteItems', () => {
+    const user = newUser();
+
+    it('When deleteItems is called with files and folders, then it should delete items in chunks', async () => {
+      const files = Array.from({ length: 25 }, () => newFile());
+      const folders = Array.from({ length: 15 }, () => newFolder());
+
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.deleteItems(user, files, folders);
+
+      // Files: 25 items / 10 chunk size = 3 calls
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(3);
+      // Folders: 15 items / 10 chunk size = 2 calls
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(2);
+    });
+
+    it('When deleteItems is called with empty arrays, then it should not call delete methods', async () => {
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.deleteItems(user, [], []);
+
+      expect(fileUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
+    });
+
+    it('When deleteItems is called with only files, then it should only delete files', async () => {
+      const files = Array.from({ length: 5 }, () => newFile());
+
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.deleteItems(user, files, []);
+
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(1);
+      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
+    });
+
+    it('When deleteItems is called with only folders, then it should only delete folders', async () => {
+      const folders = Array.from({ length: 3 }, () => newFolder());
+
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.deleteItems(user, [], folders);
+
+      expect(fileUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('When deleteItems processes large amounts of items, then it should handle chunking correctly', async () => {
+      const files = Array.from({ length: 32 }, () => newFile());
+      const folders = Array.from({ length: 28 }, () => newFolder());
+
+      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
+
+      await service.deleteItems(user, files, folders);
+
+      // Files: 32 items / 10 chunk size = 4 calls
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(4);
+      // Folders: 28 items / 10 chunk size = 3 calls
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(3);
+
+      const fileDeleteCalls = (fileUseCases.deleteByUser as jest.Mock).mock
+        .calls;
+      const folderDeleteCalls = (folderUseCases.deleteByUser as jest.Mock).mock
+        .calls;
+
+      expect(fileDeleteCalls[fileDeleteCalls.length - 1][1]).toHaveLength(2); // Last file chunk
+      expect(folderDeleteCalls[folderDeleteCalls.length - 1][1]).toHaveLength(
+        8,
+      ); // Last folder chunk
+    });
+
+    it('should fail if a folder is not found', async () => {
       const error = Error('random error');
       const foldersIdToDelete: Array<FolderAttributes['id']> = [
         2176796544, 505779655, 724413021,
@@ -134,69 +227,6 @@ describe('Trash Use Cases', () => {
 
       expect(fileUseCases.deleteFilePermanently).not.toHaveBeenCalled();
       expect(folderUseCases.deleteFolderPermanently).not.toHaveBeenCalled();
-    });
-
-    it.skip('should try to delete all items even if a deletion fails', async () => {
-      const error = new Error('unkown test error');
-      const filesIdToDelete: Array<FileAttributes['fileId']> = [
-        'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
-        'ca6b473d-221f-5832-a95e-8dd11f2af268',
-        'fda03f0d-3006-5a86-b54b-8216da471fb0',
-        '38473164-6261-51af-8eb3-223c334986ce',
-        '5e98661c-9b06-5b3f-ac3d-64e16caa1001',
-      ];
-
-      const foldersIdToDelete: Array<FolderAttributes['id']> = [
-        2176796544, 505779655, 724413021, 2751197087, 3468856620,
-      ];
-
-      jest
-        .spyOn(fileUseCases, 'getByFileIdAndUser')
-        .mockResolvedValue({} as File);
-      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValue({} as Folder);
-      jest
-        .spyOn(fileUseCases, 'deleteFilePermanently')
-        .mockImplementationOnce(() =>
-          Promise.resolve({
-            id: 2176796544,
-            uuid: 'bbe6d386-e215-53a0-88ef-1e4c318e6ff9',
-          }),
-        )
-        .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() =>
-          Promise.resolve({
-            id: 2751197087,
-            uuid: '38473164-6261-51af-8eb3-223c334986ce',
-          }),
-        )
-        .mockImplementationOnce(() => Promise.reject(error));
-      jest
-        .spyOn(folderUseCases, 'deleteFolderPermanently')
-        .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() => Promise.resolve())
-        .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() => Promise.resolve())
-        .mockImplementationOnce(() => Promise.reject(error));
-
-      await service.deleteItems(
-        {} as User,
-        filesIdToDelete as unknown as File[], // must be updated to be a list of files
-        foldersIdToDelete as unknown as Folder[], // must be updated to be a list of folders
-      );
-
-      expect(fileUseCases.getByFileIdAndUser).toHaveBeenCalledTimes(
-        filesIdToDelete.length,
-      );
-      expect(fileUseCases.deleteFilePermanently).toHaveBeenCalledTimes(
-        filesIdToDelete.length,
-      );
-      expect(folderUseCases.getFolder).toHaveBeenCalledTimes(
-        foldersIdToDelete.length,
-      );
-      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledTimes(
-        foldersIdToDelete.length,
-      );
     });
   });
 });
