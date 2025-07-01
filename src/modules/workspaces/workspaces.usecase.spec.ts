@@ -6443,21 +6443,29 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('resetWorkspace', () => {
-    it('When called, then it should reset the workspace by removing all non-owner members and reassigning space', async () => {
+    it('When called, then it should reset the workspace by removing all non-owner members and completely reinitializing', async () => {
       const workspaceNetworkUserId = v4();
       const workspaceOwnerId = v4();
       const workspaceNetworkUser = newUser({
         attributes: { uuid: workspaceNetworkUserId },
       });
+      const workspaceOwnerUser = newUser({
+        attributes: { uuid: workspaceOwnerId },
+      });
       const workspace = newWorkspace({
         attributes: {
           workspaceUserId: workspaceNetworkUserId,
           ownerId: workspaceOwnerId,
+          numberOfSeats: 10,
+          phoneNumber: '+1234567890',
+          address: '123 Test St',
         },
       });
+
       jest
         .spyOn(userRepository, 'findByUuid')
-        .mockResolvedValueOnce(workspaceNetworkUser);
+        .mockResolvedValueOnce(workspaceNetworkUser)
+        .mockResolvedValueOnce(workspaceOwnerUser);
 
       const ownerMember = newWorkspaceUser({
         workspaceId: workspace.id,
@@ -6486,49 +6494,74 @@ describe('WorkspacesUsecases', () => {
         .spyOn(service, 'getWorkspaceNetworkLimit')
         .mockResolvedValueOnce(totalSpace);
 
-      const updateUserSpy = jest
-        .spyOn(workspaceRepository, 'updateWorkspaceUserBy')
+      const deleteInvitationsSpy = jest
+        .spyOn(workspaceRepository, 'deleteAllInvitationsByWorkspace')
         .mockResolvedValueOnce(undefined);
+
+      const deleteWorkspaceContentSpy = jest
+        .spyOn(service, 'deleteWorkspaceContent')
+        .mockResolvedValueOnce([]);
+
+      const initiateWorkspaceSpy = jest
+        .spyOn(service, 'initiateWorkspace')
+        .mockResolvedValueOnce({ workspace });
 
       await service.resetWorkspace(workspace);
 
       expect(deleteFoldersSpy).toHaveBeenCalledWith(
         workspaceNetworkUser,
         expect.arrayContaining([
-          nonOwnerMembers[1].rootFolderId,
           nonOwnerMembers[0].rootFolderId,
+          nonOwnerMembers[1].rootFolderId,
         ]),
       );
 
       expect(deleteUsersSpy).toHaveBeenCalledWith(
         workspace.id,
         expect.arrayContaining([
-          nonOwnerMembers[1].memberId,
+          ownerMember.memberId,
           nonOwnerMembers[0].memberId,
+          nonOwnerMembers[1].memberId,
         ]),
       );
 
-      expect(updateUserSpy).toHaveBeenCalledWith(
-        { workspaceId: workspace.id, memberId: workspace.ownerId },
-        { spaceLimit: totalSpace },
+      expect(deleteInvitationsSpy).toHaveBeenCalledWith(workspace.id);
+      expect(deleteWorkspaceContentSpy).toHaveBeenCalledWith(
+        workspace.id,
+        workspaceOwnerUser,
+      );
+      expect(initiateWorkspaceSpy).toHaveBeenCalledWith(
+        workspace.ownerId,
+        totalSpace,
+        {
+          numberOfSeats: workspace.numberOfSeats,
+          phoneNumber: workspace.phoneNumber,
+          address: workspace.address,
+        },
       );
     });
 
-    it('When workspace has only the owner as member, it should still update space allocation', async () => {
+    it('When workspace has only the owner as member, then it should still completely reset the workspace', async () => {
       const workspaceNetworkUserId = v4();
       const workspaceOwnerId = v4();
       const workspaceNetworkUser = newUser({
         attributes: { uuid: workspaceNetworkUserId },
       });
+      const workspaceOwnerUser = newUser({
+        attributes: { uuid: workspaceOwnerId },
+      });
       const workspace = newWorkspace({
         attributes: {
           workspaceUserId: workspaceNetworkUserId,
           ownerId: workspaceOwnerId,
+          numberOfSeats: 5,
         },
       });
+
       jest
         .spyOn(userRepository, 'findByUuid')
-        .mockResolvedValueOnce(workspaceNetworkUser);
+        .mockResolvedValueOnce(workspaceNetworkUser)
+        .mockResolvedValueOnce(workspaceOwnerUser);
 
       const ownerMember = newWorkspaceUser({
         workspaceId: workspace.id,
@@ -6539,31 +6572,50 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'findWorkspaceUsers')
         .mockResolvedValueOnce([ownerMember]);
 
-      const deleteFoldersSpy = jest.spyOn(folderUseCases, 'deleteByUuids');
+      const deleteFoldersSpy = jest
+        .spyOn(folderUseCases, 'deleteByUuids')
+        .mockResolvedValueOnce(undefined);
 
-      const deleteUsersSpy = jest.spyOn(
-        workspaceRepository,
-        'deleteUsersFromWorkspace',
-      );
+      const deleteUsersSpy = jest
+        .spyOn(workspaceRepository, 'deleteUsersFromWorkspace')
+        .mockResolvedValueOnce(undefined);
 
-      const totalSpace = 5000000;
+      const totalSpace = 3000000;
       jest
         .spyOn(service, 'getWorkspaceNetworkLimit')
         .mockResolvedValueOnce(totalSpace);
 
-      const updateUserSpy = jest.spyOn(
-        workspaceRepository,
-        'updateWorkspaceUserBy',
-      );
+      const deleteInvitationsSpy = jest
+        .spyOn(workspaceRepository, 'deleteAllInvitationsByWorkspace')
+        .mockResolvedValueOnce(undefined);
+
+      const deleteWorkspaceContentSpy = jest
+        .spyOn(service, 'deleteWorkspaceContent')
+        .mockResolvedValueOnce([]);
+
+      const initiateWorkspaceSpy = jest
+        .spyOn(service, 'initiateWorkspace')
+        .mockResolvedValueOnce({ workspace });
 
       await service.resetWorkspace(workspace);
 
       expect(deleteFoldersSpy).toHaveBeenCalledWith(workspaceNetworkUser, []);
-      expect(deleteUsersSpy).toHaveBeenCalledWith(workspace.id, []);
-
-      expect(updateUserSpy).toHaveBeenCalledWith(
-        { workspaceId: workspace.id, memberId: workspace.ownerId },
-        { spaceLimit: totalSpace },
+      expect(deleteUsersSpy).toHaveBeenCalledWith(workspace.id, [
+        ownerMember.memberId,
+      ]);
+      expect(deleteInvitationsSpy).toHaveBeenCalledWith(workspace.id);
+      expect(deleteWorkspaceContentSpy).toHaveBeenCalledWith(
+        workspace.id,
+        workspaceOwnerUser,
+      );
+      expect(initiateWorkspaceSpy).toHaveBeenCalledWith(
+        workspace.ownerId,
+        totalSpace,
+        {
+          numberOfSeats: workspace.numberOfSeats,
+          phoneNumber: workspace.phoneNumber,
+          address: workspace.address,
+        },
       );
     });
   });
