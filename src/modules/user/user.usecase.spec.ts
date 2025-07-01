@@ -138,7 +138,7 @@ describe('User use cases', () => {
     referralCode: null,
     referrer: null,
     syncDate: new Date(),
-    uuid: 'uuid',
+    uuid: v4(),
     lastResend: new Date(),
     credit: null,
     welcomePack: true,
@@ -898,6 +898,8 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
+          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          sub: user.uuid,
           payload: {
             uuid: user.uuid,
             email: user.email,
@@ -942,6 +944,8 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
+          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          sub: user.uuid,
           payload: {
             uuid: user.uuid,
             email: user.email,
@@ -985,6 +989,8 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
+          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          sub: user.uuid,
           payload: {
             uuid: user.uuid,
             email: user.email,
