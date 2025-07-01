@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserUseCases } from '../user/user.usecase';
-import { CaptchaService } from 'src/externals/captcha/captcha.service';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Injectable()
 export class ConditionalCaptchaGuard implements CanActivate {

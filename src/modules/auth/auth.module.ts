@@ -13,7 +13,7 @@ import { AuthController } from './auth.controller';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TwoFactorAuthService } from './two-factor-auth.service';
-import { CaptchaService } from 'src/externals/captcha/captcha.service';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
   imports: [
