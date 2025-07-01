@@ -810,6 +810,8 @@ export class UserUseCases {
     customIat?: number,
     tokenExpirationTime = '3d',
   ): Promise<{ token: string; newToken: string }> {
+    const jti = v4();
+
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
 
@@ -825,6 +827,8 @@ export class UserUseCases {
     );
     const newToken = Sign(
       {
+        jti,
+        sub: user.uuid,
         payload: {
           uuid: user.uuid,
           email: user.email,
