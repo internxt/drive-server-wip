@@ -8,6 +8,7 @@ if (typeof globalThis.BigInt === 'function') {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = global.TextEncoder || TextEncoder;
 global.TextDecoder = global.TextDecoder || TextDecoder;
