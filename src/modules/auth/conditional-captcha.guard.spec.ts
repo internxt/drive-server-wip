@@ -4,20 +4,11 @@ import { UserUseCases } from '../user/user.usecase';
 import { CaptchaService } from 'src/externals/captcha/captcha.service';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { newUser } from '../../../test/fixtures';
-import configuration from '../../config/configuration';
 
 describe('ConditionalCaptchaGuard', () => {
   let guard: ConditionalCaptchaGuard;
   let userUseCase: DeepMocked<UserUseCases>;
   let captchaService: DeepMocked<CaptchaService>;
-
-  beforeAll(() => {
-    configuration().isProduction = true;
-  });
-
-  afterAll(() => {
-    jest.restoreAllMocks();
-  });
 
   beforeEach(() => {
     userUseCase = createMock<UserUseCases>();
