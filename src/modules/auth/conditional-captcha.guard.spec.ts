@@ -36,7 +36,6 @@ describe('ConditionalCaptchaGuard', () => {
 
   describe('Error Login count', () => {
     it('When the error login count is less than the threshold, then it does nothing', async () => {
-      const mockedUser = newUser();
       const context = createMockExecutionContext({
         body: {
           email: 'test@inxt.com',
@@ -59,7 +58,6 @@ describe('ConditionalCaptchaGuard', () => {
 
     describe('The error log in count is more than the threshold', () => {
       it('When no captcha token is provided, then an error indicating so is thrown', async () => {
-        const mockedUser = newUser();
         const context = createMockExecutionContext({
           body: {
             email: 'test@inxt.com',
@@ -82,7 +80,6 @@ describe('ConditionalCaptchaGuard', () => {
     });
 
     it('When the captcha token verification fails, the an error indicating so is thrown', async () => {
-      const mockedUser = newUser();
       const context = createMockExecutionContext({
         body: {
           email: 'test@inxt.com',
@@ -105,7 +102,6 @@ describe('ConditionalCaptchaGuard', () => {
     });
 
     it('When the captcha token is successfully verified, then it can be activated', async () => {
-      const mockedUser = newUser();
       const context = createMockExecutionContext({
         body: {
           email: 'test@inxt.com',
