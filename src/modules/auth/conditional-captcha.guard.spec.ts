@@ -47,12 +47,9 @@ describe('ConditionalCaptchaGuard', () => {
       });
 
       const captchaServiceSpy = jest.spyOn(captchaService, 'verifyCaptcha');
-      jest.spyOn(userUseCase, 'findByEmail').mockResolvedValue({
-        errorLoginCount: 0,
-        isGuestOnSharedWorkspace: () => false,
-        toJSON: undefined,
-        ...mockedUser,
-      });
+      jest
+        .spyOn(userUseCase, 'findByEmail')
+        .mockResolvedValue(buildUserWithErrorLoginCount(0));
 
       const canUserLogin = await guard.canActivate(context);
 
@@ -72,12 +69,9 @@ describe('ConditionalCaptchaGuard', () => {
           ip: '127.0.0.1',
         });
 
-        jest.spyOn(userUseCase, 'findByEmail').mockResolvedValue({
-          ...mockedUser,
-          errorLoginCount: 6,
-          isGuestOnSharedWorkspace: () => false,
-          toJSON: undefined,
-        });
+        jest
+          .spyOn(userUseCase, 'findByEmail')
+          .mockResolvedValue(buildUserWithErrorLoginCount(6));
         const captchaServiceSpy = jest.spyOn(captchaService, 'verifyCaptcha');
 
         await expect(guard.canActivate(context)).rejects.toThrow(
@@ -100,15 +94,10 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      jest.spyOn(userUseCase, 'findByEmail').mockResolvedValue({
-        ...mockedUser,
-        errorLoginCount: 6,
-        isGuestOnSharedWorkspace: () => false,
-        toJSON: undefined,
-      });
-      const captchaServiceSpy = jest
-        .spyOn(captchaService, 'verifyCaptcha')
-        .mockResolvedValue(false);
+      jest
+        .spyOn(userUseCase, 'findByEmail')
+        .mockResolvedValue(buildUserWithErrorLoginCount(6));
+      jest.spyOn(captchaService, 'verifyCaptcha').mockResolvedValue(false);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         UnauthorizedException,
@@ -128,12 +117,9 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      jest.spyOn(userUseCase, 'findByEmail').mockResolvedValue({
-        ...mockedUser,
-        errorLoginCount: 6,
-        isGuestOnSharedWorkspace: () => false,
-        toJSON: undefined,
-      });
+      jest
+        .spyOn(userUseCase, 'findByEmail')
+        .mockResolvedValue(buildUserWithErrorLoginCount(6));
       const captchaServiceSpy = jest
         .spyOn(captchaService, 'verifyCaptcha')
         .mockResolvedValue(true);
@@ -152,3 +138,10 @@ const createMockExecutionContext = (request: Partial<any>): ExecutionContext =>
       getRequest: () => request,
     }),
   }) as unknown as ExecutionContext;
+
+const buildUserWithErrorLoginCount = (count: number) => ({
+  ...newUser(),
+  errorLoginCount: count,
+  isGuestOnSharedWorkspace: () => false,
+  toJSON: undefined,
+});
