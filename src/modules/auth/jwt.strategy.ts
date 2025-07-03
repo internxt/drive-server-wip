@@ -10,6 +10,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { Time } from '../../lib/time';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 export interface JwtPayload {
   email: string;
@@ -25,6 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
     @Inject(UserUseCases)
     private readonly userUseCases: UserUseCases,
     configService: ConfigService,
+    private readonly cacheManagerService: CacheManagerService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -37,6 +39,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
       if (!payload.payload?.uuid) {
         throw new UnauthorizedException('Old token version detected');
       }
+
+      const jti = payload.jti;
+      if (jti) {
+        const isBlacklisted =
+          await this.cacheManagerService.isJwtBlacklisted(jti);
+        if (isBlacklisted) {
+          throw new UnauthorizedException();
+        }
+      }
+
       const { uuid } = payload.payload;
       const user = await this.userUseCases.getUser(uuid);
       if (!user) {
