@@ -6,10 +6,10 @@ export class Device implements DeviceAttributes {
   key?: string;
   folderUuid?: string;
   userId: number;
-  name: string;
+  name?: string;
   platform?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
   backups?: any[];
 
   constructor(attributes: DeviceAttributes) {
