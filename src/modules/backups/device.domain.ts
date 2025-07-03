@@ -2,12 +2,14 @@ import { DeviceAttributes } from './models/device.attributes';
 
 export class Device implements DeviceAttributes {
   id?: number;
-  mac: string;
+  mac?: string;
+  key?: string;
+  folderUuid?: string;
   userId: number;
-  name?: string;
+  name: string;
   platform?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
   backups?: any[];
 
   constructor(attributes: DeviceAttributes) {
@@ -16,6 +18,8 @@ export class Device implements DeviceAttributes {
     this.userId = attributes.userId;
     this.name = attributes.name;
     this.platform = attributes.platform;
+    this.key = attributes.key;
+    this.folderUuid = attributes.folderUuid;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
     this.backups = attributes.backups;
@@ -32,6 +36,8 @@ export class Device implements DeviceAttributes {
       userId: this.userId,
       name: this.name,
       platform: this.platform,
+      key: this.key,
+      folderUuid: this.folderUuid,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
