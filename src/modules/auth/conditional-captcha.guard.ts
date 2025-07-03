@@ -39,7 +39,7 @@ export class ConditionalCaptchaGuard implements CanActivate {
     if (errorLoginCount >= this.threshold) {
       if (inxtClient !== ClientEnum['Web']) {
         throw new ForbiddenException({
-          message: 'too much failed attempts, go to the web app to login',
+          message: 'Too many failed attempts, go to the web app to login',
           code: 'WebLoginRequired',
         });
       }
