@@ -19,6 +19,7 @@ import { SharingModel } from '../sharing/models';
 import { Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
+import { DeviceModel } from '../backups/models/device.model';
 
 @Table({
   underscored: true,
@@ -59,6 +60,9 @@ export class FolderModel extends Model implements FolderAttributes {
 
   @BelongsTo(() => UserModel)
   user: UserModel;
+
+  @HasOne(() => DeviceModel)
+  device: DeviceModel;
 
   @Column
   encryptVersion: '03-aes';
