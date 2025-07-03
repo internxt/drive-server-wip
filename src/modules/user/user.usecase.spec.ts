@@ -1471,7 +1471,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
       });
 
       jest
@@ -1505,6 +1505,7 @@ describe('User use cases', () => {
       jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('jwt-secret');
 
       await expect(
         userUseCases.sendAccountEmailVerification(user),
@@ -1516,7 +1517,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
       });
 
       jest.spyOn(mailLimit, 'increaseTodayAttempts');
@@ -1548,7 +1549,7 @@ describe('User use cases', () => {
 
       const mailLimit = newMailLimit({
         attemptsCount: 10,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
         lastMailSent: lastDayDate,
       });
 
@@ -1766,7 +1767,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
       });
 
       jest
@@ -1801,6 +1802,7 @@ describe('User use cases', () => {
       jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mailLimit, false]);
+      jest.spyOn(configService, 'get').mockReturnValue('http://example.com');
 
       await expect(userUseCases.sendDeactivationEmail(user)).rejects.toThrow(
         MailLimitReachedException,
@@ -1812,7 +1814,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
       });
 
       jest.spyOn(mailLimit, 'increaseTodayAttempts');
@@ -1834,7 +1836,7 @@ describe('User use cases', () => {
 
       const mailLimit = newMailLimit({
         attemptsCount: 10,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
         lastMailSent: lastDayDate,
       });
 
@@ -3738,8 +3740,9 @@ describe('User use cases', () => {
 
   describe('getOrPreCreateUser', () => {
     const testEmail = 'test@example.com';
+    const requestingUser = newUser();
 
-    it('When user exists, then it should return existing public keys', async () => {
+    it('When user exists, then it should return existing public keys with consistent timing', async () => {
       const existingUser = newUser({ attributes: { email: testEmail } });
       const mockKeys = {
         ecc: 'existing-ecc-key',
@@ -3753,7 +3756,12 @@ describe('User use cases', () => {
         .spyOn(keyServerUseCases, 'getPublicKeys')
         .mockResolvedValue(mockKeys);
 
-      const result = await userUseCases.getOrPreCreateUser(testEmail);
+      const startTime = Date.now();
+      const result = await userUseCases.getOrPreCreateUser(
+        testEmail,
+        requestingUser,
+      );
+      const elapsed = Date.now() - startTime;
 
       expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
       expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
@@ -3763,6 +3771,7 @@ describe('User use cases', () => {
         publicKey: mockKeys.ecc,
         publicKyberKey: mockKeys.kyber,
       });
+      expect(elapsed).toBeGreaterThanOrEqual(900);
     });
 
     it('When user exists but has no keys, then it should return null keys', async () => {
@@ -3779,7 +3788,10 @@ describe('User use cases', () => {
         .spyOn(keyServerUseCases, 'getPublicKeys')
         .mockResolvedValue(mockKeys);
 
-      const result = await userUseCases.getOrPreCreateUser(testEmail);
+      const result = await userUseCases.getOrPreCreateUser(
+        testEmail,
+        requestingUser,
+      );
 
       expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
       expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
@@ -3791,37 +3803,115 @@ describe('User use cases', () => {
       });
     });
 
-    it('When user does not exist, then it should pre-create user and return new keys', async () => {
+    it('When user does not exist and limit not reached, then it should pre-create user and return new keys', async () => {
       const preCreatedUser = newPreCreatedUser();
-
-      jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
-      jest.spyOn(userUseCases, 'preCreateUser').mockResolvedValue({
-        ...preCreatedUser,
-        publicKey: preCreatedUser.publicKey.toString(),
-        publicKyberKey: preCreatedUser.publicKyberKey.toString(),
+      const mockLimit = newMailLimit({
+        attemptsCount: 5,
+        attemptsLimit: 50,
       });
 
-      const result = await userUseCases.getOrPreCreateUser(testEmail);
+      jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockLimit, false]);
+      jest.spyOn(userUseCases, 'preCreateUser').mockResolvedValue([
+        {
+          ...preCreatedUser.toJSON(),
+          publicKey: preCreatedUser.publicKey.toString(),
+          publicKyberKey: preCreatedUser.publicKyberKey.toString(),
+          password: preCreatedUser.password.toString(),
+        },
+        true,
+      ]);
+      jest.spyOn(mockLimit, 'increaseTodayAttempts');
+      jest.spyOn(mailLimitRepository, 'updateByUserIdAndMailType');
+
+      const result = await userUseCases.getOrPreCreateUser(
+        testEmail,
+        requestingUser,
+      );
 
       expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledWith(
+        {
+          userId: requestingUser.id,
+          mailType: MailTypes.PreCreateUser,
+        },
+        {
+          userId: requestingUser.id,
+          mailType: MailTypes.PreCreateUser,
+          attemptsLimit: 50,
+          attemptsCount: 0,
+          lastMailSent: expect.any(Date),
+        },
+      );
       expect(userUseCases.preCreateUser).toHaveBeenCalledWith({
         email: testEmail,
       });
+      expect(mockLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(
+        requestingUser.id,
+        MailTypes.PreCreateUser,
+        mockLimit,
+      );
       expect(result).toEqual({
         publicKey: preCreatedUser.publicKey,
         publicKyberKey: preCreatedUser.publicKyberKey,
       });
     });
 
-    it('When user does not exist and pre-creation fails, then it should throw the error', async () => {
-      const error = new Error('Pre-creation failed');
+    it('When user does not exist but daily limit is reached, then it should throw MailLimitReachedException with consistent timing', async () => {
+      const mockLimit = newMailLimit({
+        attemptsCount: 50,
+        attemptsLimit: 50,
+      });
 
       jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockLimit, false]);
+      jest.spyOn(mockLimit, 'isLimitForTodayReached').mockReturnValue(true);
+      jest.spyOn(userUseCases, 'preCreateUser');
+
+      await expect(
+        userUseCases.getOrPreCreateUser(testEmail, requestingUser),
+      ).rejects.toThrow(MailLimitReachedException);
+
+      expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledWith(
+        {
+          userId: requestingUser.id,
+          mailType: MailTypes.PreCreateUser,
+        },
+        {
+          userId: requestingUser.id,
+          mailType: MailTypes.PreCreateUser,
+          attemptsLimit: 50,
+          attemptsCount: 0,
+          lastMailSent: expect.any(Date),
+        },
+      );
+      expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('When user does not exist and pre-creation fails, then it should throw the error', async () => {
+      const error = new Error('Pre-creation failed');
+      const mockLimit = newMailLimit({
+        attemptsCount: 5,
+        attemptsLimit: 50,
+      });
+
+      jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockLimit, false]);
       jest.spyOn(userUseCases, 'preCreateUser').mockRejectedValue(error);
 
-      await expect(userUseCases.getOrPreCreateUser(testEmail)).rejects.toThrow(
-        error,
-      );
+      await expect(
+        userUseCases.getOrPreCreateUser(testEmail, requestingUser),
+      ).rejects.toThrow(error);
 
       expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
       expect(userUseCases.preCreateUser).toHaveBeenCalledWith({
@@ -3838,9 +3928,9 @@ describe('User use cases', () => {
         .mockResolvedValue(existingUser);
       jest.spyOn(keyServerUseCases, 'getPublicKeys').mockRejectedValue(error);
 
-      await expect(userUseCases.getOrPreCreateUser(testEmail)).rejects.toThrow(
-        error,
-      );
+      await expect(
+        userUseCases.getOrPreCreateUser(testEmail, requestingUser),
+      ).rejects.toThrow(error);
 
       expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
       expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
