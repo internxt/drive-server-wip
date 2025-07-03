@@ -876,6 +876,7 @@ describe('User Controller', () => {
 
   describe('PUT /public-key/:email', () => {
     const mockUser = newUser();
+    const requestingUser = newUser();
 
     it('When user exists, then it should return existing public keys', async () => {
       const mockResponse = {
@@ -887,10 +888,12 @@ describe('User Controller', () => {
 
       const result = await userController.getOrPreCreatePublicKeyByEmail(
         mockUser.email,
+        requestingUser,
       );
 
       expect(userUseCases.getOrPreCreateUser).toHaveBeenCalledWith(
         mockUser.email,
+        requestingUser,
       );
       expect(result).toEqual(mockResponse);
     });
@@ -905,10 +908,12 @@ describe('User Controller', () => {
 
       const result = await userController.getOrPreCreatePublicKeyByEmail(
         'nonexistent@example.com',
+        requestingUser,
       );
 
       expect(userUseCases.getOrPreCreateUser).toHaveBeenCalledWith(
         'nonexistent@example.com',
+        requestingUser,
       );
       expect(result).toEqual(mockResponse);
     });
@@ -918,11 +923,15 @@ describe('User Controller', () => {
       userUseCases.getOrPreCreateUser.mockRejectedValueOnce(error);
 
       await expect(
-        userController.getOrPreCreatePublicKeyByEmail(mockUser.email),
+        userController.getOrPreCreatePublicKeyByEmail(
+          mockUser.email,
+          requestingUser,
+        ),
       ).rejects.toThrow(error);
 
       expect(userUseCases.getOrPreCreateUser).toHaveBeenCalledWith(
         mockUser.email,
+        requestingUser,
       );
     });
   });
