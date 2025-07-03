@@ -87,6 +87,7 @@ import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
+import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -864,6 +865,7 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get public key by email',
+    deprecated: true,
   })
   @ApiParam({
     name: 'email',
@@ -879,6 +881,27 @@ export class UserController {
     const keys = await this.keyServerUseCases.getPublicKeys(user.id);
 
     return { publicKey: keys.ecc, keys };
+  }
+
+  @Put('/public-key/:email')
+  @UseGuards(ThrottlerGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Retieve public key (existing users) or pre-create user and retrieve key',
+  })
+  @ApiOkResponse({
+    description: 'Returns a public key',
+    type: GetOrCreatePublicKeysDto,
+  })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getOrPreCreatePublicKeyByEmail(
+    @Param('email') email: User['email'],
+  ): Promise<GetOrCreatePublicKeysDto> {
+    return this.userUseCases.getOrPreCreateUser(email);
   }
 
   @HttpCode(201)

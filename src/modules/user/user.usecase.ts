@@ -88,6 +88,7 @@ import { AsymmetricEncryptionService } from '../../externals/asymmetric-encrypti
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -197,6 +198,29 @@ export class UserUseCases {
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
+  }
+
+  async getOrPreCreateUser(
+    email: User['email'],
+  ): Promise<GetOrCreatePublicKeysDto> {
+    const user = await this.getUserByUsername(email);
+
+    if (user) {
+      const keys = await this.keyServerUseCases.getPublicKeys(user.id);
+      return {
+        publicKey: keys.ecc,
+        publicKyberKey: keys.kyber,
+      };
+    }
+
+    const preCreatedUser = await this.preCreateUser({
+      email,
+    });
+
+    return {
+      publicKey: preCreatedUser.publicKey,
+      publicKyberKey: preCreatedUser.publicKyberKey,
+    };
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
