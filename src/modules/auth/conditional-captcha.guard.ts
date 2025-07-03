@@ -9,7 +9,7 @@ import {
 import { UserUseCases } from '../user/user.usecase';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
 import { ClientHeaders } from './decorators/client.decorator';
-import { ClientEnum } from 'src/common/enums/platform.enum';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 @Injectable()
 export class ConditionalCaptchaGuard implements CanActivate {

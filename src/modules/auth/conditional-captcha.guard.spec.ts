@@ -1,7 +1,7 @@
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConditionalCaptchaGuard } from './conditional-captcha.guard';
 import { UserUseCases } from '../user/user.usecase';
-import { CaptchaService } from 'src/externals/captcha/captcha.service';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 import {
   BadRequestException,
   ExecutionContext,
@@ -9,6 +9,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { newUser } from '../../../test/fixtures';
+import { ClientEnum } from '../../common/enums/platform.enum';
+import { ClientHeaders } from './decorators/client.decorator';
 
 describe('ConditionalCaptchaGuard', () => {
   let guard: ConditionalCaptchaGuard;
@@ -45,7 +47,9 @@ describe('ConditionalCaptchaGuard', () => {
         body: {
           email: 'test@inxt.com',
         },
-        headers: {},
+        headers: {
+          [ClientHeaders.CLIENT_ID]: ClientEnum['Web'],
+        },
         ips: [],
         ip: '127.0.0.1',
       });
@@ -67,7 +71,9 @@ describe('ConditionalCaptchaGuard', () => {
           body: {
             email: 'test@inxt.com',
           },
-          headers: {},
+          headers: {
+            [ClientHeaders.CLIENT_ID]: ClientEnum['Web'],
+          },
           ips: [],
           ip: '127.0.0.1',
         });
@@ -91,6 +97,7 @@ describe('ConditionalCaptchaGuard', () => {
         },
         headers: {
           'x-internxt-captcha': 'expired-captcha-token',
+          [ClientHeaders.CLIENT_ID]: ClientEnum['Web'],
         },
         ips: [],
         ip: '127.0.0.1',
@@ -113,6 +120,7 @@ describe('ConditionalCaptchaGuard', () => {
         },
         headers: {
           'x-internxt-captcha': 'valid-captcha-token',
+          [ClientHeaders.CLIENT_ID]: ClientEnum['Web'],
         },
         ips: [],
         ip: '127.0.0.1',
@@ -129,6 +137,55 @@ describe('ConditionalCaptchaGuard', () => {
 
       expect(captchaServiceSpy).toBeTruthy();
       expect(canActivate).toBeTruthy();
+    });
+  });
+
+  describe('Checking the internxt client', () => {
+    it('When the internxt client is not web, then an error indicating so is thrown', async () => {
+      const context = createMockExecutionContext({
+        body: {
+          email: 'test@inxt.com',
+        },
+        headers: {
+          'x-internxt-captcha': 'valid-captcha-token',
+          [ClientHeaders.CLIENT_ID]: ClientEnum['Desktop'],
+        },
+        ips: [],
+        ip: '127.0.0.1',
+      });
+
+      jest
+        .spyOn(userUseCase, 'findByEmail')
+        .mockResolvedValue(buildUserWithErrorLoginCount(6));
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When the internxt client is web, then the captcha token should be verified', async () => {
+      const context = createMockExecutionContext({
+        body: {
+          email: 'test@inxt.com',
+        },
+        headers: {
+          'x-internxt-captcha': 'valid-captcha-token',
+          [ClientHeaders.CLIENT_ID]: ClientEnum['Web'],
+        },
+        ips: [],
+        ip: '127.0.0.1',
+      });
+
+      jest
+        .spyOn(userUseCase, 'findByEmail')
+        .mockResolvedValue(buildUserWithErrorLoginCount(6));
+      const captchaServiceSpy = jest
+        .spyOn(captchaService, 'verifyCaptcha')
+        .mockResolvedValue(true);
+
+      await guard.canActivate(context);
+
+      expect(captchaServiceSpy).toHaveBeenCalled();
     });
   });
 });
