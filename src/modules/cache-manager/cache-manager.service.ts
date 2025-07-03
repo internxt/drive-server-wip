@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 
@@ -6,6 +6,7 @@ import { Cache } from 'cache-manager';
 export class CacheManagerService {
   private readonly USAGE_KEY_PREFIX = 'usage:';
   private readonly LIMIT_KEY_PREFIX = 'limit:';
+  private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly TTL_10_MINUTES = 10000 * 60;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
@@ -57,5 +58,24 @@ export class CacheManagerService {
       ttl ?? this.TTL_10_MINUTES,
     );
     return cachedLimit;
+  }
+
+  /**
+   * Saves jwt in cache.
+   */
+  async blacklistJwt(jti: string, ttl?: number) {
+    const TTL_7_DAYS = 604800;
+
+    const cacheJwt = await this.cacheManager.set(
+      `${this.JWT_KEY_PREFIX}${jti}`,
+      true,
+      ttl ?? TTL_7_DAYS,
+    );
+    return cacheJwt;
+  }
+
+  async isJwtBlacklisted(jti: string) {
+    const cacheJwt = this.cacheManager.get(`${this.JWT_KEY_PREFIX}${jti}`);
+    return cacheJwt;
   }
 }
