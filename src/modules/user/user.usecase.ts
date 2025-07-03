@@ -87,6 +87,7 @@ import { AsymmetricEncryptionService } from '../../externals/asymmetric-encrypti
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -196,6 +197,78 @@ export class UserUseCases {
 
   getUserByUsername(email: string) {
     return this.userRepository.findByUsername(email);
+  }
+
+  async getOrPreCreateUser(
+    email: User['email'],
+    requestingUser: User,
+  ): Promise<GetOrCreatePublicKeysDto> {
+    const startTime = Date.now();
+    const TARGET_RESPONSE_TIME = 900;
+
+    const user = await this.getUserByUsername(email);
+
+    if (user) {
+      const keys = await this.keyServerUseCases.getPublicKeys(user.id);
+
+      const elapsed = Date.now() - startTime;
+      const remainingTime = Math.max(0, TARGET_RESPONSE_TIME - elapsed);
+      return new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              publicKey: keys.ecc,
+              publicKyberKey: keys.kyber,
+            }),
+          remainingTime,
+        ),
+      );
+    }
+
+    const preCreateLimit = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: requestingUser.id,
+        mailType: MailTypes.PreCreateUser,
+      },
+      {
+        userId: requestingUser.id,
+        mailType: MailTypes.PreCreateUser,
+        attemptsLimit: 50,
+        attemptsCount: 0,
+        lastMailSent: new Date(),
+      },
+    );
+
+    if (preCreateLimit[0].isLimitForTodayReached()) {
+      throw new MailLimitReachedException('Limit reached');
+    }
+
+    const [preCreatedUser, wasCreated] = await this.preCreateUser({
+      email,
+    });
+
+    if (wasCreated) {
+      preCreateLimit[0].increaseTodayAttempts();
+      await this.mailLimitRepository.updateByUserIdAndMailType(
+        requestingUser.id,
+        MailTypes.PreCreateUser,
+        preCreateLimit[0],
+      );
+    }
+
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, TARGET_RESPONSE_TIME - elapsed);
+
+    return new Promise((resolve) =>
+      setTimeout(
+        () =>
+          resolve({
+            publicKey: preCreatedUser.publicKey,
+            publicKyberKey: preCreatedUser.publicKyberKey,
+          }),
+        remainingTime,
+      ),
+    );
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
@@ -591,7 +664,20 @@ export class UserUseCases {
     );
   }
 
-  async preCreateUser(newUser: PreCreateUserDto) {
+  async preCreateUser(newUser: PreCreateUserDto): Promise<
+    [
+      {
+        id: number;
+        email: string;
+        uuid: string;
+        username: string;
+        publicKyberKey: string;
+        publicKey: string;
+        password: string;
+      },
+      boolean,
+    ]
+  > {
     const { email } = newUser;
 
     const [existentUser, preCreatedUser] = await Promise.all([
@@ -604,12 +690,15 @@ export class UserUseCases {
     }
 
     if (preCreatedUser) {
-      return {
-        ...preCreatedUser.toJSON(),
-        publicKyberKey: preCreatedUser.publicKyberKey.toString(),
-        publicKey: preCreatedUser.publicKey.toString(),
-        password: preCreatedUser.password.toString(),
-      };
+      return [
+        {
+          ...preCreatedUser.toJSON(),
+          publicKyberKey: preCreatedUser.publicKyberKey.toString(),
+          publicKey: preCreatedUser.publicKey.toString(),
+          password: preCreatedUser.password.toString(),
+        },
+        false,
+      ];
     }
 
     const defaultPass = this.configService.get('users.preCreatedPassword');
@@ -658,12 +747,15 @@ export class UserUseCases {
       encryptVersion: UserKeysEncryptVersions.Ecc,
     });
 
-    return {
-      ...user.toJSON(),
-      publicKyberKey: user.publicKyberKey.toString(),
-      publicKey: user.publicKey.toString(),
-      password: user.password.toString(),
-    };
+    return [
+      {
+        ...user.toJSON(),
+        publicKyberKey: user.publicKyberKey.toString(),
+        publicKey: user.publicKey.toString(),
+        password: user.password.toString(),
+      },
+      true,
+    ];
   }
 
   getNewTokenPayload(userData: any) {
