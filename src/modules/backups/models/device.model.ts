@@ -35,7 +35,7 @@ export class DeviceModel extends Model implements DeviceAttributes {
   @Column
   userId: number;
 
-  @AllowNull
+  @AllowNull(false)
   @ForeignKey(() => FolderModel)
   @Column({
     type: DataType.UUID,
@@ -43,10 +43,13 @@ export class DeviceModel extends Model implements DeviceAttributes {
   })
   folderUuid: string;
 
-  @AllowNull
-  @Index
+  @AllowNull(false)
   @Column(DataType.STRING)
   key: string;
+
+  @AllowNull(false)
+  @Column(DataType.STRING)
+  hostname: string;
 
   @AllowNull
   @Column(DataType.STRING)
