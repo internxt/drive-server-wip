@@ -141,118 +141,216 @@ describe('SharingRepository', () => {
     });
   });
 
-  describe('findFilesSharedInWorkspaceByOwnerAndTeams', () => {
+  describe('findUniqueFileItemIds', () => {
+    const userId = v4();
+    const offset = 0;
+    const limit = 10;
+
+    it('When called, then it should return unique file item IDs', async () => {
+      const file1 = newFile();
+      file1.uuid = v4();
+      const uniqueItems = [{ itemId: file1.uuid }];
+
+      const findAllSpy = jest.spyOn(sharingModel, 'findAll');
+      findAllSpy.mockResolvedValueOnce(uniqueItems as any);
+
+      const result = await repository.findUniqueFileItemIds(
+        userId,
+        offset,
+        limit,
+      );
+
+      expect(findAllSpy).toHaveBeenCalledTimes(1);
+      expect(findAllSpy).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          attributes: ['itemId'],
+          where: {
+            [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+            itemType: 'file',
+          },
+          group: ['itemId'],
+          raw: true,
+          limit,
+          offset,
+        }),
+      );
+      expect(result).toEqual([file1.uuid]);
+    });
+
+    it('When no unique items are found, then it should return an empty array', async () => {
+      const findAllSpy = jest
+        .spyOn(sharingModel, 'findAll')
+        .mockResolvedValueOnce([]);
+
+      const result = await repository.findUniqueFileItemIds(
+        userId,
+        offset,
+        limit,
+      );
+
+      expect(result).toEqual([]);
+      expect(findAllSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('findAllSharingsForFileItems', () => {
+    const userId = v4();
+
+    it('When called with item IDs, then it should return all sharings for those items', async () => {
+      const file1 = newFile();
+      file1.uuid = v4();
+      const user = newUser();
+      const itemIds = [file1.uuid];
+
+      const sharing = newSharing({ owner: user, item: file1 });
+      sharing.itemId = file1.uuid;
+
+      const mockResponse = {
+        file: {
+          get: () => file1,
+          user: {
+            get: () => user,
+          },
+        },
+        get: () => sharing,
+      };
+
+      jest
+        .spyOn(sharingModel, 'findAll')
+        .mockResolvedValueOnce([mockResponse] as any);
+
+      const result = await repository.findAllSharingsForFileItems(
+        userId,
+        itemIds,
+      );
+
+      expect(sharingModel.findAll).toHaveBeenCalledTimes(1);
+      expect(sharingModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            itemId: { [Op.in]: itemIds },
+            [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+          },
+        }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].itemId).toBe(file1.uuid);
+    });
+
+    it('When called with empty item IDs, then it should return an empty array', async () => {
+      const result = await repository.findAllSharingsForFileItems(userId, []);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findUniqueFileItemIdsInWorkspace', () => {
     const ownerId = v4();
-    const workspaceId = v4();
     const teamIds = [v4(), v4()];
     const offset = 0;
     const limit = 10;
 
-    it('When called, then it should call the query with the correct owner, teams and order', async () => {
-      const orderBy: [string, string][] = [['name', 'ASC']];
+    it('When called, then it should return unique file item IDs in workspace', async () => {
+      const file1 = newFile();
+      file1.uuid = v4();
+      const uniqueItems = [{ itemId: file1.uuid }];
 
-      const expectedQuery = {
-        where: {
-          [Op.or]: [
-            {
-              sharedWith: { [Op.in]: teamIds },
-              sharedWithType: SharedWithType.WorkspaceTeam,
-            },
-            {
-              '$file->workspaceUser.created_by$': ownerId,
-            },
-          ],
-        },
-        attributes: [
-          [Sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
-        ],
-        group: [
-          'SharingModel.item_id',
-          'file.id',
-          'file->workspaceUser.id',
-          'file->workspaceUser->creator.id',
-        ],
-        include: [
-          {
-            model: FileModel,
-            where: {
-              status: FileStatus.EXISTS,
-            },
-            include: [
-              {
-                model: WorkspaceItemUserModel,
-                as: 'workspaceUser',
-                required: true,
-                where: {
-                  workspaceId,
-                },
-                include: [
-                  {
-                    model: UserModel,
-                    as: 'creator',
-                    attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        order: orderBy,
-        limit,
-        offset,
-      };
+      jest
+        .spyOn(sharingModel, 'findAll')
+        .mockResolvedValueOnce(uniqueItems as any);
 
-      await repository.findFilesSharedInWorkspaceByOwnerAndTeams(
+      const result = await repository.findUniqueFileItemIdsInWorkspace(
         ownerId,
-        workspaceId,
         teamIds,
-        { offset, limit, order: orderBy },
+        { offset, limit },
       );
 
+      expect(sharingModel.findAll).toHaveBeenCalledTimes(1);
       expect(sharingModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining(expectedQuery),
+        expect.objectContaining({
+          attributes: ['itemId'],
+          where: {
+            [Op.or]: [
+              {
+                sharedWith: { [Op.in]: teamIds },
+                sharedWithType: SharedWithType.WorkspaceTeam,
+              },
+              { '$file->workspaceUser.created_by$': ownerId },
+            ],
+            itemType: 'file',
+          },
+          group: ['itemId'],
+          raw: true,
+          limit,
+          offset,
+        }),
       );
+      expect(result).toEqual([file1.uuid]);
     });
 
-    it('When returned successfully, then it returns a folder and its creator', async () => {
-      const sharing = newSharing();
-      const file = newFile();
-      const creator = newUser();
+    it('When no unique items are found, then it should return an empty array', async () => {
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValueOnce([]);
 
-      const sharedFileWithUser = {
-        ...sharing,
-        get: jest.fn().mockReturnValue({
+      const result = await repository.findUniqueFileItemIdsInWorkspace(
+        ownerId,
+        teamIds,
+        { offset, limit },
+      );
+
+      expect(result).toEqual([]);
+      expect(sharingModel.findAll).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('findAllSharingsForWorkspaceFileItems', () => {
+    const workspaceId = v4();
+
+    it('When called with item IDs, then it should return all sharings for workspace file items', async () => {
+      const file1 = newFile();
+      file1.uuid = v4();
+      const creator = newUser();
+      const itemIds = [file1.uuid];
+
+      const sharing = newSharing({ item: file1 });
+      sharing.itemId = file1.uuid;
+
+      const mockResponse = {
+        get: () => ({
           ...sharing,
           file: {
-            ...file,
-            workspaceUser: {
-              creator,
-            },
+            ...file1,
+            workspaceUser: { creator },
           },
         }),
       };
 
       jest
         .spyOn(sharingModel, 'findAll')
-        .mockResolvedValue([sharedFileWithUser] as any);
+        .mockResolvedValueOnce([mockResponse] as any);
 
-      const result = await repository.findFilesSharedInWorkspaceByOwnerAndTeams(
-        ownerId,
+      const result = await repository.findAllSharingsForWorkspaceFileItems(
         workspaceId,
-        teamIds,
-        { offset, limit },
+        itemIds,
       );
 
-      expect(result[0].file).toMatchObject({
-        ...file,
-        user: {
-          uuid: creator.uuid,
-          email: creator.email,
-          name: creator.name,
-          lastname: creator.lastname,
-          avatar: creator.avatar,
-        },
-      });
+      expect(sharingModel.findAll).toHaveBeenCalledTimes(1);
+      expect(sharingModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { itemId: { [Op.in]: itemIds } },
+        }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].itemId).toBe(file1.uuid);
+    });
+
+    it('When called with empty item IDs, then it should return an empty array', async () => {
+      const result = await repository.findAllSharingsForWorkspaceFileItems(
+        workspaceId,
+        [],
+      );
+
+      expect(result).toEqual([]);
     });
   });
 
@@ -335,22 +433,19 @@ describe('SharingRepository', () => {
       const folder = newFolder();
       const creator = newUser();
 
-      const sharedFolderWithUser = {
-        ...sharedFolder,
-        get: jest.fn().mockReturnValue({
+      const mockResponse = {
+        get: () => ({
           ...sharedFolder,
           folder: {
             ...folder,
-            workspaceUser: {
-              creator,
-            },
+            workspaceUser: { creator },
           },
         }),
       };
 
       jest
         .spyOn(sharingModel, 'findAll')
-        .mockResolvedValue([sharedFolderWithUser] as any);
+        .mockResolvedValueOnce([mockResponse] as any);
 
       const result =
         await repository.findFoldersSharedInWorkspaceByOwnerAndTeams(
