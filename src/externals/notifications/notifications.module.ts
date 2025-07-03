@@ -6,7 +6,6 @@ import { HttpClientModule } from '../http/http.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { SendLinkListener } from './listeners/send-link.listener';
 import { AnalyticsListener } from './listeners/analytics.listener';
-import { ShareLinkListener } from './listeners/share-link.listener';
 import { AuthListener } from './listeners/auth.listener';
 import { NewsletterService } from '../newsletter';
 import { StorageNotificationService } from './storage.notifications.service';
@@ -33,7 +32,6 @@ import { UserNotificationTokensModel } from '../../modules/user/user-notificatio
     StorageNotificationService,
     AnalyticsListener,
     SendLinkListener,
-    ShareLinkListener,
     AuthListener,
     NewsletterService,
     SequelizeUserRepository,
