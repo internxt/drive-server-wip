@@ -3735,4 +3735,117 @@ describe('User use cases', () => {
       expect(fileUseCases.hasUploadedFiles).toHaveBeenCalledWith(user);
     });
   });
+
+  describe('getOrPreCreateUser', () => {
+    const testEmail = 'test@example.com';
+
+    it('When user exists, then it should return existing public keys', async () => {
+      const existingUser = newUser({ attributes: { email: testEmail } });
+      const mockKeys = {
+        ecc: 'existing-ecc-key',
+        kyber: 'existing-kyber-key',
+      };
+
+      jest
+        .spyOn(userUseCases, 'getUserByUsername')
+        .mockResolvedValue(existingUser);
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(mockKeys);
+
+      const result = await userUseCases.getOrPreCreateUser(testEmail);
+
+      expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
+        existingUser.id,
+      );
+      expect(result).toEqual({
+        publicKey: mockKeys.ecc,
+        publicKyberKey: mockKeys.kyber,
+      });
+    });
+
+    it('When user exists but has no keys, then it should return null keys', async () => {
+      const existingUser = newUser({ attributes: { email: testEmail } });
+      const mockKeys = {
+        ecc: null,
+        kyber: null,
+      };
+
+      jest
+        .spyOn(userUseCases, 'getUserByUsername')
+        .mockResolvedValue(existingUser);
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(mockKeys);
+
+      const result = await userUseCases.getOrPreCreateUser(testEmail);
+
+      expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
+        existingUser.id,
+      );
+      expect(result).toEqual({
+        publicKey: null,
+        publicKyberKey: null,
+      });
+    });
+
+    it('When user does not exist, then it should pre-create user and return new keys', async () => {
+      const preCreatedUser = newPreCreatedUser();
+
+      jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
+      jest.spyOn(userUseCases, 'preCreateUser').mockResolvedValue({
+        ...preCreatedUser,
+        publicKey: preCreatedUser.publicKey.toString(),
+        publicKyberKey: preCreatedUser.publicKyberKey.toString(),
+      });
+
+      const result = await userUseCases.getOrPreCreateUser(testEmail);
+
+      expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(userUseCases.preCreateUser).toHaveBeenCalledWith({
+        email: testEmail,
+      });
+      expect(result).toEqual({
+        publicKey: preCreatedUser.publicKey,
+        publicKyberKey: preCreatedUser.publicKyberKey,
+      });
+    });
+
+    it('When user does not exist and pre-creation fails, then it should throw the error', async () => {
+      const error = new Error('Pre-creation failed');
+
+      jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
+      jest.spyOn(userUseCases, 'preCreateUser').mockRejectedValue(error);
+
+      await expect(userUseCases.getOrPreCreateUser(testEmail)).rejects.toThrow(
+        error,
+      );
+
+      expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(userUseCases.preCreateUser).toHaveBeenCalledWith({
+        email: testEmail,
+      });
+    });
+
+    it('When getting existing user keys fails, then it should throw the error', async () => {
+      const existingUser = newUser({ attributes: { email: testEmail } });
+      const error = new Error('Key retrieval failed');
+
+      jest
+        .spyOn(userUseCases, 'getUserByUsername')
+        .mockResolvedValue(existingUser);
+      jest.spyOn(keyServerUseCases, 'getPublicKeys').mockRejectedValue(error);
+
+      await expect(userUseCases.getOrPreCreateUser(testEmail)).rejects.toThrow(
+        error,
+      );
+
+      expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
+      expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
+        existingUser.id,
+      );
+    });
+  });
 });

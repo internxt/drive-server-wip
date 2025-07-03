@@ -874,6 +874,59 @@ describe('User Controller', () => {
     });
   });
 
+  describe('PUT /public-key/:email', () => {
+    const mockUser = newUser();
+
+    it('When user exists, then it should return existing public keys', async () => {
+      const mockResponse = {
+        publicKey: 'existing-ecc-key',
+        publicKyberKey: 'existing-kyber-key',
+      };
+
+      userUseCases.getOrPreCreateUser.mockResolvedValueOnce(mockResponse);
+
+      const result = await userController.getOrPreCreatePublicKeyByEmail(
+        mockUser.email,
+      );
+
+      expect(userUseCases.getOrPreCreateUser).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('When user does not exist, then it should pre-create user and return new keys', async () => {
+      const mockResponse = {
+        publicKey: 'new-ecc-key',
+        publicKyberKey: 'new-kyber-key',
+      };
+
+      userUseCases.getOrPreCreateUser.mockResolvedValueOnce(mockResponse);
+
+      const result = await userController.getOrPreCreatePublicKeyByEmail(
+        'nonexistent@example.com',
+      );
+
+      expect(userUseCases.getOrPreCreateUser).toHaveBeenCalledWith(
+        'nonexistent@example.com',
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('When getOrPreCreateUser throws an error, then it should propagate the error', async () => {
+      const error = new Error('Database error');
+      userUseCases.getOrPreCreateUser.mockRejectedValueOnce(error);
+
+      await expect(
+        userController.getOrPreCreatePublicKeyByEmail(mockUser.email),
+      ).rejects.toThrow(error);
+
+      expect(userUseCases.getOrPreCreateUser).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+    });
+  });
+
   describe('POST /deactivation/send', () => {
     const mockUser = newUser();
     const mockRequest = createMock<Request>();
