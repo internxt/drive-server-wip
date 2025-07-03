@@ -4,6 +4,7 @@ export class Device implements DeviceAttributes {
   id?: number;
   mac?: string;
   key?: string;
+  hostname?: string;
   folderUuid?: string;
   userId: number;
   name?: string;
@@ -19,6 +20,7 @@ export class Device implements DeviceAttributes {
     this.name = attributes.name;
     this.platform = attributes.platform;
     this.key = attributes.key;
+    this.hostname = attributes.hostname;
     this.folderUuid = attributes.folderUuid;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
@@ -37,6 +39,7 @@ export class Device implements DeviceAttributes {
       name: this.name,
       platform: this.platform,
       key: this.key,
+      hostname: this.hostname,
       folderUuid: this.folderUuid,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
