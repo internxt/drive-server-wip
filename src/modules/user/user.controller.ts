@@ -398,7 +398,7 @@ export class UserController {
   @ApiOkResponse({ description: 'Pre creates a user' })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   async preCreateUser(@Body() createUserDto: PreCreateUserDto) {
-    const user = await this.userUseCases.preCreateUser(createUserDto);
+    const [user] = await this.userUseCases.preCreateUser(createUserDto);
 
     return {
       user: {
@@ -803,8 +803,9 @@ export class UserController {
   })
   async getOrPreCreatePublicKeyByEmail(
     @Param('email') email: User['email'],
+    @UserDecorator() requestingUser: User,
   ): Promise<GetOrCreatePublicKeysDto> {
-    return this.userUseCases.getOrPreCreateUser(email);
+    return this.userUseCases.getOrPreCreateUser(email, requestingUser);
   }
 
   @UseFilters(new HttpExceptionFilter())
