@@ -2,7 +2,12 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConditionalCaptchaGuard } from './conditional-captcha.guard';
 import { UserUseCases } from '../user/user.usecase';
 import { CaptchaService } from 'src/externals/captcha/captcha.service';
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { newUser } from '../../../test/fixtures';
 
 describe('ConditionalCaptchaGuard', () => {
@@ -30,7 +35,7 @@ describe('ConditionalCaptchaGuard', () => {
     });
 
     await expect(guard.canActivate(context)).rejects.toThrow(
-      UnauthorizedException,
+      BadRequestException,
     );
   });
 
@@ -73,7 +78,7 @@ describe('ConditionalCaptchaGuard', () => {
         const captchaServiceSpy = jest.spyOn(captchaService, 'verifyCaptcha');
 
         await expect(guard.canActivate(context)).rejects.toThrow(
-          UnauthorizedException,
+          ForbiddenException,
         );
         expect(captchaServiceSpy).not.toHaveBeenCalled();
       });

@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -23,7 +25,7 @@ export class ConditionalCaptchaGuard implements CanActivate {
     const email = request.body?.email;
 
     if (!email) {
-      throw new UnauthorizedException(
+      throw new BadRequestException(
         'Email is required to evaluate captcha condition',
       );
     }
@@ -32,10 +34,10 @@ export class ConditionalCaptchaGuard implements CanActivate {
 
     if (errorLoginCount >= this.threshold) {
       if (!captchaToken) {
-        throw new UnauthorizedException(
-          'Captcha is required after multiple failed attempts',
-          'CaptchaRequired',
-        );
+        throw new ForbiddenException({
+          message: 'Captcha is required after multiple failed attempts',
+          code: 'CaptchaRequired',
+        });
       }
 
       const passed = await this.captchaService.verifyCaptcha(captchaToken, ip);
