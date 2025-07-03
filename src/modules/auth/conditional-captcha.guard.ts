@@ -34,6 +34,7 @@ export class ConditionalCaptchaGuard implements CanActivate {
       if (!captchaToken) {
         throw new UnauthorizedException(
           'Captcha is required after multiple failed attempts',
+          'CaptchaRequired',
         );
       }
 
