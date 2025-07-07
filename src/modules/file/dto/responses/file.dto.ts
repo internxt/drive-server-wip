@@ -19,8 +19,6 @@ export class FileDto {
   @ApiProperty()
   folderId: number;
   @ApiProperty()
-  folder?: any;
-  @ApiProperty()
   folderUuid: string;
   @ApiProperty()
   encryptVersion: string;
