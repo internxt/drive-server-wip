@@ -89,6 +89,8 @@ import { ClientEnum } from '../../common/enums/platform.enum';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 import { RefreshUserAvatarDto } from './dto/responses/refresh-avatar.dto';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
+import { TimingConsistency } from '../auth/decorators/timing-consistency.decorator';
+import { TimingConsistencyInterceptor } from '../auth/interceptors/timing-consistency.interceptor';
 
 @ApiTags('User')
 @Controller('users')
@@ -905,6 +907,8 @@ export class UserController {
 
   @Put('/public-key/:email')
   @UseGuards(ThrottlerGuard)
+  @UseInterceptors(TimingConsistencyInterceptor)
+  @TimingConsistency({ minimumResponseTimeMs: 900 })
   @HttpCode(200)
   @ApiOperation({
     summary:

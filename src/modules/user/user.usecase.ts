@@ -204,26 +204,14 @@ export class UserUseCases {
     email: User['email'],
     requestingUser: User,
   ): Promise<GetOrCreatePublicKeysDto> {
-    const startTime = Date.now();
-    const TARGET_RESPONSE_TIME = 900;
-
     const user = await this.getUserByUsername(email);
 
     if (user) {
       const keys = await this.keyServerUseCases.getPublicKeys(user.id);
-
-      const elapsed = Date.now() - startTime;
-      const remainingTime = Math.max(0, TARGET_RESPONSE_TIME - elapsed);
-      return new Promise((resolve) =>
-        setTimeout(
-          () =>
-            resolve({
-              publicKey: keys.ecc,
-              publicKyberKey: keys.kyber,
-            }),
-          remainingTime,
-        ),
-      );
+      return {
+        publicKey: keys.ecc,
+        publicKyberKey: keys.kyber,
+      };
     }
 
     const preCreateLimit = await this.mailLimitRepository.findOrCreate(
@@ -234,7 +222,7 @@ export class UserUseCases {
       {
         userId: requestingUser.id,
         mailType: MailTypes.PreCreateUser,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
         attemptsCount: 0,
         lastMailSent: new Date(),
       },
@@ -257,19 +245,10 @@ export class UserUseCases {
       );
     }
 
-    const elapsed = Date.now() - startTime;
-    const remainingTime = Math.max(0, TARGET_RESPONSE_TIME - elapsed);
-
-    return new Promise((resolve) =>
-      setTimeout(
-        () =>
-          resolve({
-            publicKey: preCreatedUser.publicKey,
-            publicKyberKey: preCreatedUser.publicKyberKey,
-          }),
-        remainingTime,
-      ),
-    );
+    return {
+      publicKey: preCreatedUser.publicKey,
+      publicKyberKey: preCreatedUser.publicKyberKey,
+    };
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
