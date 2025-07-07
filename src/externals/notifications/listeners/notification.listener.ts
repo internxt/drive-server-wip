@@ -37,15 +37,16 @@ export class NotificationListener {
         const errorData = {
           message: err.message,
           stack: err.stack,
-          url: null,
         };
 
         if (isAxiosError(err)) {
-          errorData.url = err.config?.url;
+          errorData['url'] = err.config?.url;
+          errorData['agent'] = err.config?.httpsAgent?.options;
+          errorData['reusedSocket'] = err.request?.socket?.reusedSocket;
         }
 
         Logger.error(
-          `[NOTIFICATIONS_ERROR] Error in event ${event.name}. Data: ${JSON.stringify(eventData, null, null)}, error: ${JSON.stringify(errorData, null, null)},`,
+          `[NOTIFICATIONS_ERROR] Error in event ${event.name}, message: ${errorData.message}. Data: ${JSON.stringify(eventData, null, null)}, error: ${JSON.stringify(errorData, null, null)},`,
           this.constructor.name,
         );
       });
