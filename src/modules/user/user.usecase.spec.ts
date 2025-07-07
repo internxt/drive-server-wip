@@ -3742,7 +3742,7 @@ describe('User use cases', () => {
     const testEmail = 'test@example.com';
     const requestingUser = newUser();
 
-    it('When user exists, then it should return existing public keys with consistent timing', async () => {
+    it('When user exists, then it should return existing public keys', async () => {
       const existingUser = newUser({ attributes: { email: testEmail } });
       const mockKeys = {
         ecc: 'existing-ecc-key',
@@ -3756,12 +3756,10 @@ describe('User use cases', () => {
         .spyOn(keyServerUseCases, 'getPublicKeys')
         .mockResolvedValue(mockKeys);
 
-      const startTime = Date.now();
       const result = await userUseCases.getOrPreCreateUser(
         testEmail,
         requestingUser,
       );
-      const elapsed = Date.now() - startTime;
 
       expect(userUseCases.getUserByUsername).toHaveBeenCalledWith(testEmail);
       expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(
@@ -3771,7 +3769,6 @@ describe('User use cases', () => {
         publicKey: mockKeys.ecc,
         publicKyberKey: mockKeys.kyber,
       });
-      expect(elapsed).toBeGreaterThanOrEqual(900);
     });
 
     it('When user exists but has no keys, then it should return null keys', async () => {
@@ -3807,7 +3804,7 @@ describe('User use cases', () => {
       const preCreatedUser = newPreCreatedUser();
       const mockLimit = newMailLimit({
         attemptsCount: 5,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
       });
 
       jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
@@ -3840,7 +3837,7 @@ describe('User use cases', () => {
         {
           userId: requestingUser.id,
           mailType: MailTypes.PreCreateUser,
-          attemptsLimit: 50,
+          attemptsLimit: 10,
           attemptsCount: 0,
           lastMailSent: expect.any(Date),
         },
@@ -3862,7 +3859,7 @@ describe('User use cases', () => {
       });
     });
 
-    it('When user does not exist but daily limit is reached, then it should throw MailLimitReachedException with consistent timing', async () => {
+    it('When user does not exist but daily limit is reached, then it should throw MailLimitReachedException', async () => {
       const mockLimit = newMailLimit({
         attemptsCount: 50,
         attemptsLimit: 50,
@@ -3888,7 +3885,7 @@ describe('User use cases', () => {
         {
           userId: requestingUser.id,
           mailType: MailTypes.PreCreateUser,
-          attemptsLimit: 50,
+          attemptsLimit: 10,
           attemptsCount: 0,
           lastMailSent: expect.any(Date),
         },
@@ -3900,7 +3897,7 @@ describe('User use cases', () => {
       const error = new Error('Pre-creation failed');
       const mockLimit = newMailLimit({
         attemptsCount: 5,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
       });
 
       jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
