@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../events/notification.event';
 import { ConfigService } from '@nestjs/config';
 import { HttpClient } from '../../http/http.service';
+import { isAxiosError } from 'axios';
 
 @Injectable()
 export class NotificationListener {
@@ -33,10 +34,18 @@ export class NotificationListener {
         headers,
       })
       .catch((err) => {
+        const errorData = {
+          message: err.message,
+          stack: err.stack,
+          url: null,
+        };
+
+        if (isAxiosError(err)) {
+          errorData.url = err.config?.url;
+        }
+
         Logger.error(
-          `[NOTIFICATIONS_ERROR] Error in event ${event.name}: ${
-            err.message
-          } Data: ${JSON.stringify(eventData, null, null)}`,
+          `[NOTIFICATIONS_ERROR] Error in event ${event.name}. Data: ${JSON.stringify(eventData, null, null)}, error: ${JSON.stringify(errorData, null, null)},`,
           this.constructor.name,
         );
       });
