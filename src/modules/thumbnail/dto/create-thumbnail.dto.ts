@@ -25,6 +25,7 @@ export class CreateThumbnailDto {
   @ApiProperty({
     description: 'The UUID of the file',
     example: 'ebe586db-eb56-429f-a037-6ba712b40c3c',
+    required: false,
   })
   @IsOptional()
   @IsUUID()
