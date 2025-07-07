@@ -222,7 +222,7 @@ export class UserUseCases {
       {
         userId: requestingUser.id,
         mailType: MailTypes.PreCreateUser,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
         attemptsCount: 0,
         lastMailSent: new Date(),
       },
