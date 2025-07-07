@@ -12,7 +12,12 @@ export class FileDto {
   name: string;
   @ApiProperty()
   type?: string;
-  @ApiProperty()
+  /**
+   * When the client fetches it, size is converted to string, but openapi marks it as number.
+   * This issue is related with how sequelize converts bigint to number.
+   * https://github.com/internxt/drive-server-wip/pull/334
+   */
+  @ApiProperty({ type: String })
   size: bigint;
   @ApiProperty()
   bucket: string;
