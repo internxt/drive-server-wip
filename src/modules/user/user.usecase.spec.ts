@@ -1474,7 +1474,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
       });
 
       jest
@@ -1520,7 +1520,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
       });
 
       jest.spyOn(mailLimit, 'increaseTodayAttempts');
@@ -1552,7 +1552,7 @@ describe('User use cases', () => {
 
       const mailLimit = newMailLimit({
         attemptsCount: 10,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
         lastMailSent: lastDayDate,
       });
 
@@ -1770,7 +1770,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
       });
 
       jest
@@ -1817,7 +1817,7 @@ describe('User use cases', () => {
       const currentAttemptsCount = 1;
       const mailLimit = newMailLimit({
         attemptsCount: currentAttemptsCount,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
       });
 
       jest.spyOn(mailLimit, 'increaseTodayAttempts');
@@ -1839,7 +1839,7 @@ describe('User use cases', () => {
 
       const mailLimit = newMailLimit({
         attemptsCount: 10,
-        attemptsLimit: 50,
+        attemptsLimit: 10,
         lastMailSent: lastDayDate,
       });
 
@@ -2952,7 +2952,7 @@ describe('User use cases', () => {
       const preCreatedUser = newPreCreatedUser();
       const mockLimit = newMailLimit({
         attemptsCount: 5,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
       });
 
       jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
@@ -2985,7 +2985,7 @@ describe('User use cases', () => {
         {
           userId: requestingUser.id,
           mailType: MailTypes.PreCreateUser,
-          attemptsLimit: 10,
+          attemptsLimit: 50,
           attemptsCount: 0,
           lastMailSent: expect.any(Date),
         },
@@ -3033,7 +3033,7 @@ describe('User use cases', () => {
         {
           userId: requestingUser.id,
           mailType: MailTypes.PreCreateUser,
-          attemptsLimit: 10,
+          attemptsLimit: 50,
           attemptsCount: 0,
           lastMailSent: expect.any(Date),
         },
@@ -3045,7 +3045,7 @@ describe('User use cases', () => {
       const error = new Error('Pre-creation failed');
       const mockLimit = newMailLimit({
         attemptsCount: 5,
-        attemptsLimit: 10,
+        attemptsLimit: 50,
       });
 
       jest.spyOn(userUseCases, 'getUserByUsername').mockResolvedValue(null);
