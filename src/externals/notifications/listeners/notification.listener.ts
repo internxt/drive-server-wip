@@ -37,13 +37,12 @@ export class NotificationListener {
         const errorData = {
           message: err.message,
           stack: err.stack,
-          url: null,
-          agent: null,
         };
 
         if (isAxiosError(err)) {
-          errorData.url = err.config?.url;
-          errorData.agent = err.config?.httpsAgent?.options;
+          errorData['url'] = err.config?.url;
+          errorData['agent'] = err.config?.httpsAgent?.options;
+          errorData['reusedSocket'] = err.request?.socket?.reusedSocket;
         }
 
         Logger.error(
