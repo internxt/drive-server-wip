@@ -14,6 +14,7 @@ import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspa
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { AuthUsecases } from './auth.usecase';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     CryptoService,
     SequelizeWorkspaceRepository,
     TwoFactorAuthService,
+    AuthUsecases,
   ],
   controllers: [AuthController],
   exports: [JwtStrategy, BasicStrategy, PassportModule],

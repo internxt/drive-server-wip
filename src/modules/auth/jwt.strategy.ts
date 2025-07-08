@@ -25,8 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
   constructor(
     @Inject(UserUseCases)
     private readonly userUseCases: UserUseCases,
-    configService: ConfigService,
     private readonly cacheManagerService: CacheManagerService,
+    configService: ConfigService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

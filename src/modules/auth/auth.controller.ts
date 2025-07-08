@@ -39,9 +39,8 @@ import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attrib
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
 import { LoginAccessResponseDto } from './dto/responses/login-access-response.dto';
 import { LoginResponseDto } from './dto/responses/login-response.dto';
-import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { JwtToken } from './decorators/get-jwt.decorator';
-import { JwtService } from '@nestjs/jwt';
+import { AuthUsecases } from './auth.usecase';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -51,8 +50,7 @@ export class AuthController {
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
     private readonly twoFactorAuthService: TwoFactorAuthService,
-    private readonly cacheManagerService: CacheManagerService,
-    private readonly jwtService: JwtService,
+    private readonly authUseCases: AuthUsecases,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -150,15 +148,7 @@ export class AuthController {
   @ApiOkResponse({ description: 'Successfully logged out' })
   @WorkspaceLogAction(WorkspaceLogType.Logout)
   async logout(@JwtToken() jwt: string) {
-    const tokenData = this.jwtService.decode(jwt);
-
-    if (tokenData?.jti) {
-      const currentTime = Math.floor(Date.now() / 1000);
-      const ttl = tokenData.exp - currentTime;
-      if (ttl > 0) {
-        await this.cacheManagerService.blacklistJwt(tokenData.jti, ttl);
-      }
-    }
+    await this.authUseCases.logout(jwt);
 
     return { logout: true };
   }

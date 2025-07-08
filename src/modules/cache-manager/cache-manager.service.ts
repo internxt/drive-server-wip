@@ -8,6 +8,7 @@ export class CacheManagerService {
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly TTL_10_MINUTES = 10000 * 60;
+  private readonly TTL_7_DAYS = 604800;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
@@ -60,22 +61,19 @@ export class CacheManagerService {
     return cachedLimit;
   }
 
-  /**
-   * Saves jwt in cache.
-   */
   async blacklistJwt(jti: string, ttl?: number) {
-    const TTL_7_DAYS = 604800;
-
     const cacheJwt = await this.cacheManager.set(
       `${this.JWT_KEY_PREFIX}${jti}`,
       true,
-      ttl ?? TTL_7_DAYS,
+      ttl ?? this.TTL_7_DAYS,
     );
     return cacheJwt;
   }
 
   async isJwtBlacklisted(jti: string) {
-    const cacheJwt = this.cacheManager.get(`${this.JWT_KEY_PREFIX}${jti}`);
-    return cacheJwt;
+    const cacheJwt = await this.cacheManager.get(
+      `${this.JWT_KEY_PREFIX}${jti}`,
+    );
+    return !!cacheJwt;
   }
 }
