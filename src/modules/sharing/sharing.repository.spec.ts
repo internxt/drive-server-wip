@@ -194,7 +194,7 @@ describe('SharingRepository', () => {
   });
 
   describe('findSharingById', () => {
-    it('When finding sharing by id, then it returns sharing with includes', async () => {
+    it('When finding sharing by id, then it returns sharing', async () => {
       const sharing = newSharing();
       const sharingId = sharing.id;
 
@@ -391,7 +391,7 @@ describe('SharingRepository', () => {
 
   describe('getInvitesCountBy', () => {
     it('When getting invites count, then it returns count number', async () => {
-      const where = { sharedWith: 'user@example.com' };
+      const where = { sharedWith: v4() };
       const expectedCount = 3;
 
       jest.spyOn(sharingInviteModel, 'count').mockResolvedValue(expectedCount);
