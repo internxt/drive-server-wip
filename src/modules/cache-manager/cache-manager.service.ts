@@ -8,7 +8,6 @@ export class CacheManagerService {
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly TTL_10_MINUTES = 10000 * 60;
-  private readonly TTL_7_DAYS = 604800;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
@@ -61,11 +60,11 @@ export class CacheManagerService {
     return cachedLimit;
   }
 
-  async blacklistJwt(jti: string, ttl?: number) {
+  async blacklistJwt(jti: string, ttl: number) {
     const cacheJwt = await this.cacheManager.set(
       `${this.JWT_KEY_PREFIX}${jti}`,
       true,
-      ttl ?? this.TTL_7_DAYS,
+      ttl,
     );
     return cacheJwt;
   }

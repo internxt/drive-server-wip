@@ -4,6 +4,7 @@ import { CacheManagerService } from './cache-manager.service';
 import { Cache } from 'cache-manager';
 import { createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
+import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 
 describe('CacheManagerService', () => {
   let cacheManagerService: CacheManagerService;
@@ -169,14 +170,13 @@ describe('CacheManagerService', () => {
   describe('blacklistJwt', () => {
     it('When blacklisting a JWT, then it should store the JTI with correct key and default TTL', async () => {
       const jti = v4();
-      const TTL_7_DAYS = 604800;
 
-      await cacheManagerService.blacklistJwt(jti);
+      await cacheManagerService.blacklistJwt(jti, JWT_7DAYS_EXPIRATION);
 
       expect(cacheManager.set).toHaveBeenCalledWith(
         `jwt:${jti}`,
         true,
-        TTL_7_DAYS,
+        JWT_7DAYS_EXPIRATION,
       );
     });
 
@@ -199,7 +199,10 @@ describe('CacheManagerService', () => {
 
       jest.spyOn(cacheManager, 'set').mockResolvedValue(returnValue);
 
-      const result = await cacheManagerService.blacklistJwt(jti);
+      const result = await cacheManagerService.blacklistJwt(
+        jti,
+        JWT_7DAYS_EXPIRATION,
+      );
 
       expect(result).toEqual(returnValue);
     });
