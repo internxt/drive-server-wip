@@ -806,7 +806,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-    tokenExpirationTime = '3d',
+    tokenExpirationTime: string | number = '3d',
   ): Promise<{ token: string; newToken: string }> {
     const jti = v4();
 
