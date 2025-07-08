@@ -1,30 +1,26 @@
 'use strict';
 
+const constraintName = 'thumbnails_file_uuid_not_null_check';
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.changeColumn('thumbnails', 'file_uuid', {
-      type: Sequelize.UUID,
-      allowNull: false,
-      references: {
-        model: 'files',
-        key: 'uuid',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
-    });
+  async up(queryInterface) {
+    await queryInterface.sequelize.query(
+      `ALTER TABLE "thumbnails" ADD CONSTRAINT "${constraintName}" CHECK ("file_uuid" IS NOT NULL) NOT VALID;`,
+    );
+
+    await queryInterface.sequelize.query(
+      `ALTER TABLE "thumbnails" VALIDATE CONSTRAINT "${constraintName}";`,
+    );
+
+    await queryInterface.sequelize.query(
+      'ALTER TABLE "thumbnails" ALTER COLUMN "file_uuid" SET NOT NULL;',
+    );
   },
 
-  async down(queryInterface, Sequelize) {
-    await queryInterface.changeColumn('thumbnails', 'file_uuid', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      references: {
-        model: 'files',
-        key: 'uuid',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
-    });
+  async down(queryInterface) {
+    await queryInterface.sequelize.query(
+      'ALTER TABLE "thumbnails" ALTER COLUMN "file_uuid" DROP NOT NULL;',
+    );
   },
 };
