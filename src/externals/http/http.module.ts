@@ -13,6 +13,7 @@ const agentConfig: HttpsOptions | HttpOptions = {
   keepAlive: true,
   maxSockets: 100,
   maxFreeSockets: 30,
+  timeout: 16000,
   freeSocketTimeout: 4000, // Set this value to prevent socket hang up errors as Nodejs timeout is 5000ms
 };
 
