@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -71,6 +72,7 @@ describe('FileController', () => {
       providers: [FileUseCases, StorageNotificationService],
     })
       .useMocker(() => createMock())
+      .setLogger(createMock<Logger>())
       .compile();
 
     fileController = module.get<FileController>(FileController);
