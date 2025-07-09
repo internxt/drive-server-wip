@@ -28,16 +28,35 @@ module.exports = {
       type: Sequelize.STRING,
       allowNull: true,
     });
+
+    await queryInterface.addIndex(
+      tableName,
+      [keyColumn, 'platform', 'userId'],
+      {
+        unique: true,
+        name: 'devices_key_platform_user_unique_idx',
+        where: {
+          [keyColumn]: {
+            [Sequelize.Op.ne]: 'UNKNOWN_KEY',
+          },
+        },
+      },
+    );
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeColumn(tableName, folderUuidColumn);
-    await queryInterface.removeColumn(tableName, keyColumn);
-    await queryInterface.removeColumn(tableName, hostnameColumn);
+    await queryInterface.removeIndex(
+      tableName,
+      'devices_key_platform_user_unique_idx',
+    );
 
     await queryInterface.changeColumn(tableName, macColumn, {
       type: Sequelize.STRING,
       allowNull: false,
     });
+
+    await queryInterface.removeColumn(tableName, folderUuidColumn);
+    await queryInterface.removeColumn(tableName, keyColumn);
+    await queryInterface.removeColumn(tableName, hostnameColumn);
   },
 };
