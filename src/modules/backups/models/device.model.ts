@@ -10,10 +10,12 @@ import {
   BelongsTo,
   Index,
   HasMany,
+  Default,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { BackupModel } from './backup.model';
 import { DeviceAttributes } from './device.attributes';
+import { FolderModel } from '../../folder/folder.model';
 
 @Table({
   timestamps: true,
@@ -25,7 +27,7 @@ export class DeviceModel extends Model implements DeviceAttributes {
   @Column
   id: number;
 
-  @AllowNull(false)
+  @AllowNull
   @Index
   @Column(DataType.STRING)
   mac: string;
@@ -33,6 +35,25 @@ export class DeviceModel extends Model implements DeviceAttributes {
   @ForeignKey(() => UserModel)
   @Column
   userId: number;
+
+  @AllowNull(false)
+  @ForeignKey(() => FolderModel)
+  @Default('00000000-0000-0000-0000-000000000000')
+  @Column({
+    type: DataType.UUID,
+    field: 'folder_uuid',
+  })
+  folderUuid: string;
+
+  @AllowNull(false)
+  @Default('UNKNOWN_KEY')
+  @Column(DataType.STRING)
+  key: string;
+
+  @AllowNull(false)
+  @Default('UNKNOWN_HOSTNAME')
+  @Column(DataType.STRING)
+  hostname: string;
 
   @AllowNull
   @Column(DataType.STRING)
@@ -52,6 +73,12 @@ export class DeviceModel extends Model implements DeviceAttributes {
 
   @BelongsTo(() => UserModel)
   user: UserModel;
+
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'folderUuid',
+    targetKey: 'uuid',
+  })
+  folder: FolderModel;
 
   @HasMany(() => BackupModel, {
     foreignKey: 'deviceId',
