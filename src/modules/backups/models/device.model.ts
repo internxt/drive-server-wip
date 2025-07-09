@@ -10,6 +10,7 @@ import {
   BelongsTo,
   Index,
   HasMany,
+  Default,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { BackupModel } from './backup.model';
@@ -37,6 +38,7 @@ export class DeviceModel extends Model implements DeviceAttributes {
 
   @AllowNull(false)
   @ForeignKey(() => FolderModel)
+  @Default('00000000-0000-0000-0000-000000000000')
   @Column({
     type: DataType.UUID,
     field: 'folder_uuid',
@@ -44,10 +46,12 @@ export class DeviceModel extends Model implements DeviceAttributes {
   folderUuid: string;
 
   @AllowNull(false)
+  @Default('UNKNOWN_KEY')
   @Column(DataType.STRING)
   key: string;
 
   @AllowNull(false)
+  @Default('UNKNOWN_HOSTNAME')
   @Column(DataType.STRING)
   hostname: string;
 
