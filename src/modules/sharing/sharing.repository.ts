@@ -367,14 +367,6 @@ export class SequelizeSharingRepository implements SharingRepository {
       where: {
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
       },
-      attributes: [
-        [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
-          'encryptionKey',
-        ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
       include: [
         {
           model: FolderModel,
@@ -409,41 +401,22 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async findUniqueFileItemIds(
-    userId: User['uuid'],
-    offset: number,
-    limit: number,
-    orderBy?: [string, string][],
-  ): Promise<string[]> {
-    const uniqueItems = await this.sharings.findAll({
-      attributes: ['itemId'],
-      where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
-        itemType: 'file',
-      },
-      group: ['itemId'],
-      order: orderBy,
-      limit,
-      offset,
-      raw: true,
-    });
-
-    return uniqueItems.map((item) => item.itemId);
-  }
-
   async findAllSharingsForFileItems(
     userId: User['uuid'],
-    itemIds: string[],
+    itemIds?: string[],
+    options?: { offset?: number; limit?: number; orderBy?: [string, string][] },
   ): Promise<Sharing[]> {
-    if (itemIds.length === 0) {
-      return [];
+    const whereConditions: any = {
+      [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      itemType: 'file',
+    };
+
+    if (itemIds && itemIds.length > 0) {
+      whereConditions.itemId = { [Op.in]: itemIds };
     }
 
     const allSharingsForItems = await this.sharings.findAll({
-      where: {
-        itemId: { [Op.in]: itemIds },
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
-      },
+      where: whereConditions,
       include: [
         {
           model: FileModel,
@@ -451,6 +424,9 @@ export class SequelizeSharingRepository implements SharingRepository {
           include: [{ model: UserModel, as: 'user' }],
         },
       ],
+      order: options?.orderBy,
+      limit: options?.limit,
+      offset: options?.offset,
     });
 
     return allSharingsForItems.map((shared) => this.toDomainFile(shared));
@@ -499,58 +475,35 @@ export class SequelizeSharingRepository implements SharingRepository {
     );
   }
 
-  async findUniqueFileItemIdsInWorkspace(
-    ownerId: WorkspaceItemUserAttributes['createdBy'],
-    teamIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; order?: [string, string][] },
-  ): Promise<string[]> {
-    const uniqueItems = await this.sharings.findAll({
-      attributes: ['itemId'],
-      where: {
-        [Op.or]: [
-          {
-            sharedWith: { [Op.in]: teamIds },
-            sharedWithType: SharedWithType.WorkspaceTeam,
-          },
-          { '$file->workspaceUser.created_by$': ownerId },
-        ],
-        itemType: 'file',
-      },
-      include: [
-        {
-          model: FileModel,
-          attributes: [],
-          include: [
-            {
-              model: WorkspaceItemUserModel,
-              as: 'workspaceUser',
-              attributes: [],
-            },
-          ],
-        },
-      ],
-      group: ['itemId'],
-      order: options.order,
-      limit: options.limit,
-      offset: options.offset,
-      raw: true,
-    });
-
-    return uniqueItems.map((item) => item.itemId);
-  }
-
   async findAllSharingsForWorkspaceFileItems(
     workspaceId: WorkspaceAttributes['id'],
-    itemIds: string[],
+    itemIds?: string[],
+    options?: {
+      ownerId?: WorkspaceItemUserAttributes['createdBy'];
+      teamIds?: WorkspaceTeamAttributes['id'][];
+      offset?: number;
+      limit?: number;
+      order?: [string, string][];
+    },
   ): Promise<Sharing[]> {
-    if (itemIds.length === 0) {
-      return [];
+    const whereConditions: any = {};
+
+    if (itemIds && itemIds.length > 0) {
+      whereConditions.itemId = { [Op.in]: itemIds };
+    }
+
+    if (options?.ownerId && options?.teamIds) {
+      whereConditions[Op.or] = [
+        {
+          sharedWith: { [Op.in]: options.teamIds },
+          sharedWithType: SharedWithType.WorkspaceTeam,
+        },
+        { '$file->workspaceUser.created_by$': options.ownerId },
+      ];
     }
 
     const allSharingsForItems = await this.sharings.findAll({
-      where: {
-        itemId: { [Op.in]: itemIds },
-      },
+      where: whereConditions,
       include: [
         {
           model: FileModel,
@@ -566,6 +519,9 @@ export class SequelizeSharingRepository implements SharingRepository {
           ],
         },
       ],
+      order: options?.order,
+      limit: options?.limit,
+      offset: options?.offset,
     });
 
     return allSharingsForItems.map((shared) => {
@@ -601,15 +557,6 @@ export class SequelizeSharingRepository implements SharingRepository {
           },
         ],
       },
-      attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: [
-        'SharingModel.item_id',
-        'folder.id',
-        'folder->workspaceUser.id',
-        'folder->workspaceUser->creator.id',
-      ],
       include: [
         {
           model: FolderModel,

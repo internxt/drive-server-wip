@@ -1009,184 +1009,67 @@ describe('Sharing Use Cases', () => {
     });
   });
 
-  describe('findLatestSharingsPerFile', () => {
-    const user = newUser();
-    const file1 = newFile();
-    const file2 = newFile();
-
-    it('When multiple sharings exist for the same file, then it should return the latest one', () => {
-      const oldSharing = newSharing({
-        owner: user,
-        item: file1,
-        createdAt: new Date('2023-01-01'),
-      });
-      const latestSharing = newSharing({
-        owner: user,
-        item: file1,
-        createdAt: new Date('2023-12-01'),
-      });
-      const sharings = [oldSharing, latestSharing];
-
-      const result = (sharingService as any).findLatestSharingsPerFile(
-        sharings,
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(latestSharing);
-      expect(result[0].createdAt).toEqual(new Date('2023-12-01'));
-    });
-
-    it('When sharings exist for different files, then it should return latest for each file', () => {
-      const sharing1 = newSharing({
-        owner: user,
-        item: file1,
-        createdAt: new Date('2023-01-01'),
-      });
-      const sharing2 = newSharing({
-        owner: user,
-        item: file2,
-        createdAt: new Date('2023-06-01'),
-      });
-      const sharings = [sharing1, sharing2];
-
-      const result = (sharingService as any).findLatestSharingsPerFile(
-        sharings,
-      );
-
-      expect(result).toHaveLength(2);
-      expect(result.map((s) => s.itemId)).toContain(file1.uuid);
-      expect(result.map((s) => s.itemId)).toContain(file2.uuid);
-    });
-
-    it('When no sharings provided, then it should return empty array', () => {
-      const result = (sharingService as any).findLatestSharingsPerFile([]);
-
-      expect(result).toEqual([]);
-    });
-
-    it('When single sharing provided, then it should return that sharing', () => {
-      const sharing = newSharing({ owner: user, item: file1 });
-      const sharings = [sharing];
-
-      const result = (sharingService as any).findLatestSharingsPerFile(
-        sharings,
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(sharing);
-    });
-
-    it('When multiple sharings for same file with same timestamp, then it should return one of them', () => {
-      const sameTimestamp = new Date('2023-06-01');
-      const sharing1 = newSharing({
-        owner: user,
-        item: file1,
-        createdAt: sameTimestamp,
-      });
-      const sharing2 = newSharing({
-        owner: user,
-        item: file1,
-        createdAt: sameTimestamp,
-      });
-      const sharings = [sharing1, sharing2];
-
-      const result = (sharingService as any).findLatestSharingsPerFile(
-        sharings,
-      );
-
-      expect(result).toHaveLength(1);
-      expect([sharing1.id, sharing2.id]).toContain(result[0].id);
-    });
-  });
-
   describe('findFilesByOwnerAndSharedWithMe', () => {
-    const user = newUser();
-    const offset = 0;
-    const limit = 10;
-    const orderBy: [string, string][] = [['createdAt', 'DESC']];
-
     it('When unique file IDs exist, then it should orchestrate repository calls correctly', async () => {
+      const user = newUser();
       const file1 = newFile();
       const file2 = newFile();
-      const itemIds = [file1.uuid, file2.uuid];
-
       const sharing1 = newSharing({ owner: user, item: file1 });
       const sharing2 = newSharing({ owner: user, item: file2 });
       const allSharings = [sharing1, sharing2];
 
-      sharingRepository.findUniqueFileItemIds.mockResolvedValue(itemIds);
       sharingRepository.findAllSharingsForFileItems.mockResolvedValue(
         allSharings,
       );
 
       const result = await (
         sharingService as any
-      ).findFilesByOwnerAndSharedWithMe(user.uuid, offset, limit, orderBy);
+      ).findFilesByOwnerAndSharedWithMe(user.uuid, 0, 10, [
+        ['createdAt', 'DESC'],
+      ]);
 
-      expect(sharingRepository.findUniqueFileItemIds).toHaveBeenCalledWith(
-        user.uuid,
-        offset,
-        limit,
-        orderBy,
-      );
       expect(
         sharingRepository.findAllSharingsForFileItems,
-      ).toHaveBeenCalledWith(user.uuid, itemIds);
-      expect(result).toHaveLength(2);
+      ).toHaveBeenCalledWith(user.uuid, undefined, {
+        offset: 0,
+        limit: 10,
+        orderBy: [['createdAt', 'DESC']],
+      });
+      expect(result).toEqual(allSharings);
     });
 
-    it('When no unique file IDs found, then it should return empty array', async () => {
-      sharingRepository.findUniqueFileItemIds.mockResolvedValue([]);
+    it('When no files found, then it should return empty array', async () => {
+      const user = newUser();
+
+      sharingRepository.findAllSharingsForFileItems.mockResolvedValue([]);
 
       const result = await (
         sharingService as any
-      ).findFilesByOwnerAndSharedWithMe(user.uuid, offset, limit, orderBy);
+      ).findFilesByOwnerAndSharedWithMe(user.uuid, 0, 10, [
+        ['createdAt', 'DESC'],
+      ]);
 
       expect(result).toEqual([]);
       expect(
         sharingRepository.findAllSharingsForFileItems,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('When multiple sharings exist for same file, then it should return only latest', async () => {
-      const file = newFile();
-      const itemIds = [file.uuid];
-
-      const oldSharing = newSharing({
-        owner: user,
-        item: file,
-        createdAt: new Date('2023-01-01'),
+      ).toHaveBeenCalledWith(user.uuid, undefined, {
+        offset: 0,
+        limit: 10,
+        orderBy: [['createdAt', 'DESC']],
       });
-      const latestSharing = newSharing({
-        owner: user,
-        item: file,
-        createdAt: new Date('2023-12-01'),
-      });
-      const allSharings = [oldSharing, latestSharing];
-
-      sharingRepository.findUniqueFileItemIds.mockResolvedValue(itemIds);
-      sharingRepository.findAllSharingsForFileItems.mockResolvedValue(
-        allSharings,
-      );
-
-      const result = await (
-        sharingService as any
-      ).findFilesByOwnerAndSharedWithMe(user.uuid, offset, limit, orderBy);
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(latestSharing);
     });
 
     it('When repository call fails, then it should propagate the error', async () => {
+      const user = newUser();
       const error = new Error('Database connection failed');
-      sharingRepository.findUniqueFileItemIds.mockRejectedValue(error);
+      sharingRepository.findAllSharingsForFileItems.mockRejectedValue(error);
 
       await expect(
         (sharingService as any).findFilesByOwnerAndSharedWithMe(
           user.uuid,
-          offset,
-          limit,
-          orderBy,
+          0,
+          10,
+          [['createdAt', 'DESC']],
         ),
       ).rejects.toThrow(error);
     });
@@ -1196,24 +1079,15 @@ describe('Sharing Use Cases', () => {
     const ownerId = v4();
     const workspaceId = v4();
     const teamIds = [v4(), v4()];
-    const options = {
-      offset: 0,
-      limit: 10,
-      order: [['createdAt', 'DESC']] as [string, string][],
-    };
+    const options = { offset: 0, limit: 10, order: [['createdAt', 'DESC']] };
 
     it('When unique file IDs exist in workspace, then it should orchestrate repository calls correctly', async () => {
       const file1 = newFile();
       const file2 = newFile();
-      const itemIds = [file1.uuid, file2.uuid];
-
       const sharing1 = newSharing({ item: file1 });
       const sharing2 = newSharing({ item: file2 });
       const allSharings = [sharing1, sharing2];
 
-      sharingRepository.findUniqueFileItemIdsInWorkspace.mockResolvedValue(
-        itemIds,
-      );
       sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
         allSharings,
       );
@@ -1228,16 +1102,19 @@ describe('Sharing Use Cases', () => {
       );
 
       expect(
-        sharingRepository.findUniqueFileItemIdsInWorkspace,
-      ).toHaveBeenCalledWith(ownerId, teamIds, options);
-      expect(
         sharingRepository.findAllSharingsForWorkspaceFileItems,
-      ).toHaveBeenCalledWith(workspaceId, itemIds);
-      expect(result).toHaveLength(2);
+      ).toHaveBeenCalledWith(workspaceId, undefined, {
+        ownerId,
+        teamIds,
+        ...options,
+      });
+      expect(result).toEqual(allSharings);
     });
 
-    it('When no unique file IDs found in workspace, then it should return empty array', async () => {
-      sharingRepository.findUniqueFileItemIdsInWorkspace.mockResolvedValue([]);
+    it('When no files found in workspace, then it should return empty array', async () => {
+      sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
+        [],
+      );
 
       const result = await (
         sharingService as any
@@ -1251,66 +1128,15 @@ describe('Sharing Use Cases', () => {
       expect(result).toEqual([]);
       expect(
         sharingRepository.findAllSharingsForWorkspaceFileItems,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('When multiple sharings exist for same file in workspace, then it should return only latest', async () => {
-      const file = newFile();
-      const itemIds = [file.uuid];
-
-      const oldSharing = newSharing({
-        item: file,
-        createdAt: new Date('2023-01-01'),
-      });
-      const latestSharing = newSharing({
-        item: file,
-        createdAt: new Date('2023-12-01'),
-      });
-      const allSharings = [oldSharing, latestSharing];
-
-      sharingRepository.findUniqueFileItemIdsInWorkspace.mockResolvedValue(
-        itemIds,
-      );
-      sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
-        allSharings,
-      );
-
-      const result = await (
-        sharingService as any
-      ).findFilesSharedInWorkspaceByOwnerAndTeams(
+      ).toHaveBeenCalledWith(workspaceId, undefined, {
         ownerId,
-        workspaceId,
         teamIds,
-        options,
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(latestSharing);
+        ...options,
+      });
     });
 
     it('When workspace repository call fails, then it should propagate the error', async () => {
-      const error = new Error('Workspace database error');
-      sharingRepository.findUniqueFileItemIdsInWorkspace.mockRejectedValue(
-        error,
-      );
-
-      await expect(
-        (sharingService as any).findFilesSharedInWorkspaceByOwnerAndTeams(
-          ownerId,
-          workspaceId,
-          teamIds,
-          options,
-        ),
-      ).rejects.toThrow(error);
-    });
-
-    it('When second repository call fails, then it should propagate the error', async () => {
-      const itemIds = [v4()];
-      const error = new Error('Failed to fetch workspace sharings');
-
-      sharingRepository.findUniqueFileItemIdsInWorkspace.mockResolvedValue(
-        itemIds,
-      );
+      const error = new Error('Database connection failed');
       sharingRepository.findAllSharingsForWorkspaceFileItems.mockRejectedValue(
         error,
       );
@@ -1323,6 +1149,27 @@ describe('Sharing Use Cases', () => {
           options,
         ),
       ).rejects.toThrow(error);
+    });
+
+    it('When files found in workspace, then it should return the correct format', async () => {
+      const file = newFile();
+      const sharing = newSharing({ item: file });
+      const allSharings = [sharing];
+
+      sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
+        allSharings,
+      );
+
+      const result = await (
+        sharingService as any
+      ).findFilesSharedInWorkspaceByOwnerAndTeams(
+        ownerId,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+      expect(result).toEqual(allSharings);
     });
   });
 });

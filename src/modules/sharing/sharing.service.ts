@@ -164,17 +164,15 @@ export class SharingService {
     return this.sharingRepository.findSharingRoleBy(where);
   }
 
-  private findLatestSharingsPerFile(sharings: Sharing[]): Sharing[] {
-    const latestSharings = new Map<string, Sharing>();
-
-    for (const sharing of sharings) {
-      const existing = latestSharings.get(sharing.itemId);
-      if (!existing || sharing.createdAt > existing.createdAt) {
-        latestSharings.set(sharing.itemId, sharing);
+  private deduplicateSharingsByItemId(sharings: Sharing[]): Sharing[] {
+    const uniqueSharings = new Map<string, Sharing>();
+    sharings.forEach((sharing) => {
+      const itemId = sharing.itemId;
+      if (!uniqueSharings.has(itemId)) {
+        uniqueSharings.set(itemId, sharing);
       }
-    }
-
-    return Array.from(latestSharings.values());
+    });
+    return Array.from(uniqueSharings.values());
   }
 
   private async findFilesByOwnerAndSharedWithMe(
@@ -183,21 +181,14 @@ export class SharingService {
     limit: number,
     orderBy?: [string, string][],
   ): Promise<Sharing[]> {
-    const itemIds = await this.sharingRepository.findUniqueFileItemIds(
-      userId,
-      offset,
-      limit,
-      orderBy,
-    );
-
-    if (itemIds.length === 0) {
-      return [];
-    }
-
     const allSharings =
-      await this.sharingRepository.findAllSharingsForFileItems(userId, itemIds);
+      await this.sharingRepository.findAllSharingsForFileItems(
+        userId,
+        undefined,
+        { offset, limit, orderBy },
+      );
 
-    return this.findLatestSharingsPerFile(allSharings);
+    return this.deduplicateSharingsByItemId(allSharings);
   }
 
   private async findFilesSharedInWorkspaceByOwnerAndTeams(
@@ -206,24 +197,14 @@ export class SharingService {
     teamIds: WorkspaceTeamAttributes['id'][],
     options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<Sharing[]> {
-    const itemIds =
-      await this.sharingRepository.findUniqueFileItemIdsInWorkspace(
-        ownerId,
-        teamIds,
-        options,
-      );
-
-    if (itemIds.length === 0) {
-      return [];
-    }
-
     const allSharings =
       await this.sharingRepository.findAllSharingsForWorkspaceFileItems(
         workspaceId,
-        itemIds,
+        undefined,
+        { ownerId, teamIds, ...options },
       );
 
-    return this.findLatestSharingsPerFile(allSharings);
+    return this.deduplicateSharingsByItemId(allSharings);
   }
 
   async isItemBeingSharedAboveTheLimit(
