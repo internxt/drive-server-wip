@@ -23,26 +23,37 @@ export class TrashUseCases {
     const foldersCount = await this.folderUseCases.getTrashFoldersCount(
       trashOwner.id,
     );
-    const emptyTrashChunkSize = 100;
-    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
-      const folders = await this.folderUseCases.getFolders(
-        trashOwner.id,
-        { deleted: true, removed: false },
-        { limit: emptyTrashChunkSize, offset: i },
-      );
 
-      await this.folderUseCases.deleteByUser(trashOwner, folders);
+    const emptyTrashChunkSize = 1000;
+    const deleteItemsChunks: Promise<void>[] = [];
+
+    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
+      deleteItemsChunks.push(
+        this.folderUseCases
+          .getFolders(
+            trashOwner.id,
+            { deleted: true, removed: false },
+            { limit: emptyTrashChunkSize, offset: i },
+          )
+          .then((folders) =>
+            this.folderUseCases.deleteByUser(trashOwner, folders),
+          ),
+      );
     }
 
     for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
-      const files = await this.fileUseCases.getFiles(
-        trashOwner.id,
-        { status: FileStatus.TRASHED },
-        { limit: emptyTrashChunkSize, offset: i },
+      deleteItemsChunks.push(
+        this.fileUseCases
+          .getFiles(
+            trashOwner.id,
+            { status: FileStatus.TRASHED },
+            { limit: emptyTrashChunkSize, offset: i },
+          )
+          .then((files) => this.fileUseCases.deleteByUser(trashOwner, files)),
       );
-
-      await this.fileUseCases.deleteByUser(trashOwner, files);
     }
+
+    await Promise.all(deleteItemsChunks);
   }
 
   /**
