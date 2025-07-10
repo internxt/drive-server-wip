@@ -36,12 +36,12 @@ describe('Trash Use Cases', () => {
     const user = newUser();
 
     it('When emptyTrash is called, then it should delete all trashed files and folders in chunks', async () => {
-      const filesCount = 250;
-      const foldersCount = 150;
-      const mockFiles = Array.from({ length: 100 }, () =>
+      const filesCount = 2250;
+      const foldersCount = 1150;
+      const mockFiles = Array.from({ length: 1000 }, () =>
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       );
-      const mockFolders = Array.from({ length: 100 }, () =>
+      const mockFolders = Array.from({ length: 1000 }, () =>
         newFolder({ attributes: { deleted: true, removed: false } }),
       );
 
@@ -61,11 +61,11 @@ describe('Trash Use Cases', () => {
       expect(fileUseCases.getTrashFilesCount).toHaveBeenCalledWith(user.id);
       expect(folderUseCases.getTrashFoldersCount).toHaveBeenCalledWith(user.id);
 
-      // Should be called twice for folders (150 count / 100 chunk size = 2 calls)
+      // Should be called twice for folders (1150 count / 1000 chunk size = 2 calls)
       expect(folderUseCases.getFolders).toHaveBeenCalledTimes(2);
       expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(2);
 
-      // Should be called three times for files (250 count / 100 chunk size = 3 calls)
+      // Should be called three times for files (2250 count / 1000 chunk size = 3 calls)
       expect(fileUseCases.getFiles).toHaveBeenCalledTimes(3);
       expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(3);
     });
