@@ -1,21 +1,32 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { HttpAgent } from 'agentkeepalive';
+import {
+  HttpAgent,
+  HttpOptions,
+  HttpsAgent,
+  HttpsOptions,
+} from 'agentkeepalive';
 
 import { HttpClient } from './http.service';
 
-HttpModule.register({
-  httpsAgent: new HttpAgent({
-    keepAlive: true,
-    maxSockets: 100,
-    maxFreeSockets: 10,
-    timeout: 10000,
-    freeSocketTimeout: 4000, // Set this value to prevent socket hang up errors as Nodejs timeout is 5000ms
-  }),
-});
+const agentConfig: HttpsOptions | HttpOptions = {
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 30,
+  timeout: 16000,
+  freeSocketTimeout: 4000, // Set this value to prevent socket hang up errors as Nodejs timeout is 5000ms
+};
+
+const httpsAgent = new HttpsAgent(agentConfig);
+const httpAgent = new HttpAgent(agentConfig);
 
 @Module({
-  imports: [HttpModule],
+  imports: [
+    HttpModule.register({
+      httpsAgent: httpsAgent,
+      httpAgent: httpAgent,
+    }),
+  ],
   controllers: [],
   providers: [HttpClient],
   exports: [HttpClient],

@@ -1,6 +1,9 @@
 export interface DeviceAttributes {
   id?: number;
-  mac: string;
+  mac?: string;
+  key?: string;
+  hostname?: string;
+  folderUuid?: string;
   userId: number;
   name?: string;
   platform?: string;

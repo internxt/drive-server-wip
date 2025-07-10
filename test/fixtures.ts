@@ -10,6 +10,7 @@ import {
   SharingActionName,
   SharingRole,
   SharingType,
+  SharingInvite,
 } from '../src/modules/sharing/sharing.domain';
 import { File, FileStatus } from '../src/modules/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
@@ -283,7 +284,7 @@ export const newSharingRole = (bindTo?: {
 export const newRole = (name?: string): Role => {
   return Role.build({
     id: v4(),
-    name: name ?? randomDataGenerator.string(),
+    name: name || 'EDITOR',
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
   });
@@ -568,4 +569,26 @@ export const newKeyServer = (
   }
 
   return KeyServer.build(attributes);
+};
+
+export const newSharingInvite = (bindTo?: {
+  itemId?: string;
+  itemType?: 'file' | 'folder';
+  sharedWith?: string;
+  roleId?: string;
+  type?: 'SELF' | 'OWNER';
+}): SharingInvite => {
+  return SharingInvite.build({
+    id: v4(),
+    itemId: bindTo?.itemId || v4(),
+    itemType: bindTo?.itemType || 'file',
+    sharedWith: bindTo?.sharedWith || v4(),
+    encryptionKey: randomDataGenerator.string({ length: 32 }),
+    encryptionAlgorithm: 'aes256',
+    type: bindTo?.type || 'OWNER',
+    roleId: bindTo?.roleId || v4(),
+    createdAt: randomDataGenerator.date(),
+    updatedAt: randomDataGenerator.date(),
+    expirationAt: randomDataGenerator.date(),
+  });
 };
