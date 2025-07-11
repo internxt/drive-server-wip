@@ -1,3 +1,5 @@
+import { DevicePlatform } from '../device.domain';
+
 export interface DeviceAttributes {
   id?: number;
   mac?: string;
@@ -6,7 +8,7 @@ export interface DeviceAttributes {
   folderUuid?: string;
   userId: number;
   name?: string;
-  platform?: string;
+  platform?: DevicePlatform;
   createdAt?: Date;
   updatedAt?: Date;
   backups?: any[];

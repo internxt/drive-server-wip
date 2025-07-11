@@ -40,6 +40,8 @@ import {
   KeyServerAttributes,
   UserKeysEncryptVersions,
 } from '../src/modules/keyserver/key-server.domain';
+import { DeviceAttributes } from '../src/modules/backups/models/device.attributes';
+import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -590,4 +592,26 @@ export const newSharingInvite = (bindTo?: {
     updatedAt: randomDataGenerator.date(),
     expirationAt: randomDataGenerator.date(),
   });
+};
+
+export const newDevice = (options?: Partial<DeviceAttributes>): Device => {
+  const defaultAttributes: DeviceAttributes = {
+    id: randomDataGenerator.natural({ min: 1 }),
+    mac: '00:11:22:33:44:55',
+    key: randomDataGenerator.string(),
+    hostname: randomDataGenerator.string(),
+    folderUuid: v4(),
+    userId: randomDataGenerator.natural({ min: 1 }),
+    name: randomDataGenerator.string(),
+    platform: DevicePlatform.LINUX,
+    createdAt: new Date('2022-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2022-01-01T00:00:00.000Z'),
+  };
+
+  const mergedAttributes = {
+    ...defaultAttributes,
+    ...options,
+  };
+
+  return new Device(mergedAttributes);
 };
