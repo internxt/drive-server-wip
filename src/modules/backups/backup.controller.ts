@@ -184,16 +184,19 @@ export class BackupController {
 
   @Get('/devices')
   @ApiOperation({
-    summary: 'Get all user devices',
+    summary:
+      'Get all user devices. Will not retrieve any device linked to a folder',
+    deprecated: true,
   })
   @ApiBearerAuth()
   async getAllDevices(@UserDecorator() user: User) {
-    return this.backupUseCases.getAllDevices(user);
+    return this.backupUseCases.getAllLegacyDevices(user);
   }
 
   @Delete('/devices/:deviceId')
   @ApiOperation({
     summary: 'Delete user device',
+    deprecated: true,
   })
   @ApiBearerAuth()
   async deleteDevice(
@@ -206,6 +209,7 @@ export class BackupController {
   @Get('/:mac')
   @ApiOperation({
     summary: 'Get backups by mac',
+    deprecated: true,
   })
   @ApiBearerAuth()
   async getBackupsByMac(

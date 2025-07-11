@@ -42,8 +42,8 @@ export class BackupUseCase {
     return { deletedBackups, deletedDevices };
   }
 
-  async getAllDevices(user: User) {
-    return this.backupRepository.findAllDevices(user);
+  async getAllLegacyDevices(user: User) {
+    return this.backupRepository.findAllLegacyDevices(user);
   }
 
   async deleteDevice(user: User, deviceId: number) {

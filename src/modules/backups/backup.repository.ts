@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { DeviceModel } from './models/device.model';
 import { BackupModel } from './models/backup.model';
-import { Device } from './device.domain';
+import { Device, DEVICE_LEGACY__NULL_FOLDER_UUID } from './device.domain';
 import { Backup } from './backup.domain';
 import { User } from '../user/user.domain';
 import { Op, Sequelize } from 'sequelize';
@@ -38,8 +38,18 @@ export class SequelizeBackupRepository {
     limit: number,
     offset: number,
   ) {
+    const folderUuidFilter = {
+      folderUuid: where.folderUuid ?? {
+        [Op.ne]: DEVICE_LEGACY__NULL_FOLDER_UUID,
+      },
+    };
+
     const devices = await this.deviceModel.findAll({
-      where: { userId: user.id, ...where },
+      where: {
+        userId: user.id,
+        ...where,
+        ...folderUuidFilter,
+      },
       limit,
       offset,
     });
@@ -83,9 +93,13 @@ export class SequelizeBackupRepository {
     return device ? this.toDomainDevice(device) : null;
   }
 
-  async findAllDevices(user: User) {
+  async findAllLegacyDevices(user: User) {
     const devices = await this.deviceModel.findAll({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        // Preventes fetching devices linked to a folder
+        folderUuid: DEVICE_LEGACY__NULL_FOLDER_UUID,
+      },
       attributes: {
         include: [[Sequelize.fn('SUM', Sequelize.col('backups.size')), 'size']],
       },

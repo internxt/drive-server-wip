@@ -299,10 +299,10 @@ describe('BackupUseCase', () => {
     it('When fetching all devices, then it should return all devices for the user', async () => {
       const mockDevices = [{ id: 1, name: 'Device 1' }];
       jest
-        .spyOn(backupRepository, 'findAllDevices')
+        .spyOn(backupRepository, 'findAllLegacyDevices')
         .mockResolvedValue(mockDevices as any);
 
-      const result = await backupUseCase.getAllDevices(userMocked);
+      const result = await backupUseCase.getAllLegacyDevices(userMocked);
       expect(result).toEqual(mockDevices);
     });
   });
