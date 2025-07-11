@@ -253,7 +253,7 @@ export class BackupUseCase {
     createDeviceDto: CreateDeviceAndAttachFolderDto,
   ) {
     if (!user.hasBackupsEnabled()) {
-      await this.activate(user);
+      throw new BadRequestException('Backups is not enabled for this user.');
     }
 
     await this.verifyDeviceDoesNotExist(user, {
