@@ -53,7 +53,10 @@ export class TrashUseCases {
       );
     }
 
-    await Promise.all(deleteItemsChunks);
+    const promiseChunkSize = 10;
+    for (let i = 0; i < deleteItemsChunks.length; i += promiseChunkSize) {
+      await Promise.all(deleteItemsChunks.slice(i, i + promiseChunkSize));
+    }
   }
 
   /**
