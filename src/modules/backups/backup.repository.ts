@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { DeviceModel } from './models/device.model';
 import { BackupModel } from './models/backup.model';
-import { Device, DEVICE_LEGACY__NULL_FOLDER_UUID } from './device.domain';
+import { Device, DEVICE_LEGACY_NULL_FOLDER_UUID } from './device.domain';
 import { Backup } from './backup.domain';
 import { User } from '../user/user.domain';
 import { Op, Sequelize } from 'sequelize';
@@ -40,7 +40,7 @@ export class SequelizeBackupRepository {
   ) {
     const folderUuidFilter = {
       folderUuid: where.folderUuid ?? {
-        [Op.ne]: DEVICE_LEGACY__NULL_FOLDER_UUID,
+        [Op.ne]: DEVICE_LEGACY_NULL_FOLDER_UUID,
       },
     };
 
@@ -98,7 +98,7 @@ export class SequelizeBackupRepository {
       where: {
         userId: user.id,
         // Preventes fetching devices linked to a folder
-        folderUuid: DEVICE_LEGACY__NULL_FOLDER_UUID,
+        folderUuid: DEVICE_LEGACY_NULL_FOLDER_UUID,
       },
       attributes: {
         include: [[Sequelize.fn('SUM', Sequelize.col('backups.size')), 'size']],

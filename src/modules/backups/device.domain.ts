@@ -1,7 +1,7 @@
 import { DeviceAttributes } from './models/device.attributes';
 
 // This is the UUID used for devices that are not linked to any folder.
-export const DEVICE_LEGACY__NULL_FOLDER_UUID =
+export const DEVICE_LEGACY_NULL_FOLDER_UUID =
   '00000000-0000-0000-0000-000000000000';
 
 export enum DevicePlatform {
