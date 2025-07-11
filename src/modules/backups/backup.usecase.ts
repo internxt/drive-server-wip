@@ -15,6 +15,10 @@ import { FileUseCases } from '../file/file.usecase';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { BackupModel } from './models/backup.model';
+import { DeviceAttributes } from './models/device.attributes';
+import { CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
+import { CreateDeviceAndAttachFolderDto } from './dto/create-device-and-attach-folder.dto';
+import { DevicePlatform } from './device.domain';
 
 @Injectable()
 export class BackupUseCase {
@@ -127,13 +131,10 @@ export class BackupUseCase {
   }
 
   async getDevicesAsFolder(user: User) {
-    const { backupsBucket } = user;
-    if (!backupsBucket) {
-      throw new BadRequestException('Backups is not activated for this user');
-    }
+    this.verifyUserHasBackupsEnabled(user);
 
     const folders = await this.folderUsecases.getFoldersByUserId(user.id, {
-      bucket: backupsBucket,
+      bucket: user.backupsBucket,
     });
 
     return Promise.all(
@@ -196,6 +197,125 @@ export class BackupUseCase {
     }
 
     return this.backupRepository.findAllBackupsByUserAndDevice(user, device.id);
+  }
+
+  async getUserDevices(
+    user: User,
+    filterOptions: Partial<
+      Pick<DeviceAttributes, 'key' | 'platform' | 'hostname'>
+    >,
+    limit: number,
+    offset: number,
+  ) {
+    this.verifyUserHasBackupsEnabled(user);
+
+    const devices = await this.backupRepository.findUserDevicesBy(
+      user,
+      {
+        ...filterOptions,
+      },
+      limit,
+      offset,
+    );
+
+    return devices;
+  }
+
+  async createDeviceAndFolder(
+    user: User,
+    createDeviceDto: CreateDeviceAndFolderDto,
+  ) {
+    if (!user.hasBackupsEnabled()) {
+      await this.activate(user);
+    }
+
+    await this.verifyDeviceDoesNotExist(user, {
+      key: createDeviceDto.key,
+      platform: createDeviceDto.platform,
+      hostname: createDeviceDto.hostname,
+    });
+
+    const folder = await this.createDeviceAsFolder(user, createDeviceDto.name);
+
+    const deviceData: Omit<DeviceAttributes, 'id'> = {
+      ...createDeviceDto,
+      folderUuid: folder.uuid,
+      userId: user.id,
+    };
+
+    const device = await this.backupRepository.createDevice(deviceData);
+
+    return { ...device.toJson(), folder };
+  }
+
+  async createDeviceForExistingFolder(
+    user: User,
+    createDeviceDto: CreateDeviceAndAttachFolderDto,
+  ) {
+    if (!user.hasBackupsEnabled()) {
+      await this.activate(user);
+    }
+
+    await this.verifyDeviceDoesNotExist(user, {
+      key: createDeviceDto.key,
+      platform: createDeviceDto.platform,
+      hostname: createDeviceDto.hostname,
+    });
+
+    const deviceAssignedToFolder =
+      await this.backupRepository.findOneUserDeviceBy(user, {
+        folderUuid: createDeviceDto.folderUuid,
+      });
+
+    if (deviceAssignedToFolder) {
+      throw new ConflictException(
+        `This folder is already assigned to the device ${deviceAssignedToFolder.name}`,
+      );
+    }
+
+    const folder = await this.folderUsecases.getFolderByUuid(
+      createDeviceDto.folderUuid,
+      user,
+    );
+
+    if (folder?.bucket !== user.backupsBucket) {
+      throw new BadRequestException(
+        'Passed folder uuid does not belongs to a backups folder',
+      );
+    }
+
+    const deviceData: Omit<DeviceAttributes, 'id'> = {
+      ...createDeviceDto,
+      folderUuid: createDeviceDto.folderUuid,
+      userId: user.id,
+    };
+
+    const device = await this.backupRepository.createDevice(deviceData);
+
+    return { ...device.toJson(), folder };
+  }
+
+  private verifyUserHasBackupsEnabled(user: User) {
+    if (!user.hasBackupsEnabled()) {
+      throw new BadRequestException('Backups is not enabled for this user');
+    }
+  }
+
+  private async verifyDeviceDoesNotExist(
+    user: User,
+    device: { key?: string; hostname?: string; platform: DevicePlatform },
+  ) {
+    const existentDevice =
+      await this.backupRepository.findOneUserDeviceByKeyOrHostname(
+        user,
+        device,
+      );
+
+    if (existentDevice) {
+      throw new ConflictException(
+        'There is already a device with the same key or hostname on this platform',
+      );
+    }
   }
 
   async deleteBackup(user: User, backupId: number) {

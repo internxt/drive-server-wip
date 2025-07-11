@@ -104,6 +104,10 @@ export class User implements UserAttributes {
     return this.email !== this.bridgeUser;
   }
 
+  hasBackupsEnabled(): boolean {
+    return !!this.backupsBucket;
+  }
+
   toJSON(): UserToJsonDto {
     return {
       id: this.id,

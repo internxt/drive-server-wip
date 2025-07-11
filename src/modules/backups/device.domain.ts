@@ -1,14 +1,21 @@
 import { DeviceAttributes } from './models/device.attributes';
 
+export enum DevicePlatform {
+  WINDOWS = 'win32',
+  MACOS = 'darwin',
+  LINUX = 'linux',
+  ANDROID = 'android',
+}
+
 export class Device implements DeviceAttributes {
-  id?: number;
+  id: number;
   mac?: string;
   key?: string;
   hostname?: string;
   folderUuid?: string;
   userId: number;
   name?: string;
-  platform?: string;
+  platform?: DevicePlatform;
   createdAt?: Date;
   updatedAt?: Date;
   backups?: any[];

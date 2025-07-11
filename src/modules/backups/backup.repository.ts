@@ -5,7 +5,8 @@ import { BackupModel } from './models/backup.model';
 import { Device } from './device.domain';
 import { Backup } from './backup.domain';
 import { User } from '../user/user.domain';
-import { Sequelize } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
+import { DeviceAttributes } from './models/device.attributes';
 
 @Injectable()
 export class SequelizeBackupRepository {
@@ -20,8 +21,59 @@ export class SequelizeBackupRepository {
     return this.deviceModel.destroy({ where });
   }
 
+  public async createDevice(
+    newDevice: Omit<DeviceAttributes, 'id'>,
+  ): Promise<Device> {
+    const device = await this.deviceModel.create(newDevice);
+    return this.toDomainDevice(device);
+  }
+
   public async deleteBackupsBy(where: Partial<BackupModel>): Promise<number> {
     return this.backupModel.destroy({ where });
+  }
+
+  async findUserDevicesBy(
+    user: User,
+    where: Omit<Partial<DeviceAttributes>, 'userId'>,
+    limit: number,
+    offset: number,
+  ) {
+    const devices = await this.deviceModel.findAll({
+      where: { userId: user.id, ...where },
+      limit,
+      offset,
+    });
+    return devices.map((device) => this.toDomainDevice(device));
+  }
+
+  async findOneUserDeviceBy(
+    user: User,
+    where: Omit<Partial<DeviceAttributes>, 'userId'>,
+  ) {
+    const device = await this.deviceModel.findOne({
+      where: { userId: user.id, ...where },
+    });
+    return device ? this.toDomainDevice(device) : null;
+  }
+
+  async findOneUserDeviceByKeyOrHostname(
+    user: User,
+    where: Pick<DeviceAttributes, 'key' | 'hostname' | 'platform'>,
+  ) {
+    const { key, hostname, platform } = where;
+
+    const device = await this.deviceModel.findOne({
+      where: {
+        userId: user.id,
+        [Op.or]: [
+          ...(key ? [{ key }] : []),
+          ...(hostname ? [{ hostname }] : []),
+        ],
+        ...(platform && { platform }),
+      },
+    });
+
+    return device ? this.toDomainDevice(device) : null;
   }
 
   async findDeviceByUserAndMac(user: User, mac: string) {
