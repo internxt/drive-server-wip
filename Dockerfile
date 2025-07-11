@@ -1,4 +1,4 @@
-FROM node:20.11.1
+FROM node:22.17.0
 LABEL author="internxt"
 
 WORKDIR /usr/app

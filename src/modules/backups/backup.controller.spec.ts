@@ -168,7 +168,7 @@ describe('BackupController', () => {
         { id: 2, name: 'Device 2' },
       ];
       jest
-        .spyOn(backupUseCase, 'getAllDevices')
+        .spyOn(backupUseCase, 'getAllLegacyDevices')
         .mockResolvedValue(mockResponse as any);
 
       const result = await backupController.getAllDevices(userMocked);
@@ -178,7 +178,7 @@ describe('BackupController', () => {
     it('When no devices are found, then it should return an empty array', async () => {
       const mockResponse = [];
       jest
-        .spyOn(backupUseCase, 'getAllDevices')
+        .spyOn(backupUseCase, 'getAllLegacyDevices')
         .mockResolvedValue(mockResponse as any);
 
       const result = await backupController.getAllDevices(userMocked);

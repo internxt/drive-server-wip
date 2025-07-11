@@ -79,7 +79,7 @@ import { Client } from '../auth/decorators/client.decorator';
 import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
-import { IsSharedItem } from '../share/decorators/is-shared-item.decorator';
+import { IsSharedItem } from '../sharing/decorators/is-shared-item.decorator';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { ResultFilesDto, FileDto } from '../file/dto/responses/file.dto';
 import {

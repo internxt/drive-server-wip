@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import Analytics, { AnalyticsTrackName } from '../../../lib/analytics';
-import { ShareLinkCreatedEvent } from '../events/share-link-created.event';
 import { RequestContext } from '../../../lib/request-context';
 import { InvitationAcceptedEvent } from '../events/invitation-accepted.event';
 import { ReferralRedeemedEvent } from '../events/referral-redeemed.event';
@@ -159,44 +158,6 @@ export class AnalyticsListener {
 
   constructor() {
     this.analytics = Analytics.getInstance();
-  }
-
-  @OnEvent('share.created')
-  async handleOnShareLinkCreated(event: ShareLinkCreatedEvent) {
-    this.logger.log(`event ${event.name} handled`);
-
-    const { user, share, request } = event;
-    const requestContext = new RequestContext(request);
-    this.analytics.track({
-      userId: user.uuid,
-      event: AnalyticsTrackName.ShareLinkCopied,
-      properties: {
-        owner: user.username,
-        item_type: share.isFolder ? 'folder' : 'file',
-        size: share.isFolder ? null : share.fileSize,
-        extension: share.item?.type,
-      },
-      context: await requestContext.getContext(),
-    });
-  }
-
-  @OnEvent('share.view')
-  async handleOnShareLinkView(event: ShareLinkCreatedEvent) {
-    this.logger.log(`event ${event.name} handled`);
-
-    const { user, share, request } = event;
-    const requestContext = new RequestContext(request);
-    this.analytics.track({
-      userId: user ? user.uuid : 'incognito',
-      event: AnalyticsTrackName.ShareLinkViewed,
-      properties: {
-        views: share.views,
-        times_valid: share.timesValid,
-        folder_id: share.isFolder ? share.item.id : null,
-        file_id: !share.isFolder ? share.item.id : null,
-      },
-      context: await requestContext.getContext(),
-    });
   }
 
   @OnEvent('invitation.accepted')

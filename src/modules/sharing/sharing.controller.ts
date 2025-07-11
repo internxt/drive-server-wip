@@ -305,31 +305,23 @@ export class SharingController {
     description: 'Id of the invite to validate',
     type: String,
   })
-  async validateInvite(
-    @Param('id') id: SharingInvite['id'],
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async validateInvite(@Param('id') id: SharingInvite['id']) {
     try {
       return await this.sharingService.validateInvite(id);
     } catch (error) {
-      let errorMessage = error.message;
-
       if (
         error instanceof BadRequestException ||
         error instanceof NotFoundException
       ) {
         throw error;
-      } else {
-        Logger.error(
-          `[SHARING/VALIDATEINVITE] Error while trying to validate invitation ${id}, message: ${
-            error.message
-          }, ${error.stack ?? 'No stack trace'}`,
-        );
-
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
       }
-      return { error: errorMessage };
+      Logger.error(
+        `[SHARING/VALIDATEINVITE] Error while trying to validate invitation ${id}, message: ${
+          error.message
+        }, ${error.stack ?? 'No stack trace'}`,
+      );
+
+      throw new InternalServerErrorException();
     }
   }
 
@@ -390,7 +382,6 @@ export class SharingController {
   async getSharedFoldersInsideSharedFolder(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Res({ passthrough: true }) res: Response,
     @Query('orderBy') orderBy: OrderBy,
     @Query('token') token: string,
     @Query('page') page = 0,
@@ -410,22 +401,17 @@ export class SharingController {
         order,
       );
     } catch (error) {
-      let errorMessage = error.message;
-
       if (error instanceof ForbiddenException) {
         throw error;
-      } else {
-        Logger.error(
-          `[SHARING/LIST-FOLDERS] Error while getting shared folders by user ${
-            user.uuid
-          }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
-        );
-
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
       }
 
-      return { error: errorMessage };
+      Logger.error(
+        `[SHARING/LIST-FOLDERS] Error while getting shared folders by user ${
+          user.uuid
+        }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
+      );
+
+      throw new InternalServerErrorException();
     }
   }
 
@@ -466,7 +452,6 @@ export class SharingController {
   async getPrivateShareFiles(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Res({ passthrough: true }) res: Response,
     @Query('orderBy') orderBy: OrderBy,
     @Query('token') token: string,
     @Query('page') page = 0,
@@ -486,22 +471,17 @@ export class SharingController {
         order,
       );
     } catch (error) {
-      let errorMessage = error.message;
-
       if (error instanceof ForbiddenException) {
         throw error;
-      } else {
-        Logger.error(
-          `[SHARING/GETSHAREDFILES] Error while getting shared folders by folder ${
-            user.uuid
-          }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
-        );
-
-        res.status(HttpStatus.INTERNAL_SERVER_ERROR);
-        errorMessage = 'Internal Server Error';
       }
 
-      return { error: errorMessage };
+      Logger.error(
+        `[SHARING/GETSHAREDFILES] Error while getting shared folders by folder ${
+          user.uuid
+        }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
+      );
+
+      throw new InternalServerErrorException();
     }
   }
 
@@ -535,7 +515,6 @@ export class SharingController {
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicShareFiles(
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Res({ passthrough: true }) res: Response,
     @Query('token') token: string,
     @Query('code') code: string,
     @Query('page') page = 0,
@@ -580,7 +559,6 @@ export class SharingController {
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicSharedFolders(
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Res({ passthrough: true }) res: Response,
     @Query('token') token: string,
     @Query('code') code: string,
     @Query('page') page = 0,
@@ -960,7 +938,6 @@ export class SharingController {
     @Query('perPage') perPage = 50,
     @Query('orderBy') orderBy: OrderBy,
     @Param('folderId') folderId: Folder['uuid'],
-    @Res({ passthrough: true }) res: Response,
   ): Promise<{ users: Array<any> } | { error: string }> {
     try {
       const { offset, limit } = Pagination.calculatePagination(page, perPage);

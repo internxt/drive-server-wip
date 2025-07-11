@@ -1,9 +1,10 @@
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { TestingModule, Test } from '@nestjs/testing';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { newUser } from '../../../test/fixtures';
 import { LimitLabels } from './limits.enum';
-import { BadRequestException, ExecutionContext } from '@nestjs/common';
+import { BadRequestException, ExecutionContext, Logger } from '@nestjs/common';
 import { FeatureLimit } from './feature-limits.guard';
 import { Reflector } from '@nestjs/core';
 import {
@@ -15,13 +16,21 @@ const user = newUser();
 
 describe('FeatureLimitUsecases', () => {
   let guard: FeatureLimit;
-  let reflector: DeepMocked<Reflector>;
-  let featureLimitUsecases: DeepMocked<FeatureLimitUsecases>;
+  let reflector: Reflector;
+  let featureLimitUsecases: FeatureLimitUsecases;
 
   beforeEach(async () => {
-    reflector = createMock<Reflector>();
-    featureLimitUsecases = createMock<FeatureLimitUsecases>();
-    guard = new FeatureLimit(reflector, featureLimitUsecases);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [FeatureLimit],
+    })
+      .useMocker(() => createMock())
+      .setLogger(createMock<Logger>())
+      .compile();
+
+    guard = module.get<FeatureLimit>(FeatureLimit);
+    featureLimitUsecases =
+      module.get<FeatureLimitUsecases>(FeatureLimitUsecases);
+    reflector = module.get<Reflector>(Reflector);
   });
 
   it('Guard should be defined', () => {

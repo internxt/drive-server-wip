@@ -190,9 +190,10 @@ describe('AuthController', () => {
 
   describe('GET /logout', () => {
     it('When a user logs out, then it should return a logout confirmation', async () => {
-      const user = newUser();
+      const jwt =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkMzY3YmJmMS01OTFmLTQyODMtYjQwMi04MGIzODhlMzY2ZGMiLCJzdWIiOiIzMzk1OGYyNi0yOWUyLTQ4Y2EtOTIzMC03ODJiYjI0ODljOWMiLCJwYXlsb2FkIjp7InV1aWQiOiIzMzk1OGYyNi0yOWUyLTQ4Y2EtOTIzMC03ODJiYjI0ODljOWMiLCJ3b3Jrc3BhY2VzIjp7Im93bmVycyI6W119fSwiaWF0IjoxNzUxOTAzMTUyLCJleHAiOjE3NTIxNjIzNTJ9.I62Te4xDBJpa3gE8f2gyWfljFrzJPrJggrFAhnXcvxU';
 
-      const result = await authController.logout(user);
+      const result = await authController.logout(jwt);
 
       expect(result).toEqual({ logout: true });
     });

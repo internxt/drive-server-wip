@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { DeviceModel } from './models/device.model';
 import { BackupModel } from './models/backup.model';
-import { Device } from './device.domain';
+import { Device, DEVICE_LEGACY_NULL_FOLDER_UUID } from './device.domain';
 import { Backup } from './backup.domain';
 import { User } from '../user/user.domain';
-import { Sequelize } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
+import { DeviceAttributes } from './models/device.attributes';
 
 @Injectable()
 export class SequelizeBackupRepository {
@@ -20,8 +21,69 @@ export class SequelizeBackupRepository {
     return this.deviceModel.destroy({ where });
   }
 
+  public async createDevice(
+    newDevice: Omit<DeviceAttributes, 'id'>,
+  ): Promise<Device> {
+    const device = await this.deviceModel.create(newDevice);
+    return this.toDomainDevice(device);
+  }
+
   public async deleteBackupsBy(where: Partial<BackupModel>): Promise<number> {
     return this.backupModel.destroy({ where });
+  }
+
+  async findUserDevicesBy(
+    user: User,
+    where: Omit<Partial<DeviceAttributes>, 'userId'>,
+    limit: number,
+    offset: number,
+  ) {
+    const folderUuidFilter = {
+      folderUuid: where.folderUuid ?? {
+        [Op.ne]: DEVICE_LEGACY_NULL_FOLDER_UUID,
+      },
+    };
+
+    const devices = await this.deviceModel.findAll({
+      where: {
+        userId: user.id,
+        ...where,
+        ...folderUuidFilter,
+      },
+      limit,
+      offset,
+    });
+    return devices.map((device) => this.toDomainDevice(device));
+  }
+
+  async findOneUserDeviceBy(
+    user: User,
+    where: Omit<Partial<DeviceAttributes>, 'userId'>,
+  ) {
+    const device = await this.deviceModel.findOne({
+      where: { userId: user.id, ...where },
+    });
+    return device ? this.toDomainDevice(device) : null;
+  }
+
+  async findOneUserDeviceByKeyOrHostname(
+    user: User,
+    where: Pick<DeviceAttributes, 'key' | 'hostname' | 'platform'>,
+  ) {
+    const { key, hostname, platform } = where;
+
+    const device = await this.deviceModel.findOne({
+      where: {
+        userId: user.id,
+        [Op.or]: [
+          ...(key ? [{ key }] : []),
+          ...(hostname ? [{ hostname }] : []),
+        ],
+        ...(platform && { platform }),
+      },
+    });
+
+    return device ? this.toDomainDevice(device) : null;
   }
 
   async findDeviceByUserAndMac(user: User, mac: string) {
@@ -31,9 +93,13 @@ export class SequelizeBackupRepository {
     return device ? this.toDomainDevice(device) : null;
   }
 
-  async findAllDevices(user: User) {
+  async findAllLegacyDevices(user: User) {
     const devices = await this.deviceModel.findAll({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        // Preventes fetching devices linked to a folder
+        folderUuid: DEVICE_LEGACY_NULL_FOLDER_UUID,
+      },
       attributes: {
         include: [[Sequelize.fn('SUM', Sequelize.col('backups.size')), 'size']],
       },

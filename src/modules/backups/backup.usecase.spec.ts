@@ -1,4 +1,4 @@
-import { newFolder, newUser } from './../../../test/fixtures';
+import { newDevice, newFolder, newUser } from './../../../test/fixtures';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { BackupUseCase } from './backup.usecase';
@@ -13,6 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
+import { DevicePlatform } from './device.domain';
 
 describe('BackupUseCase', () => {
   let backupUseCase: BackupUseCase;
@@ -102,7 +103,9 @@ describe('BackupUseCase', () => {
 
   describe('getDevicesAsFolder', () => {
     it('When backups are not activated, then it should throw a BadRequestException', async () => {
-      const userWithoutBucket = { ...userMocked, backupsBucket: null };
+      const userWithoutBucket = newUser();
+      userWithoutBucket.backupsBucket = null;
+
       await expect(
         backupUseCase.getDevicesAsFolder(userWithoutBucket as any),
       ).rejects.toThrow(BadRequestException);
@@ -296,10 +299,10 @@ describe('BackupUseCase', () => {
     it('When fetching all devices, then it should return all devices for the user', async () => {
       const mockDevices = [{ id: 1, name: 'Device 1' }];
       jest
-        .spyOn(backupRepository, 'findAllDevices')
+        .spyOn(backupRepository, 'findAllLegacyDevices')
         .mockResolvedValue(mockDevices as any);
 
-      const result = await backupUseCase.getAllDevices(userMocked);
+      const result = await backupUseCase.getAllLegacyDevices(userMocked);
       expect(result).toEqual(mockDevices);
     });
   });
@@ -401,6 +404,276 @@ describe('BackupUseCase', () => {
       await expect(
         backupUseCase.deleteDeviceAsFolder(userMocked, 'folder-uuid'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getUserDevices', () => {
+    it('When backups are not enabled, then it should throw', async () => {
+      const userWithoutBackups = newUser();
+      userWithoutBackups.backupsBucket = null;
+      await expect(
+        backupUseCase.getUserDevices(userWithoutBackups, {}, 10, 0),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When backups are enabled, then it should return user devices with filters', async () => {
+      const mockDevices = [
+        newDevice({ platform: DevicePlatform.WINDOWS }),
+        newDevice({ platform: DevicePlatform.WINDOWS }),
+      ];
+      const filterOptions = { platform: DevicePlatform.WINDOWS };
+
+      jest
+        .spyOn(backupRepository, 'findUserDevicesBy')
+        .mockResolvedValue(mockDevices);
+
+      const result = await backupUseCase.getUserDevices(
+        userMocked,
+        filterOptions,
+        10,
+        0,
+      );
+
+      expect(result).toEqual(mockDevices);
+      expect(backupRepository.findUserDevicesBy).toHaveBeenCalledWith(
+        userMocked,
+        filterOptions,
+        10,
+        0,
+      );
+    });
+
+    it('When called with empty filters, then it should return all user devices', async () => {
+      const mockDevices = [newDevice(), newDevice()];
+
+      jest
+        .spyOn(backupRepository, 'findUserDevicesBy')
+        .mockResolvedValue(mockDevices as any);
+
+      const result = await backupUseCase.getUserDevices(userMocked, {}, 20, 5);
+
+      expect(result).toEqual(mockDevices);
+      expect(backupRepository.findUserDevicesBy).toHaveBeenCalledWith(
+        userMocked,
+        {},
+        20,
+        5,
+      );
+    });
+  });
+
+  describe('createDeviceAndFolder', () => {
+    const createDeviceDto = {
+      key: 'test-key',
+      hostname: 'test-hostname',
+      platform: DevicePlatform.LINUX,
+      name: 'Test Device',
+    };
+
+    it('When user does not have backups enabled, then it should activate backups first', async () => {
+      const userWithoutBackups = newUser();
+      userWithoutBackups.backupsBucket = null;
+
+      const mockFolder = newFolder({
+        owner: userWithoutBackups,
+      });
+      mockFolder.bucket = userWithoutBackups.backupsBucket;
+      const mockDevice = { id: 1, ...createDeviceDto, userId: userMocked.id };
+      jest
+        .spyOn(backupUseCase, 'activate')
+        .mockResolvedValue({ backupsBucket: 'new-bucket' });
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(backupUseCase, 'createDeviceAsFolder')
+        .mockResolvedValue(mockFolder as any);
+      jest
+        .spyOn(backupRepository, 'createDevice')
+        .mockResolvedValue({ toJson: () => mockDevice } as any);
+
+      const result = await backupUseCase.createDeviceAndFolder(
+        userWithoutBackups,
+        createDeviceDto,
+      );
+
+      expect(backupUseCase.activate).toHaveBeenCalledWith(userWithoutBackups);
+      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
+    });
+
+    it('When device with same key or hostname already exists, then it should throw a ConflictException', async () => {
+      const existingDevice = newDevice({ userId: userMocked.id });
+
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(existingDevice);
+
+      await expect(
+        backupUseCase.createDeviceAndFolder(userMocked, createDeviceDto),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When device does not exist, then it should create device and folder successfully', async () => {
+      const mockFolder = newFolder();
+      const mockDevice = newDevice({ userId: userMocked.id });
+
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(backupUseCase, 'createDeviceAsFolder')
+        .mockResolvedValue(mockFolder as any);
+      jest
+        .spyOn(backupRepository, 'createDevice')
+        .mockResolvedValue(mockDevice);
+
+      const result = await backupUseCase.createDeviceAndFolder(
+        userMocked,
+        createDeviceDto,
+      );
+
+      expect(backupUseCase.createDeviceAsFolder).toHaveBeenCalledWith(
+        userMocked,
+        createDeviceDto.name,
+      );
+      expect(backupRepository.createDevice).toHaveBeenCalledWith({
+        ...createDeviceDto,
+        folderUuid: mockFolder.uuid,
+        userId: userMocked.id,
+      });
+      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
+    });
+  });
+
+  describe('createDeviceForExistingFolder', () => {
+    const createDeviceDto = {
+      key: 'test-key',
+      hostname: 'test-hostname',
+      platform: DevicePlatform.LINUX,
+      name: 'Test Device',
+      folderUuid: 'folder-uuid',
+    };
+
+    it('When user does not have backups enabled, then it should throw', async () => {
+      const userWithoutBackups = newUser();
+      userWithoutBackups.backupsBucket = null;
+
+      await expect(
+        backupUseCase.createDeviceForExistingFolder(
+          userWithoutBackups,
+          createDeviceDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When device with same key or hostname already exists, then it should throw', async () => {
+      const existingDevice = newDevice({ userId: userMocked.id });
+
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(existingDevice as any);
+
+      await expect(
+        backupUseCase.createDeviceForExistingFolder(
+          userMocked,
+          createDeviceDto,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When folder is already assigned to another device, then it should throw', async () => {
+      const deviceAssignedToFolder = newDevice({
+        folderUuid: createDeviceDto.folderUuid,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceBy')
+        .mockResolvedValue(deviceAssignedToFolder as any);
+
+      await expect(
+        backupUseCase.createDeviceForExistingFolder(
+          userMocked,
+          createDeviceDto,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When folder does not belong to backups bucket, then it should throw', async () => {
+      const mockFolder = newFolder({ attributes: { bucket: 'other-bucket' } });
+
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceBy')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+
+      await expect(
+        backupUseCase.createDeviceForExistingFolder(
+          userMocked,
+          createDeviceDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder is not found, then it should throw', async () => {
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceBy')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        backupUseCase.createDeviceForExistingFolder(
+          userMocked,
+          createDeviceDto,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When all conditions are met, then it should create device for existing folder successfully', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userMocked.backupsBucket },
+      });
+      const mockDevice = newDevice({
+        ...createDeviceDto,
+        userId: userMocked.id,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceBy')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest
+        .spyOn(backupRepository, 'createDevice')
+        .mockResolvedValue({ toJson: () => mockDevice } as any);
+
+      const result = await backupUseCase.createDeviceForExistingFolder(
+        userMocked,
+        createDeviceDto,
+      );
+
+      expect(backupRepository.createDevice).toHaveBeenCalledWith({
+        ...createDeviceDto,
+        folderUuid: createDeviceDto.folderUuid,
+        userId: userMocked.id,
+      });
+      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
     });
   });
 });
