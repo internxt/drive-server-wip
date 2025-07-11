@@ -19,6 +19,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { FileStatus } from '../file/file.domain';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { v4 } from 'uuid';
 
 const user = newUser();
 const requester = newUser();
@@ -188,18 +189,54 @@ describe('TrashController', () => {
       expect(trashUseCases.deleteItems).toHaveBeenCalled();
     });
 
-    it('When items are passed, then items should be deleted with their respective uuid or id', async () => {
+    it('When items with UUIDs are passed, then items should be deleted using UUID methods', async () => {
+      const fileItems = [
+        {
+          uuid: v4(),
+          type: DeleteItemType.FILE,
+        },
+      ];
+      const folderItems = [
+        {
+          uuid: v4(),
+          type: DeleteItemType.FOLDER,
+        },
+      ];
+      const deleteItemsDto: DeleteItemsDto = {
+        items: [...fileItems, ...folderItems],
+      };
+
+      jest.spyOn(fileUseCases, 'getFilesByIds').mockResolvedValue([]);
+      jest.spyOn(fileUseCases, 'getByUuids').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getFoldersByIds').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getByUuids').mockResolvedValue([]);
+      jest.spyOn(trashUseCases, 'deleteItems').mockResolvedValue();
+
+      await controller.deleteItems(deleteItemsDto, user);
+
+      expect(fileUseCases.getFilesByIds).not.toHaveBeenCalled();
+      expect(fileUseCases.getByUuids).toHaveBeenCalledWith([fileItems[0].uuid]);
+      expect(folderUseCases.getFoldersByIds).not.toHaveBeenCalled();
+      expect(folderUseCases.getByUuids).toHaveBeenCalledWith([
+        folderItems[0].uuid,
+      ]);
+      expect(trashUseCases.deleteItems).toHaveBeenCalledWith(
+        user,
+        expect.any(Array),
+        expect.any(Array),
+      );
+    });
+
+    it('When items with IDs are passed, then items should be deleted using ID methods', async () => {
       const fileItems = [
         {
           id: '2',
-          uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
           type: DeleteItemType.FILE,
         },
       ];
       const folderItems = [
         {
           id: '1',
-          uuid: '9af7dca1-fd68-4864-9b60-ef36b77d0903',
           type: DeleteItemType.FOLDER,
         },
       ];
@@ -218,13 +255,11 @@ describe('TrashController', () => {
       expect(fileUseCases.getFilesByIds).toHaveBeenCalledWith(user, [
         parseInt(fileItems[0].id),
       ]);
-      expect(fileUseCases.getByUuids).toHaveBeenCalledWith([fileItems[0].uuid]);
+      expect(fileUseCases.getByUuids).not.toHaveBeenCalled();
       expect(folderUseCases.getFoldersByIds).toHaveBeenCalledWith(user, [
         parseInt(folderItems[0].id),
       ]);
-      expect(folderUseCases.getByUuids).toHaveBeenCalledWith([
-        folderItems[0].uuid,
-      ]);
+      expect(folderUseCases.getByUuids).not.toHaveBeenCalled();
       expect(trashUseCases.deleteItems).toHaveBeenCalledWith(
         user,
         expect.any(Array),
