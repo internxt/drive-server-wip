@@ -578,6 +578,7 @@ export const newSharingInvite = (bindTo?: {
   sharedWith?: string;
   roleId?: string;
   type?: 'SELF' | 'OWNER';
+  expirationAt?: Date;
 }): SharingInvite => {
   return SharingInvite.build({
     id: v4(),
@@ -590,7 +591,7 @@ export const newSharingInvite = (bindTo?: {
     roleId: bindTo?.roleId || v4(),
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
-    expirationAt: randomDataGenerator.date(),
+    expirationAt: bindTo?.expirationAt || randomDataGenerator.date(),
   });
 };
 

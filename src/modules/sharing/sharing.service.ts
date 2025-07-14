@@ -1464,6 +1464,10 @@ export class SharingService {
       id: sharingId,
     });
 
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
     if (sharing.isOwnedBy(user)) {
       return {
         ...Role.build({
@@ -1474,10 +1478,6 @@ export class SharingService {
         }),
         sharingId: sharing.id,
       };
-    }
-
-    if (!sharing) {
-      throw new NotFoundException();
     }
 
     const sharingRole = await this.sharingRepository.findSharingRoleBy({
