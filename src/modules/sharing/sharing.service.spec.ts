@@ -2021,7 +2021,7 @@ describe('Sharing Use Cases', () => {
       sharingRepository.createSharing.mockResolvedValue(expect.any(Object));
       userReferralsRepository.applyUserReferral.mockResolvedValue();
 
-      const result = await sharingService.createPublicSharing(owner, fileDto);
+      await sharingService.createPublicSharing(owner, fileDto);
 
       expect(fileUsecases.getByUuid).toHaveBeenCalledWith(file.uuid);
       expect(sharingRepository.createSharing).toHaveBeenCalled();
