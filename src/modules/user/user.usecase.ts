@@ -48,7 +48,6 @@ import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-e
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
-import { ShareUseCases } from '../share/share.usecase';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
@@ -150,7 +149,6 @@ export class UserUseCases {
     private readonly folderUseCases: FolderUseCases,
     @Inject(forwardRef(() => WorkspacesUsecases))
     private readonly workspaceUseCases: WorkspacesUsecases,
-    private readonly shareUseCases: ShareUseCases,
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
     private readonly networkService: BridgeService,
@@ -808,7 +806,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-    tokenExpirationTime = '3d',
+    tokenExpirationTime: string | number = '3d',
   ): Promise<{ token: string; newToken: string }> {
     const jti = v4();
 
@@ -1154,7 +1152,6 @@ export class UserUseCases {
     },
   ): Promise<void> {
     if (options.deleteShares) {
-      await this.shareUseCases.deleteByUser(user);
       await this.sharingRepository.deleteSharingsBy({ sharedWith: user.uuid });
       await this.sharingRepository.deleteSharingsBy({ ownerId: user.uuid });
       await this.sharingRepository.deleteInvitesBy({ sharedWith: user.uuid });

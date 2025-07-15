@@ -88,6 +88,7 @@ import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 
 @ApiTags('User')
 @Controller('users')
@@ -449,7 +450,11 @@ export class UserController {
   async refreshToken(
     @UserDecorator() user: User,
   ): Promise<RefreshTokenResponseDto> {
-    const tokens = await this.userUseCases.getAuthTokens(user, undefined, '7d');
+    const tokens = await this.userUseCases.getAuthTokens(
+      user,
+      undefined,
+      JWT_7DAYS_EXPIRATION,
+    );
 
     const [avatar, rootFolder] = await Promise.all([
       user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,

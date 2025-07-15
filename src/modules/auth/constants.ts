@@ -1,0 +1,1 @@
+export const JWT_7DAYS_EXPIRATION = 604800;

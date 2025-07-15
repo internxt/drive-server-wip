@@ -568,12 +568,10 @@ describe('Testing fixtures tests', () => {
   });
 
   describe("Role's fixture", () => {
-    it('When it generates a role, then the name should be random', () => {
+    it('When it generates a role, then the default name should be EDITOR', () => {
       const role = fixtures.newRole();
-      const otherRole = fixtures.newRole();
 
-      expect(role.name).toBeTruthy();
-      expect(role.name).not.toBe(otherRole.name);
+      expect(role.name).toBe('EDITOR');
     });
 
     it('When it generates a role and a name is provided, then that name should be set', () => {

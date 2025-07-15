@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ExecutionContext,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -21,6 +22,7 @@ import {
 import { WorkspaceUser } from '../domains/workspace-user.domain';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { v4 } from 'uuid';
+import { Test, TestingModule } from '@nestjs/testing';
 
 describe('WorkspaceGuard', () => {
   let guard: WorkspaceGuard;
@@ -28,9 +30,16 @@ describe('WorkspaceGuard', () => {
   let workspaceUseCases: DeepMocked<WorkspacesUsecases>;
 
   beforeEach(async () => {
-    reflector = createMock<Reflector>();
-    workspaceUseCases = createMock<WorkspacesUsecases>();
-    guard = new WorkspaceGuard(reflector, workspaceUseCases);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [WorkspaceGuard],
+    })
+      .useMocker(createMock)
+      .setLogger(createMock<Logger>())
+      .compile();
+
+    guard = module.get(WorkspaceGuard);
+    reflector = module.get(Reflector);
+    workspaceUseCases = module.get(WorkspacesUsecases);
   });
 
   it('Guard should be defined', () => {
