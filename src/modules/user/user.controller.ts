@@ -52,9 +52,11 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
+  RecoverAccountQueryDto,
   RequestRecoverAccountDto,
-  ResetAccountDto,
+  DeprecatedRecoverAccountDto,
 } from './dto/recover-account.dto';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import {
   generateJitsiJWT,
   verifyToken,
@@ -85,7 +87,6 @@ import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 
@@ -670,14 +671,14 @@ export class UserController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Recover account',
+    deprecated: true,
   })
   @Public()
   async recoverAccount(
-    @Query('token') token: string,
-    @Query('reset') reset: string,
-    @Body() body: RecoverAccountDto | ResetAccountDto,
-    @Res({ passthrough: true }) res: Response,
+    @Query() query: RecoverAccountQueryDto,
+    @Body() body: DeprecatedRecoverAccountDto,
   ) {
+    const { token, reset } = query;
     const { mnemonic, password, salt } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
@@ -712,7 +713,7 @@ export class UserController {
 
     try {
       if (reset === 'true') {
-        await this.userUseCases.updateCredentials(
+        await this.userUseCases.updateCredentialsOld(
           userUuid,
           {
             mnemonic,
@@ -722,13 +723,13 @@ export class UserController {
           true,
         );
       } else {
-        const { privateKey } = body as RecoverAccountDto;
+        const deprecatedRecoverAccountDto = body;
 
-        await this.userUseCases.updateCredentials(userUuid, {
+        await this.userUseCases.updateCredentialsOld(userUuid, {
           mnemonic,
           password,
           salt,
-          privateKey,
+          privateKey: deprecatedRecoverAccountDto.privateKey,
         });
       }
     } catch (err) {
@@ -740,9 +741,81 @@ export class UserController {
           user: { uuid: userUuid },
         })}, STACK: ${(err as Error).stack}`,
       );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      throw err;
+    }
+  }
 
-      return { error: 'Internal Server Error' };
+  @UseGuards(ThrottlerGuard)
+  @Put('/recover-account-v2')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Recover account',
+  })
+  @Public()
+  async recoverAccountV2(
+    @Query() query: RecoverAccountQueryDto,
+    @Body() body: RecoverAccountDto,
+  ) {
+    const { token, reset } = query;
+    const { mnemonic, password, salt } = body;
+    let decodedContent: { payload?: { uuid?: string; action?: string } };
+
+    try {
+      const decoded = verifyToken(token, getEnv().secrets.jwt);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException();
+      }
+
+      decodedContent = decoded as {
+        payload?: { uuid?: string; action?: string };
+      };
+
+      if (
+        !decodedContent.payload?.action ||
+        !decodedContent.payload.uuid ||
+        decodedContent.payload.action !== 'recover-account' ||
+        !validate(decodedContent.payload.uuid)
+      ) {
+        throw new ForbiddenException();
+      }
+    } catch (err) {
+      throw new ForbiddenException();
+    }
+
+    const userUuid = decodedContent.payload.uuid;
+    const shouldResetAccount = reset === 'true';
+    const invalidRecoverInput = !shouldResetAccount && !body.privateKeys;
+
+    if (invalidRecoverInput) {
+      throw new BadRequestException(
+        'You must provide private keys if you want to recover account without resetting',
+      );
+    }
+
+    try {
+      await this.userUseCases.updateCredentials(
+        userUuid,
+        {
+          mnemonic,
+          password,
+          salt,
+          ...(shouldResetAccount
+            ? undefined
+            : { privateKeys: body.privateKeys }),
+        },
+        shouldResetAccount,
+      );
+    } catch (err) {
+      new Logger().error(
+        `[USERS/RECOVER_ACCOUNT] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { uuid: userUuid },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
     }
   }
 

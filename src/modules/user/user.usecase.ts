@@ -147,6 +147,8 @@ export class UserUseCases {
     private readonly fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
+    @Inject(forwardRef(() => WorkspacesUsecases))
+    private readonly workspaceUseCases: WorkspacesUsecases,
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
     private readonly networkService: BridgeService,
@@ -162,8 +164,6 @@ export class UserUseCases {
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
-    @Inject(forwardRef(() => WorkspacesUsecases))
-    private readonly workspaceUseCases: WorkspacesUsecases,
   ) {}
 
   findByEmail(email: User['email']): Promise<User | null> {
@@ -957,7 +957,10 @@ export class UserUseCases {
     });
   }
 
-  async updateCredentials(
+  /**
+   * @deprecated in favor of updateCredentials as privateKeys are required
+   */
+  async updateCredentialsOld(
     userUuid: User['uuid'],
     newCredentials: {
       mnemonic: string;
@@ -985,10 +988,59 @@ export class UserUseCases {
         deleteWorkspaces: true,
       });
     }
-
-    // TODO: Replace with updating the private key once AFS is ready.
-    // Requires to send the private key encrypted with the user's password
     await this.keyServerRepository.deleteByUserId(user.id);
+  }
+
+  async updateCredentials(
+    userUuid: User['uuid'],
+    newCredentials: {
+      mnemonic: string;
+      password: string;
+      salt: string;
+      privateKeys?: {
+        ecc: string;
+        kyber: string;
+      };
+    },
+    withReset = false,
+  ): Promise<void> {
+    const { mnemonic, password, salt, privateKeys } = newCredentials;
+
+    const shouldUpdateKeys = privateKeys && Object.keys(privateKeys).length > 0;
+
+    if (!withReset && !shouldUpdateKeys) {
+      throw new BadRequestException(
+        'Keys are required if the account is not being reset',
+      );
+    }
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (shouldUpdateKeys) {
+      for (const [version, privateKey] of Object.entries(privateKeys)) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey },
+        );
+      }
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
+
+    if (withReset) {
+      await this.keyServerRepository.deleteByUserId(user.id);
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    }
   }
 
   async recoverAccountLegacy(
@@ -1150,6 +1202,7 @@ export class UserUseCases {
     }
 
     if (options.deleteWorkspaces) {
+      await this.workspaceUseCases.emptyAllUserOwnedWorkspaces(user);
       await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user);
     }
   }
