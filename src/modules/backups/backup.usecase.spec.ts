@@ -478,7 +478,10 @@ describe('BackupUseCase', () => {
         owner: userWithoutBackups,
       });
       mockFolder.bucket = userWithoutBackups.backupsBucket;
-      const mockDevice = { id: 1, ...createDeviceDto, userId: userMocked.id };
+      const mockDevice = newDevice({
+        ...createDeviceDto,
+        userId: userWithoutBackups.id,
+      });
       jest
         .spyOn(backupUseCase, 'activate')
         .mockResolvedValue({ backupsBucket: 'new-bucket' });
@@ -490,7 +493,7 @@ describe('BackupUseCase', () => {
         .mockResolvedValue(mockFolder as any);
       jest
         .spyOn(backupRepository, 'createDevice')
-        .mockResolvedValue({ toJson: () => mockDevice } as any);
+        .mockResolvedValue(mockDevice);
 
       const result = await backupUseCase.createDeviceAndFolder(
         userWithoutBackups,
@@ -498,7 +501,7 @@ describe('BackupUseCase', () => {
       );
 
       expect(backupUseCase.activate).toHaveBeenCalledWith(userWithoutBackups);
-      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
+      expect(result).toEqual(mockDevice);
     });
 
     it('When device with same key or hostname already exists, then it should throw a ConflictException', async () => {
@@ -541,7 +544,7 @@ describe('BackupUseCase', () => {
         folderUuid: mockFolder.uuid,
         userId: userMocked.id,
       });
-      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
+      expect(result).toEqual(mockDevice);
     });
   });
 
@@ -661,7 +664,7 @@ describe('BackupUseCase', () => {
         .mockResolvedValue(mockFolder);
       jest
         .spyOn(backupRepository, 'createDevice')
-        .mockResolvedValue({ toJson: () => mockDevice } as any);
+        .mockResolvedValue(mockDevice);
 
       const result = await backupUseCase.createDeviceForExistingFolder(
         userMocked,
@@ -673,7 +676,268 @@ describe('BackupUseCase', () => {
         folderUuid: createDeviceDto.folderUuid,
         userId: userMocked.id,
       });
-      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
+      expect(result).toEqual(mockDevice);
+    });
+  });
+
+  describe('deleteDeviceAndFolder', () => {
+    it('When device is not found, then it should throw', async () => {
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.deleteDeviceAndFolder(userMocked, 1),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When device exists but has no folderUuid, then it should only delete the device', async () => {
+      const mockDevice = newDevice({
+        id: 1,
+        userId: userMocked.id,
+        folderUuid: null,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest.spyOn(backupRepository, 'deleteDevicesBy').mockResolvedValue(1);
+
+      await backupUseCase.deleteDeviceAndFolder(userMocked, 1);
+
+      expect(backupRepository.deleteDevicesBy).toHaveBeenCalledWith({
+        id: 1,
+        userId: userMocked.id,
+      });
+      expect(folderUseCases.getFolderByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When device has folderUuid but folder is not in backups bucket, then it should only delete the device', async () => {
+      const mockDevice = newDevice({
+        id: 1,
+        userId: userMocked.id,
+      });
+      const mockFolder = newFolder();
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(backupRepository, 'deleteDevicesBy').mockResolvedValue(1);
+
+      await backupUseCase.deleteDeviceAndFolder(userMocked, 1);
+
+      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(backupRepository.deleteDevicesBy).toHaveBeenCalledWith({
+        id: 1,
+        userId: userMocked.id,
+      });
+    });
+
+    it('When device has folderUuid and folder is in backups bucket, then it should delete both device and folder', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userMocked.backupsBucket },
+      });
+      const mockDevice = newDevice({
+        id: 1,
+        userId: userMocked.id,
+        folderUuid: mockFolder.uuid,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+      jest.spyOn(backupRepository, 'deleteDevicesBy').mockResolvedValue(1);
+
+      await backupUseCase.deleteDeviceAndFolder(userMocked, 1);
+
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
+        mockFolder,
+      ]);
+      expect(backupRepository.deleteDevicesBy).toHaveBeenCalledWith({
+        id: 1,
+        userId: userMocked.id,
+      });
+    });
+  });
+
+  describe('updateDeviceAndFolderName', () => {
+    const updateDeviceDto = { name: 'New Device Name' };
+
+    it('When device is not found, then it should throw', async () => {
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.updateDeviceAndFolderName(userMocked, 1, updateDeviceDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When another device with the same name already exists, then it should throw', async () => {
+      const mockDevice = newDevice({ id: 1, userId: userMocked.id });
+      const existingDevice = newDevice({
+        id: 2,
+        userId: userMocked.id,
+        name: updateDeviceDto.name,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByName')
+        .mockResolvedValue(existingDevice);
+
+      await expect(
+        backupUseCase.updateDeviceAndFolderName(userMocked, 1, updateDeviceDto),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When a folder with the same name already exists in backups bucket, then it should throw', async () => {
+      const mockDevice = newDevice({ id: 1, userId: userMocked.id });
+      const existingFolder = newFolder();
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByName')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest
+        .spyOn(folderUseCases, 'getFoldersByUserId')
+        .mockResolvedValue([existingFolder]);
+
+      await expect(
+        backupUseCase.updateDeviceAndFolderName(userMocked, 1, updateDeviceDto),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When device has no associated folder, then it should only update the device name', async () => {
+      const mockDevice = newDevice({
+        id: 1,
+        userId: userMocked.id,
+        folderUuid: null,
+      });
+      const updatedDevice = newDevice({
+        ...mockDevice,
+        name: updateDeviceDto.name,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByName')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(null);
+      jest
+        .spyOn(backupRepository, 'updateDeviceName')
+        .mockResolvedValue(updatedDevice);
+
+      const result = await backupUseCase.updateDeviceAndFolderName(
+        userMocked,
+        1,
+        updateDeviceDto,
+      );
+
+      expect(result).toEqual(updatedDevice);
+      expect(backupRepository.updateDeviceName).toHaveBeenCalledWith(
+        userMocked,
+        1,
+        updateDeviceDto.name,
+      );
+    });
+
+    it('When device has associated folder, then it should update both device and folder names', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userMocked.backupsBucket },
+      });
+      const mockDevice = newDevice({
+        id: 1,
+        userId: userMocked.id,
+        folderUuid: mockFolder.uuid,
+      });
+      const updatedDevice = newDevice({
+        ...mockDevice,
+        name: updateDeviceDto.name,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByName')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(mockFolder);
+      jest
+        .spyOn(backupRepository, 'updateDeviceName')
+        .mockResolvedValue(updatedDevice);
+
+      const result = await backupUseCase.updateDeviceAndFolderName(
+        userMocked,
+        1,
+        updateDeviceDto,
+      );
+
+      expect(result).toEqual(updatedDevice);
+      expect(cryptoService.encryptName).toHaveBeenCalledWith(
+        updateDeviceDto.name,
+        mockFolder.bucket,
+      );
+      expect(backupRepository.updateDeviceName).toHaveBeenCalledWith(
+        userMocked,
+        1,
+        updateDeviceDto.name,
+      );
+    });
+
+    it('When updating same device with same name, then it should proceed successfully', async () => {
+      const mockDevice = newDevice({
+        id: 1,
+        userId: userMocked.id,
+        name: updateDeviceDto.name,
+      });
+
+      jest
+        .spyOn(backupRepository, 'findDeviceByUserAndId')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(backupRepository, 'findOneUserDeviceByName')
+        .mockResolvedValue(mockDevice);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(null);
+      jest
+        .spyOn(backupRepository, 'updateDeviceName')
+        .mockResolvedValue(mockDevice);
+
+      const result = await backupUseCase.updateDeviceAndFolderName(
+        userMocked,
+        1,
+        updateDeviceDto,
+      );
+
+      expect(result).toEqual(mockDevice);
     });
   });
 });

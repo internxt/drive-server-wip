@@ -66,6 +66,27 @@ export class SequelizeBackupRepository {
     return device ? this.toDomainDevice(device) : null;
   }
 
+  async findOneUserDeviceByName(user: User, name: string) {
+    const device = await this.deviceModel.findOne({
+      where: { userId: user.id, name },
+    });
+    return device ? this.toDomainDevice(device) : null;
+  }
+
+  async updateDeviceName(user: User, deviceId: number, newName: string) {
+    const [_, affectedDevice] = await this.deviceModel.update(
+      { name: newName },
+      {
+        where: { id: deviceId, userId: user.id },
+        returning: true,
+      },
+    );
+
+    return affectedDevice.length > 0
+      ? this.toDomainDevice(affectedDevice[0])
+      : null;
+  }
+
   async findOneUserDeviceByKeyOrHostname(
     user: User,
     where: Pick<DeviceAttributes, 'key' | 'hostname' | 'platform'>,
