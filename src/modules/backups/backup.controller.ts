@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -79,6 +81,10 @@ export class BackupController {
     description:
       'Register a new backup device and create a new backup folder for it.',
   })
+  @ApiCreatedResponse({
+    type: DeviceDto,
+    description: 'The newly created device',
+  })
   @ApiBearerAuth()
   async createDeviceAndFolder(
     @UserDecorator() user: User,
@@ -93,6 +99,10 @@ export class BackupController {
     description:
       'Register a new device and link it to an existing backup folder. Primarily used for migrating existing backup folders to the new device-folder model.',
   })
+  @ApiOkResponse({
+    type: DeviceDto,
+    description: 'The created device',
+  })
   @ApiBearerAuth()
   async createDeviceForExistingFolder(
     @UserDecorator() user: User,
@@ -106,6 +116,9 @@ export class BackupController {
     summary: 'Delete device and its linked folder by ID',
   })
   @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Successfully deleted the device and its linked folder.',
+  })
   async deleteDeviceAndFolder(
     @UserDecorator() user: User,
     @Param('deviceId', ParseIntPipe) deviceId: number,
@@ -116,6 +129,10 @@ export class BackupController {
   @Patch('/v2/devices/:deviceId')
   @ApiOperation({
     summary: 'Update device',
+  })
+  @ApiOkResponse({
+    type: DeviceDto,
+    description: 'The updated device',
   })
   @ApiBearerAuth()
   async updateDevice(

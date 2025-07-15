@@ -248,7 +248,7 @@ export class BackupUseCase {
 
     const device = await this.backupRepository.createDevice(deviceData);
 
-    return { ...device.toJson(), folder };
+    return device;
   }
 
   async deleteDeviceAndFolder(user: User, deviceId: number) {
@@ -389,7 +389,7 @@ export class BackupUseCase {
 
     const device = await this.backupRepository.createDevice(deviceData);
 
-    return { ...device.toJson(), folder };
+    return device;
   }
 
   private verifyUserHasBackupsEnabled(user: User) {
