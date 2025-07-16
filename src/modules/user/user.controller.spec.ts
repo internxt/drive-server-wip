@@ -879,6 +879,10 @@ describe('User Controller', () => {
   describe('POST /deactivation/confirm', () => {
     it('When deactivation is confirmed, then the service is called with the received token', async () => {
       const token = 'deactivationToken';
+      const user = newUser();
+      jest
+        .spyOn(userUseCases, 'confirmDeactivation')
+        .mockResolvedValueOnce(user);
       await userController.confirmUserDeactivation({ token });
 
       expect(userUseCases.confirmDeactivation).toHaveBeenCalledWith(token);
@@ -944,7 +948,7 @@ describe('User Controller', () => {
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          `[USER/SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
+          `[SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
         ),
       );
     });

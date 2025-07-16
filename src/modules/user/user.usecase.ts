@@ -1801,6 +1801,8 @@ export class UserUseCases {
 
       await this.userRepository.deleteBy({ uuid: user.uuid });
       await this.folderUseCases.removeUserOrphanFolders(user);
+
+      return user;
     } catch (err) {
       if (user) {
         const tempUsername = `${user.email}-${crypto
