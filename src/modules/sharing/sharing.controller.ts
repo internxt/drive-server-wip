@@ -7,21 +7,17 @@ import {
   Delete,
   Put,
   BadRequestException,
-  Res,
   Query,
   ForbiddenException,
   Logger,
-  HttpStatus,
   ParseUUIDPipe,
   UseGuards,
   NotFoundException,
   Headers,
   Patch,
-  UseFilters,
   HttpException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiHeader,
@@ -55,7 +51,6 @@ import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/dto/uuid.dto';
-import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
 import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
@@ -1005,7 +1000,6 @@ export class SharingController {
     return { message: 'User removed from shared folder' };
   }
 
-  @UseFilters(new HttpExceptionFilter())
   @UseGuards(ThrottlerGuard)
   @Public()
   @Get('public/:id/folder/size')
