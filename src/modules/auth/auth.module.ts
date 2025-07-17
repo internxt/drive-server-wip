@@ -13,6 +13,8 @@ import { AuthController } from './auth.controller';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TwoFactorAuthService } from './two-factor-auth.service';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { AuthUsecases } from './auth.usecase';
 
 @Module({
   imports: [
@@ -33,6 +35,7 @@ import { TwoFactorAuthService } from './two-factor-auth.service';
     }),
     KeyServerModule,
     forwardRef(() => WorkspacesModule),
+    CacheManagerModule,
   ],
   providers: [
     JwtStrategy,
@@ -41,6 +44,7 @@ import { TwoFactorAuthService } from './two-factor-auth.service';
     CryptoService,
     SequelizeWorkspaceRepository,
     TwoFactorAuthService,
+    AuthUsecases,
   ],
   controllers: [AuthController],
   exports: [JwtStrategy, BasicStrategy, PassportModule],

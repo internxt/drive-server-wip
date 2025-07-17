@@ -6,7 +6,7 @@ export const passportAuth = passport.authenticate('jwt', { session: false });
 export function SignEmail(
   email: string,
   secret: string,
-  expirationTime?: string,
+  expirationTime?: string | number,
   customIat?: number,
 ): string {
   const payload = { email, ...(customIat ? { iat: customIat } : null) };
@@ -21,7 +21,7 @@ export function SignEmail(
 export function Sign(
   payload: object,
   secret: string,
-  expirationTime?: string,
+  expirationTime?: string | number,
 ): string {
   const token = expirationTime
     ? jwt.sign(payload, secret, { expiresIn: expirationTime })

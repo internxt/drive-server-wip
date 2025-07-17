@@ -4,6 +4,7 @@ import { CacheManagerService } from './cache-manager.service';
 import { Cache } from 'cache-manager';
 import { createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
+import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 
 describe('CacheManagerService', () => {
   let cacheManagerService: CacheManagerService;
@@ -163,6 +164,69 @@ describe('CacheManagerService', () => {
 
       expect(cacheManager.get).toHaveBeenCalledWith(`limit:${userUuid}`);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('blacklistJwt', () => {
+    it('When blacklisting a JWT, then it should store the JTI with correct key and default TTL', async () => {
+      const jti = v4();
+
+      await cacheManagerService.blacklistJwt(jti, JWT_7DAYS_EXPIRATION);
+
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        `jwt:${jti}`,
+        true,
+        JWT_7DAYS_EXPIRATION,
+      );
+    });
+
+    it('When blacklisting a JWT with custom TTL, then it should store the JTI with the custom TTL', async () => {
+      const jti = v4();
+      const customTtl = 3600;
+
+      await cacheManagerService.blacklistJwt(jti, customTtl);
+
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        `jwt:${jti}`,
+        true,
+        customTtl,
+      );
+    });
+
+    it('When JWT is blacklisted, then it should return the cache manager set result', async () => {
+      const jti = 'test-jwt-id-789';
+      const returnValue = true;
+
+      jest.spyOn(cacheManager, 'set').mockResolvedValue(returnValue);
+
+      const result = await cacheManagerService.blacklistJwt(
+        jti,
+        JWT_7DAYS_EXPIRATION,
+      );
+
+      expect(result).toEqual(returnValue);
+    });
+  });
+
+  describe('isJwtBlacklisted', () => {
+    it('When checking if JWT is blacklisted, then it should return true', async () => {
+      const jti = v4();
+
+      jest.spyOn(cacheManager, 'get').mockResolvedValue({});
+
+      const isBlacklisted = await cacheManagerService.isJwtBlacklisted(jti);
+
+      expect(isBlacklisted).toBe(true);
+    });
+
+    it('When JWT is not blacklisted, then it should return false', async () => {
+      const jti = v4();
+
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+
+      const result = await cacheManagerService.isJwtBlacklisted(jti);
+
+      expect(result).toBe(false);
     });
   });
 });

@@ -322,7 +322,7 @@ describe('FolderUseCases', () => {
 
       await service.deleteOrphansFolders(userId);
 
-      expect(service.deleteOrphansFolders).toBeCalledTimes(4);
+      expect(service.deleteOrphansFolders).toHaveBeenCalledTimes(4);
     });
 
     it('should avoid recursion if not needed', async () => {
@@ -334,7 +334,7 @@ describe('FolderUseCases', () => {
 
       await service.deleteOrphansFolders(userId);
 
-      expect(service.deleteOrphansFolders).toBeCalledTimes(1);
+      expect(service.deleteOrphansFolders).toHaveBeenCalledTimes(1);
     });
   });
 

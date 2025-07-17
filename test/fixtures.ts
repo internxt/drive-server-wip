@@ -10,6 +10,7 @@ import {
   SharingActionName,
   SharingRole,
   SharingType,
+  SharingInvite,
 } from '../src/modules/sharing/sharing.domain';
 import { File, FileStatus } from '../src/modules/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
@@ -39,6 +40,8 @@ import {
   KeyServerAttributes,
   UserKeysEncryptVersions,
 } from '../src/modules/keyserver/key-server.domain';
+import { DeviceAttributes } from '../src/modules/backups/models/device.attributes';
+import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -282,7 +285,7 @@ export const newSharingRole = (bindTo?: {
 export const newRole = (name?: string): Role => {
   return Role.build({
     id: v4(),
-    name: name ?? randomDataGenerator.string(),
+    name: name || 'EDITOR',
     createdAt: randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
   });
@@ -567,4 +570,49 @@ export const newKeyServer = (
   }
 
   return KeyServer.build(attributes);
+};
+
+export const newSharingInvite = (bindTo?: {
+  itemId?: string;
+  itemType?: 'file' | 'folder';
+  sharedWith?: string;
+  roleId?: string;
+  type?: 'SELF' | 'OWNER';
+  expirationAt?: Date;
+}): SharingInvite => {
+  return SharingInvite.build({
+    id: v4(),
+    itemId: bindTo?.itemId || v4(),
+    itemType: bindTo?.itemType || 'file',
+    sharedWith: bindTo?.sharedWith || v4(),
+    encryptionKey: randomDataGenerator.string({ length: 32 }),
+    encryptionAlgorithm: 'aes256',
+    type: bindTo?.type || 'OWNER',
+    roleId: bindTo?.roleId || v4(),
+    createdAt: randomDataGenerator.date(),
+    updatedAt: randomDataGenerator.date(),
+    expirationAt: bindTo?.expirationAt || randomDataGenerator.date(),
+  });
+};
+
+export const newDevice = (options?: Partial<DeviceAttributes>): Device => {
+  const defaultAttributes: DeviceAttributes = {
+    id: randomDataGenerator.natural({ min: 1 }),
+    mac: '00:11:22:33:44:55',
+    key: randomDataGenerator.string(),
+    hostname: randomDataGenerator.string(),
+    folderUuid: v4(),
+    userId: randomDataGenerator.natural({ min: 1 }),
+    name: randomDataGenerator.string(),
+    platform: DevicePlatform.LINUX,
+    createdAt: new Date('2022-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2022-01-01T00:00:00.000Z'),
+  };
+
+  const mergedAttributes = {
+    ...defaultAttributes,
+    ...options,
+  };
+
+  return new Device(mergedAttributes);
 };

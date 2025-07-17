@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../events/notification.event';
 import { ConfigService } from '@nestjs/config';
 import { HttpClient } from '../../http/http.service';
+import { isAxiosError } from 'axios';
 
 @Injectable()
 export class NotificationListener {
@@ -28,23 +29,33 @@ export class NotificationListener {
       clientId: event.clientId,
       userId: event.userId,
     };
-    const res = await this.http
-      .post(apiNotificationURL, eventData, {
+
+    try {
+      const res = await this.http.post(apiNotificationURL, eventData, {
         headers,
-      })
-      .catch((err) => {
-        Logger.error(
-          `[NOTIFICATIONS_ERROR] Error in event ${event.name}: ${
-            err.message
-          } Data: ${JSON.stringify(eventData, null, null)}`,
+      });
+
+      if (res && res.status !== 201) {
+        Logger.warn(
+          `Post to notifications service failed with status ${
+            res.status
+          }. Data: ${JSON.stringify(eventData, null, null)}`,
           this.constructor.name,
         );
-      });
-    if (res && res.status !== 201) {
-      Logger.warn(
-        `Post to notifications service failed with status ${
-          res.status
-        }. Data: ${JSON.stringify(eventData, null, null)}`,
+      }
+    } catch (error) {
+      const errorData = {
+        message: error.message,
+        stack: error.stack,
+      };
+
+      if (isAxiosError(error)) {
+        errorData['url'] = error.config?.url;
+        errorData['agent'] = error.config?.httpsAgent?.options;
+      }
+
+      Logger.error(
+        `[NOTIFICATIONS_ERROR] Error in event ${event.name}, message: ${errorData.message}. Data: ${JSON.stringify(eventData, null, null)}, error: ${JSON.stringify(errorData, null, null)},`,
         this.constructor.name,
       );
     }

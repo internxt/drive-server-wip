@@ -3031,6 +3031,10 @@ export class WorkspacesUsecases {
       (member) => member.id !== ownerMember.id,
     );
 
+    const workspaceOwnerUser = await this.userRepository.findByUuid(
+      workspace.ownerId,
+    );
+
     await this.folderUseCases.deleteByUuids(
       workspaceNetworkUser,
       nonOwnerMembers.map((members) => members.rootFolderId),
@@ -3038,19 +3042,20 @@ export class WorkspacesUsecases {
 
     await this.workspaceRepository.deleteUsersFromWorkspace(
       workspace.id,
-      nonOwnerMembers.map((member) => member.memberId),
-    );
-
-    await this.workspaceRepository.deleteAllInvitationsByWorkspace(
-      workspace.id,
+      allMembers.map((member) => member.memberId),
     );
 
     const workspaceTotalSpace = await this.getWorkspaceNetworkLimit(workspace);
 
-    await this.workspaceRepository.updateWorkspaceUserBy(
-      { workspaceId: workspace.id, memberId: workspace.ownerId },
-      { spaceLimit: workspaceTotalSpace },
-    );
+    await Promise.all([
+      this.workspaceRepository.deleteAllInvitationsByWorkspace(workspace.id),
+      this.deleteWorkspaceContent(workspace.id, workspaceOwnerUser),
+      this.initiateWorkspace(workspace.ownerId, workspaceTotalSpace, {
+        numberOfSeats: workspace.numberOfSeats,
+        phoneNumber: workspace.phoneNumber,
+        address: workspace.address,
+      }),
+    ]);
   }
 
   async emptyAllUserOwnedWorkspaces(user: User): Promise<void> {

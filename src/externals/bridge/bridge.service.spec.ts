@@ -1,5 +1,7 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
+import { createMock } from '@golevelup/ts-jest';
 import { User } from '../../modules/user/user.domain';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClientModule } from '../http/http.module';
@@ -48,7 +50,9 @@ describe('Bridge Service', () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule, HttpClientModule, CryptoModule],
       providers: [BridgeService],
-    }).compile();
+    })
+      .setLogger(createMock<Logger>())
+      .compile();
 
     service = module.get<BridgeService>(BridgeService);
     httpClient = module.get<HttpClient>(HttpClient);
@@ -78,7 +82,7 @@ describe('Bridge Service', () => {
       );
 
       expect(httpClient.delete).toHaveBeenCalledTimes(1);
-      expect(httpClient.delete).toBeCalledWith(
+      expect(httpClient.delete).toHaveBeenCalledWith(
         testUrl +
           '/buckets/cc925fa0-a145-58b8-8959-8b3796fd025f/files/6c4f6109-0f64-565d-b0c4-25091a3ec247',
         {

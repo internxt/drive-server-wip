@@ -113,15 +113,15 @@ describe('SequelizeBackupRepository', () => {
     });
   });
 
-  describe('findAllDevices', () => {
+  describe('findAllLegacyDevices', () => {
     it('When no devices exist for the user, then it should return an empty array', async () => {
       jest.spyOn(deviceModel, 'findAll').mockResolvedValue([]);
 
-      const result = await repository.findAllDevices(userMocked);
+      const result = await repository.findAllLegacyDevices(userMocked);
       expect(result).toEqual([]);
     });
 
-    it('When findAllDevices is called, then it should return all devices with aggregated backup size', async () => {
+    it('When findAllDevfindAllLegacyDevicesices is called, then it should return all devices with aggregated backup size', async () => {
       const mockDevice = {
         id: 1,
         name: 'Device 1',
@@ -135,7 +135,7 @@ describe('SequelizeBackupRepository', () => {
       };
       jest.spyOn(deviceModel, 'findAll').mockResolvedValue([mockDevice] as any);
 
-      const result = await repository.findAllDevices(userMocked);
+      const result = await repository.findAllLegacyDevices(userMocked);
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
         id: 1,

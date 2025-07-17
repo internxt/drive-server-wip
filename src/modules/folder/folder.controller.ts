@@ -14,7 +14,6 @@ import {
   Post,
   Put,
   Query,
-  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -32,7 +31,6 @@ import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
 import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { validate } from 'uuid';
-import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
 
@@ -813,7 +811,6 @@ export class FolderController {
     return folderDto;
   }
 
-  @UseFilters(new HttpExceptionFilter())
   @Get(':uuid/size')
   async getFolderSize(@Param('uuid', ValidateUUIDPipe) folderUuid: string) {
     const size = await this.folderUseCases.getFolderSizeByUuid(folderUuid);
