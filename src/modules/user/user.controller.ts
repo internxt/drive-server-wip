@@ -86,6 +86,9 @@ import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
+import { TimingConsistency } from '../auth/decorators/timing-consistency.decorator';
+import { TimingConsistencyInterceptor } from '../auth/interceptors/timing-consistency.interceptor';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 
 @ApiTags('User')
@@ -397,7 +400,7 @@ export class UserController {
   @ApiOkResponse({ description: 'Pre creates a user' })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   async preCreateUser(@Body() createUserDto: PreCreateUserDto) {
-    const user = await this.userUseCases.preCreateUser(createUserDto);
+    const [user] = await this.userUseCases.preCreateUser(createUserDto);
 
     return {
       user: {
@@ -865,6 +868,7 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get public key by email',
+    deprecated: true,
   })
   @ApiParam({
     name: 'email',
@@ -880,6 +884,30 @@ export class UserController {
     const keys = await this.keyServerUseCases.getPublicKeys(user.id);
 
     return { publicKey: keys.ecc, keys };
+  }
+
+  @Put('/public-key/:email')
+  @UseGuards(ThrottlerGuard)
+  @UseInterceptors(TimingConsistencyInterceptor)
+  @TimingConsistency({ minimumResponseTimeMs: 900 })
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Retieve public key (existing users) or pre-create user and retrieve key',
+  })
+  @ApiOkResponse({
+    description: 'Returns a public key',
+    type: GetOrCreatePublicKeysDto,
+  })
+  @ApiParam({
+    name: 'email',
+    type: String,
+  })
+  async getOrPreCreatePublicKeyByEmail(
+    @Param('email') email: User['email'],
+    @UserDecorator() requestingUser: User,
+  ): Promise<GetOrCreatePublicKeysDto> {
+    return this.userUseCases.getOrPreCreateUser(email, requestingUser);
   }
 
   @HttpCode(201)

@@ -5,4 +5,5 @@ export enum MailTypes {
   EmailVerification = 'email_verification',
   DeactivateUser = 'deactivate_user',
   UnblockAccount = 'unblock_account',
+  PreCreateUser = 'pre_create_user',
 }
