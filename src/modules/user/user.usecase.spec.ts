@@ -26,6 +26,7 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import {
   Sign,
@@ -83,6 +84,12 @@ import { JsonWebTokenError } from 'jsonwebtoken';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
+import { PreCreateUserDto } from './dto/pre-create-user.dto';
+import { Environment } from '@internxt/inxt-js';
+import * as bip39 from 'bip39';
+
+const TEST_MNEMONIC =
+  'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -3027,6 +3034,669 @@ describe('User use cases', () => {
         workspaceAndUsers[1].workspace.id,
         newCredentials.asymmetricEncryptedMnemonic.ecc,
       );
+    });
+  });
+
+  describe('findByEmail', () => {
+    it('When finding user by email, then it should call userRepository.findByUsername', async () => {
+      const email = 'test@example.com';
+      const expectedUser = newUser({ attributes: { email } });
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(expectedUser);
+
+      const result = await userUseCases.findByEmail(email);
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(email);
+      expect(result).toEqual(expectedUser);
+    });
+  });
+
+  describe('findPreCreatedByEmail', () => {
+    it('When finding pre-created user by email, then it should call preCreatedUserRepository.findByUsername', async () => {
+      const email = 'test@example.com';
+      const expectedUser = newPreCreatedUser();
+      expectedUser.email = email;
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(expectedUser);
+
+      const result = await userUseCases.findPreCreatedByEmail(email);
+
+      expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalledWith(
+        email,
+      );
+      expect(result).toEqual(expectedUser);
+    });
+  });
+
+  describe('findByUuids', () => {
+    it('When finding users by UUIDs, then it should call userRepository.findByUuids', async () => {
+      const uuids = [v4(), v4()];
+      const expectedUsers = [newUser(), newUser()];
+      jest
+        .spyOn(userRepository, 'findByUuids')
+        .mockResolvedValue(expectedUsers);
+
+      const result = await userUseCases.findByUuids(uuids);
+
+      expect(userRepository.findByUuids).toHaveBeenCalledWith(uuids);
+      expect(result).toEqual(expectedUsers);
+    });
+  });
+
+  describe('findPreCreatedUsersByUuids', () => {
+    it('When finding pre-created users by UUIDs, then it should call preCreatedUserRepository.findByUuids', async () => {
+      const uuids = [v4(), v4()];
+      const expectedUsers = [newPreCreatedUser(), newPreCreatedUser()];
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUuids')
+        .mockResolvedValue(expectedUsers);
+
+      const result = await userUseCases.findPreCreatedUsersByUuids(uuids);
+
+      expect(preCreatedUsersRepository.findByUuids).toHaveBeenCalledWith(uuids);
+      expect(result).toEqual(expectedUsers);
+    });
+  });
+
+  describe('findByUuid', () => {
+    it('When finding user by UUID, then it should call userRepository.findByUuid', async () => {
+      const uuid = v4();
+      const expectedUser = newUser();
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(expectedUser);
+
+      const result = await userUseCases.findByUuid(uuid);
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(uuid);
+      expect(result).toEqual(expectedUser);
+    });
+  });
+
+  describe('findById', () => {
+    it('When finding user by ID, then it should call userRepository.findById', async () => {
+      const id = 123;
+      const expectedUser = newUser();
+      jest.spyOn(userRepository, 'findById').mockResolvedValue(expectedUser);
+
+      const result = await userUseCases.findById(id);
+
+      expect(userRepository.findById).toHaveBeenCalledWith(id);
+      expect(result).toEqual(expectedUser);
+    });
+  });
+
+  describe('getUserByUsername', () => {
+    it('When getting user by username, then it should call userRepository.findByUsername', async () => {
+      const email = 'test@example.com';
+      const expectedUser = newUser();
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(expectedUser);
+
+      const result = await userUseCases.getUserByUsername(email);
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(email);
+      expect(result).toEqual(expectedUser);
+    });
+  });
+
+  describe('getWorkspaceMembersByBrigeUser', () => {
+    it('When getting workspace members by bridge user, then it should call userRepository.findAllBy', async () => {
+      const bridgeUser = 'bridge-user';
+      const expectedUsers = [newUser(), newUser()];
+      jest.spyOn(userRepository, 'findAllBy').mockResolvedValue(expectedUsers);
+
+      const result =
+        await userUseCases.getWorkspaceMembersByBrigeUser(bridgeUser);
+
+      expect(userRepository.findAllBy).toHaveBeenCalledWith({ bridgeUser });
+      expect(result).toEqual(expectedUsers);
+    });
+  });
+
+  describe('getNetworkByUserId', () => {
+    it('When getting network by user ID, then it should return Environment instance', async () => {
+      const userId = 123;
+      const mnemonic = 'test-mnemonic';
+      const user = newUser({
+        attributes: {
+          id: userId,
+          userId: 'network-user-id',
+          bridgeUser: 'bridge-user',
+        },
+      });
+      const bridgeUrl = 'https://bridge.example.com';
+
+      jest.spyOn(userRepository, 'findById').mockResolvedValue(user);
+      jest.spyOn(configService, 'get').mockReturnValue(bridgeUrl);
+
+      const result = await userUseCases.getNetworkByUserId(userId, mnemonic);
+
+      expect(userRepository.findById).toHaveBeenCalledWith(userId);
+      expect(configService.get).toHaveBeenCalledWith('apis.storage.url');
+      expect(result).toBeInstanceOf(Environment);
+    });
+  });
+
+  describe('getUser', () => {
+    it('When user exists, then it should return the user', async () => {
+      const uuid = v4();
+      const expectedUser = newUser();
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(expectedUser);
+
+      const result = await userUseCases.getUser(uuid);
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(uuid);
+      expect(result).toEqual(expectedUser);
+    });
+
+    it('When user does not exist, then it should throw error', async () => {
+      const uuid = v4();
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(userUseCases.getUser(uuid)).rejects.toThrow(
+        'User not found',
+      );
+    });
+  });
+
+  describe('sendWelcomeVerifyEmailEmail', () => {
+    it('When sending welcome verify email, then it should call mailerService.send with correct parameters', async () => {
+      const email = 'test@example.com';
+      const userUuid = v4();
+      const secret = 'jwt-secret';
+      const verificationToken = 'encrypted-token';
+      const templateId = 'welcome-template-id';
+
+      jest.spyOn(configService, 'get').mockImplementation((key) => {
+        if (key === 'secrets.jwt') return secret;
+        if (key === 'mailer.templates.welcomeVerifyEmail') return templateId;
+        return undefined;
+      });
+      jest.spyOn(cryptoService, 'encrypt').mockReturnValue(verificationToken);
+      jest.spyOn(mailerService, 'send').mockResolvedValue(undefined);
+
+      const hostDriveWeb = 'https://drive.example.com';
+      process.env.HOST_DRIVE_WEB = hostDriveWeb;
+
+      const result = await userUseCases.sendWelcomeVerifyEmailEmail(email, {
+        userUuid,
+      });
+
+      expect(cryptoService.encrypt).toHaveBeenCalledWith(
+        userUuid,
+        Buffer.from(secret),
+      );
+      expect(mailerService.send).toHaveBeenCalledWith(email, templateId, {
+        verification_url: `${hostDriveWeb}/verify-email/${encodeURIComponent(verificationToken)}`,
+        email_support: 'mailto:hello@internxt.com',
+      });
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('sendAccountRecoveryEmail', () => {
+    it('When sending account recovery email, then it should call mailerService.send with correct parameters', async () => {
+      const email = 'test@example.com';
+      const user = newUser({ attributes: { email } });
+      const secret = 'jwt-secret';
+      const templateId = 'recovery-template-id';
+      const hostDriveWeb = 'https://drive.example.com';
+
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(user);
+      jest.spyOn(configService, 'get').mockImplementation((key) => {
+        if (key === 'secrets.jwt') return secret;
+        if (key === 'mailer.templates.recoverAccountEmail') return templateId;
+        return undefined;
+      });
+      jest.spyOn(mailerService, 'send').mockResolvedValue(undefined);
+
+      process.env.HOST_DRIVE_WEB = hostDriveWeb;
+
+      const result = await userUseCases.sendAccountRecoveryEmail(email);
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(email);
+      expect(SignWithCustomDuration).toHaveBeenCalledWith(
+        {
+          payload: {
+            uuid: user.uuid,
+            action: 'recover-account',
+          },
+        },
+        secret,
+        '30m',
+      );
+      expect(mailerService.send).toHaveBeenCalledWith(user.email, templateId, {
+        email,
+        recovery_url: `${hostDriveWeb}/recover-account/anyToken`,
+      });
+      expect(result).toBeUndefined();
+    });
+
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      const email = 'nonexistent@example.com';
+      jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.sendAccountRecoveryEmail(email),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getAvatarUrl', () => {
+    it('When avatar key is provided, then it should return the avatar URL', async () => {
+      const avatarKey = 'avatar-key-123';
+      const expectedUrl = 'https://example.com/avatar.jpg';
+      jest
+        .spyOn(avatarService, 'getDownloadUrl')
+        .mockResolvedValue(expectedUrl);
+
+      const result = await userUseCases.getAvatarUrl(avatarKey);
+
+      expect(avatarService.getDownloadUrl).toHaveBeenCalledWith(avatarKey);
+      expect(result).toEqual(expectedUrl);
+    });
+
+    it('When avatar key is not provided, then it should return null', async () => {
+      const result = await userUseCases.getAvatarUrl(null);
+
+      expect(avatarService.getDownloadUrl).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it('When avatar key is empty string, then it should return null', async () => {
+      const result = await userUseCases.getAvatarUrl('');
+
+      expect(avatarService.getDownloadUrl).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('createAttemptChangeEmail', () => {
+    it('When creating attempt change email, then it should create attempt and send email', async () => {
+      const user = newUser();
+      const newEmail = 'newemail@example.com';
+      const attempt = { id: 123 };
+      const encryptedId = 'encrypted-id';
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(attemptChangeEmailRepository, 'create')
+        .mockResolvedValue(attempt as any);
+      jest.spyOn(cryptoService, 'encryptText').mockReturnValue(encryptedId);
+      jest
+        .spyOn(mailerService, 'sendUpdateUserEmailVerification')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.createAttemptChangeEmail(user, newEmail);
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(newEmail);
+      expect(attemptChangeEmailRepository.create).toHaveBeenCalledWith({
+        userUuid: user.uuid,
+        newEmail,
+      });
+      expect(cryptoService.encryptText).toHaveBeenCalledWith('123');
+      expect(
+        mailerService.sendUpdateUserEmailVerification,
+      ).toHaveBeenCalledWith(newEmail, encryptedId);
+    });
+
+    it('When new email already exists, then it should throw UserEmailAlreadyInUseException', async () => {
+      const user = newUser();
+      const newEmail = 'existing@example.com';
+      const existingUser = newUser({ attributes: { email: newEmail } });
+
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(existingUser);
+
+      await expect(
+        userUseCases.createAttemptChangeEmail(user, newEmail),
+      ).rejects.toThrow(UserEmailAlreadyInUseException);
+    });
+
+    it('When new email is the same as current email, then it should throw BadRequestException', async () => {
+      const user = newUser({ attributes: { email: 'same@example.com' } });
+      const newEmail = 'same@example.com';
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.createAttemptChangeEmail(user, newEmail),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('isAttemptChangeEmailExpired', () => {
+    it('When attempt exists and is not expired, then it should return isExpired false', async () => {
+      const encryptedId = 'encrypted-id';
+      const attemptId = '123';
+      const attempt = createMock<AttemptChangeEmailModel>({
+        isVerified: false,
+        isExpired: false,
+      });
+
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(attemptId);
+      jest
+        .spyOn(attemptChangeEmailRepository, 'getOneById')
+        .mockResolvedValue(attempt);
+
+      const result =
+        await userUseCases.isAttemptChangeEmailExpired(encryptedId);
+
+      expect(cryptoService.decryptText).toHaveBeenCalledWith(encryptedId);
+      expect(attemptChangeEmailRepository.getOneById).toHaveBeenCalledWith(123);
+      expect(result).toEqual({ isExpired: false });
+    });
+
+    it('When attempt exists and is expired, then it should return isExpired true', async () => {
+      const encryptedId = 'encrypted-id';
+      const attemptId = '123';
+      const attempt = createMock<AttemptChangeEmailModel>({
+        isVerified: false,
+        isExpired: true,
+      });
+
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(attemptId);
+      jest
+        .spyOn(attemptChangeEmailRepository, 'getOneById')
+        .mockResolvedValue(attempt);
+
+      const result =
+        await userUseCases.isAttemptChangeEmailExpired(encryptedId);
+
+      expect(result).toEqual({ isExpired: true });
+    });
+
+    it('When attempt does not exist, then it should throw AttemptChangeEmailNotFoundException', async () => {
+      const encryptedId = 'encrypted-id';
+      const attemptId = '123';
+
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(attemptId);
+      jest
+        .spyOn(attemptChangeEmailRepository, 'getOneById')
+        .mockResolvedValue(null);
+
+      await expect(
+        userUseCases.isAttemptChangeEmailExpired(encryptedId),
+      ).rejects.toThrow(AttemptChangeEmailNotFoundException);
+    });
+
+    it('When attempt is already verified, then it should throw AttemptChangeEmailAlreadyVerifiedException', async () => {
+      const encryptedId = 'encrypted-id';
+      const attemptId = '123';
+      const attempt = createMock<AttemptChangeEmailModel>({
+        isVerified: true,
+        isExpired: false,
+      });
+
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(attemptId);
+      jest
+        .spyOn(attemptChangeEmailRepository, 'getOneById')
+        .mockResolvedValue(attempt);
+
+      await expect(
+        userUseCases.isAttemptChangeEmailExpired(encryptedId),
+      ).rejects.toThrow(AttemptChangeEmailAlreadyVerifiedException);
+    });
+  });
+
+  describe('generateMnemonic', () => {
+    it('When generating mnemonic, then it should return a 256-bit mnemonic', async () => {
+      const result = await userUseCases.generateMnemonic();
+
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+      // 256-bit mnemonic should have 24 words
+      expect(result.split(' ')).toHaveLength(24);
+    });
+  });
+
+  describe('updateCredentials', () => {
+    it('When updating credentials without reset, then it should update user and delete key server entries', async () => {
+      const userUuid = v4();
+      const user = newUser();
+      const newCredentials = {
+        mnemonic: 'new-mnemonic',
+        password: 'encrypted-password',
+        salt: 'encrypted-salt',
+        privateKey: 'private-key',
+      };
+      const decryptedPassword = 'decrypted-password';
+      const decryptedSalt = 'decrypted-salt';
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
+        if (text === newCredentials.password) return decryptedPassword;
+        if (text === newCredentials.salt) return decryptedSalt;
+        return text;
+      });
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.updateCredentials(userUuid, newCredentials, false);
+
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(userUuid, {
+        mnemonic: newCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
+    });
+
+    it('When updating credentials with reset, then it should update user and reset user data', async () => {
+      const userUuid = v4();
+      const user = newUser();
+      const newCredentials = {
+        mnemonic: 'new-mnemonic',
+        password: 'encrypted-password',
+        salt: 'encrypted-salt',
+      };
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+      jest
+        .spyOn(keyServerRepository, 'deleteByUserId')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.updateCredentials(userUuid, newCredentials, true);
+
+      expect(userUseCases.resetUser).toHaveBeenCalledWith(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+      });
+    });
+  });
+
+  describe('getNewTokenPayload', () => {
+    it('When getting new token payload, then it should return formatted payload', () => {
+      const userData = {
+        uuid: v4(),
+        email: 'test@example.com',
+        name: 'Test',
+        lastname: 'User',
+        username: 'testuser',
+        bridgeUser: 'bridge-user',
+      };
+
+      const result = userUseCases.getNewTokenPayload(userData);
+
+      expect(result).toEqual({
+        payload: {
+          uuid: userData.uuid,
+          email: userData.email,
+          name: userData.name,
+          lastname: userData.lastname,
+          username: userData.username,
+          sharedWorkspace: true,
+          networkCredentials: {
+            user: userData.bridgeUser,
+          },
+        },
+        iat: getTokenDefaultIat(),
+      });
+    });
+  });
+
+  describe('createInitialFolders', () => {
+    it('When creating initial folders, then it should create root, family and personal folders', async () => {
+      const user = newUser();
+      const bucketId = 'bucket-123';
+      const rootFolder = newFolder({ attributes: { name: 'Root' } });
+      const familyFolder = newFolder({ attributes: { name: 'Family' } });
+      const personalFolder = newFolder({ attributes: { name: 'Personal' } });
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest
+        .spyOn(folderUseCases, 'createRootFolder')
+        .mockResolvedValue(rootFolder);
+      jest.spyOn(userRepository, 'updateById').mockResolvedValue(undefined);
+      jest
+        .spyOn(folderUseCases, 'createFolders')
+        .mockResolvedValue([familyFolder, personalFolder]);
+
+      const result = await userUseCases.createInitialFolders(user, bucketId);
+
+      expect(folderUseCases.createRootFolder).toHaveBeenCalledWith(
+        user,
+        'encrypted-name',
+        bucketId,
+      );
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
+        rootFolderId: rootFolder.id,
+      });
+      expect(folderUseCases.createFolders).toHaveBeenCalledWith(user, [
+        {
+          name: 'Family',
+          parentFolderId: rootFolder.id,
+          parentUuid: rootFolder.uuid,
+        },
+        {
+          name: 'Personal',
+          parentFolderId: rootFolder.id,
+          parentUuid: rootFolder.uuid,
+        },
+      ]);
+      expect(result).toEqual([rootFolder, familyFolder, personalFolder]);
+    });
+  });
+
+  describe('preCreateUser', () => {
+    it('When creating a pre-created user that does not exist, then it should create and return user data', async () => {
+      const newUserDto: PreCreateUserDto = {
+        email: 'test@example.com',
+      };
+      const defaultPass = 'default-password';
+      const hashObj = { hash: 'hashed-password', salt: 'salt' };
+      const encMnemonic = 'encrypted-mnemonic';
+      const encPrivateKey = 'encrypted-private-key';
+      const encKyberPrivateKey = 'encrypted-kyber-private-key';
+      const keys = {
+        privateKeyArmored: 'private-key-armored',
+        publicKeyArmored: 'public-key-armored',
+        revocationCertificate: 'revocation-cert',
+        privateKyberKeyBase64: 'private-kyber-key',
+        publicKyberKeyBase64: 'public-kyber-key',
+      };
+      const createdUser = newPreCreatedUser();
+      createdUser.email = newUserDto.email;
+
+      jest.spyOn(aes, 'encrypt').mockImplementation((data) => {
+        if (data === keys.privateKeyArmored) return encPrivateKey;
+        if (data === keys.privateKyberKeyBase64) return encKyberPrivateKey;
+        return 'encrypted-' + data;
+      });
+
+      jest.spyOn(bip39, 'generateMnemonic').mockReturnValue(TEST_MNEMONIC);
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(configService, 'get').mockImplementation((key) => {
+        if (key === 'users.preCreatedPassword') return defaultPass;
+        if (key === 'secrets.magicIv') return 'test-iv';
+        if (key === 'secrets.magicSalt') return 'test-salt';
+        return undefined;
+      });
+      jest.spyOn(cryptoService, 'passToHash').mockReturnValueOnce(hashObj);
+      jest
+        .spyOn(cryptoService, 'encryptTextWithKey')
+        .mockReturnValueOnce(encMnemonic);
+      jest
+        .spyOn(asymmetricEncryptionService, 'generateNewKeys')
+        .mockResolvedValue(keys);
+      jest
+        .spyOn(preCreatedUsersRepository, 'create')
+        .mockResolvedValueOnce(createdUser);
+
+      const result = await userUseCases.preCreateUser(newUserDto);
+
+      expect(userRepository.findByUsername).toHaveBeenCalledWith(
+        newUserDto.email,
+      );
+      expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalledWith(
+        newUserDto.email,
+      );
+      expect(cryptoService.passToHash).toHaveBeenCalledWith(defaultPass);
+      expect(cryptoService.encryptTextWithKey).toHaveBeenCalledWith(
+        TEST_MNEMONIC,
+        defaultPass,
+      );
+      expect(asymmetricEncryptionService.generateNewKeys).toHaveBeenCalled();
+      expect(preCreatedUsersRepository.create).toHaveBeenCalled();
+      expect(result).toEqual({
+        ...createdUser.toJSON(),
+        publicKyberKey: createdUser.publicKyberKey.toString(),
+        publicKey: createdUser.publicKey.toString(),
+        password: createdUser.password.toString(),
+      });
+    });
+
+    it('When creating a pre-created user that already exists as regular user, then it should throw ConflictException', async () => {
+      const newUserDto: PreCreateUserDto = {
+        email: 'existing@example.com',
+      };
+      const existingUser = newUser({ attributes: { email: newUserDto.email } });
+
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(existingUser);
+
+      await expect(userUseCases.preCreateUser(newUserDto)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('When creating a pre-created user that already exists as pre-created user, then it should return existing user', async () => {
+      const newUserDto: PreCreateUserDto = {
+        email: 'existing-precreated@example.com',
+      };
+      const existingPreCreatedUser = newPreCreatedUser();
+      existingPreCreatedUser.email = newUserDto.email;
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(existingPreCreatedUser);
+
+      const result = await userUseCases.preCreateUser(newUserDto);
+
+      expect(result).toEqual({
+        ...existingPreCreatedUser.toJSON(),
+        publicKyberKey: existingPreCreatedUser.publicKyberKey.toString(),
+        publicKey: existingPreCreatedUser.publicKey.toString(),
+        password: existingPreCreatedUser.password.toString(),
+      });
     });
   });
 
