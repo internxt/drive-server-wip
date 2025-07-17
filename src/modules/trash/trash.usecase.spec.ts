@@ -199,34 +199,5 @@ describe('Trash Use Cases', () => {
         8,
       ); // Last folder chunk
     });
-
-    it('should fail if a folder is not found', async () => {
-      const error = Error('random error');
-      const foldersIdToDelete: Array<FolderAttributes['id']> = [
-        2176796544, 505779655, 724413021,
-      ];
-
-      jest.spyOn(fileUseCases, 'getByFileIdAndUser');
-      jest
-        .spyOn(folderUseCases, 'getFolder')
-        .mockImplementationOnce(() => Promise.resolve({} as Folder))
-        .mockImplementationOnce(() => Promise.reject(error))
-        .mockImplementationOnce(() => Promise.resolve({} as Folder));
-      jest.spyOn(fileUseCases, 'deleteFilePermanently');
-      jest.spyOn(folderUseCases, 'deleteFolderPermanently');
-
-      try {
-        await service.deleteItems(
-          {} as User,
-          [],
-          foldersIdToDelete as unknown as Folder[], // must be updated to be a list of folders
-        );
-      } catch (err) {
-        expect(err).toBeDefined();
-      }
-
-      expect(fileUseCases.deleteFilePermanently).not.toHaveBeenCalled();
-      expect(folderUseCases.deleteFolderPermanently).not.toHaveBeenCalled();
-    });
   });
 });

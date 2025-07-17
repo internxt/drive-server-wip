@@ -233,112 +233,61 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('delete file use case', () => {
-    const incrementalUserId = 15494;
-    const fileId = '2618494108';
-    const bucket = 'test';
-    const userMock = User.build({
-      id: incrementalUserId,
-      userId: 'userId',
-      name: 'User Owner',
-      lastname: 'Lastname',
-      email: 'fake@internxt.com',
-      username: 'fake',
-      bridgeUser: null,
-      rootFolderId: 1,
-      errorLoginCount: 0,
-      isEmailActivitySended: 1,
-      referralCode: null,
-      referrer: null,
-      syncDate: new Date(),
-      uuid: 'uuid',
-      lastResend: new Date(),
-      credit: null,
-      welcomePack: true,
-      registerCompleted: true,
-      backupsBucket: 'bucket',
-      sharedWorkspace: true,
-      avatar: 'avatar',
-      password: '',
-      mnemonic: '',
-      hKey: undefined,
-      secret_2FA: '',
-      lastPasswordChangedAt: new Date(),
-      emailVerified: false,
-    });
+  describe('deleteFilePermanently', () => {
+    const mockUser = newUser();
 
-    it.skip('should be able to delete a trashed file', async () => {
-      jest
-        .spyOn(fileRepository, 'deleteByFileId')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      jest
-        .spyOn(bridgeService, 'deleteFile')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      await service.deleteFilePermanently(userMock, { fileId, bucket });
-
-      expect(fileRepository.deleteByFileId).toHaveBeenCalledWith(fileId);
-    });
-
-    it.skip('should fail when the folder trying to delete has not been trashed', async () => {
-      jest.spyOn(fileRepository, 'deleteByFileId');
-
-      await service.deleteFilePermanently(userMock, { fileId, bucket });
-      expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
-    });
-
-    it.skip('should fail when the folder trying to delete is not owned by the user', async () => {
-      jest.spyOn(bridgeService, 'deleteFile');
-      jest.spyOn(fileRepository, 'deleteByFileId');
+    it('When file is not found then, thow NotFoundException', () => {
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(undefined);
 
       expect(
-        service.deleteFilePermanently(userMock, { fileId, bucket }),
-      ).rejects.toThrow(
-        new ForbiddenException(`You are not owner of this share`),
+        service.deleteFilePermanently(mockUser, { uuid: v4() }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user is not owner of the file, then throw ForbiddenException', () => {
+      const unownedFile = newFile();
+      jest
+        .spyOn(fileRepository, 'findOneBy')
+        .mockResolvedValueOnce(unownedFile);
+
+      expect(
+        service.deleteFilePermanently(mockUser, { uuid: v4() }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When the file is found and owned by the requesting user, then delete file', async () => {
+      const mockFile = newFile({
+        attributes: { user: mockUser, userId: mockUser.id },
+      });
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+      jest.spyOn(sharingService, 'bulkRemoveSharings').mockResolvedValueOnce();
+      jest
+        .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
+        .mockResolvedValueOnce();
+      jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValueOnce();
+
+      const { id, uuid } = await service.deleteFilePermanently(mockUser, {
+        uuid: mockFile.uuid,
+      });
+
+      expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
+        mockUser,
+        [mockFile.uuid],
+        SharingItemType.File,
       );
-      expect(bridgeService.deleteFile).not.toHaveBeenCalled();
-      expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
-    });
 
-    it.skip('should not delete a file from storage if delete shares fails', async () => {
-      const errorReason = new Error('reason');
+      expect(thumbnailUseCases.deleteThumbnailByFileUuid).toHaveBeenCalledWith(
+        mockUser,
+        mockFile.uuid,
+      );
 
-      jest
-        .spyOn(fileRepository, 'deleteByFileId')
-        .mockImplementationOnce(() => Promise.resolve());
-      jest.spyOn(bridgeService, 'deleteFile');
+      expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(mockUser, [
+        mockFile,
+      ]);
 
-      expect.assertions(3);
-      try {
-        await service.deleteFilePermanently(userMock, { fileId, bucket });
-      } catch (err) {
-        expect(err).toBe(errorReason);
-      }
-
-      expect(bridgeService.deleteFile).not.toHaveBeenCalled();
-      expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
-    });
-
-    it.skip('should not delete a file from databse if could not be deleted from storage', async () => {
-      const errorReason = new Error('reason');
-
-      jest
-        .spyOn(fileRepository, 'deleteByFileId')
-        .mockImplementationOnce(() => Promise.resolve());
-
-      jest
-        .spyOn(bridgeService, 'deleteFile')
-        .mockImplementationOnce(() => Promise.reject(errorReason));
-
-      expect.assertions(2);
-      try {
-        await service.deleteFilePermanently(userMock, { fileId, bucket });
-      } catch (err) {
-        expect(err).toBe(errorReason);
-      }
-
-      expect(fileRepository.deleteByFileId).not.toHaveBeenCalled();
+      expect(id).toBe(mockFile.id);
+      expect(uuid).toBe(mockFile.uuid);
     });
   });
 
@@ -1218,6 +1167,7 @@ describe('FileUseCases', () => {
     it('When file exists, then it should return the file', async () => {
       const mockFile = newFile({ owner: userMocked });
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValue('');
 
       const result = await service.getFileMetadata(userMocked, mockFile.uuid);
 

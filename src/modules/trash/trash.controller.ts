@@ -274,11 +274,13 @@ export class TrashController {
 
     for (const item of items) {
       if (item.type === DeleteItemType.FILE) {
-        if (item.id) filesIds.push(parseInt(item.id, 10));
-        if (item.uuid) filesUuids.push(item.uuid);
+        item.uuid
+          ? filesUuids.push(item.uuid)
+          : filesIds.push(parseInt(item.id, 10));
       } else if (item.type === DeleteItemType.FOLDER) {
-        if (item.id) foldersIds.push(parseInt(item.id, 10));
-        if (item.uuid) foldersUuids.push(item.uuid);
+        item.uuid
+          ? foldersUuids.push(item.uuid)
+          : foldersIds.push(parseInt(item.id, 10));
       }
     }
 
