@@ -30,6 +30,11 @@ import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
+import {
+  RecoverAccountDto,
+  DeprecatedRecoverAccountDto,
+} from './dto/recover-account.dto';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 
 jest.mock('../../config/configuration', () => {
@@ -62,6 +67,7 @@ jest.mock('../../lib/jwt', () => {
     ...jest.requireActual('../../lib/jitsi'),
     generateJitsiJWT: jest.fn(() => 'newJitsiJwt'),
     verifyWithDefaultSecret: jest.fn(() => 'defaultVerifiedSecret'),
+    verifyToken: jest.fn(),
   };
 });
 
@@ -873,6 +879,10 @@ describe('User Controller', () => {
   describe('POST /deactivation/confirm', () => {
     it('When deactivation is confirmed, then the service is called with the received token', async () => {
       const token = 'deactivationToken';
+      const user = newUser();
+      jest
+        .spyOn(userUseCases, 'confirmDeactivation')
+        .mockResolvedValueOnce(user);
       await userController.confirmUserDeactivation({ token });
 
       expect(userUseCases.confirmDeactivation).toHaveBeenCalledWith(token);
@@ -938,9 +948,408 @@ describe('User Controller', () => {
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          `[USER/SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
+          `[SPACE_LIMIT] Error getting space limit for user: ${userMocked.id}. Error: ${errorMessage}`,
         ),
       );
+    });
+  });
+
+  describe('PUT /recover-account', () => {
+    const mockUser = newUser();
+    const validToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: mockUser.uuid,
+          action: 'recover-account',
+        },
+      },
+      getEnv().secrets.jwt,
+      '30m',
+    );
+
+    const mockRecoverAccountDto: DeprecatedRecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKey: 'encrypted_private_key',
+    };
+
+    const mockRecoverAccountNoKeys: DeprecatedRecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      jest
+        .spyOn(userUseCases, 'updateCredentialsOld')
+        .mockResolvedValue(undefined);
+
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
+        payload: {
+          uuid: mockUser.uuid,
+          action: 'recover-account',
+        },
+      });
+    });
+
+    it('When token is invalid, then it throws ForbiddenException', async () => {
+      (jwtUtils.verifyToken as jest.Mock).mockImplementationOnce(() => {
+        throw new Error('Invalid token');
+      });
+
+      const invalidToken = 'invalid_token';
+      await expect(
+        userController.recoverAccount(
+          {
+            token: invalidToken,
+            reset: 'false',
+          },
+          mockRecoverAccountDto,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When token has valid signature but incorrect properties, then it throws ForbiddenException', async () => {
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValueOnce({
+        payload: {
+          uuid: 'invalid_uuid',
+          action: 'wrong_action',
+        },
+      });
+
+      await expect(
+        userController.recoverAccount(
+          {
+            token: validToken,
+            reset: 'false',
+          },
+          mockRecoverAccountDto,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When reset is true, then it updates credentials with reset option', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'true',
+        },
+        mockRecoverAccountNoKeys,
+      );
+
+      expect(userUseCases.updateCredentialsOld).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountNoKeys.mnemonic,
+          password: mockRecoverAccountNoKeys.password,
+          salt: mockRecoverAccountNoKeys.salt,
+        },
+        true,
+      );
+    });
+
+    it('When reset is false and private key is provided, then it updates credentials with private key', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'false',
+        },
+        mockRecoverAccountDto,
+      );
+
+      expect(userUseCases.updateCredentialsOld).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountDto.mnemonic,
+          password: mockRecoverAccountDto.password,
+          salt: mockRecoverAccountDto.salt,
+          privateKey: mockRecoverAccountDto.privateKey,
+        },
+      );
+    });
+
+    it('When reset is false but no private key is provided, then it still works (original behavior)', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'false',
+        },
+        mockRecoverAccountNoKeys,
+      );
+
+      expect(userUseCases.updateCredentialsOld).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountNoKeys.mnemonic,
+          password: mockRecoverAccountNoKeys.password,
+          salt: mockRecoverAccountNoKeys.salt,
+          privateKey: undefined,
+        },
+      );
+    });
+  });
+
+  describe('PUT /recover-account-v2', () => {
+    const mockUser = newUser();
+    const validToken = SignWithCustomDuration(
+      {
+        payload: {
+          uuid: mockUser.uuid,
+          action: 'recover-account',
+        },
+      },
+      getEnv().secrets.jwt,
+      '30m',
+    );
+
+    const mockRecoverAccountDto: RecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKeys: {
+        ecc: 'encrypted_ecc_key',
+        kyber: 'encrypted_kyber_key',
+      },
+    };
+
+    const mockRecoverAccountNoKeys: RecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      jest
+        .spyOn(userUseCases, 'updateCredentials')
+        .mockResolvedValue(undefined);
+
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
+        payload: {
+          uuid: mockUser.uuid,
+          action: 'recover-account',
+        },
+      });
+    });
+
+    it('When token is invalid, then it throws ForbiddenException', async () => {
+      (jwtUtils.verifyToken as jest.Mock).mockImplementationOnce(() => {
+        throw new Error('Invalid token');
+      });
+
+      const invalidToken = 'invalid_token';
+      await expect(
+        userController.recoverAccountV2(
+          {
+            token: invalidToken,
+            reset: 'false',
+          },
+          mockRecoverAccountDto,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When token has valid signature but incorrect properties, then it throws ForbiddenException', async () => {
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValueOnce({
+        payload: {
+          uuid: 'invalid_uuid',
+          action: 'wrong_action',
+        },
+      });
+
+      await expect(
+        userController.recoverAccountV2(
+          {
+            token: validToken,
+            reset: 'false',
+          },
+          mockRecoverAccountDto,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When reset is true, then it updates credentials with reset option', async () => {
+      await userController.recoverAccountV2(
+        {
+          token: validToken,
+          reset: 'true',
+        },
+        mockRecoverAccountNoKeys,
+      );
+
+      expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountNoKeys.mnemonic,
+          password: mockRecoverAccountNoKeys.password,
+          salt: mockRecoverAccountNoKeys.salt,
+        },
+        true,
+      );
+    });
+
+    it('When reset is false and private keys are provided, then it updates credentials with private keys', async () => {
+      await userController.recoverAccountV2(
+        {
+          token: validToken,
+          reset: 'false',
+        },
+        mockRecoverAccountDto,
+      );
+
+      expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountDto.mnemonic,
+          password: mockRecoverAccountDto.password,
+          salt: mockRecoverAccountDto.salt,
+          privateKeys: mockRecoverAccountDto.privateKeys,
+        },
+        false,
+      );
+    });
+
+    it('When reset is false but no private keys are provided, then it throws BadRequestException', async () => {
+      await expect(
+        userController.recoverAccountV2(
+          {
+            token: validToken,
+            reset: 'false',
+          },
+          mockRecoverAccountNoKeys,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(userUseCases.updateCredentials).not.toHaveBeenCalled();
+    });
+
+    it('When reset parameter has invalid value, then token validation still works', async () => {
+      await userController.recoverAccountV2(
+        {
+          token: validToken,
+          reset: 'invalid_value',
+        },
+        mockRecoverAccountDto,
+      );
+
+      expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountDto.mnemonic,
+          password: mockRecoverAccountDto.password,
+          salt: mockRecoverAccountDto.salt,
+          privateKeys: mockRecoverAccountDto.privateKeys,
+        },
+        false,
+      );
+    });
+  });
+
+  describe('PUT /legacy-recover-account', () => {
+    const mockUser = newUser();
+    const validToken = 'valid_token';
+    const mockLegacyRecoverAccountDto: LegacyRecoverAccountDto = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      asymmetricEncryptedMnemonic: {
+        ecc: 'encrypted_mnemonic_ecc',
+        hybrid: 'encrypted_mnemonic_hybrid',
+      },
+      keys: {
+        ecc: {
+          private: 'private_ecc_key',
+          public: 'public_ecc_key',
+          revocationKey: 'revocation_key',
+        },
+        kyber: {
+          private: 'private_kyber_key',
+          public: 'public_kyber_key',
+        },
+      },
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockReturnValue({
+          userUuid: mockUser.uuid,
+        });
+
+      jest
+        .spyOn(userUseCases, 'recoverAccountLegacy')
+        .mockResolvedValue(undefined);
+    });
+
+    it('When token is missing, then it throws BadRequestException', async () => {
+      await expect(
+        userController.requestLegacyAccountRecovery(
+          '',
+          mockLegacyRecoverAccountDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(
+        userUseCases.verifyAndDecodeAccountRecoveryToken,
+      ).not.toHaveBeenCalled();
+      expect(userUseCases.recoverAccountLegacy).not.toHaveBeenCalled();
+    });
+
+    it('When token is provided and valid, then it recovers account with legacy method', async () => {
+      await userController.requestLegacyAccountRecovery(
+        validToken,
+        mockLegacyRecoverAccountDto,
+      );
+
+      expect(
+        userUseCases.verifyAndDecodeAccountRecoveryToken,
+      ).toHaveBeenCalledWith(validToken);
+      expect(userUseCases.recoverAccountLegacy).toHaveBeenCalledWith(
+        mockUser.uuid,
+        mockLegacyRecoverAccountDto,
+      );
+    });
+
+    it('When token verification fails, then it should propagate the error', async () => {
+      const tokenError = new ForbiddenException('Invalid token');
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockImplementation(() => {
+          throw tokenError;
+        });
+
+      await expect(
+        userController.requestLegacyAccountRecovery(
+          'invalid_token',
+          mockLegacyRecoverAccountDto,
+        ),
+      ).rejects.toThrow(tokenError);
+
+      expect(userUseCases.recoverAccountLegacy).not.toHaveBeenCalled();
+    });
+
+    it('When legacy recovery fails, then it should propagate the error', async () => {
+      const recoveryError = new Error('Recovery failed');
+      jest
+        .spyOn(userUseCases, 'recoverAccountLegacy')
+        .mockRejectedValue(recoveryError);
+
+      await expect(
+        userController.requestLegacyAccountRecovery(
+          validToken,
+          mockLegacyRecoverAccountDto,
+        ),
+      ).rejects.toThrow(recoveryError);
+
+      expect(
+        userUseCases.verifyAndDecodeAccountRecoveryToken,
+      ).toHaveBeenCalledWith(validToken);
     });
   });
 

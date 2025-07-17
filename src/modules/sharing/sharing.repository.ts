@@ -60,6 +60,89 @@ interface SharingRepository {
   findRoles(): Promise<Role[]>;
   deleteSharingRole(sharingRole: SharingRole): Promise<void>;
   deleteSharingRolesBySharing(sharing: Sharing): Promise<void>;
+  getSharingsCountBy(where: Partial<Sharing>): Promise<number>;
+  getInvitesCountBy(where: Partial<SharingInvite>): Promise<number>;
+  getInvitesNumberByItem(
+    itemId: SharingInvite['itemId'],
+    itemType: SharingInvite['itemType'],
+  ): Promise<number>;
+  findPermissionsInSharing(
+    sharedWith: Sharing['sharedWith'] | Sharing['sharedWith'][],
+    sharedWithType: Sharing['sharedWithType'],
+    itemId: Sharing['itemId'],
+  ): Promise<Permission[]>;
+  findSharingsWithRolesByItem(
+    item: File | Folder,
+  ): Promise<(SharingAttributes & { role: Role })[]>;
+  findOneSharingBy(where: Partial<Sharing>): Promise<Sharing | null>;
+  findRoleBy(where: Partial<Role>): Promise<Role | null>;
+  findSharingById(sharingId: Sharing['id']): Promise<Sharing | null>;
+  findSharingRoleBy(where: Partial<SharingRole>): Promise<SharingRole | null>;
+  findOneByOwnerOrSharedWithItem(
+    userId: User['uuid'],
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    type?: SharingType,
+    sharedWithType?: SharedWithType,
+  ): Promise<Sharing>;
+  findSharingsWithRolesBySharedWith(
+    users: User[],
+  ): Promise<(SharingAttributes & { role: Role })[]>;
+  findSharingsWithRoles(
+    where: any,
+  ): Promise<(SharingAttributes & { role: Role })[]>;
+  findOneSharing(where: Partial<Sharing>): Promise<Sharing | null>;
+  findSharingsBySharedWithAndAttributes(
+    sharedWithValues: SharingAttributes['sharedWith'][],
+    filters: Omit<Partial<SharingAttributes>, 'sharedWith'>,
+    options?: { offset: number; limit: number; givePriorityToRole?: string },
+  ): Promise<Sharing[]>;
+  findFilesSharedInWorkspaceByOwnerAndTeams(
+    ownerId: any,
+    workspaceId: any,
+    teamIds: any[],
+    options: { offset: number; limit: number; order?: [string, string][] },
+  ): Promise<Sharing[]>;
+  findFoldersSharedInWorkspaceByOwnerAndTeams(
+    ownerId: any,
+    workspaceId: any,
+    teamsIds: any[],
+    options: { offset: number; limit: number; order?: [string, string][] },
+  ): Promise<Sharing[]>;
+  getInvites(
+    where: Partial<SharingInvite>,
+    limit: number,
+    offset: number,
+  ): Promise<GetInvitesDto>;
+  getInviteById(inviteId: SharingInvite['id']): Promise<SharingInvite | null>;
+  getInviteByItemAndUser(
+    itemId: SharingInvite['itemId'],
+    itemType: SharingInvite['itemType'],
+    sharedWith: SharingInvite['sharedWith'],
+  ): Promise<SharingInvite | null>;
+  createSharingRole(
+    sharingRole: Omit<SharingRoleAttributes, 'id'>,
+  ): Promise<void>;
+  updateSharingRoleBy(
+    where: Partial<SharingRole>,
+    update: Partial<Omit<SharingRole, 'id'>>,
+  ): Promise<void>;
+  updateSharing(
+    where: Partial<Sharing>,
+    update: Partial<Omit<Sharing, 'id'>>,
+  ): Promise<void>;
+  deleteInvitesBy(where: Partial<SharingInvite>): Promise<void>;
+  bulkDeleteInvites(
+    itemIds: SharingInvite['itemId'][],
+    type: SharingInvite['itemType'],
+  ): Promise<void>;
+  bulkDeleteSharings(
+    userUuid: User['uuid'],
+    itemIds: SharingInvite['itemId'][],
+    type: SharingInvite['itemType'],
+    sharedWithType: SharedWithType,
+  ): Promise<void>;
+  deleteSharingsBy(where: Partial<Sharing>): Promise<void>;
 }
 
 @Injectable()

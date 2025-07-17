@@ -16,6 +16,7 @@ import { UserModel } from '../../user/user.model';
 import { BackupModel } from './backup.model';
 import { DeviceAttributes } from './device.attributes';
 import { FolderModel } from '../../folder/folder.model';
+import { DevicePlatform } from '../device.domain';
 
 @Table({
   timestamps: true,
@@ -61,7 +62,7 @@ export class DeviceModel extends Model implements DeviceAttributes {
 
   @AllowNull
   @Column(DataType.STRING(20))
-  platform: string;
+  platform: DevicePlatform;
 
   @AllowNull
   @Column(DataType.DATE)

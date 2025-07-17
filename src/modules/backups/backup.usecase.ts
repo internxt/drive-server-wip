@@ -15,6 +15,12 @@ import { FileUseCases } from '../file/file.usecase';
 import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { BackupModel } from './models/backup.model';
+import { DeviceAttributes } from './models/device.attributes';
+import { CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
+import { CreateDeviceAndAttachFolderDto } from './dto/create-device-and-attach-folder.dto';
+import { DevicePlatform } from './device.domain';
+import { UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 @Injectable()
 export class BackupUseCase {
@@ -25,6 +31,7 @@ export class BackupUseCase {
     private readonly cryptoService: CryptoService,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
+    private readonly folderRepository: SequelizeFolderRepository,
     @Inject(forwardRef(() => FileUseCases))
     private readonly fileUsecases: FileUseCases,
   ) {}
@@ -38,8 +45,8 @@ export class BackupUseCase {
     return { deletedBackups, deletedDevices };
   }
 
-  async getAllDevices(user: User) {
-    return this.backupRepository.findAllDevices(user);
+  async getAllLegacyDevices(user: User) {
+    return this.backupRepository.findAllLegacyDevices(user);
   }
 
   async deleteDevice(user: User, deviceId: number) {
@@ -127,13 +134,10 @@ export class BackupUseCase {
   }
 
   async getDevicesAsFolder(user: User) {
-    const { backupsBucket } = user;
-    if (!backupsBucket) {
-      throw new BadRequestException('Backups is not activated for this user');
-    }
+    this.verifyUserHasBackupsEnabled(user);
 
     const folders = await this.folderUsecases.getFoldersByUserId(user.id, {
-      bucket: backupsBucket,
+      bucket: user.backupsBucket,
     });
 
     return Promise.all(
@@ -196,6 +200,219 @@ export class BackupUseCase {
     }
 
     return this.backupRepository.findAllBackupsByUserAndDevice(user, device.id);
+  }
+
+  async getUserDevices(
+    user: User,
+    filterOptions: Partial<
+      Pick<DeviceAttributes, 'key' | 'platform' | 'hostname'>
+    >,
+    limit: number,
+    offset: number,
+  ) {
+    this.verifyUserHasBackupsEnabled(user);
+
+    const devices = await this.backupRepository.findUserDevicesBy(
+      user,
+      {
+        ...filterOptions,
+      },
+      limit,
+      offset,
+    );
+
+    return devices;
+  }
+
+  async createDeviceAndFolder(
+    user: User,
+    createDeviceDto: CreateDeviceAndFolderDto,
+  ) {
+    if (!user.hasBackupsEnabled()) {
+      await this.activate(user);
+    }
+
+    await this.verifyDeviceDoesNotExist(user, {
+      key: createDeviceDto.key,
+      platform: createDeviceDto.platform,
+      hostname: createDeviceDto.hostname,
+    });
+
+    const folder = await this.createDeviceAsFolder(user, createDeviceDto.name);
+
+    const deviceData: Omit<DeviceAttributes, 'id'> = {
+      ...createDeviceDto,
+      folderUuid: folder.uuid,
+      userId: user.id,
+    };
+
+    const device = await this.backupRepository.createDevice(deviceData);
+
+    return device;
+  }
+
+  async deleteDeviceAndFolder(user: User, deviceId: number) {
+    const device = await this.backupRepository.findDeviceByUserAndId(
+      user,
+      deviceId,
+    );
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    if (device.folderUuid) {
+      const folder = await this.folderUsecases.getFolderByUuid(
+        device.folderUuid,
+        user,
+      );
+      if (folder.bucket === user.backupsBucket) {
+        await this.folderUsecases.deleteByUser(user, [folder]);
+      }
+    }
+
+    await this.backupRepository.deleteDevicesBy({
+      id: deviceId,
+      userId: user.id,
+    });
+  }
+
+  async updateDeviceAndFolderName(
+    user: User,
+    deviceId: number,
+    updateDeviceDto: UpdateDeviceAndFolderDto,
+  ) {
+    const device = await this.backupRepository.findDeviceByUserAndId(
+      user,
+      deviceId,
+    );
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const existingDevice = await this.backupRepository.findOneUserDeviceByName(
+      user,
+      updateDeviceDto.name,
+    );
+
+    if (existingDevice && existingDevice.id !== deviceId) {
+      throw new ConflictException(
+        'A device with this name already exists for this user',
+      );
+    }
+
+    const foldersWithSameName = await this.folderUsecases.getFoldersByUserId(
+      user.id,
+      {
+        bucket: user.backupsBucket,
+        name: this.cryptoService.encryptName(
+          updateDeviceDto.name,
+          user.backupsBucket,
+        ),
+        deleted: false,
+        removed: false,
+      },
+    );
+
+    if (foldersWithSameName.length > 0) {
+      throw new ConflictException(
+        'A folder as device with this name already exists in the backups bucket',
+      );
+    }
+
+    const folder = await this.folderUsecases.getByUuid(device.folderUuid);
+
+    if (folder) {
+      const encryptedName = this.cryptoService.encryptName(
+        updateDeviceDto.name,
+        folder.bucket,
+      );
+
+      await this.folderRepository.updateBy(
+        {
+          name: encryptedName,
+          plainName: updateDeviceDto.name,
+        },
+        { userId: user.id, id: folder.id },
+      );
+    }
+
+    const updatedDevice = await this.backupRepository.updateDeviceName(
+      user,
+      deviceId,
+      updateDeviceDto.name,
+    );
+
+    return updatedDevice;
+  }
+
+  async createDeviceForExistingFolder(
+    user: User,
+    createDeviceDto: CreateDeviceAndAttachFolderDto,
+  ) {
+    this.verifyUserHasBackupsEnabled(user);
+
+    await this.verifyDeviceDoesNotExist(user, {
+      key: createDeviceDto.key,
+      platform: createDeviceDto.platform,
+      hostname: createDeviceDto.hostname,
+    });
+
+    const deviceAssignedToFolder =
+      await this.backupRepository.findOneUserDeviceBy(user, {
+        folderUuid: createDeviceDto.folderUuid,
+      });
+
+    if (deviceAssignedToFolder) {
+      throw new ConflictException(
+        `This folder is already assigned to the device ${deviceAssignedToFolder.name}`,
+      );
+    }
+
+    const folder = await this.folderUsecases.getFolderByUuid(
+      createDeviceDto.folderUuid,
+      user,
+    );
+
+    if (folder?.bucket !== user.backupsBucket) {
+      throw new BadRequestException(
+        'Passed folder uuid does not belongs to a backups folder',
+      );
+    }
+
+    const deviceData: Omit<DeviceAttributes, 'id'> = {
+      ...createDeviceDto,
+      folderUuid: createDeviceDto.folderUuid,
+      userId: user.id,
+    };
+
+    const device = await this.backupRepository.createDevice(deviceData);
+
+    return device;
+  }
+
+  private verifyUserHasBackupsEnabled(user: User) {
+    if (!user.hasBackupsEnabled()) {
+      throw new BadRequestException('Backups is not enabled for this user');
+    }
+  }
+
+  private async verifyDeviceDoesNotExist(
+    user: User,
+    device: { key?: string; hostname?: string; platform: DevicePlatform },
+  ) {
+    const existentDevice =
+      await this.backupRepository.findOneUserDeviceByKeyOrHostname(
+        user,
+        device,
+      );
+
+    if (existentDevice) {
+      throw new ConflictException(
+        'There is already a device with the same key or hostname on this platform',
+      );
+    }
   }
 
   async deleteBackup(user: User, backupId: number) {

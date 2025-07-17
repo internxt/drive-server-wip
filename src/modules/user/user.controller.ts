@@ -19,7 +19,6 @@ import {
   Query,
   UnauthorizedException,
   BadRequestException,
-  UseFilters,
   InternalServerErrorException,
   HttpException,
   UseInterceptors,
@@ -52,9 +51,11 @@ import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
+  RecoverAccountQueryDto,
   RequestRecoverAccountDto,
-  ResetAccountDto,
+  DeprecatedRecoverAccountDto,
 } from './dto/recover-account.dto';
+import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import {
   generateJitsiJWT,
   verifyToken,
@@ -68,7 +69,6 @@ import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
-import { HttpExceptionFilter } from '../../lib/http/http-exception.filter';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { getFutureIAT } from '../../middlewares/passport';
@@ -85,7 +85,6 @@ import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 
@@ -161,7 +160,7 @@ export class UserController {
           userUuid: response.uuid,
         })
         .catch((err) => {
-          new Logger().error(
+          this.logger.error(
             `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
               (err as Error).message
             }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
@@ -252,7 +251,7 @@ export class UserController {
       if (err instanceof NotFoundException) {
         res.status(HttpStatus.NOT_FOUND);
       } else {
-        new Logger().error(
+        this.logger.error(
           `[AUTH/GET-USER-BY-EMAIL] ERROR: ${(err as Error).message}, STACK: ${
             (err as Error).stack
           }`,
@@ -333,7 +332,7 @@ export class UserController {
           userUuid: userCreated.uuid,
         })
         .catch((err) => {
-          new Logger().error(
+          this.logger.error(
             `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
               (err as Error).message
             }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
@@ -345,7 +344,7 @@ export class UserController {
       await this.sharingService
         .acceptInvite(userCreated.user, invitationId, {})
         .catch((err) => {
-          new Logger().error(
+          this.logger.error(
             `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
               (err as Error).message
             }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
@@ -559,9 +558,13 @@ export class UserController {
       await this.userUseCases.sendAccountRecoveryEmail(
         body.email.toLowerCase(),
       );
+      this.logger.log(
+        '[RECOVER_ACCOUNT_REQUEST] Account recovery email sent to: ' +
+          body.email,
+      );
     } catch (err) {
       this.logger.error(
-        `[USERS/RECOVER_ACCOUNT_REQUEST] ERROR: ${
+        `[RECOVER_ACCOUNT_REQUEST] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify({
           ...body,
@@ -589,7 +592,7 @@ export class UserController {
     } catch (err) {
       if (!(err instanceof HttpException)) {
         this.logger.error(
-          `[USERS/UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
+          `[UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
             (err as Error).message
           }, BODY ${JSON.stringify({
             ...body,
@@ -653,8 +656,8 @@ export class UserController {
         throw err;
       }
 
-      new Logger().error(
-        `[USERS/UNBLOCK_ACCOUNT] ERROR: ${
+      this.logger.error(
+        `[UNBLOCK_ACCOUNT] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify({
           user: { email, uuid },
@@ -670,14 +673,14 @@ export class UserController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Recover account',
+    deprecated: true,
   })
   @Public()
   async recoverAccount(
-    @Query('token') token: string,
-    @Query('reset') reset: string,
-    @Body() body: RecoverAccountDto | ResetAccountDto,
-    @Res({ passthrough: true }) res: Response,
+    @Query() query: RecoverAccountQueryDto,
+    @Body() body: DeprecatedRecoverAccountDto,
   ) {
+    const { token, reset } = query;
     const { mnemonic, password, salt } = body;
     let decodedContent: { payload?: { uuid?: string; action?: string } };
 
@@ -712,7 +715,7 @@ export class UserController {
 
     try {
       if (reset === 'true') {
-        await this.userUseCases.updateCredentials(
+        await this.userUseCases.updateCredentialsOld(
           userUuid,
           {
             mnemonic,
@@ -722,27 +725,107 @@ export class UserController {
           true,
         );
       } else {
-        const { privateKey } = body as RecoverAccountDto;
+        const deprecatedRecoverAccountDto = body;
 
-        await this.userUseCases.updateCredentials(userUuid, {
+        await this.userUseCases.updateCredentialsOld(userUuid, {
           mnemonic,
           password,
           salt,
-          privateKey,
+          privateKey: deprecatedRecoverAccountDto.privateKey,
         });
       }
     } catch (err) {
-      new Logger().error(
-        `[USERS/RECOVER_ACCOUNT] ERROR: ${
+      this.logger.error(
+        `[RECOVER_ACCOUNT] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify({
           ...body,
           user: { uuid: userUuid },
         })}, STACK: ${(err as Error).stack}`,
       );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR);
+      throw err;
+    }
+  }
 
-      return { error: 'Internal Server Error' };
+  @UseGuards(ThrottlerGuard)
+  @Put('/recover-account-v2')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Recover account',
+  })
+  @Public()
+  async recoverAccountV2(
+    @Query() query: RecoverAccountQueryDto,
+    @Body() body: RecoverAccountDto,
+  ) {
+    const { token, reset } = query;
+    const { mnemonic, password, salt } = body;
+    let decodedContent: { payload?: { uuid?: string; action?: string } };
+
+    try {
+      const decoded = verifyToken(token, getEnv().secrets.jwt);
+
+      if (typeof decoded === 'string') {
+        throw new ForbiddenException();
+      }
+
+      decodedContent = decoded as {
+        payload?: { uuid?: string; action?: string };
+      };
+
+      if (
+        !decodedContent.payload?.action ||
+        !decodedContent.payload.uuid ||
+        decodedContent.payload.action !== 'recover-account' ||
+        !validate(decodedContent.payload.uuid)
+      ) {
+        throw new ForbiddenException();
+      }
+    } catch (err) {
+      throw new ForbiddenException();
+    }
+
+    const userUuid = decodedContent.payload.uuid;
+    const shouldResetAccount = reset === 'true';
+    const invalidRecoverInput = !shouldResetAccount && !body.privateKeys;
+
+    if (invalidRecoverInput) {
+      throw new BadRequestException(
+        'You must provide private keys if you want to recover account without resetting',
+      );
+    }
+
+    try {
+      this.logger.log(
+        `[RECOVER_ACCOUNT] Recovering account for user: ${userUuid}`,
+      );
+
+      await this.userUseCases.updateCredentials(
+        userUuid,
+        {
+          mnemonic,
+          password,
+          salt,
+          ...(shouldResetAccount
+            ? undefined
+            : { privateKeys: body.privateKeys }),
+        },
+        shouldResetAccount,
+      );
+
+      this.logger.log(
+        `[RECOVER_ACCOUNT] Account recovered successfully for user: ${userUuid}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `[RECOVER_ACCOUNT] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify({
+          ...body,
+          user: { uuid: userUuid },
+        })}, STACK: ${(err as Error).stack}`,
+      );
+      throw err;
     }
   }
 
@@ -764,7 +847,17 @@ export class UserController {
     const decodedToken =
       this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
+    const { userUuid } = decodedToken;
+
+    this.logger.log(
+      `[RECOVER_ACCOUNT] Recovering account with legacy backup file for user: ${userUuid}`,
+    );
+
     await this.userUseCases.recoverAccountLegacy(decodedToken.userUuid, body);
+
+    this.logger.log(
+      `[RECOVER_ACCOUNT] Account recovered with legacy backup file for user: ${userUuid}`,
+    );
   }
 
   @Get('/public-key/:email')
@@ -789,7 +882,6 @@ export class UserController {
     return { publicKey: keys.ecc, keys };
   }
 
-  @UseFilters(new HttpExceptionFilter())
   @HttpCode(201)
   @UseGuards(ThrottlerGuard)
   @Post('/attempt-change-email')
@@ -800,14 +892,20 @@ export class UserController {
     await this.userUseCases.createAttemptChangeEmail(user, body.newEmail);
   }
 
-  @UseFilters(new HttpExceptionFilter())
   @HttpCode(201)
   @Post('/attempt-change-email/:encryptedAttemptChangeEmailId/accept')
-  acceptAttemptChangeEmail(@Param('encryptedAttemptChangeEmailId') id: string) {
-    return this.userUseCases.acceptAttemptChangeEmail(id);
+  async acceptAttemptChangeEmail(
+    @Param('encryptedAttemptChangeEmailId') id: string,
+  ) {
+    const result = await this.userUseCases.acceptAttemptChangeEmail(id);
+
+    this.logger.log(
+      `[EMAIL_CHANGE] Email changed for user: ${result.newAuthentication.user.uuid}, oldEmail: ${result.oldEmail}, newEmail: ${result.newEmail}`,
+    );
+
+    return result;
   }
 
-  @UseFilters(new HttpExceptionFilter())
   @HttpCode(200)
   @Get('/attempt-change-email/:encryptedAttemptChangeEmailId/verify-expiration')
   async verifyAttemptChangeEmail(
@@ -1005,7 +1103,11 @@ export class UserController {
   async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
     const { token } = body;
 
-    return this.userUseCases.confirmDeactivation(token);
+    const deactivatedUser = await this.userUseCases.confirmDeactivation(token);
+
+    this.logger.log(
+      `[DEACTIVATION] User account deactivated successfully for user: ${deactivatedUser.uuid}, email: ${deactivatedUser.email}`,
+    );
   }
 
   @Get('/usage')
@@ -1033,7 +1135,7 @@ export class UserController {
       return { maxSpaceBytes };
     } catch (err) {
       Logger.error(
-        `[USER/SPACE_LIMIT] Error getting space limit for user: ${
+        `[SPACE_LIMIT] Error getting space limit for user: ${
           user.id
         }. Error: ${(err as Error).message}`,
       );
