@@ -3038,7 +3038,7 @@ describe('User use cases', () => {
   });
 
   describe('findByEmail', () => {
-    it('When finding user by email, then it should call userRepository.findByUsername', async () => {
+    it('When finding user by email, then it should call the repository with expected values', async () => {
       const email = 'test@example.com';
       const expectedUser = newUser({ attributes: { email } });
       jest
@@ -3053,7 +3053,7 @@ describe('User use cases', () => {
   });
 
   describe('findPreCreatedByEmail', () => {
-    it('When finding pre-created user by email, then it should call preCreatedUserRepository.findByUsername', async () => {
+    it('When finding pre-created user by email, then it should call the repository with expected values', async () => {
       const email = 'test@example.com';
       const expectedUser = newPreCreatedUser();
       expectedUser.email = email;
@@ -3071,7 +3071,7 @@ describe('User use cases', () => {
   });
 
   describe('findByUuids', () => {
-    it('When finding users by UUIDs, then it should call userRepository.findByUuids', async () => {
+    it('When finding users by UUIDs, then it should call the repository with uuids', async () => {
       const uuids = [v4(), v4()];
       const expectedUsers = [newUser(), newUser()];
       jest
@@ -3086,7 +3086,7 @@ describe('User use cases', () => {
   });
 
   describe('findPreCreatedUsersByUuids', () => {
-    it('When finding pre-created users by UUIDs, then it should call preCreatedUserRepository.findByUuids', async () => {
+    it('When finding pre-created users by UUIDs, then it should call the repository with UUIDs', async () => {
       const uuids = [v4(), v4()];
       const expectedUsers = [newPreCreatedUser(), newPreCreatedUser()];
       jest
@@ -3101,7 +3101,7 @@ describe('User use cases', () => {
   });
 
   describe('findByUuid', () => {
-    it('When finding user by UUID, then it should call userRepository.findByUuid', async () => {
+    it('When finding user by UUID, then it should call the repository with UUIDs', async () => {
       const uuid = v4();
       const expectedUser = newUser();
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(expectedUser);
@@ -3114,7 +3114,7 @@ describe('User use cases', () => {
   });
 
   describe('findById', () => {
-    it('When finding user by ID, then it should call userRepository.findById', async () => {
+    it('When finding user by ID, then it should call the repository with ID', async () => {
       const id = 123;
       const expectedUser = newUser();
       jest.spyOn(userRepository, 'findById').mockResolvedValue(expectedUser);
@@ -3127,7 +3127,7 @@ describe('User use cases', () => {
   });
 
   describe('getUserByUsername', () => {
-    it('When getting user by username, then it should call userRepository.findByUsername', async () => {
+    it('When getting user by username, then it should call the repository with email', async () => {
       const email = 'test@example.com';
       const expectedUser = newUser();
       jest
@@ -3142,7 +3142,7 @@ describe('User use cases', () => {
   });
 
   describe('getWorkspaceMembersByBrigeUser', () => {
-    it('When getting workspace members by bridge user, then it should call userRepository.findAllBy', async () => {
+    it('When getting workspace members by bridge user, then it should call the repository with the respective bridge user', async () => {
       const bridgeUser = 'bridge-user';
       const expectedUsers = [newUser(), newUser()];
       jest.spyOn(userRepository, 'findAllBy').mockResolvedValue(expectedUsers);
@@ -3152,30 +3152,6 @@ describe('User use cases', () => {
 
       expect(userRepository.findAllBy).toHaveBeenCalledWith({ bridgeUser });
       expect(result).toEqual(expectedUsers);
-    });
-  });
-
-  describe('getNetworkByUserId', () => {
-    it('When getting network by user ID, then it should return Environment instance', async () => {
-      const userId = 123;
-      const mnemonic = 'test-mnemonic';
-      const user = newUser({
-        attributes: {
-          id: userId,
-          userId: 'network-user-id',
-          bridgeUser: 'bridge-user',
-        },
-      });
-      const bridgeUrl = 'https://bridge.example.com';
-
-      jest.spyOn(userRepository, 'findById').mockResolvedValue(user);
-      jest.spyOn(configService, 'get').mockReturnValue(bridgeUrl);
-
-      const result = await userUseCases.getNetworkByUserId(userId, mnemonic);
-
-      expect(userRepository.findById).toHaveBeenCalledWith(userId);
-      expect(configService.get).toHaveBeenCalledWith('apis.storage.url');
-      expect(result).toBeInstanceOf(Environment);
     });
   });
 
@@ -3202,7 +3178,7 @@ describe('User use cases', () => {
   });
 
   describe('sendWelcomeVerifyEmailEmail', () => {
-    it('When sending welcome verify email, then it should call mailerService.send with correct parameters', async () => {
+    it('When sending welcome verify email, then it should call mail service with correct parameters', async () => {
       const email = 'test@example.com';
       const userUuid = v4();
       const secret = 'jwt-secret';
@@ -3237,7 +3213,7 @@ describe('User use cases', () => {
   });
 
   describe('sendAccountRecoveryEmail', () => {
-    it('When sending account recovery email, then it should call mailerService.send with correct parameters', async () => {
+    it('When sending account recovery email, then it should call mail service with correct parameters', async () => {
       const email = 'test@example.com';
       const user = newUser({ attributes: { email } });
       const secret = 'jwt-secret';
@@ -3342,7 +3318,7 @@ describe('User use cases', () => {
       ).toHaveBeenCalledWith(newEmail, encryptedId);
     });
 
-    it('When new email already exists, then it should throw UserEmailAlreadyInUseException', async () => {
+    it('When new email already exists, then it should throw', async () => {
       const user = newUser();
       const newEmail = 'existing@example.com';
       const existingUser = newUser({ attributes: { email: newEmail } });
@@ -3356,7 +3332,7 @@ describe('User use cases', () => {
       ).rejects.toThrow(UserEmailAlreadyInUseException);
     });
 
-    it('When new email is the same as current email, then it should throw BadRequestException', async () => {
+    it('When new email is the same as current email, then it should throw', async () => {
       const user = newUser({ attributes: { email: 'same@example.com' } });
       const newEmail = 'same@example.com';
 
@@ -3409,7 +3385,7 @@ describe('User use cases', () => {
       expect(result).toEqual({ isExpired: true });
     });
 
-    it('When attempt does not exist, then it should throw AttemptChangeEmailNotFoundException', async () => {
+    it('When attempt does not exist, then it should throw', async () => {
       const encryptedId = 'encrypted-id';
       const attemptId = '123';
 
@@ -3423,7 +3399,7 @@ describe('User use cases', () => {
       ).rejects.toThrow(AttemptChangeEmailNotFoundException);
     });
 
-    it('When attempt is already verified, then it should throw AttemptChangeEmailAlreadyVerifiedException', async () => {
+    it('When attempt is already verified, then it should throw', async () => {
       const encryptedId = 'encrypted-id';
       const attemptId = '123';
       const attempt = createMock<AttemptChangeEmailModel>({
@@ -3454,64 +3430,90 @@ describe('User use cases', () => {
   });
 
   describe('updateCredentials', () => {
-    it('When updating credentials without reset, then it should update user and delete key server entries', async () => {
-      const userUuid = v4();
-      const user = newUser();
-      const newCredentials = {
-        mnemonic: 'new-mnemonic',
-        password: 'encrypted-password',
-        salt: 'encrypted-salt',
-        privateKey: 'private-key',
-      };
-      const decryptedPassword = 'decrypted-password';
-      const decryptedSalt = 'decrypted-salt';
+    const mockUser = newUser();
+    const mockCredentials = {
+      mnemonic: 'encrypted_mnemonic',
+      password: 'encrypted_password',
+      salt: 'encrypted_salt',
+      privateKeys: {
+        ecc: 'encrypted_ecc_key',
+        kyber: 'encrypted_kyber_key',
+      },
+    };
 
-      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+    const decryptedPassword = 'decrypted_password';
+    const decryptedSalt = 'decrypted_salt';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
       jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
-        if (text === newCredentials.password) return decryptedPassword;
-        if (text === newCredentials.salt) return decryptedSalt;
+        if (text === mockCredentials.password) return decryptedPassword;
+        if (text === mockCredentials.salt) return decryptedSalt;
         return text;
       });
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(mockUser);
       jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
-      jest
-        .spyOn(keyServerRepository, 'deleteByUserId')
-        .mockResolvedValue(undefined);
+      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
+    });
 
-      await userUseCases.updateCredentials(userUuid, newCredentials, false);
+    it('When updating credentials without reset and private keys, then it should update user and keys', async () => {
+      await userUseCases.updateCredentials(mockUser.uuid, mockCredentials);
 
-      expect(userRepository.updateByUuid).toHaveBeenCalledWith(userUuid, {
-        mnemonic: newCredentials.mnemonic,
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
       });
-      expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Ecc, {
+        privateKey: mockCredentials.privateKeys.ecc,
+      });
+
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalledWith(mockUser.id, UserKeysEncryptVersions.Kyber, {
+        privateKey: mockCredentials.privateKeys.kyber,
+      });
+
+      expect(userUseCases.resetUser).not.toHaveBeenCalled();
     });
 
-    it('When updating credentials with reset, then it should update user and reset user data', async () => {
-      const userUuid = v4();
-      const user = newUser();
-      const newCredentials = {
-        mnemonic: 'new-mnemonic',
-        password: 'encrypted-password',
-        salt: 'encrypted-salt',
-      };
+    it('When updating credentials with reset, then it should reset user data', async () => {
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        mockCredentials,
+        true,
+      );
 
-      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
-      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
-      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
-      jest.spyOn(userUseCases, 'resetUser').mockResolvedValue(undefined);
-      jest
-        .spyOn(keyServerRepository, 'deleteByUserId')
-        .mockResolvedValue(undefined);
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
 
-      await userUseCases.updateCredentials(userUuid, newCredentials, true);
-
-      expect(userUseCases.resetUser).toHaveBeenCalledWith(user, {
+      expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
         deleteFiles: true,
         deleteFolders: true,
         deleteShares: true,
         deleteWorkspaces: true,
       });
+    });
+
+    it('When updating credentials without reset but privateKeys are missing, then it should throw', async () => {
+      const credentialsWithoutKeys = {
+        ...mockCredentials,
+        privateKeys: null,
+      };
+
+      await expect(
+        userUseCases.updateCredentials(
+          mockUser.uuid,
+          credentialsWithoutKeys,
+          false,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

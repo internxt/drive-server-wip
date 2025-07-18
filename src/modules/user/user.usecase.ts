@@ -206,16 +206,6 @@ export class UserUseCases {
     return this.userRepository.updateByUuid(userUuid, payload);
   }
 
-  async getNetworkByUserId(id: number, mnemonic: string) {
-    const user = await this.userRepository.findById(id);
-    return new Environment({
-      bridgePass: user.userId,
-      bridgeUser: user.bridgeUser,
-      encryptionKey: mnemonic,
-      bridgeUrl: this.configService.get('apis.storage.url'),
-    });
-  }
-
   async applyReferral(
     userId: UserAttributes['id'],
     referralKey: ReferralAttributes['key'],
@@ -703,7 +693,7 @@ export class UserUseCases {
     const user = await this.userRepository.findByUuid(uuid);
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     return user;
