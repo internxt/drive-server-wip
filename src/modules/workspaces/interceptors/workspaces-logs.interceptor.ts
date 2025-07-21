@@ -15,7 +15,7 @@ import {
   WorkspaceLogGlobalActionType,
 } from '../attributes/workspace-logs.attributes';
 import { User } from '../../user/user.domain';
-import { DeleteItem } from './../../trash/dto/controllers/delete-item.dto';
+import { DeleteItemDto } from './../../trash/dto/controllers/delete-item.dto';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 
 type ActionHandler = {
@@ -151,7 +151,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   }
 
   async delete(platform: WorkspaceLogPlatform, req: any, res: any) {
-    const items: DeleteItem[] | TrashItem[] = req?.body?.items ?? res?.items;
+    const items: DeleteItemDto[] | TrashItem[] = req?.body?.items ?? res?.items;
     if (!items || items.length === 0) {
       Logger.debug('[WORKSPACE/LOGS] The items are required');
       return;
@@ -161,7 +161,7 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
 
     if (ok) {
       const deletePromises = items
-        .map((item: DeleteItem | TrashItem) => {
+        .map((item: DeleteItemDto | TrashItem) => {
           const action = this.getActionForGlobalLogType(
             WorkspaceLogGlobalActionType.Delete,
             item.type as unknown as WorkspaceItemType,

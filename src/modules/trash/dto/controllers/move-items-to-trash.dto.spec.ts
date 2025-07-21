@@ -1,8 +1,8 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import {
-  ItemToTrash,
-  ItemType,
+  ItemToTrashDto,
+  ItemToTrashType,
   MoveItemsToTrashDto,
 } from './move-items-to-trash.dto';
 
@@ -10,8 +10,11 @@ describe('MoveItemsToTrashDto', () => {
   it('When valid data is passed, then no errors should be returned', async () => {
     const dto = plainToInstance(MoveItemsToTrashDto, {
       items: [
-        { id: '1', type: ItemType.FILE },
-        { uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b', type: ItemType.FOLDER },
+        { id: '1', type: ItemToTrashType.FILE },
+        {
+          uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
+          type: ItemToTrashType.FOLDER,
+        },
       ],
     });
 
@@ -22,7 +25,7 @@ describe('MoveItemsToTrashDto', () => {
   it('When items array exceeds max size, then should fail', async () => {
     const items = Array.from({ length: 51 }, (_, i) => ({
       id: `${i + 1}`,
-      type: ItemType.FILE,
+      type: ItemToTrashType.FILE,
     }));
     const dto = plainToInstance(MoveItemsToTrashDto, { items });
 
@@ -33,29 +36,34 @@ describe('MoveItemsToTrashDto', () => {
 
   describe('ItemToTrash', () => {
     it('When both id and uuid are provided in one item, then should fail', async () => {
-      const item = plainToInstance(ItemToTrash, {
+      const item = plainToInstance(ItemToTrashDto, {
         id: '1',
         uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-        type: ItemType.FILE,
+        type: ItemToTrashType.FILE,
       });
       const errors = await validate(item);
       expect(errors.length).toBeGreaterThan(0);
     });
 
     it('When neither id nor uuid are provided in one item, then should fail', async () => {
-      const item = plainToInstance(ItemToTrash, { type: ItemType.FILE });
+      const item = plainToInstance(ItemToTrashDto, {
+        type: ItemToTrashType.FILE,
+      });
       const errors = await validate(item);
       expect(errors.length).toBeGreaterThan(0);
     });
 
     it('when either id or uuid are provided, then should validate successfuly ', async () => {
       const onlyIdErrors = await validate(
-        plainToInstance(ItemToTrash, { id: '1', type: ItemType.FILE }),
+        plainToInstance(ItemToTrashDto, {
+          id: '1',
+          type: ItemToTrashType.FILE,
+        }),
       );
       const onlyUuidErrors = await validate(
-        plainToInstance(ItemToTrash, {
+        plainToInstance(ItemToTrashDto, {
           uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-          type: ItemType.FILE,
+          type: ItemToTrashType.FILE,
         }),
       );
       expect(onlyIdErrors.length).toBe(0);

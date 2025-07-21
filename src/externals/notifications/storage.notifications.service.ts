@@ -6,7 +6,7 @@ import { ApnService } from '../apn/apn.service';
 import { SequelizeUserRepository } from '../../modules/user/user.repository';
 import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
 import { FileDto } from '../../modules/file/dto/responses/file.dto';
-import { ItemToTrash } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
+import { ItemToTrashDto } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 enum StorageEvents {
   FILE_CREATED = 'FILE_CREATED',
@@ -129,7 +129,7 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  itemsTrashed({ payload, user, clientId }: EventArguments<ItemToTrash[]>) {
+  itemsTrashed({ payload, user, clientId }: EventArguments<ItemToTrashDto[]>) {
     const event = new NotificationEvent(
       'notification.itemsToTrash',
       payload,
