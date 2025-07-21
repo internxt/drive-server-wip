@@ -657,8 +657,8 @@ describe('FileRepository', () => {
         {
           where: {
             userId: user.id,
-            id: {
-              [Op.in]: files.map(({ id }) => id),
+            uuid: {
+              [Op.in]: files.map(({ uuid }) => uuid),
             },
           },
         },
