@@ -17,7 +17,9 @@ export enum DeleteItemType {
 export class DeleteItem {
   @ApiProperty({
     example: '4',
-    description: 'Id of file or folder',
+    description: 'Id of file or folder (deprecated in favor of uuid)',
+    deprecated: true,
+    nullable: true,
   })
   id?: string;
 

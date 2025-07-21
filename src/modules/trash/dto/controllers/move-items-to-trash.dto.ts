@@ -18,8 +18,9 @@ export enum ItemType {
 export class ItemToTrash {
   @ApiProperty({
     example: '4',
-    description: 'Id of file or folder',
+    description: 'Id of file or folder (deprecated in favor of uuid)',
     nullable: true,
+    deprecated: true,
   })
   @IsOptional()
   id?: string;
