@@ -16,8 +16,6 @@ import {
 } from 'sequelize-typescript';
 import { FolderModel } from '../folder/folder.model';
 import { FileAttributes, FileStatus } from './file.domain';
-import { ShareModel } from '../share/share.repository';
-import { Share } from '../share/share.domain';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
@@ -124,9 +122,6 @@ export class FileModel extends Model implements FileAttributes {
     sourceKey: 'uuid',
   })
   workspaceUser: WorkspaceItemUserModel;
-
-  @HasMany(() => ShareModel, 'fileId')
-  shares: Share[];
 
   @HasMany(() => ThumbnailModel, {
     foreignKey: 'fileUuid',

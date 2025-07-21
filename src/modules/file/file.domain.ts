@@ -1,5 +1,4 @@
 import { Folder } from '../folder/folder.domain';
-import { Share } from '../share/share.domain';
 import { Sharing } from '../sharing/sharing.domain';
 import { Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
@@ -41,7 +40,6 @@ export interface FileAttributes {
   createdAt: Date;
   updatedAt: Date;
   status: FileStatus;
-  shares?: Share[];
   thumbnails?: Thumbnail[];
   sharings?: Sharing[];
 }
@@ -77,7 +75,6 @@ export class File implements FileAttributes {
   removedAt: Date;
   plainName: string;
   status: FileStatus;
-  shares?: Share[];
   sharings?: Sharing[];
   thumbnails?: Thumbnail[];
 
@@ -105,7 +102,6 @@ export class File implements FileAttributes {
     removed,
     removedAt,
     status,
-    shares,
     thumbnails,
     sharings,
   }: FileAttributes) {
@@ -132,7 +128,6 @@ export class File implements FileAttributes {
     this.removed = removed;
     this.removedAt = removedAt;
     this.status = status;
-    this.shares = shares;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
   }
@@ -223,7 +218,6 @@ export class File implements FileAttributes {
       removed: this.removed,
       removedAt: this.removedAt,
       status: this.status,
-      shares: this.shares,
       thumbnails: this.thumbnails,
       sharings: this.sharings,
     };

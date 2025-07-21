@@ -4,6 +4,9 @@ import { User } from '../../modules/user/user.domain';
 import { NotificationEvent } from './events/notification.event';
 import { ApnService } from '../apn/apn.service';
 import { SequelizeUserRepository } from '../../modules/user/user.repository';
+import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { FileDto } from '../../modules/file/dto/responses/file.dto';
+import { ItemToTrash } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 enum StorageEvents {
   FILE_CREATED = 'FILE_CREATED',
@@ -18,8 +21,8 @@ enum StorageEvents {
   WORKSPACE_LEFT = 'WORKSPACE_LEFT',
 }
 
-interface EventArguments {
-  payload: any;
+interface EventArguments<T> {
+  payload: T;
   user: User;
   clientId: string;
 }
@@ -34,7 +37,7 @@ export class StorageNotificationService {
     private readonly userRepository: SequelizeUserRepository,
   ) {}
 
-  fileCreated({ payload, user, clientId }: EventArguments) {
+  fileCreated({ payload, user, clientId }: EventArguments<FileDto>) {
     const event = new NotificationEvent(
       'notification.itemCreated',
       payload,
@@ -48,7 +51,7 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  fileUpdated({ payload, user, clientId }: EventArguments) {
+  fileUpdated({ payload, user, clientId }: EventArguments<FileDto>) {
     const event = new NotificationEvent(
       'notification.itemUpdated',
       payload,
@@ -62,7 +65,11 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  fileDeleted({ payload, user, clientId }: EventArguments) {
+  fileDeleted({
+    payload,
+    user,
+    clientId,
+  }: EventArguments<{ id: number; uuid: string }>) {
     const event = new NotificationEvent(
       'notification.itemDeleted',
       payload,
@@ -76,7 +83,7 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  folderCreated({ payload, user, clientId }: EventArguments) {
+  folderCreated({ payload, user, clientId }: EventArguments<FolderDto>) {
     const event = new NotificationEvent(
       'notification.itemCreated',
       payload,
@@ -90,7 +97,7 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  folderUpdated({ payload, user, clientId }: EventArguments) {
+  folderUpdated({ payload, user, clientId }: EventArguments<FolderDto>) {
     const event = new NotificationEvent(
       'notification.itemUpdated',
       payload,
@@ -104,7 +111,11 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  folderDeleted({ payload, user, clientId }: EventArguments) {
+  folderDeleted({
+    payload,
+    user,
+    clientId,
+  }: EventArguments<{ id: number; uuid: string; userId: number }>) {
     const event = new NotificationEvent(
       'notification.itemDeleted',
       payload,
@@ -118,7 +129,7 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  itemsTrashed({ payload, user, clientId }: EventArguments) {
+  itemsTrashed({ payload, user, clientId }: EventArguments<ItemToTrash[]>) {
     const event = new NotificationEvent(
       'notification.itemsToTrash',
       payload,
@@ -132,7 +143,11 @@ export class StorageNotificationService {
     this.getTokensAndSendApnNotification(user.uuid);
   }
 
-  planUpdated({ payload, user, clientId }: EventArguments) {
+  planUpdated({
+    payload,
+    user,
+    clientId,
+  }: EventArguments<{ maxSpaceBytes: number }>) {
     const event = new NotificationEvent(
       'notification.planUpdated',
       payload,
@@ -149,7 +164,11 @@ export class StorageNotificationService {
     });
   }
 
-  workspaceJoined({ payload, user, clientId }: EventArguments) {
+  workspaceJoined({
+    payload,
+    user,
+    clientId,
+  }: EventArguments<{ workspaceId: string; workspaceName: string }>) {
     const event = new NotificationEvent(
       'notification.workspaceJoined',
       payload,
@@ -166,7 +185,11 @@ export class StorageNotificationService {
     });
   }
 
-  workspaceLeft({ payload, user, clientId }: EventArguments) {
+  workspaceLeft({
+    payload,
+    user,
+    clientId,
+  }: EventArguments<{ workspaceId: string; workspaceName: string }>) {
     const event = new NotificationEvent(
       'notification.workspaceLeft',
       payload,

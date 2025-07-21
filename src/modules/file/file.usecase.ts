@@ -15,7 +15,6 @@ import {
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { FolderAttributes } from '../folder/folder.attributes';
-import { Share } from '../share/share.domain';
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
 import {
@@ -39,7 +38,6 @@ import { Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
 import { FileModel } from './file.model';
-import { ShareUseCases } from '../share/share.usecase';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
@@ -54,7 +52,6 @@ export class FileUseCases {
     private readonly sharingUsecases: SharingService,
     private readonly network: BridgeService,
     private readonly cryptoService: CryptoService,
-    private readonly shareUsecases: ShareUseCases,
     private readonly thumbnailUsecases: ThumbnailUseCases,
   ) {}
 
@@ -101,7 +98,6 @@ export class FileUseCases {
     const { id, uuid } = file;
 
     await Promise.all([
-      this.shareUsecases.deleteFileShare(id, user),
       this.sharingUsecases.bulkRemoveSharings(
         user,
         [uuid],
@@ -588,23 +584,6 @@ export class FileUseCases {
     ]);
   }
 
-  async getEncryptionKeyFileFromShare(
-    fileId: string,
-    network: any,
-    share: Share,
-    code: string,
-  ) {
-    const encryptedMnemonic = share.mnemonic.toString();
-    const mnemonic = aes.decrypt(encryptedMnemonic, code);
-    const { index } = await network.getFileInfo(share.bucket, fileId);
-    const encryptionKey = await Environment.utils.generateFileKey(
-      mnemonic,
-      share.bucket,
-      Buffer.from(index, 'hex'),
-    );
-    return encryptionKey.toString('hex');
-  }
-
   async getEncryptionKeyFromFile(
     file: File,
     encryptedMnemonic: string,
@@ -815,5 +794,10 @@ export class FileUseCases {
 
   async getFile(where: Partial<File>): Promise<File> {
     return this.fileRepository.findOneBy(where);
+  }
+
+  async hasUploadedFiles(user: User) {
+    const file = await this.fileRepository.findOneBy({ userId: user.id });
+    return file !== null;
   }
 }

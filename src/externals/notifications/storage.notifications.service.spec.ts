@@ -9,6 +9,12 @@ import { NotificationEvent } from './events/notification.event';
 import { newUser } from '../../../test/fixtures';
 import { UserNotificationTokens } from '../../modules/user/user-notification-tokens.domain';
 import { v4 } from 'uuid';
+import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { FileDto } from '../../modules/file/dto/responses/file.dto';
+import {
+  ItemToTrash,
+  ItemType,
+} from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 describe('StorageNotificationService', () => {
   const fixedSystemCurrentDate = new Date('2021-01-01T00:00:00Z');
@@ -51,7 +57,10 @@ describe('StorageNotificationService', () => {
 
   describe('fileCreated', () => {
     const user = newUser();
-    const payload = { fileId: '123', fileName: 'test.pdf' };
+    const payload = {
+      fileId: '123',
+      fileName: 'test.pdf',
+    } as unknown as FileDto;
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
@@ -78,7 +87,10 @@ describe('StorageNotificationService', () => {
 
   describe('fileUpdated', () => {
     const user = newUser();
-    const payload = { fileId: '123', fileName: 'test.pdf' };
+    const payload = {
+      fileId: '123',
+      fileName: 'test.pdf',
+    } as unknown as FileDto;
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
@@ -104,7 +116,10 @@ describe('StorageNotificationService', () => {
 
   describe('folderCreated', () => {
     const user = newUser();
-    const payload = { folderId: '123', folderName: 'test-folder' };
+    const payload = {
+      folderId: '123',
+      folderName: 'test-folder',
+    } as unknown as FolderDto;
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
@@ -131,7 +146,10 @@ describe('StorageNotificationService', () => {
 
   describe('folderUpdated', () => {
     const user = newUser();
-    const payload = { folderId: '123', folderName: 'test-folder' };
+    const payload = {
+      folderId: '123',
+      folderName: 'test-folder',
+    } as unknown as FolderDto;
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
@@ -158,7 +176,7 @@ describe('StorageNotificationService', () => {
 
   describe('itemsTrashed', () => {
     const user = newUser();
-    const payload = { items: [{ id: '123', name: 'test.pdf' }] };
+    const payload: ItemToTrash[] = [{ id: '123', type: ItemType.FILE }];
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
