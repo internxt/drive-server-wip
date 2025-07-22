@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { encode } from 'querystring';
 
@@ -40,6 +40,9 @@ export class CaptchaService {
 
       return response.data.success;
     } catch (error) {
+      Logger.error(
+        `[AUTH/CAPTCHA_VERIFICATION] Error while verifying the captcha token: ${error}`,
+      );
       return false;
     }
   }
