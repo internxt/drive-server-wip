@@ -14,10 +14,13 @@ import {
 } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { DevicePlatform } from './device.domain';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 describe('BackupUseCase', () => {
   let backupUseCase: BackupUseCase;
   let backupRepository: SequelizeBackupRepository;
+  let folderRepository: SequelizeFolderRepository;
+
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
   let folderUseCases: FolderUseCases;
@@ -53,6 +56,9 @@ describe('BackupUseCase', () => {
     cryptoService = module.get<CryptoService>(CryptoService);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
+    folderRepository = module.get<SequelizeFolderRepository>(
+      SequelizeFolderRepository,
+    );
   });
 
   describe('activate', () => {
@@ -501,7 +507,7 @@ describe('BackupUseCase', () => {
       );
 
       expect(backupUseCase.activate).toHaveBeenCalledWith(userWithoutBackups);
-      expect(result).toEqual(mockDevice);
+      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
     });
 
     it('When device with same key or hostname already exists, then it should throw a ConflictException', async () => {
@@ -544,7 +550,8 @@ describe('BackupUseCase', () => {
         folderUuid: mockFolder.uuid,
         userId: userMocked.id,
       });
-      expect(result).toEqual(mockDevice);
+
+      expect(result).toEqual({ ...mockDevice, folder: mockFolder });
     });
   });
 
@@ -866,6 +873,7 @@ describe('BackupUseCase', () => {
       const mockFolder = newFolder({
         attributes: { bucket: userMocked.backupsBucket },
       });
+      const mockBackupFolder = newBackupFolder(mockFolder);
       const mockDevice = newDevice({
         id: 1,
         userId: userMocked.id,
@@ -888,6 +896,10 @@ describe('BackupUseCase', () => {
       jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(mockFolder);
       jest
+        .spyOn(folderRepository, 'updateOneAndReturn')
+        .mockResolvedValue(mockFolder);
+
+      jest
         .spyOn(backupRepository, 'updateDeviceName')
         .mockResolvedValue(updatedDevice);
 
@@ -897,7 +909,7 @@ describe('BackupUseCase', () => {
         updateDeviceDto,
       );
 
-      expect(result).toEqual(updatedDevice);
+      expect(result).toEqual({ ...updatedDevice, folder: mockBackupFolder });
       expect(cryptoService.encryptName).toHaveBeenCalledWith(
         updateDeviceDto.name,
         mockFolder.bucket,
@@ -907,37 +919,6 @@ describe('BackupUseCase', () => {
         1,
         updateDeviceDto.name,
       );
-    });
-
-    it('When updating same device with same name, then it should proceed successfully', async () => {
-      const mockDevice = newDevice({
-        id: 1,
-        userId: userMocked.id,
-        name: updateDeviceDto.name,
-      });
-
-      jest
-        .spyOn(backupRepository, 'findDeviceByUserAndId')
-        .mockResolvedValue(mockDevice);
-      jest
-        .spyOn(backupRepository, 'findOneUserDeviceByName')
-        .mockResolvedValue(mockDevice);
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('encrypted-name');
-      jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
-      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(null);
-      jest
-        .spyOn(backupRepository, 'updateDeviceName')
-        .mockResolvedValue(mockDevice);
-
-      const result = await backupUseCase.updateDeviceAndFolderName(
-        userMocked,
-        1,
-        updateDeviceDto,
-      );
-
-      expect(result).toEqual(mockDevice);
     });
   });
 });

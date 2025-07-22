@@ -69,8 +69,8 @@ export class FolderUseCases {
     return folder;
   }
 
-  async getByUuids(uuids: Folder['uuid'][]): Promise<Folder[]> {
-    const folders = await this.folderRepository.findByUuids(uuids);
+  async getByUuids(uuids: Folder['uuid'][], user?: User): Promise<Folder[]> {
+    const folders = await this.folderRepository.findByUuids(uuids, user?.id);
 
     return folders.map((folder) =>
       !folder.plainName ? this.decryptFolderName(folder) : folder,

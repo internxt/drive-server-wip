@@ -1,7 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { DevicePlatform } from '../../device.domain';
+import { DeviceAsFolder } from './device-as-folder.dto';
 
 export class DeviceDto {
+  constructor(partial: Partial<DeviceDto>) {
+    Object.assign(this, partial);
+  }
+
   @ApiProperty({ example: 7 })
   id: number;
 
@@ -36,8 +41,11 @@ export class DeviceDto {
   folderUuid: string;
 
   @ApiProperty({ example: '2025-07-10T20:14:04.784Z' })
-  createdAt: string;
+  createdAt: Date;
 
   @ApiProperty({ example: '2025-07-10T20:14:04.784Z' })
-  updatedAt: string;
+  updatedAt: Date;
+
+  @ApiProperty({ type: DeviceAsFolder, nullable: true })
+  folder?: DeviceAsFolder;
 }
