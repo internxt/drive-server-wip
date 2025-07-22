@@ -66,6 +66,7 @@ import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
+import getEnv from '../../config/configuration';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
@@ -1100,12 +1101,15 @@ export class UserUseCases {
     userUuid: string;
   } {
     try {
-      const jwtSecret = this.configService.get('secrets.jwt');
+      const jwtSecret = getEnv().secrets.jwt;
       const decoded = verifyToken<{
         payload: { uuid?: string; action?: string };
       }>(token, jwtSecret);
 
       if (typeof decoded === 'string') {
+        Logger.error(
+          `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string`,
+        );
         throw new ForbiddenException('Invalid token');
       }
 
@@ -1116,6 +1120,11 @@ export class UserUseCases {
         decodedContent?.action !== 'recover-account' ||
         !validate(decodedContent.uuid)
       ) {
+        Logger.error(
+          `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Invalid token structure ${JSON.stringify(
+            decoded,
+          )}`,
+        );
         throw new ForbiddenException('Invalid token');
       }
 
