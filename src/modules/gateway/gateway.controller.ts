@@ -31,6 +31,8 @@ import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { AuditLogService } from '../../externals/notifications/audit-log.service';
+import { AuditAction, AuditPerformerType } from '../user/audit-logs.attributes';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -41,6 +43,7 @@ export class GatewayController {
   constructor(
     private readonly gatewayUseCases: GatewayUseCases,
     private readonly storageNotificationsService: StorageNotificationService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   @Post('/workspaces')
@@ -53,6 +56,12 @@ export class GatewayController {
   async initializeWorkspace(
     @Body() initializeWorkspaceDto: InitializeWorkspaceDto,
   ) {
+    this.auditLogService.logWorkspaceAction(
+      initializeWorkspaceDto.ownerId,
+      AuditAction.WorkspaceCreated,
+      AuditPerformerType.Gateway,
+      initializeWorkspaceDto.ownerId,
+    );
     return this.gatewayUseCases.initializeWorkspace(initializeWorkspaceDto);
   }
 
@@ -66,6 +75,12 @@ export class GatewayController {
   async updateWorkspaceStorage(
     @Body() updateWorkspaceStorageDto: UpdateWorkspaceStorageDto,
   ) {
+    this.auditLogService.logWorkspaceAction(
+      updateWorkspaceStorageDto.ownerId,
+      AuditAction.WorkspaceStorageChanged,
+      AuditPerformerType.Gateway,
+      updateWorkspaceStorageDto.ownerId,
+    );
     return this.gatewayUseCases.updateWorkspaceStorage(
       updateWorkspaceStorageDto.ownerId,
       updateWorkspaceStorageDto.maxSpaceBytes,
@@ -169,6 +184,8 @@ export class GatewayController {
       this.logger.log(
         `[UPDATE_USER] Updated user ${userUuid} space to ${maxSpaceBytes}`,
       );
+
+      this.auditLogService.logStorageChanged(user, maxSpaceBytes);
     } catch (error) {
       this.logger.error(
         `[UPDATE_USER] Error updating user ${userUuid}, error: ${JSON.stringify(

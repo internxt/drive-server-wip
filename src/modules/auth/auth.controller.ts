@@ -41,6 +41,7 @@ import { LoginAccessResponseDto } from './dto/responses/login-access-response.dt
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
+import { AuditLogService } from '../../externals/notifications/audit-log.service';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -51,6 +52,7 @@ export class AuthController {
     private readonly cryptoService: CryptoService,
     private readonly twoFactorAuthService: TwoFactorAuthService,
     private readonly authUseCases: AuthUsecases,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -196,6 +198,8 @@ export class AuthController {
       secret_2FA: updateTfaDto.key,
     });
 
+    this.auditLogService.logTfaEnabled(user);
+
     return { message: 'ok' };
   }
 
@@ -226,6 +230,9 @@ export class AuthController {
       throw new BadRequestException('Invalid password');
     }
     await this.userUseCases.updateByUuid(user.uuid, { secret_2FA: null });
+
+    this.auditLogService.logTfaDisabled(user);
+
     return { message: 'ok' };
   }
 
