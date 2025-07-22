@@ -19,7 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  ItemType,
+  ItemToTrashType,
   MoveItemsToTrashDto,
 } from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -156,14 +156,14 @@ export class TrashController {
 
       for (const item of moveItemsDto.items) {
         switch (item.type) {
-          case ItemType.FILE:
+          case ItemToTrashType.FILE:
             if (item.id) {
               fileIds.push(item.id);
             } else {
               fileUuids.push(item.uuid);
             }
             break;
-          case ItemType.FOLDER:
+          case ItemToTrashType.FOLDER:
             if (item.id) {
               folderIds.push(parseInt(item.id, 10));
             } else {

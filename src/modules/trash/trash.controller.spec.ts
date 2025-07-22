@@ -11,7 +11,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { ItemType } from './dto/controllers/move-items-to-trash.dto';
+import { ItemToTrashType } from './dto/controllers/move-items-to-trash.dto';
 import {
   DeleteItemType,
   DeleteItemsDto,
@@ -57,7 +57,7 @@ describe('TrashController', () => {
             items: [
               {
                 uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-                type: 'test' as ItemType,
+                type: 'test' as ItemToTrashType,
               },
             ],
           },
@@ -80,21 +80,21 @@ describe('TrashController', () => {
       const fileItems = [
         {
           uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-          type: ItemType.FILE,
+          type: ItemToTrashType.FILE,
         },
         {
           id: '2',
-          type: ItemType.FILE,
+          type: ItemToTrashType.FILE,
         },
       ];
       const folderItems = [
         {
           id: '1',
-          type: ItemType.FOLDER,
+          type: ItemToTrashType.FOLDER,
         },
         {
           uuid: '9af7dca1-fd68-4864-9b60-ef36b77d0903',
-          type: ItemType.FOLDER,
+          type: ItemToTrashType.FOLDER,
         },
       ];
 
@@ -129,7 +129,7 @@ describe('TrashController', () => {
       const fileItems = [
         {
           uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-          type: ItemType.FILE,
+          type: ItemToTrashType.FILE,
         },
       ];
 
@@ -157,7 +157,7 @@ describe('TrashController', () => {
       const fileItems = [
         {
           uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-          type: ItemType.FILE,
+          type: ItemToTrashType.FILE,
         },
       ];
 

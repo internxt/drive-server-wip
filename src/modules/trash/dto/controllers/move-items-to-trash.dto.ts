@@ -10,12 +10,12 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export enum ItemType {
+export enum ItemToTrashType {
   FILE = 'file',
   FOLDER = 'folder',
 }
 
-export class ItemToTrash {
+export class ItemToTrashDto {
   @ApiProperty({
     example: '4',
     description: 'Id of file or folder (deprecated in favor of uuid)',
@@ -35,23 +35,25 @@ export class ItemToTrash {
   @IsDefined({ message: 'Provide either item id or uuid, and not both' })
   readonly AreUuidAndIdDefined?: boolean;
 
-  @IsEnum(ItemType)
+  @IsEnum(ItemToTrashType)
   @ApiProperty({
     example: 'file',
     description: 'Type of item: file or folder',
+    enum: ItemToTrashType,
   })
-  type: ItemType;
+  type: ItemToTrashType;
 }
 
 export class MoveItemsToTrashDto {
-  @IsNotEmpty()
   @ApiProperty({
     description: 'Array of items with files and folders ids',
-    type: ItemToTrash,
+    type: ItemToTrashDto,
     isArray: true,
+    maxItems: 50,
   })
+  @IsNotEmpty()
   @ArrayMaxSize(50)
   @ValidateNested()
-  @Type(() => ItemToTrash)
-  items: ItemToTrash[];
+  @Type(() => ItemToTrashDto)
+  items: ItemToTrashDto[];
 }

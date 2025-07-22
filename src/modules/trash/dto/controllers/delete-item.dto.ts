@@ -14,7 +14,7 @@ export enum DeleteItemType {
   FOLDER = 'folder',
 }
 
-export class DeleteItem {
+export class DeleteItemDto {
   @ApiProperty({
     example: '4',
     description: 'Id of file or folder (deprecated in favor of uuid)',
@@ -37,17 +37,22 @@ export class DeleteItem {
   @ApiProperty({
     example: 'file',
     description: 'Type of item: file or folder',
+    enum: DeleteItemType,
   })
   type: DeleteItemType;
 }
 
 export class DeleteItemsDto {
-  @IsNotEmpty()
   @ApiProperty({
     description: 'Array of items with files and folders ids',
+    type: DeleteItemDto,
+    isArray: true,
+    maximum: 50,
+    minimum: 1,
   })
+  @IsNotEmpty()
   @ArrayMaxSize(50)
   @ValidateNested()
-  @Type(() => DeleteItem)
-  items: DeleteItem[];
+  @Type(() => DeleteItemDto)
+  items: DeleteItemDto[];
 }

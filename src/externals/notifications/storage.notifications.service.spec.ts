@@ -12,8 +12,8 @@ import { v4 } from 'uuid';
 import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
 import { FileDto } from '../../modules/file/dto/responses/file.dto';
 import {
-  ItemToTrash,
-  ItemType,
+  ItemToTrashDto,
+  ItemToTrashType,
 } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 describe('StorageNotificationService', () => {
@@ -176,7 +176,9 @@ describe('StorageNotificationService', () => {
 
   describe('itemsTrashed', () => {
     const user = newUser();
-    const payload: ItemToTrash[] = [{ id: '123', type: ItemType.FILE }];
+    const payload: ItemToTrashDto[] = [
+      { id: '123', type: ItemToTrashType.FILE },
+    ];
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
