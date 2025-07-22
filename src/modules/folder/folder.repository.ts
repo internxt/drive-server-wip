@@ -106,6 +106,10 @@ export interface FolderRepository {
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
   ): Promise<Folder>;
+  updateOneAndReturn(
+    update: Partial<FolderAttributes>,
+    where: Pick<FolderAttributes, 'userId' | 'uuid'>,
+  ): Promise<Folder>;
   updateManyByFolderId(
     folderIds: FolderAttributes['id'][],
     update: Partial<Folder>,

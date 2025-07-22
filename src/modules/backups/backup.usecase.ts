@@ -344,7 +344,7 @@ export class BackupUseCase {
 
     const folder = await this.folderUsecases.getByUuid(device.folderUuid);
 
-    let updatedFolder = null;
+    let updatedFolder: Folder;
 
     if (folder) {
       const encryptedName = this.cryptoService.encryptName(
@@ -369,9 +369,9 @@ export class BackupUseCase {
 
     return {
       ...updatedDevice,
-      folder:
-        updatedFolder &&
-        (await this.addFolderAsDeviceProperties(user, updatedFolder)),
+      folder: updatedFolder
+        ? await this.addFolderAsDeviceProperties(user, updatedFolder)
+        : undefined,
     };
   }
 
