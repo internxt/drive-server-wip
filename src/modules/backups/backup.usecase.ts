@@ -417,7 +417,10 @@ export class BackupUseCase {
 
     const device = await this.backupRepository.createDevice(deviceData);
 
-    return device;
+    return {
+      ...device,
+      folder: await this.addFolderAsDeviceProperties(user, folder),
+    };
   }
 
   private verifyUserHasBackupsEnabled(user: User) {

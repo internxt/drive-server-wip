@@ -683,7 +683,10 @@ describe('BackupUseCase', () => {
         folderUuid: createDeviceDto.folderUuid,
         userId: userMocked.id,
       });
-      expect(result).toEqual(mockDevice);
+      expect(result).toEqual({
+        ...mockDevice,
+        folder: newBackupFolder(mockFolder),
+      });
     });
   });
 
