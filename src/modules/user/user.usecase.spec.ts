@@ -87,6 +87,7 @@ import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryptio
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { Environment } from '@internxt/inxt-js';
 import * as bip39 from 'bip39';
+import getEnv from '../../config/configuration';
 
 const TEST_MNEMONIC =
   'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
@@ -2822,7 +2823,6 @@ describe('User use cases', () => {
     it('When token is valid, then it should return the user UUID', () => {
       const userUuid = v4();
       const token = 'validToken';
-      const jwtSecret = 'jwt-secret';
       const decodedToken = {
         payload: {
           uuid: userUuid,
@@ -2830,7 +2830,6 @@ describe('User use cases', () => {
         },
       };
 
-      jest.spyOn(configService, 'get').mockReturnValue(jwtSecret);
       const verifyTokenSpy = jest
         .spyOn(jwtLibrary, 'verifyToken')
         .mockReturnValue(decodedToken);
@@ -2838,7 +2837,7 @@ describe('User use cases', () => {
       const result = userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
       expect(result).toEqual({ userUuid });
-      expect(verifyTokenSpy).toHaveBeenCalledWith(token, jwtSecret);
+      expect(verifyTokenSpy).toHaveBeenCalledWith(token, getEnv().secrets.jwt);
     });
 
     it('When token verification returns a string, then it should throw ForbiddenException', () => {
