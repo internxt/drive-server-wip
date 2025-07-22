@@ -313,9 +313,14 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
-  async findByUuids(uuids: FolderAttributes['uuid'][]): Promise<Folder[]> {
+  async findByUuids(
+    uuids: FolderAttributes['uuid'][],
+    userId?: UserAttributes['id'],
+  ): Promise<Folder[]> {
+    const userCondition = userId ? { userId } : {};
+
     const folders = await this.folderModel.findAll({
-      where: { uuid: { [Op.in]: uuids } },
+      where: { uuid: { [Op.in]: uuids }, ...userCondition },
     });
     return folders.map((folder) => this.toDomain(folder));
   }
@@ -507,6 +512,18 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return updatedItems;
+  }
+
+  async updateOneAndReturn(
+    update: Partial<FolderAttributes>,
+    where: Pick<FolderAttributes, 'userId' | 'uuid'>,
+  ): Promise<Folder> {
+    const [_, updatedFolders] = await this.folderModel.update(update, {
+      where,
+      returning: true,
+    });
+
+    return updatedFolders.length > 0 ? this.toDomain(updatedFolders[0]) : null;
   }
 
   async createWithAttributes(

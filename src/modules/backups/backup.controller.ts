@@ -57,7 +57,7 @@ export class BackupController {
   async getDevicesAndFolders(
     @UserDecorator() user: User,
     @Query() query: GetDevicesAndFoldersDto,
-  ) {
+  ): Promise<DeviceDto[]> {
     const { platform, key, hostname } = query;
 
     const filterBy = {
@@ -66,12 +66,13 @@ export class BackupController {
       ...(hostname && { hostname }),
     };
 
-    return this.backupUseCases.getUserDevices(
+    const devices = await this.backupUseCases.getUserDevices(
       user,
       filterBy,
       query.limit,
       query.offset,
     );
+    return devices.map((device) => new DeviceDto(device));
   }
 
   @Post('/v2/devices')
@@ -88,8 +89,9 @@ export class BackupController {
   async createDeviceAndFolder(
     @UserDecorator() user: User,
     @Body() body: CreateDeviceAndFolderDto,
-  ) {
-    return this.backupUseCases.createDeviceAndFolder(user, body);
+  ): Promise<DeviceDto> {
+    const device = await this.backupUseCases.createDeviceAndFolder(user, body);
+    return new DeviceDto(device);
   }
 
   @Post('/v2/devices/migrate')
@@ -106,8 +108,12 @@ export class BackupController {
   async createDeviceForExistingFolder(
     @UserDecorator() user: User,
     @Body() body: CreateDeviceAndAttachFolderDto,
-  ) {
-    return this.backupUseCases.createDeviceForExistingFolder(user, body);
+  ): Promise<DeviceDto> {
+    const device = await this.backupUseCases.createDeviceForExistingFolder(
+      user,
+      body,
+    );
+    return new DeviceDto(device);
   }
 
   @Delete('/v2/devices/:deviceId')
@@ -139,7 +145,12 @@ export class BackupController {
     @Param('deviceId', ParseIntPipe) deviceId: number,
     @Body() body: UpdateDeviceAndFolderDto,
   ) {
-    return this.backupUseCases.updateDeviceAndFolderName(user, deviceId, body);
+    const device = await this.backupUseCases.updateDeviceAndFolderName(
+      user,
+      deviceId,
+      body,
+    );
+    return new DeviceDto(device);
   }
 
   @Post('/deviceAsFolder')

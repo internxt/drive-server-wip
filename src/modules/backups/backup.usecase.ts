@@ -115,7 +115,7 @@ export class BackupUseCase {
       bucket,
     });
 
-    return this.addDeviceProperties(user, createdFolder);
+    return this.addFolderAsDeviceProperties(user, createdFolder);
   }
 
   async deleteDeviceAsFolder(user: User, uuid: FolderAttributes['uuid']) {
@@ -142,7 +142,7 @@ export class BackupUseCase {
 
     return Promise.all(
       folders.map(async (folder) => ({
-        ...(await this.addDeviceProperties(user, folder)),
+        ...(await this.addFolderAsDeviceProperties(user, folder)),
         plainName: this.cryptoService.decryptName(folder.name, folder.bucket),
       })),
     );
@@ -154,7 +154,7 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    return this.addDeviceProperties(user, folder);
+    return this.addFolderAsDeviceProperties(user, folder);
   }
 
   async getDeviceAsFolderById(user: User, id: FolderAttributes['id']) {
@@ -163,7 +163,7 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    return this.addDeviceProperties(user, folder);
+    return this.addFolderAsDeviceProperties(user, folder);
   }
 
   async updateDeviceAsFolder(
@@ -187,7 +187,7 @@ export class BackupUseCase {
         plainName: deviceName,
       });
 
-    return this.addDeviceProperties(user, updatedFolder);
+    return this.addFolderAsDeviceProperties(user, updatedFolder);
   }
 
   async getBackupsByMac(user: User, mac: string) {
@@ -221,7 +221,28 @@ export class BackupUseCase {
       offset,
     );
 
-    return devices;
+    const folderUuids = [
+      ...new Set(devices.map((d) => d.folderUuid).filter(Boolean)),
+    ];
+
+    if (folderUuids.length === 0) {
+      return devices.map((device) => ({ ...device, folder: null }));
+    }
+
+    const folders = await this.folderUsecases.getByUuids(folderUuids, user);
+
+    const foldersWithProperties = await Promise.all(
+      folders.map((folder) => this.addFolderAsDeviceProperties(user, folder)),
+    );
+
+    const folderMap = new Map(
+      foldersWithProperties.map((folder) => [folder.uuid, folder]),
+    );
+
+    return devices.map((device) => ({
+      ...device,
+      folder: device.folderUuid ? folderMap.get(device.folderUuid) : null,
+    }));
   }
 
   async createDeviceAndFolder(
@@ -248,7 +269,7 @@ export class BackupUseCase {
 
     const device = await this.backupRepository.createDevice(deviceData);
 
-    return device;
+    return { ...device, folder };
   }
 
   async deleteDeviceAndFolder(user: User, deviceId: number) {
@@ -296,7 +317,7 @@ export class BackupUseCase {
       updateDeviceDto.name,
     );
 
-    if (existingDevice && existingDevice.id !== deviceId) {
+    if (existingDevice) {
       throw new ConflictException(
         'A device with this name already exists for this user',
       );
@@ -323,18 +344,20 @@ export class BackupUseCase {
 
     const folder = await this.folderUsecases.getByUuid(device.folderUuid);
 
+    let updatedFolder = null;
+
     if (folder) {
       const encryptedName = this.cryptoService.encryptName(
         updateDeviceDto.name,
         folder.bucket,
       );
 
-      await this.folderRepository.updateBy(
+      updatedFolder = await this.folderRepository.updateOneAndReturn(
         {
           name: encryptedName,
           plainName: updateDeviceDto.name,
         },
-        { userId: user.id, id: folder.id },
+        { userId: user.id, uuid: folder.uuid },
       );
     }
 
@@ -344,7 +367,12 @@ export class BackupUseCase {
       updateDeviceDto.name,
     );
 
-    return updatedDevice;
+    return {
+      ...updatedDevice,
+      folder:
+        updatedFolder &&
+        (await this.addFolderAsDeviceProperties(user, updatedFolder)),
+    };
   }
 
   async createDeviceForExistingFolder(
@@ -444,7 +472,7 @@ export class BackupUseCase {
     return this.backupRepository.sumExistentBackupSizes(userId);
   }
 
-  private async addDeviceProperties(user: User, folder: Folder) {
+  private async addFolderAsDeviceProperties(user: User, folder: Folder) {
     const isEmpty = await this.isFolderEmpty(user, folder);
     return {
       ...folder,
