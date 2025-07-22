@@ -15,6 +15,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AuthUsecases } from './auth.usecase';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AuthUsecases } from './auth.usecase';
     CacheManagerModule,
   ],
   providers: [
+    CaptchaService,
     JwtStrategy,
     BasicStrategy,
     GatewayRS256JwtStrategy,

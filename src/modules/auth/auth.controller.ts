@@ -41,6 +41,7 @@ import { LoginAccessResponseDto } from './dto/responses/login-access-response.dt
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
+import { ConditionalCaptchaGuard } from './conditional-captcha.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -98,7 +99,7 @@ export class AuthController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, ConditionalCaptchaGuard)
   @Post('/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
