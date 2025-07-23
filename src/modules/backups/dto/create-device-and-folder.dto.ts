@@ -10,7 +10,7 @@ export class CreateDeviceAndFolderDto {
   })
   @IsOptional()
   @IsString()
-  key: string;
+  key?: string;
 
   @ApiProperty({
     description: 'Device hostname',
@@ -19,7 +19,7 @@ export class CreateDeviceAndFolderDto {
   })
   @IsOptional()
   @IsString()
-  hostname: string;
+  hostname?: string;
 
   @ApiProperty({
     description: 'Device platform',

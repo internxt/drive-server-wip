@@ -249,6 +249,10 @@ export class BackupUseCase {
     user: User,
     createDeviceDto: CreateDeviceAndFolderDto,
   ) {
+    if (!createDeviceDto.key && !createDeviceDto.hostname) {
+      throw new BadRequestException('You need to send either hostname or key');
+    }
+
     if (!user.hasBackupsEnabled()) {
       await this.activate(user);
     }
@@ -379,6 +383,10 @@ export class BackupUseCase {
     user: User,
     createDeviceDto: CreateDeviceAndAttachFolderDto,
   ) {
+    if (!createDeviceDto.key && !createDeviceDto.hostname) {
+      throw new BadRequestException('You need to send either hostname or key');
+    }
+
     this.verifyUserHasBackupsEnabled(user);
 
     await this.verifyDeviceDoesNotExist(user, {
