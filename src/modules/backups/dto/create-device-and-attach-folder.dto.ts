@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { DevicePlatform } from '../device.domain';
 
 export class CreateDeviceAndAttachFolderDto {
@@ -9,7 +9,8 @@ export class CreateDeviceAndAttachFolderDto {
     required: false,
   })
   @IsString()
-  key: string;
+  @IsOptional()
+  key?: string;
 
   @ApiProperty({
     description: 'Device hostname',
@@ -17,7 +18,8 @@ export class CreateDeviceAndAttachFolderDto {
     required: false,
   })
   @IsString()
-  hostname: string;
+  @IsOptional()
+  hostname?: string;
 
   @ApiProperty({
     description: 'Device platform',
