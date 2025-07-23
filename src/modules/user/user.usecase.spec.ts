@@ -2908,6 +2908,7 @@ describe('User use cases', () => {
 
       const keys = await asymmetricEncryptionService.generateNewKeys();
       newCredentials = {
+        token: 'valid_token',
         mnemonic: mnemonicEncryptedWithPassword,
         password: cryptoService.encryptText(decryptedPasswordHash),
         salt: cryptoService.encryptText(decryptedSalt),

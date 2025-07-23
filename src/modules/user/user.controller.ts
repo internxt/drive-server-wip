@@ -840,10 +840,6 @@ export class UserController {
   async requestLegacyAccountRecovery(@Body() body: LegacyRecoverAccountDto) {
     const { token } = body;
 
-    if (!token) {
-      throw new BadRequestException('Token is required');
-    }
-
     const decodedToken =
       this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 

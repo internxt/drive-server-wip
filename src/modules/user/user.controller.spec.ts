@@ -1287,19 +1287,6 @@ describe('User Controller', () => {
         .mockResolvedValue(undefined);
     });
 
-    it('When token is missing, then it throws BadRequestException', async () => {
-      await expect(
-        userController.requestLegacyAccountRecovery(
-          mockLegacyRecoverAccountDto,
-        ),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(
-        userUseCases.verifyAndDecodeAccountRecoveryToken,
-      ).not.toHaveBeenCalled();
-      expect(userUseCases.recoverAccountLegacy).not.toHaveBeenCalled();
-    });
-
     it('When token is provided and valid, then it recovers account with legacy method', async () => {
       await userController.requestLegacyAccountRecovery(
         mockLegacyRecoverAccountDto,
