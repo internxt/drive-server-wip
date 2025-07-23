@@ -838,6 +838,9 @@ export class UserController {
     summary: 'Recover accocunt with legacy backup file',
   })
   async requestLegacyAccountRecovery(@Body() body: LegacyRecoverAccountDto) {
+    Logger.log(
+      `[RECOVER_ACCOUNT] Requesting legacy account recovery with token: ${body.token}`,
+    );
     const { token } = body;
 
     const decodedToken =
