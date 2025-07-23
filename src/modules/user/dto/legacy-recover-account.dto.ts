@@ -67,7 +67,6 @@ export class LegacyRecoverAccountDto {
     description: 'Base64 encoded temporary auth token',
   })
   @IsNotEmpty()
-  @IsBase64()
   token: string;
 
   @ApiProperty({

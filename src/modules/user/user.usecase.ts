@@ -1130,6 +1130,11 @@ export class UserUseCases {
 
       return { userUuid: decodedContent.uuid };
     } catch (error) {
+      Logger.error(
+        `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Error ${JSON.stringify(
+          error,
+        )}`,
+      );
       if (error instanceof JsonWebTokenError) {
         const isTokenExpired = error instanceof TokenExpiredError;
 
