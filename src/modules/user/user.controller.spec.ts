@@ -1251,8 +1251,8 @@ describe('User Controller', () => {
 
   describe('PUT /legacy-recover-account', () => {
     const mockUser = newUser();
-    const validToken = 'valid_token';
     const mockLegacyRecoverAccountDto: LegacyRecoverAccountDto = {
+      token: 'valid_token',
       mnemonic: 'encrypted_mnemonic',
       password: 'encrypted_password',
       salt: 'encrypted_salt',
@@ -1290,7 +1290,6 @@ describe('User Controller', () => {
     it('When token is missing, then it throws BadRequestException', async () => {
       await expect(
         userController.requestLegacyAccountRecovery(
-          '',
           mockLegacyRecoverAccountDto,
         ),
       ).rejects.toThrow(BadRequestException);
@@ -1303,13 +1302,12 @@ describe('User Controller', () => {
 
     it('When token is provided and valid, then it recovers account with legacy method', async () => {
       await userController.requestLegacyAccountRecovery(
-        validToken,
         mockLegacyRecoverAccountDto,
       );
 
       expect(
         userUseCases.verifyAndDecodeAccountRecoveryToken,
-      ).toHaveBeenCalledWith(validToken);
+      ).toHaveBeenCalledWith(mockLegacyRecoverAccountDto.token);
       expect(userUseCases.recoverAccountLegacy).toHaveBeenCalledWith(
         mockUser.uuid,
         mockLegacyRecoverAccountDto,
@@ -1326,7 +1324,6 @@ describe('User Controller', () => {
 
       await expect(
         userController.requestLegacyAccountRecovery(
-          'invalid_token',
           mockLegacyRecoverAccountDto,
         ),
       ).rejects.toThrow(tokenError);
@@ -1342,14 +1339,13 @@ describe('User Controller', () => {
 
       await expect(
         userController.requestLegacyAccountRecovery(
-          validToken,
           mockLegacyRecoverAccountDto,
         ),
       ).rejects.toThrow(recoveryError);
 
       expect(
         userUseCases.verifyAndDecodeAccountRecoveryToken,
-      ).toHaveBeenCalledWith(validToken);
+      ).toHaveBeenCalledWith(mockLegacyRecoverAccountDto.token);
     });
   });
 

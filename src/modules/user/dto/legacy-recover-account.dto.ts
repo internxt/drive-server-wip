@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, ValidateNested } from 'class-validator';
+import { IsBase64, IsNotEmpty, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class EncryptedMnemonicDto {
@@ -62,6 +62,14 @@ class NewGeneratedKeysDto {
 }
 
 export class LegacyRecoverAccountDto {
+  @ApiProperty({
+    example: 'temporary_auth_token',
+    description: 'Base64 encoded temporary auth token',
+  })
+  @IsNotEmpty()
+  @IsBase64()
+  token: string;
+
   @ApiProperty({
     example: 'hashed_password',
     description: 'New user pass hashed',
