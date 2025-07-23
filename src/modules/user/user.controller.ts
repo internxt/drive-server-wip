@@ -837,13 +837,13 @@ export class UserController {
       'Recover account with legacy backup file, mnemonic only files should be used',
     summary: 'Recover accocunt with legacy backup file',
   })
-  async requestLegacyAccountRecovery(
-    @Query('token') token: string,
-    @Body() body: LegacyRecoverAccountDto,
-  ) {
+  async requestLegacyAccountRecovery(@Body() body: LegacyRecoverAccountDto) {
+    const { token } = body;
+
     if (!token) {
       throw new BadRequestException('Token is required');
     }
+
     const decodedToken =
       this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
