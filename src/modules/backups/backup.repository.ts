@@ -87,11 +87,11 @@ export class SequelizeBackupRepository {
       : null;
   }
 
-  async findOneUserDeviceByKeyOrHostname(
+  async findConflictingUserDevice(
     user: User,
-    where: Pick<DeviceAttributes, 'key' | 'hostname' | 'platform'>,
+    where: Pick<DeviceAttributes, 'key' | 'hostname' | 'platform' | 'name'>,
   ) {
-    const { key, hostname, platform } = where;
+    const { key, hostname, platform, name } = where;
 
     const device = await this.deviceModel.findOne({
       where: {
@@ -99,6 +99,7 @@ export class SequelizeBackupRepository {
         [Op.or]: [
           ...(key ? [{ key }] : []),
           ...(hostname ? [{ hostname }] : []),
+          ...(name ? [{ name }] : []),
         ],
         ...(platform && { platform }),
       },

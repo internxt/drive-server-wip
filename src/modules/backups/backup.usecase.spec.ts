@@ -492,7 +492,7 @@ describe('BackupUseCase', () => {
         .spyOn(backupUseCase, 'activate')
         .mockResolvedValue({ backupsBucket: 'new-bucket' });
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
         .spyOn(backupUseCase, 'createDeviceAsFolder')
@@ -514,7 +514,7 @@ describe('BackupUseCase', () => {
       const existingDevice = newDevice({ userId: userMocked.id });
 
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(existingDevice);
 
       await expect(
@@ -527,7 +527,7 @@ describe('BackupUseCase', () => {
       const mockDevice = newDevice({ userId: userMocked.id });
 
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
         .spyOn(backupUseCase, 'createDeviceAsFolder')
@@ -580,7 +580,7 @@ describe('BackupUseCase', () => {
       const existingDevice = newDevice({ userId: userMocked.id });
 
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(existingDevice as any);
 
       await expect(
@@ -597,7 +597,7 @@ describe('BackupUseCase', () => {
       });
 
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
         .spyOn(backupRepository, 'findOneUserDeviceBy')
@@ -615,7 +615,7 @@ describe('BackupUseCase', () => {
       const mockFolder = newFolder({ attributes: { bucket: 'other-bucket' } });
 
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
         .spyOn(backupRepository, 'findOneUserDeviceBy')
@@ -634,7 +634,7 @@ describe('BackupUseCase', () => {
 
     it('When folder is not found, then it should throw', async () => {
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
         .spyOn(backupRepository, 'findOneUserDeviceBy')
@@ -661,7 +661,7 @@ describe('BackupUseCase', () => {
       });
 
       jest
-        .spyOn(backupRepository, 'findOneUserDeviceByKeyOrHostname')
+        .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
         .spyOn(backupRepository, 'findOneUserDeviceBy')
