@@ -261,6 +261,7 @@ export class BackupUseCase {
       key: createDeviceDto.key,
       platform: createDeviceDto.platform,
       hostname: createDeviceDto.hostname,
+      name: createDeviceDto.name,
     });
 
     const folder = await this.createDeviceAsFolder(user, createDeviceDto.name);
@@ -393,6 +394,7 @@ export class BackupUseCase {
       key: createDeviceDto.key,
       platform: createDeviceDto.platform,
       hostname: createDeviceDto.hostname,
+      name: createDeviceDto.name,
     });
 
     const deviceAssignedToFolder =
@@ -439,17 +441,27 @@ export class BackupUseCase {
 
   private async verifyDeviceDoesNotExist(
     user: User,
-    device: { key?: string; hostname?: string; platform: DevicePlatform },
+    device: {
+      key?: string;
+      hostname?: string;
+      platform: DevicePlatform;
+      name?: string;
+    },
   ) {
     const existentDevice =
-      await this.backupRepository.findOneUserDeviceByKeyOrHostname(
-        user,
-        device,
-      );
+      await this.backupRepository.findConflictingUserDevice(user, device);
 
     if (existentDevice) {
+      const fieldsToCheck = ['key', 'hostname', 'name'] as const;
+
+      const conflictFields = fieldsToCheck.filter(
+        (field) => device[field] && existentDevice[field] === device[field],
+      );
+
+      const fieldsList = conflictFields.join(', ');
+
       throw new ConflictException(
-        'There is already a device with the same key or hostname on this platform',
+        `There is already a device with the same ${fieldsList} on this platform`,
       );
     }
   }
