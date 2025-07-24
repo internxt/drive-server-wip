@@ -3643,7 +3643,8 @@ describe('User use cases', () => {
         .spyOn(preCreatedUsersRepository, 'create')
         .mockResolvedValueOnce(createdUser);
 
-      const result = await userUseCases.preCreateUser(newUserDto);
+      const [result, isPreCreated] =
+        await userUseCases.preCreateUser(newUserDto);
 
       expect(userRepository.findByUsername).toHaveBeenCalledWith(
         newUserDto.email,
@@ -3664,6 +3665,7 @@ describe('User use cases', () => {
         publicKey: createdUser.publicKey.toString(),
         password: createdUser.password.toString(),
       });
+      expect(isPreCreated).toBe(true);
     });
 
     it('When creating a pre-created user that already exists as regular user, then it should throw ConflictException', async () => {
@@ -3693,7 +3695,8 @@ describe('User use cases', () => {
         .spyOn(preCreatedUsersRepository, 'findByUsername')
         .mockResolvedValue(existingPreCreatedUser);
 
-      const result = await userUseCases.preCreateUser(newUserDto);
+      const [result, isPreCreated] =
+        await userUseCases.preCreateUser(newUserDto);
 
       expect(result).toEqual({
         ...existingPreCreatedUser.toJSON(),
@@ -3701,6 +3704,7 @@ describe('User use cases', () => {
         publicKey: existingPreCreatedUser.publicKey.toString(),
         password: existingPreCreatedUser.password.toString(),
       });
+      expect(isPreCreated).toBe(false);
     });
   });
 
