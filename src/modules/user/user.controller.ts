@@ -39,6 +39,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { Response, Request } from 'express';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
+import { AuditLogService } from '../../externals/notifications/audit-log.service';
 import { AccountTokenAction, User } from './user.domain';
 import {
   InvalidReferralCodeError,
@@ -97,6 +98,7 @@ export class UserController {
   constructor(
     private readonly userUseCases: UserUseCases,
     private readonly notificationsService: NotificationService,
+    private readonly auditLogService: AuditLogService,
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
     private readonly sharingService: SharingService,
@@ -553,6 +555,8 @@ export class UserController {
         getFutureIAT(),
       );
 
+      this.auditLogService.logPasswordChanged(user);
+
       return { status: 'success', newToken, token };
     } catch (err) {
       Logger.error(
@@ -836,6 +840,13 @@ export class UserController {
       this.logger.log(
         `[RECOVER_ACCOUNT] Account recovered successfully for user: ${userUuid}`,
       );
+
+      const recoveredUser = await this.userUseCases.findByUuid(userUuid);
+      if (recoveredUser) {
+        shouldResetAccount
+          ? this.auditLogService.logAccountReset(recoveredUser)
+          : this.auditLogService.logAccountRecovery(recoveredUser);
+      }
     } catch (err) {
       this.logger.error(
         `[RECOVER_ACCOUNT] ERROR: ${
@@ -877,6 +888,11 @@ export class UserController {
     this.logger.log(
       `[RECOVER_ACCOUNT] Account recovered with legacy backup file for user: ${userUuid}`,
     );
+
+    const recoveredUser = await this.userUseCases.findByUuid(userUuid);
+    if (recoveredUser) {
+      this.auditLogService.logAccountRecovery(recoveredUser);
+    }
   }
 
   @Get('/public-key/:email')
@@ -921,6 +937,8 @@ export class UserController {
     this.logger.log(
       `[EMAIL_CHANGE] Email changed for user: ${result.newAuthentication.user.uuid}, oldEmail: ${result.oldEmail}, newEmail: ${result.newEmail}`,
     );
+
+    this.auditLogService.logEmailChanged(result.newAuthentication.user);
 
     return result;
   }

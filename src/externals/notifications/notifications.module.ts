@@ -16,13 +16,21 @@ import {
 } from '../../modules/user/user.repository';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { UserNotificationTokensModel } from '../../modules/user/user-notification-tokens.model';
+import { AuditLogModel } from '../../modules/user/audit-logs.model';
+import { SequelizeAuditLogRepository } from '../../modules/user/audit-logs.repository';
+import { AuditLogListener } from './listeners/audit-log.listener';
+import { AuditLogService } from './audit-log.service';
 
 @Module({
   imports: [
     ConfigModule,
     HttpClientModule,
     MailerModule,
-    SequelizeModule.forFeature([UserModel, UserNotificationTokensModel]),
+    SequelizeModule.forFeature([
+      UserModel,
+      UserNotificationTokensModel,
+      AuditLogModel,
+    ]),
     ApnModule,
   ],
   controllers: [],
@@ -33,9 +41,12 @@ import { UserNotificationTokensModel } from '../../modules/user/user-notificatio
     AnalyticsListener,
     SendLinkListener,
     AuthListener,
+    AuditLogListener,
     NewsletterService,
     SequelizeUserRepository,
+    SequelizeAuditLogRepository,
+    AuditLogService,
   ],
-  exports: [NotificationService, StorageNotificationService],
+  exports: [NotificationService, StorageNotificationService, AuditLogService],
 })
 export class NotificationModule {}
