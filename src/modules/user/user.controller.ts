@@ -87,6 +87,7 @@ import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
+import { RefreshUserAvatarDto } from './dto/responses/refresh-avatar.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -485,6 +486,25 @@ export class UserController {
     };
 
     return { ...tokens, user: userData };
+  }
+
+  @Get('/refresh/avatar')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Refresh avatar token',
+  })
+  @ApiOkResponse({
+    description: 'Returns a new avatar URL',
+    type: RefreshUserAvatarDto,
+  })
+  async refreshAvatarUser(
+    @UserDecorator() user: User,
+  ): Promise<RefreshUserAvatarDto> {
+    const avatar = user.avatar
+      ? await this.userUseCases.getAvatarUrl(user.avatar)
+      : null;
+
+    return { avatar };
   }
 
   @Patch('password')
