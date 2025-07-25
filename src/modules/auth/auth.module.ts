@@ -16,6 +16,8 @@ import { TwoFactorAuthService } from './two-factor-auth.service';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AuthUsecases } from './auth.usecase';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
+import { AuditLogService } from '../../externals/notifications/audit-log.service';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -37,6 +39,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     KeyServerModule,
     forwardRef(() => WorkspacesModule),
     CacheManagerModule,
+    NotificationModule,
   ],
   providers: [
     CaptchaService,

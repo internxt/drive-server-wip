@@ -48,6 +48,7 @@ import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { BackupModule } from '../backups/backup.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryptio
     forwardRef(() => BackupModule),
     CacheManagerModule,
     AsymmetricEncryptionModule,
+    NotificationModule,
   ],
   controllers: [UserController],
   providers: [

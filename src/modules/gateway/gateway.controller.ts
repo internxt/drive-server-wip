@@ -56,13 +56,22 @@ export class GatewayController {
   async initializeWorkspace(
     @Body() initializeWorkspaceDto: InitializeWorkspaceDto,
   ) {
+    const result = await this.gatewayUseCases.initializeWorkspace(
+      initializeWorkspaceDto,
+    );
+
     this.auditLogService.logWorkspaceAction(
-      initializeWorkspaceDto.ownerId,
+      result.workspace.id,
       AuditAction.WorkspaceCreated,
       AuditPerformerType.Gateway,
-      initializeWorkspaceDto.ownerId,
+      result.workspace.ownerId,
+      {
+        maxSpaceBytes: initializeWorkspaceDto.maxSpaceBytes,
+        numberOfSeats: result.workspace.numberOfSeats,
+      },
     );
-    return this.gatewayUseCases.initializeWorkspace(initializeWorkspaceDto);
+
+    return result;
   }
 
   @Put('/workspaces/storage')
@@ -75,16 +84,21 @@ export class GatewayController {
   async updateWorkspaceStorage(
     @Body() updateWorkspaceStorageDto: UpdateWorkspaceStorageDto,
   ) {
-    this.auditLogService.logWorkspaceAction(
-      updateWorkspaceStorageDto.ownerId,
-      AuditAction.WorkspaceStorageChanged,
-      AuditPerformerType.Gateway,
-      updateWorkspaceStorageDto.ownerId,
-    );
-    return this.gatewayUseCases.updateWorkspaceStorage(
+    const workspace = await this.gatewayUseCases.updateWorkspaceStorage(
       updateWorkspaceStorageDto.ownerId,
       updateWorkspaceStorageDto.maxSpaceBytes,
       updateWorkspaceStorageDto.numberOfSeats,
+    );
+
+    this.auditLogService.logWorkspaceAction(
+      workspace.id,
+      AuditAction.WorkspaceStorageChanged,
+      AuditPerformerType.Gateway,
+      workspace.ownerId,
+      {
+        maxSpaceBytes: updateWorkspaceStorageDto.maxSpaceBytes,
+        numberOfSeats: updateWorkspaceStorageDto.numberOfSeats,
+      },
     );
   }
 
@@ -113,7 +127,16 @@ export class GatewayController {
   @UseGuards(GatewayGuard)
   @ApiOkResponse({ description: 'Delete workspace by owner id' })
   async destroyWorkspace(@Body() deleteWorkspaceDto: DeleteWorkspaceDto) {
-    return this.gatewayUseCases.destroyWorkspace(deleteWorkspaceDto.ownerId);
+    const workspace = await this.gatewayUseCases.destroyWorkspace(
+      deleteWorkspaceDto.ownerId,
+    );
+
+    this.auditLogService.logWorkspaceAction(
+      workspace.id,
+      AuditAction.WorkspaceDeleted,
+      AuditPerformerType.Gateway,
+      workspace.ownerId,
+    );
   }
 
   @Get('/users')

@@ -11,6 +11,7 @@ import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 @Injectable()
 export class GatewayUseCases {
@@ -49,7 +50,7 @@ export class GatewayUseCases {
     ownerId: string,
     maxSpaceBytes: number,
     numberOfSeats: number,
-  ): Promise<void> {
+  ): Promise<Workspace> {
     try {
       const owner = await this.userRepository.findByUuid(ownerId);
       if (!owner) {
@@ -76,6 +77,8 @@ export class GatewayUseCases {
           numberOfSeats,
         );
       }
+
+      return workspace;
     } catch (error) {
       Logger.error(
         `[GATEWAY/WORKSPACE] Error updating workspace for owner ${ownerId}`,
@@ -110,7 +113,7 @@ export class GatewayUseCases {
     );
   }
 
-  async destroyWorkspace(ownerId: string): Promise<void> {
+  async destroyWorkspace(ownerId: string): Promise<Workspace> {
     const owner = await this.userRepository.findByUuid(ownerId);
     if (!owner) {
       throw new BadRequestException();
@@ -132,6 +135,8 @@ export class GatewayUseCases {
         clientId: 'gateway',
       });
     });
+
+    return workspace;
   }
 
   async getUserByEmail(email: string): Promise<User> {
