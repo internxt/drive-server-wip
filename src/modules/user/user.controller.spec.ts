@@ -370,7 +370,7 @@ describe('User Controller', () => {
     });
   });
 
-  describe('GET /refresh/avatar', () => {
+  describe('GET /avatar/refresh', () => {
     const user = newUser();
     const avatarKey = 'some-avatar-key';
     const avatarURL = 'https://cdn.example.com/avatars/' + v4();

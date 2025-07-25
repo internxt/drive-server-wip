@@ -488,7 +488,7 @@ export class UserController {
     return { ...tokens, user: userData };
   }
 
-  @Get('/refresh/avatar')
+  @Get('/avatar/refresh')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Refresh avatar token',
