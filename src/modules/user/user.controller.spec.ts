@@ -370,6 +370,33 @@ describe('User Controller', () => {
     });
   });
 
+  describe('GET /refresh/avatar', () => {
+    const user = newUser();
+    const avatarKey = 'some-avatar-key';
+    const avatarURL = 'https://cdn.example.com/avatars/' + v4();
+
+    beforeEach(() => {
+      user.avatar = avatarKey;
+    });
+
+    test('when the user has an avatar, then it should return a new link for the avatar', async () => {
+      jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValue(avatarURL);
+
+      const result = await userController.refreshAvatarUser(user);
+
+      expect(result).toStrictEqual({ avatar: avatarURL });
+      expect(userUseCases.getAvatarUrl).toHaveBeenCalledWith(avatarKey);
+    });
+
+    test('When the user does not have avatar, then return null', async () => {
+      user.avatar = null;
+
+      const result = await userController.refreshAvatarUser(user);
+
+      expect(result).toStrictEqual({ avatar: null });
+    });
+  });
+
   describe('PUT /avatar', () => {
     const user = newUser();
     const newAvatarKey = v4();
