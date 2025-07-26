@@ -450,14 +450,6 @@ export class SequelizeSharingRepository implements SharingRepository {
       where: {
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
       },
-      attributes: [
-        [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
-          'encryptionKey',
-        ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
       include: [
         {
           model: FolderModel,
@@ -492,55 +484,35 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async findFilesByOwnerAndSharedWithMe(
+  async findAllSharingsForFileItems(
     userId: User['uuid'],
-    offset: number,
-    limit: number,
-    orderBy?: [string, string][],
+    itemIds?: string[],
+    options?: { offset?: number; limit?: number; orderBy?: [string, string][] },
   ): Promise<Sharing[]> {
-    const sharedFiles = await this.sharings.findAll({
-      where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
-      },
-      attributes: [
-        [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
-          'encryptionKey',
-        ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: ['file.id', 'file->user.id', 'SharingModel.item_id'],
+    const whereConditions: any = {
+      [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      itemType: 'file',
+    };
+
+    if (itemIds && itemIds.length > 0) {
+      whereConditions.itemId = { [Op.in]: itemIds };
+    }
+
+    const allSharingsForItems = await this.sharings.findAll({
+      where: whereConditions,
       include: [
         {
           model: FileModel,
-          where: {
-            status: FileStatus.EXISTS,
-          },
-          include: [
-            {
-              model: UserModel,
-              as: 'user',
-              attributes: [
-                'uuid',
-                'email',
-                'name',
-                'lastname',
-                'avatar',
-                'userId',
-                'bridgeUser',
-              ],
-            },
-          ],
+          where: { status: FileStatus.EXISTS },
+          include: [{ model: UserModel, as: 'user' }],
         },
       ],
-      order: orderBy,
-      limit,
-      offset,
+      order: options?.orderBy,
+      limit: options?.limit,
+      offset: options?.offset,
     });
 
-    return sharedFiles.map((shared) => {
-      return this.toDomainFile(shared);
-    });
+    return allSharingsForItems.map((shared) => this.toDomainFile(shared));
   }
 
   async findSharingsBySharedWithAndAttributes(
@@ -586,64 +558,56 @@ export class SequelizeSharingRepository implements SharingRepository {
     );
   }
 
-  async findFilesSharedInWorkspaceByOwnerAndTeams(
-    ownerId: WorkspaceItemUserAttributes['createdBy'],
+  async findAllSharingsForWorkspaceFileItems(
     workspaceId: WorkspaceAttributes['id'],
-    teamIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; order?: [string, string][] },
+    itemIds?: string[],
+    options?: {
+      ownerId?: WorkspaceItemUserAttributes['createdBy'];
+      teamIds?: WorkspaceTeamAttributes['id'][];
+      offset?: number;
+      limit?: number;
+      order?: [string, string][];
+    },
   ): Promise<Sharing[]> {
-    const sharedFiles = await this.sharings.findAll({
-      where: {
-        [Op.or]: [
-          {
-            sharedWith: { [Op.in]: teamIds },
-            sharedWithType: SharedWithType.WorkspaceTeam,
-          },
-          {
-            '$file->workspaceUser.created_by$': ownerId,
-          },
-        ],
-      },
-      attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: [
-        'SharingModel.item_id',
-        'file.id',
-        'file->workspaceUser.id',
-        'file->workspaceUser->creator.id',
-      ],
+    const whereConditions: any = {};
+
+    if (itemIds && itemIds.length > 0) {
+      whereConditions.itemId = { [Op.in]: itemIds };
+    }
+
+    if (options?.ownerId && options?.teamIds) {
+      whereConditions[Op.or] = [
+        {
+          sharedWith: { [Op.in]: options.teamIds },
+          sharedWithType: SharedWithType.WorkspaceTeam,
+        },
+        { '$file->workspaceUser.created_by$': options.ownerId },
+      ];
+    }
+
+    const allSharingsForItems = await this.sharings.findAll({
+      where: whereConditions,
       include: [
         {
           model: FileModel,
-          where: {
-            status: FileStatus.EXISTS,
-          },
+          where: { status: FileStatus.EXISTS },
           include: [
             {
               model: WorkspaceItemUserModel,
               as: 'workspaceUser',
               required: true,
-              where: {
-                workspaceId,
-              },
-              include: [
-                {
-                  model: UserModel,
-                  as: 'creator',
-                  attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
-                },
-              ],
+              where: { workspaceId },
+              include: [{ model: UserModel, as: 'creator' }],
             },
           ],
         },
       ],
-      order: options.order,
-      limit: options.limit,
-      offset: options.offset,
+      order: options?.order,
+      limit: options?.limit,
+      offset: options?.offset,
     });
 
-    return sharedFiles.map((shared) => {
+    return allSharingsForItems.map((shared) => {
       const sharing = shared.get({ plain: true });
       const user = sharing.file.workspaceUser?.creator;
       delete sharing.file.user;
@@ -676,15 +640,6 @@ export class SequelizeSharingRepository implements SharingRepository {
           },
         ],
       },
-      attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
-      ],
-      group: [
-        'SharingModel.item_id',
-        'folder.id',
-        'folder->workspaceUser.id',
-        'folder->workspaceUser->creator.id',
-      ],
       include: [
         {
           model: FolderModel,

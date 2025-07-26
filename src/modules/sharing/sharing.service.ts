@@ -164,6 +164,49 @@ export class SharingService {
     return this.sharingRepository.findSharingRoleBy(where);
   }
 
+  private deduplicateSharingsByItemId(sharings: Sharing[]): Sharing[] {
+    const uniqueSharings = new Map<string, Sharing>();
+    sharings.forEach((sharing) => {
+      const itemId = sharing.itemId;
+      if (!uniqueSharings.has(itemId)) {
+        uniqueSharings.set(itemId, sharing);
+      }
+    });
+    return Array.from(uniqueSharings.values());
+  }
+
+  private async findFilesByOwnerAndSharedWithMe(
+    userId: User['uuid'],
+    offset: number,
+    limit: number,
+    orderBy?: [string, string][],
+  ): Promise<Sharing[]> {
+    const allSharings =
+      await this.sharingRepository.findAllSharingsForFileItems(
+        userId,
+        undefined,
+        { offset, limit, orderBy },
+      );
+
+    return this.deduplicateSharingsByItemId(allSharings);
+  }
+
+  private async findFilesSharedInWorkspaceByOwnerAndTeams(
+    ownerId: User['uuid'],
+    workspaceId: Workspace['id'],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    options: { offset: number; limit: number; order?: [string, string][] },
+  ): Promise<Sharing[]> {
+    const allSharings =
+      await this.sharingRepository.findAllSharingsForWorkspaceFileItems(
+        workspaceId,
+        undefined,
+        { ownerId, teamIds, ...options },
+      );
+
+    return this.deduplicateSharingsByItemId(allSharings);
+  }
+
   async isItemBeingSharedAboveTheLimit(
     itemId: Sharing['itemId'],
     itemType: Sharing['itemType'],
@@ -1614,12 +1657,7 @@ export class SharingService {
         limit,
         order,
       ),
-      this.sharingRepository.findFilesByOwnerAndSharedWithMe(
-        user.uuid,
-        offset,
-        limit,
-        order,
-      ),
+      this.findFilesByOwnerAndSharedWithMe(user.uuid, offset, limit, order),
     ]);
     const folders = (await Promise.all(
       foldersWithSharedInfo.map(async (folderWithSharedInfo) => {
@@ -1692,13 +1730,12 @@ export class SharingService {
     limit: number,
     order: [string, string][],
   ): Promise<GetItemsReponse> {
-    const filesWithSharedInfo =
-      await this.sharingRepository.findFilesByOwnerAndSharedWithMe(
-        user.uuid,
-        offset,
-        limit,
-        order,
-      );
+    const filesWithSharedInfo = await this.findFilesByOwnerAndSharedWithMe(
+      user.uuid,
+      offset,
+      limit,
+      order,
+    );
 
     const files = (await Promise.all(
       filesWithSharedInfo.map(async (fileWithSharedInfo) => {
@@ -1745,7 +1782,7 @@ export class SharingService {
     options: { offset: number; limit: number; order?: [string, string][] },
   ): Promise<GetItemsReponse> {
     const filesWithSharedInfo =
-      await this.sharingRepository.findFilesSharedInWorkspaceByOwnerAndTeams(
+      await this.findFilesSharedInWorkspaceByOwnerAndTeams(
         user.uuid,
         workspaceId,
         teamIds,
