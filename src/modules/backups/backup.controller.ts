@@ -141,7 +141,6 @@ export class BackupController {
     description: 'The updated device',
   })
   @ApiBearerAuth()
-  @Public()
   async updateDevice(
     @UserDecorator() user: User,
     @Param('deviceId') deviceId: number,
