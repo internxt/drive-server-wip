@@ -277,10 +277,10 @@ export class BackupUseCase {
     return { ...device, folder };
   }
 
-  async deleteDeviceAndFolder(user: User, deviceId: number) {
-    const device = await this.backupRepository.findDeviceByUserAndId(
+  async deleteDeviceAndFolderByKey(user: User, deviceKey: string) {
+    const device = await this.backupRepository.findDeviceByUserAndKey(
       user,
-      deviceId,
+      deviceKey,
     );
 
     if (!device) {
@@ -298,19 +298,19 @@ export class BackupUseCase {
     }
 
     await this.backupRepository.deleteDevicesBy({
-      id: deviceId,
+      id: device.id,
       userId: user.id,
     });
   }
 
-  async updateDeviceAndFolderName(
+  async updateDeviceAndFolderNameByKey(
     user: User,
-    deviceId: number,
+    deviceKey: string,
     updateDeviceDto: UpdateDeviceAndFolderDto,
   ) {
-    const device = await this.backupRepository.findDeviceByUserAndId(
+    const device = await this.backupRepository.findDeviceByUserAndKey(
       user,
-      deviceId,
+      deviceKey,
     );
 
     if (!device) {
@@ -368,7 +368,7 @@ export class BackupUseCase {
 
     const updatedDevice = await this.backupRepository.updateDeviceName(
       user,
-      deviceId,
+      device.id,
       updateDeviceDto.name,
     );
 
