@@ -150,6 +150,13 @@ export class SequelizeBackupRepository {
     return device ? this.toDomainDevice(device) : null;
   }
 
+  async findDeviceByUserAndKey(user: User, key: string) {
+    const device = await this.deviceModel.findOne({
+      where: { userId: user.id, key },
+    });
+    return device ? this.toDomainDevice(device) : null;
+  }
+
   async findAllBackupsByUserAndDevice(user: User, deviceId: number) {
     const backups = await this.backupModel.findAll({
       where: { userId: user.id, deviceId },

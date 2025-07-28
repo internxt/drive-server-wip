@@ -117,9 +117,9 @@ export class BackupController {
     return new DeviceDto(device);
   }
 
-  @Delete('/v2/devices/:deviceId')
+  @Delete('/v2/devices/:key')
   @ApiOperation({
-    summary: 'Delete device and its linked folder by ID',
+    summary: 'Delete device and its linked folder by key',
   })
   @ApiBearerAuth()
   @ApiOkResponse({
@@ -127,14 +127,14 @@ export class BackupController {
   })
   async deleteDeviceAndFolder(
     @UserDecorator() user: User,
-    @Param('deviceId', ParseIntPipe) deviceId: number,
+    @Param('key') deviceKey: string,
   ) {
-    return this.backupUseCases.deleteDeviceAndFolder(user, deviceId);
+    return this.backupUseCases.deleteDeviceAndFolderByKey(user, deviceKey);
   }
 
-  @Patch('/v2/devices/:deviceId')
+  @Patch('/v2/devices/:key')
   @ApiOperation({
-    summary: 'Update device',
+    summary: 'Update device by key',
   })
   @ApiOkResponse({
     type: DeviceDto,
@@ -143,12 +143,12 @@ export class BackupController {
   @ApiBearerAuth()
   async updateDevice(
     @UserDecorator() user: User,
-    @Param('deviceId') deviceId: number,
+    @Param('key') deviceKey: string,
     @Body() body: UpdateDeviceAndFolderDto,
   ) {
-    const device = await this.backupUseCases.updateDeviceAndFolderName(
+    const device = await this.backupUseCases.updateDeviceAndFolderNameByKey(
       user,
-      deviceId,
+      deviceKey,
       body,
     );
     return new DeviceDto(device);
