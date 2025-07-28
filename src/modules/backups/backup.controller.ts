@@ -27,6 +27,7 @@ import { CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
 import { CreateDeviceAndAttachFolderDto } from './dto/create-device-and-attach-folder.dto';
 import { DeviceDto } from './dto/responses/device.dto';
 import { UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Backup')
 @Controller('backup')
@@ -140,9 +141,10 @@ export class BackupController {
     description: 'The updated device',
   })
   @ApiBearerAuth()
+  @Public()
   async updateDevice(
     @UserDecorator() user: User,
-    @Param('deviceId', ParseIntPipe) deviceId: number,
+    @Param('deviceId') deviceId: number,
     @Body() body: UpdateDeviceAndFolderDto,
   ) {
     const device = await this.backupUseCases.updateDeviceAndFolderName(
