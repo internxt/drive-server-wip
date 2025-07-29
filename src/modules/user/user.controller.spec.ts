@@ -1198,6 +1198,7 @@ describe('User Controller', () => {
       mnemonic: 'encrypted_mnemonic',
       password: 'encrypted_password',
       salt: 'encrypted_salt',
+      uuid: mockUser.uuid,
       privateKeys: {
         ecc: 'encrypted_ecc_key',
         kyber: 'encrypted_kyber_key',
@@ -1207,6 +1208,7 @@ describe('User Controller', () => {
     const mockRecoverAccountNoKeys: RecoverAccountDto = {
       mnemonic: 'encrypted_mnemonic',
       password: 'encrypted_password',
+      uuid: mockUser.uuid,
       salt: 'encrypted_salt',
     };
 
@@ -1335,6 +1337,18 @@ describe('User Controller', () => {
         },
         false,
       );
+    });
+
+    it('When reset is false but private keys are provided but the uuid does not match, then it throws BadRequestException', async () => {
+      await expect(
+        userController.recoverAccountV2(
+          { token: validToken, reset: 'false' },
+          {
+            ...mockRecoverAccountDto,
+            uuid: 'invalid_uuid',
+          },
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

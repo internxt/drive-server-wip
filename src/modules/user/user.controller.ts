@@ -818,6 +818,13 @@ export class UserController {
       );
     }
 
+    const uuidsMatch = decodedContent.payload.uuid === body.uuid;
+    if (!uuidsMatch) {
+      throw new BadRequestException(
+        'Backup file does not match the users uuid',
+      );
+    }
+
     try {
       this.logger.log(
         `[RECOVER_ACCOUNT] Recovering account for user: ${userUuid}`,
