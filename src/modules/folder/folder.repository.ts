@@ -876,6 +876,108 @@ export class SequelizeFolderRepository implements FolderRepository {
     }
   }
 
+  async getDeletedFoldersWithNotDeletedChildren(options: {
+    startDate?: Date;
+    untilDate?: Date;
+    limit: number;
+  }): Promise<string[]> {
+    const { startDate, untilDate, limit } = options;
+
+    const whereClause: WhereOptions<FolderModel> = {
+      removed: true,
+    };
+
+    if (startDate || untilDate) {
+      whereClause.updatedAt = {};
+      if (startDate) whereClause.updatedAt[Op.gte] = startDate;
+      if (untilDate) whereClause.updatedAt[Op.lt] = untilDate;
+    }
+
+    const existsCondition = Sequelize.literal(`
+      EXISTS (
+      SELECT 1 
+      FROM folders child 
+      WHERE child.parent_uuid = "FolderModel"."uuid" 
+        AND child.removed = false
+      )
+      `);
+
+    const results = (await FolderModel.findAll({
+      attributes: ['uuid'],
+      where: {
+        ...whereClause,
+        [Op.and]: existsCondition,
+      },
+      limit,
+      raw: true,
+    })) as { uuid: string }[];
+
+    return results.map((folder) => folder.uuid);
+  }
+
+  async getDeletedFoldersWithNotDeletedFiles(options: {
+    startDate?: Date;
+    untilDate?: Date;
+    limit: number;
+  }): Promise<string[]> {
+    const { startDate, untilDate, limit } = options;
+
+    const whereClause: WhereOptions<FolderModel> = {
+      removed: true,
+    };
+
+    if (startDate || untilDate) {
+      whereClause.updatedAt = {};
+      if (startDate) whereClause.updatedAt[Op.gte] = startDate;
+      if (untilDate) whereClause.updatedAt[Op.lt] = untilDate;
+    }
+
+    const existsCondition = Sequelize.literal(`
+      EXISTS 
+      (
+        SELECT 1
+        FROM files f
+        WHERE f.folder_uuid = "FolderModel"."uuid" 
+          AND f.status != 'DELETED'
+      )
+      `);
+
+    const results = (await FolderModel.findAll({
+      attributes: ['uuid'],
+      where: {
+        ...whereClause,
+        [Op.and]: existsCondition,
+      },
+      limit,
+      raw: true,
+    })) as { uuid: string }[];
+
+    return results.map((folder) => folder.uuid);
+  }
+
+  async markChildFoldersAsRemoved(
+    parentUuids: string[],
+  ): Promise<{ updatedCount: number }> {
+    const deletedDate = new Date();
+    const [updatedCount] = await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: deletedDate,
+        deleted: true,
+        deletedAt: deletedDate,
+        updatedAt: deletedDate,
+      },
+      {
+        where: {
+          parentUuid: { [Op.in]: parentUuids },
+          removed: false,
+        },
+      },
+    );
+
+    return { updatedCount };
+  }
+
   async getFolderByPath(
     userId: Folder['id'],
     path: string,
