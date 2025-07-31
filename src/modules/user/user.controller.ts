@@ -187,6 +187,7 @@ export class UserController {
           keys: { ...keys },
         },
         token: response.token,
+        newToken: response.newToken,
         uuid: response.uuid,
       };
     } catch (err) {
