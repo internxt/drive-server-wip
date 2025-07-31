@@ -1339,7 +1339,7 @@ describe('User Controller', () => {
       );
     });
 
-    it('When reset is false but private keys are provided but the uuid does not match, then it throws BadRequestException', async () => {
+    it('When reset is false, private keys are provided but the uuid does not match, then it throws BadRequestException', async () => {
       await expect(
         userController.recoverAccountV2(
           { token: validToken, reset: 'false' },
@@ -1349,6 +1349,27 @@ describe('User Controller', () => {
           },
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When reset is false, private keys are provided and the uuid is not provided, then it updates credentials with private keys', async () => {
+      await userController.recoverAccountV2(
+        { token: validToken, reset: 'false' },
+        {
+          ...mockRecoverAccountDto,
+          uuid: undefined,
+        },
+      );
+
+      expect(userUseCases.updateCredentials).toHaveBeenCalledWith(
+        mockUser.uuid,
+        {
+          mnemonic: mockRecoverAccountDto.mnemonic,
+          password: mockRecoverAccountDto.password,
+          salt: mockRecoverAccountDto.salt,
+          privateKeys: mockRecoverAccountDto.privateKeys,
+        },
+        false,
+      );
     });
   });
 

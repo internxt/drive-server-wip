@@ -819,7 +819,7 @@ export class UserController {
     }
 
     const uuidsMatch = decodedContent.payload.uuid === body.uuid;
-    if (!uuidsMatch) {
+    if (body.uuid && !uuidsMatch) {
       throw new BadRequestException(
         'Backup file does not match the users uuid',
       );
