@@ -368,6 +368,7 @@ export class UserController {
           keys: { ...keys },
         },
         token: userCreated.token,
+        newToken: userCreated.newToken,
         uuid: userCreated.uuid,
       };
     } catch (err) {
