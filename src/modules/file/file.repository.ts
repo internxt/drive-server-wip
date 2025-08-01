@@ -730,6 +730,28 @@ export class SequelizeFileRepository implements FileRepository {
     );
   }
 
+  async markFilesInFolderAsRemoved(
+    parentUuids: string[],
+  ): Promise<{ updatedCount: number }> {
+    const deletedDate = new Date();
+    const [updatedCount] = await this.fileModel.update(
+      {
+        removed: true,
+        removedAt: deletedDate,
+        status: FileStatus.DELETED,
+        updatedAt: deletedDate,
+      },
+      {
+        where: {
+          folderUuid: { [Op.in]: parentUuids },
+          removed: false,
+        },
+      },
+    );
+
+    return { updatedCount };
+  }
+
   async destroyFile(where: Partial<FileModel>): Promise<void> {
     await this.fileModel.destroy({ where });
   }

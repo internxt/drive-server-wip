@@ -2279,6 +2279,13 @@
     path-to-regexp "8.2.0"
     tslib "2.8.1"
 
+"@nestjs/schedule@^6.0.0":
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/@nestjs/schedule/-/schedule-6.0.0.tgz#c8069d1f19742e418a617af76311ab853cb48f0a"
+  integrity sha512-aQySMw6tw2nhitELXd3EiRacQRgzUKD9mFcUZVOJ7jPLqIBvXOyvRWLsK9SdurGA+jjziAlMef7iB5ZEFFoQpw==
+  dependencies:
+    cron "4.3.0"
+
 "@nestjs/schematics@^11.0.1":
   version "11.0.2"
   resolved "https://registry.yarnpkg.com/@nestjs/schematics/-/schematics-11.0.2.tgz#0ee0aba704b14c2b933d0a04dcdfe5203b70469b"
@@ -2523,6 +2530,11 @@
   resolved "https://registry.yarnpkg.com/@redis/bloom/-/bloom-1.2.0.tgz#d3fd6d3c0af3ef92f26767b56414a370c7b63b71"
   integrity sha512-HG2DFjYKbpNmVXsa0keLHp/3leGJz1mjh09f2RLGGLQZzSHpkmZWuwJbAvo3QcRY8p80m5+ZdXZdYOSBLlp7Cg==
 
+"@redis/bloom@5.7.0":
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/@redis/bloom/-/bloom-5.7.0.tgz#69e00b57ab32beabc168c58418ee3ba979a8b6ea"
+  integrity sha512-KtBHDH2Aw1BxYDQd87PJsdEmZcpMbD4oPzdBwB4IvSRmMovukO2NNGi5vpCHhCoicS83zu7cjX1fw79uFBZFJA==
+
 "@redis/client@1.6.0":
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/@redis/client/-/client-1.6.0.tgz#dcf4ae1319763db6fdddd6de7f0af68a352c30ea"
@@ -2531,6 +2543,13 @@
     cluster-key-slot "1.1.2"
     generic-pool "3.9.0"
     yallist "4.0.0"
+
+"@redis/client@5.7.0":
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/@redis/client/-/client-5.7.0.tgz#e84be49497eddb13811085501e20fb3b57659fa1"
+  integrity sha512-YV3Knspdj9k6H6s4v8QRcj1WBxHt40vtPmszLKGwRUOUpUOLWSlI9oCUjprMDcQNzgSCXGXYdL/Aj6nT2+Ub0w==
+  dependencies:
+    cluster-key-slot "1.1.2"
 
 "@redis/graph@1.1.1":
   version "1.1.1"
@@ -2542,15 +2561,30 @@
   resolved "https://registry.yarnpkg.com/@redis/json/-/json-1.0.7.tgz#016257fcd933c4cbcb9c49cde8a0961375c6893b"
   integrity sha512-6UyXfjVaTBTJtKNG4/9Z8PSpKE6XgSyEb8iwaqDcy+uKrd/DGYHTWkUdnQDyzm727V7p21WUMhsqz5oy65kPcQ==
 
+"@redis/json@5.7.0":
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/@redis/json/-/json-5.7.0.tgz#b0774aee0c68945457b0af52d0c005f82e7d2080"
+  integrity sha512-VP3wtse1PSB/UjZAV1lWyDrWrrZcwi/cjb3L0lIarcIJ+EbHliB2QPml0Bvjz8F8F0eDJRtChJVXFc+jhGxCtA==
+
 "@redis/search@1.2.0":
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@redis/search/-/search-1.2.0.tgz#50976fd3f31168f585666f7922dde111c74567b8"
   integrity sha512-tYoDBbtqOVigEDMAcTGsRlMycIIjwMCgD8eR2t0NANeQmgK/lvxNAvYyb6bZDD4frHRhIHkJu2TBRvB0ERkOmw==
 
+"@redis/search@5.7.0":
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/@redis/search/-/search-5.7.0.tgz#907cc4036077dac85de9dd63d057c8bb2709db73"
+  integrity sha512-dDZIq8pZJnT+kZ9xRlLLi2Rvkd792z9eh31QRIwPr5wXjAXeaQ+Nf65em6dLpsxZ60MmhwDwLrBPJpYVjKPBPQ==
+
 "@redis/time-series@1.1.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@redis/time-series/-/time-series-1.1.0.tgz#cba454c05ec201bd5547aaf55286d44682ac8eb5"
   integrity sha512-c1Q99M5ljsIuc4YdaCwfUEXsofakb9c8+Zse2qxTadu8TalLXuAESzLvFAvNVbkmSlvlzIQOLpBCmWI9wTOt+g==
+
+"@redis/time-series@5.7.0":
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/@redis/time-series/-/time-series-5.7.0.tgz#43089195bf85e6468edaa4e664b26b4b7842f697"
+  integrity sha512-AJTF9sz3y1MJAukgQW4Jw8zt8qGOE3+1d87pufOP35zsFBlHipGscpctoXiNMebfy0114y/FjSprr65LjbJQSQ==
 
 "@rudderstack/rudder-sdk-node@^2.1.4":
   version "2.1.4"
@@ -3718,6 +3752,11 @@
   version "4.17.16"
   resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.17.16.tgz#94ae78fab4a38d73086e962d0b65c30d816bfb0a"
   integrity sha512-HX7Em5NYQAXKW+1T+FiuG27NGwzJfCX3s1GjOa7ujxZa52kjJLOr4FUxT+giF6Tgxv1e+/czV/iTtBw27WTU9g==
+
+"@types/luxon@~3.6.0":
+  version "3.6.2"
+  resolved "https://registry.yarnpkg.com/@types/luxon/-/luxon-3.6.2.tgz#be6536931801f437eafcb9c0f6d6781f72308041"
+  integrity sha512-R/BdP7OxEMc44l2Ex5lSXHoIXTB2JLNa3y2QISIbr58U/YcsffyQrYW//hZSdrfxrjRZj3GcUoxMPGdO8gSYuw==
 
 "@types/methods@^1.1.4":
   version "1.1.4"
@@ -5257,6 +5296,14 @@ cron-parser@^4.2.1:
   integrity sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==
   dependencies:
     luxon "^3.2.1"
+
+cron@4.3.0:
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/cron/-/cron-4.3.0.tgz#c5a62872f74f72294cf1cadef34c72ad8d8f50b5"
+  integrity sha512-ciiYNLfSlF9MrDqnbMdRWFiA6oizSF7kA1osPP9lRzNu0Uu+AWog1UKy7SkckiDY2irrNjeO6qLyKnXC8oxmrw==
+  dependencies:
+    "@types/luxon" "~3.6.0"
+    luxon "~3.6.0"
 
 cross-env@^7.0.3:
   version "7.0.3"
@@ -7611,7 +7658,7 @@ lru-cache@^5.1.1:
   dependencies:
     yallist "^3.0.2"
 
-luxon@^3.2.1:
+luxon@^3.2.1, luxon@~3.6.0:
   version "3.6.1"
   resolved "https://registry.yarnpkg.com/luxon/-/luxon-3.6.1.tgz#d283ffc4c0076cb0db7885ec6da1c49ba97e47b0"
   integrity sha512-tJLxrKJhO2ukZ5z0gyjY1zPh3Rh88Ej9P7jNrZiHMUXHae1yvI2imgOZtL1TO8TW6biMMKfTtAOoEJANgtWBMQ==
@@ -8805,6 +8852,17 @@ redis@^4.7.0:
     "@redis/json" "1.0.7"
     "@redis/search" "1.2.0"
     "@redis/time-series" "1.1.0"
+
+redis@^5.7.0:
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/redis/-/redis-5.7.0.tgz#55264320a300dd2ca72a6d455af9e46b666b8345"
+  integrity sha512-ZRbiWYBUYdDTopodRjCVwwCLThrkciPW3bOrkdMCW3nYEelBwUGN6SovmACDsiLUB7mnU3mXnaI5f0W7bDcwng==
+  dependencies:
+    "@redis/bloom" "5.7.0"
+    "@redis/client" "5.7.0"
+    "@redis/json" "5.7.0"
+    "@redis/search" "5.7.0"
+    "@redis/time-series" "5.7.0"
 
 reflect-metadata@^0.1.13:
   version "0.1.14"

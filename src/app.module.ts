@@ -26,6 +26,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
+import { JobsModule } from './modules/jobs/jobs.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter
         limit: 5,
       },
     ]),
+    JobsModule,
     NotificationModule,
     FileModule,
     FolderModule,
