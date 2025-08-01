@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsPositive, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ReplaceFileDto {
@@ -16,4 +22,13 @@ export class ReplaceFileDto {
     description: 'New file size',
   })
   size: bigint;
+
+  @IsDateString()
+  @IsOptional()
+  @ApiProperty({
+    description: 'The last modification time of the file (optional)',
+    required: false,
+    example: '2023-05-30T12:34:56.789Z',
+  })
+  modificationTime?: Date;
 }

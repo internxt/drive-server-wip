@@ -615,11 +615,12 @@ export class FileUseCases {
     }
 
     const { fileId: oldFileId, bucket } = file;
-    const { fileId, size } = newFileData;
+    const { fileId, size, modificationTime } = newFileData;
 
     await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
       fileId,
       size,
+      ...(modificationTime ? { modificationTime } : null),
     });
     await this.network.deleteFile(user, bucket, oldFileId);
 
