@@ -3,7 +3,7 @@ import { SequelizeJobExecutionRepository } from '../repositories/job-execution.r
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { JobName } from '../constants';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { RedisService } from '../services/redis.service';
 import { JobExecutionModel } from '../models/job-execution.model';
 
@@ -20,7 +20,9 @@ export class DeletedItemsCleanupTask {
     private readonly redisService: RedisService,
   ) {}
 
-  @Cron('*/10 * * * * *', { name: JobName.DELETED_ITEMS_CLEANUP })
+  @Cron(CronExpression.EVERY_30_MINUTES, {
+    name: JobName.DELETED_ITEMS_CLEANUP,
+  })
   async scheduleCleanup() {
     try {
       const acquired = await this.redisService.tryAcquireLock(
@@ -55,7 +57,7 @@ export class DeletedItemsCleanupTask {
 
     try {
       this.logger.log(`[${jobId}] Phase 1: Starting to process folders`);
-      await this.processPhase(
+      const foldersWithChildrenProcessed = await this.processPhase(
         jobId,
         'FoldersPhase',
         this.yieldDeletedFoldersWithActiveChildren(startDate, untilDate, 100),
@@ -64,7 +66,7 @@ export class DeletedItemsCleanupTask {
       );
 
       this.logger.log(`[${jobId}] Phase 2: Starting to process files`);
-      await this.processPhase(
+      const foldersWithFilesProcessed = await this.processPhase(
         jobId,
         'FilesPhase',
         this.yieldDeletedFoldersWithActiveFiles(startDate, untilDate, 100),
@@ -74,15 +76,19 @@ export class DeletedItemsCleanupTask {
 
       const completedJob = await this.jobExecutionRepository.markAsCompleted(
         startedJob.id,
+        {
+          foldersWithChildrenProcessed,
+          foldersWithFilesProcessed,
+        },
       );
       this.logger.log(
         `[${jobId}] Cleanup completed at ${completedJob?.completedAt}`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${jobId}] Error while executing deleted folders cleanup ${JSON.stringify({ error })}`,
-      );
       const errorMessage = error.message;
+      this.logger.error(
+        `[${jobId}] Error while executing deleted folders cleanup ${errorMessage}`,
+      );
       await this.jobExecutionRepository.markAsFailed(startedJob.id, {
         errorMessage,
       });
@@ -98,7 +104,7 @@ export class DeletedItemsCleanupTask {
   ) {
     let firstFolderUuid: string | null = null;
     let sameFolderRepeatedTimes = 0;
-
+    let processedItems = 0;
     for await (const folderUuids of generator) {
       if (folderUuids.length === 0) {
         this.logger.log(`[${jobId}] No more items to process`);
@@ -122,7 +128,9 @@ export class DeletedItemsCleanupTask {
       }
 
       await processor(folderUuids);
+      processedItems += folderUuids.length;
     }
+    return processedItems;
   }
 
   async *yieldDeletedFoldersWithActiveChildren(
