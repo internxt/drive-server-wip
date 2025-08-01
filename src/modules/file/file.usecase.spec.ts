@@ -1228,6 +1228,51 @@ describe('FileUseCases', () => {
       });
     });
 
+    it('When file exists and modificationTime was passed, then it should replace file data with modificationTime', async () => {
+      const mockFile = newFile({
+        attributes: { fileId: 'old-file-id-string', bucket: 'test-bucket' },
+      });
+      const replaceData = {
+        fileId: 'new-file-id',
+        size: BigInt(200),
+        modificationTime: new Date(),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+      const result = await service.replaceFile(
+        userMocked,
+        mockFile.uuid,
+        replaceData,
+      );
+
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {
+          fileId: replaceData.fileId,
+          size: replaceData.size,
+          modificationTime: replaceData.modificationTime,
+        },
+      );
+      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.bucket,
+        mockFile.fileId,
+      );
+      expect(result).toEqual({
+        ...mockFile.toJSON(),
+        fileId: replaceData.fileId,
+        size: replaceData.size,
+      });
+    });
+
     it('When file does not exist, then it should throw NotFoundException', async () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
 
