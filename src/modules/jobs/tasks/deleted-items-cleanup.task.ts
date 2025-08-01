@@ -114,10 +114,10 @@ export class DeletedItemsCleanupTask {
 
       if (sameFolderRepeatedTimes >= 3) {
         this.logger.error(
-          `[${jobId}] UUID ${firstFolderUuid} still present after 3 attempts while processing while ${phaseName}`,
+          `[${jobId}] UUID ${firstFolderUuid} still present after 3 attempts while processing ${phaseName}`,
         );
         throw new Error(
-          `Same folder uuid repeated more than 3 in consecutive batches during while ${phaseName}`,
+          `Same folder uuid repeated more than 3 in consecutive batches during ${phaseName}`,
         );
       }
 
