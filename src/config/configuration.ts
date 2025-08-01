@@ -35,9 +35,6 @@ export default () => ({
   cache: {
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,
   },
-  jobs: {
-    queueConnectionString: process.env.JOBS_REDIS_CONNECTION_STRING,
-  },
   secrets: {
     magicIv: process.env.MAGIC_IV,
     magicSalt: process.env.MAGIC_SALT,
