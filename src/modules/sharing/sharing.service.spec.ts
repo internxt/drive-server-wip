@@ -596,7 +596,10 @@ describe('Sharing Use Cases', () => {
       const filesWithSharedInfo = [sharing];
 
       jest
-        .spyOn(sharingRepository, 'findFilesSharedInWorkspaceByOwnerAndTeams')
+        .spyOn(
+          sharingService as any,
+          'findFilesSharedInWorkspaceByOwnerAndTeams',
+        )
         .mockResolvedValue(filesWithSharedInfo);
 
       jest
@@ -641,7 +644,10 @@ describe('Sharing Use Cases', () => {
 
     it('When no files are shared with teams user belongs to, then it should return nothing', async () => {
       jest
-        .spyOn(sharingRepository, 'findFilesSharedInWorkspaceByOwnerAndTeams')
+        .spyOn(
+          sharingService as any,
+          'findFilesSharedInWorkspaceByOwnerAndTeams',
+        )
         .mockResolvedValue([]);
 
       const result = await sharingService.getSharedFilesInWorkspaceByTeams(
@@ -667,7 +673,10 @@ describe('Sharing Use Cases', () => {
       const error = new Error('Database error');
 
       jest
-        .spyOn(sharingRepository, 'findFilesSharedInWorkspaceByOwnerAndTeams')
+        .spyOn(
+          sharingService as any,
+          'findFilesSharedInWorkspaceByOwnerAndTeams',
+        )
         .mockRejectedValue(error);
 
       await expect(
@@ -1031,6 +1040,170 @@ describe('Sharing Use Cases', () => {
       await expect(
         sharingService.getItemSharingInfo(owner, item.uuid, itemType),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findFilesByOwnerAndSharedWithMe', () => {
+    it('When unique file IDs exist, then it should orchestrate repository calls correctly', async () => {
+      const user = newUser();
+      const file1 = newFile();
+      const file2 = newFile();
+      const sharing1 = newSharing({ owner: user, item: file1 });
+      const sharing2 = newSharing({ owner: user, item: file2 });
+      const allSharings = [sharing1, sharing2];
+
+      sharingRepository.findAllSharingsForFileItems.mockResolvedValue(
+        allSharings,
+      );
+
+      const result = await (
+        sharingService as any
+      ).findFilesByOwnerAndSharedWithMe(user.uuid, 0, 10, [
+        ['createdAt', 'DESC'],
+      ]);
+
+      expect(
+        sharingRepository.findAllSharingsForFileItems,
+      ).toHaveBeenCalledWith(user.uuid, undefined, {
+        offset: 0,
+        limit: 10,
+        orderBy: [['createdAt', 'DESC']],
+      });
+      expect(result).toEqual(allSharings);
+    });
+
+    it('When no files found, then it should return empty array', async () => {
+      const user = newUser();
+
+      sharingRepository.findAllSharingsForFileItems.mockResolvedValue([]);
+
+      const result = await (
+        sharingService as any
+      ).findFilesByOwnerAndSharedWithMe(user.uuid, 0, 10, [
+        ['createdAt', 'DESC'],
+      ]);
+
+      expect(result).toEqual([]);
+      expect(
+        sharingRepository.findAllSharingsForFileItems,
+      ).toHaveBeenCalledWith(user.uuid, undefined, {
+        offset: 0,
+        limit: 10,
+        orderBy: [['createdAt', 'DESC']],
+      });
+    });
+
+    it('When repository call fails, then it should propagate the error', async () => {
+      const user = newUser();
+      const error = new Error('Database connection failed');
+      sharingRepository.findAllSharingsForFileItems.mockRejectedValue(error);
+
+      await expect(
+        (sharingService as any).findFilesByOwnerAndSharedWithMe(
+          user.uuid,
+          0,
+          10,
+          [['createdAt', 'DESC']],
+        ),
+      ).rejects.toThrow(error);
+    });
+  });
+
+  describe('findFilesSharedInWorkspaceByOwnerAndTeams', () => {
+    const ownerId = v4();
+    const workspaceId = v4();
+    const teamIds = [v4(), v4()];
+    const options = { offset: 0, limit: 10, order: [['createdAt', 'DESC']] };
+
+    it('When unique file IDs exist in workspace, then it should orchestrate repository calls correctly', async () => {
+      const file1 = newFile();
+      const file2 = newFile();
+      const sharing1 = newSharing({ item: file1 });
+      const sharing2 = newSharing({ item: file2 });
+      const allSharings = [sharing1, sharing2];
+
+      sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
+        allSharings,
+      );
+
+      const result = await (
+        sharingService as any
+      ).findFilesSharedInWorkspaceByOwnerAndTeams(
+        ownerId,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+      expect(
+        sharingRepository.findAllSharingsForWorkspaceFileItems,
+      ).toHaveBeenCalledWith(workspaceId, undefined, {
+        ownerId,
+        teamIds,
+        ...options,
+      });
+      expect(result).toEqual(allSharings);
+    });
+
+    it('When no files found in workspace, then it should return empty array', async () => {
+      sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
+        [],
+      );
+
+      const result = await (
+        sharingService as any
+      ).findFilesSharedInWorkspaceByOwnerAndTeams(
+        ownerId,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+      expect(result).toEqual([]);
+      expect(
+        sharingRepository.findAllSharingsForWorkspaceFileItems,
+      ).toHaveBeenCalledWith(workspaceId, undefined, {
+        ownerId,
+        teamIds,
+        ...options,
+      });
+    });
+
+    it('When workspace repository call fails, then it should propagate the error', async () => {
+      const error = new Error('Database connection failed');
+      sharingRepository.findAllSharingsForWorkspaceFileItems.mockRejectedValue(
+        error,
+      );
+
+      await expect(
+        (sharingService as any).findFilesSharedInWorkspaceByOwnerAndTeams(
+          ownerId,
+          workspaceId,
+          teamIds,
+          options,
+        ),
+      ).rejects.toThrow(error);
+    });
+
+    it('When files found in workspace, then it should return the correct format', async () => {
+      const file = newFile();
+      const sharing = newSharing({ item: file });
+      const allSharings = [sharing];
+
+      sharingRepository.findAllSharingsForWorkspaceFileItems.mockResolvedValue(
+        allSharings,
+      );
+
+      const result = await (
+        sharingService as any
+      ).findFilesSharedInWorkspaceByOwnerAndTeams(
+        ownerId,
+        workspaceId,
+        teamIds,
+        options,
+      );
+
+      expect(result).toEqual(allSharings);
     });
   });
 
