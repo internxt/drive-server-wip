@@ -902,7 +902,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       )
       `);
 
-    const results = (await FolderModel.findAll({
+    const results = (await this.folderModel.findAll({
       attributes: ['uuid'],
       where: {
         ...whereClause,
@@ -942,7 +942,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       )
       `);
 
-    const results = (await FolderModel.findAll({
+    const results = (await this.folderModel.findAll({
       attributes: ['uuid'],
       where: {
         ...whereClause,
