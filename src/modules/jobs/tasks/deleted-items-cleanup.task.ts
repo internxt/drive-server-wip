@@ -6,6 +6,7 @@ import { JobName } from '../constants';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { RedisService } from '../services/redis.service';
 import { JobExecutionModel } from '../models/job-execution.model';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class DeletedItemsCleanupTask {
@@ -18,12 +19,22 @@ export class DeletedItemsCleanupTask {
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly fileRepository: SequelizeFileRepository,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES, {
     name: JobName.DELETED_ITEMS_CLEANUP,
   })
   async scheduleCleanup() {
+    const shouldExecuteCronjobs = this.configService.get<boolean>(
+      'executeCronjobs',
+      false,
+    );
+
+    if (!shouldExecuteCronjobs) {
+      return;
+    }
+
     try {
       const acquired = await this.redisService.tryAcquireLock(
         this.lockKey,
