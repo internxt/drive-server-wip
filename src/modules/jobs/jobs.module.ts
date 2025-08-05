@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DeletedItemsCleanupTask } from './tasks/deleted-items-cleanup.task';
 import { FileModule } from '../file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
 import { SequelizeJobExecutionRepository } from './repositories/job-execution.repository';
-import { SequelizeModule } from '@nestjs/sequelize';
 import { JobExecutionModel } from './models/job-execution.model';
 import { RedisService } from './services/redis.service';
-import { ScheduleModule } from '@nestjs/schedule';
+import { RetroActiveDeleteItemsCleanupTask } from './tasks/retroactive-items-cleanup.task';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     DeletedItemsCleanupTask,
     RedisService,
     SequelizeJobExecutionRepository,
+    RetroActiveDeleteItemsCleanupTask,
   ],
 })
 export class JobsModule {}
