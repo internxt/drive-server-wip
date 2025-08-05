@@ -988,7 +988,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     const lastDeletedFolder = await this.folderModel.findOne({
       where: {
         userId,
-        removed: false,
+        removed: true,
       },
       limit: 1,
       order: [['updated_at', 'DESC']],
