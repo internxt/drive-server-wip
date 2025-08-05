@@ -28,7 +28,7 @@ export function RequestLoggerMiddleware(
     `[${req.headers['internxt-client']} ${req.headers['internxt-version']}]`.trim();
   const clientAuth = req.headers.authorization && user;
   logger.log(
-    `[${req.method}] ${req.originalUrl} ${
+    `[RequestsLogger] [${req.method}] ${req.originalUrl} ${
       clientAuth?.payload && ` [AUTH ${clientAuth.payload.username}]`
     } ${clientVersion}`,
   );
