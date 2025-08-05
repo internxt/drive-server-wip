@@ -289,11 +289,11 @@ export class UserController {
     @Req() req: Request,
   ) {
     const { invitationId, ...createUserDto } = bodyDto;
+    const email = createUserDto.email.toLowerCase();
 
     try {
-      const preCreatedUser = await this.userUseCases.findPreCreatedByEmail(
-        createUserDto.email,
-      );
+      const preCreatedUser =
+        await this.userUseCases.findPreCreatedByEmail(email);
 
       if (!preCreatedUser) {
         throw new NotFoundException('PRE_CREATED_USER_NOT_FOUND');
@@ -903,7 +903,7 @@ export class UserController {
     type: String,
   })
   async getPublicKeyByEmail(@Param('email') email: User['email']) {
-    const user = await this.userUseCases.getUserByUsername(email);
+    const user = await this.userUseCases.getUserByUsername(email.toLowerCase());
 
     if (!user) {
       throw new NotFoundException();
@@ -935,7 +935,10 @@ export class UserController {
     @Param('email') email: User['email'],
     @UserDecorator() requestingUser: User,
   ): Promise<GetOrCreatePublicKeysDto> {
-    return this.userUseCases.getOrPreCreateUser(email, requestingUser);
+    return this.userUseCases.getOrPreCreateUser(
+      email.toLowerCase(),
+      requestingUser,
+    );
   }
 
   @HttpCode(201)
@@ -945,7 +948,10 @@ export class UserController {
     @UserDecorator() user: User,
     @Body() body: CreateAttemptChangeEmailDto,
   ) {
-    await this.userUseCases.createAttemptChangeEmail(user, body.newEmail);
+    await this.userUseCases.createAttemptChangeEmail(
+      user,
+      body.newEmail.toLowerCase(),
+    );
   }
 
   @HttpCode(201)
