@@ -992,4 +992,132 @@ describe('SequelizeFolderRepository', () => {
       expect(result).toHaveLength(1);
     });
   });
+
+  describe('getDeletedFoldersWithNotDeletedChildren', () => {
+    const startDate = new Date('2023-01-01T00:00:00Z');
+    const untilDate = new Date('2023-12-31T23:59:59Z');
+    const limit = 100;
+
+    it('When deleted folders with active children are requested without date filters, then it should not filter by date', async () => {
+      await repository.getDeletedFoldersWithNotDeletedChildren({
+        limit,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        attributes: ['uuid'],
+        where: {
+          removed: true,
+          [Op.and]: expect.any(Object),
+        },
+        limit,
+        raw: true,
+      });
+    });
+
+    it('When deleted folders with active children are requested with dates, then it should apply date filters', async () => {
+      await repository.getDeletedFoldersWithNotDeletedChildren({
+        startDate,
+        untilDate,
+        limit,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        attributes: ['uuid'],
+        where: {
+          removed: true,
+          updatedAt: {
+            [Op.gte]: startDate,
+            [Op.lt]: untilDate,
+          },
+          [Op.and]: expect.any(Object),
+        },
+        limit,
+        raw: true,
+      });
+    });
+
+    it('When no deleted folders with active children are found, then it should return empty array', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.getDeletedFoldersWithNotDeletedChildren({
+        limit,
+      });
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getDeletedFoldersWithNotDeletedFiles', () => {
+    const startDate = new Date('2023-01-01T00:00:00Z');
+    const untilDate = new Date('2023-12-31T23:59:59Z');
+    const limit = 100;
+
+    it('When deleted folders with active files are requested without date filters, then it should return folder uuids', async () => {
+      await repository.getDeletedFoldersWithNotDeletedFiles({
+        limit,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        attributes: ['uuid'],
+        where: {
+          removed: true,
+          [Op.and]: expect.any(Object),
+        },
+        limit,
+        raw: true,
+      });
+    });
+
+    it('When deleted folders with active files are requested with dates, then it should apply date filters', async () => {
+      await repository.getDeletedFoldersWithNotDeletedFiles({
+        startDate,
+        untilDate,
+        limit,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        attributes: ['uuid'],
+        where: {
+          removed: true,
+          updatedAt: {
+            [Op.gte]: startDate,
+            [Op.lt]: untilDate,
+          },
+          [Op.and]: expect.any(Object),
+        },
+        limit,
+        raw: true,
+      });
+    });
+  });
+
+  describe('markChildFoldersAsRemoved', () => {
+    it('When child folders are marked as removed, then it should update folders with parent uuids', async () => {
+      const parentUuids = [v4(), v4()];
+
+      jest.useFakeTimers();
+      const mockDate = new Date('2023-01-01T10:00:00Z');
+      jest.setSystemTime(mockDate);
+
+      await repository.markChildFoldersAsRemoved(parentUuids);
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        {
+          removed: true,
+          removedAt: mockDate,
+          deleted: true,
+          deletedAt: mockDate,
+          updatedAt: mockDate,
+        },
+        {
+          where: {
+            parentUuid: { [Op.in]: parentUuids },
+            removed: false,
+          },
+        },
+      );
+
+      jest.useRealTimers();
+    });
+  });
 });
