@@ -37,9 +37,13 @@ export class RequestLoggerInterceptor implements NestInterceptor {
     const clientVersion =
       `[${req.headers['internxt-client']} ${req.headers['internxt-version']}]`.trim();
 
+    const authInfo = user.email
+      ? `[AUTH ${user.email}] [TIER ${user.tierId}]`
+      : '';
+
     this.logger.log(
       `[RequestsLogger] [${req.method}] ${req.originalUrl} ${
-        user && ` [AUTH ${user.email}]`
+        authInfo && ` ${authInfo}`
       } ${clientVersion}`,
     );
 
