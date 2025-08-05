@@ -12,6 +12,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -50,6 +51,7 @@ import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -77,6 +79,7 @@ export class FileController {
   @ApiBearerAuth()
   @RequiredSharingPermissions(SharingActionName.UploadFile)
   @UseGuards(SharingPermissionsGuard, UploadGuard)
+  @UseInterceptors(RequestLoggerInterceptor)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,

@@ -1,0 +1,48 @@
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { Request } from 'express';
+import jwt from 'jsonwebtoken';
+import { User } from '../modules/user/user.domain';
+
+@Injectable()
+export class RequestLoggerInterceptor implements NestInterceptor {
+  private readonly logger = new Logger();
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const req = context.switchToHttp().getRequest<Request>();
+
+    let user = req.user as User;
+
+    if (req.headers.authorization && !user) {
+      try {
+        const userDecoded: any = jwt.decode(
+          req.headers.authorization.split(' ')[1],
+        );
+        if (userDecoded?.email) {
+          user = userDecoded.email;
+        } else {
+          user = userDecoded;
+        }
+      } catch (e) {
+        // no op
+      }
+    }
+
+    const clientVersion =
+      `[${req.headers['internxt-client']} ${req.headers['internxt-version']}]`.trim();
+
+    this.logger.log(
+      `[RequestsLogger] [${req.method}] ${req.originalUrl} ${
+        user && ` [AUTH ${user.email}]`
+      } ${clientVersion}`,
+    );
+
+    return next.handle();
+  }
+}
