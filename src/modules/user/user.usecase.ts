@@ -648,7 +648,7 @@ export class UserUseCases {
       boolean,
     ]
   > {
-    const { email } = newUser;
+    const email = newUser.email.toLowerCase();
 
     const [existentUser, preCreatedUser] = await Promise.all([
       this.userRepository.findByUsername(email),
