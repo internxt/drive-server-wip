@@ -77,6 +77,23 @@ export class SequelizeUserRepository implements UserRepository {
     return users.map((user) => this.toDomain(user));
   }
 
+  async getUsersOrderedById(
+    limit: number,
+    offset: number,
+    startFromUserId?: number,
+  ): Promise<User[]> {
+    const where = startFromUserId ? { id: { [Op.gte]: startFromUserId } } : {};
+
+    const users = await this.modelUser.findAll({
+      where,
+      limit,
+      offset,
+      order: [['id', 'ASC']],
+    });
+
+    return users.map((user) => this.toDomain(user));
+  }
+
   createTransaction(): Promise<Transaction> {
     return this.modelUser.sequelize.transaction();
   }

@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
+import {
+  FindOptions,
+  Op,
+  QueryTypes,
+  Sequelize,
+  WhereOptions,
+} from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
@@ -976,6 +982,77 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
 
     return { updatedCount };
+  }
+
+  async getLastDeletedFolder(userId: number): Promise<Folder | null> {
+    const lastDeletedFolder = await this.folderModel.findOne({
+      where: {
+        userId,
+        removed: true,
+      },
+      limit: 1,
+      order: [['updated_at', 'DESC']],
+    });
+
+    return lastDeletedFolder ? this.toDomain(lastDeletedFolder) : null;
+  }
+
+  async getUuidOfFoldersWithNotDeletedChildrenByUser(
+    userId: number,
+    untilDate: Date,
+    limit: number,
+  ): Promise<{ uuid: string }[]> {
+    const uuids = (await this.folderModel.sequelize.query(
+      `
+        SELECT uuid 
+        FROM folders parent
+        WHERE parent.removed = true
+        AND parent.user_id=:userId
+        AND parent.updated_at <= :untilDate
+          AND EXISTS (
+            SELECT 1
+            FROM folders children
+            WHERE parent.id = children.parent_id
+              AND children.removed = false
+          )
+        LIMIT :limit;
+      `,
+      {
+        replacements: { untilDate, userId, limit },
+        type: QueryTypes.SELECT,
+      },
+    )) as { uuid: string }[];
+
+    return uuids;
+  }
+
+  async getUuidOfFoldersWithNotDeletedFilesByUser(
+    userId: number,
+    untilDate: Date,
+    limit: number,
+  ): Promise<{ uuid: string }[]> {
+    const uuids = (await this.folderModel.sequelize.query(
+      `
+        SELECT uuid 
+        FROM folders parent
+        WHERE parent.removed = true
+        AND parent.user_id=:userId
+        AND parent.updated_at <= :untilDate
+          AND EXISTS(
+          SELECT 1
+          FROM files f
+          WHERE f.folder_uuid = parent.uuid
+            AND f.status != 'DELETED'
+        )
+        LIMIT :limit;
+      `,
+      {
+        replacements: { untilDate, userId, limit },
+        type: QueryTypes.SELECT,
+      },
+    )) as { uuid: string }[];
+
+    return uuids;
   }
 
   async getFolderByPath(
