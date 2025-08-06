@@ -744,7 +744,7 @@ export class SequelizeFileRepository implements FileRepository {
       {
         where: {
           folderUuid: { [Op.in]: parentUuids },
-          removed: false,
+          status: { [Op.not]: FileStatus.DELETED },
         },
       },
     );
