@@ -51,8 +51,14 @@ export class DeletedItemsCleanupTask {
       this.logger.log('Lock acquired! Starting deleted items job');
       await this.startJob();
     } catch (error) {
+      const errorObject = {
+        timestamp: new Date().toISOString(),
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      };
       this.logger.error(
-        `Deleted items cleanup job could not be setup. error: ${error.message}`,
+        `Deleted items cleanup job could not be setup. error: ${JSON.stringify(errorObject)}`,
       );
     }
   }
