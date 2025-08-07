@@ -3,7 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { format } from 'sql-formatter';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
 import { FolderModule } from './modules/folder/folder.module';
@@ -69,13 +68,16 @@ import { JobsModule } from './modules/jobs/jobs.module';
           : {},
         logging: !configService.get('database.debug')
           ? false
-          : (content: string) => {
-              const parse = content.match(/^(Executing \(.*\):) (.*)$/);
-              if (parse) {
-                const prettySql = format(parse[2]);
-                Logger.debug(`${parse[1]}\n${prettySql}`);
-              } else {
-                Logger.debug(`Could not parse sql content: ${content}`);
+          : (sql: string) => {
+              const logger = new Logger('SequelizeSQL');
+              try {
+                const oneLineQuery = sql
+                  .replace(/^Executing \([^)]+\):\s*/, '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                logger.debug(oneLineQuery);
+              } catch (error) {
+                logger.debug(`Failed to format sql`, sql);
               }
             },
       }),
