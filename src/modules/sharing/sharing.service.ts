@@ -26,7 +26,7 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File, FileStatus } from '../file/file.domain';
+import { File, FileAttributes, FileStatus } from '../file/file.domain';
 import { Folder } from '../folder/folder.domain';
 import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
@@ -1690,37 +1690,43 @@ export class SharingService {
     user: User,
     offset: number,
     limit: number,
-    order: [string, string][],
+    order: [keyof FileAttributes, 'ASC' | 'DESC'][],
   ): Promise<GetItemsReponse> {
-    const filesWithSharedInfo =
-      await this.sharingRepository.findFilesByOwnerAndSharedWithMe(
+    const sharedFileInfo =
+      await this.sharingRepository.getUserRelatedSharedFilesInfo(
         user.uuid,
         offset,
         limit,
-        order,
       );
+    const filesWithUserData = await this.fileUsecases.getFilesAndUserByUuid(
+      sharedFileInfo.map((sharingData) => sharingData.itemId),
+      order,
+    );
 
-    const files = (await Promise.all(
-      filesWithSharedInfo.map(async (fileWithSharedInfo) => {
-        const avatar = fileWithSharedInfo.file.user.avatar;
+    const files: FileWithSharedInfo[] = (await Promise.all(
+      filesWithUserData.map(async (fileInfo) => {
+        const sharingInfo = sharedFileInfo.find(
+          (sharingInfo) => sharingInfo.itemId === fileInfo.uuid,
+        );
+        const avatar = fileInfo.user?.avatar;
+
         return {
-          ...fileWithSharedInfo.file,
+          ...fileInfo,
           plainName:
-            fileWithSharedInfo.file.plainName ||
-            this.fileUsecases.decrypFileName(fileWithSharedInfo.file).plainName,
-          sharingId: fileWithSharedInfo.id,
-          encryptionKey: fileWithSharedInfo.encryptionKey,
-          dateShared: fileWithSharedInfo.createdAt,
-          sharedWithMe: user.uuid !== fileWithSharedInfo.file.user.uuid,
+            fileInfo.plainName ||
+            this.fileUsecases.decrypFileName(fileInfo).plainName,
+          encryptionKey: sharingInfo.encryptionKey,
+          dateShared: sharingInfo.createdAt,
+          sharedWithMe: user.uuid !== fileInfo.user.uuid,
           user: {
-            ...fileWithSharedInfo.file.user,
+            ...fileInfo.user,
             avatar: avatar
               ? await this.usersUsecases.getAvatarUrl(avatar)
               : null,
           },
           credentials: {
-            networkPass: fileWithSharedInfo.file.user.userId,
-            networkUser: fileWithSharedInfo.file.user.bridgeUser,
+            networkPass: fileInfo.user.userId,
+            networkUser: fileInfo.user.bridgeUser,
           },
         };
       }),

@@ -492,6 +492,44 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async getUserRelatedSharedFilesInfo(
+    userId: User['uuid'],
+    offset: number,
+    limit: number,
+  ): Promise<Pick<Sharing, 'encryptionKey' | 'createdAt' | 'itemId'>[]> {
+    const sharedFiles = await this.sharings.findAll({
+      attributes: [
+        'itemId',
+        [
+          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          'encryptionKey',
+        ],
+        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+      ],
+      where: {
+        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+      },
+      group: ['itemId'],
+      include: [
+        {
+          model: FileModel,
+          attributes: [],
+          where: {
+            status: FileStatus.EXISTS,
+          },
+        },
+      ],
+      limit,
+      offset,
+    });
+
+    return sharedFiles.map((data) => ({
+      itemId: data.itemId,
+      encryptionKey: data.encryptionKey,
+      createdAt: data.createdAt,
+    }));
+  }
+
   async findFilesByOwnerAndSharedWithMe(
     userId: User['uuid'],
     offset: number,
