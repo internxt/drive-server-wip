@@ -59,6 +59,13 @@ export class FileUseCases {
     return this.fileRepository.findById(uuid);
   }
 
+  getFilesAndUserByUuid(
+    uuids: FileAttributes['uuid'][],
+    order?: [keyof FileAttributes, 'ASC' | 'DESC'][],
+  ): Promise<File[]> {
+    return this.fileRepository.getFilesWithUserByUuuid(uuids, order);
+  }
+
   getByUuidsAndUser(
     user: User,
     uuids: FileAttributes['uuid'][],
