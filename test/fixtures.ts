@@ -251,6 +251,7 @@ export const newSharing = (bindTo?: {
   item?: File | Folder;
   sharingType?: SharingType;
   encryptedPassword?: string;
+  createdAt?: Date;
 }): Sharing => {
   return Sharing.build({
     type: bindTo?.sharingType ? bindTo.sharingType : SharingType.Private,
@@ -260,7 +261,7 @@ export const newSharing = (bindTo?: {
     ownerId: bindTo?.owner?.uuid || v4(),
     sharedWith: bindTo?.sharedWith?.uuid || v4(),
     encryptedPassword: bindTo?.encryptedPassword || null,
-    createdAt: randomDataGenerator.date(),
+    createdAt: bindTo?.createdAt || randomDataGenerator.date(),
     updatedAt: randomDataGenerator.date(),
     encryptionAlgorithm: 'test',
     encryptionKey: randomDataGenerator.string({
