@@ -168,6 +168,37 @@ export class SequelizeFileRepository implements FileRepository {
     return this.toDomain(file);
   }
 
+  async getFilesWithUserByUuuid(
+    fileUuids: string[],
+    order?: [keyof FileModel, 'ASC' | 'DESC'][],
+  ): Promise<File[]> {
+    const appliedOrder = order ? this.applyCollateToPlainNameSort(order) : null;
+
+    const files = await this.fileModel.findAll({
+      where: {
+        uuid: { [Op.in]: fileUuids },
+      },
+      include: [
+        {
+          model: UserModel,
+          as: 'user',
+          attributes: [
+            'uuid',
+            'email',
+            'name',
+            'lastname',
+            'avatar',
+            'userId',
+            'bridgeUser',
+          ],
+        },
+      ],
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findByUuids(
     uuids: FileAttributes['uuid'][],
     where: Partial<Omit<FileAttributes, 'uuid'>> = {},

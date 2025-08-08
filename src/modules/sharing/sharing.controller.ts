@@ -59,6 +59,7 @@ import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 import getEnv from '../../config/configuration';
+import { FileAttributes } from '../file/file.domain';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -852,7 +853,7 @@ export class SharingController {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
 
     const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
+      ? [orderBy.split(':') as [keyof FileAttributes, 'ASC' | 'DESC']]
       : undefined;
 
     return this.sharingService.getSharedFiles(user, offset, limit, order);
