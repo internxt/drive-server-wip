@@ -117,7 +117,7 @@ export class DeletedItemsCleanupTask {
     jobId: string | number,
     phaseName: string,
     generator: AsyncGenerator<string[], void, unknown>,
-    processor: (folderUuids: string[]) => Promise<any>,
+    processor: (folderUuids: string[]) => Promise<{ updatedCount: number }>,
   ) {
     let firstFolderUuid: string | null = null;
     let sameFolderRepeatedTimes = 0;
