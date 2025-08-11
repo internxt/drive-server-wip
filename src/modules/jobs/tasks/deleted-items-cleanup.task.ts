@@ -117,7 +117,7 @@ export class DeletedItemsCleanupTask {
     jobId: string | number,
     phaseName: string,
     generator: AsyncGenerator<string[], void, unknown>,
-    processor: (folderUuids: string[]) => Promise<any>,
+    processor: (folderUuids: string[]) => Promise<{ updatedCount: number }>,
   ) {
     let firstFolderUuid: string | null = null;
     let sameFolderRepeatedTimes = 0;
@@ -144,7 +144,14 @@ export class DeletedItemsCleanupTask {
         );
       }
 
-      await processor(folderUuids);
+      this.logger.log(
+        `[${jobId}] Deleted folders found with existent children, ${JSON.stringify({ folderUuids })}`,
+      );
+
+      const result = await processor(folderUuids);
+
+      this.logger.log(`[${jobId}] ${result.updatedCount} children updated`);
+
       processedItems += folderUuids.length;
     }
     return processedItems;
