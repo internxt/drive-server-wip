@@ -124,7 +124,7 @@ describe('DeletedItemsCleanupTask', () => {
         yield ['folder-1'];
       })();
 
-      const mockProcessor = jest.fn().mockResolvedValue(undefined);
+      const mockProcessor = jest.fn().mockResolvedValue({ updatedCount: 4 });
 
       await expect(
         task['processPhase'](
@@ -147,7 +147,7 @@ describe('DeletedItemsCleanupTask', () => {
         yield [];
       })();
 
-      const mockProcessor = jest.fn().mockResolvedValue(undefined);
+      const mockProcessor = jest.fn().mockResolvedValue({ updatedCount: 4 });
 
       const result = await task['processPhase'](
         'job-123',
