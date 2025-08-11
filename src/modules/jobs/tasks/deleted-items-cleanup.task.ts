@@ -144,7 +144,14 @@ export class DeletedItemsCleanupTask {
         );
       }
 
-      await processor(folderUuids);
+      this.logger.log(
+        `[${jobId}] Deleted folders found with existent children, ${JSON.stringify({ folderUuids })}`,
+      );
+
+      const result = await processor(folderUuids);
+
+      this.logger.log(`[${jobId}] ${result.updatedCount} children updated`);
+
       processedItems += folderUuids.length;
     }
     return processedItems;
