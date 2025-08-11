@@ -80,4 +80,4 @@ jobs:
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA }}
-          command: set image --record deployment/drive-server-wip-cron drive-server-wip-cron=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip-cron:${{ github.sha }} -n drive
+          command: set image --record deployment/drive-server-wip-cron drive-server-wip-cron=${{ secrets.DOCKERHUB_USERNAME }}/drive-server-wip:${{ github.sha }} -n drive
