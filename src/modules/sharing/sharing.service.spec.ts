@@ -35,7 +35,7 @@ import {
   SharingItemType,
   SharingType,
 } from './sharing.domain';
-import { FileStatus } from '../file/file.domain';
+import { FileStatus, FileAttributes } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { GetInviteDto } from './dto/get-invites.dto';
 
@@ -2274,6 +2274,146 @@ describe('Sharing Use Cases', () => {
       const result = await sharingService.findSharingsWithRolesByItem(folder);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getSharedFiles', () => {
+    const user = newUser();
+    const offset = 0;
+    const limit = 10;
+    const order: [keyof FileAttributes, 'ASC' | 'DESC'][] = [['name', 'ASC']];
+    const fileOwner = newUser();
+    const file = newFile({ owner: fileOwner });
+    file.user = fileOwner;
+    const sharedFileInfo = [
+      {
+        itemId: file.uuid,
+        encryptionKey: 'encrypted-key-123',
+        createdAt: new Date(),
+      },
+    ];
+
+    const filesWithUserData = [file];
+
+    it('When user has shared files, then it returns files with shared info', async () => {
+      sharingRepository.getUserRelatedSharedFilesInfo.mockResolvedValue(
+        sharedFileInfo,
+      );
+      fileUsecases.getFilesAndUserByUuid.mockResolvedValue(filesWithUserData);
+      fileUsecases.decrypFileName.mockReturnValue({
+        plainName: file.plainName,
+      });
+      usersUsecases.getAvatarUrl.mockResolvedValue(
+        'https://example.com/avatar.jpg',
+      );
+
+      const result = await sharingService.getSharedFiles(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(fileUsecases.getFilesAndUserByUuid).toHaveBeenCalledWith(
+        [file.uuid],
+        order,
+      );
+
+      expect(result).toEqual({
+        folders: [],
+        files: [
+          {
+            ...file,
+            credentials: {
+              networkPass: fileOwner.userId,
+              networkUser: fileOwner.bridgeUser,
+            },
+            sharedWithMe: true,
+            dateShared: sharedFileInfo[0].createdAt,
+            encryptionKey: sharedFileInfo[0].encryptionKey,
+          },
+        ],
+        credentials: {
+          networkPass: user.userId,
+          networkUser: user.bridgeUser,
+        },
+        token: '',
+        role: 'OWNER',
+      });
+    });
+
+    it('When file already has plainName, then it does not decrypt', async () => {
+      const fileWithPlainName = Object.assign(file, {
+        plainName: 'Already Plain Name.txt',
+        user: fileOwner,
+      });
+
+      sharingRepository.getUserRelatedSharedFilesInfo.mockResolvedValue(
+        sharedFileInfo,
+      );
+      fileUsecases.getFilesAndUserByUuid.mockResolvedValue([fileWithPlainName]);
+      usersUsecases.getAvatarUrl.mockResolvedValue(null);
+
+      const result = await sharingService.getSharedFiles(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(fileUsecases.decrypFileName).not.toHaveBeenCalled();
+      expect(result.files[0].plainName).toBe('Already Plain Name.txt');
+    });
+    it('When file owner has no avatar, then it returns null for avatar', async () => {
+      const fileOwnerWithoutAvatar = {
+        ...fileOwner,
+        avatar: null,
+      };
+      const fileWithoutAvatar = Object.assign(file, {
+        user: fileOwnerWithoutAvatar,
+      });
+
+      sharingRepository.getUserRelatedSharedFilesInfo.mockResolvedValue(
+        sharedFileInfo,
+      );
+      fileUsecases.getFilesAndUserByUuid.mockResolvedValue([fileWithoutAvatar]);
+      fileUsecases.decrypFileName.mockReturnValue({
+        plainName: 'Decrypted File.txt',
+      });
+
+      const result = await sharingService.getSharedFiles(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(usersUsecases.getAvatarUrl).not.toHaveBeenCalled();
+      expect(result.files[0].user.avatar).toBe(null);
+    });
+
+    it('When user owns the file, then sharedWithMe is false', async () => {
+      const ownedFile = Object.assign(file, {
+        user: user, // same user as the requester
+      });
+
+      sharingRepository.getUserRelatedSharedFilesInfo.mockResolvedValue(
+        sharedFileInfo,
+      );
+      fileUsecases.getFilesAndUserByUuid.mockResolvedValue([ownedFile]);
+      fileUsecases.decrypFileName.mockReturnValue({ plainName: 'My File.txt' });
+      usersUsecases.getAvatarUrl.mockResolvedValue(
+        'https://example.com/avatar.jpg',
+      );
+
+      const result = await sharingService.getSharedFiles(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result.files[0].sharedWithMe).toBe(false);
     });
   });
 });

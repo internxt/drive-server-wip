@@ -1614,6 +1614,7 @@ export class SharingService {
         limit,
         order,
       ),
+      // TODO: stop using this function
       this.sharingRepository.findFilesByOwnerAndSharedWithMe(
         user.uuid,
         offset,
