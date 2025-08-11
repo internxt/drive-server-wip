@@ -530,6 +530,10 @@ export class SequelizeSharingRepository implements SharingRepository {
     }));
   }
 
+  /**
+   * @deprecated Groups by file.id instead of itemId (UUID). Use getUserRelatedSharedFilesInfo() + getFilesAndUserByUuid() instead.
+   * @see SharingService.getSharedFiles for migration example
+   */
   async findFilesByOwnerAndSharedWithMe(
     userId: User['uuid'],
     offset: number,

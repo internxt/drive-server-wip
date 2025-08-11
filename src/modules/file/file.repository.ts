@@ -110,6 +110,10 @@ export interface FileRepository {
     folderUuid: Folder['uuid'],
     status: FileStatus,
   ): Promise<File[]>;
+  getFilesWithUserByUuuid(
+    fileUuids: string[],
+    order?: [keyof FileModel, 'ASC' | 'DESC'][],
+  ): Promise<File[]>;
 }
 
 @Injectable()
