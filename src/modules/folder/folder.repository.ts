@@ -758,6 +758,31 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
+  async deleteTrashedFoldersBatch(
+    userId: number,
+    limit: number,
+  ): Promise<number> {
+    const result = await this.folderModel.sequelize.query(
+      `
+      UPDATE folders 
+      SET removed = true, removed_at = NOW(), updated_at = NOW()
+      WHERE uuid IN (
+        SELECT uuid 
+        FROM folders 
+        WHERE user_id = :userId 
+          AND deleted = true 
+          AND removed = false
+        LIMIT :limit
+      )
+    `,
+      {
+        replacements: { userId: userId, limit },
+        type: QueryTypes.UPDATE,
+      },
+    );
+    return result[1] as number;
+  }
+
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
     updatedAfter: Date,

@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
-import { FindOptions, Op, Sequelize, WhereOptions } from 'sequelize';
+import {
+  FindOptions,
+  Op,
+  QueryTypes,
+  Sequelize,
+  WhereOptions,
+} from 'sequelize';
 import { Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
@@ -763,6 +769,35 @@ export class SequelizeFileRepository implements FileRepository {
         },
       },
     );
+  }
+
+  async deleteUserTrashedFilesBatch(
+    userId: number,
+    limit: number,
+  ): Promise<number> {
+    const result = await this.fileModel.sequelize.query(
+      `
+      UPDATE files 
+      SET status = :deletedStatus, removed_at = NOW(), removed = true, updated_at = NOW()
+      WHERE uuid IN (
+        SELECT uuid 
+        FROM files 
+        WHERE user_id = :userId 
+          AND status = :trashedStatus 
+        LIMIT :limit
+      )
+    `,
+      {
+        replacements: {
+          userId: userId,
+          limit,
+          deletedStatus: FileStatus.DELETED,
+          trashedStatus: FileStatus.TRASHED,
+        },
+        type: QueryTypes.UPDATE,
+      },
+    );
+    return result[1] as number;
   }
 
   async markFilesInFolderAsRemoved(

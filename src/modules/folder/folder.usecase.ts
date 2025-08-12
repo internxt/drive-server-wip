@@ -17,6 +17,7 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
   FolderOptions,
+  FolderStatus,
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
@@ -660,6 +661,13 @@ export class FolderUseCases {
     return foldersWithMaybePlainName.map((folder) =>
       folder.plainName ? folder : this.decryptFolderName(folder),
     );
+  }
+
+  async deleteUserTrashedFoldersBatch(
+    user: User,
+    limit: number,
+  ): Promise<number> {
+    return this.folderRepository.deleteTrashedFoldersBatch(user.id, limit);
   }
 
   async getFoldersWithParent(

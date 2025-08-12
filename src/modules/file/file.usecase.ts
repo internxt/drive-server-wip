@@ -638,6 +638,13 @@ export class FileUseCases {
     };
   }
 
+  async deleteUserTrashedFilesBatch(
+    user: User,
+    limit: number,
+  ): Promise<number> {
+    return this.fileRepository.deleteUserTrashedFilesBatch(user.id, limit);
+  }
+
   async moveFile(
     user: User,
     fileUuid: File['fileId'],
