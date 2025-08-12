@@ -662,6 +662,13 @@ export class FolderUseCases {
     );
   }
 
+  async deleteUserTrashedFoldersBatch(
+    user: User,
+    limit: number,
+  ): Promise<number> {
+    return this.folderRepository.deleteTrashedFoldersBatch(user.id, limit);
+  }
+
   async getFoldersWithParent(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,

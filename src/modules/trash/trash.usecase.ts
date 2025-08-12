@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Folder } from '../folder/folder.domain';
 import { User } from '../user/user.domain';
-import { File, FileStatus } from '../file/file.domain';
+import { File } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 
@@ -17,32 +17,42 @@ export class TrashUseCases {
    * @param trashOwner User whose trash is going to be emptied
    */
   async emptyTrash(trashOwner: User): Promise<void> {
-    const filesCount = await this.fileUseCases.getTrashFilesCount(
-      trashOwner.id,
-    );
-    const foldersCount = await this.folderUseCases.getTrashFoldersCount(
-      trashOwner.id,
-    );
     const emptyTrashChunkSize = 100;
-    for (let i = 0; i < foldersCount; i += emptyTrashChunkSize) {
-      const folders = await this.folderUseCases.getFolders(
-        trashOwner.id,
-        { deleted: true, removed: false },
-        { limit: emptyTrashChunkSize, offset: i },
-      );
 
-      await this.folderUseCases.deleteByUser(trashOwner, folders);
-    }
+    const [filesCount, foldersCount] = await Promise.all([
+      this.fileUseCases.getTrashFilesCount(trashOwner.id),
+      this.folderUseCases.getTrashFoldersCount(trashOwner.id),
+    ]);
 
-    for (let i = 0; i < filesCount; i += emptyTrashChunkSize) {
-      const files = await this.fileUseCases.getFiles(
-        trashOwner.id,
-        { status: FileStatus.TRASHED },
-        { limit: emptyTrashChunkSize, offset: i },
-      );
+    const deleteFolders = async (): Promise<void> => {
+      let foldersProcessed = 0;
+      while (foldersProcessed < foldersCount) {
+        const processedCount =
+          await this.folderUseCases.deleteUserTrashedFoldersBatch(
+            trashOwner,
+            emptyTrashChunkSize,
+          );
+        if (processedCount === 0) break;
 
-      await this.fileUseCases.deleteByUser(trashOwner, files);
-    }
+        foldersProcessed += processedCount;
+      }
+    };
+
+    const deleteFiles = async (): Promise<void> => {
+      let filesProcessed = 0;
+      while (filesProcessed < filesCount) {
+        const processedCount =
+          await this.fileUseCases.deleteUserTrashedFilesBatch(
+            trashOwner,
+            emptyTrashChunkSize,
+          );
+        if (processedCount === 0) break;
+
+        filesProcessed += processedCount;
+      }
+    };
+
+    await Promise.all([deleteFolders(), deleteFiles()]);
   }
 
   /**

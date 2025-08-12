@@ -3,9 +3,6 @@ import { Logger } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 
 import { TrashUseCases } from './trash.usecase';
-import { FileStatus } from '../file/file.domain';
-import { User } from '../user/user.domain';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
@@ -38,12 +35,6 @@ describe('Trash Use Cases', () => {
     it('When emptyTrash is called, then it should delete all trashed files and folders in chunks', async () => {
       const filesCount = 250;
       const foldersCount = 150;
-      const mockFiles = Array.from({ length: 100 }, () =>
-        newFile({ attributes: { status: FileStatus.TRASHED } }),
-      );
-      const mockFolders = Array.from({ length: 100 }, () =>
-        newFolder({ attributes: { deleted: true, removed: false } }),
-      );
 
       jest
         .spyOn(fileUseCases, 'getTrashFilesCount')
@@ -51,10 +42,15 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(folderUseCases, 'getTrashFoldersCount')
         .mockResolvedValue(foldersCount);
-      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
-      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
-      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest
+        .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(50);
+      jest
+        .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(50);
 
       await service.emptyTrash(user);
 
@@ -62,64 +58,95 @@ describe('Trash Use Cases', () => {
       expect(folderUseCases.getTrashFoldersCount).toHaveBeenCalledWith(user.id);
 
       // Should be called twice for folders (150 count / 100 chunk size = 2 calls)
-      expect(folderUseCases.getFolders).toHaveBeenCalledTimes(2);
-      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(2);
+      expect(
+        folderUseCases.deleteUserTrashedFoldersBatch,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        folderUseCases.deleteUserTrashedFoldersBatch,
+      ).toHaveBeenNthCalledWith(1, user, 100);
+      expect(
+        folderUseCases.deleteUserTrashedFoldersBatch,
+      ).toHaveBeenNthCalledWith(2, user, 100);
 
       // Should be called three times for files (250 count / 100 chunk size = 3 calls)
-      expect(fileUseCases.getFiles).toHaveBeenCalledTimes(3);
-      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(3);
+      expect(fileUseCases.deleteUserTrashedFilesBatch).toHaveBeenCalledTimes(3);
+      expect(fileUseCases.deleteUserTrashedFilesBatch).toHaveBeenNthCalledWith(
+        1,
+        user,
+        100,
+      );
+      expect(fileUseCases.deleteUserTrashedFilesBatch).toHaveBeenNthCalledWith(
+        2,
+        user,
+        100,
+      );
+      expect(fileUseCases.deleteUserTrashedFilesBatch).toHaveBeenNthCalledWith(
+        3,
+        user,
+        100,
+      );
     });
 
     it('When there are no trashed items, then it should not call delete methods', async () => {
       jest.spyOn(fileUseCases, 'getTrashFilesCount').mockResolvedValue(0);
       jest.spyOn(folderUseCases, 'getTrashFoldersCount').mockResolvedValue(0);
-      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
-      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest
+        .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
+        .mockResolvedValue(0);
+      jest
+        .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValue(0);
 
       await service.emptyTrash(user);
 
-      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
-      expect(fileUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(
+        folderUseCases.deleteUserTrashedFoldersBatch,
+      ).not.toHaveBeenCalled();
+      expect(fileUseCases.deleteUserTrashedFilesBatch).not.toHaveBeenCalled();
     });
 
     it('When only files exist in trash, then it should only delete files', async () => {
       const filesCount = 50;
-      const mockFiles = Array.from({ length: 50 }, () =>
-        newFile({ attributes: { status: FileStatus.TRASHED } }),
-      );
 
       jest
         .spyOn(fileUseCases, 'getTrashFilesCount')
         .mockResolvedValue(filesCount);
       jest.spyOn(folderUseCases, 'getTrashFoldersCount').mockResolvedValue(0);
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
-      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
-      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest
+        .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValue(50);
+      jest
+        .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
+        .mockResolvedValue(0);
 
       await service.emptyTrash(user);
 
-      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(1);
-      expect(folderUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(fileUseCases.deleteUserTrashedFilesBatch).toHaveBeenCalledTimes(1);
+      expect(
+        folderUseCases.deleteUserTrashedFoldersBatch,
+      ).not.toHaveBeenCalled();
     });
 
     it('When only folders exist in trash, then it should only delete folders', async () => {
       const foldersCount = 75;
-      const mockFolders = Array.from({ length: 75 }, () =>
-        newFolder({ attributes: { deleted: true, removed: false } }),
-      );
 
       jest.spyOn(fileUseCases, 'getTrashFilesCount').mockResolvedValue(0);
       jest
         .spyOn(folderUseCases, 'getTrashFoldersCount')
         .mockResolvedValue(foldersCount);
-      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
-      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
-      jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
+      jest
+        .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
+        .mockResolvedValue(75);
+      jest
+        .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValue(0);
 
       await service.emptyTrash(user);
 
-      expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(1);
-      expect(fileUseCases.deleteByUser).not.toHaveBeenCalled();
+      expect(
+        folderUseCases.deleteUserTrashedFoldersBatch,
+      ).toHaveBeenCalledTimes(1);
+      expect(fileUseCases.deleteUserTrashedFilesBatch).not.toHaveBeenCalled();
     });
   });
 
