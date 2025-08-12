@@ -18,36 +18,41 @@ export class TrashUseCases {
    */
   async emptyTrash(trashOwner: User): Promise<void> {
     const emptyTrashChunkSize = 100;
-    const filesCount = await this.fileUseCases.getTrashFilesCount(
-      trashOwner.id,
-    );
-    const foldersCount = await this.folderUseCases.getTrashFoldersCount(
-      trashOwner.id,
-    );
 
-    let foldersProcessed = 0;
-    while (foldersProcessed < foldersCount) {
-      const processedCount =
-        await this.folderUseCases.deleteUserTrashedFoldersBatch(
-          trashOwner,
-          emptyTrashChunkSize,
-        );
-      if (processedCount === 0) break;
+    const [filesCount, foldersCount] = await Promise.all([
+      this.fileUseCases.getTrashFilesCount(trashOwner.id),
+      this.folderUseCases.getTrashFoldersCount(trashOwner.id),
+    ]);
 
-      foldersProcessed += processedCount;
-    }
+    const deleteFolders = async (): Promise<void> => {
+      let foldersProcessed = 0;
+      while (foldersProcessed < foldersCount) {
+        const processedCount =
+          await this.folderUseCases.deleteUserTrashedFoldersBatch(
+            trashOwner,
+            emptyTrashChunkSize,
+          );
+        if (processedCount === 0) break;
 
-    let filesProcessed = 0;
-    while (filesProcessed < filesCount) {
-      const processedCount =
-        await this.fileUseCases.deleteUserTrashedFilesBatch(
-          trashOwner,
-          emptyTrashChunkSize,
-        );
-      if (processedCount === 0) break;
+        foldersProcessed += processedCount;
+      }
+    };
 
-      filesProcessed += processedCount;
-    }
+    const deleteFiles = async (): Promise<void> => {
+      let filesProcessed = 0;
+      while (filesProcessed < filesCount) {
+        const processedCount =
+          await this.fileUseCases.deleteUserTrashedFilesBatch(
+            trashOwner,
+            emptyTrashChunkSize,
+          );
+        if (processedCount === 0) break;
+
+        filesProcessed += processedCount;
+      }
+    };
+
+    await Promise.all([deleteFolders(), deleteFiles()]);
   }
 
   /**
