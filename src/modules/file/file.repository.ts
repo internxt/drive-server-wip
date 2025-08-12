@@ -779,7 +779,7 @@ export class SequelizeFileRepository implements FileRepository {
     const result = await this.fileModel.sequelize.query(
       `
       UPDATE files 
-      SET status = :deletedStatus, removed_at = NOW(), removed = true, updated_at = NOW()
+      SET status = :deletedStatus, updated_at = NOW()
       WHERE uuid IN (
         SELECT uuid 
         FROM files 
