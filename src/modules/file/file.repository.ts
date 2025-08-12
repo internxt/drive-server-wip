@@ -120,6 +120,7 @@ export interface FileRepository {
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
+  deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
 }
 
 @Injectable()

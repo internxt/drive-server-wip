@@ -10,7 +10,7 @@ import {
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
-import { Op, Sequelize } from 'sequelize';
+import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 
@@ -750,6 +750,62 @@ describe('FileRepository', () => {
         ],
         order: null,
       });
+    });
+  });
+
+  describe('deleteUserTrashedFilesBatch', () => {
+    it('When deleting trashed files in batch, then it should use correct SQL replacements', async () => {
+      const userId = 12345;
+      const limit = 100;
+      const mockQueryResult: [unknown[], unknown] = [[], 5];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockQueryResult);
+
+      const result = await repository.deleteUserTrashedFilesBatch(
+        userId,
+        limit,
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE files'),
+        {
+          replacements: {
+            userId: userId,
+            limit,
+            deletedStatus: FileStatus.DELETED,
+            trashedStatus: FileStatus.TRASHED,
+          },
+          type: QueryTypes.UPDATE,
+        },
+      );
+      expect(result).toBe(5);
+    });
+
+    it('When deleting trashed files with different parameters, then replacements should match input', async () => {
+      const userId = 99999;
+      const limit = 50;
+      const mockQueryResult: [unknown[], unknown] = [[], 3];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockQueryResult);
+
+      await repository.deleteUserTrashedFilesBatch(userId, limit);
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        {
+          replacements: {
+            userId: userId,
+            limit,
+            deletedStatus: FileStatus.DELETED,
+            trashedStatus: FileStatus.TRASHED,
+          },
+          type: QueryTypes.UPDATE,
+        },
+      );
     });
   });
 });
