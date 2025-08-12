@@ -6,7 +6,7 @@ import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
 import { UserModel } from '../user/user.model';
@@ -1118,6 +1118,49 @@ describe('SequelizeFolderRepository', () => {
       );
 
       jest.useRealTimers();
+    });
+  });
+
+  describe('deleteTrashedFoldersBatch', () => {
+    it('When deleting trashed folders in batch, then it should use correct SQL replacements', async () => {
+      const userId = 12345;
+      const limit = 100;
+      const mockQueryResult: [unknown[], unknown] = [['test'], 5];
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockQueryResult);
+
+      const result = await repository.deleteTrashedFoldersBatch(userId, limit);
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE folders'),
+        {
+          replacements: { userId: userId, limit },
+          type: QueryTypes.UPDATE,
+        },
+      );
+      expect(result).toBe(5);
+    });
+
+    it('When deleting trashed folders with different parameters, then replacements should match input', async () => {
+      const userId = 99999;
+      const limit = 50;
+      const mockQueryResult: [unknown[], unknown] = [[], 3];
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockQueryResult);
+
+      await repository.deleteTrashedFoldersBatch(userId, limit);
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        {
+          replacements: { userId: userId, limit },
+          type: QueryTypes.UPDATE,
+        },
+      );
     });
   });
 });
