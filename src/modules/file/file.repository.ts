@@ -798,7 +798,7 @@ export class SequelizeFileRepository implements FileRepository {
         type: QueryTypes.UPDATE,
       },
     );
-    return result[1] as number;
+    return result[1];
   }
 
   async markFilesInFolderAsRemoved(

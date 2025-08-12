@@ -17,7 +17,6 @@ import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
   FolderOptions,
-  FolderStatus,
   SortableFolderAttributes,
 } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';

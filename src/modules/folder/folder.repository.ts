@@ -780,7 +780,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         type: QueryTypes.UPDATE,
       },
     );
-    return result[1] as number;
+    return result[1];
   }
 
   async findAllCursorWhereUpdatedAfter(
