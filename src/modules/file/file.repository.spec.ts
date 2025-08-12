@@ -12,6 +12,7 @@ import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
 import { Op, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
+import { UserModel } from '../user/user.model';
 
 describe('FileRepository', () => {
   let repository: FileRepository;
@@ -698,6 +699,57 @@ describe('FileRepository', () => {
       await expect(repository.destroyFile(where)).rejects.toThrow(
         'Destroy failed',
       );
+    });
+  });
+
+  describe('getFilesWithUserByUuuid', () => {
+    it('When called, then it should call the model with the expected parameters', async () => {
+      const file1 = newFile();
+      const file2 = newFile();
+      const fileUuids = [file1.uuid, file2.uuid];
+      const mockFiles = [
+        {
+          ...file1.toJSON(),
+          user: newUser(),
+        },
+        {
+          ...file2.toJSON(),
+          user: newUser(),
+        },
+      ];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(mockFiles as any);
+      jest
+        .spyOn(repository as any, 'toDomain')
+        .mockReturnValueOnce(file1)
+        .mockReturnValueOnce(file2);
+      jest
+        .spyOn(repository as any, 'applyCollateToPlainNameSort')
+        .mockReturnValue(null);
+
+      await repository.getFilesWithUserByUuuid(fileUuids);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          uuid: { [Op.in]: fileUuids },
+        },
+        include: [
+          {
+            model: UserModel,
+            as: 'user',
+            attributes: [
+              'uuid',
+              'email',
+              'name',
+              'lastname',
+              'avatar',
+              'userId',
+              'bridgeUser',
+            ],
+          },
+        ],
+        order: null,
+      });
     });
   });
 });

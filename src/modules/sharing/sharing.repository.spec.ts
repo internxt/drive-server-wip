@@ -1348,4 +1348,93 @@ describe('SharingRepository', () => {
       );
     });
   });
+
+  describe('getUserRelatedSharedFilesInfo', () => {
+    it('When getting user related shared files info, then it returns data', async () => {
+      const userId = v4();
+      const offset = 0;
+      const limit = 10;
+      const itemId1 = v4();
+      const itemId2 = v4();
+      const encryptionKey1 = 'encryption-key-1';
+      const encryptionKey2 = 'encryption-key-2';
+      const createdAt1 = new Date();
+      const createdAt2 = new Date();
+
+      const mockResults = [
+        {
+          itemId: itemId1,
+          encryptionKey: encryptionKey1,
+          createdAt: createdAt1,
+        },
+        {
+          itemId: itemId2,
+          encryptionKey: encryptionKey2,
+          createdAt: createdAt2,
+        },
+      ];
+
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValue(mockResults as any);
+
+      const result = await repository.getUserRelatedSharedFilesInfo(
+        userId,
+        offset,
+        limit,
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        itemId: itemId1,
+        encryptionKey: encryptionKey1,
+        createdAt: createdAt1,
+      });
+      expect(result[1]).toEqual({
+        itemId: itemId2,
+        encryptionKey: encryptionKey2,
+        createdAt: createdAt2,
+      });
+      expect(sharingModel.findAll).toHaveBeenCalledWith({
+        attributes: [
+          'itemId',
+          [
+            Sequelize.literal('MAX("SharingModel"."encryption_key")'),
+            'encryptionKey',
+          ],
+          [Sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
+        ],
+        where: {
+          [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        },
+        group: ['itemId'],
+        include: [
+          {
+            model: FileModel,
+            attributes: [],
+            where: {
+              status: FileStatus.EXISTS,
+            },
+          },
+        ],
+        limit,
+        offset,
+      });
+    });
+
+    it('When called with pagination parameters, then it uses correct offset and limit', async () => {
+      const userId = v4();
+      const offset = 50;
+      const limit = 25;
+
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValue([]);
+
+      await repository.getUserRelatedSharedFilesInfo(userId, offset, limit);
+
+      expect(sharingModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 25,
+          offset: 50,
+        }),
+      );
+    });
+  });
 });

@@ -5,7 +5,7 @@ import { File } from '../../../modules/file/file.domain';
 
 export interface GetItemsReponse {
   folders: FolderWithSharedInfo[];
-  files: File[];
+  files: FileWithSharedInfo[];
   credentials: {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
