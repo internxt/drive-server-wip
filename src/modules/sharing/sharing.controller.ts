@@ -388,7 +388,7 @@ export class SharingController {
         ? [orderBy.split(':') as [string, string]]
         : undefined;
 
-      return this.sharingService.getFolders(
+      return this.sharingService.getFoldersInSharedFolder(
         sharedFolderId,
         token,
         user,
@@ -458,7 +458,7 @@ export class SharingController {
         ? [orderBy.split(':') as [string, string]]
         : undefined;
 
-      return this.sharingService.getFiles(
+      return this.sharingService.getFilesInSharedFolder(
         sharedFolderId,
         token,
         user,

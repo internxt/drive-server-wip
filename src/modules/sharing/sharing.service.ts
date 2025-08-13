@@ -55,6 +55,7 @@ import { SharingNotFoundException } from './exception/sharing-not-found.exceptio
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
+import { GetFoldersInSharedFolderResponseDto } from './dto/response/get-folders-in-shared-folder.dto';
 
 export class UserAlreadyHasRole extends BadRequestException {
   constructor() {
@@ -733,42 +734,38 @@ export class SharingService {
     };
   }
 
-  async getFolders(
+  async getFoldersInSharedFolder(
     folderId: Folder['uuid'],
     token: string | null,
     user: User,
     page: number,
     perPage: number,
     order: [string, string][],
-  ): Promise<GetFoldersReponse> {
-    const getFolderContent = async (
-      userId: User['id'],
-      folderId: Folder['id'],
-    ) => {
-      const folders = (
-        await this.folderUsecases.getFoldersWithParent(
-          userId,
-          {
-            parentId: folderId,
-            deleted: false,
-            removed: false,
-          },
-          {
-            limit: perPage,
-            offset: page * perPage,
-          },
-        )
-      ).map((folder) => {
-        return {
-          ...folder,
-          encryptionKey: null,
-          dateShared: null,
-          sharedWithMe: null,
-        };
-      }) as FolderWithSharedInfo[];
+  ): Promise<GetFoldersInSharedFolderResponseDto> {
+    const getFolderContent = async (owner: User, folderId: Folder['uuid']) => {
+      const ownerInfo = await this.mapUserToSharingOwnerInfo(user);
 
-      return folders;
+      const folders = await this.folderUsecases.getFoldersWithParent(
+        owner.id,
+        {
+          parentUuid: folderId,
+          deleted: false,
+          removed: false,
+        },
+        {
+          limit: perPage,
+          offset: page * perPage,
+        },
+      );
+      return folders.map((f) => ({
+        ...f,
+        encryptionKey: null,
+        dateShared: null,
+        sharedWithMe: null,
+        user: ownerInfo,
+      }));
     };
+
     const folder = await this.folderUsecases.getByUuid(folderId);
 
     if (folder.isTrashed()) {
@@ -785,7 +782,7 @@ export class SharingService {
 
     if (folder.isOwnedBy(user)) {
       return {
-        items: await getFolderContent(user.id, folder.id),
+        items: await getFolderContent(user, folder.uuid),
         credentials: {
           networkPass: user.userId,
           networkUser: user.bridgeUser,
@@ -806,24 +803,7 @@ export class SharingService {
 
     const decoded = requestedFolderIsSharedRootFolder
       ? null
-      : (verifyWithDefaultSecret(token) as
-          | {
-              sharedRootFolderId: Folder['uuid'];
-              parentFolderId: Folder['parent']['uuid'];
-              folder: {
-                uuid: Folder['uuid'];
-                id: Folder['id'];
-              };
-              owner: {
-                id: User['id'];
-                uuid: User['uuid'];
-              };
-            }
-          | string);
-
-    if (typeof decoded === 'string') {
-      throw new ForbiddenException('Invalid token');
-    }
+      : this.verifyAndDecodeSharingToken(token);
 
     const sharing = await this.sharingRepository.findOneSharing({
       sharedWith: user.uuid,
@@ -860,7 +840,7 @@ export class SharingService {
 
     const [ownerRootFolder, items, sharingRole] = await Promise.all([
       this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
-      getFolderContent(owner.id, folder.id),
+      getFolderContent(owner, folder.uuid),
       this.sharingRepository.findSharingRoleBy({ sharingId: sharing.id }),
     ]);
 
@@ -870,22 +850,11 @@ export class SharingService {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
       },
-      token: generateTokenWithPlainSecret(
-        {
-          sharedRootFolderId: sharing.itemId,
-          sharedWithType: SharedWithType.Individual,
-          parentFolderId: parentFolder?.uuid || null,
-          folder: {
-            uuid: folder.uuid,
-            id: folder.id,
-          },
-          owner: {
-            id: owner.id,
-            uuid: owner.uuid,
-          },
-        },
-        '1d',
-        getEnv().secrets.jwt,
+      token: this.createSharedFolderToken(
+        owner,
+        sharing.itemId,
+        folder,
+        parentFolder,
       ),
       bucket: ownerRootFolder.bucket,
       encryptionKey: sharing.encryptionKey,
@@ -898,7 +867,7 @@ export class SharingService {
     };
   }
 
-  async getFiles(
+  async getFilesInSharedFolder(
     folderId: Folder['uuid'],
     token: string | null,
     user: User,
@@ -908,13 +877,13 @@ export class SharingService {
   ): Promise<GetFilesResponse> {
     const getFilesFromFolder = async (
       userId: User['id'],
-      folderId: Folder['id'],
+      folderUuid: Folder['uuid'],
     ) => {
       const files = (
         await this.fileUsecases.getFiles(
           userId,
           {
-            folderId: folderId,
+            folderUuid,
             status: FileStatus.EXISTS,
           },
           {
@@ -949,7 +918,7 @@ export class SharingService {
 
     if (folder.isOwnedBy(user)) {
       return {
-        items: await getFilesFromFolder(user.id, folder.id),
+        items: await getFilesFromFolder(user.id, folder.uuid),
         credentials: {
           networkPass: user.userId,
           networkUser: user.bridgeUser,
@@ -1021,7 +990,7 @@ export class SharingService {
 
     const [ownerRootFolder, items, sharingRole] = await Promise.all([
       this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
-      getFilesFromFolder(owner.id, folder.id),
+      getFilesFromFolder(owner.id, folder.uuid),
       this.sharingRepository.findSharingRoleBy({ sharingId: sharing.id }),
     ]);
 
@@ -1056,6 +1025,74 @@ export class SharingService {
         name: parentFolder?.plainName || null,
       },
       role: sharingRole.role.name,
+    };
+  }
+
+  private createSharedFolderToken(
+    owner: User,
+    sharedFolderUuid: string,
+    folder: Folder,
+    parentFolder: Folder,
+  ): string {
+    return generateTokenWithPlainSecret(
+      {
+        sharedRootFolderId: sharedFolderUuid,
+        sharedWithType: SharedWithType.Individual,
+        parentFolderId: parentFolder?.uuid || null,
+        folder: {
+          uuid: folder.uuid,
+          id: folder.id,
+        },
+        owner: {
+          id: owner.id,
+          uuid: owner.uuid,
+        },
+      },
+      '1d',
+      getEnv().secrets.jwt,
+    );
+  }
+
+  private verifyAndDecodeSharingToken(token: string) {
+    const decoded = verifyWithDefaultSecret(token) as
+      | {
+          sharedRootFolderId: Folder['uuid'];
+          parentFolderId: Folder['parent']['uuid'];
+          folder: {
+            uuid: Folder['uuid'];
+            id: Folder['id'];
+          };
+          owner: {
+            id: User['id'];
+            uuid: User['uuid'];
+          };
+        }
+      | string;
+
+    if (typeof decoded === 'string') {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    return decoded;
+  }
+
+  private async mapUserToSharingOwnerInfo(
+    user: Pick<
+      User,
+      'avatar' | 'bridgeUser' | 'lastname' | 'name' | 'userId' | 'uuid'
+    >,
+  ) {
+    const avatar = user?.avatar
+      ? await this.usersUsecases.getAvatarUrl(user.avatar)
+      : null;
+
+    return {
+      bridgeUser: user.bridgeUser,
+      userId: user.userId,
+      uuid: user.uuid,
+      name: user.name,
+      lastname: user.lastname,
+      avatar: avatar,
     };
   }
 
