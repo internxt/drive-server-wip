@@ -41,6 +41,7 @@ export class Folder implements FolderAttributes {
   creationTime: Date;
   modificationTime: Date;
   sharings?: Sharing[];
+  status: FolderStatus;
 
   private constructor({
     id,
@@ -86,6 +87,7 @@ export class Folder implements FolderAttributes {
     this.sharings = sharings;
     this.creationTime = creationTime;
     this.modificationTime = modificationTime;
+    this.status = this.getFolderStatus();
   }
 
   static build(folder: FolderAttributes): Folder {
