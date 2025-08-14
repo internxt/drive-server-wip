@@ -1,7 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../../user/user.domain';
-import { Sharing } from '../../sharing.domain';
-
 export class NetworkCredentialsDto {
   @ApiProperty({
     description: 'Network password for the user',
@@ -16,32 +14,41 @@ export class NetworkCredentialsDto {
   networkUser: User['bridgeUser'];
 }
 
-export class SharedItemBaseDto {
+export class SharingOwnerInfoDto {
   @ApiProperty({
-    description: 'Encryption key for the shared item',
-    example: 'abc123def456',
-    nullable: true,
+    description: 'Bridge user',
+    example: 'user@example.com',
   })
-  encryptionKey: Sharing['encryptionKey'] | null;
+  bridgeUser: string;
 
   @ApiProperty({
-    description: 'Date when the item was shared',
-    example: '2024-01-15T10:30:00Z',
-    nullable: true,
+    description: 'User id in the network',
+    example: '$2a$08$...',
   })
-  dateShared: Date | null;
+  userId: string;
 
   @ApiProperty({
-    description: 'Whether this item is shared with the current user',
-    example: true,
-    nullable: true,
+    description: 'User UUID',
+    example: '5668e3bc-ae08-4c0b-b70c-efd55efe183c',
   })
-  sharedWithMe: boolean | null;
+  uuid: string;
 
   @ApiProperty({
-    description: 'Sharing identifier',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'User first name',
+    example: 'John',
+  })
+  name: string;
+
+  @ApiProperty({
+    description: 'User last name',
+    example: 'Doe',
+  })
+  lastname: string;
+
+  @ApiProperty({
+    description: 'User avatar URL',
+    example: 'https://example.com/avatar.jpg',
     nullable: true,
   })
-  sharingId?: Sharing['id'] | null;
+  avatar: string | null;
 }

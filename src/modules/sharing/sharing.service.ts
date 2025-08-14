@@ -743,7 +743,6 @@ export class SharingService {
     user: User,
     page: number,
     perPage: number,
-    order: [string, string][],
   ): Promise<GetFoldersInSharedFolderResponseDto> {
     const getFolderContent = async (owner: User, folderId: Folder['uuid']) => {
       const ownerInfo = await this.mapUserToSharingOwnerInfo(owner);
@@ -762,9 +761,6 @@ export class SharingService {
       );
       return folders.map((f) => ({
         ...f,
-        encryptionKey: null,
-        dateShared: null,
-        sharedWithMe: null,
         user: ownerInfo,
       }));
     };
@@ -876,7 +872,6 @@ export class SharingService {
     user: User,
     page: number,
     perPage: number,
-    order: [string, string][],
   ): Promise<GetFilesInSharedFolderResponseDto> {
     const getFilesFromFolder = async (
       owner: User,
@@ -898,9 +893,6 @@ export class SharingService {
       return files.map((file) => {
         return {
           ...file,
-          encryptionKey: null,
-          dateShared: null,
-          sharedWithMe: null,
           user: ownerInfo,
         };
       });
