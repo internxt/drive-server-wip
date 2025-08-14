@@ -44,12 +44,4 @@ export class SharedItemBaseDto {
     nullable: true,
   })
   sharingId?: Sharing['id'] | null;
-
-  @ApiProperty({
-    description: 'Type of sharing',
-    example: 'PRIVATE',
-    enum: ['PRIVATE', 'PUBLIC'],
-    nullable: true,
-  })
-  sharingType?: Sharing['type'] | null;
 }

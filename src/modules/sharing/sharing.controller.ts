@@ -60,6 +60,7 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 import getEnv from '../../config/configuration';
 import { FileAttributes } from '../file/file.domain';
+import { GetFilesInSharedFolderResponseDto } from './dto/response/get-folders-in-shared-folder.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -375,6 +376,10 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
+  @ApiOkResponse({
+    description: 'Get all items inside a shared folder',
+    type: GetFilesInSharedFolderResponseDto,
+  })
   async getSharedFoldersInsideSharedFolder(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
@@ -443,7 +448,10 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
-  @ApiOkResponse({ description: 'Get all items inside a shared folder' })
+  @ApiOkResponse({
+    description: 'Get all items inside a shared folder',
+    type: GetFilesInSharedFolderResponseDto,
+  })
   @ApiBearerAuth()
   async getPrivateShareFiles(
     @UserDecorator() user: User,
@@ -452,7 +460,7 @@ export class SharingController {
     @Query('token') token: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-  ): Promise<GetFilesResponse | { error: string }> {
+  ): Promise<GetFilesInSharedFolderResponseDto> {
     try {
       const order = orderBy
         ? [orderBy.split(':') as [string, string]]
