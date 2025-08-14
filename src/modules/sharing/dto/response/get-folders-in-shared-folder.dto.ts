@@ -3,6 +3,7 @@ import { Role, Sharing } from '../../sharing.domain';
 import { Folder } from '../../../folder/folder.domain';
 import { NetworkCredentialsDto } from './shared-base.dto';
 import { SharedFolderItemDto } from './shared-folder-item.dto';
+import { SharedFileItemDto } from './shared-file-item.dto';
 
 export class ParentFolderDto {
   @ApiProperty({
@@ -72,4 +73,12 @@ export class GetFoldersInSharedFolderResponseDto extends SharedFolderResponseBas
     type: [SharedFolderItemDto],
   })
   items: SharedFolderItemDto[];
+}
+
+export class GetFilesInSharedFolderResponseDto extends SharedFolderResponseBaseDto {
+  @ApiProperty({
+    description: 'List of files in the shared folder',
+    type: [SharedFileItemDto],
+  })
+  items: SharedFileItemDto[];
 }

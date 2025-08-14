@@ -60,6 +60,10 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 import getEnv from '../../config/configuration';
 import { FileAttributes } from '../file/file.domain';
+import {
+  GetFilesInSharedFolderResponseDto,
+  GetFoldersInSharedFolderResponseDto,
+} from './dto/response/get-folders-in-shared-folder.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -375,40 +379,30 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
-  async getSharedFoldersInsideSharedFolder(
+  @ApiOkResponse({
+    description: 'Get all folders inside a shared folder',
+    type: GetFoldersInSharedFolderResponseDto,
+  })
+  async getFoldersInPrivateSharedFolder(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
     @Query('token') token: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-  ) {
-    try {
-      const order = orderBy
-        ? [orderBy.split(':') as [string, string]]
-        : undefined;
+  ): Promise<GetFoldersInSharedFolderResponseDto> {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
 
-      return this.sharingService.getFoldersInSharedFolder(
-        sharedFolderId,
-        token,
-        user,
-        page,
-        perPage,
-        order,
-      );
-    } catch (error) {
-      if (error instanceof ForbiddenException) {
-        throw error;
-      }
-
-      Logger.error(
-        `[SHARING/LIST-FOLDERS] Error while getting shared folders by user ${
-          user.uuid
-        }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
-      );
-
-      throw new InternalServerErrorException();
-    }
+    return this.sharingService.getFoldersInSharedFolder(
+      sharedFolderId,
+      token,
+      user,
+      page,
+      perPage,
+      order,
+    );
   }
 
   @Get('items/:sharedFolderId/files')
@@ -443,42 +437,31 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
-  @ApiOkResponse({ description: 'Get all items inside a shared folder' })
+  @ApiOkResponse({
+    description: 'Get all items inside a shared folder',
+    type: GetFilesInSharedFolderResponseDto,
+  })
   @ApiBearerAuth()
-  async getPrivateShareFiles(
+  async getFilesInPrivateSharedFolder(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
     @Query('orderBy') orderBy: OrderBy,
     @Query('token') token: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
-  ): Promise<GetFilesResponse | { error: string }> {
-    try {
-      const order = orderBy
-        ? [orderBy.split(':') as [string, string]]
-        : undefined;
+  ): Promise<GetFilesInSharedFolderResponseDto> {
+    const order = orderBy
+      ? [orderBy.split(':') as [string, string]]
+      : undefined;
 
-      return this.sharingService.getFilesInSharedFolder(
-        sharedFolderId,
-        token,
-        user,
-        page,
-        perPage,
-        order,
-      );
-    } catch (error) {
-      if (error instanceof ForbiddenException) {
-        throw error;
-      }
-
-      Logger.error(
-        `[SHARING/GETSHAREDFILES] Error while getting shared folders by folder ${
-          user.uuid
-        }, message: ${error.message}, ${error.stack ?? 'No stack trace'}`,
-      );
-
-      throw new InternalServerErrorException();
-    }
+    return this.sharingService.getFilesInSharedFolder(
+      sharedFolderId,
+      token,
+      user,
+      page,
+      perPage,
+      order,
+    );
   }
 
   @Get('/public/items/:sharedFolderId/files')
