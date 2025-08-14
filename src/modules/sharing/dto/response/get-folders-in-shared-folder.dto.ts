@@ -1,9 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, IntersectionType } from '@nestjs/swagger';
 import { Role, Sharing } from '../../sharing.domain';
 import { Folder } from '../../../folder/folder.domain';
-import { NetworkCredentialsDto } from './shared-base.dto';
-import { SharedFolderItemDto } from './shared-folder-item.dto';
-import { SharedFileItemDto } from './shared-file-item.dto';
+import { NetworkCredentialsDto, SharingOwnerInfoDto } from './shared-base.dto';
+import { FileDto } from '../../../file/dto/responses/file.dto';
+import { FolderDto } from '../../../folder/dto/responses/folder.dto';
 
 export class ParentFolderDto {
   @ApiProperty({
@@ -67,18 +67,36 @@ export class SharedFolderResponseBaseDto {
   role: Role['name'];
 }
 
+export class FileInSharedFolderDto extends IntersectionType(FileDto) {
+  @ApiProperty({
+    description: 'Owner of the file',
+    nullable: true,
+    type: SharingOwnerInfoDto,
+  })
+  user?: SharingOwnerInfoDto;
+}
+
+export class FolderInSharedFolderDto extends IntersectionType(FolderDto) {
+  @ApiProperty({
+    description: 'Owner of the folder',
+    nullable: true,
+    type: SharingOwnerInfoDto,
+  })
+  user?: SharingOwnerInfoDto;
+}
+
 export class GetFoldersInSharedFolderResponseDto extends SharedFolderResponseBaseDto {
   @ApiProperty({
     description: 'List of folders in the shared folder',
-    type: [SharedFolderItemDto],
+    type: [FolderInSharedFolderDto],
   })
-  items: SharedFolderItemDto[];
+  items: FolderInSharedFolderDto[];
 }
 
 export class GetFilesInSharedFolderResponseDto extends SharedFolderResponseBaseDto {
   @ApiProperty({
     description: 'List of files in the shared folder',
-    type: [SharedFileItemDto],
+    type: [FileInSharedFolderDto],
   })
-  items: SharedFileItemDto[];
+  items: FileInSharedFolderDto[];
 }

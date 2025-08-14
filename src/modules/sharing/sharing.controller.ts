@@ -8,7 +8,6 @@ import {
   Put,
   BadRequestException,
   Query,
-  ForbiddenException,
   Logger,
   ParseUUIDPipe,
   UseGuards,
@@ -64,6 +63,7 @@ import {
   GetFilesInSharedFolderResponseDto,
   GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
+import { GetItemsInSharedFolderQueryDto } from './dto/get-items-in-shared-folder.dto';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -349,34 +349,11 @@ export class SharingController {
 
   @Get('/items/:sharedFolderId/folders')
   @ApiOperation({
-    summary: 'Get all items shared by a user',
-  })
-  @ApiQuery({
-    description: 'Number of page to take by ( default 0 )',
-    name: 'page',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    description: 'Number of items per page ( default 50 )',
-    name: 'perPage',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    description: 'Order by',
-    name: 'orderBy',
-    required: false,
-    type: String,
+    summary: 'Get all files inside a shared folder',
   })
   @ApiParam({
     name: 'sharedFolderId',
-    description: 'Folder id of the shared folder',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'token',
-    description: 'Token that authorizes the access to the shared content',
+    description: 'Folder uuid of the shared folder',
     type: String,
   })
   @ApiOkResponse({
@@ -386,14 +363,9 @@ export class SharingController {
   async getFoldersInPrivateSharedFolder(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Query('orderBy') orderBy: OrderBy,
-    @Query('token') token: string,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query() query: GetItemsInSharedFolderQueryDto,
   ): Promise<GetFoldersInSharedFolderResponseDto> {
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+    const { token, page = 0, perPage = 50 } = query;
 
     return this.sharingService.getFoldersInSharedFolder(
       sharedFolderId,
@@ -401,40 +373,16 @@ export class SharingController {
       user,
       page,
       perPage,
-      order,
     );
   }
 
   @Get('items/:sharedFolderId/files')
   @ApiOperation({
-    summary: 'Get all items shared by a user',
-  })
-  @ApiQuery({
-    description: 'Number of page to take by ( default 0 )',
-    name: 'page',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    description: 'Number of items per page ( default 50 )',
-    name: 'perPage',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    description: 'Order by',
-    name: 'orderBy',
-    required: false,
-    type: String,
+    summary: 'Get all folders inside a shared folder',
   })
   @ApiParam({
     name: 'sharedFolderId',
-    description: 'Folder id of the shared folder',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'token',
-    description: 'Token that authorizes the access to the shared content',
+    description: 'Folder uuid of the shared folder',
     type: String,
   })
   @ApiOkResponse({
@@ -445,14 +393,9 @@ export class SharingController {
   async getFilesInPrivateSharedFolder(
     @UserDecorator() user: User,
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
-    @Query('orderBy') orderBy: OrderBy,
-    @Query('token') token: string,
-    @Query('page') page = 0,
-    @Query('perPage') perPage = 50,
+    @Query() query: GetItemsInSharedFolderQueryDto,
   ): Promise<GetFilesInSharedFolderResponseDto> {
-    const order = orderBy
-      ? [orderBy.split(':') as [string, string]]
-      : undefined;
+    const { token, page = 0, perPage = 50 } = query;
 
     return this.sharingService.getFilesInSharedFolder(
       sharedFolderId,
@@ -460,7 +403,6 @@ export class SharingController {
       user,
       page,
       perPage,
-      order,
     );
   }
 
