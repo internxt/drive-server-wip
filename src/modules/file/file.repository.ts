@@ -210,6 +210,36 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async getFilesWithWorkspaceUser(
+    fileUuids: string[],
+    order?: [keyof FileModel, 'ASC' | 'DESC'][],
+  ): Promise<File[]> {
+    const appliedOrder = order ? this.applyCollateToPlainNameSort(order) : null;
+
+    const files = await this.fileModel.findAll({
+      where: {
+        uuid: { [Op.in]: fileUuids },
+        status: FileStatus.EXISTS,
+      },
+      include: [
+        {
+          model: WorkspaceItemUserModel,
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+            },
+          ],
+        },
+      ],
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findByUuids(
     uuids: FileAttributes['uuid'][],
     where: Partial<Omit<FileAttributes, 'uuid'>> = {},
