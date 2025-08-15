@@ -31,6 +31,8 @@ import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { AuditLogService } from '../../externals/notifications/audit-log.service';
+import { AuditAction, AuditPerformerType } from '../user/audit-logs.attributes';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -41,6 +43,7 @@ export class GatewayController {
   constructor(
     private readonly gatewayUseCases: GatewayUseCases,
     private readonly storageNotificationsService: StorageNotificationService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   @Post('/workspaces')
@@ -53,7 +56,22 @@ export class GatewayController {
   async initializeWorkspace(
     @Body() initializeWorkspaceDto: InitializeWorkspaceDto,
   ) {
-    return this.gatewayUseCases.initializeWorkspace(initializeWorkspaceDto);
+    const result = await this.gatewayUseCases.initializeWorkspace(
+      initializeWorkspaceDto,
+    );
+
+    this.auditLogService.logWorkspaceAction(
+      result.workspace.id,
+      AuditAction.WorkspaceCreated,
+      AuditPerformerType.Gateway,
+      result.workspace.ownerId,
+      {
+        maxSpaceBytes: initializeWorkspaceDto.maxSpaceBytes,
+        numberOfSeats: result.workspace.numberOfSeats,
+      },
+    );
+
+    return result;
   }
 
   @Put('/workspaces/storage')
@@ -66,10 +84,21 @@ export class GatewayController {
   async updateWorkspaceStorage(
     @Body() updateWorkspaceStorageDto: UpdateWorkspaceStorageDto,
   ) {
-    return this.gatewayUseCases.updateWorkspaceStorage(
+    const workspace = await this.gatewayUseCases.updateWorkspaceStorage(
       updateWorkspaceStorageDto.ownerId,
       updateWorkspaceStorageDto.maxSpaceBytes,
       updateWorkspaceStorageDto.numberOfSeats,
+    );
+
+    this.auditLogService.logWorkspaceAction(
+      workspace.id,
+      AuditAction.WorkspaceStorageChanged,
+      AuditPerformerType.Gateway,
+      workspace.ownerId,
+      {
+        maxSpaceBytes: updateWorkspaceStorageDto.maxSpaceBytes,
+        numberOfSeats: updateWorkspaceStorageDto.numberOfSeats,
+      },
     );
   }
 
@@ -98,7 +127,16 @@ export class GatewayController {
   @UseGuards(GatewayGuard)
   @ApiOkResponse({ description: 'Delete workspace by owner id' })
   async destroyWorkspace(@Body() deleteWorkspaceDto: DeleteWorkspaceDto) {
-    return this.gatewayUseCases.destroyWorkspace(deleteWorkspaceDto.ownerId);
+    const workspace = await this.gatewayUseCases.destroyWorkspace(
+      deleteWorkspaceDto.ownerId,
+    );
+
+    this.auditLogService.logWorkspaceAction(
+      workspace.id,
+      AuditAction.WorkspaceDeleted,
+      AuditPerformerType.Gateway,
+      workspace.ownerId,
+    );
   }
 
   @Get('/users')
@@ -169,6 +207,8 @@ export class GatewayController {
       this.logger.log(
         `[UPDATE_USER] Updated user ${userUuid} space to ${maxSpaceBytes}`,
       );
+
+      this.auditLogService.logStorageChanged(user, maxSpaceBytes);
     } catch (error) {
       this.logger.error(
         `[UPDATE_USER] Error updating user ${userUuid}, error: ${JSON.stringify(
