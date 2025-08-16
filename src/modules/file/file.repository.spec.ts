@@ -13,6 +13,7 @@ import { FileRepository, SequelizeFileRepository } from './file.repository';
 import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
+import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 
 describe('FileRepository', () => {
   let repository: FileRepository;
@@ -806,6 +807,46 @@ describe('FileRepository', () => {
           type: QueryTypes.UPDATE,
         },
       );
+    });
+  });
+
+  describe('getFilesWithWorkspaceUser', () => {
+    it('When called, then it should make the query with expected parameters', async () => {
+      const file1 = newFile();
+      const file2 = newFile();
+      const fileUuids = [file1.uuid, file2.uuid];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+      jest
+        .spyOn(repository as any, 'toDomain')
+        .mockReturnValueOnce(file1)
+        .mockReturnValueOnce(file2);
+      jest
+        .spyOn(repository as any, 'applyCollateToPlainNameSort')
+        .mockReturnValue(null);
+
+      await repository.getFilesWithWorkspaceUser(fileUuids);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          uuid: { [Op.in]: fileUuids },
+          status: FileStatus.EXISTS,
+        },
+        include: [
+          {
+            model: WorkspaceItemUserModel,
+            as: 'workspaceUser',
+            include: [
+              {
+                model: UserModel,
+                as: 'creator',
+                attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+              },
+            ],
+          },
+        ],
+        order: null,
+      });
     });
   });
 });
