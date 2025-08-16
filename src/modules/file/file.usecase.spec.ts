@@ -15,14 +15,9 @@ import {
   SortableFileAttributes,
 } from './file.domain';
 import { User } from '../user/user.domain';
-import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import {
-  FolderRepository,
-  SequelizeFolderRepository,
-} from '../folder/folder.repository';
 import {
   newFile,
   newFolder,
@@ -44,53 +39,23 @@ describe('FileUseCases', () => {
   let service: FileUseCases;
   let folderUseCases: FolderUseCases;
   let fileRepository: FileRepository;
-  let folderRepository: FolderRepository;
   let sharingService: SharingService;
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
   let thumbnailUseCases: ThumbnailUseCases;
 
-  const userMocked = User.build({
-    id: 1,
-    userId: 'userId',
-    name: 'User Owner',
-    lastname: 'Lastname',
-    email: 'fake@internxt.com',
-    username: 'fake',
-    bridgeUser: null,
-    rootFolderId: 1,
-    errorLoginCount: 0,
-    isEmailActivitySended: 1,
-    referralCode: null,
-    referrer: null,
-    syncDate: new Date(),
-    uuid: 'uuid',
-    lastResend: new Date(),
-    credit: null,
-    welcomePack: true,
-    registerCompleted: true,
-    backupsBucket: 'bucket',
-    sharedWorkspace: true,
-    avatar: 'avatar',
-    password: '',
-    mnemonic: '',
-    hKey: undefined,
-    secret_2FA: '',
-    lastPasswordChangedAt: new Date(),
-    emailVerified: false,
-  });
+  const userMocked = newUser();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [BridgeModule, CryptoModule],
-      providers: [FileUseCases, FolderUseCases, SharingService],
+      imports: [CryptoModule],
+      providers: [FileUseCases],
     })
       .useMocker(() => createMock())
       .compile();
 
     service = module.get<FileUseCases>(FileUseCases);
     fileRepository = module.get<FileRepository>(SequelizeFileRepository);
-    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
@@ -154,7 +119,6 @@ describe('FileUseCases', () => {
       const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
       const fileIds = [fileId];
 
-      jest.spyOn(sharingService, 'bulkRemoveSharings');
       jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce(files);
 
       await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
@@ -236,21 +200,21 @@ describe('FileUseCases', () => {
   describe('deleteFilePermanently', () => {
     const mockUser = newUser();
 
-    it('When file is not found then, thow NotFoundException', () => {
+    it('When file is not found then, thow NotFoundException', async () => {
       jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(undefined);
 
-      expect(
+      await expect(
         service.deleteFilePermanently(mockUser, { uuid: v4() }),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When user is not owner of the file, then throw ForbiddenException', () => {
+    it('When user is not owner of the file, then throw ForbiddenException', async () => {
       const unownedFile = newFile();
       jest
         .spyOn(fileRepository, 'findOneBy')
         .mockResolvedValueOnce(unownedFile);
 
-      expect(
+      await expect(
         service.deleteFilePermanently(mockUser, { uuid: v4() }),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -423,19 +387,19 @@ describe('FileUseCases', () => {
       );
     });
 
-    it('When file is moved but it is removed, then an error is thrown', () => {
+    it('When file is moved but it is removed, then an error is thrown', async () => {
       const mockFile = newFile({
         attributes: { userId: userMocked.id, removed: true },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
 
-      expect(
+      await expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(`File ${file.uuid} can not be moved`);
     });
 
-    it('When file is moved but the destination folder is removed, then an error is thrown', () => {
+    it('When file is moved but the destination folder is removed, then an error is thrown', async () => {
       const mockDestinationFolder = newFolder({
         attributes: { userId: userMocked.id, removed: true },
       });
@@ -445,42 +409,42 @@ describe('FileUseCases', () => {
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(mockDestinationFolder);
 
-      expect(
+      await expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
     });
 
-    it('When a non existent file is moved to a folder, then it should throw a not found error', () => {
+    it('When a non existent file is moved to a folder, then it should throw a not found error', async () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(null);
-      expect(
+      await expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(`File ${file.uuid} can not be moved`);
     });
 
-    it('When a file is moved to a non existent folder, then it should throw a not found error', () => {
+    it('When a file is moved to a non existent folder, then it should throw a not found error', async () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValueOnce(null);
-      expect(
+      await expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
     });
 
-    it('When file is moved to a folder that has been already moved to, then it should throw a conflict error', () => {
+    it('When file is moved to a folder that has been already moved to, then it should throw a conflict error', async () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderRepository, 'findByUuid')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(file);
 
-      expect(
+      await expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(`File ${file.uuid} was already moved to that location`);
     });
 
-    it('When file is moved to a folder that has already a file with the same name, then it should throw a conflict error', () => {
+    it('When file is moved to a folder that has already a file with the same name, then it should throw a conflict error', async () => {
       const conflictFile = newFile({
         attributes: {
           ...file,
@@ -489,14 +453,14 @@ describe('FileUseCases', () => {
       });
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest
-        .spyOn(folderRepository, 'findByUuid')
+        .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(conflictFile);
 
-      expect(
+      await expect(
         service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
       ).rejects.toThrow(
         'A file with the same name already exists in destination folder',
@@ -852,9 +816,11 @@ describe('FileUseCases', () => {
 
     it('When get file metadata by path is requested with a valid path but the root folder doesnt exist, then it should throw a not found error', async () => {
       const filePath = '/test/file.png';
-      jest.spyOn(folderUseCases, 'getFolderByUserId').mockResolvedValue(null);
+      jest
+        .spyOn(folderUseCases, 'getFolderMetadataByPath')
+        .mockResolvedValue(null);
 
-      expect(
+      await expect(
         service.getFileMetadataByPath(userMocked, filePath),
       ).rejects.toThrow(NotFoundException);
     });
@@ -869,7 +835,7 @@ describe('FileUseCases', () => {
         .spyOn(folderUseCases, 'getFolderMetadataByPath')
         .mockResolvedValue(null);
 
-      expect(
+      await expect(
         service.getFileMetadataByPath(userMocked, filePath),
       ).rejects.toThrow(NotFoundException);
     });

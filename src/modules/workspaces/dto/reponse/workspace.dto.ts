@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserToJsonDto } from 'src/modules/user/dto/user-to-json.dto';
+import { UserToJsonDto } from '../../../user/dto/user-to-json.dto';
 import { WorkspaceAttributes } from '../../attributes/workspace.attributes';
 import { Workspace } from '../../domains/workspaces.domain';
 
