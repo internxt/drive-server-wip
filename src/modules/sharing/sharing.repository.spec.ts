@@ -1437,4 +1437,93 @@ describe('SharingRepository', () => {
       );
     });
   });
+
+  describe('getTeamsRelatedSharedFilesInfo', () => {
+    it('When getting teams related shared files info, then it makes query with expected arguments', async () => {
+      const ownerId = v4();
+      const teamIds = [v4(), v4()];
+      const workspaceId = v4();
+      const offset = 0;
+      const limit = 10;
+      const options = { offset, limit };
+
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValue([]);
+
+      await repository.getTeamsRelatedSharedFilesInfo(
+        ownerId,
+        teamIds,
+        workspaceId,
+        options,
+      );
+
+      expect(sharingModel.findAll).toHaveBeenCalledWith({
+        attributes: [
+          'itemId',
+          [
+            Sequelize.literal('MAX("SharingModel"."encryption_key")'),
+            'encryptionKey',
+          ],
+          [Sequelize.literal('MIN("SharingModel"."created_at")'), 'createdAt'],
+        ],
+        where: {
+          [Op.or]: [
+            {
+              sharedWith: { [Op.in]: teamIds },
+              sharedWithType: SharedWithType.WorkspaceTeam,
+            },
+            {
+              '$file->workspaceUser.created_by$': ownerId,
+            },
+          ],
+        },
+        group: ['itemId'],
+        include: [
+          {
+            model: FileModel,
+            attributes: [],
+            where: {
+              status: FileStatus.EXISTS,
+            },
+            include: [
+              {
+                model: WorkspaceItemUserModel,
+                as: 'workspaceUser',
+                where: {
+                  workspaceId,
+                },
+                attributes: [],
+              },
+            ],
+          },
+        ],
+        limit,
+        offset,
+      });
+    });
+
+    it('When called with different pagination, then it uses correct offset and limit', async () => {
+      const ownerId = v4();
+      const teamIds = [v4()];
+      const workspaceId = v4();
+      const offset = 20;
+      const limit = 5;
+      const options = { offset, limit };
+
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValue([]);
+
+      await repository.getTeamsRelatedSharedFilesInfo(
+        ownerId,
+        teamIds,
+        workspaceId,
+        options,
+      );
+
+      expect(sharingModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 5,
+          offset: 20,
+        }),
+      );
+    });
+  });
 });
