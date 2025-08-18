@@ -49,6 +49,7 @@ import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace
 @ApiTags('Trash')
 @Controller('storage/trash')
 export class TrashController {
+  private readonly logger = new Logger(TrashController.name);
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly folderUseCases: FolderUseCases,
@@ -173,6 +174,11 @@ export class TrashController {
           default:
             throw new BadRequestException(`type ${item.type} invalid`);
         }
+      }
+      if (fileIds.length !== 0) {
+        this.logger.warn(
+          `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid.`,
+        );
       }
       await Promise.all([
         fileIds.length > 0 || fileUuids.length > 0
