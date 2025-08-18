@@ -31,7 +31,6 @@ import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
 import { File, FileStatus } from './file.domain';
-import { validate } from 'uuid';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
@@ -65,6 +64,7 @@ enum FileStatusQuery {
 @ApiTags('File')
 @Controller('files')
 export class FileController {
+  private readonly logger = new Logger(FileController.name);
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
@@ -134,12 +134,8 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async getFileMetadata(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: string,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
   ): Promise<FileDto> {
-    if (!validate(fileUuid)) {
-      throw new BadRequestException('Invalid UUID');
-    }
-
     try {
       const file = await this.fileUseCases.getFileMetadata(user, fileUuid);
 
@@ -357,14 +353,11 @@ export class FileController {
   @WorkspacesInBehalfValidationFile()
   async moveFile(
     @UserDecorator() user: User,
-    @Param('uuid') fileUuid: string,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
     @Body() moveFileData: MoveFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
   ): Promise<FileDto> {
-    if (!validate(fileUuid) || !validate(moveFileData.destinationFolder)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
     const file = await this.fileUseCases.moveFile(
       user,
       fileUuid,
@@ -477,7 +470,15 @@ export class FileController {
   async createThumbnail(
     @UserDecorator() user: User,
     @Body() body: CreateThumbnailDto,
+    @Client() clientId: string,
   ): Promise<ThumbnailDto> {
+    const stillUsesFileId = body.fileId && isNumber(body.fileId);
+    if (stillUsesFileId) {
+      this.logger.warn(
+        `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid.`,
+      );
+    }
+
     return this.thumbnailUseCases.createThumbnail(user, body);
   }
 
