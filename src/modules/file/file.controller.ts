@@ -473,7 +473,7 @@ export class FileController {
     @Client() clientId: string,
   ): Promise<ThumbnailDto> {
     const stillUsesFileId = body.fileId && isNumber(body.fileId);
-    if (stillUsesFileId) {
+    if (stillUsesFileId && !body.fileUuid) {
       this.logger.warn(
         `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid.`,
       );
