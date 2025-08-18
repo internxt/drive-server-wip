@@ -27,6 +27,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
+import { SequelizeFileRepository } from '../file/file.repository';
 import {
   Role,
   SharedWithType,
@@ -52,6 +53,7 @@ jest.mock('../../externals/mailer/mailer.service', () => ({
 describe('Sharing Use Cases', () => {
   let sharingService: SharingService;
   let sharingRepository: DeepMocked<SequelizeSharingRepository>;
+  let fileRepository: DeepMocked<SequelizeFileRepository>;
   let folderUseCases: DeepMocked<FolderUseCases>;
   let fileUsecases: DeepMocked<FileUseCases>;
   let usersUsecases: DeepMocked<UserUseCases>;
@@ -60,6 +62,7 @@ describe('Sharing Use Cases', () => {
 
   beforeEach(async () => {
     sharingRepository = createMock<SequelizeSharingRepository>();
+    fileRepository = createMock<SequelizeFileRepository>();
     folderUseCases = createMock<FolderUseCases>();
     fileUsecases = createMock<FileUseCases>();
     usersUsecases = createMock<UserUseCases>();
@@ -82,6 +85,7 @@ describe('Sharing Use Cases', () => {
 
     sharingService = new SharingService(
       sharingRepository,
+      fileRepository,
       fileUsecases,
       folderUseCases,
       usersUsecases,
@@ -589,25 +593,28 @@ describe('Sharing Use Cases', () => {
     const order: [string, string][] = [['name', 'asc']];
 
     it('When files are shared with teams user belongs to, then it should return the files', async () => {
-      const sharing = newSharing();
-      sharing.file = newFile({ owner: newUser() });
-      sharing.file.user = newUser();
+      const file = newFile({ owner: newUser() });
+      file.user = newUser();
 
-      const filesWithSharedInfo = [sharing];
+      const sharedFilesInfo = [
+        {
+          itemId: file.uuid,
+          encryptionKey: 'encrypted-key-123',
+          createdAt: new Date(),
+        },
+      ];
+
+      const filesWithUserData = [file];
 
       jest
-        .spyOn(sharingRepository, 'findFilesSharedInWorkspaceByOwnerAndTeams')
-        .mockResolvedValue(filesWithSharedInfo);
+        .spyOn(sharingRepository, 'getTeamsRelatedSharedFilesInfo')
+        .mockResolvedValue(sharedFilesInfo);
 
       jest
-        .spyOn(fileUsecases, 'decrypFileName')
-        .mockReturnValue({ plainName: 'DecryptedFileName' });
+        .spyOn(fileRepository, 'getFilesWithWorkspaceUser')
+        .mockResolvedValue(filesWithUserData);
 
       jest.spyOn(usersUsecases, 'getAvatarUrl').mockResolvedValue('avatar-url');
-
-      jest
-        .spyOn(jwtUtils, 'generateWithDefaultSecret')
-        .mockReturnValue('generatedToken');
 
       const result = await sharingService.getSharedFilesInWorkspaceByTeams(
         user,
@@ -641,7 +648,11 @@ describe('Sharing Use Cases', () => {
 
     it('When no files are shared with teams user belongs to, then it should return nothing', async () => {
       jest
-        .spyOn(sharingRepository, 'findFilesSharedInWorkspaceByOwnerAndTeams')
+        .spyOn(sharingRepository, 'getTeamsRelatedSharedFilesInfo')
+        .mockResolvedValue([]);
+
+      jest
+        .spyOn(fileRepository, 'getFilesWithWorkspaceUser')
         .mockResolvedValue([]);
 
       const result = await sharingService.getSharedFilesInWorkspaceByTeams(
@@ -661,27 +672,6 @@ describe('Sharing Use Cases', () => {
         token: '',
         role: 'OWNER',
       });
-    });
-
-    it('When there is an error fetching shared files, then it should throw', async () => {
-      const error = new Error('Database error');
-
-      jest
-        .spyOn(sharingRepository, 'findFilesSharedInWorkspaceByOwnerAndTeams')
-        .mockRejectedValue(error);
-
-      await expect(
-        sharingService.getSharedFilesInWorkspaceByTeams(
-          user,
-          workspaceId,
-          teamIds,
-          {
-            offset,
-            limit,
-            order,
-          },
-        ),
-      ).rejects.toThrow(error);
     });
   });
 

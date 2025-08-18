@@ -628,6 +628,69 @@ export class SequelizeSharingRepository implements SharingRepository {
     );
   }
 
+  async getTeamsRelatedSharedFilesInfo(
+    ownerId: WorkspaceItemUserAttributes['createdBy'],
+    teamIds: WorkspaceTeamAttributes['id'][],
+    workspaceId: WorkspaceAttributes['id'],
+    options: { offset: number; limit: number },
+  ): Promise<
+    Pick<SharingAttributes, 'encryptionKey' | 'createdAt' | 'itemId'>[]
+  > {
+    const sharedFiles = await this.sharings.findAll({
+      attributes: [
+        'itemId',
+        [
+          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          'encryptionKey',
+        ],
+        [sequelize.literal(`MIN("SharingModel"."created_at")`), 'createdAt'],
+      ],
+      where: {
+        [Op.or]: [
+          {
+            sharedWith: { [Op.in]: teamIds },
+            sharedWithType: SharedWithType.WorkspaceTeam,
+          },
+          {
+            '$file->workspaceUser.created_by$': ownerId,
+          },
+        ],
+      },
+      group: ['itemId'],
+      include: [
+        {
+          model: FileModel,
+          attributes: [],
+          where: {
+            status: FileStatus.EXISTS,
+          },
+          include: [
+            {
+              model: WorkspaceItemUserModel,
+              as: 'workspaceUser',
+              where: {
+                workspaceId,
+              },
+              attributes: [],
+            },
+          ],
+        },
+      ],
+      limit: options.limit,
+      offset: options.offset,
+    });
+
+    return sharedFiles.map((data) => ({
+      itemId: data.itemId,
+      encryptionKey: data.encryptionKey,
+      createdAt: data.createdAt,
+    }));
+  }
+
+  /**
+   * @deprecated Groups by file.id instead of itemId (UUID). Use getTeamsRelatedSharedFilesInfo() + fileRepository.getFilesWithWorkspaceUser() instead.
+   * @see SharingService.getSharedFilesInWorkspaceByTeams for migration example
+   */
   async findFilesSharedInWorkspaceByOwnerAndTeams(
     ownerId: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
