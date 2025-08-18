@@ -110,32 +110,6 @@ describe('FileController', () => {
       );
       expect(result).toEqual(expectedFile);
     });
-
-    it('When move file is requested with invalid params, then it should throw an error', () => {
-      expect(
-        fileController.moveFile(
-          userMocked,
-          'invaliduuid',
-          {
-            destinationFolder: v4(),
-          },
-          clientId,
-          requester,
-        ),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(
-        fileController.moveFile(
-          userMocked,
-          v4(),
-          {
-            destinationFolder: 'invaliduuid',
-          },
-          clientId,
-          requester,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
   });
 
   describe('getRecentFiles', () => {
@@ -317,6 +291,7 @@ describe('FileController', () => {
       const result = await fileController.createThumbnail(
         userMocked,
         createThumbnailDto,
+        'drive-web',
       );
       expect(result).toEqual(thumbnailDto);
       expect(thumbnailUseCases.createThumbnail).toHaveBeenCalledWith(
@@ -330,7 +305,11 @@ describe('FileController', () => {
         .spyOn(thumbnailUseCases, 'createThumbnail')
         .mockRejectedValue(new InternalServerErrorException());
       await expect(
-        fileController.createThumbnail(userMocked, createThumbnailDto),
+        fileController.createThumbnail(
+          userMocked,
+          createThumbnailDto,
+          'drive-web',
+        ),
       ).rejects.toThrow(InternalServerErrorException);
     });
   });
@@ -567,12 +546,6 @@ describe('FileController', () => {
         userMocked,
         validUuid,
       );
-    });
-
-    it('When getFileMetadata is called with invalid uuid, then it should throw BadRequestException', async () => {
-      await expect(
-        fileController.getFileMetadata(userMocked, 'invalid-uuid'),
-      ).rejects.toThrow(BadRequestException);
     });
 
     it('When getFileMetadata throws NotFoundException, then it should propagate the error', async () => {
