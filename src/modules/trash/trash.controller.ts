@@ -177,7 +177,7 @@ export class TrashController {
       }
       if (fileIds.length !== 0) {
         this.logger.warn(
-          `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid.`,
+          `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid. Endpoint: /trash/add`,
         );
       }
       await Promise.all([
@@ -270,6 +270,7 @@ export class TrashController {
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
+    @Client() clientId: string,
   ) {
     const { items } = deleteItemsDto;
 
@@ -289,7 +290,11 @@ export class TrashController {
           : foldersIds.push(parseInt(item.id, 10));
       }
     }
-
+    if (filesIds.length !== 0) {
+      this.logger.warn(
+        `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid. Endpoint: /trash/`,
+      );
+    }
     const [files, filesByUuid, folders, foldersByUuid] = await Promise.all([
       filesIds.length > 0
         ? this.fileUseCases.getFilesByIds(user, filesIds)

@@ -183,7 +183,7 @@ describe('TrashController', () => {
     it('When array is empty, then it should not get items', async () => {
       const deleteItemsDto: DeleteItemsDto = { items: [] };
 
-      await controller.deleteItems(deleteItemsDto, user);
+      await controller.deleteItems(deleteItemsDto, user, 'drive-web');
       expect(fileUseCases.getFilesByIds).not.toHaveBeenCalled();
       expect(folderUseCases.getFoldersByIds).not.toHaveBeenCalled();
       expect(trashUseCases.deleteItems).toHaveBeenCalled();
@@ -212,7 +212,7 @@ describe('TrashController', () => {
       jest.spyOn(folderUseCases, 'getByUuids').mockResolvedValue([]);
       jest.spyOn(trashUseCases, 'deleteItems').mockResolvedValue();
 
-      await controller.deleteItems(deleteItemsDto, user);
+      await controller.deleteItems(deleteItemsDto, user, 'drive-web');
 
       expect(fileUseCases.getFilesByIds).not.toHaveBeenCalled();
       expect(fileUseCases.getByUuids).toHaveBeenCalledWith([fileItems[0].uuid]);
@@ -250,7 +250,7 @@ describe('TrashController', () => {
       jest.spyOn(folderUseCases, 'getByUuids').mockResolvedValue([]);
       jest.spyOn(trashUseCases, 'deleteItems').mockResolvedValue();
 
-      await controller.deleteItems(deleteItemsDto, user);
+      await controller.deleteItems(deleteItemsDto, user, 'drive-web');
 
       expect(fileUseCases.getFilesByIds).toHaveBeenCalledWith(user, [
         parseInt(fileItems[0].id),
