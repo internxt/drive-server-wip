@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { newUser } from '../../../test/fixtures';
 import { ClientEnum } from '../../common/enums/platform.enum';
-import { ClientHeaders } from './decorators/client.decorator';
+import { ClientHeaders } from '../../common/decorators/client.decorator';
 
 describe('ConditionalCaptchaGuard', () => {
   let guard: ConditionalCaptchaGuard;

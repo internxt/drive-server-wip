@@ -8,7 +8,7 @@ import {
 import { BaseError as SequelizeError } from 'sequelize';
 import { AxiosError } from 'axios';
 import { BaseExceptionFilter } from '@nestjs/core';
-import { getClientIdFromHeaders } from '../modules/auth/decorators/client.decorator';
+import { getClientIdFromHeaders } from './decorators/client.decorator';
 import { v4 } from 'uuid';
 
 @Catch()

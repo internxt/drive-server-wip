@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { UserUseCases } from '../user/user.usecase';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
-import { ClientHeaders } from './decorators/client.decorator';
+import { ClientHeaders } from '../../common/decorators/client.decorator';
 import { ClientEnum } from '../../common/enums/platform.enum';
 
 @Injectable()

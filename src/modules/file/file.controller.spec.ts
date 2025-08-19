@@ -292,6 +292,7 @@ describe('FileController', () => {
         userMocked,
         createThumbnailDto,
         'drive-web',
+        '1.0.0',
       );
       expect(result).toEqual(thumbnailDto);
       expect(thumbnailUseCases.createThumbnail).toHaveBeenCalledWith(
@@ -309,6 +310,7 @@ describe('FileController', () => {
           userMocked,
           createThumbnailDto,
           'drive-web',
+          '1.0.0',
         ),
       ).rejects.toThrow(InternalServerErrorException);
     });

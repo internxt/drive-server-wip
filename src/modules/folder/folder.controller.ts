@@ -43,7 +43,7 @@ import { RequiredSharingPermissions } from '../sharing/guards/sharing-permission
 import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { Client } from '../auth/decorators/client.decorator';
+import { Client } from '../../common/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { getPathDepth } from '../../lib/path';
