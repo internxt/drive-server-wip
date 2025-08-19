@@ -23,7 +23,7 @@ import {
   MoveItemsToTrashDto,
 } from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { Client } from '../auth/decorators/client.decorator';
+import { Client } from '../../common/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
@@ -45,6 +45,7 @@ import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
+import { Version } from '../../common/decorators/version.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -138,6 +139,7 @@ export class TrashController {
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Version() version: string,
     @Requester() requester: User,
   ) {
     if (moveItemsDto.items.length === 0) {
@@ -177,7 +179,7 @@ export class TrashController {
       }
       if (fileIds.length !== 0) {
         this.logger.warn(
-          `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid. Endpoint: /trash/add`,
+          `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/add`,
         );
       }
       await Promise.all([
@@ -271,6 +273,7 @@ export class TrashController {
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
     @Client() clientId: string,
+    @Version() version: string,
   ) {
     const { items } = deleteItemsDto;
 
@@ -292,7 +295,7 @@ export class TrashController {
     }
     if (filesIds.length !== 0) {
       this.logger.warn(
-        `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid. Endpoint: /trash/`,
+        `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/`,
       );
     }
     const [files, filesByUuid, folders, foldersByUuid] = await Promise.all([

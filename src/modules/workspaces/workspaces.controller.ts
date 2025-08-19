@@ -75,7 +75,7 @@ import { GetSharedWithDto } from './dto/shared-with.dto';
 import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
 import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { Client } from '../auth/decorators/client.decorator';
+import { Client } from '../../common/decorators/client.decorator';
 import { WorkspaceLogGlobalActionType } from './attributes/workspace-logs.attributes';
 import { WorkspaceLogAction } from './decorators/workspace-log-action.decorator';
 import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';

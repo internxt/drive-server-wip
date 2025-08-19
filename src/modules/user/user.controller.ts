@@ -77,7 +77,7 @@ import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attrib
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { avatarStorageS3Config } from '../../externals/multer';
-import { Client } from '../auth/decorators/client.decorator';
+import { Client } from '../../common/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';

@@ -42,7 +42,7 @@ import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { Client } from '../auth/decorators/client.decorator';
+import { Client } from '../../common/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
@@ -51,6 +51,7 @@ import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
+import { Version } from '../../common/decorators/version.decorator';
 
 const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -471,11 +472,12 @@ export class FileController {
     @UserDecorator() user: User,
     @Body() body: CreateThumbnailDto,
     @Client() clientId: string,
+    @Version() version: string,
   ): Promise<ThumbnailDto> {
     const stillUsesFileId = body.fileId && isNumber(body.fileId);
     if (stillUsesFileId && !body.fileUuid) {
       this.logger.warn(
-        `FILE_ID_USAGE: client ${clientId} is using fileId instead of fileUuid.`,
+        `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid.`,
       );
     }
 
