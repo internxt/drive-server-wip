@@ -12,7 +12,7 @@ import { HttpGlobalExceptionFilter } from './http-global-exception-filter.except
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { newUser } from '../../test/fixtures';
 
-jest.mock('../modules/auth/decorators/client.decorator', () => ({
+jest.mock('../common/decorators/client.decorator', () => ({
   getClientIdFromHeaders: jest.fn().mockReturnValue('drive-web'),
 }));
 
