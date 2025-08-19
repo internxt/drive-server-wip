@@ -17,6 +17,7 @@ export class CreateThumbnailDto {
     description: 'The ID of the file. Deprecated in favor of fileUuid',
     example: 12345,
     deprecated: true,
+    required: false,
   })
   @IsOptional()
   @IsNumber()
@@ -25,7 +26,7 @@ export class CreateThumbnailDto {
   @ApiProperty({
     description: 'The UUID of the file',
     example: 'ebe586db-eb56-429f-a037-6ba712b40c3c',
-    required: false,
+    required: true,
   })
   @IsOptional()
   @IsUUID()

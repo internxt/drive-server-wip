@@ -26,6 +26,7 @@ export class DeleteItemDto {
   @ApiProperty({
     example: '79a88429-b45a-4ae7-90f1-c351b6882670',
     description: 'Uuid of file or folder',
+    required: true,
   })
   uuid?: string;
 

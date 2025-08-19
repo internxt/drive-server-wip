@@ -28,6 +28,7 @@ export class ItemToTrashDto {
   @ApiProperty({
     example: '4',
     description: 'Uuid of file or folder',
+    required: true,
   })
   uuid?: string;
 
