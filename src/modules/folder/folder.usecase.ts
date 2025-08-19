@@ -58,7 +58,7 @@ export class FolderUseCases {
     const folder = await this.folderRepository.findByUuid(uuid, false);
 
     if (!folder) {
-      throw new NotFoundException();
+      throw new NotFoundException('Folder not found');
     }
 
     folder.plainName = this.cryptoService.decryptName(
