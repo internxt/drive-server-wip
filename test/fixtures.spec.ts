@@ -11,6 +11,8 @@ import {
 import * as fixtures from './fixtures';
 import { SharingActionName } from '../src/modules/sharing/sharing.domain';
 import { UserKeysEncryptVersions } from '../src/modules/keyserver/key-server.domain';
+import { newUsage } from './fixtures';
+import { UsageType } from '../src/modules/usage/usage.domain';
 
 describe('Testing fixtures tests', () => {
   describe("User's fixture", () => {
@@ -630,6 +632,60 @@ describe('Testing fixtures tests', () => {
       const keyServer = fixtures.newKeyServer();
 
       expect(keyServer.encryptVersion).toBe(UserKeysEncryptVersions.Ecc);
+    });
+  });
+
+  describe('Usage Fixture', () => {
+    it('When it generates a usage, then it should be random', () => {
+      const usage = newUsage();
+      const otherUsage = newUsage();
+
+      expect(usage.id).toBeTruthy();
+      expect(usage.id).not.toBe(otherUsage.id);
+      expect(usage.userId).not.toBe(otherUsage.userId);
+    });
+
+    it('When it generates a usage, then the delta should be within the range', () => {
+      const usage = newUsage();
+
+      expect(usage.delta).toBeGreaterThanOrEqual(0);
+      expect(usage.delta).toBeLessThanOrEqual(1000);
+    });
+
+    it('When it generates a usage and a type is provided, then that type should be set', () => {
+      const usage = newUsage({ attributes: { type: UsageType.Monthly } });
+
+      expect(usage.type).toBe(UsageType.Monthly);
+    });
+
+    it('When it generates a usage, then the period should be populated', () => {
+      const usage = newUsage();
+
+      expect(usage.period).toBeInstanceOf(Date);
+      expect(usage.period).toBeTruthy();
+    });
+
+    it('When it generates a usage and custom attributes are provided, then those attributes should be set correctly', () => {
+      const customAttributes = {
+        delta: 500,
+        type: UsageType.Yearly,
+        period: new Date('2023-01-01T00:00:00Z'),
+      };
+
+      const usage = newUsage({ attributes: customAttributes });
+
+      expect(usage.delta).toBe(customAttributes.delta);
+      expect(usage.type).toBe(customAttributes.type);
+      expect(usage.period).toEqual(customAttributes.period);
+    });
+
+    it('When it generates multiple usages, then all their identifiers should be unique', () => {
+      const usages = Array.from({ length: 10 }, () => newUsage());
+
+      const ids = usages.map((usage) => usage.id);
+      const uniqueIds = new Set(ids);
+
+      expect(uniqueIds.size).toBe(usages.length);
     });
   });
 });
