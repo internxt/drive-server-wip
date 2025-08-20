@@ -42,6 +42,13 @@ import {
 } from '../src/modules/keyserver/key-server.domain';
 import { DeviceAttributes } from '../src/modules/backups/models/device.attributes';
 import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
+import { AuditLog } from '../src/modules/user/audit-logs.domain';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditLogAttributes,
+  AuditPerformerType,
+} from '../src/modules/user/audit-logs.attributes';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -615,4 +622,18 @@ export const newDevice = (options?: Partial<DeviceAttributes>): Device => {
   };
 
   return new Device(mergedAttributes);
+};
+
+export const newAuditLog = (params?: Partial<AuditLogAttributes>): AuditLog => {
+  return AuditLog.build({
+    id: v4(),
+    entityType: AuditEntityType.User,
+    entityId: v4(),
+    action: AuditAction.PasswordChanged,
+    performerType: AuditPerformerType.User,
+    performerId: v4(),
+    createdAt: new Date(),
+    metadata: params?.metadata || {},
+    ...params,
+  });
 };
