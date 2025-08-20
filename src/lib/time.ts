@@ -44,4 +44,26 @@ export class Time {
   public static readonly convertTimestampToDate = (timestamp: number): Date => {
     return new Date(timestamp * 1000);
   };
+
+  /**
+   * Returns a new Date object set to the start of the day (00:00:00.000)
+   * @param date - Optional date to use. If not provided, uses current date
+   * @returns Date object set to start of day
+   */
+  public static startOfDay(date?: Date): Date {
+    const targetDate = date ? new Date(date) : Time.now();
+    targetDate.setHours(0, 0, 0, 0);
+    return targetDate;
+  }
+
+  /**
+   * Returns a new Date object set to the end of the day (23:59:59.999)
+   * @param date - Optional date to use. If not provided, uses current date
+   * @returns Date object set to end of day
+   */
+  public static endOfDay(date?: Date): Date {
+    const targetDate = date ? new Date(date) : Time.now();
+    targetDate.setHours(23, 59, 59, 999);
+    return targetDate;
+  }
 }
