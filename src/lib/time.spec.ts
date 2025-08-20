@@ -67,4 +67,54 @@ describe('Time class', () => {
       expect(timestampDate).toEqual(new Date(timestamp * 1000));
     });
   });
+
+  describe('startOfDay()', () => {
+    it('When called without date, then returns current date at start of day', () => {
+      const startOfDay = Time.startOfDay();
+
+      expect(startOfDay.getHours()).toBe(0);
+      expect(startOfDay.getMinutes()).toBe(0);
+      expect(startOfDay.getSeconds()).toBe(0);
+      expect(startOfDay.getMilliseconds()).toBe(0);
+    });
+
+    it('When called with specific date, then returns that date at start of day', () => {
+      const specificDate = new Date('2023-05-15 14:30:45.123');
+
+      const startOfDay = Time.startOfDay(specificDate);
+
+      expect(startOfDay.getFullYear()).toBe(2023);
+      expect(startOfDay.getMonth()).toBe(4);
+      expect(startOfDay.getDate()).toBe(15);
+      expect(startOfDay.getHours()).toBe(0);
+      expect(startOfDay.getMinutes()).toBe(0);
+      expect(startOfDay.getSeconds()).toBe(0);
+      expect(startOfDay.getMilliseconds()).toBe(0);
+    });
+  });
+
+  describe('endOfDay()', () => {
+    it('When called without date, then returns current date at end of day', () => {
+      const endOfDay = Time.endOfDay();
+
+      expect(endOfDay.getHours()).toBe(23);
+      expect(endOfDay.getMinutes()).toBe(59);
+      expect(endOfDay.getSeconds()).toBe(59);
+      expect(endOfDay.getMilliseconds()).toBe(999);
+    });
+
+    it('When called with specific date, then returns that date at end of day', () => {
+      const specificDate = new Date('2023-05-15 14:30:45.123');
+
+      const endOfDay = Time.endOfDay(specificDate);
+
+      expect(endOfDay.getFullYear()).toBe(2023);
+      expect(endOfDay.getMonth()).toBe(4);
+      expect(endOfDay.getDate()).toBe(15);
+      expect(endOfDay.getHours()).toBe(23);
+      expect(endOfDay.getMinutes()).toBe(59);
+      expect(endOfDay.getSeconds()).toBe(59);
+      expect(endOfDay.getMilliseconds()).toBe(999);
+    });
+  });
 });
