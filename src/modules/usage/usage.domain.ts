@@ -48,14 +48,6 @@ export class Usage implements UsageAttributes {
     return this.type === UsageType.Yearly;
   }
 
-  isMonthly(): boolean {
-    return this.type === UsageType.Monthly;
-  }
-
-  isDaily(): boolean {
-    return this.type === UsageType.Daily;
-  }
-
   isPreviousDayTo(targetDate: Date): boolean {
     if (this.isYearly()) {
       return false;
