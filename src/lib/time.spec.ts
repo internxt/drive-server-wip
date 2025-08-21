@@ -72,24 +72,24 @@ describe('Time class', () => {
     it('When called without date, then returns current date at start of day', () => {
       const startOfDay = Time.startOfDay();
 
-      expect(startOfDay.getHours()).toBe(0);
-      expect(startOfDay.getMinutes()).toBe(0);
-      expect(startOfDay.getSeconds()).toBe(0);
-      expect(startOfDay.getMilliseconds()).toBe(0);
+      expect(startOfDay.getUTCHours()).toBe(0);
+      expect(startOfDay.getUTCMinutes()).toBe(0);
+      expect(startOfDay.getUTCSeconds()).toBe(0);
+      expect(startOfDay.getUTCMilliseconds()).toBe(0);
     });
 
     it('When called with specific date, then returns that date at start of day', () => {
-      const specificDate = new Date('2023-05-15 14:30:45.123');
+      const specificDate = new Date('2023-05-15T14:30:45.123Z');
 
       const startOfDay = Time.startOfDay(specificDate);
 
-      expect(startOfDay.getFullYear()).toBe(2023);
-      expect(startOfDay.getMonth()).toBe(4);
-      expect(startOfDay.getDate()).toBe(15);
-      expect(startOfDay.getHours()).toBe(0);
-      expect(startOfDay.getMinutes()).toBe(0);
-      expect(startOfDay.getSeconds()).toBe(0);
-      expect(startOfDay.getMilliseconds()).toBe(0);
+      expect(startOfDay.getUTCFullYear()).toBe(2023);
+      expect(startOfDay.getUTCMonth()).toBe(4);
+      expect(startOfDay.getUTCDate()).toBe(15);
+      expect(startOfDay.getUTCHours()).toBe(0);
+      expect(startOfDay.getUTCMinutes()).toBe(0);
+      expect(startOfDay.getUTCSeconds()).toBe(0);
+      expect(startOfDay.getUTCMilliseconds()).toBe(0);
     });
   });
 
@@ -97,24 +97,24 @@ describe('Time class', () => {
     it('When called without date, then returns current date at end of day', () => {
       const endOfDay = Time.endOfDay();
 
-      expect(endOfDay.getHours()).toBe(23);
-      expect(endOfDay.getMinutes()).toBe(59);
-      expect(endOfDay.getSeconds()).toBe(59);
-      expect(endOfDay.getMilliseconds()).toBe(999);
+      expect(endOfDay.getUTCHours()).toBe(23);
+      expect(endOfDay.getUTCMinutes()).toBe(59);
+      expect(endOfDay.getUTCSeconds()).toBe(59);
+      expect(endOfDay.getUTCMilliseconds()).toBe(999);
     });
 
     it('When called with specific date, then returns that date at end of day', () => {
-      const specificDate = new Date('2023-05-15 14:30:45.123');
+      const specificDate = new Date('2023-05-15T14:30:45.123Z');
 
       const endOfDay = Time.endOfDay(specificDate);
 
-      expect(endOfDay.getFullYear()).toBe(2023);
-      expect(endOfDay.getMonth()).toBe(4);
-      expect(endOfDay.getDate()).toBe(15);
-      expect(endOfDay.getHours()).toBe(23);
-      expect(endOfDay.getMinutes()).toBe(59);
-      expect(endOfDay.getSeconds()).toBe(59);
-      expect(endOfDay.getMilliseconds()).toBe(999);
+      expect(endOfDay.getUTCFullYear()).toBe(2023);
+      expect(endOfDay.getUTCMonth()).toBe(4);
+      expect(endOfDay.getUTCDate()).toBe(15);
+      expect(endOfDay.getUTCHours()).toBe(23);
+      expect(endOfDay.getUTCMinutes()).toBe(59);
+      expect(endOfDay.getUTCSeconds()).toBe(59);
+      expect(endOfDay.getUTCMilliseconds()).toBe(999);
     });
   });
 });
