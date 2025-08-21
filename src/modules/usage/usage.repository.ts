@@ -32,18 +32,13 @@ export class SequelizeUsageRepository {
   }
 
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
-    // Calculate yesterday's date in the application to avoid timezone issues
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
-
     const query = `
       INSERT INTO public.usages (id, user_id, delta, period, type, created_at, updated_at)
       SELECT
           uuid_generate_v4(),
           u.uuid::uuid AS user_id,
           COALESCE(SUM(f.size), 0) AS delta,
-          :period::DATE AS period,
+          (CURRENT_DATE - INTERVAL '1 day')::DATE AS period,
           'monthly' AS type,
           NOW() AS created_at,
           NOW() AS updated_at
@@ -52,7 +47,7 @@ export class SequelizeUsageRepository {
       LEFT JOIN public.files f ON u.id = f.user_id
           AND f.status != 'DELETED'
           -- Ensure we only consider files created before today
-          AND f.created_at < :today::DATE
+          AND f.created_at < CURRENT_DATE
       WHERE
           u.uuid = :userUuid
       GROUP BY
@@ -60,14 +55,9 @@ export class SequelizeUsageRepository {
       RETURNING *;
     `;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     const result = await this.usageModel.sequelize.query(query, {
       replacements: {
         userUuid,
-        period: yesterday.toISOString().split('T')[0],
-        today: today.toISOString().split('T')[0],
       },
       model: UsageModel,
     });

@@ -104,8 +104,6 @@ describe('SequelizeUsageRepository', () => {
         expect.objectContaining({
           replacements: expect.objectContaining({
             userUuid,
-            period: expect.any(String),
-            today: expect.any(String),
           }),
           model: UsageModel,
         }),
