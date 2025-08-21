@@ -99,12 +99,11 @@ export class FileUseCases {
       const yesterday = Time.dateWithDaysAdded(-1);
       const yesterdayEndOfDay = Time.endOfDay(yesterday);
 
-      const gapDelta =
-        await this.fileRepository.sumFileSizesChangesBetweenDates(
-          user.id,
-          nextPeriodStart,
-          yesterdayEndOfDay,
-        );
+      const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(
+        user.id,
+        nextPeriodStart,
+        yesterdayEndOfDay,
+      );
       await this.usageService.createMonthlyUsage(
         user.uuid,
         yesterday,
