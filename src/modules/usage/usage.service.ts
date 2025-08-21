@@ -75,4 +75,10 @@ export class UsageService {
 
     return this.createDailyUsage(user.uuid, new Date(), delta);
   }
+
+  async getAccumulatedUsage(userUuid: User['uuid']) {
+    const usage = await this.usageRepository.getUserUsage(userUuid);
+
+    return usage;
+  }
 }

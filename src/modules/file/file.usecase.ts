@@ -77,8 +77,7 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    await this.getUserUsedStorageIncrementally(user);
-    return this.fileRepository.sumExistentFileSizes(user.id);
+    return this.getUserUsedStorageIncrementally(user);
   }
 
   async getUserUsedStorageIncrementally(user: User) {
@@ -112,7 +111,18 @@ export class FileUseCases {
       );
     }
 
-    // TODO: add calculation of the current day and sum of all the usages
+    const accumulatedUsage = await this.usageService.getAccumulatedUsage(
+      user.uuid,
+    );
+    const today = Time.startOfDay();
+    const todayUsage =
+      await this.fileRepository.sumFileSizesChangesBetweenDates(user.id, today);
+
+    return (
+      accumulatedUsage.totalMonthlyDelta +
+      accumulatedUsage.totalYearlyDelta +
+      todayUsage
+    );
   }
 
   async deleteFilePermanently(
