@@ -70,7 +70,6 @@ export class SequelizeUsageRepository {
         today: today.toISOString().split('T')[0],
       },
       model: UsageModel,
-      logging: true,
     });
 
     return result.length > 0 ? this.toDomain(result[0]) : null;

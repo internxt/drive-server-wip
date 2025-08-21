@@ -940,7 +940,6 @@ export class SequelizeFileRepository implements FileRepository {
         ],
       },
       raw: true,
-      logging: true,
     });
 
     return Number(result[0]['total']) as unknown as number;

@@ -108,7 +108,6 @@ describe('SequelizeUsageRepository', () => {
             today: expect.any(String),
           }),
           model: UsageModel,
-          logging: true,
         }),
       );
     });
