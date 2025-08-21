@@ -57,19 +57,19 @@ export class UsageService {
     oldFileData: File,
     newFileData: File,
   ): Promise<Usage | null> {
-    const maybeExistentUsage =
-      await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(user.uuid);
-
-    if (!maybeExistentUsage) {
-      return null;
-    }
-
     const delta = Number(newFileData.size) - Number(oldFileData.size);
 
     // Files created the same day do not need a daily usage entry, they will be included in the next monthly usage
     const isFileCreatedToday = Time.isToday(newFileData.createdAt);
 
     if (delta === 0 || isFileCreatedToday) {
+      return null;
+    }
+
+    const doesUserHasAnyUsageCalculation =
+      await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(user.uuid);
+
+    if (!doesUserHasAnyUsageCalculation) {
       return null;
     }
 
