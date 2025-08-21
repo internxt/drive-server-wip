@@ -23,6 +23,7 @@ import {
   newFolder,
   newUser,
   newWorkspace,
+  newUsage,
 } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
@@ -31,6 +32,8 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { UsageService } from '../usage/usage.service';
+import { Time } from '../../lib/time';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -43,6 +46,7 @@ describe('FileUseCases', () => {
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
   let thumbnailUseCases: ThumbnailUseCases;
+  let usageService: UsageService;
 
   const userMocked = newUser();
 
@@ -61,6 +65,7 @@ describe('FileUseCases', () => {
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
     thumbnailUseCases = module.get<ThumbnailUseCases>(ThumbnailUseCases);
+    usageService = module.get<UsageService>(UsageService);
   });
 
   afterEach(() => {
@@ -1441,6 +1446,110 @@ describe('FileUseCases', () => {
       expect(fileRepository.findOneBy).toHaveBeenCalledWith({
         userId: userMocked.id,
       });
+    });
+  });
+
+  describe('getUserUsedStorageIncrementally', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.clearAllMocks();
+    });
+
+    it('When user has no existing usage, then it should create first usage calculation', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-02T10:00:00Z');
+      const mockFirstUsage = newUsage({
+        attributes: { period: new Date('2024-01-01T00:00:00Z') },
+      });
+
+      // Set today to the next period start date according to mockUsage
+      jest.setSystemTime(today);
+
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(usageService, 'createFirstUsageCalculation')
+        .mockResolvedValue(mockFirstUsage);
+
+      await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(usageService.createFirstUsageCalculation).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+    });
+
+    it('When user has recent usage and is up to date, then it should not create new usage', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-02T00:00:00Z');
+
+      const mockUsage = newUsage({
+        attributes: { period: new Date('2024-01-01T00:00:00Z') },
+      });
+
+      // Set today to the next period start date according to mockUsage
+      jest.setSystemTime(today);
+
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValue(mockUsage);
+
+      await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(usageService.createMonthlyUsage).not.toHaveBeenCalled();
+      expect(
+        fileRepository.sumFileSizesChangesBetweenDates,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When user has recent usage but needs update, then it should calculate gap delta and create monthly usage', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-04T10:00:00Z');
+      const yesterday = Time.dateWithDaysAdded(-1, today);
+      const mockUsage = newUsage({
+        attributes: { period: new Date('2024-01-01T00:00:00Z') },
+      });
+      const mockGapDelta = 500;
+
+      // Set today to a date after the next period start date according to mockUsage
+      jest.setSystemTime(today);
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValue(mockUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .mockResolvedValue(mockGapDelta);
+      jest
+        .spyOn(usageService, 'createMonthlyUsage')
+        .mockResolvedValue(undefined);
+
+      await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(
+        fileRepository.sumFileSizesChangesBetweenDates,
+      ).toHaveBeenCalledWith(
+        mockUser.id,
+        mockUsage.getNextPeriodStartDate(),
+        Time.endOfDay(yesterday),
+      );
+      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+        yesterday,
+        mockGapDelta,
+      );
     });
   });
 });
