@@ -1488,7 +1488,7 @@ describe('FileUseCases', () => {
         .spyOn(usageService, 'getAccumulatedUsage')
         .mockResolvedValueOnce(mockAccumulatedUsage);
       jest
-        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValueOnce(mockTodayUsage);
 
       const result = await service.getUserUsedStorageIncrementally(mockUser);
@@ -1528,7 +1528,7 @@ describe('FileUseCases', () => {
         .spyOn(usageService, 'getAccumulatedUsage')
         .mockResolvedValueOnce(mockAccumulatedUsage);
       jest
-        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValueOnce(mockTodayUsage);
 
       const result = await service.getUserUsedStorageIncrementally(mockUser);
@@ -1564,7 +1564,7 @@ describe('FileUseCases', () => {
         .spyOn(usageService, 'getUserMostRecentUsage')
         .mockResolvedValueOnce(mockUsage);
       jest
-        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValueOnce(mockGapDelta)
         .mockResolvedValueOnce(mockTodayUsage);
       jest
@@ -1579,9 +1579,7 @@ describe('FileUseCases', () => {
       expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(
-        fileRepository.sumFileSizesChangesBetweenDates,
-      ).toHaveBeenCalledWith(
+      expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
         mockUser.id,
         mockUsage.getNextPeriodStartDate(),
         Time.endOfDay(yesterday),
@@ -1617,7 +1615,7 @@ describe('FileUseCases', () => {
         .spyOn(usageService, 'getUserMostRecentUsage')
         .mockResolvedValueOnce(mockUsage);
       jest
-        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValueOnce(mockGapDelta)
         .mockResolvedValueOnce(mockTodayUsage);
       jest
@@ -1638,7 +1636,7 @@ describe('FileUseCases', () => {
         mockUser.uuid,
       );
       expect(
-        fileRepository.sumFileSizesChangesBetweenDates,
+        fileRepository.sumFileSizeDeltaBetweenDates,
       ).toHaveBeenNthCalledWith(2, mockUser.id, Time.startOfDay());
       expect(result).toBe(expectedTotal);
     });
@@ -1670,7 +1668,7 @@ describe('FileUseCases', () => {
         .spyOn(usageService, 'getAccumulatedUsage')
         .mockResolvedValueOnce(mockAccumulatedUsage);
       jest
-        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValueOnce(mockTodayUsage);
 
       const result = await service.getUserUsedStorageIncrementally(mockUser);
@@ -1681,9 +1679,10 @@ describe('FileUseCases', () => {
       expect(usageService.getAccumulatedUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(
-        fileRepository.sumFileSizesChangesBetweenDates,
-      ).toHaveBeenCalledWith(mockUser.id, Time.startOfDay());
+      expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
+        mockUser.id,
+        Time.startOfDay(),
+      );
       expect(result).toBe(expectedTotal);
     });
 
@@ -1711,7 +1710,7 @@ describe('FileUseCases', () => {
         .spyOn(usageService, 'getAccumulatedUsage')
         .mockResolvedValueOnce(mockAccumulatedUsage);
       jest
-        .spyOn(fileRepository, 'sumFileSizesChangesBetweenDates')
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValueOnce(mockTodayUsage);
 
       const result = await service.getUserUsedStorageIncrementally(mockUser);
@@ -1719,9 +1718,10 @@ describe('FileUseCases', () => {
       expect(usageService.getAccumulatedUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(
-        fileRepository.sumFileSizesChangesBetweenDates,
-      ).toHaveBeenCalledWith(mockUser.id, Time.startOfDay());
+      expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
+        mockUser.id,
+        Time.startOfDay(),
+      );
       expect(result).toBe(expectedTotal);
     });
   });

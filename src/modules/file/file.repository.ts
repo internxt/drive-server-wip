@@ -125,7 +125,7 @@ export interface FileRepository {
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
-  sumFileSizesChangesBetweenDates(
+  sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
     untilDate?: Date,
@@ -899,7 +899,7 @@ export class SequelizeFileRepository implements FileRepository {
     return Number(result[0]['total']) as unknown as number;
   }
 
-  async sumFileSizesChangesBetweenDates(
+  async sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
     untilDate?: Date,

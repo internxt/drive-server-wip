@@ -110,4 +110,40 @@ describe('SequelizeUsageRepository', () => {
       );
     });
   });
+
+  describe('getUserUsage', () => {
+    it('When called, then should execute query with expected arguments', async () => {
+      const userUuid = v4();
+      const expectedResult = {
+        totalYearlyDelta: 5000,
+        totalMonthlyDelta: 1000,
+      };
+      const mockSequelize = {
+        query: jest.fn().mockResolvedValue([
+          [
+            {
+              total_yearly_delta: expectedResult.totalYearlyDelta,
+              total_monthly_delta: expectedResult.totalMonthlyDelta,
+            },
+          ],
+        ]),
+      };
+
+      Object.defineProperty(usageModel, 'sequelize', {
+        value: mockSequelize,
+      });
+
+      const result = await repository.getUserUsage(userUuid);
+
+      expect(mockSequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            userUuid,
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+  });
 });
