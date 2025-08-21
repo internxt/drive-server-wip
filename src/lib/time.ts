@@ -1,3 +1,8 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
+
 export class Time {
   private static freeze: Date | null = null;
 
@@ -33,12 +38,7 @@ export class Time {
   }
 
   public static readonly isToday = (date: Date): boolean => {
-    const todayDate = new Date();
-    return (
-      date.getDate() === todayDate.getDate() &&
-      date.getMonth() === todayDate.getMonth() &&
-      date.getFullYear() === todayDate.getFullYear()
-    );
+    return dayjs(date).utc().isSame(dayjs().utc(), 'day');
   };
 
   public static readonly convertTimestampToDate = (timestamp: number): Date => {
@@ -51,9 +51,8 @@ export class Time {
    * @returns Date object set to start of day
    */
   public static startOfDay(date?: Date): Date {
-    const targetDate = date ? new Date(date) : Time.now();
-    targetDate.setHours(0, 0, 0, 0);
-    return targetDate;
+    const targetDate = date ? dayjs(date) : dayjs(Time.now());
+    return targetDate.utc().startOf('day').toDate();
   }
 
   /**
@@ -62,8 +61,7 @@ export class Time {
    * @returns Date object set to end of day
    */
   public static endOfDay(date?: Date): Date {
-    const targetDate = date ? new Date(date) : Time.now();
-    targetDate.setHours(23, 59, 59, 999);
-    return targetDate;
+    const targetDate = date ? dayjs(date) : dayjs(Time.now());
+    return targetDate.utc().endOf('day').toDate();
   }
 }
