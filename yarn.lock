@@ -1828,15 +1828,10 @@
     undici "5.29.0"
     winston "3.17.0"
 
-"@internxt/lib@1.3.1":
+"@internxt/lib@1.3.1", "@internxt/lib@^1.3.1":
   version "1.3.1"
   resolved "https://npm.pkg.github.com/download/@internxt/lib/1.3.1/c330ee66e4963469691f448a1716a9f6266ec729#c330ee66e4963469691f448a1716a9f6266ec729"
   integrity sha512-W0D7aIdH1wg9YNLmLw7iaZ0T0pvG7qtDKkKRZRKVU4zSMWH0Rc+q+ZMLpo5Agyqua07A0gQ3Y8i4M42cglV0bw==
-
-"@internxt/lib@^1.2.0":
-  version "1.2.0"
-  resolved "https://npm.pkg.github.com/download/@internxt/lib/1.2.0/172d7929abb3dc34fda044ad9977875791f7a471#172d7929abb3dc34fda044ad9977875791f7a471"
-  integrity sha512-14byNxSU0S0KSc3g+BWiJb7/fcHUfqxkHQRz9fwJhAHNmgOo+Bhx13xXk07KKUzeNX1JymSGEZkVCk0AOQiM+Q==
 
 "@internxt/sdk@1.10.0":
   version "1.10.0"
