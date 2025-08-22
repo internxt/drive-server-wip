@@ -239,6 +239,10 @@ export class SharingService {
         bridgePass: owner.userId,
         bridgeUser: owner.bridgeUser,
         bridgeUrl: getEnv().apis.storage.url,
+        appDetails: {
+          clientName: 'drive-server-wip',
+          clientVersion: '1.0.0',
+        },
       });
       const fileInfo = await network.getFileInfo(item.bucket, item.fileId);
 
@@ -690,6 +694,10 @@ export class SharingService {
       bridgePass: owner.userId,
       bridgeUser: owner.bridgeUser,
       bridgeUrl: getEnv().apis.storage.url,
+      appDetails: {
+        clientName: 'drive-server-wip',
+        clientVersion: '1.0.0',
+      },
     });
 
     const encryptionPromises = items.map(async (file) => {
