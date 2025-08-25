@@ -18,9 +18,10 @@ export class Time {
     return new Date();
   }
 
-  public static dateWithDaysAdded(days: number, initialDate?: Date): Date {
-    const date = dayjs(initialDate ?? Time.now()).utc();
-    return date.add(days, 'day').toDate();
+  public static dateWithDaysAdded(days: number): Date {
+    const date = Time.now();
+    date.setDate(date.getDate() + days);
+    return date;
   }
 
   public static setTime(now: Date): void {
