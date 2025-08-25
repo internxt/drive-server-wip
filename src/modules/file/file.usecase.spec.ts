@@ -23,6 +23,7 @@ import {
   newFolder,
   newUser,
   newWorkspace,
+  newUsage,
 } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
@@ -31,6 +32,8 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { UsageService } from '../usage/usage.service';
+import { Time } from '../../lib/time';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -43,6 +46,7 @@ describe('FileUseCases', () => {
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
   let thumbnailUseCases: ThumbnailUseCases;
+  let usageService: UsageService;
 
   const userMocked = newUser();
 
@@ -61,6 +65,7 @@ describe('FileUseCases', () => {
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
     thumbnailUseCases = module.get<ThumbnailUseCases>(ThumbnailUseCases);
+    usageService = module.get<UsageService>(UsageService);
   });
 
   afterEach(() => {
@@ -952,7 +957,7 @@ describe('FileUseCases', () => {
     it('When called, it should return the user total used space', async () => {
       const totalUsage = 1000;
       jest
-        .spyOn(fileRepository, 'sumExistentFileSizes')
+        .spyOn(service, 'getUserUsedStorageIncrementally')
         .mockResolvedValueOnce(totalUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
@@ -1441,6 +1446,283 @@ describe('FileUseCases', () => {
       expect(fileRepository.findOneBy).toHaveBeenCalledWith({
         userId: userMocked.id,
       });
+    });
+  });
+
+  describe('getUserUsedStorageIncrementally', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.clearAllMocks();
+    });
+
+    it('When user has no existing usage, then it should create first usage calculation', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-02T00:00:00Z');
+      const mockAccumulatedUsage = {
+        totalMonthlyDelta: 1500,
+        totalYearlyDelta: 2500,
+      };
+      const mockFirstUsage = newUsage({
+        attributes: { period: Time.dateWithDaysAdded(-1, today) },
+      });
+      const mockTodayUsage = 100;
+      const expectedTotal =
+        mockAccumulatedUsage.totalMonthlyDelta +
+        mockAccumulatedUsage.totalYearlyDelta +
+        mockTodayUsage;
+
+      // Set today to the next period start date according to mockUsage
+      jest.setSystemTime(today);
+
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(usageService, 'createFirstUsageCalculation')
+        .mockResolvedValueOnce(mockFirstUsage);
+      jest
+        .spyOn(usageService, 'getAccumulatedUsage')
+        .mockResolvedValueOnce(mockAccumulatedUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
+        .mockResolvedValueOnce(mockTodayUsage);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(usageService.createFirstUsageCalculation).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(result).toBe(expectedTotal);
+    });
+
+    it('When user has recent usage and is up to date, then it should not create new usage', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-02T00:00:00Z');
+      const mockAccumulatedUsage = {
+        totalMonthlyDelta: 1500,
+        totalYearlyDelta: 2500,
+      };
+      const mockUsage = newUsage({
+        attributes: { period: Time.dateWithDaysAdded(-1, today) },
+      });
+      const mockTodayUsage = 300;
+      const expectedTotal =
+        mockAccumulatedUsage.totalMonthlyDelta +
+        mockAccumulatedUsage.totalYearlyDelta +
+        mockTodayUsage;
+
+      // Set today to the next period start date according to mockUsage
+      jest.setSystemTime(today);
+
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValueOnce(mockUsage);
+      jest
+        .spyOn(usageService, 'getAccumulatedUsage')
+        .mockResolvedValueOnce(mockAccumulatedUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
+        .mockResolvedValueOnce(mockTodayUsage);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(usageService.createMonthlyUsage).not.toHaveBeenCalled();
+      expect(result).toBe(expectedTotal);
+    });
+
+    it('When user has recent usage but needs update, then it should calculate gap delta and create monthly usage', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-04T10:00:00Z');
+      const yesterday = Time.dateWithDaysAdded(-1, today);
+      const mockUsage = newUsage({
+        attributes: { period: Time.dateWithDaysAdded(-3, today) },
+      });
+      const mockAccumulatedUsage = {
+        totalMonthlyDelta: 1500,
+        totalYearlyDelta: 2500,
+      };
+      const mockGapDelta = 500;
+      const mockTodayUsage = 300;
+      const expectedTotal =
+        mockAccumulatedUsage.totalMonthlyDelta +
+        mockAccumulatedUsage.totalYearlyDelta +
+        mockTodayUsage;
+
+      // Set today to a date after the next period start date according to mockUsage
+      jest.setSystemTime(today);
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValueOnce(mockUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
+        .mockResolvedValueOnce(mockGapDelta)
+        .mockResolvedValueOnce(mockTodayUsage);
+      jest
+        .spyOn(usageService, 'createMonthlyUsage')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(usageService, 'getAccumulatedUsage')
+        .mockResolvedValueOnce(mockAccumulatedUsage);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
+        mockUser.id,
+        mockUsage.getNextPeriodStartDate(),
+        Time.endOfDay(yesterday),
+      );
+      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+        yesterday,
+        mockGapDelta,
+      );
+      expect(result).toBe(expectedTotal);
+    });
+
+    it('When user needs gap calculation and usage is calculated, then it should perform all operations and return total', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-04T10:00:00Z');
+      const yesterday = Time.dateWithDaysAdded(-1, today);
+      const mockUsage = newUsage({
+        attributes: { period: Time.dateWithDaysAdded(-3, today) },
+      });
+      const mockGapDelta = 300;
+      const mockAccumulatedUsage = {
+        totalMonthlyDelta: 1500,
+        totalYearlyDelta: 2500,
+      };
+      const mockTodayUsage = 700;
+      const expectedTotal =
+        mockAccumulatedUsage.totalMonthlyDelta +
+        mockAccumulatedUsage.totalYearlyDelta +
+        mockTodayUsage;
+
+      jest.setSystemTime(today);
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValueOnce(mockUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
+        .mockResolvedValueOnce(mockGapDelta)
+        .mockResolvedValueOnce(mockTodayUsage);
+      jest
+        .spyOn(usageService, 'createMonthlyUsage')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(usageService, 'getAccumulatedUsage')
+        .mockResolvedValueOnce(mockAccumulatedUsage);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+        yesterday,
+        mockGapDelta,
+      );
+      expect(usageService.getAccumulatedUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(
+        fileRepository.sumFileSizeDeltaBetweenDates,
+      ).toHaveBeenNthCalledWith(2, mockUser.id, Time.startOfDay());
+      expect(result).toBe(expectedTotal);
+    });
+
+    it('When user has no existing usage, then it should create first usage and calculate total', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-02T10:00:00Z');
+      const mockFirstUsage = newUsage({
+        attributes: { period: Time.dateWithDaysAdded(-1, today) },
+      });
+      const mockAccumulatedUsage = {
+        totalMonthlyDelta: 500,
+        totalYearlyDelta: 1000,
+      };
+      const mockTodayUsage = 200;
+      const expectedTotal =
+        mockAccumulatedUsage.totalMonthlyDelta +
+        mockAccumulatedUsage.totalYearlyDelta +
+        mockTodayUsage;
+
+      jest.setSystemTime(today);
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(usageService, 'createFirstUsageCalculation')
+        .mockResolvedValueOnce(mockFirstUsage);
+      jest
+        .spyOn(usageService, 'getAccumulatedUsage')
+        .mockResolvedValueOnce(mockAccumulatedUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
+        .mockResolvedValueOnce(mockTodayUsage);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.createFirstUsageCalculation).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(usageService.getAccumulatedUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
+        mockUser.id,
+        Time.startOfDay(),
+      );
+      expect(result).toBe(expectedTotal);
+    });
+
+    it('When usage is calculated, then it should get accumulated usage and today usage to return total', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-01-02T00:00:00Z');
+      const mockUsage = newUsage({
+        attributes: { period: Time.dateWithDaysAdded(-1, today) },
+      });
+      const mockAccumulatedUsage = {
+        totalMonthlyDelta: 1000,
+        totalYearlyDelta: 2000,
+      };
+      const mockTodayUsage = 500;
+      const expectedTotal =
+        mockAccumulatedUsage.totalMonthlyDelta +
+        mockAccumulatedUsage.totalYearlyDelta +
+        mockTodayUsage;
+
+      jest.setSystemTime(today);
+      jest
+        .spyOn(usageService, 'getUserMostRecentUsage')
+        .mockResolvedValueOnce(mockUsage);
+      jest
+        .spyOn(usageService, 'getAccumulatedUsage')
+        .mockResolvedValueOnce(mockAccumulatedUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
+        .mockResolvedValueOnce(mockTodayUsage);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.getAccumulatedUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
+        mockUser.id,
+        Time.startOfDay(),
+      );
+      expect(result).toBe(expectedTotal);
     });
   });
 });
