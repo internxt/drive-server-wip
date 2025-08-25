@@ -213,7 +213,11 @@ describe('UsageService', () => {
 
       jest.spyOn(usageRepository, 'create').mockResolvedValue(usage);
 
-      const result = await service.createMonthlyUsage(userId, period, delta);
+      const result = await service.findOrCreateMonthlyUsage(
+        userId,
+        period,
+        delta,
+      );
 
       expect(result).toEqual(usage);
       expect(usageRepository.create).toHaveBeenCalledWith(

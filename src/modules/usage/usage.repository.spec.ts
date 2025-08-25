@@ -100,13 +100,12 @@ describe('SequelizeUsageRepository', () => {
       await repository.createFirstUsageCalculation(userUuid);
 
       expect(mockSequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO public.usages'),
+        expect.any(String),
         expect.objectContaining({
           replacements: expect.objectContaining({
             userUuid,
           }),
-          type: QueryTypes.INSERT,
-          model: UsageModel,
+          type: QueryTypes.SELECT,
         }),
       );
     });

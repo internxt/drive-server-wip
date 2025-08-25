@@ -113,7 +113,7 @@ export class FileUseCases {
         nextPeriodStart,
         yesterdayEndOfDay,
       );
-      await this.usageService.createMonthlyUsage(
+      await this.usageService.findOrCreateMonthlyUsage(
         user.uuid,
         yesterday,
         gapDelta,

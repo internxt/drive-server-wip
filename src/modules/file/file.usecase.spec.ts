@@ -1506,7 +1506,7 @@ describe('FileUseCases', () => {
       expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(usageService.createMonthlyUsage).not.toHaveBeenCalled();
+      expect(usageService.findOrCreateMonthlyUsage).not.toHaveBeenCalled();
       expect(
         fileRepository.sumFileSizeDeltaBetweenDates,
       ).not.toHaveBeenCalled();
@@ -1530,7 +1530,7 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValue(mockGapDelta);
       jest
-        .spyOn(usageService, 'createMonthlyUsage')
+        .spyOn(usageService, 'findOrCreateMonthlyUsage')
         .mockResolvedValue(undefined);
 
       await service.getUserUsedStorageIncrementally(mockUser);
@@ -1543,7 +1543,7 @@ describe('FileUseCases', () => {
         mockUsage.getNextPeriodStartDate(),
         Time.endOfDay(yesterday),
       );
-      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
+      expect(usageService.findOrCreateMonthlyUsage).toHaveBeenCalledWith(
         mockUser.uuid,
         yesterday,
         mockGapDelta,
