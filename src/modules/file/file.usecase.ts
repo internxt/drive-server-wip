@@ -39,6 +39,8 @@ import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
 import { FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { UsageService } from '../usage/usage.service';
+import { Time } from '../../lib/time';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -53,6 +55,7 @@ export class FileUseCases {
     private readonly network: BridgeService,
     private readonly cryptoService: CryptoService,
     private readonly thumbnailUsecases: ThumbnailUseCases,
+    private readonly usageService: UsageService,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -73,8 +76,42 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids, { userId: user.id });
   }
 
-  getUserUsedStorage(user: User) {
+  async getUserUsedStorage(user: User): Promise<number> {
+    await this.getUserUsedStorageIncrementally(user);
     return this.fileRepository.sumExistentFileSizes(user.id);
+  }
+
+  async getUserUsedStorageIncrementally(user: User) {
+    let mostRecentUsage = await this.usageService.getUserMostRecentUsage(
+      user.uuid,
+    );
+
+    if (!mostRecentUsage) {
+      mostRecentUsage = await this.usageService.createFirstUsageCalculation(
+        user.uuid,
+      );
+    }
+
+    const nextPeriodStart = mostRecentUsage.getNextPeriodStartDate();
+    const isUpToDate = Time.isToday(nextPeriodStart);
+
+    if (!isUpToDate) {
+      const yesterday = Time.dateWithDaysAdded(-1);
+      const yesterdayEndOfDay = Time.endOfDay(yesterday);
+
+      const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(
+        user.id,
+        nextPeriodStart,
+        yesterdayEndOfDay,
+      );
+      await this.usageService.createMonthlyUsage(
+        user.uuid,
+        yesterday,
+        gapDelta,
+      );
+    }
+
+    // TODO: add calculation of the current day and sum of all the usages
   }
 
   async deleteFilePermanently(
