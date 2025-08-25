@@ -77,7 +77,16 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    await this.getUserUsedStorageIncrementally(user);
+    await this.getUserUsedStorageIncrementally(user).catch((error) => {
+      const errorObject = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      };
+      new Logger('getUserUsedStorageIncrementally').error(
+        `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
+      );
+    });
     return this.fileRepository.sumExistentFileSizes(user.id);
   }
 
@@ -658,6 +667,10 @@ export class FileUseCases {
       throw new NotFoundException(`File ${fileUuid} not found`);
     }
 
+    if (file.status != FileStatus.EXISTS) {
+      throw new BadRequestException(`${file.status} files can not be replaced`);
+    }
+
     const { fileId: oldFileId, bucket } = file;
     const { fileId, size, modificationTime } = newFileData;
 
@@ -667,6 +680,20 @@ export class FileUseCases {
       ...(modificationTime ? { modificationTime } : null),
     });
     await this.network.deleteFile(user, bucket, oldFileId);
+
+    const newFile = File.build({ ...file, size, fileId });
+    await this.usageService
+      .addDailyUsageChangeOnFileSizeChange(user, file, newFile)
+      .catch((error) => {
+        const errorObject = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        };
+        new Logger('addDailyUsageChangeOnFileSizeChange').error(
+          `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
+        );
+      });
 
     return {
       ...file.toJSON(),

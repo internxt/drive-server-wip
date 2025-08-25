@@ -2,7 +2,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Injectable } from '@nestjs/common';
 import { UsageModel } from './usage.model';
 import { Usage, UsageType } from './usage.domain';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 
 @Injectable()
 export class SequelizeUsageRepository {
@@ -55,14 +55,17 @@ export class SequelizeUsageRepository {
       RETURNING *;
     `;
 
-    const result = await this.usageModel.sequelize.query(query, {
+    const createdUsage = await this.usageModel.sequelize.query(query, {
       replacements: {
         userUuid,
       },
+      type: QueryTypes.INSERT,
       model: UsageModel,
     });
 
-    return result.length > 0 ? this.toDomain(result[0]) : null;
+    return createdUsage.length > 0
+      ? new Usage({ ...createdUsage[0][0] })
+      : null;
   }
 
   toDomain(model: UsageModel): Usage {

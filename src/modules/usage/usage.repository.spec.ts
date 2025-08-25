@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
 import { createMock } from '@golevelup/ts-jest';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { SequelizeUsageRepository } from './usage.repository';
 import { UsageModel } from './usage.model';
 import { newUsage } from '../../../test/fixtures';
@@ -105,6 +105,7 @@ describe('SequelizeUsageRepository', () => {
           replacements: expect.objectContaining({
             userUuid,
           }),
+          type: QueryTypes.INSERT,
           model: UsageModel,
         }),
       );
