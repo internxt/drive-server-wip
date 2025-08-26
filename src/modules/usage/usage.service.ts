@@ -20,7 +20,11 @@ export class UsageService {
     return this.usageRepository.createFirstUsageCalculation(userUuid);
   }
 
-  async createMonthlyUsage(userId: User['uuid'], period: Date, delta: number) {
+  async findOrCreateMonthlyUsage(
+    userId: User['uuid'],
+    period: Date,
+    delta: number,
+  ) {
     const monthlyUsage = Usage.build({
       id: v4(),
       userId: userId,
@@ -31,7 +35,8 @@ export class UsageService {
       updatedAt: new Date(),
     });
 
-    const createMonthlyUsage = await this.usageRepository.create(monthlyUsage);
+    const createMonthlyUsage =
+      await this.usageRepository.findOrCreateMonthlyUsage(monthlyUsage);
 
     return createMonthlyUsage;
   }

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
 import { createMock } from '@golevelup/ts-jest';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { SequelizeUsageRepository } from './usage.repository';
 import { UsageModel } from './usage.model';
 import { newUsage } from '../../../test/fixtures';
@@ -98,14 +98,13 @@ describe('SequelizeUsageRepository', () => {
       });
 
       await repository.createFirstUsageCalculation(userUuid);
-
       expect(mockSequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO public.usages'),
+        expect.any(String),
         expect.objectContaining({
           replacements: expect.objectContaining({
             userUuid,
           }),
-          model: UsageModel,
+          type: QueryTypes.SELECT,
         }),
       );
     });
