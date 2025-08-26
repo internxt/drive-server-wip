@@ -77,13 +77,13 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    await this.getUserUsedStorageIncrementally(user).catch((error) => {
+    this.getUserUsedStorageIncrementally(user).catch((error) => {
       const errorObject = {
         name: error.name,
         message: error.message,
         stack: error.stack,
       };
-      new Logger('getUserUsedStorageIncrementally').error(
+      new Logger('[USAGE/CALCULATE_USAGE').error(
         `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
       );
     });
@@ -91,36 +91,54 @@ export class FileUseCases {
   }
 
   async getUserUsedStorageIncrementally(user: User) {
-    let mostRecentUsage = await this.usageService.getUserMostRecentUsage(
+    const mostRecentUsage = await this.usageService.getUserMostRecentUsage(
       user.uuid,
     );
+    const noRecordInUsageTable = !mostRecentUsage;
 
-    if (!mostRecentUsage) {
-      mostRecentUsage = await this.usageService.createFirstUsageCalculation(
-        user.uuid,
-      );
+    if (noRecordInUsageTable) {
+      this.handleUserFirstDeltaCreation(user);
+      // TODO: uncomment this
+      //return this.fileRepository.sumExistentFileSizes(user.id);
+      return;
     }
 
     const nextPeriodStart = mostRecentUsage.getNextPeriodStartDate();
     const isUpToDate = Time.isToday(nextPeriodStart);
 
     if (!isUpToDate) {
-      const yesterday = Time.dateWithDaysAdded(-1);
-      const yesterdayEndOfDay = Time.endOfDay(yesterday);
-
-      const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(
-        user.id,
-        nextPeriodStart,
-        yesterdayEndOfDay,
-      );
-      await this.usageService.findOrCreateMonthlyUsage(
-        user.uuid,
-        yesterday,
-        gapDelta,
-      );
+      await this.fillDeltaGapUntilYesteday(user, nextPeriodStart);
     }
 
     // TODO: add calculation of the current day and sum of all the usages
+  }
+
+  async handleUserFirstDeltaCreation(user: User) {
+    await this.usageService
+      .createFirstUsageCalculation(user.uuid)
+      .catch((error) =>
+        new Logger('[USAGE/FIRST_CALCULATION]').error(
+          `error while calculating first usage ${JSON.stringify({ message: error.message })}`,
+        ),
+      );
+  }
+
+  async fillDeltaGapUntilYesteday(user: User, calculateFrom: Date) {
+    const yesterday = Time.dateWithDaysAdded(-1);
+    const yesterdayEndOfDay = Time.endOfDay(yesterday);
+
+    const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(
+      user.id,
+      calculateFrom,
+      yesterdayEndOfDay,
+    );
+    await this.usageService
+      .findOrCreateMonthlyUsage(user.uuid, yesterday, gapDelta)
+      .catch((error) =>
+        new Logger('[USAGE/FILL_GAP]').error(
+          `error while filling gap in usage ${JSON.stringify({ message: error.message })}`,
+        ),
+      );
   }
 
   async deleteFilePermanently(
