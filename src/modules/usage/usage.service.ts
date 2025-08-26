@@ -35,7 +35,8 @@ export class UsageService {
       updatedAt: new Date(),
     });
 
-    const createMonthlyUsage = await this.usageRepository.create(monthlyUsage);
+    const createMonthlyUsage =
+      await this.usageRepository.findOrCreateMonthlyUsage(monthlyUsage);
 
     return createMonthlyUsage;
   }
