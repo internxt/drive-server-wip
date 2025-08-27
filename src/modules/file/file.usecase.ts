@@ -697,7 +697,6 @@ export class FileUseCases {
       size,
       ...(modificationTime ? { modificationTime } : null),
     });
-    await this.network.deleteFile(user, bucket, oldFileId);
 
     const newFile = File.build({ ...file, size, fileId });
     await this.usageService
@@ -712,6 +711,8 @@ export class FileUseCases {
           `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
         );
       });
+
+    await this.network.deleteFile(user, bucket, oldFileId);
 
     return {
       ...file.toJSON(),
