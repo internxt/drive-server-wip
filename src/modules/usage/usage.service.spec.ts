@@ -259,10 +259,7 @@ describe('UsageService', () => {
   describe('getAccumulatedUsage', () => {
     it('When called, then it should return user usage from repository', async () => {
       const userUuid = v4();
-      const expectedUsage = {
-        totalYearlyDelta: 1000,
-        totalMonthlyDelta: 500,
-      };
+      const expectedUsage = 1500;
 
       jest
         .spyOn(usageRepository, 'getUserUsage')

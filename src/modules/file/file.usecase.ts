@@ -108,11 +108,7 @@ export class FileUseCases {
       today,
     );
 
-    return (
-      accumulatedUsage.totalMonthlyDelta +
-      accumulatedUsage.totalYearlyDelta +
-      todayUsage
-    );
+    return accumulatedUsage + todayUsage;
   }
 
   async handleUserFirstDeltaCreation(user: User) {

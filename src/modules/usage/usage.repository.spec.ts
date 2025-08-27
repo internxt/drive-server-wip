@@ -113,16 +113,16 @@ describe('SequelizeUsageRepository', () => {
   describe('getUserUsage', () => {
     it('When called, then should execute query with expected arguments', async () => {
       const userUuid = v4();
-      const expectedResult = {
-        totalYearlyDelta: 5000,
-        totalMonthlyDelta: 1000,
-      };
+      const yearlyTotal = 5000;
+      const monthlyTotal = 1000;
+      const expectedResult = yearlyTotal + monthlyTotal;
+
       const mockSequelize = {
         query: jest.fn().mockResolvedValue([
           [
             {
-              total_yearly_delta: expectedResult.totalYearlyDelta,
-              total_monthly_delta: expectedResult.totalMonthlyDelta,
+              previous_years_total: yearlyTotal,
+              current_year_total: monthlyTotal,
             },
           ],
         ]),

@@ -1505,18 +1505,13 @@ describe('FileUseCases', () => {
     it('When user has recent usage and is up to date, then it should not create new usage', async () => {
       const mockUser = newUser();
       const today = new Date('2024-01-02T00:00:00Z');
-      const mockAccumulatedUsage = {
-        totalMonthlyDelta: 1500,
-        totalYearlyDelta: 2500,
-      };
+      const mockAccumulatedUsage = 4000;
+
       const mockUsage = newUsage({
         attributes: { period: Time.dateWithDaysAdded(-1, today) },
       });
       const mockTodayUsage = 300;
-      const expectedTotal =
-        mockAccumulatedUsage.totalMonthlyDelta +
-        mockAccumulatedUsage.totalYearlyDelta +
-        mockTodayUsage;
+      const expectedTotal = mockAccumulatedUsage + mockTodayUsage;
 
       // Set today to the next period start date according to mockUsage
       jest.setSystemTime(today);
@@ -1547,16 +1542,11 @@ describe('FileUseCases', () => {
       const mockUsage = newUsage({
         attributes: { period: Time.dateWithDaysAdded(-3, today) },
       });
-      const mockAccumulatedUsage = {
-        totalMonthlyDelta: 1500,
-        totalYearlyDelta: 2500,
-      };
+      const mockAccumulatedUsage = 4000;
+
       const mockGapDelta = 500;
       const mockTodayUsage = 300;
-      const expectedTotal =
-        mockAccumulatedUsage.totalMonthlyDelta +
-        mockAccumulatedUsage.totalYearlyDelta +
-        mockTodayUsage;
+      const expectedTotal = mockAccumulatedUsage + mockTodayUsage;
 
       // Set today to a date after the next period start date according to mockUsage
       jest.setSystemTime(today);
@@ -1600,15 +1590,10 @@ describe('FileUseCases', () => {
         attributes: { period: Time.dateWithDaysAdded(-3, today) },
       });
       const mockGapDelta = 300;
-      const mockAccumulatedUsage = {
-        totalMonthlyDelta: 1500,
-        totalYearlyDelta: 2500,
-      };
+      const mockAccumulatedUsage = 4000;
+
       const mockTodayUsage = 700;
-      const expectedTotal =
-        mockAccumulatedUsage.totalMonthlyDelta +
-        mockAccumulatedUsage.totalYearlyDelta +
-        mockTodayUsage;
+      const expectedTotal = mockAccumulatedUsage + mockTodayUsage;
 
       jest.setSystemTime(today);
       jest
@@ -1647,15 +1632,10 @@ describe('FileUseCases', () => {
       const mockUsage = newUsage({
         attributes: { period: Time.dateWithDaysAdded(-1, today) },
       });
-      const mockAccumulatedUsage = {
-        totalMonthlyDelta: 1000,
-        totalYearlyDelta: 2000,
-      };
+      const mockAccumulatedUsage = 3000;
+
       const mockTodayUsage = 500;
-      const expectedTotal =
-        mockAccumulatedUsage.totalMonthlyDelta +
-        mockAccumulatedUsage.totalYearlyDelta +
-        mockTodayUsage;
+      const expectedTotal = mockAccumulatedUsage + mockTodayUsage;
 
       jest.setSystemTime(today);
       jest
