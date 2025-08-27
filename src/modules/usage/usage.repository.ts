@@ -17,19 +17,9 @@ export class SequelizeUsageRepository {
     return this.toDomain(newUsage);
   }
 
-  public async findOrCreateMonthlyUsage(usage: Omit<Usage, 'id'>) {
-    const [newUsage] = await this.usageModel.findOrCreate({
-      where: {
-        userId: usage.userId,
-        type: usage.type,
-        period: usage.period,
-      },
-      defaults: {
-        ...usage,
-        userId: usage.userId,
-        type: usage.type,
-        period: usage.period,
-      },
+  public async createMonthlyUsage(usage: Usage) {
+    const newUsage = await this.usageModel.create({
+      ...usage,
     });
 
     return this.toDomain(newUsage);

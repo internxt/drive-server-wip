@@ -133,7 +133,7 @@ export class FileUseCases {
       yesterdayEndOfDay,
     );
     await this.usageService
-      .findOrCreateMonthlyUsage(user.uuid, yesterday, gapDelta)
+      .createMonthlyUsage(user.uuid, yesterday, gapDelta)
       .catch((error) =>
         new Logger('[USAGE/FILL_GAP]').error(
           `error while filling gap in usage ${JSON.stringify({ message: error.message })}`,
