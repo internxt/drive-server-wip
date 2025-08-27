@@ -212,17 +212,13 @@ describe('UsageService', () => {
       const usage = newUsage({ attributes: { type: UsageType.Monthly } });
 
       jest
-        .spyOn(usageRepository, 'findOrCreateMonthlyUsage')
+        .spyOn(usageRepository, 'createMonthlyUsage')
         .mockResolvedValue(usage);
 
-      const result = await service.findOrCreateMonthlyUsage(
-        userId,
-        period,
-        delta,
-      );
+      const result = await service.createMonthlyUsage(userId, period, delta);
 
       expect(result).toEqual(usage);
-      expect(usageRepository.findOrCreateMonthlyUsage).toHaveBeenCalledWith(
+      expect(usageRepository.createMonthlyUsage).toHaveBeenCalledWith(
         expect.objectContaining({
           userId,
           period,

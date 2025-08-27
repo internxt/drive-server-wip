@@ -88,14 +88,15 @@ export class FileUseCases {
 
     if (noRecordInUsageTable) {
       this.handleUserFirstDeltaCreation(user);
-      //  Fallback to previous implementation
+      // Fallback to previous implementation
       return this.fileRepository.sumExistentFileSizes(user.id);
     }
 
     const nextPeriodStart = mostRecentUsage.getNextPeriodStartDate();
-    const isUpToDate = Time.isToday(nextPeriodStart);
 
-    if (!isUpToDate) {
+    const wasDeltaCalculatedForYesterday = Time.isToday(nextPeriodStart);
+    if (!wasDeltaCalculatedForYesterday) {
+      // Consider moving this to events
       await this.fillDeltaGapUntilYesteday(user, nextPeriodStart);
     }
 
@@ -131,7 +132,7 @@ export class FileUseCases {
       yesterdayEndOfDay,
     );
     await this.usageService
-      .findOrCreateMonthlyUsage(user.uuid, yesterday, gapDelta)
+      .createMonthlyUsage(user.uuid, yesterday, gapDelta)
       .catch((error) =>
         new Logger('[USAGE/FILL_GAP]').error(
           `error while filling gap in usage ${JSON.stringify({ message: error.message })}`,

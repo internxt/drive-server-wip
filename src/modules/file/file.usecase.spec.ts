@@ -1531,7 +1531,7 @@ describe('FileUseCases', () => {
       expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(usageService.findOrCreateMonthlyUsage).not.toHaveBeenCalled();
+      expect(usageService.createMonthlyUsage).not.toHaveBeenCalled();
       expect(result).toBe(expectedTotal);
     });
 
@@ -1558,8 +1558,8 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(mockGapDelta)
         .mockResolvedValueOnce(mockTodayUsage);
       jest
-        .spyOn(usageService, 'findOrCreateMonthlyUsage')
-        .mockResolvedValueOnce(undefined);
+        .spyOn(usageService, 'createMonthlyUsage')
+        .mockResolvedValue(undefined);
       jest
         .spyOn(usageService, 'getAccumulatedUsage')
         .mockResolvedValueOnce(mockAccumulatedUsage);
@@ -1574,7 +1574,7 @@ describe('FileUseCases', () => {
         mockUsage.getNextPeriodStartDate(),
         Time.endOfDay(yesterday),
       );
-      expect(usageService.findOrCreateMonthlyUsage).toHaveBeenCalledWith(
+      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
         mockUser.uuid,
         yesterday,
         mockGapDelta,
@@ -1604,7 +1604,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(mockGapDelta)
         .mockResolvedValueOnce(mockTodayUsage);
       jest
-        .spyOn(usageService, 'findOrCreateMonthlyUsage')
+        .spyOn(usageService, 'createMonthlyUsage')
         .mockResolvedValueOnce(undefined);
       jest
         .spyOn(usageService, 'getAccumulatedUsage')
@@ -1612,7 +1612,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getUserUsedStorageIncrementally(mockUser);
 
-      expect(usageService.findOrCreateMonthlyUsage).toHaveBeenCalledWith(
+      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
         mockUser.uuid,
         yesterday,
         mockGapDelta,
