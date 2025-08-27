@@ -26,6 +26,9 @@ export class SequelizeUsageRepository {
       },
       defaults: {
         ...usage,
+        userId: usage.userId,
+        type: usage.type,
+        period: usage.period,
       },
     });
 
