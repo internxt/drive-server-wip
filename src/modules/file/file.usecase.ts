@@ -712,7 +712,16 @@ export class FileUseCases {
         );
       });
 
-    await this.network.deleteFile(user, bucket, oldFileId);
+    try {
+      await this.network.deleteFile(user, bucket, oldFileId);
+    } catch (error) {
+      new Logger('FILE/REPLACE').error(
+        `Error while replacing old file ${JSON.stringify({
+          user: { email: user.email, uuid: user.uuid },
+          oldFileId,
+        })}}, STACK: ${error.stack || 'No stack trace'}`,
+      );
+    }
 
     return {
       ...file.toJSON(),
