@@ -50,17 +50,4 @@ export class UserNotificationStatus
   markAsRead(): void {
     this.readAt = new Date();
   }
-
-  toJSON() {
-    return {
-      id: this.id,
-      userId: this.userId,
-      notificationId: this.notificationId,
-      deliveredAt: this.deliveredAt,
-      readAt: this.readAt,
-      isRead: this.isRead(),
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
-  }
 }

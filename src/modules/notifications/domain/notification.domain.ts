@@ -65,18 +65,4 @@ export class Notification implements NotificationAttributes {
   isValidForDelivery(): boolean {
     return this.isActive && !this.isExpired();
   }
-
-  toJSON() {
-    return {
-      id: this.id,
-      link: this.link,
-      message: this.message,
-      targetType: this.targetType,
-      targetValue: this.targetValue,
-      expiresAt: this.expiresAt,
-      isActive: this.isActive,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
-  }
 }
