@@ -839,9 +839,6 @@ export class FolderController {
     @Client() clientId: string,
     @Requester() requester: User,
   ): Promise<FolderDto> {
-    if (!validate(folderUuid) || !validate(moveFolderData.destinationFolder)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
     const folder = await this.folderUseCases.moveFolder(
       user,
       folderUuid,

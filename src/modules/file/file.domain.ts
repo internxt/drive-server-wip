@@ -141,7 +141,7 @@ export class File implements FileAttributes {
   }
 
   isDeleted(): boolean {
-    return this.status === FileStatus.DELETED;
+    return this.status === FileStatus.DELETED || this.removed;
   }
 
   isChildrenOf(folder: Folder): boolean {

@@ -743,7 +743,7 @@ export class FileUseCases {
     destinationUuid: File['folderUuid'],
   ): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
-    if (!file || file.removed === true || file.status === FileStatus.DELETED) {
+    if (!file || file.isDeleted()) {
       throw new UnprocessableEntityException(
         `File ${fileUuid} can not be moved`,
       );
@@ -753,19 +753,25 @@ export class FileUseCases {
       destinationUuid,
       user,
     );
-    if (!destinationFolder || destinationFolder.removed === true) {
+
+    if (!destinationFolder || destinationFolder.isRemoved()) {
       throw new UnprocessableEntityException(
         `File can not be moved to ${destinationUuid}`,
       );
     }
 
+    const plainName =
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
+
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       file.userId,
-      file.plainName,
+      plainName,
       file.type,
       destinationFolder.id,
       FileStatus.EXISTS,
     );
+
     if (exists) {
       if (exists.uuid === file.uuid) {
         throw new ConflictException(
@@ -778,7 +784,7 @@ export class FileUseCases {
     }
 
     const destinationEncryptedName = this.cryptoService.encryptName(
-      file.plainName,
+      plainName,
       destinationFolder.id,
     );
 
@@ -787,6 +793,7 @@ export class FileUseCases {
       folderUuid: destinationFolder.uuid,
       name: destinationEncryptedName,
       status: FileStatus.EXISTS,
+      plainName: plainName,
     };
 
     await this.fileRepository.updateByUuidAndUserId(

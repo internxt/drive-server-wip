@@ -304,32 +304,6 @@ describe('FolderController', () => {
         status: expectedFolder.getFolderStatus(),
       });
     });
-
-    it('When move folder is requested with invalid params, then it should throw an error', () => {
-      expect(
-        folderController.moveFolder(
-          userMocked,
-          'invaliduuid',
-          {
-            destinationFolder: v4(),
-          },
-          clientId,
-          requester,
-        ),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(
-        folderController.moveFolder(
-          userMocked,
-          v4(),
-          {
-            destinationFolder: 'invaliduuid',
-          },
-          clientId,
-          requester,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
   });
 
   describe('getFolderContent', () => {
