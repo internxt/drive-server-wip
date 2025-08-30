@@ -98,7 +98,6 @@ describe('SequelizeUsageRepository', () => {
       });
 
       await repository.createFirstUsageCalculation(userUuid);
-
       expect(mockSequelize.query).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -108,6 +107,42 @@ describe('SequelizeUsageRepository', () => {
           type: QueryTypes.SELECT,
         }),
       );
+    });
+  });
+
+  describe('getUserUsage', () => {
+    it('When called, then should execute query with expected arguments', async () => {
+      const userUuid = v4();
+      const yearlyTotal = 5000;
+      const monthlyTotal = 1000;
+      const expectedResult = yearlyTotal + monthlyTotal;
+
+      const mockSequelize = {
+        query: jest.fn().mockResolvedValue([
+          [
+            {
+              previous_years_total: yearlyTotal,
+              current_year_total: monthlyTotal,
+            },
+          ],
+        ]),
+      };
+
+      Object.defineProperty(usageModel, 'sequelize', {
+        value: mockSequelize,
+      });
+
+      const result = await repository.getUserUsage(userUuid);
+
+      expect(mockSequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            userUuid,
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
     });
   });
 });

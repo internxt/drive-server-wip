@@ -77,17 +77,7 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    this.getUserUsedStorageIncrementally(user).catch((error) => {
-      const errorObject = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      };
-      new Logger('[USAGE/CALCULATE_USAGE').error(
-        `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
-      );
-    });
-    return this.fileRepository.sumExistentFileSizes(user.id);
+    return this.getUserUsedStorageIncrementally(user);
   }
 
   async getUserUsedStorageIncrementally(user: User) {
@@ -98,19 +88,28 @@ export class FileUseCases {
 
     if (noRecordInUsageTable) {
       this.handleUserFirstDeltaCreation(user);
-      // TODO: uncomment this
-      //return this.fileRepository.sumExistentFileSizes(user.id);
-      return;
+      // Fallback to previous implementation
+      return this.fileRepository.sumExistentFileSizes(user.id);
     }
 
     const nextPeriodStart = mostRecentUsage.getNextPeriodStartDate();
-    const isUpToDate = Time.isToday(nextPeriodStart);
 
-    if (!isUpToDate) {
+    const wasDeltaCalculatedForYesterday = Time.isToday(nextPeriodStart);
+    if (!wasDeltaCalculatedForYesterday) {
+      // Consider moving this to events
       await this.fillDeltaGapUntilYesteday(user, nextPeriodStart);
     }
 
-    // TODO: add calculation of the current day and sum of all the usages
+    const accumulatedUsage = await this.usageService.getAccumulatedUsage(
+      user.uuid,
+    );
+    const today = Time.startOfDay();
+    const todayUsage = await this.fileRepository.sumFileSizeDeltaBetweenDates(
+      user.id,
+      today,
+    );
+
+    return accumulatedUsage + todayUsage;
   }
 
   async handleUserFirstDeltaCreation(user: User) {
