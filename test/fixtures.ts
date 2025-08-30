@@ -114,6 +114,7 @@ export const newFolder = (params?: NewFolderParams): Folder => {
     });
 
   params?.owner && (folder.userId = params.owner.id);
+  folder.status = folder.getFolderStatus();
 
   return folder;
 };
