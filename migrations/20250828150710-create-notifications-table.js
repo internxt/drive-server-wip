@@ -13,7 +13,7 @@ module.exports = {
       },
       link: {
         type: Sequelize.TEXT,
-        allowNull: true,
+        allowNull: false,
       },
       message: {
         type: Sequelize.TEXT,
@@ -30,11 +30,6 @@ module.exports = {
       expires_at: {
         type: Sequelize.DATE,
         allowNull: true,
-      },
-      is_active: {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: true,
       },
       created_at: {
         type: Sequelize.DATE,
