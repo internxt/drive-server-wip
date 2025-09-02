@@ -8,7 +8,6 @@ import {
 
 import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { Notification } from './domain/notification.domain';
 import { NotificationResponseDto } from './dto/notification-response.dto';
 import { NotificationsGuard } from './notifications.guard';
 
@@ -31,7 +30,10 @@ export class NotificationsController {
   })
   async createNotification(
     @Body() createNotificationDto: CreateNotificationDto,
-  ): Promise<Notification> {
-    return this.notificationsUseCases.createNotification(createNotificationDto);
+  ): Promise<NotificationResponseDto> {
+    const notification = await this.notificationsUseCases.createNotification(
+      createNotificationDto,
+    );
+    return new NotificationResponseDto(notification);
   }
 }

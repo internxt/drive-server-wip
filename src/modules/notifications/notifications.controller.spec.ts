@@ -6,6 +6,7 @@ import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import {} from './domain/notification.domain';
 import { newNotification } from '../../../test/fixtures';
+import { NotificationResponseDto } from './dto/notification-response.dto';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -28,11 +29,10 @@ describe('NotificationsController', () => {
       const mockNotification = newNotification({
         attributes: { expiresAt: new Date(expirationDateString) },
       });
+      const notificationDto = new NotificationResponseDto(mockNotification);
       const createNotificationDto: CreateNotificationDto = {
         link: mockNotification.link,
         message: mockNotification.message,
-        targetType: mockNotification.targetType,
-        targetValue: undefined,
         expiresAt: expirationDateString,
       };
 
@@ -45,7 +45,7 @@ describe('NotificationsController', () => {
       expect(notificationsUseCases.createNotification).toHaveBeenCalledWith(
         createNotificationDto,
       );
-      expect(result).toEqual(mockNotification);
+      expect(result).toEqual(notificationDto);
     });
   });
 });

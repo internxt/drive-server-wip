@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsIn, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsDateString, IsEmail } from 'class-validator';
 
 export class CreateNotificationDto {
   @ApiProperty({
@@ -18,20 +18,12 @@ export class CreateNotificationDto {
 
   @ApiProperty({
     example: 'all',
-    description: 'Target type for notification delivery',
-    enum: ['all', 'user'],
-  })
-  @IsNotEmpty()
-  @IsIn(['all', 'user'])
-  targetType: string;
-
-  @ApiProperty({
-    example: null,
-    description: 'Target value - user email for user type, null for all',
-    required: false,
+    description:
+      'Target user email, if missing, notification is sent to everyone',
   })
   @IsOptional()
-  targetValue?: string;
+  @IsEmail()
+  email?: string;
 
   @ApiProperty({
     example: '2024-12-31T23:59:59Z',

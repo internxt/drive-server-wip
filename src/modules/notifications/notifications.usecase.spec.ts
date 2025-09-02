@@ -42,15 +42,13 @@ describe('NotificationsUseCases', () => {
       const createDto: CreateNotificationDto = {
         link: 'https://example.com',
         message: 'Test notification for all',
-        targetType: NotificationTargetType.ALL,
-        targetValue: null,
       };
 
       const expectedNotification = newNotification({
         attributes: {
           link: createDto.link,
           message: createDto.message,
-          targetType: createDto.targetType,
+          targetType: NotificationTargetType.ALL,
           targetValue: null,
           expiresAt: null,
         },
@@ -61,6 +59,12 @@ describe('NotificationsUseCases', () => {
       const result = await usecases.createNotification(createDto);
 
       expect(userRepository.findByEmail).not.toHaveBeenCalled();
+      expect(notificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetValue: null,
+          targetType: NotificationTargetType.ALL,
+        }),
+      );
       expect(result).toEqual(expectedNotification);
     });
 
@@ -69,15 +73,14 @@ describe('NotificationsUseCases', () => {
       const createDto: CreateNotificationDto = {
         link: 'https://example.com',
         message: 'Test notification for user',
-        targetType: NotificationTargetType.USER,
-        targetValue: user.email,
+        email: user.email,
       };
 
       const expectedNotification = newNotification({
         attributes: {
           link: createDto.link,
           message: createDto.message,
-          targetType: createDto.targetType,
+          targetType: NotificationTargetType.USER,
           targetValue: user.uuid,
         },
       });
@@ -88,16 +91,20 @@ describe('NotificationsUseCases', () => {
       const result = await usecases.createNotification(createDto);
 
       expect(userRepository.findByEmail).toHaveBeenCalledWith(user.email);
+      expect(notificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetValue: user.uuid,
+          targetType: NotificationTargetType.USER,
+        }),
+      );
       expect(result).toEqual(expectedNotification);
-      expect(result.targetValue).toEqual(user.uuid);
     });
 
     it('When creating notification with target type USER and invalid email, then it should throw BadRequestException', async () => {
       const createDto: CreateNotificationDto = {
         link: 'https://example.com',
         message: 'Test notification for user',
-        targetType: NotificationTargetType.USER,
-        targetValue: 'nonexistent@example.com',
+        email: 'not valid email',
       };
 
       userRepository.findByEmail.mockResolvedValueOnce(null);
@@ -112,8 +119,6 @@ describe('NotificationsUseCases', () => {
       const createDto: CreateNotificationDto = {
         link: 'https://example.com',
         message: 'Test notification with expiration',
-        targetType: NotificationTargetType.ALL,
-        targetValue: '',
         expiresAt: expirationTime,
       };
 
@@ -123,7 +128,7 @@ describe('NotificationsUseCases', () => {
         attributes: {
           link: createDto.link,
           message: createDto.message,
-          targetType: createDto.targetType,
+          targetType: NotificationTargetType.ALL,
           targetValue: null,
           expiresAt: expectedExpirationDate,
         },
@@ -135,7 +140,7 @@ describe('NotificationsUseCases', () => {
 
       expect(notificationRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          targetType: createDto.targetType,
+          targetType: NotificationTargetType.ALL,
           expiresAt: expectedExpirationDate,
         }),
       );

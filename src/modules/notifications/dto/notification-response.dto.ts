@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Notification } from '../domain/notification.domain';
 
 export class NotificationResponseDto {
+  constructor(notification: Partial<Notification>) {
+    this.id = notification.id;
+    this.link = notification.link;
+    this.createdAt = notification.createdAt;
+    this.message = notification.message;
+    this.expiresAt = notification.expiresAt;
+  }
+
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
     description: 'Unique identifier for the notification',

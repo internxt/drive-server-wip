@@ -30,6 +30,6 @@ export class SequelizeNotificationRepository extends NotificationRepository {
   }
 
   toDomain(model: NotificationModel) {
-    return Notification.build({ ...model });
+    return Notification.build({ ...model.get() });
   }
 }

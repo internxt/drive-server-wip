@@ -3,7 +3,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { SequelizeNotificationRepository } from './notifications.repository';
 import { NotificationModel } from './models/notification.model';
-import { Notification } from './domain/notification.domain';
 import { newNotification } from '../../../test/fixtures';
 
 describe('SequelizeNotificationRepository', () => {
@@ -35,7 +34,7 @@ describe('SequelizeNotificationRepository', () => {
 
       const mockCreatedModel = {
         ...notification,
-        toJSON: () => notification,
+        get: () => notification,
       } as any;
 
       jest
