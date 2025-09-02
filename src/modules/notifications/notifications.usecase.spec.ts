@@ -1,13 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { BadRequestException } from '@nestjs/common';
 import { NotificationsUseCases } from './notifications.usecase';
 import { NotificationRepository } from './notifications.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { NotificationTargetType } from './domain/notification.domain';
+import { CreateNotificationDto } from './dto/create-notification.dto';
+import { newNotification, newUser } from '../../../test/fixtures';
 
 describe('NotificationsUseCases', () => {
   let usecases: NotificationsUseCases;
-  let notificationRepository: NotificationRepository;
+  let notificationRepository: DeepMocked<NotificationRepository>;
+  let userRepository: DeepMocked<SequelizeUserRepository>;
 
   beforeEach(async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [NotificationsUseCases],
     })
@@ -15,13 +24,122 @@ describe('NotificationsUseCases', () => {
       .compile();
 
     usecases = moduleRef.get<NotificationsUseCases>(NotificationsUseCases);
-    notificationRepository = moduleRef.get<NotificationRepository>(
-      NotificationRepository,
-    );
+    notificationRepository = moduleRef.get(NotificationRepository);
+    userRepository = moduleRef.get(SequelizeUserRepository);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('When created, then it should be defined', () => {
     expect(usecases).toBeDefined();
     expect(notificationRepository).toBeDefined();
+  });
+
+  describe('createNotification', () => {
+    it('When creating notification with target type ALL, then it should create notification without user lookup', async () => {
+      const createDto: CreateNotificationDto = {
+        link: 'https://example.com',
+        message: 'Test notification for all',
+        targetType: NotificationTargetType.ALL,
+        targetValue: null,
+      };
+
+      const expectedNotification = newNotification({
+        attributes: {
+          link: createDto.link,
+          message: createDto.message,
+          targetType: createDto.targetType,
+          targetValue: null,
+          expiresAt: null,
+        },
+      });
+
+      notificationRepository.create.mockResolvedValueOnce(expectedNotification);
+
+      const result = await usecases.createNotification(createDto);
+
+      expect(userRepository.findByEmail).not.toHaveBeenCalled();
+      expect(result).toEqual(expectedNotification);
+    });
+
+    it('When creating notification with target type USER and valid email, then it should lookup user and create notification', async () => {
+      const user = newUser();
+      const createDto: CreateNotificationDto = {
+        link: 'https://example.com',
+        message: 'Test notification for user',
+        targetType: NotificationTargetType.USER,
+        targetValue: user.email,
+      };
+
+      const expectedNotification = newNotification({
+        attributes: {
+          link: createDto.link,
+          message: createDto.message,
+          targetType: createDto.targetType,
+          targetValue: user.uuid,
+        },
+      });
+
+      userRepository.findByEmail.mockResolvedValueOnce(user);
+      notificationRepository.create.mockResolvedValueOnce(expectedNotification);
+
+      const result = await usecases.createNotification(createDto);
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(user.email);
+      expect(result).toEqual(expectedNotification);
+      expect(result.targetValue).toEqual(user.uuid);
+    });
+
+    it('When creating notification with target type USER and invalid email, then it should throw BadRequestException', async () => {
+      const createDto: CreateNotificationDto = {
+        link: 'https://example.com',
+        message: 'Test notification for user',
+        targetType: NotificationTargetType.USER,
+        targetValue: 'nonexistent@example.com',
+      };
+
+      userRepository.findByEmail.mockResolvedValueOnce(null);
+
+      await expect(usecases.createNotification(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When creating notification with expiration date, then it should set expiresAt correctly', async () => {
+      const expirationTime = '2024-12-31T23:59:59.000Z';
+      const createDto: CreateNotificationDto = {
+        link: 'https://example.com',
+        message: 'Test notification with expiration',
+        targetType: NotificationTargetType.ALL,
+        targetValue: '',
+        expiresAt: expirationTime,
+      };
+
+      const expectedExpirationDate = new Date('2024-12-31T23:59:59.000Z');
+
+      const expectedNotification = newNotification({
+        attributes: {
+          link: createDto.link,
+          message: createDto.message,
+          targetType: createDto.targetType,
+          targetValue: null,
+          expiresAt: expectedExpirationDate,
+        },
+      });
+
+      notificationRepository.create.mockResolvedValueOnce(expectedNotification);
+
+      const result = await usecases.createNotification(createDto);
+
+      expect(notificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetType: createDto.targetType,
+          expiresAt: expectedExpirationDate,
+        }),
+      );
+      expect(result).toEqual(expectedNotification);
+    });
   });
 });

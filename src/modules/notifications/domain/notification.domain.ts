@@ -56,8 +56,13 @@ export class Notification implements NotificationAttributes {
   }
 
   isTargetedForUser(userId: string): boolean {
-    if (this.targetType === 'all') return true;
-    if (this.targetType === 'user' && this.targetValue === userId) return true;
+    if (this.targetType === NotificationTargetType.ALL) return true;
+    if (
+      this.targetType === NotificationTargetType.USER &&
+      this.targetValue === userId
+    ) {
+      return true;
+    }
     return false;
   }
 

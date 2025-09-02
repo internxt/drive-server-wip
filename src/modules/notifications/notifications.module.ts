@@ -9,6 +9,7 @@ import { NotificationsUseCases } from './notifications.usecase';
 import { NotificationsController } from './notifications.controller';
 import { NotificationModel } from './models/notification.model';
 import { UserNotificationStatusModel } from './models/user-notification-status.model';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UserNotificationStatusModel } from './models/user-notification-status.m
       NotificationModel,
       UserNotificationStatusModel,
     ]),
+    UserModule,
   ],
   controllers: [NotificationsController],
   providers: [
