@@ -4,24 +4,22 @@ export type NotificationTargetType = 'all' | 'user' | 'client_type';
 
 export interface NotificationAttributes {
   id: string;
-  link: string | null;
+  link: string;
   message: string;
   targetType: string;
   targetValue: string | null;
   expiresAt: Date | null;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export class Notification implements NotificationAttributes {
   id: string;
-  link: string | null;
+  link: string;
   message: string;
   targetType: string;
   targetValue: string | null;
   expiresAt: Date | null;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 
@@ -32,7 +30,6 @@ export class Notification implements NotificationAttributes {
     targetType,
     targetValue,
     expiresAt,
-    isActive,
     createdAt,
     updatedAt,
   }: NotificationAttributes) {
@@ -42,7 +39,6 @@ export class Notification implements NotificationAttributes {
     this.targetType = targetType;
     this.targetValue = targetValue;
     this.expiresAt = expiresAt;
-    this.isActive = isActive;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -63,6 +59,6 @@ export class Notification implements NotificationAttributes {
   }
 
   isValidForDelivery(): boolean {
-    return this.isActive && !this.isExpired();
+    return !this.isExpired();
   }
 }

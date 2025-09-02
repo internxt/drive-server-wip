@@ -20,7 +20,7 @@ export class NotificationModel extends Model implements NotificationAttributes {
   @Column(DataType.UUID)
   id: string;
 
-  @AllowNull(true)
+  @AllowNull(false)
   @Column(DataType.TEXT)
   link: string | null;
 
@@ -39,11 +39,6 @@ export class NotificationModel extends Model implements NotificationAttributes {
   @AllowNull(true)
   @Column(DataType.DATE)
   expiresAt: Date | null;
-
-  @AllowNull(false)
-  @Default(true)
-  @Column(DataType.BOOLEAN)
-  isActive: boolean;
 
   @AllowNull(false)
   @Column(DataType.DATE)

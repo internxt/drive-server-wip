@@ -658,7 +658,6 @@ export const newNotification = (params?: {
     targetType: 'all',
     targetValue: null,
     expiresAt: randomDataGenerator.date({ min: new Date() }) as Date,
-    isActive: true,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({
