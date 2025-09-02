@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -10,6 +10,7 @@ import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { Notification } from './domain/notification.domain';
 import { NotificationResponseDto } from './dto/notification-response.dto';
+import { NotificationsGuard } from './notifications.guard';
 
 @ApiTags('notifications')
 @Controller('notifications')
@@ -18,6 +19,7 @@ export class NotificationsController {
   constructor(private readonly notificationsUseCases: NotificationsUseCases) {}
 
   @Post('/')
+  @UseGuards(NotificationsGuard)
   @ApiOperation({
     summary: 'Create a new notification',
     description: 'Creates a new notification',

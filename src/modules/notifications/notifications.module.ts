@@ -10,6 +10,7 @@ import { NotificationsController } from './notifications.controller';
 import { NotificationModel } from './models/notification.model';
 import { UserNotificationStatusModel } from './models/user-notification-status.model';
 import { UserModule } from '../user/user.module';
+import { NotificationsGuard } from './notifications.guard';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UserModule } from '../user/user.module';
       useClass: SequelizeNotificationRepository,
     },
     NotificationsUseCases,
+    NotificationsGuard,
   ],
   exports: [NotificationsUseCases],
 })
