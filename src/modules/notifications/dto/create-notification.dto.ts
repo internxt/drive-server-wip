@@ -17,9 +17,10 @@ export class CreateNotificationDto {
   message: string;
 
   @ApiProperty({
-    example: 'all',
+    example: 'test@interxt.com',
     description:
       'Target user email, if missing, notification is sent to everyone',
+    required: false,
   })
   @IsOptional()
   @IsEmail()
