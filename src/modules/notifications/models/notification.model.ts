@@ -22,7 +22,7 @@ export class NotificationModel extends Model implements NotificationAttributes {
 
   @AllowNull(false)
   @Column(DataType.TEXT)
-  link: string | null;
+  link: string;
 
   @AllowNull(false)
   @Column(DataType.TEXT)
