@@ -6,13 +6,11 @@ import { UserNotificationStatusModel } from './models/user-notification-status.m
 export abstract class NotificationRepository {}
 
 @Injectable()
-export class SequelizeNotificationRepository extends NotificationRepository {
+export class SequelizeNotificationRepository implements NotificationRepository {
   constructor(
     @InjectModel(NotificationModel)
     private readonly notificationModel: typeof NotificationModel,
     @InjectModel(UserNotificationStatusModel)
     private readonly userNotificationStatusModel: typeof UserNotificationStatusModel,
-  ) {
-    super();
-  }
+  ) {}
 }

@@ -1,6 +1,9 @@
 import { Time } from '../../../lib/time';
 
-export type NotificationTargetType = 'all' | 'user' | 'client_type';
+export enum NotificationTargetType {
+  ALL = 'all',
+  USER = 'user',
+}
 
 export interface NotificationAttributes {
   id: string;
