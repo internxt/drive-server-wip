@@ -43,8 +43,6 @@ import {
 import { DeviceAttributes } from '../src/modules/backups/models/device.attributes';
 import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
 import { Usage, UsageType } from '../src/modules/usage/usage.domain';
-import { Notification } from '../src/modules/notifications/domain/notification.domain';
-import { UserNotificationStatus } from '../src/modules/notifications/domain/user-notification-status.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -645,52 +643,4 @@ export const newUsage = (params?: { attributes?: Partial<Usage> }): Usage => {
     });
 
   return usage;
-};
-
-export const newNotification = (params?: {
-  attributes?: Partial<Notification>;
-}): Notification => {
-  const randomCreatedAt = randomDataGenerator.date();
-  const notification = Notification.build({
-    id: v4(),
-    link: randomDataGenerator.url(),
-    message: randomDataGenerator.sentence(),
-    targetType: 'all',
-    targetValue: null,
-    expiresAt: randomDataGenerator.date({ min: new Date() }) as Date,
-    createdAt: randomCreatedAt,
-    updatedAt: new Date(
-      randomDataGenerator.date({
-        min: randomCreatedAt,
-      }),
-    ),
-    ...params?.attributes,
-  });
-
-  return notification;
-};
-
-export const newUserNotificationStatus = (params?: {
-  attributes?: Partial<UserNotificationStatus>;
-  userId?: string;
-  notificationId?: string;
-}): UserNotificationStatus => {
-  const randomCreatedAt = randomDataGenerator.date();
-
-  const userNotificationStatus = UserNotificationStatus.build({
-    id: v4(),
-    userId: params?.userId || v4(),
-    notificationId: params?.notificationId || v4(),
-    deliveredAt: randomCreatedAt,
-    readAt: null,
-    createdAt: randomCreatedAt,
-    updatedAt: new Date(
-      randomDataGenerator.date({
-        min: randomCreatedAt,
-      }),
-    ),
-    ...params?.attributes,
-  });
-
-  return userNotificationStatus;
 };
