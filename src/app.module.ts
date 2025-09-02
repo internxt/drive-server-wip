@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import configuration from './config/configuration';
 import { NotificationModule } from './externals/notifications/notifications.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ShareModule } from './modules/share/share.module';
 import { SendModule } from './modules/send/send.module';
 import { BridgeModule } from './externals/bridge/bridge.module';
@@ -97,6 +98,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
     ]),
     JobsModule,
     NotificationModule,
+    NotificationsModule,
     FileModule,
     FolderModule,
     ShareModule,
