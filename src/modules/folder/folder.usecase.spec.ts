@@ -487,6 +487,7 @@ describe('FolderUseCases', () => {
           parentId: destinationFolder.id,
           parentUuid: destinationFolder.uuid,
           name: expectedFolder.name,
+          plainName: expectedFolder.plainName,
           deleted: false,
           deletedAt: null,
         },

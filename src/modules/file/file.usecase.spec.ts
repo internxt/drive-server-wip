@@ -388,6 +388,7 @@ describe('FileUseCases', () => {
           folderUuid: destinationFolder.uuid,
           name: expectedFile.name,
           status: FileStatus.EXISTS,
+          plainName: expectedFile.plainName,
         },
       );
     });

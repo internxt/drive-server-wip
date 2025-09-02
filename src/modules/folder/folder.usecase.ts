@@ -863,6 +863,7 @@ export class FolderUseCases {
       parentId: destinationFolder.id,
       parentUuid: destinationFolder.uuid,
       name: destinationEncryptedName,
+      plainName: originalPlainName,
       deleted: false,
       deletedAt: null,
     };

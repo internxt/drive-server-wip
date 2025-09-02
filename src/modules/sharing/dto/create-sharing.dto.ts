@@ -11,7 +11,7 @@ export class CreateSharingDto {
   itemId: Sharing['itemId'];
 
   @ApiProperty({
-    example: 'file | folder',
+    example: 'file | folder',
     description: 'The type of the resource to share',
   })
   @IsNotEmpty()

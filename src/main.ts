@@ -80,7 +80,9 @@ async function bootstrap() {
     .addBearerAuth(undefined, 'gateway')
     .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const document = SwaggerModule.createDocument(app, swaggerConfig, {
+    ignoreGlobalPrefix: true,
+  });
 
   const customOptions: SwaggerCustomOptions = {
     swaggerOptions: {
