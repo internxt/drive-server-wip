@@ -56,7 +56,6 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         error: {
           message: exception.message,
           stack: exception.stack,
-          exception,
         },
       };
 
