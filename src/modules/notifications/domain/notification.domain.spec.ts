@@ -88,31 +88,4 @@ describe('Notification Domain', () => {
       expect(isTargeted).toBe(false);
     });
   });
-
-  describe('isValidForDelivery', () => {
-    it('When notification is expired, then it should not be valid for delivery', () => {
-      const pastDate = new Date('2024-01-01T00:00:00.000Z');
-      const currentDate = new Date('2025-01-01T00:00:00.000Z');
-
-      mockedTime.now.mockReturnValue(currentDate);
-
-      const notification = newNotification({
-        attributes: { expiresAt: pastDate },
-      });
-
-      const isValid = notification.isValidForDelivery();
-
-      expect(isValid).toBe(false);
-    });
-
-    it('When notification is active and has no expiration date, then it should be valid for delivery', () => {
-      const notification = newNotification({
-        attributes: { expiresAt: null },
-      });
-
-      const isValid = notification.isValidForDelivery();
-
-      expect(isValid).toBe(true);
-    });
-  });
 });

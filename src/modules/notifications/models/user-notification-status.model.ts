@@ -17,10 +17,7 @@ import { UserNotificationStatusAttributes } from '../domain/user-notification-st
   timestamps: true,
   tableName: 'user_notification_status',
 })
-export class UserNotificationStatusModel
-  extends Model
-  implements UserNotificationStatusAttributes
-{
+export class UserNotificationStatusModel extends Model<UserNotificationStatusAttributes> {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
