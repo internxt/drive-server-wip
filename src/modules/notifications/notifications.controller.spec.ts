@@ -4,7 +4,6 @@ import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import {} from './domain/notification.domain';
 import { newNotification } from '../../../test/fixtures';
 import { NotificationResponseDto } from './dto/notification-response.dto';
 
