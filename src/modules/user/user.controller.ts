@@ -432,11 +432,53 @@ export class UserController {
       throw new ForbiddenException();
     }
 
-    const { token, newToken } = await this.userUseCases.getAuthTokens(user);
-    const avatar = await this.userUseCases.getAvatarUrl(user.avatar);
+    const [{ token, newToken }, avatar, rootFolder, keys] = await Promise.all([
+      this.userUseCases.getAuthTokens(user),
+      this.userUseCases.getAvatarUrl(user.avatar),
+      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
+      this.keyServerUseCases.findUserKeys(user.id),
+    ]);
+
+    const userResponse = {
+      email: user.email,
+      userId: user.userId,
+      mnemonic: user.mnemonic.toString(),
+      root_folder_id: rootFolder.id,
+      rootFolderId: rootFolder.uuid,
+      name: user.name,
+      lastname: user.lastname,
+      uuid: user.uuid,
+      credit: user.credit,
+      createdAt: user.createdAt,
+      privateKey: keys.ecc?.privateKey ?? null,
+      publicKey: keys.ecc?.publicKey ?? null,
+      revocateKey: keys.ecc?.revocationKey ?? null,
+      keys: {
+        ecc: {
+          privateKey: keys.ecc?.privateKey ?? null,
+          publicKey: keys.ecc?.publicKey ?? null,
+        },
+        kyber: {
+          privateKey: keys.kyber?.privateKey ?? null,
+          publicKey: keys.kyber?.publicKey ?? null,
+        },
+      },
+      bucket: rootFolder.bucket,
+      registerCompleted: user.registerCompleted,
+      teams: false,
+      username: user.username,
+      bridgeUser: user.bridgeUser,
+      sharedWorkspace: user.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: user.backupsBucket,
+      emailVerified: user.emailVerified,
+      lastPasswordChangedAt: user.lastPasswordChangedAt,
+      avatar,
+    };
 
     return {
-      user: { ...user, avatar },
+      user: userResponse,
       oldToken: token,
       newToken: newToken,
     };
