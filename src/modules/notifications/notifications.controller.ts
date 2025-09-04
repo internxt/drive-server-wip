@@ -16,11 +16,12 @@ import {
 
 import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { NotificationsGuard } from './notifications.guard';
 import { User } from '../auth/decorators/user.decorator';
 import { User as UserDomain } from '../user/user.domain';
 import { NotificationWithStatusDto } from './dto/response/notification-with-status.dto';
 import { NotificationResponseDto } from './dto/response/notification-response.dto';
+import { GatewayGuard } from '../auth/gateway.guard';
+import { DisableGlobalAuth } from '../auth/decorators/disable-global-auth.decorator';
 
 @ApiTags('notifications')
 @Controller('notifications')
@@ -31,7 +32,8 @@ export class NotificationsController {
   @Get('/')
   @ApiOperation({
     summary: 'Get user notifications',
-    description: 'Retrieves all notifications for the authenticated user',
+    description:
+      'Retrieves all notifications for the authenticated user. Notifications will be retrieved just once.',
   })
   @ApiResponse({
     status: 200,
@@ -56,7 +58,9 @@ export class NotificationsController {
   }
 
   @Post('/')
-  @UseGuards(NotificationsGuard)
+  @DisableGlobalAuth()
+  @UseGuards(GatewayGuard)
+  @ApiBearerAuth('gateway')
   @ApiOperation({
     summary: 'Create a new notification',
     description: 'Creates a new notification',
@@ -76,7 +80,9 @@ export class NotificationsController {
   }
 
   @Patch('/:id/expire')
-  @UseGuards(NotificationsGuard)
+  @DisableGlobalAuth()
+  @UseGuards(GatewayGuard)
+  @ApiBearerAuth('gateway')
   @ApiOperation({
     summary: 'Mark notification as expired',
     description:
