@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -8,14 +8,44 @@ import {
 
 import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { NotificationResponseDto } from './dto/notification-response.dto';
 import { NotificationsGuard } from './notifications.guard';
+import { User } from '../auth/decorators/user.decorator';
+import { User as UserDomain } from '../user/user.domain';
+import { NotificationWithStatusDto } from './dto/response/notification-with-status.dto';
+import { NotificationResponseDto } from './dto/response/notification-response.dto';
 
 @ApiTags('notifications')
 @Controller('notifications')
 @ApiBearerAuth()
 export class NotificationsController {
   constructor(private readonly notificationsUseCases: NotificationsUseCases) {}
+
+  @Get('/')
+  @ApiOperation({
+    summary: 'Get user notifications',
+    description: 'Retrieves all notifications for the authenticated user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User notifications retrieved successfully',
+    type: NotificationWithStatusDto,
+    isArray: true,
+  })
+  async getUserNotifications(
+    @User() user: UserDomain,
+  ): Promise<NotificationWithStatusDto[]> {
+    const notifications =
+      await this.notificationsUseCases.getNewNotificationsForUser(user.uuid);
+
+    const notificationDtos = notifications.map(
+      (notificationWithStatus) =>
+        new NotificationWithStatusDto({
+          ...notificationWithStatus,
+        }),
+    );
+
+    return notificationDtos;
+  }
 
   @Post('/')
   @UseGuards(NotificationsGuard)

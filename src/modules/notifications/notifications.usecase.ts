@@ -3,12 +3,14 @@ import { NotificationRepository } from './notifications.repository';
 import {
   Notification,
   NotificationTargetType,
+  NotificationWithStatus,
 } from './domain/notification.domain';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { v4 } from 'uuid';
 import { Time } from '../../lib/time';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { isEmail } from 'class-validator';
+import { UserNotificationStatus } from './domain/user-notification-status.domain';
 
 @Injectable()
 export class NotificationsUseCases {
@@ -45,6 +47,48 @@ export class NotificationsUseCases {
     });
 
     return this.notificationRepository.create(notification);
+  }
+
+  async getNewNotificationsForUser(
+    userId: string,
+  ): Promise<NotificationWithStatus[]> {
+    const userNotifications =
+      await this.notificationRepository.getNewNotificationsForUser(userId);
+
+    const notificationsWithoutStatus = userNotifications.filter(
+      ({ status }) => !status,
+    );
+
+    const currentTime = Time.now();
+
+    if (notificationsWithoutStatus.length > 0) {
+      const userNotificationStatuses = notificationsWithoutStatus.map(
+        ({ notification }) =>
+          UserNotificationStatus.build({
+            id: v4(),
+            userId,
+            notificationId: notification.id,
+            deliveredAt: currentTime,
+            // Let notifications to be fetched only once
+            readAt: currentTime,
+            createdAt: currentTime,
+            updatedAt: currentTime,
+          }),
+      );
+
+      await this.notificationRepository.createManyUserNotificationStatuses(
+        userNotificationStatuses,
+      );
+    }
+
+    return userNotifications.map(({ notification, status }) => {
+      return {
+        notification,
+        isRead: true,
+        deliveredAt: status?.deliveredAt ?? currentTime,
+        readAt: status?.readAt ?? currentTime,
+      };
+    });
   }
 
   private async getUserByEmailOrThrow(email: string) {

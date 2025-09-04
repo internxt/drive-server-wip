@@ -4,8 +4,9 @@ import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsUseCases } from './notifications.usecase';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { newNotification } from '../../../test/fixtures';
-import { NotificationResponseDto } from './dto/notification-response.dto';
+import { newNotification, newUser } from '../../../test/fixtures';
+import { NotificationResponseDto } from './dto/response/notification-response.dto';
+import { NotificationWithStatusDto } from './dto/response/notification-with-status.dto';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -45,6 +46,33 @@ describe('NotificationsController', () => {
         createNotificationDto,
       );
       expect(result).toEqual(notificationDto);
+    });
+  });
+
+  describe('GET /', () => {
+    it('When user requests notifications, then it should return user notifications with status', async () => {
+      const mockUser = newUser();
+      const mockNotification = newNotification();
+      const mockNotificationWithStatus = {
+        notification: mockNotification,
+        isRead: false,
+        deliveredAt: new Date(),
+        readAt: null,
+      };
+      const expectedDto = new NotificationWithStatusDto(
+        mockNotificationWithStatus,
+      );
+
+      notificationsUseCases.getNewNotificationsForUser.mockResolvedValueOnce([
+        mockNotificationWithStatus,
+      ]);
+
+      const result = await controller.getUserNotifications(mockUser);
+
+      expect(
+        notificationsUseCases.getNewNotificationsForUser,
+      ).toHaveBeenCalledWith(mockUser.uuid);
+      expect(result).toEqual([expectedDto]);
     });
   });
 });

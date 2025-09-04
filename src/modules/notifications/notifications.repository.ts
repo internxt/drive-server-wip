@@ -2,12 +2,33 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { NotificationModel } from './models/notification.model';
 import { UserNotificationStatusModel } from './models/user-notification-status.model';
-import { Notification } from './domain/notification.domain';
+import {
+  Notification,
+  NotificationTargetType,
+} from './domain/notification.domain';
+import {
+  UserNotificationStatus,
+  UserNotificationStatusAttributes,
+} from './domain/user-notification-status.domain';
+import { Op } from 'sequelize';
+
+export interface NotificationWithStatus {
+  notification: Notification;
+  status?: UserNotificationStatus;
+}
 
 export abstract class NotificationRepository {
   abstract create(
     notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Notification>;
+
+  abstract getNewNotificationsForUser(
+    userId: string,
+  ): Promise<NotificationWithStatus[]>;
+
+  abstract createManyUserNotificationStatuses(
+    userNotificationStatuses: UserNotificationStatusAttributes[],
+  ): Promise<UserNotificationStatus[]>;
 }
 
 @Injectable()
@@ -27,7 +48,80 @@ export class SequelizeNotificationRepository implements NotificationRepository {
     return this.toDomain(created);
   }
 
-  toDomain(model: NotificationModel) {
+  async getNewNotificationsForUser(
+    userId: string,
+  ): Promise<NotificationWithStatus[]> {
+    const notifications = await this.notificationModel.findAll({
+      where: {
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { targetType: NotificationTargetType.ALL },
+              {
+                targetType: NotificationTargetType.USER,
+                targetValue: userId,
+              },
+            ],
+          },
+          {
+            [Op.or]: [
+              { expiresAt: null },
+              { expiresAt: { [Op.gt]: new Date() } },
+            ],
+          },
+          {
+            '$userNotificationStatuses.id$': null,
+          },
+        ],
+      },
+      include: [
+        {
+          model: this.userNotificationStatusModel,
+          where: {
+            userId,
+          },
+          required: false,
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    return notifications.map((notificationModel) => {
+      const notification = this.toDomain(notificationModel);
+      const statusModel = notificationModel.userNotificationStatuses?.[0];
+      const status = statusModel
+        ? this.userNotificationStatusToDomain(statusModel)
+        : undefined;
+
+      return {
+        notification,
+        status,
+      };
+    });
+  }
+
+  async createManyUserNotificationStatuses(
+    notificationStatuses: UserNotificationStatusAttributes[],
+  ): Promise<UserNotificationStatus[]> {
+    if (notificationStatuses.length === 0) {
+      return [];
+    }
+
+    const created =
+      await this.userNotificationStatusModel.bulkCreate(notificationStatuses);
+
+    return created.map((statusModel) =>
+      this.userNotificationStatusToDomain(statusModel),
+    );
+  }
+
+  toDomain(model: NotificationModel): Notification {
     return Notification.build({ ...model.get() });
+  }
+
+  private userNotificationStatusToDomain(
+    model: UserNotificationStatusModel,
+  ): UserNotificationStatus {
+    return UserNotificationStatus.build({ ...model.get() });
   }
 }

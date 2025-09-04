@@ -5,6 +5,13 @@ export enum NotificationTargetType {
   USER = 'user',
 }
 
+export interface NotificationWithStatus {
+  notification: Notification;
+  isRead: boolean;
+  deliveredAt: Date;
+  readAt: Date | null;
+}
+
 export interface NotificationAttributes {
   id: string;
   link: string;
@@ -64,9 +71,5 @@ export class Notification implements NotificationAttributes {
       return true;
     }
     return false;
-  }
-
-  isValidForDelivery(): boolean {
-    return !this.isExpired();
   }
 }

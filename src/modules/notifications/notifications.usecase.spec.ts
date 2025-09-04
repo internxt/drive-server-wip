@@ -6,7 +6,14 @@ import { NotificationRepository } from './notifications.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { NotificationTargetType } from './domain/notification.domain';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { newNotification, newUser } from '../../../test/fixtures';
+import {
+  newNotification,
+  newUser,
+  newUserNotificationStatus,
+} from '../../../test/fixtures';
+import { v4 } from 'uuid';
+
+const mockSystemDate = new Date('2024-01-01T00:00:00.000Z');
 
 describe('NotificationsUseCases', () => {
   let usecases: NotificationsUseCases;
@@ -15,7 +22,7 @@ describe('NotificationsUseCases', () => {
 
   beforeEach(async () => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+    jest.setSystemTime(mockSystemDate);
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [NotificationsUseCases],
@@ -145,6 +152,85 @@ describe('NotificationsUseCases', () => {
         }),
       );
       expect(result).toEqual(expectedNotification);
+    });
+  });
+
+  describe('getNewNotificationsForUser', () => {
+    it('When user has notifications with status, then it should return notifications with status', async () => {
+      const userId = v4();
+      const mockNotification = newNotification();
+      const mockStatus = newUserNotificationStatus({
+        attributes: {
+          deliveredAt: new Date('2024-01-01T00:00:00.000Z'),
+          readAt: new Date('2024-01-01T12:00:00.000Z'),
+        },
+      });
+
+      const mockUserNotifications = [
+        {
+          notification: mockNotification,
+          status: mockStatus,
+        },
+      ];
+
+      notificationRepository.getNewNotificationsForUser.mockResolvedValueOnce(
+        mockUserNotifications,
+      );
+
+      const result = await usecases.getNewNotificationsForUser(userId);
+
+      expect(
+        notificationRepository.getNewNotificationsForUser,
+      ).toHaveBeenCalledWith(userId);
+      expect(result).toEqual([
+        {
+          notification: mockNotification,
+          isRead: true,
+          deliveredAt: mockStatus.deliveredAt,
+          readAt: mockStatus.readAt,
+        },
+      ]);
+    });
+
+    it('When user has notifications without status, then it should create status and return notification marked as read', async () => {
+      const userId = v4();
+      const mockNotification = newNotification();
+      const statusAttributes = {
+        userId,
+        notificationId: mockNotification.id,
+        deliveredAt: mockSystemDate,
+        readAt: mockSystemDate,
+        createdAt: mockSystemDate,
+        updatedAt: mockSystemDate,
+      };
+      const mockUserNotifications = [
+        {
+          notification: mockNotification,
+          status: null,
+        },
+      ];
+
+      notificationRepository.getNewNotificationsForUser.mockResolvedValueOnce(
+        mockUserNotifications,
+      );
+
+      const result = await usecases.getNewNotificationsForUser(userId);
+
+      expect(
+        notificationRepository.createManyUserNotificationStatuses,
+      ).toHaveBeenCalledWith([
+        expect.objectContaining({
+          ...statusAttributes,
+        }),
+      ]);
+      expect(result).toEqual([
+        {
+          notification: mockNotification,
+          isRead: true,
+          deliveredAt: mockSystemDate,
+          readAt: mockSystemDate,
+        },
+      ]);
     });
   });
 });

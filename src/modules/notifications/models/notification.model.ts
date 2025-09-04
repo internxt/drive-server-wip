@@ -6,8 +6,10 @@ import {
   DataType,
   Default,
   AllowNull,
+  HasMany,
 } from 'sequelize-typescript';
 import { NotificationAttributes } from '../domain/notification.domain';
+import { UserNotificationStatusModel } from './user-notification-status.model';
 
 @Table({
   underscored: true,
@@ -47,4 +49,7 @@ export class NotificationModel extends Model implements NotificationAttributes {
   @AllowNull(false)
   @Column(DataType.DATE)
   updatedAt: Date;
+
+  @HasMany(() => UserNotificationStatusModel)
+  userNotificationStatuses: UserNotificationStatusModel[];
 }
