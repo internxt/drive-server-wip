@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { NotificationsUseCases } from './notifications.usecase';
 import { NotificationRepository } from './notifications.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
@@ -231,6 +231,52 @@ describe('NotificationsUseCases', () => {
           readAt: mockSystemDate,
         },
       ]);
+    });
+  });
+
+  describe('markNotificationAsExpired', () => {
+    it('When notification exists, then it should mark it as expired', async () => {
+      const mockNotification = newNotification();
+      const mockUpdatedNotification = newNotification({
+        attributes: {
+          ...mockNotification,
+          expiresAt: mockSystemDate,
+          updatedAt: mockSystemDate,
+        },
+      });
+
+      notificationRepository.findById.mockResolvedValueOnce(mockNotification);
+      notificationRepository.update.mockResolvedValueOnce(
+        mockUpdatedNotification,
+      );
+
+      const result = await usecases.markNotificationAsExpired(
+        mockNotification.id,
+      );
+
+      expect(notificationRepository.findById).toHaveBeenCalledWith(
+        mockNotification.id,
+      );
+      expect(notificationRepository.update).toHaveBeenCalledWith(
+        mockNotification.id,
+        {
+          expiresAt: mockSystemDate,
+          updatedAt: mockSystemDate,
+        },
+      );
+      expect(result).toEqual(mockUpdatedNotification);
+    });
+
+    it('When notification does not exist, then it should throw NotFoundException', async () => {
+      const notificationId = v4();
+
+      notificationRepository.findById.mockResolvedValueOnce(null);
+
+      await expect(
+        usecases.markNotificationAsExpired(notificationId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(notificationRepository.update).not.toHaveBeenCalled();
     });
   });
 });

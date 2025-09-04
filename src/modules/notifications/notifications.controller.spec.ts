@@ -75,4 +75,28 @@ describe('NotificationsController', () => {
       expect(result).toEqual([expectedDto]);
     });
   });
+
+  describe('PATCH /:id/expire', () => {
+    it('When valid notification id is provided, then it should mark notification as expired', async () => {
+      const mockExpiredNotification = newNotification({
+        attributes: {
+          expiresAt: new Date(),
+        },
+      });
+      const expectedDto = new NotificationResponseDto(mockExpiredNotification);
+
+      notificationsUseCases.markNotificationAsExpired.mockResolvedValueOnce(
+        mockExpiredNotification,
+      );
+
+      const result = await controller.markNotificationAsExpired(
+        mockExpiredNotification.id,
+      );
+
+      expect(
+        notificationsUseCases.markNotificationAsExpired,
+      ).toHaveBeenCalledWith(mockExpiredNotification.id);
+      expect(result).toEqual(expectedDto);
+    });
+  });
 });
