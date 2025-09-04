@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -64,6 +72,26 @@ export class NotificationsController {
     const notification = await this.notificationsUseCases.createNotification(
       createNotificationDto,
     );
+    return new NotificationResponseDto(notification);
+  }
+
+  @Patch('/:id/expire')
+  @UseGuards(NotificationsGuard)
+  @ApiOperation({
+    summary: 'Mark notification as expired',
+    description:
+      'Marks a notification as expired by setting its expiration date to now',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification marked as expired successfully',
+    type: NotificationResponseDto,
+  })
+  async markNotificationAsExpired(
+    @Param('id') id: string,
+  ): Promise<NotificationResponseDto> {
+    const notification =
+      await this.notificationsUseCases.markNotificationAsExpired(id);
     return new NotificationResponseDto(notification);
   }
 }

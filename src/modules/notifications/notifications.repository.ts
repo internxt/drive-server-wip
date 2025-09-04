@@ -29,6 +29,12 @@ export abstract class NotificationRepository {
   abstract createManyUserNotificationStatuses(
     userNotificationStatuses: UserNotificationStatusAttributes[],
   ): Promise<UserNotificationStatus[]>;
+
+  abstract update(
+    id: string,
+    updates: Partial<Pick<Notification, 'expiresAt' | 'updatedAt'>>,
+  ): Promise<Notification>;
+  abstract findById(id: string): Promise<Notification>;
 }
 
 @Injectable()
@@ -98,6 +104,25 @@ export class SequelizeNotificationRepository implements NotificationRepository {
         status,
       };
     });
+  }
+
+  async findById(id: string): Promise<Notification> {
+    const notification = await this.notificationModel.findOne({
+      where: { id },
+    });
+
+    return notification ? this.toDomain(notification) : null;
+  }
+  async update(
+    id: string,
+    updates: Partial<Pick<Notification, 'expiresAt' | 'updatedAt'>>,
+  ): Promise<Notification> {
+    const [_, updated] = await this.notificationModel.update(updates, {
+      where: { id },
+      returning: true,
+    });
+
+    return updated.length > 0 ? this.toDomain(updated[0]) : null;
   }
 
   async createManyUserNotificationStatuses(
