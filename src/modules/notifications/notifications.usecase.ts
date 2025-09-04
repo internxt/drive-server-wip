@@ -49,34 +49,30 @@ export class NotificationsUseCases {
     return this.notificationRepository.create(notification);
   }
 
-  async getUserNotifications(
+  async getNewNotificationsForUser(
     userId: string,
-    options: { includeReadNotifications: boolean },
   ): Promise<NotificationWithStatus[]> {
-    const { includeReadNotifications } = options;
-
     const userNotifications =
-      await this.notificationRepository.getNotificationsForUser(userId, {
-        includeReadNotifications,
-      });
+      await this.notificationRepository.getNewNotificationsForUser(userId);
 
     const notificationsWithoutStatus = userNotifications.filter(
       ({ status }) => !status,
     );
 
-    if (notificationsWithoutStatus.length > 0) {
-      const now = Time.now();
+    const currentTime = Time.now();
 
+    if (notificationsWithoutStatus.length > 0) {
       const userNotificationStatuses = notificationsWithoutStatus.map(
         ({ notification }) =>
           UserNotificationStatus.build({
             id: v4(),
             userId,
             notificationId: notification.id,
-            deliveredAt: now,
-            readAt: null,
-            createdAt: now,
-            updatedAt: now,
+            deliveredAt: currentTime,
+            // Let notifications to be fetched only once
+            readAt: currentTime,
+            createdAt: currentTime,
+            updatedAt: currentTime,
           }),
       );
 
@@ -85,13 +81,12 @@ export class NotificationsUseCases {
       );
     }
 
-    const currentTime = Time.now();
     return userNotifications.map(({ notification, status }) => {
       return {
         notification,
-        isRead: status?.isRead() ?? false,
+        isRead: true,
         deliveredAt: status?.deliveredAt ?? currentTime,
-        readAt: status?.readAt ?? null,
+        readAt: status?.readAt ?? currentTime,
       };
     });
   }

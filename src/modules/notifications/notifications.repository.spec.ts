@@ -64,14 +64,13 @@ describe('SequelizeNotificationRepository', () => {
   describe('getNotificationsForUser', () => {
     it('When getting notifications for user, then it should call findAll with correct query parameters', async () => {
       const userId = 'user-uuid';
-      const options = { includeReadNotifications: false };
       const mockNotifications = [];
 
       jest
         .spyOn(notificationModel, 'findAll')
         .mockResolvedValueOnce(mockNotifications);
 
-      await repository.getNotificationsForUser(userId, options);
+      await repository.getNewNotificationsForUser(userId);
 
       expect(notificationModel.findAll).toHaveBeenCalledWith({
         where: {
@@ -91,50 +90,8 @@ describe('SequelizeNotificationRepository', () => {
                 { expiresAt: { [Op.gt]: expect.any(Date) } },
               ],
             },
-          ],
-        },
-        include: [
-          {
-            model: userNotificationStatusModel,
-            where: {
-              userId,
-              readAt: null,
-            },
-            required: false,
-          },
-        ],
-        order: [['createdAt', 'DESC']],
-      });
-    });
-
-    it('When getting notifications with includeReadNotifications true, then it should not filter by readAt', async () => {
-      const userId = v4();
-      const options = { includeReadNotifications: true };
-      const mockNotifications = [];
-
-      jest
-        .spyOn(notificationModel, 'findAll')
-        .mockResolvedValueOnce(mockNotifications);
-
-      await repository.getNotificationsForUser(userId, options);
-
-      expect(notificationModel.findAll).toHaveBeenCalledWith({
-        where: {
-          [Op.and]: [
             {
-              [Op.or]: [
-                { targetType: NotificationTargetType.ALL },
-                {
-                  targetType: NotificationTargetType.USER,
-                  targetValue: userId,
-                },
-              ],
-            },
-            {
-              [Op.or]: [
-                { expiresAt: null },
-                { expiresAt: { [Op.gt]: expect.any(Date) } },
-              ],
+              '$userNotificationStatuses.id$': null,
             },
           ],
         },

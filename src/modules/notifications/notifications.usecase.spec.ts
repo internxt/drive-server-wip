@@ -155,7 +155,7 @@ describe('NotificationsUseCases', () => {
     });
   });
 
-  describe('getUserNotifications', () => {
+  describe('getNewNotificationsForUser', () => {
     it('When user has notifications with status, then it should return notifications with status', async () => {
       const userId = v4();
       const mockNotification = newNotification();
@@ -173,17 +173,15 @@ describe('NotificationsUseCases', () => {
         },
       ];
 
-      notificationRepository.getNotificationsForUser.mockResolvedValueOnce(
+      notificationRepository.getNewNotificationsForUser.mockResolvedValueOnce(
         mockUserNotifications,
       );
 
-      const result = await usecases.getUserNotifications(userId, {
-        includeReadNotifications: false,
-      });
+      const result = await usecases.getNewNotificationsForUser(userId);
 
       expect(
-        notificationRepository.getNotificationsForUser,
-      ).toHaveBeenCalledWith(userId, { includeReadNotifications: false });
+        notificationRepository.getNewNotificationsForUser,
+      ).toHaveBeenCalledWith(userId);
       expect(result).toEqual([
         {
           notification: mockNotification,
@@ -194,14 +192,14 @@ describe('NotificationsUseCases', () => {
       ]);
     });
 
-    it('When user has notifications without status, then it should create status and return with default values', async () => {
+    it('When user has notifications without status, then it should create status and return notification marked as read', async () => {
       const userId = v4();
       const mockNotification = newNotification();
       const statusAttributes = {
         userId,
         notificationId: mockNotification.id,
         deliveredAt: mockSystemDate,
-        readAt: null,
+        readAt: mockSystemDate,
         createdAt: mockSystemDate,
         updatedAt: mockSystemDate,
       };
@@ -212,13 +210,11 @@ describe('NotificationsUseCases', () => {
         },
       ];
 
-      notificationRepository.getNotificationsForUser.mockResolvedValueOnce(
+      notificationRepository.getNewNotificationsForUser.mockResolvedValueOnce(
         mockUserNotifications,
       );
 
-      const result = await usecases.getUserNotifications(userId, {
-        includeReadNotifications: true,
-      });
+      const result = await usecases.getNewNotificationsForUser(userId);
 
       expect(
         notificationRepository.createManyUserNotificationStatuses,
@@ -230,9 +226,9 @@ describe('NotificationsUseCases', () => {
       expect(result).toEqual([
         {
           notification: mockNotification,
-          isRead: false,
+          isRead: true,
           deliveredAt: mockSystemDate,
-          readAt: null,
+          readAt: mockSystemDate,
         },
       ]);
     });

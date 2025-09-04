@@ -34,10 +34,8 @@ export class NotificationsController {
   async getUserNotifications(
     @User() user: UserDomain,
   ): Promise<NotificationWithStatusDto[]> {
-    const notifications = await this.notificationsUseCases.getUserNotifications(
-      user.uuid,
-      { includeReadNotifications: false },
-    );
+    const notifications =
+      await this.notificationsUseCases.getNewNotificationsForUser(user.uuid);
 
     const notificationDtos = notifications.map(
       (notificationWithStatus) =>

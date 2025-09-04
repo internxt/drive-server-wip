@@ -22,9 +22,8 @@ export abstract class NotificationRepository {
     notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Notification>;
 
-  abstract getNotificationsForUser(
+  abstract getNewNotificationsForUser(
     userId: string,
-    options: { includeReadNotifications: boolean },
   ): Promise<NotificationWithStatus[]>;
 
   abstract createManyUserNotificationStatuses(
@@ -49,9 +48,8 @@ export class SequelizeNotificationRepository implements NotificationRepository {
     return this.toDomain(created);
   }
 
-  async getNotificationsForUser(
+  async getNewNotificationsForUser(
     userId: string,
-    options: { includeReadNotifications: boolean },
   ): Promise<NotificationWithStatus[]> {
     const notifications = await this.notificationModel.findAll({
       where: {
@@ -71,6 +69,9 @@ export class SequelizeNotificationRepository implements NotificationRepository {
               { expiresAt: { [Op.gt]: new Date() } },
             ],
           },
+          {
+            '$userNotificationStatuses.id$': null,
+          },
         ],
       },
       include: [
@@ -78,7 +79,6 @@ export class SequelizeNotificationRepository implements NotificationRepository {
           model: this.userNotificationStatusModel,
           where: {
             userId,
-            ...(!options.includeReadNotifications ? { readAt: null } : null),
           },
           required: false,
         },
