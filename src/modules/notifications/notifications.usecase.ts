@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { NotificationRepository } from './notifications.repository';
 import {
   Notification,
@@ -89,6 +93,30 @@ export class NotificationsUseCases {
         readAt: status?.readAt ?? currentTime,
       };
     });
+  }
+
+  async markNotificationAsExpired(
+    notificationId: string,
+  ): Promise<Notification> {
+    const notification =
+      await this.notificationRepository.findById(notificationId);
+
+    if (!notification) {
+      throw new NotFoundException(
+        `Notification with id ${notificationId} not found`,
+      );
+    }
+
+    const currentTime = Time.now();
+    const updatedNotification = await this.notificationRepository.update(
+      notificationId,
+      {
+        expiresAt: currentTime,
+        updatedAt: currentTime,
+      },
+    );
+
+    return updatedNotification;
   }
 
   private async getUserByEmailOrThrow(email: string) {
