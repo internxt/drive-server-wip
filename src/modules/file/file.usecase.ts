@@ -41,6 +41,7 @@ import { FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
+import { MoveFileDto } from './dto/move-file.dto';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -740,7 +741,7 @@ export class FileUseCases {
   async moveFile(
     user: User,
     fileUuid: File['fileId'],
-    destinationUuid: File['folderUuid'],
+    destinationData: MoveFileDto,
   ): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
     if (!file || file.isDeleted()) {
@@ -750,23 +751,32 @@ export class FileUseCases {
     }
 
     const destinationFolder = await this.folderUsecases.getFolderByUuid(
-      destinationUuid,
+      destinationData.destinationFolder,
       user,
     );
 
     if (!destinationFolder || destinationFolder.isRemoved()) {
       throw new UnprocessableEntityException(
-        `File can not be moved to ${destinationUuid}`,
+        `File can not be moved to ${destinationData.destinationFolder}`,
       );
     }
 
     const plainName =
+      destinationData.name ??
       file.plainName ??
       this.cryptoService.decryptName(file.name, file.folderId);
+    const type = destinationData.type ?? file.type;
+
+    file.setPlainName(plainName);
+    file.setType(type);
+
+    if (!file.isFilenameValid()) {
+      throw new BadRequestException('Filename is not valid');
+    }
 
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       file.userId,
-      plainName,
+      file.plainName,
       file.type,
       destinationFolder.id,
       FileStatus.EXISTS,
@@ -784,7 +794,7 @@ export class FileUseCases {
     }
 
     const destinationEncryptedName = this.cryptoService.encryptName(
-      plainName,
+      file.plainName,
       destinationFolder.id,
     );
 
@@ -793,7 +803,8 @@ export class FileUseCases {
       folderUuid: destinationFolder.uuid,
       name: destinationEncryptedName,
       status: FileStatus.EXISTS,
-      plainName: plainName,
+      plainName: file.plainName,
+      type: file.type,
     };
 
     await this.fileRepository.updateByUuidAndUserId(

@@ -38,6 +38,7 @@ import { Time } from '../../lib/time';
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
 const folderId = 4;
+
 describe('FileUseCases', () => {
   let service: FileUseCases;
   let folderUseCases: FolderUseCases;
@@ -372,11 +373,9 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValueOnce();
 
-      const result = await service.moveFile(
-        userMocked,
-        file.uuid,
-        destinationFolder.uuid,
-      );
+      const result = await service.moveFile(userMocked, file.uuid, {
+        destinationFolder: destinationFolder.uuid,
+      });
 
       expect(result.toJSON()).toStrictEqual(expectedFile.toJSON());
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledTimes(1);
@@ -389,6 +388,7 @@ describe('FileUseCases', () => {
           name: expectedFile.name,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
+          type: expectedFile.type,
         },
       );
     });
@@ -401,7 +401,9 @@ describe('FileUseCases', () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
 
       await expect(
-        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+        }),
       ).rejects.toThrow(`File ${file.uuid} can not be moved`);
     });
 
@@ -416,14 +418,18 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(mockDestinationFolder);
 
       await expect(
-        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+        }),
       ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
     });
 
     it('When a non existent file is moved to a folder, then it should throw a not found error', async () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(null);
       await expect(
-        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+        }),
       ).rejects.toThrow(`File ${file.uuid} can not be moved`);
     });
 
@@ -431,7 +437,9 @@ describe('FileUseCases', () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(file);
       jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValueOnce(null);
       await expect(
-        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+        }),
       ).rejects.toThrow(`File can not be moved to ${destinationFolder.uuid}`);
     });
 
@@ -446,7 +454,9 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(file);
 
       await expect(
-        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+        }),
       ).rejects.toThrow(`File ${file.uuid} was already moved to that location`);
     });
 
@@ -467,10 +477,196 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(conflictFile);
 
       await expect(
-        service.moveFile(userMocked, file.uuid, destinationFolder.uuid),
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+        }),
       ).rejects.toThrow(
         'A file with the same name already exists in destination folder',
       );
+    });
+
+    it('When file is renamed and moved, then the file is returned with its updated properties', async () => {
+      const fileToBeMovedAndRenamed = newFile({
+        attributes: {
+          ...file,
+          folderId: destinationFolder.id + 1,
+          folderUuid: v4(),
+          status: FileStatus.EXISTS,
+          plainName: 'name',
+          type: 'type',
+        },
+      });
+
+      const newAttributes = {
+        name: 'newName',
+        type: 'newType',
+      };
+
+      const expectedFile = newFile({
+        attributes: {
+          ...file,
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          status: FileStatus.EXISTS,
+          plainName: newAttributes.name,
+          type: newAttributes.type,
+        },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findByUuid')
+        .mockResolvedValueOnce(fileToBeMovedAndRenamed);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(fileToBeMovedAndRenamed.name);
+
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(fileRepository, 'updateByUuidAndUserId')
+        .mockResolvedValueOnce();
+
+      const result = await service.moveFile(
+        userMocked,
+        fileToBeMovedAndRenamed.uuid,
+        {
+          destinationFolder: destinationFolder.uuid,
+          ...newAttributes,
+        },
+      );
+
+      expect(result.toJSON()).toStrictEqual(expectedFile.toJSON());
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledTimes(1);
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        expectedFile.uuid,
+        expectedFile.userId,
+        {
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          name: expectedFile.name,
+          status: FileStatus.EXISTS,
+          plainName: expectedFile.plainName,
+          type: expectedFile.type,
+        },
+      );
+    });
+
+    it('When file is renamed (but not moved), then the file is returned with its updated properties', async () => {
+      const fileToBeRenamed = newFile({
+        attributes: {
+          ...file,
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          status: FileStatus.EXISTS,
+          plainName: 'name',
+          type: 'type',
+        },
+      });
+
+      const newAttributes = {
+        name: 'newName',
+        type: 'newType',
+      };
+
+      const expectedFile = newFile({
+        attributes: {
+          ...file,
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          status: FileStatus.EXISTS,
+          plainName: newAttributes.name,
+          type: newAttributes.type,
+        },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findByUuid')
+        .mockResolvedValueOnce(fileToBeRenamed);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(fileToBeRenamed.name);
+
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(fileRepository, 'updateByUuidAndUserId')
+        .mockResolvedValueOnce();
+
+      const result = await service.moveFile(userMocked, fileToBeRenamed.uuid, {
+        destinationFolder: fileToBeRenamed.folderUuid,
+        ...newAttributes,
+      });
+
+      expect(result.toJSON()).toStrictEqual(expectedFile.toJSON());
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledTimes(1);
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        expectedFile.uuid,
+        expectedFile.userId,
+        {
+          folderId: expectedFile.folderId,
+          folderUuid: expectedFile.folderUuid,
+          name: expectedFile.name,
+          status: FileStatus.EXISTS,
+          plainName: expectedFile.plainName,
+          type: expectedFile.type,
+        },
+      );
+    });
+
+    it('When file is renamed with an empty filename, then it should throw a BadRequestException', async () => {
+      const fileToBeRenamed = newFile({
+        attributes: {
+          ...file,
+          folderId: destinationFolder.id,
+          folderUuid: destinationFolder.uuid,
+          status: FileStatus.EXISTS,
+          plainName: 'name',
+          type: 'type',
+        },
+      });
+
+      const newAttributes = {
+        name: '',
+        type: '',
+      };
+
+      jest
+        .spyOn(fileRepository, 'findByUuid')
+        .mockResolvedValueOnce(fileToBeRenamed);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValueOnce(fileToBeRenamed.name);
+
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(fileRepository, 'updateByUuidAndUserId')
+        .mockResolvedValueOnce();
+
+      await expect(
+        service.moveFile(userMocked, file.uuid, {
+          destinationFolder: destinationFolder.uuid,
+          ...newAttributes,
+        }),
+      ).rejects.toThrow('Filename is not valid');
     });
   });
 
