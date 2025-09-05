@@ -251,4 +251,20 @@ describe('UsageService', () => {
       );
     });
   });
+
+  describe('getAccumulatedUsage', () => {
+    it('When called, then it should return user usage from repository', async () => {
+      const userUuid = v4();
+      const expectedUsage = 1500;
+
+      jest
+        .spyOn(usageRepository, 'getUserUsage')
+        .mockResolvedValue(expectedUsage);
+
+      const result = await service.getAccumulatedUsage(userUuid);
+
+      expect(result).toEqual(expectedUsage);
+      expect(usageRepository.getUserUsage).toHaveBeenCalledWith(userUuid);
+    });
+  });
 });
