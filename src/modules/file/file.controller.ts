@@ -359,11 +359,7 @@ export class FileController {
     @Client() clientId: string,
     @Requester() requester: User,
   ): Promise<FileDto> {
-    const file = await this.fileUseCases.moveFile(
-      user,
-      fileUuid,
-      moveFileData.destinationFolder,
-    );
+    const file = await this.fileUseCases.moveFile(user, fileUuid, moveFileData);
 
     this.storageNotificationService.fileUpdated({
       payload: file,

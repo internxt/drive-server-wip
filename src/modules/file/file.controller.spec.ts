@@ -94,6 +94,8 @@ describe('FileController', () => {
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
+          plainName: 'newName',
+          type: 'newType',
         },
       });
 
@@ -104,6 +106,8 @@ describe('FileController', () => {
         file.uuid,
         {
           destinationFolder: destinationFolder.uuid,
+          name: 'newName',
+          type: 'newType',
         },
         clientId,
         requester,
