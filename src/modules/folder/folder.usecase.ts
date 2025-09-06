@@ -31,6 +31,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
+import { MoveFolderDto } from './dto/move-folder.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -790,8 +791,11 @@ export class FolderUseCases {
   async moveFolder(
     user: User,
     folderUuid: Folder['uuid'],
-    destinationUuid: Folder['uuid'],
+    moveFolderDto: MoveFolderDto,
   ): Promise<Folder> {
+    const { destinationFolder: destinationFolderUuid } = moveFolderDto;
+    const newName = moveFolderDto.name;
+
     const folder = await this.folderRepository.findOne({
       uuid: folderUuid,
     });
@@ -825,29 +829,32 @@ export class FolderUseCases {
       );
     }
 
-    const destinationFolder = await this.getFolderByUuid(destinationUuid, user);
+    const destinationFolder = await this.getFolderByUuid(
+      destinationFolderUuid,
+      user,
+    );
 
-    if (destinationFolder.removed === true) {
+    if (destinationFolder?.isRemoved()) {
       throw new UnprocessableEntityException(
-        `Folder can not be moved to ${destinationUuid}`,
+        `Folder can not be moved to ${destinationFolderUuid}`,
       );
     }
 
-    const originalPlainName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      originalPlainName,
+    const plainName =
+      newName ?? this.cryptoService.decryptName(folder.name, folder.parentId);
+
+    const nameEncryptedWithDestination = this.cryptoService.encryptName(
+      plainName,
       destinationFolder.id,
     );
 
     const exists = await this.folderRepository.findByNameAndParentUuid(
-      destinationEncryptedName,
-      originalPlainName,
+      nameEncryptedWithDestination,
+      plainName,
       destinationFolder.uuid,
       false,
     );
+
     if (exists) {
       if (exists.uuid === folder.uuid) {
         throw new ConflictException(
@@ -862,8 +869,8 @@ export class FolderUseCases {
     const updateData: Partial<Folder> = {
       parentId: destinationFolder.id,
       parentUuid: destinationFolder.uuid,
-      name: destinationEncryptedName,
-      plainName: originalPlainName,
+      name: nameEncryptedWithDestination,
+      plainName,
       deleted: false,
       deletedAt: null,
     };

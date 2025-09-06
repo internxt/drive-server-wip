@@ -5085,7 +5085,7 @@ describe('WorkspacesUsecases', () => {
         expect(folderUseCases.moveFolder).toHaveBeenCalledWith(
           workspaceNetworkUser,
           folderToMove.uuid,
-          ownerWorkspaceUser.rootFolderId,
+          { destinationFolder: ownerWorkspaceUser.rootFolderId },
         );
         expect(folderUseCases.renameFolder).toHaveBeenCalledWith(
           resultingFolder,
