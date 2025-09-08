@@ -796,6 +796,10 @@ export class FolderUseCases {
     const { destinationFolder: destinationFolderUuid } = moveFolderDto;
     const newName = moveFolderDto.name;
 
+    if (newName === '' || invalidName.test(newName)) {
+      throw new BadRequestException('Invalid folder name');
+    }
+
     const folder = await this.folderRepository.findOne({
       uuid: folderUuid,
     });
