@@ -37,6 +37,8 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         return httpAdapter.reply(response, message, status);
       }
 
+      const requestId = request.id;
+
       this.logUnexpectedError(exception, request);
 
       return httpAdapter.reply(
@@ -44,6 +46,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Internal Server Error',
+          requestId,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
