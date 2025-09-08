@@ -17,8 +17,8 @@ import {
 import { AppModule } from './app.module';
 import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
-import { RequestLoggerMiddleware } from './middlewares/requests-logger';
 import { AuthGuard } from './modules/auth/auth.guard';
+import { RequestLoggerInterceptor } from './middlewares/requests-logger.interceptor';
 
 const config = configuration();
 const APP_PORT = config.port || 3000;
@@ -62,7 +62,7 @@ async function bootstrap() {
   app.use(apiMetrics());
 
   if (!config.isProduction) {
-    app.use(RequestLoggerMiddleware);
+    app.useGlobalInterceptors(new RequestLoggerInterceptor());
   }
 
   app.setGlobalPrefix('api');
