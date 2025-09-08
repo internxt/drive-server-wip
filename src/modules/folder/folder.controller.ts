@@ -842,7 +842,7 @@ export class FolderController {
     const folder = await this.folderUseCases.moveFolder(
       user,
       folderUuid,
-      moveFolderData.destinationFolder,
+      moveFolderData,
     );
 
     const folderDto = { ...folder, status: folder.getFolderStatus() };

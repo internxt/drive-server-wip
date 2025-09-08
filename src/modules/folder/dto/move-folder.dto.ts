@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class MoveFolderDto {
@@ -9,4 +9,14 @@ export class MoveFolderDto {
     description: 'New Destination Folder UUID',
   })
   destinationFolder: string;
+
+  @ApiProperty({
+    description:
+      'New folder name (optional). Specify it to rename the folder when moving',
+    required: false,
+    example: 'newName',
+  })
+  @IsString()
+  @IsOptional()
+  name?: string;
 }

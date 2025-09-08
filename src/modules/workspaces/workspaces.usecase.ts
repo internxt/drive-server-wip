@@ -2738,7 +2738,7 @@ export class WorkspacesUsecases {
     const movedFolder = await this.folderUseCases.moveFolder(
       workspaceNetworkUser,
       memberRootFolder.uuid,
-      ownerWorkspaceUser.rootFolderId,
+      { destinationFolder: ownerWorkspaceUser.rootFolderId },
     );
 
     await this.workspaceRepository.updateItemBy(
