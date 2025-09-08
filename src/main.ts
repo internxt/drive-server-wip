@@ -3,9 +3,10 @@ import dotenv from 'dotenv';
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
 import './newrelic';
-import { ValidationPipe, Logger, ConsoleLogger } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { Logger } from 'nestjs-pino';
 import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
 import {
@@ -13,17 +14,16 @@ import {
   SwaggerCustomOptions,
   SwaggerModule,
 } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerMiddleware } from './middlewares/requests-logger';
-import { NestExpressApplication } from '@nestjs/platform-express';
 import { AuthGuard } from './modules/auth/auth.guard';
 
 const config = configuration();
 const APP_PORT = config.port || 3000;
 
 async function bootstrap() {
-  const logger = new Logger();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
       allowedHeaders: [
@@ -44,12 +44,11 @@ async function bootstrap() {
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
     },
-    logger: new ConsoleLogger({
-      colors: config.isDevelopment,
-      prefix: 'Drive-server',
-      compact: config.isProduction,
-    }),
+    bufferLogs: true,
   });
+
+  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
 
   const enableTrustProxy = config.isProduction;
 

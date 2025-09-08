@@ -7,6 +7,8 @@ import { isAxiosError } from 'axios';
 
 @Injectable()
 export class NotificationListener {
+  private readonly logger = new Logger(NotificationListener.name);
+
   constructor(
     @Inject(HttpClient)
     private readonly http: HttpClient,
@@ -36,11 +38,13 @@ export class NotificationListener {
       });
 
       if (res && res.status !== 201) {
-        Logger.warn(
-          `Post to notifications service failed with status ${
-            res.status
-          }. Data: ${JSON.stringify(eventData, null, null)}`,
-          this.constructor.name,
+        this.logger.warn(
+          {
+            eventName: event.name,
+            eventData,
+            status: res.status,
+          },
+          '[NOTIFICATIONS_ERROR] Notification did not returned the expected result!',
         );
       }
     } catch (error) {
@@ -51,12 +55,16 @@ export class NotificationListener {
 
       if (isAxiosError(error)) {
         errorData['url'] = error.config?.url;
-        errorData['agent'] = error.config?.httpsAgent?.options;
       }
 
-      Logger.error(
-        `[NOTIFICATIONS_ERROR] Error in event ${event.name}, message: ${errorData.message}. Data: ${JSON.stringify(eventData, null, null)}, error: ${JSON.stringify(errorData, null, null)},`,
-        this.constructor.name,
+      this.logger.error(
+        {
+          eventName: event.name,
+          errorMessage: errorData.message,
+          eventData,
+          errorData,
+        },
+        '[NOTIFICATIONS_ERROR] There was an error while sending a notification',
       );
     }
   }

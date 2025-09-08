@@ -1,15 +1,13 @@
 import {
   Catch,
-  Logger,
   HttpException,
   ArgumentsHost,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { BaseError as SequelizeError } from 'sequelize';
 import { AxiosError } from 'axios';
 import { BaseExceptionFilter } from '@nestjs/core';
-import { getClientIdFromHeaders } from './decorators/client.decorator';
-import { v4 } from 'uuid';
 
 @Catch()
 export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
@@ -39,48 +37,13 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         return httpAdapter.reply(response, message, status);
       }
 
-      const errorId = v4();
-      const errorResponse = {
-        timestamp: new Date().toISOString(),
-        errorId,
-        name: exception.name,
-        path: request.url,
-        method: request.method,
-        body: request.body ?? {},
-        user: {
-          email: request?.user?.email,
-          uuid: request?.user?.uuid,
-          id: request?.user?.id,
-        },
-        client: getClientIdFromHeaders(request),
-        error: {
-          message: exception.message,
-          stack: exception.stack,
-          exception,
-        },
-      };
-
-      let errorSubtype = '';
-      if (exception instanceof SequelizeError) {
-        errorSubtype = 'DATABASE';
-      } else if (exception instanceof AxiosError) {
-        errorSubtype = 'EXTERNAL_SERVICE';
-      }
-
-      const errorCategory = errorSubtype
-        ? `UNEXPECTED_ERROR/${errorSubtype}`
-        : 'UNEXPECTED_ERROR';
-
-      this.logger.error(
-        `[${errorCategory}] - Details: ${JSON.stringify(errorResponse)}`,
-      );
+      this.logUnexpectedError(exception, request);
 
       return httpAdapter.reply(
         response,
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Internal Server Error',
-          errorId,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -93,11 +56,15 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         },
         method: request.method,
         path: request.url,
-        message: error.message,
-        stack: error.stack,
+        error: {
+          message: error.message,
+          stack: error.stack,
+        },
       };
+
       this.logger.error(
-        `Error in HttpGlobalExceptionFilter: ${JSON.stringify(errorDetails)}`,
+        errorDetails,
+        'Unexpected error in HttpGlobalExceptionFilter',
       );
       // If something goes wrong, let the default exception handler take over
       return super.catch(error, host);
@@ -111,5 +78,37 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       typeof err === 'object' &&
       'message' in err
     );
+  }
+
+  logUnexpectedError(exception: any, request) {
+    let errorSubtype = '';
+    if (exception instanceof SequelizeError) {
+      errorSubtype = 'DATABASE';
+    } else if (exception instanceof AxiosError) {
+      errorSubtype = 'EXTERNAL_SERVICE';
+    }
+
+    const errorCategory = errorSubtype
+      ? `UNEXPECTED_ERROR/${errorSubtype}`
+      : 'UNEXPECTED_ERROR';
+
+    const errorResponse = {
+      name: exception.name,
+      path: request.url,
+      errorType: errorCategory,
+      method: request.method,
+      body: request.body ?? {},
+      user: {
+        email: request?.user?.email,
+        uuid: request?.user?.uuid,
+        id: request?.user?.id,
+      },
+      error: {
+        message: exception.message,
+        stack: exception.stack,
+      },
+    };
+
+    this.logger.error(errorResponse, errorCategory);
   }
 }
