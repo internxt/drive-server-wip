@@ -44,34 +44,18 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
                 target: 'pino-pretty',
                 options: {
                   colorize: true,
-                  ignore: 'pid,hostname,req,res',
-                  translateTime: 'yyyy-mm-dd HH:MM:ss',
+                  translateTime: true,
                   singleLine: true,
                 },
               }
             : undefined,
-        customProps: (req: any) => ({
-          userId: req?.user?.uuid,
-          userEmail: req?.user?.email,
-        }),
         serializers: {
           req: (req) => ({
-            requestId: req.id,
-            method: req.method,
-            url: req.url,
-            query: req.query,
-            params: req.params,
-            headers: {
-              'content-type': req.headers['content-type'],
-              'user-agent': req.headers['user-agent'],
-              'internxt-client': getClientIdFromHeaders(req),
-              'internxt-version': req.headers['internxt-version'],
-              'request-id': req.headers['x-request-id'],
-            },
+            reqId: req.id,
+            clientId: getClientIdFromHeaders(req),
+            version: req.headers['internxt-version'],
           }),
-          res: (res) => ({
-            statusCode: res.statusCode,
-          }),
+          res: () => undefined,
         },
         redact: ['req.headers.authorization'],
         autoLogging: false,
