@@ -38,6 +38,7 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
         name: 'drive-server',
         genReqId: (req) => req.headers['x-request-id'] ?? v4(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        base: undefined,
         transport:
           process.env.NODE_ENV === 'development'
             ? {
@@ -46,9 +47,15 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
                   colorize: true,
                   translateTime: true,
                   singleLine: true,
+                  levelFirst: true,
                 },
               }
             : undefined,
+        formatters: {
+          level: (label) => {
+            return { level: label };
+          },
+        },
         serializers: {
           req: (req) => ({
             reqId: req.id,
