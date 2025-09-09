@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
 import { FolderModule } from './modules/folder/folder.module';
@@ -27,9 +28,46 @@ import { GatewayModule } from './modules/gateway/gateway.module';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { v4 } from 'uuid';
+import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 
 @Module({
   imports: [
+    LoggerModule.forRoot({
+      pinoHttp: {
+        name: 'drive-server',
+        genReqId: (req) => req.headers['x-request-id'] ?? v4(),
+        level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        base: undefined,
+        transport:
+          process.env.NODE_ENV === 'development'
+            ? {
+                target: 'pino-pretty',
+                options: {
+                  colorize: true,
+                  translateTime: true,
+                  singleLine: true,
+                  levelFirst: true,
+                },
+              }
+            : undefined,
+        formatters: {
+          level: (label) => {
+            return { level: label };
+          },
+        },
+        serializers: {
+          req: (req) => ({
+            reqId: req.id,
+            clientId: getClientIdFromHeaders(req),
+            version: req.headers['internxt-version'],
+          }),
+          res: () => undefined,
+        },
+        redact: ['req.headers.authorization'],
+        autoLogging: false,
+      },
+    }),
     ConfigModule.forRoot({
       envFilePath: [`.env.${process.env.NODE_ENV}`],
       load: [configuration],

@@ -11,6 +11,7 @@ import { AxiosError } from 'axios';
 import { HttpGlobalExceptionFilter } from './http-global-exception-filter.exception';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { newUser } from '../../test/fixtures';
+import { v4 } from 'uuid';
 
 jest.mock('../common/decorators/client.decorator', () => ({
   getClientIdFromHeaders: jest.fn().mockReturnValue('drive-web'),
@@ -73,7 +74,14 @@ describe('HttpGlobalExceptionFilter', () => {
     it('When unexpected error is sent, it should log details and return 500 error', () => {
       const mockUser = newUser();
       const mockException = new Error('Unexpected error');
-      const mockHost = createMockArgumentsHost('/test-url', 'GET', mockUser);
+      const requestId = v4();
+      const mockHost = createMockArgumentsHost(
+        '/test-url',
+        'GET',
+        mockUser,
+        {},
+        requestId,
+      );
 
       filter.catch(mockException, mockHost);
 
@@ -83,7 +91,7 @@ describe('HttpGlobalExceptionFilter', () => {
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Internal Server Error',
-          errorId: expect.any(String),
+          requestId,
         }),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -100,7 +108,7 @@ describe('HttpGlobalExceptionFilter', () => {
       filter.catch(mockException, mockHost);
 
       expect(loggerMock.error).toHaveBeenCalled();
-      expect(loggerMock.error.mock.calls[0][0]).toContain(
+      expect(loggerMock.error.mock.calls[0][1]).toContain(
         'UNEXPECTED_ERROR/DATABASE',
       );
       expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
@@ -133,7 +141,7 @@ describe('HttpGlobalExceptionFilter', () => {
       filter.catch(mockException, mockHost);
 
       expect(loggerMock.error).toHaveBeenCalled();
-      expect(loggerMock.error.mock.calls[0][0]).toContain(
+      expect(loggerMock.error.mock.calls[0][1]).toContain(
         'UNEXPECTED_ERROR/EXTERNAL_SERVICE',
       );
       expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
@@ -208,6 +216,7 @@ const createMockArgumentsHost = (
   method: string,
   user: any,
   body: any = {},
+  id: string = v4(),
 ) =>
   createMock<ArgumentsHost>({
     switchToHttp: () => ({
@@ -216,6 +225,7 @@ const createMockArgumentsHost = (
         method,
         user,
         body,
+        id,
       }),
       getResponse: () => ({}),
     }),
