@@ -50,12 +50,16 @@ import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
-  ExistingFoldersDto,
+  ExistentFoldersDto,
   FolderDto,
   FoldersDto,
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
-import { FilesDto, ResultFilesDto } from '../file/dto/responses/file.dto';
+import {
+  ExistentFilesDto,
+  FilesDto,
+  ResultFilesDto,
+} from '../file/dto/responses/file.dto';
 import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 
@@ -410,13 +414,13 @@ export class FolderController {
       value: 'folder',
     },
   ])
-  @ApiOkResponse({ type: ExistingFoldersDto })
+  @ApiOkResponse({ type: ExistentFoldersDto })
   @WorkspacesInBehalfValidationFolder()
   async checkFoldersExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Body() query: CheckFoldersExistenceDto,
-  ): Promise<ExistingFoldersDto> {
+  ): Promise<ExistentFoldersDto> {
     const { plainNames } = query;
 
     const folders = await this.folderUseCases.searchFoldersInFolder(
@@ -447,12 +451,13 @@ export class FolderController {
       value: 'folder',
     },
   ])
+  @ApiOkResponse({ type: ExistentFilesDto })
   @WorkspacesInBehalfValidationFolder()
   async checkFilesExistenceInFolder(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Body() query: CheckFileExistenceInFolderDto,
-  ) {
+  ): Promise<ExistentFilesDto> {
     const parentFolder = await this.folderUseCases.getFolderByUuid(
       folderUuid,
       user,
