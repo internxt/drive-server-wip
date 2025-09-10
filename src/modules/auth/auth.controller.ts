@@ -41,10 +41,12 @@ import { LoginAccessResponseDto } from './dto/responses/login-access-response.dt
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
+import { Platform } from '../feature-limit/constants/platform.constants';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger('AUTH/CONTROLLER');
   constructor(
     private readonly userUseCases: UserUseCases,
     private readonly keyServerUseCases: KeyServerUseCases,
@@ -242,5 +244,51 @@ export class AuthController {
   ) {
     const { hashedPassword } = query;
     return this.userUseCases.areCredentialsCorrect(user, hashedPassword);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/cli/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'CLI platform login access',
+  })
+  @ApiOkResponse({
+    description: 'CLI user successfully accessed their account',
+    type: LoginAccessResponseDto,
+  })
+  @Public()
+  @WorkspaceLogAction(WorkspaceLogType.Login)
+  async cliLoginAccess(
+    @Body() body: LoginAccessDto,
+  ): Promise<LoginAccessResponseDto> {
+    this.logger.log(
+      { email: body.email },
+      '[CLI-LOGIN-ACCESS] Attempting CLI login',
+    );
+    try {
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
+        privateKey: body.privateKey,
+        publicKey: body.publicKey,
+        revocationKey: body.revocateKey,
+      });
+
+      const result = await this.userUseCases.loginAccess({
+        ...body,
+        keys: { kyber, ecc },
+        platform: Platform.CLI,
+      });
+
+      this.logger.log(
+        { email: body.email },
+        '[CLI-LOGIN-ACCESS] Successful CLI login',
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        { email: body.email, error },
+        '[CLI-LOGIN-ACCESS] Failed CLI login attempt',
+      );
+      throw error;
+    }
   }
 }

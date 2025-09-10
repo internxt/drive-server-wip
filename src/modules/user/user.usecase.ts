@@ -869,6 +869,7 @@ export class UserUseCases {
     user: User,
     customIat?: number,
     tokenExpirationTime: string | number = '3d',
+    platform?: string,
   ): Promise<{ token: string; newToken: string }> {
     const jti = v4();
 
@@ -900,6 +901,7 @@ export class UserUseCases {
             user: user.bridgeUser,
           },
           workspaces: { owners },
+          ...(platform && { platform }),
         },
         ...(customIat ? { iat: customIat } : null),
       },
@@ -1529,7 +1531,7 @@ export class UserUseCases {
     loginAccessDto: Omit<
       LoginAccessDto,
       'privateKey' | 'publicKey' | 'revocateKey' | 'revocationKey'
-    >,
+    > & { platform?: string },
   ) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
@@ -1573,6 +1575,7 @@ export class UserUseCases {
       userData,
       undefined,
       '3d',
+      loginAccessDto.platform,
     );
     await this.userRepository.loginFailed(userData, false);
 
