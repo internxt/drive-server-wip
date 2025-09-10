@@ -62,9 +62,11 @@ describe('Jwt strategy', () => {
 
     jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
-    await expect(
-      strategy.validate({ payload: { uuid: 'anyUuid' }, iat: tokenIat }),
-    ).resolves.toBe(user);
+    const result = await strategy.validate({
+      payload: { uuid: 'anyUuid' },
+      iat: tokenIat,
+    });
+    expect(result).toEqual([user, { platform: undefined }]);
   });
 
   it('When token has iat but user has not lastPasswordChangedAt, then return user', async () => {
@@ -74,9 +76,11 @@ describe('Jwt strategy', () => {
 
     jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
 
-    await expect(
-      strategy.validate({ payload: { uuid: 'anyUuid' }, iat: tokenIat }),
-    ).resolves.toBe(user);
+    const result = await strategy.validate({
+      payload: { uuid: 'anyUuid' },
+      iat: tokenIat,
+    });
+    expect(result).toEqual([user, { platform: undefined }]);
   });
 
   it('When user is guest on shared workspace and token is valid, then return owner', async () => {
@@ -98,9 +102,11 @@ describe('Jwt strategy', () => {
       .spyOn(userUseCases, 'getUserByUsername')
       .mockResolvedValue(owner);
 
-    await expect(
-      strategy.validate({ payload: { uuid: anyUuid }, iat: tokenIat }),
-    ).resolves.toBe(owner);
+    const result = await strategy.validate({
+      payload: { uuid: anyUuid },
+      iat: tokenIat,
+    });
+    expect(result).toEqual([owner, { platform: undefined }]);
 
     expect(getUserSpy).toHaveBeenCalledWith(anyUuid);
     expect(getUserByUsernameSpy).toHaveBeenCalledWith(owner.username);
@@ -140,7 +146,7 @@ describe('Jwt strategy', () => {
     });
 
     expect(cacheManagerService.isJwtBlacklisted).toHaveBeenCalledWith(jti);
-    expect(result).toBe(user);
+    expect(result).toEqual([user, { platform: undefined }]);
   });
 
   it('When token has no jti, then skip blacklist check and continue validation', async () => {
@@ -159,6 +165,6 @@ describe('Jwt strategy', () => {
     });
 
     expect(isBlacklistedSpy).not.toHaveBeenCalled();
-    expect(result).toBe(user);
+    expect(result).toEqual([user, { platform: undefined }]);
   });
 });

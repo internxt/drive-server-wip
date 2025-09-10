@@ -20,6 +20,7 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiPaymentRequiredResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from './decorators/public.decorator';
@@ -41,7 +42,9 @@ import { LoginAccessResponseDto } from './dto/responses/login-access-response.dt
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
-import { Platform } from '../feature-limit/constants/platform.constants';
+import { PlatformName } from '../../common/constants';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -53,6 +56,7 @@ export class AuthController {
     private readonly cryptoService: CryptoService,
     private readonly twoFactorAuthService: TwoFactorAuthService,
     private readonly authUseCases: AuthUsecases,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -247,7 +251,7 @@ export class AuthController {
   }
 
   @UseGuards(ThrottlerGuard)
-  @Post('/cli/login')
+  @Post('/cli/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'CLI platform login access',
@@ -256,14 +260,16 @@ export class AuthController {
     description: 'CLI user successfully accessed their account',
     type: LoginAccessResponseDto,
   })
+  @ApiPaymentRequiredResponse({
+    description: 'This user current tier does not allow CLI access',
+  })
   @Public()
-  @WorkspaceLogAction(WorkspaceLogType.Login)
   async cliLoginAccess(
     @Body() body: LoginAccessDto,
   ): Promise<LoginAccessResponseDto> {
     this.logger.log(
-      { email: body.email },
-      '[CLI-LOGIN-ACCESS] Attempting CLI login',
+      { email: body.email, category: 'CLI-LOGIN-ACCESS' },
+      'Attempting CLI login',
     );
     try {
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
@@ -275,18 +281,29 @@ export class AuthController {
       const result = await this.userUseCases.loginAccess({
         ...body,
         keys: { kyber, ecc },
-        platform: Platform.CLI,
+        platform: PlatformName.CLI,
       });
 
+      const canUserAccess =
+        await this.featureLimitService.canUserAccessPlatform(
+          result.user.tierId,
+          PlatformName.CLI,
+        );
+
+      if (!canUserAccess)
+        throw new PaymentRequiredException(
+          'CLI access not allowed for this user tier',
+        );
+
       this.logger.log(
-        { email: body.email },
-        '[CLI-LOGIN-ACCESS] Successful CLI login',
+        { email: body.email, category: 'CLI-LOGIN-ACCESS' },
+        'Successful CLI login',
       );
       return result;
     } catch (error) {
       this.logger.error(
-        { email: body.email, error },
-        '[CLI-LOGIN-ACCESS] Failed CLI login attempt',
+        { email: body.email, category: 'CLI-LOGIN-ACCESS', error },
+        'Failed CLI login attempt',
       );
       throw error;
     }

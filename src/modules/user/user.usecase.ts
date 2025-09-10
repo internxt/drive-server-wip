@@ -1624,6 +1624,7 @@ export class UserUseCases {
       privateKey: ecc?.privateKey || null,
       publicKey: ecc?.publicKey || null,
       revocateKey: ecc?.revocationKey || null,
+      tierId: userData.tierId,
       keys: {
         ecc: {
           privateKey: ecc?.privateKey || null,

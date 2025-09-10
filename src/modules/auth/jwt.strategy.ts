@@ -72,15 +72,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
         throw new UnauthorizedException();
       }
 
+      const authInfo = { platform };
+
       if (user.isGuestOnSharedWorkspace()) {
         //  Legacy shared workspaces. It is not the current workspaces implementation.
         const sharedWorkspaceHost = await this.userUseCases.getUserByUsername(
           user.bridgeUser,
         );
-        return [sharedWorkspaceHost, { platform }];
+        return [sharedWorkspaceHost, authInfo];
       }
 
-      return [user, { platform }];
+      return [user, authInfo];
     } catch (err) {
       if (err instanceof UnauthorizedException) {
         throw err;
