@@ -11,6 +11,7 @@ import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 @Injectable()
 export class GatewayUseCases {
@@ -20,6 +21,7 @@ export class GatewayUseCases {
     private readonly userUseCases: UserUseCases,
     private readonly cacheManagerService: CacheManagerService,
     private readonly storageNotificationService: StorageNotificationService,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -165,7 +167,32 @@ export class GatewayUseCases {
     return this.userRepository.findByUuid(uuid);
   }
 
-  async updateUser(user: User, newStorageSpaceBytes?: number) {
+  async updateUser(
+    user: User,
+    {
+      newStorageSpaceBytes,
+      newTierId,
+    }: { newStorageSpaceBytes?: number; newTierId?: string },
+  ) {
+    if (newTierId) {
+      const tier = await this.featureLimitService.getTier(newTierId);
+      if (!tier) {
+        throw new BadRequestException(`Tier with ID ${newTierId} not found`);
+      }
+    }
+
+    if (newTierId && newTierId !== user.tierId) {
+      await this.userRepository.updateBy(
+        { uuid: user.uuid },
+        { tierId: newTierId },
+      );
+      user.tierId = newTierId;
+    }
+
+    if (!newStorageSpaceBytes) {
+      return;
+    }
+
     await this.userUseCases.updateUserStorage(user, newStorageSpaceBytes);
 
     try {
