@@ -46,7 +46,8 @@ export class FoldersDto {
   @ApiProperty({ isArray: true, type: FolderDto })
   folders: FolderDto[];
 }
-export class ExistingFoldersDto {
+
+export class ExistentFoldersDto {
   @ApiProperty({ isArray: true, type: FolderDto })
   existentFolders: FolderDto[];
 }

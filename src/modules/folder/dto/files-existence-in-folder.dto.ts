@@ -18,20 +18,22 @@ export class FilesNameAndType {
   })
   @IsString()
   @IsOptional()
-  type?: FileAttributes['type'];
+  type?: string;
 
   @ApiProperty({
     description: 'Plain name of file',
     example: 'example',
   })
   @IsString()
-  plainName: FileAttributes['plainName'];
+  plainName: string;
 }
 
 export class CheckFileExistenceInFolderDto {
   @IsNotEmpty()
   @ApiProperty({
     description: 'Array of files with names and types',
+    isArray: true,
+    type: FilesNameAndType,
   })
   @ArrayMinSize(1)
   @ArrayMaxSize(200)

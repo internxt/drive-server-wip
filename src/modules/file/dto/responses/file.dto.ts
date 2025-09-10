@@ -48,6 +48,11 @@ export class FilesDto {
   files: FileDto[];
 }
 
+export class ExistentFilesDto {
+  @ApiProperty({ isArray: true, type: FileDto })
+  existentFiles: FileDto[];
+}
+
 export class ResultFilesDto {
   @ApiProperty({ isArray: true, type: FileDto })
   result: FileDto[];
