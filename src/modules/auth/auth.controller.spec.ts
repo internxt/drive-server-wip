@@ -20,6 +20,9 @@ import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { Test } from '@nestjs/testing';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { PlatformName } from '../../common/constants';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -27,6 +30,7 @@ describe('AuthController', () => {
   let keyServerUseCases: DeepMocked<KeyServerUseCases>;
   let cryptoService: DeepMocked<CryptoService>;
   let twoFactorAuthService: DeepMocked<TwoFactorAuthService>;
+  let featureLimitService: DeepMocked<FeatureLimitService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -40,6 +44,7 @@ describe('AuthController', () => {
     keyServerUseCases = moduleRef.get(KeyServerUseCases);
     cryptoService = moduleRef.get(CryptoService);
     twoFactorAuthService = moduleRef.get(TwoFactorAuthService);
+    featureLimitService = moduleRef.get(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -330,6 +335,141 @@ describe('AuthController', () => {
         user,
         hashedPassword,
       );
+    });
+  });
+
+  describe('POST /cli/login/access', () => {
+    const loginAccessDto = new LoginAccessDto();
+    loginAccessDto.email = 'cli_user@gmail.com';
+    loginAccessDto.password = v4();
+    loginAccessDto.privateKey = 'privateKey';
+    loginAccessDto.publicKey = 'publicKey';
+    loginAccessDto.revocateKey = 'revocateKey';
+
+    it('When valid CLI login access details are provided and user can access platform, then it should return successfully', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+      const mockUser = newUser({ attributes: { tierId: v4() } });
+      const mockLoginResult = {
+        user: mockUser,
+        token: 'jwt-token',
+        newToken: 'new-jwt-token',
+      } as any;
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce(mockLoginResult);
+
+      jest
+        .spyOn(featureLimitService, 'canUserAccessPlatform')
+        .mockResolvedValueOnce(true);
+
+      const result = await authController.cliLoginAccess(loginAccessDto);
+
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...loginAccessDto,
+        keys: {
+          ecc: {
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
+          },
+          kyber: null,
+        },
+        platform: PlatformName.CLI,
+      });
+      expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
+        mockUser.tierId,
+        PlatformName.CLI,
+      );
+      expect(result).toEqual(mockLoginResult);
+    });
+
+    it('When user cannot access CLI platform, then it should throw PaymentRequiredException', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+      const mockUser = newUser({ attributes: { tierId: 'free_id' } });
+      const mockLoginResult = {
+        success: true,
+        user: mockUser,
+        token: 'jwt-token',
+      } as any;
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce(mockLoginResult);
+
+      jest
+        .spyOn(featureLimitService, 'canUserAccessPlatform')
+        .mockResolvedValueOnce(false);
+
+      await expect(
+        authController.cliLoginAccess(loginAccessDto),
+      ).rejects.toThrow(PaymentRequiredException);
+
+      expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
+        mockUser.tierId,
+        PlatformName.CLI,
+      );
+    });
+
+    it('When CLI login access includes both ecc and kyber keys, then it should parse and pass them correctly', async () => {
+      const eccKey = newKeyServer();
+      const kyberKey = newKeyServer({
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const mockUser = newUser({ attributes: { tierId: v4() } });
+      const mockLoginResult = {
+        success: true,
+        user: mockUser,
+        token: 'jwt-token',
+      } as any;
+
+      const inputWithKyberKeys = { ...loginAccessDto };
+      inputWithKyberKeys.keys = {
+        ecc: {
+          ...eccKey.toJSON(),
+        },
+        kyber: {
+          ...kyberKey.toJSON(),
+        },
+      };
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: kyberKey.toJSON(),
+      });
+
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce(mockLoginResult);
+
+      jest
+        .spyOn(featureLimitService, 'canUserAccessPlatform')
+        .mockResolvedValueOnce(true);
+
+      await authController.cliLoginAccess(inputWithKyberKeys);
+
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...inputWithKyberKeys,
+        keys: {
+          ecc: {
+            ...eccKey.toJSON(),
+          },
+          kyber: {
+            ...kyberKey.toJSON(),
+          },
+        },
+        platform: PlatformName.CLI,
+      });
     });
   });
 });

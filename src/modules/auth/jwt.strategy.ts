@@ -16,6 +16,9 @@ export interface JwtPayload {
   email: string;
   bridgeUser: string;
 }
+export interface JwtAuthInfo {
+  platform?: string;
+}
 
 const strategyId = 'jwt.standard';
 @Injectable()
@@ -34,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
     });
   }
 
-  async validate(payload): Promise<User> {
+  async validate(payload): Promise<[User, JwtAuthInfo]> {
     try {
       if (!payload.payload?.uuid) {
         throw new UnauthorizedException('Old token version detected');
@@ -49,7 +52,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
         }
       }
 
-      const { uuid } = payload.payload;
+      const { uuid, platform } = payload.payload;
       const user = await this.userUseCases.getUser(uuid);
       if (!user) {
         throw new UnauthorizedException();
@@ -69,11 +72,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
         throw new UnauthorizedException();
       }
 
+      const authInfo = { platform };
+
       if (user.isGuestOnSharedWorkspace()) {
-        return this.userUseCases.getUserByUsername(user.bridgeUser);
+        //  Legacy shared workspaces. It is not the current workspaces implementation.
+        const sharedWorkspaceHost = await this.userUseCases.getUserByUsername(
+          user.bridgeUser,
+        );
+        return [sharedWorkspaceHost, authInfo];
       }
 
-      return user;
+      return [user, authInfo];
     } catch (err) {
       if (err instanceof UnauthorizedException) {
         throw err;
