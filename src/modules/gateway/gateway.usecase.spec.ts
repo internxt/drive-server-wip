@@ -383,7 +383,7 @@ describe('GatewayUseCases', () => {
       const validTier = newTier();
 
       describe('when updating storage without tier', () => {
-        it('When updating user storage, then it should call userUseCases and set the new user storage limit in cache', async () => {
+        it('When updating user storage, then it should update the user storage and keep that new storage limit cached', async () => {
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
           jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
           jest
@@ -403,7 +403,7 @@ describe('GatewayUseCases', () => {
           );
         });
 
-        it('When updating user storage and setting cache limit succeeds, it should complete without error', async () => {
+        it('When updating user storage and setting storage limit cache succeeds, then it should complete without error', async () => {
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
           jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
           jest
@@ -425,7 +425,7 @@ describe('GatewayUseCases', () => {
           );
         });
 
-        it('When updating user storage and setting cache limit fails, it should still complete without error', async () => {
+        it('When updating user storage and setting storage limit cache fails, then it should still complete without error', async () => {
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
           jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
           jest
@@ -447,7 +447,7 @@ describe('GatewayUseCases', () => {
           );
         });
 
-        it('When updating user and new space bytes are not set, it should not try to update the storage', async () => {
+        it('When updating user and new storage space is not set, then it should not try to update the storage', async () => {
           await expect(
             service.updateUser(user, { newStorageSpaceBytes: undefined }),
           ).resolves.not.toThrow();
