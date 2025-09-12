@@ -59,7 +59,6 @@ export class AuthController {
     private readonly featureLimitService: FeatureLimitService,
   ) {}
 
-  @UseGuards(ThrottlerGuard)
   @Post('/login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -104,7 +103,6 @@ export class AuthController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Post('/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
