@@ -294,6 +294,7 @@ export class SharingController {
     @UserDecorator() user: User,
     @Body() createInviteDto: CreateInviteDto,
   ) {
+    createInviteDto.sharedWith = createInviteDto.sharedWith.toLowerCase();
     return this.sharingService.createInvite(user, createInviteDto);
   }
 
