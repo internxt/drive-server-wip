@@ -7,6 +7,7 @@ import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
 import { Limit } from './limit.domain';
 import { v4 } from 'uuid';
+import { newTier } from '../../../test/fixtures';
 
 describe('FeatureLimitService', () => {
   let service: FeatureLimitService;
@@ -72,6 +73,31 @@ describe('FeatureLimitService', () => {
         LimitLabels.CliAccess,
       );
       expect(result).toBe(true);
+    });
+  });
+
+  describe('getTier', () => {
+    it('When tier exists, then it should return the tier', async () => {
+      const tierId = v4();
+      const mockTier = newTier({ id: tierId });
+
+      limitsRepository.findTierById.mockResolvedValueOnce(mockTier);
+
+      const result = await service.getTier(tierId);
+
+      expect(limitsRepository.findTierById).toHaveBeenCalledWith(tierId);
+      expect(result).toBe(mockTier);
+    });
+
+    it('When tier does not exist, then it should return null', async () => {
+      const tierId = v4();
+
+      limitsRepository.findTierById.mockResolvedValueOnce(null);
+
+      const result = await service.getTier(tierId);
+
+      expect(limitsRepository.findTierById).toHaveBeenCalledWith(tierId);
+      expect(result).toBeNull();
     });
   });
 });

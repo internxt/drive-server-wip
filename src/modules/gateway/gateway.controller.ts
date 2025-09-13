@@ -148,9 +148,12 @@ export class GatewayController {
     @Param('uuid', ValidateUUIDPipe) userUuid: string,
     @Body() body: UpdateUserDto,
   ) {
-    this.logger.log(`[UPDATE_USER] Updating user ${userUuid}`);
+    this.logger.log(
+      { body, userUuid, category: 'UPDATE_USER' },
+      'Updating user',
+    );
 
-    const { maxSpaceBytes } = body;
+    const { maxSpaceBytes, tierId } = body;
 
     try {
       const user = await this.gatewayUseCases.getUserByUuid(userUuid);
@@ -158,7 +161,10 @@ export class GatewayController {
         throw new NotFoundException('User not found');
       }
 
-      await this.gatewayUseCases.updateUser(user, maxSpaceBytes);
+      await this.gatewayUseCases.updateUser(user, {
+        newStorageSpaceBytes: maxSpaceBytes,
+        newTierId: tierId,
+      });
 
       this.storageNotificationsService.planUpdated({
         payload: { maxSpaceBytes },
@@ -167,14 +173,18 @@ export class GatewayController {
       });
 
       this.logger.log(
-        `[UPDATE_USER] Updated user ${userUuid} space to ${maxSpaceBytes}`,
+        { body, userUuid, category: 'UPDATE_USER' },
+        'Updated user successfully',
       );
     } catch (error) {
       this.logger.error(
-        `[UPDATE_USER] Error updating user ${userUuid}, error: ${JSON.stringify(
+        {
+          body,
+          userUuid,
           error,
-        )}`,
-        error.stack,
+          category: 'UPDATE_USER',
+        },
+        'Error updating user',
       );
       throw error;
     }

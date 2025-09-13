@@ -5,6 +5,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserModule } from '../user/user.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
     UserModule,
     CacheManagerModule,
     NotificationModule,
+    FeatureLimitModule,
   ],
   controllers: [GatewayController],
   providers: [GatewayUseCases],

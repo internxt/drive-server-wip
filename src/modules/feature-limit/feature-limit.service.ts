@@ -35,4 +35,8 @@ export class FeatureLimitService {
 
     return !limit.shouldLimitBeEnforced();
   }
+
+  async getTier(tierId: string) {
+    return this.limitsRepository.findTierById(tierId);
+  }
 }

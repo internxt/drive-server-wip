@@ -20,6 +20,7 @@ import {
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { Limit } from '../src/modules/feature-limit/limit.domain';
+import { Tier } from '../src/modules/feature-limit/tier.domain';
 import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
@@ -693,4 +694,15 @@ export const newUserNotificationStatus = (params?: {
   });
 
   return userNotificationStatus;
+};
+
+export const newTier = (attributes?: Partial<Tier>): Tier => {
+  const tier = Tier.build({
+    id: v4(),
+    label: randomDataGenerator.word(),
+    context: randomDataGenerator.word(),
+    ...attributes,
+  });
+
+  return tier;
 };
