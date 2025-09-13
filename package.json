@@ -58,7 +58,7 @@
     "@sentry/tracing": "^7.80.1",
     "@types/passport-jwt": "^3.0.13",
     "agentkeepalive": "^4.5.0",
-    "axios": "^1.11.0",
+    "axios": "^1.12.0",
     "bcryptjs": "^2.4.3",
     "cache-manager": "^6.4.3",
     "class-transformer": "^0.5.1",
