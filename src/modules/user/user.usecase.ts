@@ -168,6 +168,19 @@ export class UserUseCases {
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
   ) {}
 
+  async getCachedAvatar(user: User): Promise<string | null> {
+    if (!user.avatar) return null;
+
+    const cached = await this.cacheManager.getUserAvatar(user.uuid);
+    if (cached) return cached;
+
+    const url = await this.getAvatarUrl(user.avatar);
+    if (url) {
+      await this.cacheManager.setUserAvatar(user.uuid, url);
+    }
+    return url;
+  }
+
   findByEmail(email: User['email']): Promise<User | null> {
     return this.userRepository.findByUsername(email);
   }
@@ -1752,6 +1765,7 @@ export class UserUseCases {
       avatar: avatarKey,
     });
     const avatarUrl = await this.getAvatarUrl(avatarKey);
+    await this.cacheManager.setUserAvatar(user.uuid, avatarUrl);
     return { avatar: avatarUrl };
   }
 
@@ -1761,6 +1775,7 @@ export class UserUseCases {
       await this.userRepository.updateById(user.id, {
         avatar: null,
       });
+      await this.cacheManager.deleteUserAvatar(user.uuid);
     }
   }
 

@@ -3939,4 +3939,74 @@ describe('User use cases', () => {
       );
     });
   });
+
+  describe('getCachedAvatar', () => {
+    it('When user has no avatar, then returns null without hitting cache', async () => {
+      const userNoAvatar = newUser();
+      userNoAvatar.avatar = null as string;
+
+      const result = await userUseCases.getCachedAvatar(userNoAvatar as User);
+
+      expect(result).toBeNull();
+      expect(cacheManagerService.getUserAvatar).not.toHaveBeenCalled();
+      expect(avatarService.getDownloadUrl).not.toHaveBeenCalled();
+    });
+
+    it('When cache hit, then returns cached url and does not fetch', async () => {
+      const u = newUser();
+      u.avatar = 'avatar-key' as string;
+      const cachedUrl = 'https://cdn.example.com/avatar.jpg';
+
+      jest
+        .spyOn(cacheManagerService, 'getUserAvatar')
+        .mockResolvedValueOnce(cachedUrl);
+
+      const result = await userUseCases.getCachedAvatar(u as User);
+
+      expect(result).toBe(cachedUrl);
+      expect(cacheManagerService.getUserAvatar).toHaveBeenCalledWith(u.uuid);
+      expect(avatarService.getDownloadUrl).not.toHaveBeenCalled();
+      expect(cacheManagerService.setUserAvatar).not.toHaveBeenCalled();
+    });
+
+    it('When cache miss, then fetches url, caches it, and returns it', async () => {
+      const u = newUser();
+      u.avatar = 'avatar-key' as string;
+      const fetchedUrl = 'https://cdn.example.com/avatar.png';
+
+      jest
+        .spyOn(cacheManagerService, 'getUserAvatar')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(avatarService, 'getDownloadUrl')
+        .mockResolvedValueOnce(fetchedUrl);
+
+      const result = await userUseCases.getCachedAvatar(u as User);
+
+      expect(result).toBe(fetchedUrl);
+      expect(cacheManagerService.getUserAvatar).toHaveBeenCalledWith(u.uuid);
+      expect(avatarService.getDownloadUrl).toHaveBeenCalledWith(u.avatar);
+      expect(cacheManagerService.setUserAvatar).toHaveBeenCalledWith(
+        u.uuid,
+        fetchedUrl,
+      );
+    });
+
+    it('When cache miss and avatar service returns null, then returns null and does not cache', async () => {
+      const u = newUser();
+      u.avatar = 'avatar-key' as string;
+
+      jest
+        .spyOn(cacheManagerService, 'getUserAvatar')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(avatarService, 'getDownloadUrl')
+        .mockResolvedValueOnce(null as any);
+
+      const result = await userUseCases.getCachedAvatar(u as User);
+
+      expect(result).toBeNull();
+      expect(cacheManagerService.setUserAvatar).not.toHaveBeenCalled();
+    });
+  });
 });

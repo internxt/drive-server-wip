@@ -547,10 +547,7 @@ export class UserController {
   async refreshAvatarUser(
     @UserDecorator() user: User,
   ): Promise<RefreshUserAvatarDto> {
-    const avatar = user.avatar
-      ? await this.userUseCases.getAvatarUrl(user.avatar)
-      : null;
-
+    const avatar = await this.userUseCases.getCachedAvatar(user);
     return { avatar };
   }
 

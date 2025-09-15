@@ -379,21 +379,43 @@ describe('User Controller', () => {
       user.avatar = avatarKey;
     });
 
-    test('when the user has an avatar, then it should return a new link for the avatar', async () => {
-      jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValue(avatarURL);
+    test('when the user has an avatar, then it should return a cached link for the avatar', async () => {
+      jest.spyOn(userUseCases, 'getCachedAvatar').mockResolvedValue(avatarURL);
 
       const result = await userController.refreshAvatarUser(user);
 
       expect(result).toStrictEqual({ avatar: avatarURL });
-      expect(userUseCases.getAvatarUrl).toHaveBeenCalledWith(avatarKey);
+      expect(userUseCases.getCachedAvatar).toHaveBeenCalledWith(user);
     });
 
     test('When the user does not have avatar, then return null', async () => {
       user.avatar = null;
+      jest.spyOn(userUseCases, 'getCachedAvatar').mockResolvedValue(null);
 
       const result = await userController.refreshAvatarUser(user);
 
       expect(result).toStrictEqual({ avatar: null });
+      expect(userUseCases.getCachedAvatar).toHaveBeenCalledWith(user);
+    });
+
+    test('When the user has avatar but cache/miss returns null, then return null', async () => {
+      user.avatar = avatarKey;
+      jest.spyOn(userUseCases, 'getCachedAvatar').mockResolvedValue(null);
+
+      const result = await userController.refreshAvatarUser(user);
+
+      expect(result).toStrictEqual({ avatar: null });
+      expect(userUseCases.getCachedAvatar).toHaveBeenCalledWith(user);
+    });
+
+    test('When getCachedAvatar throws, then it should propagate the error', async () => {
+      const error = new Error('cache failure');
+      jest.spyOn(userUseCases, 'getCachedAvatar').mockRejectedValue(error);
+
+      await expect(userController.refreshAvatarUser(user)).rejects.toThrow(
+        error,
+      );
+      expect(userUseCases.getCachedAvatar).toHaveBeenCalledWith(user);
     });
   });
 
