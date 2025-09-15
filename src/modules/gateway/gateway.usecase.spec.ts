@@ -7,6 +7,7 @@ import {
   newWorkspace,
   newWorkspaceTeam,
   newWorkspaceUser,
+  newTier,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -15,6 +16,7 @@ import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -24,6 +26,7 @@ describe('GatewayUseCases', () => {
   let cacheManagerService: CacheManagerService;
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
+  let featureLimitService: FeatureLimitService;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -43,6 +46,7 @@ describe('GatewayUseCases', () => {
     storageNotificationService = module.get<StorageNotificationService>(
       StorageNotificationService,
     );
+    featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -376,73 +380,216 @@ describe('GatewayUseCases', () => {
     describe('updateUser', () => {
       const user = newUser();
       const newStorageSpaceBytes = 5000000;
+      const validTier = newTier();
 
-      it('When updating user storage, then it should call userUseCases and set the new user storage limit in cache', async () => {
-        await service.updateUser(user, newStorageSpaceBytes);
+      describe('when updating storage without tier', () => {
+        it('When updating user storage, then it should update the user storage and keep that new storage limit cached', async () => {
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
 
-        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
-          user,
-          newStorageSpaceBytes,
-        );
-        expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
-          user.uuid,
-          newStorageSpaceBytes,
-          1000 * 60,
-        );
+          await service.updateUser(user, { newStorageSpaceBytes });
+
+          expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+            user,
+            newStorageSpaceBytes,
+          );
+          expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
+            user.uuid,
+            newStorageSpaceBytes,
+            1000 * 60,
+          );
+        });
+
+        it('When updating user storage and setting storage limit cache succeeds, then it should complete without error', async () => {
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+
+          await expect(
+            service.updateUser(user, { newStorageSpaceBytes }),
+          ).resolves.not.toThrow();
+
+          expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+            user,
+            newStorageSpaceBytes,
+          );
+          expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
+            user.uuid,
+            newStorageSpaceBytes,
+            1000 * 60,
+          );
+        });
+
+        it('When updating user storage and setting storage limit cache fails, then it should still complete without error', async () => {
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockRejectedValue(new Error('Cache set error'));
+
+          await expect(
+            service.updateUser(user, { newStorageSpaceBytes }),
+          ).resolves.not.toThrow();
+
+          expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+            user,
+            newStorageSpaceBytes,
+          );
+          expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
+            user.uuid,
+            newStorageSpaceBytes,
+            1000 * 60,
+          );
+        });
+
+        it('When updating user and new storage space is not set, then it should not try to update the storage', async () => {
+          await expect(
+            service.updateUser(user, { newStorageSpaceBytes: undefined }),
+          ).resolves.not.toThrow();
+
+          expect(userUseCases.updateUserStorage).not.toHaveBeenCalled();
+        });
+
+        it('When updating user storage fails, then it should throw the error', async () => {
+          const error = new Error('Failed to update user storage');
+          jest
+            .spyOn(userUseCases, 'updateUserStorage')
+            .mockRejectedValue(error);
+
+          await expect(
+            service.updateUser(user, { newStorageSpaceBytes }),
+          ).rejects.toThrow(error);
+
+          expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+            user,
+            newStorageSpaceBytes,
+          );
+        });
       });
 
-      it('When updating user storage and setting cache limit succeeds, it should complete without error', async () => {
-        jest
-          .spyOn(cacheManagerService, 'setUserStorageLimit')
-          .mockResolvedValue(undefined);
+      describe('when updating with tier', () => {
+        it('When tier exists and is different from user tier, then it should validate tier, update user tier and storage', async () => {
+          const differentTierId = v4();
+          jest
+            .spyOn(featureLimitService, 'getTier')
+            .mockResolvedValue(validTier);
+          jest.spyOn(userRepository, 'updateBy').mockResolvedValue(undefined);
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
 
-        await expect(
-          service.updateUser(user, newStorageSpaceBytes),
-        ).resolves.not.toThrow();
+          await service.updateUser(user, {
+            newStorageSpaceBytes,
+            newTierId: differentTierId,
+          });
 
-        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
-          user,
-          newStorageSpaceBytes,
-        );
-        expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
-          user.uuid,
-          newStorageSpaceBytes,
-          1000 * 60,
-        );
-      });
+          expect(featureLimitService.getTier).toHaveBeenCalledWith(
+            differentTierId,
+          );
+          expect(userRepository.updateBy).toHaveBeenCalledWith(
+            { uuid: user.uuid },
+            { tierId: differentTierId },
+          );
+          expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+            user,
+            newStorageSpaceBytes,
+          );
+        });
 
-      it('When updating user storage and setting cache limit fails, it should still complete without error', async () => {
-        jest
-          .spyOn(cacheManagerService, 'setUserStorageLimit')
-          .mockRejectedValue(new Error('Cache set error'));
+        it('When tier exists and is same as user tier, then it should not update user tier but still update storage', async () => {
+          jest
+            .spyOn(featureLimitService, 'getTier')
+            .mockResolvedValue(validTier);
+          jest.spyOn(userRepository, 'updateBy').mockResolvedValue(undefined);
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
 
-        await expect(
-          service.updateUser(user, newStorageSpaceBytes),
-        ).resolves.not.toThrow();
+          await service.updateUser(user, {
+            newStorageSpaceBytes,
+            newTierId: user.tierId,
+          });
 
-        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
-          user,
-          newStorageSpaceBytes,
-        );
-        expect(cacheManagerService.setUserStorageLimit).toHaveBeenCalledWith(
-          user.uuid,
-          newStorageSpaceBytes,
-          1000 * 60,
-        );
-      });
+          expect(featureLimitService.getTier).toHaveBeenCalledWith(user.tierId);
+          expect(userRepository.updateBy).not.toHaveBeenCalled();
+          expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
+            user,
+            newStorageSpaceBytes,
+          );
+        });
 
-      it('When updating user storage fails, then it should throw the error', async () => {
-        const error = new Error('Failed to update user storage');
-        jest.spyOn(userUseCases, 'updateUserStorage').mockRejectedValue(error);
+        it('When tier does not exist, then it should throw', async () => {
+          const invalidTierId = v4();
+          jest.spyOn(featureLimitService, 'getTier').mockResolvedValue(null);
 
-        await expect(
-          service.updateUser(user, newStorageSpaceBytes),
-        ).rejects.toThrow(error);
+          await expect(
+            service.updateUser(user, {
+              newStorageSpaceBytes,
+              newTierId: invalidTierId,
+            }),
+          ).rejects.toThrow(BadRequestException);
 
-        expect(userUseCases.updateUserStorage).toHaveBeenCalledWith(
-          user,
-          newStorageSpaceBytes,
-        );
+          expect(featureLimitService.getTier).toHaveBeenCalledWith(
+            invalidTierId,
+          );
+          expect(userRepository.updateBy).not.toHaveBeenCalled();
+          expect(userUseCases.updateUserStorage).not.toHaveBeenCalled();
+        });
+
+        it('When tier validation succeeds but user tier update fails, then it should throw the error', async () => {
+          const differentTierId = v4();
+          const updateError = new Error('Failed to update user tier');
+          jest
+            .spyOn(featureLimitService, 'getTier')
+            .mockResolvedValue(validTier);
+          jest.spyOn(userRepository, 'updateBy').mockRejectedValue(updateError);
+
+          await expect(
+            service.updateUser(user, {
+              newStorageSpaceBytes,
+              newTierId: differentTierId,
+            }),
+          ).rejects.toThrow(updateError);
+
+          expect(featureLimitService.getTier).toHaveBeenCalledWith(
+            differentTierId,
+          );
+          expect(userRepository.updateBy).toHaveBeenCalledWith(
+            { uuid: user.uuid },
+            { tierId: differentTierId },
+          );
+        });
+
+        it('When tier is updated successfully, then user object should reflect the new tier', async () => {
+          const differentTierId = v4();
+          const originalTierId = user.tierId;
+          jest
+            .spyOn(featureLimitService, 'getTier')
+            .mockResolvedValue(validTier);
+          jest.spyOn(userRepository, 'updateBy').mockResolvedValue(undefined);
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+
+          await service.updateUser(user, {
+            newStorageSpaceBytes,
+            newTierId: differentTierId,
+          });
+
+          expect(user.tierId).toBe(differentTierId);
+          expect(user.tierId).not.toBe(originalTierId);
+        });
       });
     });
   });

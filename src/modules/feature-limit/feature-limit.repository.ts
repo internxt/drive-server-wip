@@ -12,6 +12,8 @@ export class SequelizeFeatureLimitsRepository {
   constructor(
     @InjectModel(Limitmodel)
     private readonly limitModel: typeof Limitmodel,
+    @InjectModel(TierModel)
+    private readonly tierModel: typeof TierModel,
     @InjectModel(PaidPlansModel)
     private readonly paidPlansModel: typeof PaidPlansModel,
   ) {}
@@ -52,5 +54,10 @@ export class SequelizeFeatureLimitsRepository {
 
   async getFreeTier(): Promise<Tier | null> {
     return this.getTierByPlanId(PLAN_FREE_TIER_ID);
+  }
+
+  async findTierById(tierId: string): Promise<Tier | null> {
+    const tier = await this.tierModel.findByPk(tierId);
+    return tier ? Tier.build(tier) : null;
   }
 }

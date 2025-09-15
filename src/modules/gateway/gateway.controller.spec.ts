@@ -216,17 +216,21 @@ describe('Gateway Controller', () => {
     const updateUserDto = {
       maxSpaceBytes: 2000000,
     };
+    const updateUserWithTierDto = {
+      maxSpaceBytes: 3000000,
+      tierId: v4(),
+    };
 
-    it('When user is found and updated successfully, then it should send notification', async () => {
+    it('When user is found and updated without tier successfully, then it should send notification', async () => {
       jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(user);
 
       await gatewayController.updateUser(user.uuid, updateUserDto);
 
       expect(gatewayUsecases.getUserByUuid).toHaveBeenCalledWith(user.uuid);
-      expect(gatewayUsecases.updateUser).toHaveBeenCalledWith(
-        user,
-        updateUserDto.maxSpaceBytes,
-      );
+      expect(gatewayUsecases.updateUser).toHaveBeenCalledWith(user, {
+        newStorageSpaceBytes: updateUserDto.maxSpaceBytes,
+        newTierId: undefined,
+      });
       expect(storageNotificationsService.planUpdated).toHaveBeenCalledWith({
         payload: { maxSpaceBytes: updateUserDto.maxSpaceBytes },
         user,
@@ -267,6 +271,23 @@ describe('Gateway Controller', () => {
       ).rejects.toThrow(error);
 
       expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it('When user is found and updated with tierId successfully, then it should send notification', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(user);
+
+      await gatewayController.updateUser(user.uuid, updateUserWithTierDto);
+
+      expect(gatewayUsecases.getUserByUuid).toHaveBeenCalledWith(user.uuid);
+      expect(gatewayUsecases.updateUser).toHaveBeenCalledWith(user, {
+        newStorageSpaceBytes: updateUserWithTierDto.maxSpaceBytes,
+        newTierId: updateUserWithTierDto.tierId,
+      });
+      expect(storageNotificationsService.planUpdated).toHaveBeenCalledWith({
+        payload: { maxSpaceBytes: updateUserWithTierDto.maxSpaceBytes },
+        user,
+        clientId: 'gateway',
+      });
     });
   });
 });
