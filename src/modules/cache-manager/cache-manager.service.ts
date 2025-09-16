@@ -7,7 +7,9 @@ export class CacheManagerService {
   private readonly USAGE_KEY_PREFIX = 'usage:';
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
+  private readonly AVATAR_KEY_PREFIX = 'avatar:';
   private readonly TTL_10_MINUTES = 10000 * 60;
+  private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
@@ -74,5 +76,24 @@ export class CacheManagerService {
       `${this.JWT_KEY_PREFIX}${jti}`,
     );
     return !!cacheJwt;
+  }
+
+  async getUserAvatar(userUuid: string) {
+    const cachedAvatar = await this.cacheManager.get<string>(
+      `${this.AVATAR_KEY_PREFIX}${userUuid}`,
+    );
+    return cachedAvatar ?? null;
+  }
+
+  async setUserAvatar(userUuid: string, url: string, ttlMs?: number) {
+    return this.cacheManager.set(
+      `${this.AVATAR_KEY_PREFIX}${userUuid}`,
+      url,
+      ttlMs ?? this.TTL_24_HOURS,
+    );
+  }
+
+  async deleteUserAvatar(userUuid: string) {
+    return this.cacheManager.del(`${this.AVATAR_KEY_PREFIX}${userUuid}`);
   }
 }

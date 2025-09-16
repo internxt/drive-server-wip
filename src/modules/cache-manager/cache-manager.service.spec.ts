@@ -229,4 +229,72 @@ describe('CacheManagerService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('user avatar cache', () => {
+    describe('getUserAvatar', () => {
+      it('When getting user avatar, then it should append the user uuid to the avatar key prefix', async () => {
+        const userUuid = v4();
+        const url = 'https://cdn.example.com/avatar.png';
+
+        jest.spyOn(cacheManager, 'get').mockResolvedValue(url as string);
+
+        const result = await cacheManagerService.getUserAvatar(userUuid);
+
+        expect(cacheManager.get).toHaveBeenCalledWith(`avatar:${userUuid}`);
+        expect(result).toEqual(url);
+      });
+
+      it('When cache returns null for user avatar, then it should return null', async () => {
+        const userUuid = v4();
+
+        jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+
+        const result = await cacheManagerService.getUserAvatar(userUuid);
+
+        expect(cacheManager.get).toHaveBeenCalledWith(`avatar:${userUuid}`);
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('setUserAvatar', () => {
+      it('When setting user avatar, then it should store the url with correct key and default expiration', async () => {
+        const userUuid = v4();
+        const url = 'https://cdn.example.com/avatar-default.png';
+
+        await cacheManagerService.setUserAvatar(userUuid, url);
+
+        expect(cacheManager.set).toHaveBeenCalledWith(
+          `avatar:${userUuid}`,
+          url,
+          24 * 60 * 60 * 1000,
+        );
+      });
+
+      it('When setting user avatar with a custom TTL, then it should store with the custom TTL', async () => {
+        const userUuid = v4();
+        const url = 'https://cdn.example.com/avatar-custom.png';
+        const customTtl = 2 * 60 * 60 * 1000; // 2 hours
+
+        await cacheManagerService.setUserAvatar(userUuid, url, customTtl);
+
+        expect(cacheManager.set).toHaveBeenCalledWith(
+          `avatar:${userUuid}`,
+          url,
+          customTtl,
+        );
+      });
+    });
+
+    describe('deleteUserAvatar', () => {
+      it('When deleting user avatar, then it should remove the correct key', async () => {
+        const userUuid = v4();
+
+        jest.spyOn(cacheManager, 'del').mockResolvedValue(true as boolean);
+
+        await cacheManagerService.deleteUserAvatar(userUuid);
+
+        expect(cacheManager.del).toHaveBeenCalledWith(`avatar:${userUuid}`);
+      });
+    });
+  });
 });
