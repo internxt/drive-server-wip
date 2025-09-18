@@ -52,7 +52,6 @@
     "@nestjs/sequelize": "^11.0.0",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.4.0",
-    "@rudderstack/rudder-sdk-node": "^2.1.7",
     "@sendgrid/mail": "^8.1.5",
     "@sentry/node": "^7.80.1",
     "@sentry/tracing": "^7.80.1",
