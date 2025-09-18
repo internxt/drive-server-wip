@@ -419,7 +419,10 @@ describe('TrashController', () => {
 
   describe('clearTrash', () => {
     it('When clearTrash is called, then it should call trashUseCases.emptyTrash', async () => {
-      jest.spyOn(trashUseCases, 'emptyTrash').mockResolvedValue();
+      jest.spyOn(trashUseCases, 'emptyTrash').mockResolvedValue({
+        message: 'Trashed emptied succesfully',
+        status: 'processing',
+      });
 
       await controller.clearTrash(user);
 
@@ -439,7 +442,10 @@ describe('TrashController', () => {
 
   describe('requestEmptyTrash', () => {
     it('When requestEmptyTrash is called, then it should call trashUseCases.emptyTrash', async () => {
-      jest.spyOn(trashUseCases, 'emptyTrash').mockResolvedValue();
+      jest.spyOn(trashUseCases, 'emptyTrash').mockResolvedValue({
+        message: 'Trashed emptied succesfully',
+        status: 'processing',
+      });
 
       await controller.requestEmptyTrash(user);
 
