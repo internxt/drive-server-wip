@@ -38,6 +38,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return result === 'OK';
   }
 
+  async releaseLock(key: string): Promise<boolean> {
+    const client = await this.getClient();
+    const result = await client.del(key);
+    return result > 0;
+  }
+
   async getClient(): Promise<RedisClientType> {
     if (!this.client?.isReady) {
       await this.createConnection();

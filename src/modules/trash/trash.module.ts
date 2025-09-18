@@ -10,6 +10,8 @@ import { TrashUseCases } from './trash.usecase';
 import { FileModel } from '../file/file.model';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SharingModule } from '../sharing/sharing.module';
+import { TrashEventHandler } from './handlers/trash-event.handler';
+import { RedisService } from '../../externals/redis/redis.service';
 
 @Module({
   imports: [
@@ -22,6 +24,6 @@ import { SharingModule } from '../sharing/sharing.module';
     UserModule,
   ],
   controllers: [TrashController],
-  providers: [Logger, TrashUseCases],
+  providers: [Logger, TrashUseCases, RedisService, TrashEventHandler],
 })
 export class TrashModule {}

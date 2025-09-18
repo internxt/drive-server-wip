@@ -7,8 +7,8 @@ import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
 import { SequelizeJobExecutionRepository } from './repositories/job-execution.repository';
 import { JobExecutionModel } from './models/job-execution.model';
-import { RedisService } from './services/redis.service';
 import { RetroActiveDeleteItemsCleanupTask } from './tasks/retroactive-items-cleanup.task';
+import { RedisService } from '../../externals/redis/redis.service';
 
 @Module({
   imports: [
