@@ -1202,15 +1202,15 @@
     "@typescript-eslint/parser" "^5.4.0"
     eslint-config-prettier "^8.3.0"
 
-"@internxt/inxt-js@^2.2.5":
-  version "2.2.5"
-  resolved "https://npm.pkg.github.com/download/@internxt/inxt-js/2.2.5/afcdd7350ed4d697e157596d04a588c365374e3c#afcdd7350ed4d697e157596d04a588c365374e3c"
-  integrity sha512-ej73+tS9RcjB0swuw5ec+1PmQsUCPIUnTM7RR8ESxoM/CcQYAFgNyIp8mYopMe+y0am/hDgRjG2cymYLfhaGAg==
+"@internxt/inxt-js@^2.2.9":
+  version "2.2.9"
+  resolved "https://npm.pkg.github.com/download/@internxt/inxt-js/2.2.9/59492b93bd658747f2b9b26cc5b4a38d63f6a2ae#59492b93bd658747f2b9b26cc5b4a38d63f6a2ae"
+  integrity sha512-YmPkqMgGU4+VTUsPiOPOzd3jXZMFoKK1eMMXPTcto85SZ8eSp6+xVRUFKZW9+UrNcU5ZEnH6FieyCVKfo4LnIA==
   dependencies:
     "@internxt/lib" "1.3.1"
-    "@internxt/sdk" "1.10.0"
+    "@internxt/sdk" "1.11.10"
     async "3.2.6"
-    axios "1.10.0"
+    axios "1.12.2"
     bip39 "3.1.0"
     undici "5.29.0"
     winston "3.17.0"
@@ -1220,12 +1220,13 @@
   resolved "https://npm.pkg.github.com/download/@internxt/lib/1.3.1/c330ee66e4963469691f448a1716a9f6266ec729#c330ee66e4963469691f448a1716a9f6266ec729"
   integrity sha512-W0D7aIdH1wg9YNLmLw7iaZ0T0pvG7qtDKkKRZRKVU4zSMWH0Rc+q+ZMLpo5Agyqua07A0gQ3Y8i4M42cglV0bw==
 
-"@internxt/sdk@1.10.0":
-  version "1.10.0"
-  resolved "https://npm.pkg.github.com/download/@internxt/sdk/1.10.0/55ff91fc186073614013f1224f0a2c6cbda47e3b#55ff91fc186073614013f1224f0a2c6cbda47e3b"
-  integrity sha512-ddzD3Vg/FHiK8e8yRnKhe9cjcF7LqO5TKMAkPtZo2t3gwiDqka6icPcgwwxuD2iG1JOocmVdfzMu3/f1MNPH+w==
+"@internxt/sdk@1.11.10":
+  version "1.11.10"
+  resolved "https://npm.pkg.github.com/download/@internxt/sdk/1.11.10/b589ec79d7846f362fd2405b174a1f43f4b3a04d#b589ec79d7846f362fd2405b174a1f43f4b3a04d"
+  integrity sha512-+Wk224ebG0qtrP+Mi4Ebv124kbB7E/gQiLA8C150gWV+FtadAfmRN4lCLFQxsvCIq1mAOXsjbwn3PABN/7ofVQ==
   dependencies:
-    axios "1.10.0"
+    axios "^1.12.2"
+    uuid "11.1.0"
 
 "@isaacs/balanced-match@^4.0.1":
   version "4.0.1"
@@ -3527,13 +3528,13 @@ aws-sdk-client-mock@^4.0.0:
     sinon "^18.0.1"
     tslib "^2.1.0"
 
-axios@1.10.0:
-  version "1.10.0"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.10.0.tgz#af320aee8632eaf2a400b6a1979fa75856f38d54"
-  integrity sha512-/1xYAC4MP/HEG+3duIhFr4ZQXR4sQXOIe+o6sdqzeykGLx6Upp/1p8MHqhINOvGeP7xyNHe7tsiJByc4SSVUxw==
+axios@1.12.2, axios@^1.12.2:
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.12.2.tgz#6c307390136cf7a2278d09cec63b136dfc6e6da7"
+  integrity sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==
   dependencies:
     follow-redirects "^1.15.6"
-    form-data "^4.0.0"
+    form-data "^4.0.4"
     proxy-from-env "^1.1.0"
 
 axios@^1.12.0, axios@^1.7.4, axios@^1.8.2:
@@ -8907,6 +8908,11 @@ utils-merge@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/utils-merge/-/utils-merge-1.0.1.tgz#9f95710f50a267947b2ccc124741c1028427e713"
   integrity sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==
+
+uuid@11.1.0:
+  version "11.1.0"
+  resolved "https://registry.yarnpkg.com/uuid/-/uuid-11.1.0.tgz#9549028be1753bb934fc96e2bca09bb4105ae912"
+  integrity sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==
 
 uuid@^8.3.2:
   version "8.3.2"
