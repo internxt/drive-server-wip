@@ -18,18 +18,26 @@ export class TrashEventHandler {
     const { user, trashedFilesNumber, trashedFoldersNumber } = event;
     const lockKey = `empty-trash-lock:${user.id}`;
 
-    const lockAdquired = await this.redisService.tryAcquireLock(
-      lockKey,
-      1000 * 2,
-    );
+    let lockAcquired = false;
 
-    if (!lockAdquired) {
+    try {
+      lockAcquired = await this.redisService.tryAcquireLock(lockKey, 1000 * 2);
+    } catch (error) {
+      lockAcquired = true;
+      this.logger.warn(
+        { user: user.uuid, error: error.message },
+        'Redis unavailable proceeding without lock',
+      );
+    }
+
+    if (!lockAcquired) {
       return;
     }
 
     try {
       this.logger.log(
-        `Starting async empty trash operation for user: ${user.uuid}`,
+        { user: user.uuid },
+        'Starting async empty trash operation for user',
       );
 
       await this.trashUseCases.performTrashDeletion(
@@ -40,26 +48,25 @@ export class TrashEventHandler {
       );
 
       this.logger.log(
-        `Successfully completed empty trash operation for user: ${user.uuid}`,
+        'Succesfully completed async empty trash operation for user',
       );
     } catch (error) {
       this.logger.error(
-        `[TRASH/EMPTY_TRASH_ASYNC] ERROR: ${
-          (error as Error).message
-        } USER: ${JSON.stringify({
-          uuid: user.uuid,
-          email: user.email,
-        })} STACK: ${(error as Error).stack}`,
+        {
+          user: user.uuid,
+          trashedFiles: trashedFilesNumber,
+          trashedFolders: trashedFoldersNumber,
+          error: (error as Error).message,
+        },
+        'Failed to complete async empty trash operation',
       );
     } finally {
-      try {
-        await this.redisService.releaseLock(lockKey);
-        this.logger.log(`Released lock for user: ${user.uuid}`);
-      } catch (lockError) {
-        this.logger.error(
-          `Failed to release lock for user: ${user.uuid}, error: ${(lockError as Error).message}`,
+      await this.redisService.releaseLock(lockKey).catch((error) => {
+        this.logger.warn(
+          { user: user.uuid, error: error.message },
+          'Failed to release lock',
         );
-      }
+      });
     }
   }
 }

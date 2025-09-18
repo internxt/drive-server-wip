@@ -18,8 +18,11 @@ describe('RedisService', () => {
     mockRedisClient = {
       connect: jest.fn(),
       quit: jest.fn(),
+      disconnect: jest.fn(),
       on: jest.fn(),
       set: jest.fn(),
+      del: jest.fn(),
+      isReady: false,
       isOpen: false,
     };
 
@@ -44,13 +47,14 @@ describe('RedisService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('onModuleInit', () => {
-    it('When module initializes, then it should create redis client with correct configuration', async () => {
+  describe('getClient', () => {
+    it('When getClient is called for the first time, then it should create redis client with correct configuration', async () => {
       const redisUrl = 'redis://localhost:6379';
       configService.get.mockReturnValue(redisUrl);
       mockRedisClient.connect.mockResolvedValue(undefined);
+      mockRedisClient.isReady = true;
 
-      await service.onModuleInit();
+      await service.getClient();
 
       expect(createClient).toHaveBeenCalledWith({
         url: redisUrl,
@@ -60,7 +64,7 @@ describe('RedisService', () => {
       });
     });
 
-    it('When redis connection fails, then it should log the error but not throw', async () => {
+    it('When redis connection fails, then it should log the error and throw', async () => {
       const redisUrl = 'redis://localhost:6379';
       const connectionError = new Error('Connection failed');
 
@@ -69,9 +73,22 @@ describe('RedisService', () => {
 
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
 
-      await service.onModuleInit();
+      await expect(service.getClient()).rejects.toThrow();
 
       expect(loggerErrorSpy).toHaveBeenCalled();
+    });
+
+    it('When client is already ready, then it should return existing client', async () => {
+      const redisUrl = 'redis://localhost:6379';
+      configService.get.mockReturnValue(redisUrl);
+      mockRedisClient.connect.mockResolvedValue(undefined);
+      mockRedisClient.isReady = true;
+
+      const client1 = await service.getClient();
+      const client2 = await service.getClient();
+
+      expect(client1).toBe(client2);
+      expect(createClient).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -81,7 +98,8 @@ describe('RedisService', () => {
         .spyOn(configService, 'get')
         .mockReturnValue('redis://localhost:6379');
       jest.spyOn(mockRedisClient, 'connect').mockResolvedValue(undefined);
-      await service.onModuleInit();
+      mockRedisClient.isReady = true;
+      await service.getClient();
     });
 
     it('When module is destroyed and client is open, then it should quit the redis connection', async () => {
@@ -115,7 +133,8 @@ describe('RedisService', () => {
         .spyOn(configService, 'get')
         .mockReturnValue('redis://localhost:6379');
       jest.spyOn(mockRedisClient, 'connect').mockResolvedValue(undefined);
-      await service.onModuleInit();
+      mockRedisClient.isReady = true;
+      await service.getClient();
     });
 
     it('When lock is successfully acquired, then it should return true', async () => {
