@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { TierModel } from './models/tier.model';
 import { Limitmodel } from './models/limit.model';
-import { Limit } from './limit.domain';
+import { Limit } from './domain/limit.domain';
 import { PaidPlansModel } from './models/paid-plans.model';
-import { Tier } from './tier.domain';
+import { Tier } from './domain/tier.domain';
 import { PLAN_FREE_TIER_ID } from './limits.enum';
 
 @Injectable()

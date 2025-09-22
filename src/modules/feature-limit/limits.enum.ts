@@ -2,6 +2,7 @@ export enum LimitLabels {
   MaxSharedItems = 'max-shared-items',
   MaxSharedItemInvites = 'max-shared-invites',
   CliAccess = 'cli-access',
+  PlatformAccess = 'platform-access',
 }
 
 export enum LimitTypes {
