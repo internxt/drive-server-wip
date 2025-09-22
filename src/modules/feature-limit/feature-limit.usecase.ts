@@ -8,12 +8,12 @@ import { User } from '../user/user.domain';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SharingType } from '../sharing/sharing.domain';
-import { Limit } from './limit.domain';
+import { Limit } from './domain/limit.domain';
 import {
   LimitTypeMapping,
   MaxInviteesPerItemAttribute,
   MaxSharedItemsAttribute,
-} from './limits.attributes';
+} from './domain/limits.attributes';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 
 @Injectable()

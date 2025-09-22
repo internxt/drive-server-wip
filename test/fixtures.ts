@@ -19,8 +19,8 @@ import {
   LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
-import { Limit } from '../src/modules/feature-limit/limit.domain';
-import { Tier } from '../src/modules/feature-limit/tier.domain';
+import { Limit } from '../src/modules/feature-limit/domain/limit.domain';
+import { Tier } from '../src/modules/feature-limit/domain/tier.domain';
 import { Workspace } from '../src/modules/workspaces/domains/workspaces.domain';
 import { WorkspaceTeam } from '../src/modules/workspaces/domains/workspace-team.domain';
 import { WorkspaceUser } from '../src/modules/workspaces/domains/workspace-user.domain';
