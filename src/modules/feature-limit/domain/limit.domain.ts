@@ -2,7 +2,7 @@ import {
   LimitAttributes,
   ShouldLimitBeEnforcedContext,
 } from './limits.attributes';
-import { LimitTypes, LimitLabels } from './limits.enum';
+import { LimitTypes, LimitLabels } from '../limits.enum';
 
 export class Limit {
   readonly id: string;

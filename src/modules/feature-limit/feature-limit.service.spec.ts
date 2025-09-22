@@ -5,7 +5,7 @@ import { FeatureLimitService } from './feature-limit.service';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
-import { Limit } from './limit.domain';
+import { Limit } from './domain/limit.domain';
 import { v4 } from 'uuid';
 import { newTier } from '../../../test/fixtures';
 

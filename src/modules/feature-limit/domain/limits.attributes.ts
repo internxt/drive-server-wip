@@ -1,5 +1,5 @@
-import { User } from '../user/user.domain';
-import { LimitLabels, LimitTypes } from './limits.enum';
+import { User } from '../../user/user.domain';
+import { LimitLabels, LimitTypes } from '../limits.enum';
 
 export interface LimitAttributes {
   id: string;
@@ -24,8 +24,13 @@ export interface MaxSharedItemsAttribute {
   isPublicSharing: boolean;
 }
 
+export interface PlatformAccessAttribute {
+  platform: string;
+}
+
 export interface LimitTypeMapping {
   [LimitLabels.MaxSharedItemInvites]: MaxInviteesPerItemAttribute;
   [LimitLabels.MaxSharedItems]: MaxSharedItemsAttribute;
+  [LimitLabels.PlatformAccess]: PlatformAccessAttribute;
   [key: string]: any;
 }
