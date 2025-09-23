@@ -5,10 +5,10 @@ import { DeletedItemsCleanupTask } from './deleted-items-cleanup.task';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
-import { RedisService } from '../services/redis.service';
 import { JobName } from '../constants';
 import { JobExecutionModel } from '../models/job-execution.model';
 import { v4 } from 'uuid';
+import { RedisService } from '../../../externals/redis/redis.service';
 
 describe('DeletedItemsCleanupTask', () => {
   let task: DeletedItemsCleanupTask;
