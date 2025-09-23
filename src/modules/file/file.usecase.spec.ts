@@ -34,6 +34,7 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -48,6 +49,7 @@ describe('FileUseCases', () => {
   let cryptoService: CryptoService;
   let thumbnailUseCases: ThumbnailUseCases;
   let usageService: UsageService;
+  let mailerService: MailerService;
 
   const userMocked = newUser();
 
@@ -67,6 +69,7 @@ describe('FileUseCases', () => {
     sharingService = module.get<SharingService>(SharingService);
     thumbnailUseCases = module.get<ThumbnailUseCases>(ThumbnailUseCases);
     usageService = module.get<UsageService>(UsageService);
+    mailerService = module.get<MailerService>(MailerService);
   });
 
   afterEach(() => {
@@ -744,6 +747,102 @@ describe('FileUseCases', () => {
       const result = await service.createFile(userMocked, newFileDto);
 
       expect(result).toEqual(createdFile);
+    });
+
+    describe('first upload email functionality', () => {
+      it('When user has no previous files, then should send first upload email', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const createdFile = newFile({
+          attributes: {
+            ...newFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(service, 'hasUploadedFiles').mockResolvedValueOnce(false);
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+        jest
+          .spyOn(mailerService, 'sendFirstUploadEmail')
+          .mockResolvedValueOnce(undefined);
+
+        await service.createFile(userMocked, newFileDto);
+
+        expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(
+          userMocked.email,
+          userMocked.name,
+        );
+      });
+
+      it('When user already has files, then should not send email', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const createdFile = newFile({
+          attributes: {
+            ...newFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(service, 'hasUploadedFiles').mockResolvedValueOnce(true);
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+        jest
+          .spyOn(mailerService, 'sendFirstUploadEmail')
+          .mockResolvedValueOnce(undefined);
+
+        await service.createFile(userMocked, newFileDto);
+
+        expect(mailerService.sendFirstUploadEmail).not.toHaveBeenCalled();
+      });
+
+      it('When email fails, then should not affect file creation', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const createdFile = newFile({
+          attributes: {
+            ...newFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(service, 'hasUploadedFiles').mockResolvedValueOnce(false);
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+        jest
+          .spyOn(mailerService, 'sendFirstUploadEmail')
+          .mockRejectedValueOnce(new Error('Email service failed'));
+
+        const result = await service.createFile(userMocked, newFileDto);
+
+        expect(result).toEqual(createdFile);
+        expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(
+          userMocked.email,
+          userMocked.name,
+        );
+      });
     });
   });
 

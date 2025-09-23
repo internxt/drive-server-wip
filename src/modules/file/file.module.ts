@@ -14,6 +14,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserModule } from '../user/user.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { UsageModule } from '../usage/usage.module';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { UsageModule } from '../usage/usage.module';
     UsageModule,
   ],
   controllers: [FileController],
-  providers: [SequelizeFileRepository, FileUseCases],
+  providers: [SequelizeFileRepository, FileUseCases, MailerService],
   exports: [FileUseCases, SequelizeModule, SequelizeFileRepository],
 })
 export class FileModule {}

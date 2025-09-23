@@ -30,6 +30,11 @@ type UpdatedSharingRoleContext = {
   new_role: string;
 };
 
+type FirstUploadContext = {
+  user_name: string;
+  user_email: string;
+};
+
 @Injectable()
 export class MailerService {
   constructor(
@@ -249,6 +254,22 @@ export class MailerService {
     await this.send(
       email,
       this.configService.get('mailer.templates.verifyAccountEmail'),
+      context,
+    );
+  }
+
+  async sendFirstUploadEmail(
+    userEmail: User['email'],
+    userName: User['name'],
+  ): Promise<void> {
+    const context: FirstUploadContext = {
+      user_name: userName,
+      user_email: userEmail,
+    };
+
+    await this.send(
+      userEmail,
+      this.configService.get('mailer.templates.firstUpload'),
       context,
     );
   }

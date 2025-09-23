@@ -42,6 +42,7 @@ import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
 import { MoveFileDto } from './dto/move-file.dto';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -57,6 +58,7 @@ export class FileUseCases {
     private readonly cryptoService: CryptoService,
     private readonly thumbnailUsecases: ThumbnailUseCases,
     private readonly usageService: UsageService,
+    private readonly mailerService: MailerService,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -219,7 +221,15 @@ export class FileUseCases {
   }
 
   async createFile(user: User, newFileDto: CreateFileDto) {
-    const folder = await this.folderUsecases.getByUuid(newFileDto.folderUuid);
+    const [hadFilesResult, folderResult] = await Promise.allSettled([
+      this.hasUploadedFiles(user),
+      this.folderUsecases.getByUuid(newFileDto.folderUuid),
+    ]);
+
+    const hadFilesBeforeUpload =
+      hadFilesResult.status === 'fulfilled' ? hadFilesResult.value : false;
+    const folder =
+      folderResult.status === 'fulfilled' ? folderResult.value : null;
 
     if (!folder) {
       throw new NotFoundException('Folder not found');
@@ -269,6 +279,16 @@ export class FileUseCases {
       modificationTime: newFileDto.modificationTime || new Date(),
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
     });
+
+    if (!hadFilesBeforeUpload) {
+      this.mailerService
+        .sendFirstUploadEmail(user.email, user.name)
+        .catch((error) => {
+          new Logger('[MAILER/FIRST_UPLOAD]').error(
+            `Failed to send first upload email: ${error.message}`,
+          );
+        });
+    }
 
     return newFile;
   }
