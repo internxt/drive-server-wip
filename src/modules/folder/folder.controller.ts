@@ -31,6 +31,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { Folder, SortableFolderAttributes } from './folder.domain';
 import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { validate } from 'uuid';
+import API_LIMITS from '../../lib/http/limits';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
 
@@ -92,8 +93,8 @@ export class BadRequestWrongOffsetOrLimitException extends BadRequestException {
 }
 
 export class BadRequestOutOfRangeLimitException extends BadRequestException {
-  constructor() {
-    super('Limit should be between 1 and 50');
+  constructor(upperLimit: number = 50) {
+    super(`Limit should be between 1 and ${upperLimit}`);
 
     Object.setPrototypeOf(this, BadRequestOutOfRangeLimitException.prototype);
   }
@@ -618,8 +619,13 @@ export class FolderController {
       throw new BadRequestWrongOffsetOrLimitException();
     }
 
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
+    if (
+      limit < API_LIMITS.FOLDERS.GET.ALL.LIMIT.LOWER_BOUND ||
+      limit > API_LIMITS.FOLDERS.GET.ALL.LIMIT.UPPER_BOUND
+    ) {
+      throw new BadRequestOutOfRangeLimitException(
+        API_LIMITS.FOLDERS.GET.ALL.LIMIT.UPPER_BOUND,
+      );
     }
 
     if (offset < 0) {
