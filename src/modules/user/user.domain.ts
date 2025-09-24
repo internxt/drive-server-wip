@@ -1,6 +1,5 @@
 import { UserToJsonDto } from './dto/user-to-json.dto';
 import { UserAttributes } from './user.attributes';
-import { PLAN_FREE_TIER_ID } from '../feature-limit/limits.enum';
 export class User implements UserAttributes {
   id: number;
   userId: string;
@@ -107,10 +106,6 @@ export class User implements UserAttributes {
 
   hasBackupsEnabled(): boolean {
     return !!this.backupsBucket;
-  }
-
-  isFreeTierUser(): boolean {
-    return this.tierId === PLAN_FREE_TIER_ID;
   }
 
   toJSON(): UserToJsonDto {
