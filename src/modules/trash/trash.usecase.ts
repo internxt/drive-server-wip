@@ -4,25 +4,63 @@ import { User } from '../user/user.domain';
 import { File } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
+
+export interface EmptyTrashResult {
+  message: string;
+  status: 'processing' | 'completed';
+}
 
 @Injectable()
 export class TrashUseCases {
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly folderUseCases: FolderUseCases,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
    * Empties the trash of a given user
    * @param trashOwner User whose trash is going to be emptied
    */
-  async emptyTrash(trashOwner: User): Promise<void> {
-    const emptyTrashChunkSize = 100;
-
+  async emptyTrash(trashOwner: User): Promise<EmptyTrashResult> {
     const [filesCount, foldersCount] = await Promise.all([
       this.fileUseCases.getTrashFilesCount(trashOwner.id),
       this.folderUseCases.getTrashFoldersCount(trashOwner.id),
     ]);
+    const totalCount = filesCount + foldersCount;
+
+    if (totalCount > 10000) {
+      this.eventEmitter.emit(
+        'trash.empty.requested',
+        new TrashEmptyRequestedEvent(trashOwner, filesCount, foldersCount),
+      );
+
+      return {
+        message: 'Empty trash operation started',
+        status: 'processing',
+      };
+    }
+
+    await this.performTrashDeletion(trashOwner, filesCount, foldersCount, 100);
+
+    return {
+      message: 'Trash emptied successfully',
+      status: 'completed',
+    };
+  }
+
+  /**
+   * Performs the actual deletion of trashed files and folders
+   */
+  async performTrashDeletion(
+    trashOwner: User,
+    filesCount: number,
+    foldersCount: number,
+    chunkSize?: number,
+  ): Promise<void> {
+    const emptyTrashChunkSize = chunkSize ?? 100;
 
     const deleteFolders = async (): Promise<void> => {
       let foldersProcessed = 0;

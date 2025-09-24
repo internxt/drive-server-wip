@@ -228,13 +228,13 @@ export class TrashController {
   }
 
   @Delete('/all')
-  @HttpCode(200)
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
   async clearTrash(@UserDecorator() user: User) {
     try {
-      await this.trashUseCases.emptyTrash(user);
+      const result = await this.trashUseCases.emptyTrash(user);
+      return result;
     } catch (error) {
       new Logger().error(
         `[TRASH/EMPTY_TRASH] ERROR: ${
