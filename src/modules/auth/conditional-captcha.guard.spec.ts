@@ -203,5 +203,4 @@ const buildUserWithErrorLoginCount = (count: number) => ({
   isGuestOnSharedWorkspace: () => false,
   toJSON: undefined,
   hasBackupsEnabled: () => false,
-  isFreeTierUser: () => true,
 });
