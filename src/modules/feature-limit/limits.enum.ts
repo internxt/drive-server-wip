@@ -11,3 +11,4 @@ export enum LimitTypes {
 }
 
 export const PLAN_FREE_TIER_ID = 'free_000000';
+export const PLAN_FREE_INDIVIDUAL_TIER_ID = 'free_individual';

@@ -35,6 +35,8 @@ import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { Tier } from '../feature-limit/domain/tier.domain';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -50,8 +52,13 @@ describe('FileUseCases', () => {
   let thumbnailUseCases: ThumbnailUseCases;
   let usageService: UsageService;
   let mailerService: MailerService;
+  let featureLimitService: FeatureLimitService;
 
-  const userMocked = newUser();
+  const userMocked = newUser({
+    attributes: {
+      tierId: 'free_id',
+    },
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -70,6 +77,7 @@ describe('FileUseCases', () => {
     thumbnailUseCases = module.get<ThumbnailUseCases>(ThumbnailUseCases);
     usageService = module.get<UsageService>(UsageService);
     mailerService = module.get<MailerService>(MailerService);
+    featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   afterEach(() => {
@@ -771,6 +779,9 @@ describe('FileUseCases', () => {
           .mockResolvedValueOnce(null);
         jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
         jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce({ label: 'free_individual' } as Tier);
+        jest
           .spyOn(mailerService, 'sendFirstUploadEmail')
           .mockResolvedValueOnce(undefined);
 
@@ -831,6 +842,9 @@ describe('FileUseCases', () => {
           .spyOn(fileRepository, 'findByPlainNameAndFolderId')
           .mockResolvedValueOnce(null);
         jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+        jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce({ label: 'free_individual' } as Tier);
         jest
           .spyOn(mailerService, 'sendFirstUploadEmail')
           .mockRejectedValueOnce(new Error('Email service failed'));

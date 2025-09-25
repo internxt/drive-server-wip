@@ -43,6 +43,8 @@ import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
 import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { PLAN_FREE_INDIVIDUAL_TIER_ID } from '../feature-limit/limits.enum';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -59,6 +61,7 @@ export class FileUseCases {
     private readonly thumbnailUsecases: ThumbnailUseCases,
     private readonly usageService: UsageService,
     private readonly mailerService: MailerService,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -281,15 +284,19 @@ export class FileUseCases {
     });
 
     if (!hadFilesBeforeUpload) {
-      this.mailerService
-        .sendFirstUploadEmail(user.email, user.name)
-        .catch((error) => {
-          new Logger('[MAILER/FIRST_UPLOAD]').error(
-            `Failed to send first upload email: ${error.message}`,
-          );
-        });
-    }
+      const userTier = await this.featureLimitService.getTier(user.tierId);
+      const isUserFreeTier = userTier?.label === PLAN_FREE_INDIVIDUAL_TIER_ID;
 
+      if (isUserFreeTier) {
+        await this.mailerService
+          .sendFirstUploadEmail(user.email, user.name)
+          .catch((error) => {
+            new Logger('[MAILER/FIRST_UPLOAD]').error(
+              `Failed to send first upload email: ${error.message}`,
+            );
+          });
+      }
+    }
     return newFile;
   }
 
