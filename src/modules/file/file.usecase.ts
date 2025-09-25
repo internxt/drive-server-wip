@@ -289,7 +289,7 @@ export class FileUseCases {
 
       if (isUserFreeTier) {
         await this.mailerService
-          .sendFirstUploadEmail(user.email, user.name)
+          .sendFirstUploadEmail(user.email)
           .catch((error) => {
             new Logger('[MAILER/FIRST_UPLOAD]').error(
               `Failed to send first upload email: ${error.message}`,

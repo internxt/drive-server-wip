@@ -789,7 +789,6 @@ describe('FileUseCases', () => {
 
         expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(
           userMocked.email,
-          userMocked.name,
         );
       });
 
@@ -854,8 +853,39 @@ describe('FileUseCases', () => {
         expect(result).toEqual(createdFile);
         expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(
           userMocked.email,
-          userMocked.name,
         );
+      });
+
+      it('When user has paid tier, then should not send first upload email', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const createdFile = newFile({
+          attributes: {
+            ...newFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(service, 'hasUploadedFiles').mockResolvedValueOnce(false);
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+        jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce({ label: '10gb_individual' } as Tier);
+        jest
+          .spyOn(mailerService, 'sendFirstUploadEmail')
+          .mockResolvedValueOnce(undefined);
+
+        await service.createFile(userMocked, newFileDto);
+
+        expect(mailerService.sendFirstUploadEmail).not.toHaveBeenCalled();
       });
     });
   });
