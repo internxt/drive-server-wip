@@ -44,7 +44,7 @@ import { Time } from '../../lib/time';
 import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { PLAN_FREE_INDIVIDUAL_TIER_ID } from '../feature-limit/limits.enum';
+import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -224,15 +224,10 @@ export class FileUseCases {
   }
 
   async createFile(user: User, newFileDto: CreateFileDto) {
-    const [hadFilesResult, folderResult] = await Promise.allSettled([
+    const [hadFilesBeforeUpload, folder] = await Promise.all([
       this.hasUploadedFiles(user),
       this.folderUsecases.getByUuid(newFileDto.folderUuid),
     ]);
-
-    const hadFilesBeforeUpload =
-      hadFilesResult.status === 'fulfilled' ? hadFilesResult.value : false;
-    const folder =
-      folderResult.status === 'fulfilled' ? folderResult.value : null;
 
     if (!folder) {
       throw new NotFoundException('Folder not found');
@@ -285,7 +280,8 @@ export class FileUseCases {
 
     if (!hadFilesBeforeUpload) {
       const userTier = await this.featureLimitService.getTier(user.tierId);
-      const isUserFreeTier = userTier?.label === PLAN_FREE_INDIVIDUAL_TIER_ID;
+      const isUserFreeTier =
+        userTier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 
       if (isUserFreeTier) {
         await this.mailerService
