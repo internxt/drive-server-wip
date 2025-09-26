@@ -14,7 +14,7 @@ describe('EventsUseCases', () => {
 
   const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
   const mockIncompleteCheckoutDto: IncompleteCheckoutDto = {
-    complete_checkout_url: 'https://drive.internxt.com/checkout/complete',
+    completeCheckoutUrl: 'https://drive.internxt.com/checkout/complete',
   };
 
   beforeEach(async () => {
@@ -49,7 +49,7 @@ describe('EventsUseCases', () => {
       expect(result).toEqual({ success: true });
       expect(mockSendIncompleteCheckoutEmail).toHaveBeenCalledWith(
         mockUser.email,
-        mockIncompleteCheckoutDto.complete_checkout_url,
+        mockIncompleteCheckoutDto.completeCheckoutUrl,
       );
     });
 

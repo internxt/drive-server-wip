@@ -7,5 +7,5 @@ export class IncompleteCheckoutDto {
     example: 'https://drive.internxt.com/checkout/complete',
   })
   @IsUrl()
-  complete_checkout_url: string;
+  completeCheckoutUrl: string;
 }

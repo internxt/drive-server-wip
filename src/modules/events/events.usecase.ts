@@ -19,7 +19,7 @@ export class EventsUseCases {
     try {
       await this.mailerService.sendIncompleteCheckoutEmail(
         user.email,
-        dto.complete_checkout_url,
+        dto.completeCheckoutUrl,
       );
       return { success: true };
     } catch (error) {
