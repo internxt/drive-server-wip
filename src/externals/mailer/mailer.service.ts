@@ -252,4 +252,19 @@ export class MailerService {
       context,
     );
   }
+
+  async sendIncompleteCheckoutEmail(
+    email: string,
+    completeCheckoutUrl: string,
+  ): Promise<void> {
+    const context = {
+      complete_checkout_url: completeCheckoutUrl,
+    };
+
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.incompleteCheckout'),
+      context,
+    );
+  }
 }
