@@ -17,6 +17,8 @@ import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -27,6 +29,8 @@ describe('GatewayUseCases', () => {
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
   let featureLimitService: FeatureLimitService;
+  let mailerService: MailerService;
+  let configService: ConfigService;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +51,8 @@ describe('GatewayUseCases', () => {
       StorageNotificationService,
     );
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    mailerService = module.get<MailerService>(MailerService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -591,6 +597,32 @@ describe('GatewayUseCases', () => {
           expect(user.tierId).not.toBe(originalTierId);
         });
       });
+    });
+  });
+
+  describe('handleFailedPayment', () => {
+    const testEmail = 'user@example.com';
+
+    it('When called, then it should send failed payment email', async () => {
+      jest.spyOn(mailerService, 'sendFailedPaymentEmail').mockResolvedValue();
+
+      const result = await service.handleFailedPayment(testEmail);
+
+      expect(result).toStrictEqual({ success: true });
+      expect(mailerService.sendFailedPaymentEmail).toHaveBeenCalledWith(
+        testEmail,
+      );
+    });
+
+    it('When mailer service throws error, then it should propagate', async () => {
+      const error = new Error('Email sending failed');
+      jest
+        .spyOn(mailerService, 'sendFailedPaymentEmail')
+        .mockRejectedValue(error);
+
+      await expect(service.handleFailedPayment(testEmail)).rejects.toThrow(
+        error,
+      );
     });
   });
 });

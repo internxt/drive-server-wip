@@ -290,4 +290,40 @@ describe('Gateway Controller', () => {
       });
     });
   });
+
+  describe('POST /payments/failed-payment', () => {
+    const failedPaymentDto = {
+      email: 'user@example.com',
+    };
+
+    it('When failed payment is handled successfully, then return success', async () => {
+      const mockResponse = { success: true };
+      jest
+        .spyOn(gatewayUsecases, 'handleFailedPayment')
+        .mockResolvedValueOnce(mockResponse);
+
+      const result =
+        await gatewayController.handleFailedPayment(failedPaymentDto);
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(gatewayUsecases.handleFailedPayment).toHaveBeenCalledWith(
+        failedPaymentDto.email,
+      );
+    });
+
+    it('When mailer service throws error, then it should propagate', async () => {
+      const error = new Error('Email sending failed');
+      jest
+        .spyOn(gatewayUsecases, 'handleFailedPayment')
+        .mockRejectedValueOnce(error);
+
+      await expect(
+        gatewayController.handleFailedPayment(failedPaymentDto),
+      ).rejects.toThrow(error);
+
+      expect(gatewayUsecases.handleFailedPayment).toHaveBeenCalledWith(
+        failedPaymentDto.email,
+      );
+    });
+  });
 });
