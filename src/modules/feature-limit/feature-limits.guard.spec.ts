@@ -3,7 +3,7 @@ import { TestingModule, Test } from '@nestjs/testing';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { newUser } from '../../../test/fixtures';
-import { LimitLabels } from './limits.enum';
+import { AllLimits } from './limits.enum';
 import { BadRequestException, ExecutionContext, Logger } from '@nestjs/common';
 import { FeatureLimit } from './feature-limits.guard';
 import { Reflector } from '@nestjs/core';
@@ -49,7 +49,7 @@ describe('FeatureLimitUsecases', () => {
 
   it('When a data source is missing in the incoming request, it should throw', async () => {
     mockMetadata(reflector, {
-      limitLabels: ['' as LimitLabels],
+      limitLabels: ['' as AllLimits],
       dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
     });
 
@@ -65,7 +65,7 @@ describe('FeatureLimitUsecases', () => {
 
   it('When limit should not be enforced, it should allow access', async () => {
     mockMetadata(reflector, {
-      limitLabels: ['' as LimitLabels],
+      limitLabels: ['' as AllLimits],
       dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
     });
     jest.spyOn(featureLimitUsecases, 'enforceLimit').mockResolvedValue(false);
@@ -79,10 +79,7 @@ describe('FeatureLimitUsecases', () => {
   });
 
   it('When two labels are passed, it should check two limits', async () => {
-    const limitLabels = [
-      'firstLabel' as LimitLabels,
-      'secondLabel' as LimitLabels,
-    ];
+    const limitLabels = ['firstLabel' as AllLimits, 'secondLabel' as AllLimits];
     mockMetadata(reflector, {
       limitLabels,
       dataSources: [{ sourceKey: 'body', fieldName: 'itemId' }],
@@ -106,9 +103,9 @@ describe('FeatureLimitUsecases', () => {
 
   it('When two or more limits are checked and one throws, it should propagate the error', async () => {
     const limitLabels = [
-      'firstLabel' as LimitLabels,
-      'secondLabel' as LimitLabels,
-      'thirdLabel' as LimitLabels,
+      'firstLabel' as AllLimits,
+      'secondLabel' as AllLimits,
+      'thirdLabel' as AllLimits,
     ];
     mockMetadata(reflector, {
       limitLabels,

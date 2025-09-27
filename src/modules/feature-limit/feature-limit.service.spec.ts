@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { FeatureLimitService } from './feature-limit.service';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
-import { LimitLabels } from './limits.enum';
+import { AllLimits, PlatformAccessLimits } from './limits.enum';
 import { PlatformName } from '../../common/constants';
 import { Limit } from './domain/limit.domain';
 import { v4 } from 'uuid';
@@ -38,7 +38,7 @@ describe('FeatureLimitService', () => {
 
       expect(limitsRepository.findLimitByLabelAndTier).toHaveBeenCalledWith(
         tierId,
-        LimitLabels.CliAccess,
+        PlatformAccessLimits.CliAccess,
       );
       expect(result).toBe(true);
     });
@@ -55,7 +55,7 @@ describe('FeatureLimitService', () => {
 
       expect(limitsRepository.findLimitByLabelAndTier).toHaveBeenCalledWith(
         tierId,
-        LimitLabels.CliAccess,
+        PlatformAccessLimits.CliAccess,
       );
       expect(result).toBe(false);
     });
@@ -70,7 +70,7 @@ describe('FeatureLimitService', () => {
 
       expect(limitsRepository.findLimitByLabelAndTier).toHaveBeenCalledWith(
         tierId,
-        LimitLabels.CliAccess,
+        PlatformAccessLimits.CliAccess,
       );
       expect(result).toBe(true);
     });

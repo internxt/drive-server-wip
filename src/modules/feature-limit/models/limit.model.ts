@@ -7,7 +7,7 @@ import {
   BelongsToMany,
   AllowNull,
 } from 'sequelize-typescript';
-import { LimitTypes, LimitLabels } from '../limits.enum';
+import { LimitTypes, AllLimits } from '../limits.enum';
 import { TierModel } from './tier.model';
 import { TierLimitsModel } from './tier-limits.model';
 import { LimitAttributes } from '../domain/limits.attributes';
@@ -24,7 +24,7 @@ export class Limitmodel extends Model implements LimitAttributes {
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  label: LimitLabels;
+  label: AllLimits;
 
   @AllowNull(false)
   @Column({

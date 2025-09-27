@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { LimitLabels } from './limits.enum';
+import { AllLimits } from './limits.enum';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import {
   ApplyLimitMetadata,
@@ -49,7 +49,7 @@ export class FeatureLimit implements CanActivate {
     await Promise.all(
       limitLabels.map(async (limitLabel) => {
         const shouldLimitBeEnforced =
-          await this.featureLimitsUseCases.enforceLimit<LimitLabels>(
+          await this.featureLimitsUseCases.enforceLimit<AllLimits>(
             limitLabel,
             user,
             extractedData as LimitTypeMapping[typeof limitLabel],

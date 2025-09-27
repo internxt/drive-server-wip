@@ -1,6 +1,6 @@
 import { v4 } from 'uuid';
 import {
-  LimitLabels,
+  AllLimits,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { FileStatus } from '../src/modules/file/file.domain';
@@ -258,7 +258,7 @@ describe('Testing fixtures tests', () => {
 
     it('When it generates a limit and a label is provided, then that label should be set', () => {
       const limit = fixtures.newFeatureLimit({
-        label: 'anyLabel' as LimitLabels,
+        label: 'anyLabel' as AllLimits,
         type: LimitTypes.Boolean,
         value: '0',
       });

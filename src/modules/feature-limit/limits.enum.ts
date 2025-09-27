@@ -1,9 +1,19 @@
-export enum LimitLabels {
+/**
+ * Feature limits that control user capabilities and quotas
+ */
+export enum FeatureLimits {
   MaxSharedItems = 'max-shared-items',
   MaxSharedItemInvites = 'max-shared-invites',
-  CliAccess = 'cli-access',
-  PlatformAccess = 'platform-access',
 }
+
+/**
+ * Platform access control limits
+ */
+export enum PlatformAccessLimits {
+  CliAccess = 'cli-access',
+}
+
+export type AllLimits = FeatureLimits | PlatformAccessLimits;
 
 export enum LimitTypes {
   Boolean = 'boolean',
