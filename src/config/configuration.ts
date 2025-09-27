@@ -116,6 +116,8 @@ export default () => ({
         process.env.WORKSPACES_USER_INVITATION_EMAIL_ID || '',
       invitationToWorkspaceGuestUser:
         process.env.WORKSPACES_GUEST_USER_INVITATION_EMAIL_ID || '',
+      incompleteCheckout:
+        process.env.SENDGRID_TEMPLATE_DRIVE_INCOMPLETE_CHECKOUT || '',
     },
   },
   newsletter: {
