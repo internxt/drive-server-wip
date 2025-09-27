@@ -16,7 +16,7 @@ import { File, FileStatus } from '../src/modules/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
 import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
 import {
-  LimitLabels,
+  AllLimits,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { Limit } from '../src/modules/feature-limit/domain/limit.domain';
@@ -316,14 +316,14 @@ export const newMailLimit = (bindTo?: {
 export const newFeatureLimit = (bindTo?: {
   id?: string;
   type: LimitTypes;
-  label?: LimitLabels;
+  label?: AllLimits;
   value: string;
 }): Limit => {
   return Limit.build({
     id: bindTo?.id ?? v4(),
     type: bindTo?.type ?? LimitTypes.Counter,
     value: bindTo?.value ?? '2',
-    label: bindTo?.label ?? ('' as LimitLabels),
+    label: bindTo?.label ?? ('' as AllLimits),
   });
 };
 

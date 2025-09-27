@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { LimitLabels } from '../limits.enum';
+import { AllLimits } from '../limits.enum';
 
 interface DataSource {
   sourceKey: 'body' | 'params' | 'query' | 'headers';
@@ -7,7 +7,7 @@ interface DataSource {
 }
 
 export interface ApplyLimitMetadata {
-  limitLabels: LimitLabels[];
+  limitLabels: AllLimits[];
   dataSources?: DataSource[];
   context?: object;
 }
