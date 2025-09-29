@@ -6,4 +6,5 @@ export enum MailTypes {
   DeactivateUser = 'deactivate_user',
   UnblockAccount = 'unblock_account',
   PreCreateUser = 'pre_create_user',
+  IncompleteCheckout = 'incomplete_checkout',
 }

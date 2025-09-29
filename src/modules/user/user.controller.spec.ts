@@ -36,6 +36,7 @@ import {
 } from './dto/recover-account.dto';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -1513,6 +1514,65 @@ describe('User Controller', () => {
         errorMessage,
       );
       expect(userUseCases.hasUploadedFiles).toHaveBeenCalledWith(userMocked);
+    });
+  });
+
+  describe('POST /payments/incomplete-checkout', () => {
+    const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
+
+    const mockIncompleteCheckoutDto: IncompleteCheckoutDto = {
+      completeCheckoutUrl: 'https://drive.internxt.com/checkout/complete',
+    };
+
+    it('When valid user and dto are provided, then should call usecase with correct parameters', async () => {
+      const expectedResult = { success: true };
+      userUseCases.handleIncompleteCheckoutEvent.mockResolvedValue(
+        expectedResult,
+      );
+
+      const result = await userController.handleIncompleteCheckout(
+        mockUser,
+        mockIncompleteCheckoutDto,
+      );
+
+      expect(result).toEqual(expectedResult);
+      expect(userUseCases.handleIncompleteCheckoutEvent).toHaveBeenCalledWith(
+        mockUser,
+        mockIncompleteCheckoutDto,
+      );
+    });
+
+    it('When different user is provided, then should pass correct user to usecase', async () => {
+      const differentUser = newUser({
+        attributes: { email: 'different@internxt.com' },
+      });
+      const expectedResult = { success: true };
+      userUseCases.handleIncompleteCheckoutEvent.mockResolvedValue(
+        expectedResult,
+      );
+
+      const result = await userController.handleIncompleteCheckout(
+        differentUser,
+        mockIncompleteCheckoutDto,
+      );
+
+      expect(result).toEqual(expectedResult);
+      expect(userUseCases.handleIncompleteCheckoutEvent).toHaveBeenCalledWith(
+        differentUser,
+        mockIncompleteCheckoutDto,
+      );
+    });
+
+    it('When usecase throws error, then should propagate error', async () => {
+      const mockError = new Error('SendGrid service unavailable');
+      userUseCases.handleIncompleteCheckoutEvent.mockRejectedValue(mockError);
+
+      await expect(
+        userController.handleIncompleteCheckout(
+          mockUser,
+          mockIncompleteCheckoutDto,
+        ),
+      ).rejects.toThrow('SendGrid service unavailable');
     });
   });
 });

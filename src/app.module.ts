@@ -25,7 +25,6 @@ import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
-import { EventsModule } from './modules/events/events.module';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 import { JobsModule } from './modules/jobs/jobs.module';
@@ -156,7 +155,6 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
     PlanModule,
     WorkspacesModule,
     GatewayModule,
-    EventsModule,
   ],
   controllers: [],
   providers: [
