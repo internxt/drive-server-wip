@@ -211,6 +211,6 @@ export class GatewayController {
     },
   })
   async handleFailedPayment(@Body() dto: FailedPaymentDto) {
-    return this.gatewayUseCases.handleFailedPayment(dto.email);
+    return this.gatewayUseCases.handleFailedPayment(dto.userId);
   }
 }

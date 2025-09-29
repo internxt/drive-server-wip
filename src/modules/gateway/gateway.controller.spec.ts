@@ -293,7 +293,7 @@ describe('Gateway Controller', () => {
 
   describe('POST /users/failed-payment', () => {
     const failedPaymentDto = {
-      email: 'user@example.com',
+      userId: '87204d6b-c4a7-4f38-bd99-f7f47964a643',
     };
 
     it('When failed payment is handled successfully, then return success', async () => {
@@ -307,7 +307,7 @@ describe('Gateway Controller', () => {
 
       expect(result).toStrictEqual(mockResponse);
       expect(gatewayUsecases.handleFailedPayment).toHaveBeenCalledWith(
-        failedPaymentDto.email,
+        failedPaymentDto.userId,
       );
     });
 
@@ -322,7 +322,7 @@ describe('Gateway Controller', () => {
       ).rejects.toThrow(error);
 
       expect(gatewayUsecases.handleFailedPayment).toHaveBeenCalledWith(
-        failedPaymentDto.email,
+        failedPaymentDto.userId,
       );
     });
   });

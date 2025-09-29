@@ -216,8 +216,13 @@ export class GatewayUseCases {
     }
   }
 
-  async handleFailedPayment(email: string): Promise<{ success: boolean }> {
-    await this.mailerService.sendFailedPaymentEmail(email);
+  async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
+    const user = await this.userRepository.findByUuid(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.mailerService.sendFailedPaymentEmail(user.email);
     return { success: true };
   }
 }

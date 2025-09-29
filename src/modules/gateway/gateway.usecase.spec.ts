@@ -601,26 +601,43 @@ describe('GatewayUseCases', () => {
   });
 
   describe('handleFailedPayment', () => {
-    const testEmail = 'user@example.com';
+    const testUserId = '87204d6b-c4a7-4f38-bd99-f7f47964a643';
+    const testUser = newUser({
+      attributes: { uuid: testUserId, email: 'user@example.com' },
+    });
 
-    it('When called, then it should send failed payment email', async () => {
+    it('When called with valid userId, then it should find user and send failed payment email', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(testUser);
       jest.spyOn(mailerService, 'sendFailedPaymentEmail').mockResolvedValue();
 
-      const result = await service.handleFailedPayment(testEmail);
+      const result = await service.handleFailedPayment(testUserId);
 
       expect(result).toStrictEqual({ success: true });
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(testUserId);
       expect(mailerService.sendFailedPaymentEmail).toHaveBeenCalledWith(
-        testEmail,
+        testUser.email,
       );
+    });
+
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(testUserId);
+      expect(mailerService.sendFailedPaymentEmail).not.toHaveBeenCalled();
     });
 
     it('When mailer service throws error, then it should propagate', async () => {
       const error = new Error('Email sending failed');
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(testUser);
       jest
         .spyOn(mailerService, 'sendFailedPaymentEmail')
         .mockRejectedValue(error);
 
-      await expect(service.handleFailedPayment(testEmail)).rejects.toThrow(
+      await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
         error,
       );
     });

@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class FailedPaymentDto {
   @ApiProperty({
-    description: 'Email address of the user who had a failed payment',
-    example: 'user@internxt.com',
+    description: 'UUID of the user who had a failed payment',
+    example: '87204d6b-c4a7-4f38-bd99-f7f47964a643',
   })
-  @IsEmail()
+  @IsUUID()
   @IsNotEmpty()
-  email: string;
+  userId: string;
 }
