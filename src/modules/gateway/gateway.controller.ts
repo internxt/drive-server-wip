@@ -191,7 +191,7 @@ export class GatewayController {
     }
   }
 
-  @Post('/payments/failed-payment')
+  @Post('/users/failed-payment')
   @ApiOperation({
     summary: 'Handle failed payment notification',
     description: 'Sends email notification to user when payment fails',

@@ -291,7 +291,7 @@ describe('Gateway Controller', () => {
     });
   });
 
-  describe('POST /payments/failed-payment', () => {
+  describe('POST /users/failed-payment', () => {
     const failedPaymentDto = {
       email: 'user@example.com',
     };
