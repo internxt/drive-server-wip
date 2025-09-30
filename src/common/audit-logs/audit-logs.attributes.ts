@@ -29,8 +29,31 @@ export enum AuditAction {
   TfaDisabled = '2fa-disabled',
   AccountReset = 'account-reset',
   AccountRecovery = 'account-recovery',
+  AccountDeactivated = 'account-deactivated',
   // Workspace actions
   WorkspaceCreated = 'workspace-created',
   WorkspaceDeleted = 'workspace-deleted',
   WorkspaceStorageChanged = 'workspace-storage-changed',
 }
+
+export const AUDIT_ENTITY_ACTIONS: Record<AuditEntityType, AuditAction[]> = {
+  [AuditEntityType.User]: [
+    AuditAction.StorageChanged,
+    AuditAction.EmailChanged,
+    AuditAction.PasswordChanged,
+    AuditAction.TfaEnabled,
+    AuditAction.TfaDisabled,
+    AuditAction.AccountReset,
+    AuditAction.AccountRecovery,
+    AuditAction.AccountDeactivated,
+  ],
+  [AuditEntityType.Workspace]: [
+    AuditAction.WorkspaceCreated,
+    AuditAction.WorkspaceDeleted,
+    AuditAction.WorkspaceStorageChanged,
+  ],
+};
+
+export type UserActions = (typeof AUDIT_ENTITY_ACTIONS)[AuditEntityType.User];
+export type WorkspaceActions =
+  (typeof AUDIT_ENTITY_ACTIONS)[AuditEntityType.Workspace];
