@@ -13,6 +13,11 @@ import { SharingActionName } from '../src/modules/sharing/sharing.domain';
 import { UserKeysEncryptVersions } from '../src/modules/keyserver/key-server.domain';
 import { newUsage } from './fixtures';
 import { UsageType } from '../src/modules/usage/usage.domain';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditPerformerType,
+} from '../src/common/audit-logs/audit-logs.attributes';
 
 describe('Testing fixtures tests', () => {
   describe("User's fixture", () => {
@@ -686,6 +691,39 @@ describe('Testing fixtures tests', () => {
       const uniqueIds = new Set(ids);
 
       expect(uniqueIds.size).toBe(usages.length);
+    });
+  });
+
+  describe('AuditLog Fixture', () => {
+    it('When it generates an audit log, then the identifier should be random', () => {
+      const auditLog = fixtures.newAuditLog();
+      const otherAuditLog = fixtures.newAuditLog();
+
+      expect(auditLog.id).toBeTruthy();
+      expect(auditLog.id).not.toBe(otherAuditLog.id);
+    });
+
+    it('When it generates an audit log with custom attributes, then those attributes should be set', () => {
+      const customAttributes = {
+        entityType: AuditEntityType.Workspace,
+        action: AuditAction.WorkspaceCreated,
+        performerType: AuditPerformerType.System,
+        metadata: { key: 'value' },
+      };
+
+      const auditLog = fixtures.newAuditLog(customAttributes);
+
+      expect(auditLog.entityType).toBe(customAttributes.entityType);
+      expect(auditLog.action).toBe(customAttributes.action);
+      expect(auditLog.performerType).toBe(customAttributes.performerType);
+      expect(auditLog.metadata).toEqual(customAttributes.metadata);
+    });
+
+    it('When it generates an audit log with custom metadata, then metadata should be set correctly', () => {
+      const customMetadata = { userId: '123', email: 'test@example.com' };
+      const auditLog = fixtures.newAuditLog({ metadata: customMetadata });
+
+      expect(auditLog.metadata).toEqual(customMetadata);
     });
   });
 });
