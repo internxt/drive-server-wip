@@ -260,4 +260,27 @@ export class MailerService {
       {},
     );
   }
+
+  async sendFirstUploadEmail(userEmail: User['email']): Promise<void> {
+    await this.send(
+      userEmail,
+      this.configService.get('mailer.templates.firstUpload'),
+      {},
+    );
+  }
+
+  async sendIncompleteCheckoutEmail(
+    email: string,
+    completeCheckoutUrl: string,
+  ): Promise<void> {
+    const context = {
+      complete_checkout_url: completeCheckoutUrl,
+    };
+
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.incompleteCheckout'),
+      context,
+    );
+  }
 }

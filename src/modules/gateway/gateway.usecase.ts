@@ -51,6 +51,64 @@ export class GatewayUseCases {
     }
   }
 
+  async updateWorkspace(
+    ownerId: string,
+    {
+      tierId,
+      maxSpaceBytes,
+      numberOfSeats,
+    }: { tierId?: string; maxSpaceBytes?: number; numberOfSeats?: number },
+  ): Promise<void> {
+    const owner = await this.userRepository.findByUuid(ownerId);
+    if (!owner) {
+      throw new BadRequestException('Owner not found');
+    }
+
+    const workspace = await this.workspaceUseCases.findOne({
+      ownerId: owner.uuid,
+      setupCompleted: true,
+    });
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+    if (!workspaceUser) {
+      throw new NotFoundException('Workspace user not found!');
+    }
+
+    if (maxSpaceBytes !== undefined && numberOfSeats !== undefined) {
+      await this.workspaceUseCases.updateWorkspaceLimit(
+        workspace.id,
+        maxSpaceBytes,
+        numberOfSeats,
+      );
+
+      if (workspace.numberOfSeats !== numberOfSeats) {
+        await this.workspaceUseCases.updateWorkspaceMemberCount(
+          workspace.id,
+          numberOfSeats,
+        );
+      }
+    }
+
+    if (tierId) {
+      const tier = await this.featureLimitService.getTier(tierId);
+      if (!tier) {
+        throw new BadRequestException(`Tier with ID ${tierId} not found`);
+      }
+
+      if (tierId !== workspaceUser.tierId) {
+        await this.userRepository.updateBy(
+          { uuid: workspaceUser.uuid },
+          { tierId: tierId },
+        );
+      }
+    }
+  }
+
   async updateWorkspaceStorage(
     ownerId: string,
     maxSpaceBytes: number,

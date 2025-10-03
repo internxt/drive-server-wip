@@ -5,7 +5,8 @@ import {
   IsDateString,
   ValidationArguments,
 } from 'class-validator';
-import { BasicPaginationDto } from '../../../common/dto/basic-pagination.dto';
+import { ApiProperty } from '@nestjs/swagger';
+import { LargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 import {
   FolderStatus,
   SortableFolderAttributes,
@@ -13,8 +14,12 @@ import {
 
 const allowedStatuses = [...Object.values(FolderStatus), 'ALL'];
 
-export class GetWorkspaceFoldersQueryDto extends BasicPaginationDto {
+export class GetWorkspaceFoldersQueryDto extends LargePaginationDto {
   @IsOptional()
+  @ApiProperty({
+    required: false,
+    enum: allowedStatuses,
+  })
   @IsEnum(allowedStatuses, {
     message: (args: ValidationArguments) =>
       `Invalid status provided: ${

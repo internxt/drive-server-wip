@@ -87,6 +87,7 @@ import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
+import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { RefreshUserAvatarDto } from './dto/responses/refresh-avatar.dto';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { TimingConsistency } from '../auth/decorators/timing-consistency.decorator';
@@ -1276,5 +1277,22 @@ export class UserController {
   async generateMnemonic(): Promise<GenerateMnemonicResponseDto> {
     const mnemonic = await this.userUseCases.generateMnemonic();
     return { mnemonic };
+  }
+
+  @Post('/payments/incomplete-checkout')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Handle incomplete checkout event',
+    description: 'Sends notification email when user abandons checkout process',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Incomplete checkout email sent successfully',
+  })
+  async handleIncompleteCheckout(
+    @UserDecorator() user: User,
+    @Body() dto: IncompleteCheckoutDto,
+  ) {
+    return this.userUseCases.handleIncompleteCheckoutEvent(user, dto);
   }
 }

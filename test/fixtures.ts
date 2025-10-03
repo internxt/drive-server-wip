@@ -46,6 +46,13 @@ import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
 import { Usage, UsageType } from '../src/modules/usage/usage.domain';
 import { Notification } from '../src/modules/notifications/domain/notification.domain';
 import { UserNotificationStatus } from '../src/modules/notifications/domain/user-notification-status.domain';
+import { AuditLog } from '../src/common/audit-logs/audit-logs.domain';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditLogAttributes,
+  AuditPerformerType,
+} from '../src/common/audit-logs/audit-logs.attributes';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -705,4 +712,18 @@ export const newTier = (attributes?: Partial<Tier>): Tier => {
   });
 
   return tier;
+};
+
+export const newAuditLog = (params?: Partial<AuditLogAttributes>): AuditLog => {
+  return new AuditLog({
+    id: v4(),
+    entityType: AuditEntityType.User,
+    entityId: v4(),
+    action: AuditAction.PasswordChanged,
+    performerType: AuditPerformerType.User,
+    performerId: v4(),
+    createdAt: new Date(),
+    metadata: params?.metadata || {},
+    ...params,
+  });
 };
