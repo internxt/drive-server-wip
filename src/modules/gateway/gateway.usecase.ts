@@ -12,6 +12,8 @@ import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class GatewayUseCases {
@@ -22,6 +24,8 @@ export class GatewayUseCases {
     private readonly cacheManagerService: CacheManagerService,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly mailerService: MailerService,
+    private readonly configService: ConfigService,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -44,6 +48,64 @@ export class GatewayUseCases {
     } catch (error) {
       Logger.error('[GATEWAY/WORKSPACE] Error initializing workspace', error);
       throw error;
+    }
+  }
+
+  async updateWorkspace(
+    ownerId: string,
+    {
+      tierId,
+      maxSpaceBytes,
+      numberOfSeats,
+    }: { tierId?: string; maxSpaceBytes?: number; numberOfSeats?: number },
+  ): Promise<void> {
+    const owner = await this.userRepository.findByUuid(ownerId);
+    if (!owner) {
+      throw new BadRequestException('Owner not found');
+    }
+
+    const workspace = await this.workspaceUseCases.findOne({
+      ownerId: owner.uuid,
+      setupCompleted: true,
+    });
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const workspaceUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+    if (!workspaceUser) {
+      throw new NotFoundException('Workspace user not found!');
+    }
+
+    if (maxSpaceBytes !== undefined && numberOfSeats !== undefined) {
+      await this.workspaceUseCases.updateWorkspaceLimit(
+        workspace.id,
+        maxSpaceBytes,
+        numberOfSeats,
+      );
+
+      if (workspace.numberOfSeats !== numberOfSeats) {
+        await this.workspaceUseCases.updateWorkspaceMemberCount(
+          workspace.id,
+          numberOfSeats,
+        );
+      }
+    }
+
+    if (tierId) {
+      const tier = await this.featureLimitService.getTier(tierId);
+      if (!tier) {
+        throw new BadRequestException(`Tier with ID ${tierId} not found`);
+      }
+
+      if (tierId !== workspaceUser.tierId) {
+        await this.userRepository.updateBy(
+          { uuid: workspaceUser.uuid },
+          { tierId: tierId },
+        );
+      }
     }
   }
 
@@ -210,5 +272,15 @@ export class GatewayUseCases {
         error,
       );
     }
+  }
+
+  async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
+    const user = await this.userRepository.findByUuid(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.mailerService.sendFailedPaymentEmail(user.email);
+    return { success: true };
   }
 }

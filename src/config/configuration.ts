@@ -112,12 +112,16 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_UPDATE_USER_EMAIL || '',
       unblockAccountEmail:
         process.env.SENDGRID_TEMPLATE_DRIVE_UNBLOCK_ACCOUNT || '',
+      failedPayments: process.env.SENDGRID_TEMPLATE_DRIVE_FAILED_PAYMENTS || '',
+      firstUpload: process.env.SENDGRID_TEMPLATE_DRIVE_FIRST_UPLOAD || '',
       invitationToWorkspaceUser:
         process.env.WORKSPACES_USER_INVITATION_EMAIL_ID || '',
       invitationToWorkspaceGuestUser:
         process.env.WORKSPACES_GUEST_USER_INVITATION_EMAIL_ID || '',
       driveInactiveUsers:
         process.env.SENDGRID_TEMPLATE_DRIVE_INACTIVE_USERS || '',
+      incompleteCheckout:
+        process.env.SENDGRID_TEMPLATE_DRIVE_INCOMPLETE_CHECKOUT || '',
     },
   },
   newsletter: {

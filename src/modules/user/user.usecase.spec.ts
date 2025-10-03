@@ -85,6 +85,7 @@ import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
+import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { Environment } from '@internxt/inxt-js';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
@@ -4007,6 +4008,127 @@ describe('User use cases', () => {
 
       expect(result).toBeNull();
       expect(cacheManagerService.setUserAvatar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleIncompleteCheckoutEvent', () => {
+    const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
+    const mockIncompleteCheckoutDto: IncompleteCheckoutDto = {
+      completeCheckoutUrl: 'https://drive.internxt.com/checkout/complete',
+    };
+
+    it('When valid user and dto are provided and limit not reached, then should send email successfully', async () => {
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        attemptsCount: 1,
+        attemptsLimit: 5,
+      });
+      jest
+        .spyOn(mockMailLimit, 'isLimitForTodayReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseTodayAttempts');
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, true]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendIncompleteCheckoutEmail')
+        .mockResolvedValue(undefined);
+
+      const result = await userUseCases.handleIncompleteCheckoutEvent(
+        mockUser,
+        mockIncompleteCheckoutDto,
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledWith(
+        {
+          userId: mockUser.id,
+          mailType: MailTypes.IncompleteCheckout,
+        },
+        {
+          attemptsCount: 0,
+          attemptsLimit: 5,
+          lastMailSent: expect.any(Date),
+          userId: mockUser.id,
+          mailType: MailTypes.IncompleteCheckout,
+        },
+      );
+      expect(mockMailLimit.isLimitForTodayReached).toHaveBeenCalled();
+      expect(mailerService.sendIncompleteCheckoutEmail).toHaveBeenCalledWith(
+        mockUser.email,
+        mockIncompleteCheckoutDto.completeCheckoutUrl,
+      );
+      expect(mockMailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(
+        mockUser.id,
+        MailTypes.IncompleteCheckout,
+        mockMailLimit,
+      );
+    });
+
+    it('When limit for today is reached, then should throw BadRequestException', async () => {
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        attemptsCount: 5,
+        attemptsLimit: 5,
+      });
+      jest.spyOn(mockMailLimit, 'isLimitForTodayReached').mockReturnValue(true);
+      jest.spyOn(mockMailLimit, 'increaseTodayAttempts');
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+
+      await expect(
+        userUseCases.handleIncompleteCheckoutEvent(
+          mockUser,
+          mockIncompleteCheckoutDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockMailLimit.isLimitForTodayReached).toHaveBeenCalled();
+      expect(mailerService.sendIncompleteCheckoutEmail).not.toHaveBeenCalled();
+      expect(mockMailLimit.increaseTodayAttempts).not.toHaveBeenCalled();
+    });
+
+    it('When mailer service throws error, then should propagate the error', async () => {
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        attemptsCount: 1,
+        attemptsLimit: 5,
+      });
+      jest
+        .spyOn(mockMailLimit, 'isLimitForTodayReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseTodayAttempts');
+      const mockError = new Error('SendGrid service unavailable');
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, true]);
+      jest
+        .spyOn(mailerService, 'sendIncompleteCheckoutEmail')
+        .mockRejectedValue(mockError);
+
+      await expect(
+        userUseCases.handleIncompleteCheckoutEvent(
+          mockUser,
+          mockIncompleteCheckoutDto,
+        ),
+      ).rejects.toThrow(mockError);
+
+      expect(mockMailLimit.isLimitForTodayReached).toHaveBeenCalled();
+      expect(mailerService.sendIncompleteCheckoutEmail).toHaveBeenCalledWith(
+        mockUser.email,
+        mockIncompleteCheckoutDto.completeCheckoutUrl,
+      );
+      expect(mockMailLimit.increaseTodayAttempts).not.toHaveBeenCalled();
     });
   });
 });

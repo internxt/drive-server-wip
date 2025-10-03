@@ -25,11 +25,13 @@ import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { DisableGlobalAuth } from '../auth/decorators/disable-global-auth.decorator';
 import { GatewayGuard } from '../auth/gateway.guard';
 import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
 import { User } from '../user/user.domain';
 import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { FailedPaymentDto } from './dto/failed-payment.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @ApiTags('Gateway')
@@ -56,9 +58,50 @@ export class GatewayController {
     return this.gatewayUseCases.initializeWorkspace(initializeWorkspaceDto);
   }
 
+  @Patch('/workspaces')
+  @ApiOperation({
+    summary: 'Update workspace tier or storage',
+  })
+  @ApiBearerAuth('gateway')
+  @ApiOkResponse({ description: 'Workspace updated successfully' })
+  @UseGuards(GatewayGuard)
+  async updateWorkspace(@Body() updateWorkspaceDto: UpdateWorkspaceDto) {
+    this.logger.log(
+      { body: updateWorkspaceDto, category: 'UPDATE_WORKSPACE' },
+      'Updating workspace',
+    );
+
+    const { ownerId, tierId, maxSpaceBytes, numberOfSeats } =
+      updateWorkspaceDto;
+
+    try {
+      await this.gatewayUseCases.updateWorkspace(ownerId, {
+        tierId,
+        maxSpaceBytes,
+        numberOfSeats,
+      });
+
+      this.logger.log(
+        { body: updateWorkspaceDto, category: 'UPDATE_WORKSPACE' },
+        'Updated workspace successfully',
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          body: updateWorkspaceDto,
+          error,
+          category: 'UPDATE_WORKSPACE',
+        },
+        'Error updating workspace',
+      );
+      throw error;
+    }
+  }
+
   @Put('/workspaces/storage')
   @ApiOperation({
-    summary: 'Update a workspace',
+    summary: 'Update a workspace (deprecated in favor of PATCH /workspaces)',
+    deprecated: true,
   })
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
@@ -188,5 +231,28 @@ export class GatewayController {
       );
       throw error;
     }
+  }
+
+  @Post('/users/failed-payment')
+  @ApiOperation({
+    summary: 'Handle failed payment notification',
+    description: 'Sends email notification to user when payment fails',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description: 'Failed payment email sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: {
+          type: 'boolean',
+          example: true,
+        },
+      },
+    },
+  })
+  async handleFailedPayment(@Body() dto: FailedPaymentDto) {
+    return this.gatewayUseCases.handleFailedPayment(dto.userId);
   }
 }

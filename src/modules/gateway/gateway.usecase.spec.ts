@@ -17,6 +17,8 @@ import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -27,6 +29,8 @@ describe('GatewayUseCases', () => {
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
   let featureLimitService: FeatureLimitService;
+  let mailerService: MailerService;
+  let configService: ConfigService;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +51,8 @@ describe('GatewayUseCases', () => {
       StorageNotificationService,
     );
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    mailerService = module.get<MailerService>(MailerService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -591,6 +597,266 @@ describe('GatewayUseCases', () => {
           expect(user.tierId).not.toBe(originalTierId);
         });
       });
+    });
+
+    describe('updateWorkspace', () => {
+      const owner = newUser();
+      const maxSpaceBytes = 10000000;
+      const numberOfSeats = 10;
+      const validTier = newTier();
+      const workspaceEmail = 'workspace@test.com';
+      const workspaceUser = newUser({
+        attributes: {
+          email: workspaceEmail,
+          username: workspaceEmail,
+          bridgeUser: workspaceEmail,
+          tierId: validTier.id,
+        },
+      });
+      const workspace = newWorkspace({
+        owner,
+        attributes: {
+          ownerId: owner.uuid,
+          workspaceUserId: workspaceUser.uuid,
+          numberOfSeats: 5,
+        },
+      });
+
+      it('When owner is not found, then it should throw BadRequestException', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+        await expect(
+          service.updateWorkspace(v4(), { maxSpaceBytes, numberOfSeats }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When workspace is not found, then it should throw NotFoundException', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+        jest.spyOn(workspaceUseCases, 'findOne').mockResolvedValueOnce(null);
+
+        await expect(
+          service.updateWorkspace(owner.uuid, {
+            maxSpaceBytes,
+            numberOfSeats,
+          }),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When workspace user is not found, then it should throw NotFoundException', async () => {
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(owner)
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
+
+        await expect(
+          service.updateWorkspace(owner.uuid, {
+            maxSpaceBytes,
+            numberOfSeats,
+          }),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('When tier ID is invalid, then it should throw BadRequestException', async () => {
+        const invalidTierId = v4();
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(owner)
+          .mockResolvedValueOnce(workspaceUser);
+        jest
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
+        jest.spyOn(featureLimitService, 'getTier').mockResolvedValueOnce(null);
+
+        await expect(
+          service.updateWorkspace(owner.uuid, { tierId: invalidTierId }),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(featureLimitService.getTier).toHaveBeenCalledWith(invalidTierId);
+      });
+
+      it('When update fails, then it should propagate the error', async () => {
+        const tierId = v4();
+        const updateError = new Error('Failed to update tier');
+        jest
+          .spyOn(userRepository, 'findByUuid')
+          .mockResolvedValueOnce(owner)
+          .mockResolvedValueOnce(workspaceUser);
+        jest
+          .spyOn(workspaceUseCases, 'findOne')
+          .mockResolvedValueOnce(workspace);
+        jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce(validTier);
+        jest
+          .spyOn(userRepository, 'updateBy')
+          .mockRejectedValueOnce(updateError);
+
+        await expect(
+          service.updateWorkspace(owner.uuid, { tierId }),
+        ).rejects.toThrow(updateError);
+      });
+
+      describe('when updating tier', () => {
+        it('When tier exists and is different from workspace user tier, then it should validate and update tier', async () => {
+          const tier = newTier();
+          jest
+            .spyOn(userRepository, 'findByUuid')
+            .mockResolvedValueOnce(owner)
+            .mockResolvedValueOnce(workspaceUser);
+          jest
+            .spyOn(workspaceUseCases, 'findOne')
+            .mockResolvedValueOnce(workspace);
+          jest
+            .spyOn(featureLimitService, 'getTier')
+            .mockResolvedValueOnce(tier);
+          jest
+            .spyOn(userRepository, 'updateBy')
+            .mockResolvedValueOnce(undefined);
+
+          await service.updateWorkspace(owner.uuid, {
+            tierId: tier.id,
+          });
+
+          expect(featureLimitService.getTier).toHaveBeenCalledWith(tier.id);
+          expect(userRepository.updateBy).toHaveBeenCalledWith(
+            { uuid: workspaceUser.uuid },
+            { tierId: tier.id },
+          );
+        });
+
+        it('When tier exists and is same as workspace user tier, then it should not update tier', async () => {
+          jest
+            .spyOn(userRepository, 'findByUuid')
+            .mockResolvedValueOnce(owner)
+            .mockResolvedValueOnce(workspaceUser);
+          jest
+            .spyOn(workspaceUseCases, 'findOne')
+            .mockResolvedValueOnce(workspace);
+          jest
+            .spyOn(featureLimitService, 'getTier')
+            .mockResolvedValueOnce(validTier);
+          jest
+            .spyOn(userRepository, 'updateBy')
+            .mockResolvedValueOnce(undefined);
+
+          await service.updateWorkspace(owner.uuid, {
+            tierId: workspaceUser.tierId,
+          });
+
+          expect(featureLimitService.getTier).toHaveBeenCalledWith(
+            workspaceUser.tierId,
+          );
+          expect(userRepository.updateBy).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('when updating storage and seats', () => {
+        it('When updating with maxSpaceBytes and numberOfSeats, then it should update accordingly', async () => {
+          jest
+            .spyOn(userRepository, 'findByUuid')
+            .mockResolvedValueOnce(owner)
+            .mockResolvedValueOnce(workspaceUser);
+          jest
+            .spyOn(workspaceUseCases, 'findOne')
+            .mockResolvedValueOnce(workspace);
+          jest
+            .spyOn(workspaceUseCases, 'updateWorkspaceLimit')
+            .mockResolvedValueOnce();
+          jest
+            .spyOn(workspaceUseCases, 'updateWorkspaceMemberCount')
+            .mockResolvedValueOnce();
+
+          await service.updateWorkspace(owner.uuid, {
+            maxSpaceBytes,
+            numberOfSeats,
+          });
+
+          expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
+            workspace.id,
+            maxSpaceBytes,
+            numberOfSeats,
+          );
+          expect(
+            workspaceUseCases.updateWorkspaceMemberCount,
+          ).toHaveBeenCalledWith(workspace.id, numberOfSeats);
+        });
+
+        it('When updating with same numberOfSeats, then it should not update the seats', async () => {
+          jest
+            .spyOn(userRepository, 'findByUuid')
+            .mockResolvedValueOnce(owner)
+            .mockResolvedValueOnce(workspaceUser);
+          jest
+            .spyOn(workspaceUseCases, 'findOne')
+            .mockResolvedValueOnce(workspace);
+          jest
+            .spyOn(workspaceUseCases, 'updateWorkspaceLimit')
+            .mockResolvedValueOnce();
+          jest
+            .spyOn(workspaceUseCases, 'updateWorkspaceMemberCount')
+            .mockResolvedValueOnce();
+
+          await service.updateWorkspace(owner.uuid, {
+            maxSpaceBytes,
+            numberOfSeats: workspace.numberOfSeats,
+          });
+
+          expect(workspaceUseCases.updateWorkspaceLimit).toHaveBeenCalledWith(
+            workspace.id,
+            maxSpaceBytes,
+            workspace.numberOfSeats,
+          );
+          expect(
+            workspaceUseCases.updateWorkspaceMemberCount,
+          ).not.toHaveBeenCalled();
+        });
+      });
+    });
+  });
+
+  describe('handleFailedPayment', () => {
+    const testUserId = '87204d6b-c4a7-4f38-bd99-f7f47964a643';
+    const testUser = newUser({
+      attributes: { uuid: testUserId, email: 'user@example.com' },
+    });
+
+    it('When called with valid userId, then it should find user and send failed payment email', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(testUser);
+      jest.spyOn(mailerService, 'sendFailedPaymentEmail').mockResolvedValue();
+
+      const result = await service.handleFailedPayment(testUserId);
+
+      expect(result).toStrictEqual({ success: true });
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(testUserId);
+      expect(mailerService.sendFailedPaymentEmail).toHaveBeenCalledWith(
+        testUser.email,
+      );
+    });
+
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(testUserId);
+      expect(mailerService.sendFailedPaymentEmail).not.toHaveBeenCalled();
+    });
+
+    it('When mailer service throws error, then it should propagate', async () => {
+      const error = new Error('Email sending failed');
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(testUser);
+      jest
+        .spyOn(mailerService, 'sendFailedPaymentEmail')
+        .mockRejectedValue(error);
+
+      await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
+        error,
+      );
     });
   });
 });
