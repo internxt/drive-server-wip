@@ -252,4 +252,20 @@ export class MailerService {
       context,
     );
   }
+
+  async sendDriveInactiveUsersEmail(
+    email: string,
+    context: {
+      user_name: string;
+      last_login_date: string;
+      days_inactive: number;
+      login_url: string;
+    },
+  ): Promise<void> {
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.driveInactiveUsers'),
+      context,
+    );
+  }
 }

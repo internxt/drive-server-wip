@@ -43,6 +43,11 @@ export interface UserRepository {
   ): Promise<void>;
   getNotificationTokenCount(userId: string): Promise<number>;
   loginFailed(user: User, isFailed: boolean): Promise<void>;
+  getInactiveUsersForEmail(
+    offset: number,
+    limit: number,
+    freeTierId: string,
+  ): Promise<User[]>;
 }
 
 @Injectable()
@@ -276,6 +281,35 @@ export class SequelizeUserRepository implements UserRepository {
     const { uuid, errorLoginCount } = user;
     const update = { errorLoginCount: isFailed ? errorLoginCount + 1 : 0 };
     await this.modelUser.update(update, { where: { uuid } });
+  }
+
+  async getInactiveUsersForEmail(
+    offset: number,
+    limit: number,
+    freeTierId: string,
+  ): Promise<User[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    const users = await this.modelUser.findAll({
+      where: {
+        tierId: freeTierId,
+        emailVerified: true,
+        updatedAt: { [Op.lt]: thirtyDaysAgo },
+        [Op.or]: [
+          { inactiveEmailSentAt: null },
+          { inactiveEmailSentAt: { [Op.lt]: sixtyDaysAgo } },
+        ],
+      },
+      order: [['updatedAt', 'ASC']],
+      limit,
+      offset,
+    });
+
+    return users.map(this.toDomain.bind(this));
   }
 
   toDomain(model: UserModel): User {
