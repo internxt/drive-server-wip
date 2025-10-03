@@ -31,6 +31,7 @@ import { User } from '../user/user.domain';
 import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { FailedPaymentDto } from './dto/failed-payment.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 
 @ApiTags('Gateway')
@@ -230,5 +231,28 @@ export class GatewayController {
       );
       throw error;
     }
+  }
+
+  @Post('/users/failed-payment')
+  @ApiOperation({
+    summary: 'Handle failed payment notification',
+    description: 'Sends email notification to user when payment fails',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description: 'Failed payment email sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: {
+          type: 'boolean',
+          example: true,
+        },
+      },
+    },
+  })
+  async handleFailedPayment(@Body() dto: FailedPaymentDto) {
+    return this.gatewayUseCases.handleFailedPayment(dto.userId);
   }
 }

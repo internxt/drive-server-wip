@@ -292,6 +292,42 @@ describe('Gateway Controller', () => {
     });
   });
 
+  describe('POST /users/failed-payment', () => {
+    const failedPaymentDto = {
+      userId: '87204d6b-c4a7-4f38-bd99-f7f47964a643',
+    };
+
+    it('When failed payment is handled successfully, then return success', async () => {
+      const mockResponse = { success: true };
+      jest
+        .spyOn(gatewayUsecases, 'handleFailedPayment')
+        .mockResolvedValueOnce(mockResponse);
+
+      const result =
+        await gatewayController.handleFailedPayment(failedPaymentDto);
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(gatewayUsecases.handleFailedPayment).toHaveBeenCalledWith(
+        failedPaymentDto.userId,
+      );
+    });
+
+    it('When mailer service throws error, then it should propagate', async () => {
+      const error = new Error('Email sending failed');
+      jest
+        .spyOn(gatewayUsecases, 'handleFailedPayment')
+        .mockRejectedValueOnce(error);
+
+      await expect(
+        gatewayController.handleFailedPayment(failedPaymentDto),
+      ).rejects.toThrow(error);
+
+      expect(gatewayUsecases.handleFailedPayment).toHaveBeenCalledWith(
+        failedPaymentDto.userId,
+      );
+    });
+  });
+
   describe('PATCH /workspaces', () => {
     const ownerId = v4();
     const tierId = v4();

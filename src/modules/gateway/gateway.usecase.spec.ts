@@ -17,6 +17,8 @@ import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -27,6 +29,8 @@ describe('GatewayUseCases', () => {
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
   let featureLimitService: FeatureLimitService;
+  let mailerService: MailerService;
+  let configService: ConfigService;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +51,8 @@ describe('GatewayUseCases', () => {
       StorageNotificationService,
     );
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    mailerService = module.get<MailerService>(MailerService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -808,6 +814,49 @@ describe('GatewayUseCases', () => {
           ).not.toHaveBeenCalled();
         });
       });
+    });
+  });
+
+  describe('handleFailedPayment', () => {
+    const testUserId = '87204d6b-c4a7-4f38-bd99-f7f47964a643';
+    const testUser = newUser({
+      attributes: { uuid: testUserId, email: 'user@example.com' },
+    });
+
+    it('When called with valid userId, then it should find user and send failed payment email', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(testUser);
+      jest.spyOn(mailerService, 'sendFailedPaymentEmail').mockResolvedValue();
+
+      const result = await service.handleFailedPayment(testUserId);
+
+      expect(result).toStrictEqual({ success: true });
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(testUserId);
+      expect(mailerService.sendFailedPaymentEmail).toHaveBeenCalledWith(
+        testUser.email,
+      );
+    });
+
+    it('When user is not found, then it should throw NotFoundException', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(testUserId);
+      expect(mailerService.sendFailedPaymentEmail).not.toHaveBeenCalled();
+    });
+
+    it('When mailer service throws error, then it should propagate', async () => {
+      const error = new Error('Email sending failed');
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(testUser);
+      jest
+        .spyOn(mailerService, 'sendFailedPaymentEmail')
+        .mockRejectedValue(error);
+
+      await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
+        error,
+      );
     });
   });
 });

@@ -12,6 +12,8 @@ import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class GatewayUseCases {
@@ -22,6 +24,8 @@ export class GatewayUseCases {
     private readonly cacheManagerService: CacheManagerService,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly mailerService: MailerService,
+    private readonly configService: ConfigService,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
@@ -268,5 +272,15 @@ export class GatewayUseCases {
         error,
       );
     }
+  }
+
+  async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
+    const user = await this.userRepository.findByUuid(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.mailerService.sendFailedPaymentEmail(user.email);
+    return { success: true };
   }
 }

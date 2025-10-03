@@ -6,6 +6,7 @@ import { UserModule } from '../user/user.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { MailerModule } from '../../externals/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     CacheManagerModule,
     NotificationModule,
     FeatureLimitModule,
+    MailerModule,
   ],
   controllers: [GatewayController],
   providers: [GatewayUseCases],

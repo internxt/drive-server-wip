@@ -253,6 +253,14 @@ export class MailerService {
     );
   }
 
+  async sendFailedPaymentEmail(userEmail: User['email']): Promise<void> {
+    await this.send(
+      userEmail,
+      this.configService.get('mailer.templates.failedPayments'),
+      {},
+    );
+  }
+
   async sendFirstUploadEmail(userEmail: User['email']): Promise<void> {
     await this.send(
       userEmail,
