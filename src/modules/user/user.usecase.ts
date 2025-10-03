@@ -89,6 +89,7 @@ import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
+import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -1950,5 +1951,44 @@ export class UserUseCases {
 
   async hasUploadedFiles(user: User) {
     return await this.fileUseCases.hasUploadedFiles(user);
+  }
+
+  async handleIncompleteCheckoutEvent(
+    user: User,
+    dto: IncompleteCheckoutDto,
+  ): Promise<{ success: boolean }> {
+    const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+      {
+        userId: user.id,
+        mailType: MailTypes.IncompleteCheckout,
+      },
+      {
+        attemptsCount: 0,
+        attemptsLimit: 5,
+        lastMailSent: new Date(),
+        userId: user.id,
+        mailType: MailTypes.IncompleteCheckout,
+      },
+    );
+
+    if (mailLimit.isLimitForTodayReached()) {
+      throw new BadRequestException(
+        'Daily limit for incomplete checkout emails reached',
+      );
+    }
+
+    await this.mailerService.sendIncompleteCheckoutEmail(
+      user.email,
+      dto.completeCheckoutUrl,
+    );
+
+    mailLimit.increaseTodayAttempts();
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.IncompleteCheckout,
+      mailLimit,
+    );
+
+    return { success: true };
   }
 }
