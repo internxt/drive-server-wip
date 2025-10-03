@@ -1,5 +1,6 @@
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
 import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { GatewayUseCases } from './gateway.usecase';
 import { GatewayController } from './gateway.controller';
@@ -287,6 +288,58 @@ describe('Gateway Controller', () => {
         payload: { maxSpaceBytes: updateUserWithTierDto.maxSpaceBytes },
         user,
         clientId: 'gateway',
+      });
+    });
+  });
+
+  describe('PATCH /workspaces', () => {
+    const ownerId = v4();
+    const tierId = v4();
+
+    it('When updating workspace with tier only, then it should update the workspace tier', async () => {
+      const updateWorkspaceTierOnlyDto: UpdateWorkspaceDto = {
+        ownerId,
+        tierId,
+      };
+      await gatewayController.updateWorkspace(updateWorkspaceTierOnlyDto);
+
+      expect(gatewayUsecases.updateWorkspace).toHaveBeenCalledWith(ownerId, {
+        tierId,
+        maxSpaceBytes: undefined,
+        numberOfSeats: undefined,
+      });
+    });
+
+    it('When updating workspace with storage and seats only, then it should call update the workspace storage and seats', async () => {
+      const updateWorkspaceStorageAndSeatsDto: UpdateWorkspaceDto = {
+        ownerId,
+        maxSpaceBytes: 5000000,
+        numberOfSeats: 10,
+      };
+      await gatewayController.updateWorkspace(
+        updateWorkspaceStorageAndSeatsDto,
+      );
+
+      expect(gatewayUsecases.updateWorkspace).toHaveBeenCalledWith(ownerId, {
+        tierId: undefined,
+        maxSpaceBytes: updateWorkspaceStorageAndSeatsDto.maxSpaceBytes,
+        numberOfSeats: updateWorkspaceStorageAndSeatsDto.numberOfSeats,
+      });
+    });
+
+    it('When updating workspace with all fields, then it should call updateWorkspace with correct parameters', async () => {
+      const updateWorkspaceAllFieldsDto: UpdateWorkspaceDto = {
+        ownerId,
+        tierId,
+        maxSpaceBytes: 8000000,
+        numberOfSeats: 15,
+      };
+      await gatewayController.updateWorkspace(updateWorkspaceAllFieldsDto);
+
+      expect(gatewayUsecases.updateWorkspace).toHaveBeenCalledWith(ownerId, {
+        tierId: updateWorkspaceAllFieldsDto.tierId,
+        maxSpaceBytes: updateWorkspaceAllFieldsDto.maxSpaceBytes,
+        numberOfSeats: updateWorkspaceAllFieldsDto.numberOfSeats,
       });
     });
   });
