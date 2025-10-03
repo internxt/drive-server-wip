@@ -10,7 +10,7 @@ import {
   AuditEntityType,
   AuditPerformerType,
 } from '../audit-logs.attributes';
-import { newUser } from '../../../../test/fixtures';
+import { newUser, newWorkspace } from '../../../../test/fixtures';
 
 describe('AuditLogInterceptor', () => {
   let interceptor: AuditLogInterceptor;
@@ -81,15 +81,18 @@ describe('AuditLogInterceptor', () => {
         action: AuditAction.WorkspaceCreated,
         entityType: AuditEntityType.Workspace,
         entityId: (_req, res) => res.workspace.id,
-        performerId: 'body.creatorId',
+        performerId: 'user.uuid',
         performerType: AuditPerformerType.System,
         metadata: ['body.name'],
       };
+      const creator = newUser();
+      const workspaceCreated = newWorkspace({ owner: creator });
+
       const request = {
-        user: { uuid: newUser() },
-        body: { creatorId: 'creator-789', name: 'My Workspace' },
+        user: creator,
+        body: { name: workspaceCreated.name },
       };
-      const response = { workspace: { id: 'workspace-456' } };
+      const response = { workspace: workspaceCreated };
       const context = createContext(request);
       const next = createCallHandler(response);
 
@@ -101,10 +104,10 @@ describe('AuditLogInterceptor', () => {
       expect(auditLogService.log).toHaveBeenCalledWith({
         action: AuditAction.WorkspaceCreated,
         entityType: AuditEntityType.Workspace,
-        entityId: 'workspace-456',
-        performerId: 'creator-789',
+        entityId: response.workspace.id,
+        performerId: request.user.uuid,
         performerType: AuditPerformerType.System,
-        metadata: { name: 'My Workspace' },
+        metadata: { name: request.body.name },
       });
     });
 
