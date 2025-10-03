@@ -14,6 +14,8 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserModule } from '../user/user.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { UsageModule } from '../usage/usage.module';
+import { MailerService } from '../../externals/mailer/mailer.service';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -27,9 +29,10 @@ import { UsageModule } from '../usage/usage.module';
     UserModule,
     NotificationModule,
     UsageModule,
+    FeatureLimitModule,
   ],
   controllers: [FileController],
-  providers: [SequelizeFileRepository, FileUseCases],
+  providers: [SequelizeFileRepository, FileUseCases, MailerService],
   exports: [FileUseCases, SequelizeModule, SequelizeFileRepository],
 })
 export class FileModule {}
