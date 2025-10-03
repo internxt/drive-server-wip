@@ -1977,25 +1977,18 @@ export class UserUseCases {
       );
     }
 
-    try {
-      await this.mailerService.sendIncompleteCheckoutEmail(
-        user.email,
-        dto.completeCheckoutUrl,
-      );
+    await this.mailerService.sendIncompleteCheckoutEmail(
+      user.email,
+      dto.completeCheckoutUrl,
+    );
 
-      mailLimit.increaseTodayAttempts();
-      await this.mailLimitRepository.updateByUserIdAndMailType(
-        user.id,
-        MailTypes.IncompleteCheckout,
-        mailLimit,
-      );
+    mailLimit.increaseTodayAttempts();
+    await this.mailLimitRepository.updateByUserIdAndMailType(
+      user.id,
+      MailTypes.IncompleteCheckout,
+      mailLimit,
+    );
 
-      return { success: true };
-    } catch (error) {
-      new Logger('[USER/INCOMPLETE_CHECKOUT]').error(
-        `Failed to send incomplete checkout email to ${user.email}: ${error.message}`,
-      );
-      throw error;
-    }
+    return { success: true };
   }
 }

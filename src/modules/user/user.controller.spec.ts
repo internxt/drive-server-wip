@@ -1572,7 +1572,7 @@ describe('User Controller', () => {
           mockUser,
           mockIncompleteCheckoutDto,
         ),
-      ).rejects.toThrow('SendGrid service unavailable');
+      ).rejects.toThrow(mockError);
     });
   });
 });

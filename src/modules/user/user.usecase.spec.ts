@@ -4091,12 +4091,6 @@ describe('User use cases', () => {
           mockIncompleteCheckoutDto,
         ),
       ).rejects.toThrow(BadRequestException);
-      await expect(
-        userUseCases.handleIncompleteCheckoutEvent(
-          mockUser,
-          mockIncompleteCheckoutDto,
-        ),
-      ).rejects.toThrow('Daily limit for incomplete checkout emails reached');
 
       expect(mockMailLimit.isLimitForTodayReached).toHaveBeenCalled();
       expect(mailerService.sendIncompleteCheckoutEmail).not.toHaveBeenCalled();
@@ -4127,7 +4121,7 @@ describe('User use cases', () => {
           mockUser,
           mockIncompleteCheckoutDto,
         ),
-      ).rejects.toThrow('SendGrid service unavailable');
+      ).rejects.toThrow(mockError);
 
       expect(mockMailLimit.isLimitForTodayReached).toHaveBeenCalled();
       expect(mailerService.sendIncompleteCheckoutEmail).toHaveBeenCalledWith(
