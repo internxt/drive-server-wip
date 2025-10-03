@@ -14,6 +14,7 @@ import {
   newRole,
   newSharing,
   newSharingRole,
+  newTier,
   newUser,
   newWorkspace,
   newWorkspaceInvite,
@@ -3926,6 +3927,61 @@ describe('WorkspacesUsecases', () => {
       );
       expect(workspaceRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ ownerId: owner.uuid }),
+      );
+    });
+
+    it('When tierId is provided, then it should update workspace user with tierId', async () => {
+      const owner = newUser();
+      const tier = newTier();
+      const networkUser = { userId: v4(), uuid: v4() };
+      const workspaceUser = newUser();
+      const newDefaultTeam = newWorkspaceTeam();
+      const createdWorkspace = newWorkspace({ owner });
+      const createdRootFolder = newFolder({ owner: workspaceUser });
+      const bucket = {
+        user: networkUser.userId,
+        encryptionKey: 'encryption-key',
+        publicPermissions: ['read', 'write'],
+        created: 'date',
+        maxFrameSize: 1000,
+        name: 'bucket-name',
+        pubkeys: ['pubkey1', 'pubkey2'],
+        transfer: 1000,
+        storage: 1000,
+        id: 'bucket-id',
+      };
+      const workspaceDataWithTier = {
+        ...workspaceData,
+        tierId: tier.id,
+      };
+
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(owner);
+      jest
+        .spyOn(networkService, 'createUser')
+        .mockResolvedValueOnce(networkUser);
+      jest.spyOn(networkService, 'setStorage').mockResolvedValueOnce(undefined);
+      jest.spyOn(userRepository, 'create').mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(networkService, 'createBucket').mockResolvedValueOnce(bucket);
+      jest
+        .spyOn(folderUseCases, 'createRootFolder')
+        .mockResolvedValueOnce(createdRootFolder);
+      jest.spyOn(userRepository, 'updateBy').mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(teamRepository, 'createTeam')
+        .mockResolvedValueOnce(newDefaultTeam);
+      jest
+        .spyOn(workspaceRepository, 'create')
+        .mockResolvedValueOnce(createdWorkspace);
+
+      await service.initiateWorkspace(
+        owner.uuid,
+        maxSpaceBytes,
+        workspaceDataWithTier,
+      );
+
+      expect(userRepository.updateBy).toHaveBeenCalledWith(
+        { uuid: workspaceUser.uuid },
+        { tierId: tier.id },
       );
     });
 

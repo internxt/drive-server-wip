@@ -107,6 +107,7 @@ export class WorkspacesUsecases {
       address?: string;
       numberOfSeats: number;
       phoneNumber?: string;
+      tierId?: string;
     },
   ) {
     const owner = await this.userRepository.findByUuid(ownerId);
@@ -135,6 +136,13 @@ export class WorkspacesUsecases {
       bridgeUser: workspaceEmail,
       mnemonic: owner.mnemonic,
     });
+
+    if (workspaceData.tierId) {
+      await this.userRepository.updateBy(
+        { uuid: workspaceUser.uuid },
+        { tierId: workspaceData.tierId },
+      );
+    }
 
     const workspaceId = v4();
 
@@ -3054,6 +3062,7 @@ export class WorkspacesUsecases {
         numberOfSeats: workspace.numberOfSeats,
         phoneNumber: workspace.phoneNumber,
         address: workspace.address,
+        tierId: workspaceNetworkUser.tierId,
       }),
     ]);
   }
