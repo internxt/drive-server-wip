@@ -743,6 +743,7 @@ describe('GatewayUseCases', () => {
           expect(featureLimitService.getTier).toHaveBeenCalledWith(
             workspaceUser.tierId,
           );
+          expect(userRepository.updateBy).not.toHaveBeenCalled();
         });
       });
 
