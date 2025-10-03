@@ -5,6 +5,8 @@ import {
   AuditLogsRepository,
   SequelizeAuditLogRepository,
 } from './audit-logs.repository';
+import { AuditLogService } from './audit-log.service';
+import { AuditLogInterceptor } from './interceptors/audit-log.interceptor';
 
 @Module({
   imports: [SequelizeModule.forFeature([AuditLogModel])],
@@ -14,7 +16,9 @@ import {
       provide: AuditLogsRepository,
       useClass: SequelizeAuditLogRepository,
     },
+    AuditLogService,
+    AuditLogInterceptor,
   ],
-  exports: [],
+  exports: [AuditLogService, AuditLogInterceptor, AuditLogsRepository],
 })
 export class AuditLogsModule {}
