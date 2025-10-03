@@ -106,6 +106,51 @@ describe('GatewayUseCases', () => {
       ).resolves.toStrictEqual({ workspace: createdWorkspace });
     });
 
+    it('When tier id is provided and valid, then it should create workspace successfully', async () => {
+      const tier = newTier();
+      const createdWorkspace = newWorkspace({ owner });
+      jest.spyOn(featureLimitService, 'getTier').mockResolvedValueOnce(tier);
+      jest
+        .spyOn(workspaceUseCases, 'initiateWorkspace')
+        .mockResolvedValueOnce({ workspace: createdWorkspace });
+
+      const initializeWorkspaceDto: InitializeWorkspaceDto = {
+        ownerId: owner.uuid,
+        maxSpaceBytes,
+        address: workspaceAddress,
+        phoneNumber: workspacePhoneNumber,
+        numberOfSeats: 20,
+        tierId: tier.id,
+      };
+
+      await expect(
+        service.initializeWorkspace(initializeWorkspaceDto),
+      ).resolves.toEqual({ workspace: createdWorkspace });
+
+      expect(featureLimitService.getTier).toHaveBeenCalledWith(tier.id);
+    });
+
+    it('When tier id is provided but invalid, then it should throw BadRequestException', async () => {
+      const invalidTierId = v4();
+      jest.spyOn(featureLimitService, 'getTier').mockResolvedValueOnce(null);
+
+      const initializeWorkspaceDto: InitializeWorkspaceDto = {
+        ownerId: owner.uuid,
+        maxSpaceBytes,
+        address: workspaceAddress,
+        phoneNumber: workspacePhoneNumber,
+        numberOfSeats: 20,
+        tierId: invalidTierId,
+      };
+
+      await expect(
+        service.initializeWorkspace(initializeWorkspaceDto),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(featureLimitService.getTier).toHaveBeenCalledWith(invalidTierId);
+      expect(workspaceUseCases.initiateWorkspace).not.toHaveBeenCalled();
+    });
+
     describe('updateWorkspaceStorage', () => {
       it('When user is not found, then it should throw', async () => {
         jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);

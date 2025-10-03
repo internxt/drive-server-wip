@@ -28,8 +28,21 @@ export class GatewayUseCases {
     Logger.log(
       `Initializing workspace with owner id: ${initializeWorkspaceDto.ownerId}`,
     );
-    const { ownerId, maxSpaceBytes, address, numberOfSeats, phoneNumber } =
-      initializeWorkspaceDto;
+    const {
+      ownerId,
+      maxSpaceBytes,
+      address,
+      numberOfSeats,
+      phoneNumber,
+      tierId,
+    } = initializeWorkspaceDto;
+
+    if (tierId) {
+      const tier = await this.featureLimitService.getTier(tierId);
+      if (!tier) {
+        throw new BadRequestException(`Tier with ID ${tierId} not found`);
+      }
+    }
 
     try {
       return await this.workspaceUseCases.initiateWorkspace(
@@ -39,6 +52,7 @@ export class GatewayUseCases {
           address,
           numberOfSeats,
           phoneNumber,
+          tierId,
         },
       );
     } catch (error) {
