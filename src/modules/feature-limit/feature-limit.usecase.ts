@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { LimitLabels } from './limits.enum';
+import { AllLimits, FeatureLimits } from './limits.enum';
 import { User } from '../user/user.domain';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
@@ -24,19 +24,19 @@ export class FeatureLimitUsecases {
   ) {}
 
   private readonly limitCheckFunctions: {
-    [K in LimitLabels]?: (params: {
+    [K in AllLimits]?: (params: {
       limit: Limit;
       data: LimitTypeMapping[K];
       user: User;
     }) => Promise<boolean>;
   } = {
-    [LimitLabels.MaxSharedItems]: this.checkMaxSharedItemsLimit.bind(this),
-    [LimitLabels.MaxSharedItemInvites]:
+    [FeatureLimits.MaxSharedItems]: this.checkMaxSharedItemsLimit.bind(this),
+    [FeatureLimits.MaxSharedItemInvites]:
       this.checkMaxInviteesPerItemLimit.bind(this),
   };
 
   async enforceLimit<T extends keyof LimitTypeMapping>(
-    limitLabel: LimitLabels,
+    limitLabel: AllLimits,
     user: User,
     data: LimitTypeMapping[T],
   ): Promise<boolean> {
@@ -139,7 +139,7 @@ export class FeatureLimitUsecases {
     return limit.shouldLimitBeEnforced(limitContext);
   }
 
-  async getLimitByLabelAndTier(label: string, tierId: string) {
+  async getLimitByLabelAndTier(label: AllLimits, tierId: string) {
     return this.limitsRepository.findLimitByLabelAndTier(tierId, label);
   }
 }
