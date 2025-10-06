@@ -1,28 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { JobName } from '../constants';
+import { Op } from 'sequelize';
+import { JobName, INACTIVE_USERS_EMAIL_CONFIG } from '../constants';
 import { SequelizeUserRepository } from '../../user/user.repository';
 import { MailerService } from '../../../externals/mailer/mailer.service';
-import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { RedisService } from '../../../externals/redis/redis.service';
 import { User } from '../../user/user.domain';
-import { PLAN_FREE_INDIVIDUAL_TIER_ID } from '../../feature-limit/limits.enum';
 import { ConfigService } from '@nestjs/config';
+import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
+import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../../feature-limit/limits.enum';
 
 @Injectable()
 export class InactiveUsersEmailTask {
   private readonly logger = new Logger(InactiveUsersEmailTask.name);
-  private readonly lockTtl = 60 * 60 * 1000; // 1 hour in milliseconds
+  private readonly lockTtl = 60 * 60 * 1000;
   private readonly lockKey = 'job:inactive-users-email';
-  private readonly batchSize = 500;
-  private readonly rateLimitDelay = 100; // 100ms between emails (10 emails/second)
+  private readonly batchSize = INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE;
+  private readonly concurrentEmailsPerBatch =
+    INACTIVE_USERS_EMAIL_CONFIG.CONCURRENT_EMAILS_PER_BATCH;
 
   constructor(
     private readonly userRepository: SequelizeUserRepository,
     private readonly mailerService: MailerService,
-    private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
+    private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   @Cron('0 2 * * *', { name: JobName.INACTIVE_USERS_EMAIL })
@@ -36,6 +38,10 @@ export class InactiveUsersEmailTask {
       return;
     }
 
+    await this.runJob();
+  }
+
+  async runJob() {
     this.logger.log('Starting inactive users email job');
 
     try {
@@ -54,15 +60,7 @@ export class InactiveUsersEmailTask {
       this.logger.log('Lock acquired! Starting job execution');
       await this.processInactiveUsers();
     } catch (error) {
-      const errorObject = {
-        timestamp: new Date().toISOString(),
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      };
-      this.logger.error(
-        `Inactive users email job failed: ${JSON.stringify(errorObject)}`,
-      );
+      this.logger.error(`Inactive users email job failed: ${error.message}`);
     } finally {
       const released = await this.redisService.releaseLock(this.lockKey);
       if (released) {
@@ -74,50 +72,69 @@ export class InactiveUsersEmailTask {
   }
 
   private async processInactiveUsers(): Promise<void> {
-    let processedCount = 0;
-    let errorCount = 0;
-    let offset = 0;
-
-    const freeTier = await this.getFreeTier();
-    if (!freeTier) {
-      this.logger.error('Free tier not found, aborting job');
-      return;
-    }
-
-    this.logger.log(`Using free tier: ${freeTier.label} (${freeTier.id})`);
-
-    while (true) {
-      const users = await this.userRepository.getInactiveUsersForEmail(
-        offset,
-        this.batchSize,
-        freeTier.id,
+    const freeIndividualTier =
+      await this.featureLimitsRepository.findTierByLabel(
+        PLAN_FREE_INDIVIDUAL_TIER_LABEL,
       );
 
+    if (!freeIndividualTier) {
+      const errorMessage = `Tier with label "${PLAN_FREE_INDIVIDUAL_TIER_LABEL}" not found`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    this.logger.log(
+      `Using tier: ${freeIndividualTier.label} (${freeIndividualTier.id})`,
+    );
+
+    let processedCount = 0;
+    let errorCount = 0;
+
+    for await (const users of this.getInactiveUsersBatches(
+      freeIndividualTier.id,
+    )) {
       if (users.length === 0) {
         this.logger.log('No more inactive users to process');
         break;
       }
 
-      this.logger.log(
-        `Processing batch of ${users.length} users (offset: ${offset})`,
-      );
+      this.logger.log(`Processing batch of ${users.length} users`);
 
-      for (const user of users) {
-        try {
-          await this.sendInactiveUserEmail(user);
-          processedCount++;
-          await this.delay(this.rateLimitDelay);
-        } catch (error) {
-          errorCount++;
-          this.logger.error(
-            `Failed to process user ${user.id}: ${error.message}`,
-          );
-        }
+      const successfulUuids: string[] = [];
+
+      for (let i = 0; i < users.length; i += this.concurrentEmailsPerBatch) {
+        const chunk = users.slice(i, i + this.concurrentEmailsPerBatch);
+
+        const results = await Promise.allSettled(
+          chunk.map((user) =>
+            this.mailerService.sendDriveInactiveUsersEmail(user.email),
+          ),
+        );
+
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            processedCount++;
+            successfulUuids.push(chunk[index].uuid);
+          } else {
+            errorCount++;
+            this.logger.error(
+              `Failed to send email to user ${chunk[index].uuid}: ${result.reason.message}`,
+            );
+          }
+        });
       }
 
-      offset += this.batchSize;
+      const batchCompletedAt = new Date();
+
+      if (successfulUuids.length > 0) {
+        await this.userRepository.bulkUpdateBy(
+          { uuid: { [Op.in]: successfulUuids } },
+          { inactiveEmailSentAt: batchCompletedAt },
+        );
+      }
+
       this.logger.log(
-        `Batch completed: ${processedCount} emails sent, ${errorCount} errors`,
+        `Batch processed: ${successfulUuids.length}/${users.length} emails sent successfully`,
       );
     }
 
@@ -126,44 +143,24 @@ export class InactiveUsersEmailTask {
     );
   }
 
-  private async getFreeTier() {
-    const tiers = await this.featureLimitsRepository.findAll();
-    return tiers.find((tier) => tier.label === PLAN_FREE_INDIVIDUAL_TIER_ID);
-  }
+  private async *getInactiveUsersBatches(
+    tierId: string,
+  ): AsyncGenerator<User[]> {
+    let offset = 0;
 
-  private async sendInactiveUserEmail(user: User): Promise<void> {
-    const now = new Date();
-    const daysInactive = Math.floor(
-      (now.getTime() - user.updatedAt.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    while (true) {
+      const users = await this.userRepository.getInactiveUsersForEmail(
+        offset,
+        this.batchSize,
+        tierId,
+      );
 
-    const loginUrl =
-      this.configService.get('clients.drive.web') ||
-      'https://drive.internxt.com';
+      if (users.length === 0) {
+        break;
+      }
 
-    const context = {
-      user_name: user.name || 'User',
-      last_login_date: user.updatedAt.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
-      days_inactive: daysInactive,
-      login_url: loginUrl,
-    };
-
-    await this.mailerService.sendDriveInactiveUsersEmail(user.email, context);
-
-    await this.userRepository.updateByUuid(user.uuid, {
-      inactiveEmailSentAt: now,
-    });
-
-    this.logger.log(
-      `Inactive user email sent to ${user.email} (${daysInactive} days inactive)`,
-    );
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+      yield users;
+      offset += this.batchSize;
+    }
   }
 }

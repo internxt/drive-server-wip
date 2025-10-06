@@ -1,0 +1,299 @@
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { Test } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Op } from 'sequelize';
+import { InactiveUsersEmailTask } from './inactive-users-email.task';
+import { SequelizeUserRepository } from '../../user/user.repository';
+import { MailerService } from '../../../externals/mailer/mailer.service';
+import { RedisService } from '../../../externals/redis/redis.service';
+import { User } from '../../user/user.domain';
+import { INACTIVE_USERS_EMAIL_CONFIG } from '../constants';
+import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
+import { Tier } from '../../feature-limit/domain/tier.domain';
+
+describe('InactiveUsersEmailTask', () => {
+  let task: InactiveUsersEmailTask;
+  let userRepository: DeepMocked<SequelizeUserRepository>;
+  let mailerService: DeepMocked<MailerService>;
+  let redisService: DeepMocked<RedisService>;
+  let configService: DeepMocked<ConfigService>;
+  let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [InactiveUsersEmailTask],
+    })
+      .setLogger(createMock<Logger>())
+      .useMocker(() => createMock())
+      .compile();
+
+    task = moduleRef.get(InactiveUsersEmailTask);
+    userRepository = moduleRef.get(SequelizeUserRepository);
+    mailerService = moduleRef.get(MailerService);
+    redisService = moduleRef.get(RedisService);
+    configService = moduleRef.get(ConfigService);
+    featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
+  });
+
+  it('When initialized, then service should be defined', () => {
+    expect(task).toBeDefined();
+  });
+
+  describe('scheduleInactiveUsersEmail', () => {
+    it('When executeCronjobs is false, then it should not execute the job', async () => {
+      configService.get.mockReturnValue(false);
+
+      const processInactiveUsersSpy = jest.spyOn(
+        task as any,
+        'processInactiveUsers',
+      );
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(configService.get).toHaveBeenCalledWith('executeCronjobs', false);
+      expect(processInactiveUsersSpy).not.toHaveBeenCalled();
+      expect(redisService.tryAcquireLock).not.toHaveBeenCalled();
+    });
+
+    it('When lock cannot be acquired, then it should not start the job', async () => {
+      configService.get.mockReturnValue(true);
+      redisService.tryAcquireLock.mockResolvedValue(false);
+
+      const processInactiveUsersSpy = jest.spyOn(
+        task as any,
+        'processInactiveUsers',
+      );
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(redisService.tryAcquireLock).toHaveBeenCalledWith(
+        'job:inactive-users-email',
+        60 * 60 * 1000,
+      );
+      expect(processInactiveUsersSpy).not.toHaveBeenCalled();
+    });
+
+    it('When job completes, then it should release lock', async () => {
+      configService.get.mockReturnValue(true);
+      redisService.tryAcquireLock.mockResolvedValue(true);
+      redisService.releaseLock.mockResolvedValue(true);
+      userRepository.getInactiveUsersForEmail.mockResolvedValue([]);
+      featureLimitsRepository.findTierByLabel.mockResolvedValue(
+        Tier.build({
+          id: 'tier-uuid-123',
+          label: 'free_individual',
+          context: 'drive',
+        }),
+      );
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(redisService.tryAcquireLock).toHaveBeenCalled();
+      expect(redisService.releaseLock).toHaveBeenCalledWith(
+        'job:inactive-users-email',
+      );
+    });
+
+    it('When error occurs, then it should still release lock in finally block', async () => {
+      const error = new Error('Database connection failed');
+      configService.get.mockReturnValue(true);
+      redisService.tryAcquireLock.mockResolvedValue(true);
+      redisService.releaseLock.mockResolvedValue(true);
+      featureLimitsRepository.findTierByLabel.mockResolvedValue(
+        Tier.build({
+          id: 'tier-uuid-123',
+          label: 'free_individual',
+          context: 'drive',
+        }),
+      );
+      userRepository.getInactiveUsersForEmail.mockRejectedValue(error);
+
+      try {
+        await task.scheduleInactiveUsersEmail();
+      } catch (e) {
+        // Expected
+      }
+
+      expect(redisService.releaseLock).toHaveBeenCalledWith(
+        'job:inactive-users-email',
+      );
+    });
+
+    it('When tier is not found, then it should throw error and release lock', async () => {
+      configService.get.mockReturnValue(true);
+      redisService.tryAcquireLock.mockResolvedValue(true);
+      redisService.releaseLock.mockResolvedValue(true);
+      featureLimitsRepository.findTierByLabel.mockResolvedValue(null);
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(featureLimitsRepository.findTierByLabel).toHaveBeenCalledWith(
+        'free_individual',
+      );
+      expect(userRepository.getInactiveUsersForEmail).not.toHaveBeenCalled();
+      expect(redisService.releaseLock).toHaveBeenCalledWith(
+        'job:inactive-users-email',
+      );
+    });
+  });
+
+  describe('processInactiveUsers', () => {
+    const mockUser = User.build({
+      id: 1,
+      uuid: 'user-uuid-123',
+      email: 'inactive@example.com',
+      name: 'John',
+      lastname: 'Doe',
+      updatedAt: new Date('2024-09-01T10:00:00Z'),
+      createdAt: new Date('2024-01-01T10:00:00Z'),
+      userId: 'user-id-123',
+      bridgeUser: 'bridge-user-123',
+      password: 'hashed',
+      mnemonic: 'mnemonic',
+      rootFolderId: 1,
+      hKey: 'hkey',
+      secret_2FA: '',
+      errorLoginCount: 0,
+      isEmailActivitySended: 0,
+      referralCode: '',
+      referrer: '',
+      syncDate: new Date(),
+      lastResend: new Date(),
+      credit: 0,
+      welcomePack: false,
+      registerCompleted: true,
+      backupsBucket: '',
+      sharedWorkspace: false,
+      avatar: '',
+      emailVerified: true,
+      username: 'johndoe',
+    });
+
+    beforeEach(() => {
+      const mockTier = Tier.build({
+        id: 'tier-uuid-123',
+        label: 'free_individual',
+        context: 'drive',
+      });
+
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'executeCronjobs') return true;
+        if (key === 'clients.drive.web') return 'https://drive.internxt.com';
+        return undefined;
+      });
+
+      redisService.tryAcquireLock.mockResolvedValue(true);
+      redisService.releaseLock.mockResolvedValue(true);
+      featureLimitsRepository.findTierByLabel.mockResolvedValue(mockTier);
+    });
+
+    it('When no inactive users exist, then it should complete without errors', async () => {
+      userRepository.getInactiveUsersForEmail.mockResolvedValue([]);
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledWith(
+        0,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+        'tier-uuid-123',
+      );
+      expect(mailerService.sendDriveInactiveUsersEmail).not.toHaveBeenCalled();
+      expect(userRepository.bulkUpdateBy).not.toHaveBeenCalled();
+    });
+
+    it('When inactive users exist, then it should send emails and bulk update timestamps', async () => {
+      userRepository.getInactiveUsersForEmail
+        .mockResolvedValueOnce([mockUser])
+        .mockResolvedValueOnce([]);
+
+      mailerService.sendDriveInactiveUsersEmail.mockResolvedValue();
+      userRepository.bulkUpdateBy.mockResolvedValue();
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledWith(
+        'inactive@example.com',
+      );
+
+      expect(userRepository.bulkUpdateBy).toHaveBeenCalledWith(
+        { uuid: { [Op.in]: ['user-uuid-123'] } },
+        { inactiveEmailSentAt: expect.any(Date) },
+      );
+    });
+
+    it('When multiple batches exist, then it should process all with correct offset', async () => {
+      const user1 = User.build({ ...mockUser, uuid: 'uuid-1' });
+      const user2 = User.build({ ...mockUser, uuid: 'uuid-2' });
+      const batch1 = Array(INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE).fill(user1);
+      const batch2 = Array(300).fill(user2);
+
+      userRepository.getInactiveUsersForEmail
+        .mockResolvedValueOnce(batch1)
+        .mockResolvedValueOnce(batch2)
+        .mockResolvedValueOnce([]);
+
+      mailerService.sendDriveInactiveUsersEmail.mockResolvedValue();
+      userRepository.bulkUpdateBy.mockResolvedValue();
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledTimes(3);
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
+        1,
+        0,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+        'tier-uuid-123',
+      );
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
+        2,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+        'tier-uuid-123',
+      );
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
+        3,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE * 2,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+        'tier-uuid-123',
+      );
+      expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledTimes(
+        800,
+      );
+      expect(userRepository.bulkUpdateBy).toHaveBeenCalledTimes(2);
+    });
+
+    it('When email fails for one user, then it should continue with next user and only update successful ones', async () => {
+      const user1 = User.build({
+        ...mockUser,
+        email: 'user1@example.com',
+        uuid: 'user-uuid-1',
+      });
+      const user2 = User.build({
+        ...mockUser,
+        email: 'user2@example.com',
+        uuid: 'user-uuid-2',
+      });
+
+      userRepository.getInactiveUsersForEmail
+        .mockResolvedValueOnce([user1, user2])
+        .mockResolvedValueOnce([]);
+
+      mailerService.sendDriveInactiveUsersEmail
+        .mockRejectedValueOnce(new Error('SendGrid API failed'))
+        .mockResolvedValueOnce();
+
+      userRepository.bulkUpdateBy.mockResolvedValue();
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledTimes(
+        2,
+      );
+      expect(userRepository.bulkUpdateBy).toHaveBeenCalledWith(
+        { uuid: { [Op.in]: ['user-uuid-2'] } },
+        { inactiveEmailSentAt: expect.any(Date) },
+      );
+    });
+  });
+});

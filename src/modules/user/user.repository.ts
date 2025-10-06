@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOrCreateOptions, Transaction } from 'sequelize/types';
+import { FindOrCreateOptions, Op, Transaction, WhereOptions } from 'sequelize';
 
 import { Folder } from '../folder/folder.domain';
 
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
-import { Op } from 'sequelize';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 
@@ -46,7 +45,7 @@ export interface UserRepository {
   getInactiveUsersForEmail(
     offset: number,
     limit: number,
-    freeTierId: string,
+    tierId: string,
   ): Promise<User[]>;
 }
 
@@ -182,6 +181,13 @@ export class SequelizeUserRepository implements UserRepository {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
+  async bulkUpdateBy(
+    where: WhereOptions<UserAttributes>,
+    update: Partial<User>,
+  ): Promise<void> {
+    await this.modelUser.update(update, { where });
+  }
+
   async deleteBy(where: Partial<User>): Promise<void> {
     await this.modelUser.destroy({ where });
   }
@@ -286,7 +292,7 @@ export class SequelizeUserRepository implements UserRepository {
   async getInactiveUsersForEmail(
     offset: number,
     limit: number,
-    freeTierId: string,
+    tierId: string,
   ): Promise<User[]> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -296,7 +302,7 @@ export class SequelizeUserRepository implements UserRepository {
 
     const users = await this.modelUser.findAll({
       where: {
-        tierId: freeTierId,
+        tierId,
         emailVerified: true,
         updatedAt: { [Op.lt]: thirtyDaysAgo },
         [Op.or]: [

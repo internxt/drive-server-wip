@@ -10,8 +10,8 @@ import { JobExecutionModel } from './models/job-execution.model';
 import { RetroActiveDeleteItemsCleanupTask } from './tasks/retroactive-items-cleanup.task';
 import { RedisService } from '../../externals/redis/redis.service';
 import { InactiveUsersEmailTask } from './tasks/inactive-users-email.task';
-import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { MailerModule } from '../../externals/mailer/mailer.module';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -20,8 +20,8 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
     FileModule,
     FolderModule,
     UserModule,
-    FeatureLimitModule,
     MailerModule,
+    FeatureLimitModule,
   ],
   providers: [
     DeletedItemsCleanupTask,

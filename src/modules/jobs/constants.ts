@@ -8,3 +8,8 @@ export enum JobStatus {
   FAILED = 'failed',
   COMPLETED = 'completed',
 }
+
+export const INACTIVE_USERS_EMAIL_CONFIG = {
+  BATCH_SIZE: 500,
+  CONCURRENT_EMAILS_PER_BATCH: 50,
+} as const;
