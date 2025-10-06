@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsUUID } from 'class-validator';
 
 export class InitializeWorkspaceDto {
   @ApiProperty({
@@ -8,6 +8,15 @@ export class InitializeWorkspaceDto {
   })
   @IsNotEmpty()
   ownerId: string;
+
+  @ApiProperty({
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    description: 'Tier ID for the workspace',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID()
+  tierId?: string;
 
   @ApiProperty({
     example: 'Address from billing',
