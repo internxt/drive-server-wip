@@ -12,6 +12,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { InactiveUsersEmailTask } from './tasks/inactive-users-email.task';
 import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { SecurityModule } from '../security/security.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     UserModule,
     MailerModule,
     FeatureLimitModule,
+    SecurityModule,
   ],
   providers: [
     DeletedItemsCleanupTask,

@@ -9,6 +9,8 @@ import { User } from '../../user/user.domain';
 import { ConfigService } from '@nestjs/config';
 import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../../feature-limit/limits.enum';
+import { SequelizeMailLimitRepository } from '../../security/mail-limit/mail-limit.repository';
+import { MailTypes } from '../../security/mail-limit/mailTypes';
 
 @Injectable()
 export class InactiveUsersEmailTask {
@@ -25,6 +27,7 @@ export class InactiveUsersEmailTask {
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
+    private readonly mailLimitRepository: SequelizeMailLimitRepository,
   ) {}
 
   @Cron('0 2 * * *', { name: JobName.INACTIVE_USERS_EMAIL })
@@ -100,7 +103,7 @@ export class InactiveUsersEmailTask {
 
       this.logger.log(`Processing batch of ${users.length} users`);
 
-      const successfulUuids: string[] = [];
+      const successfulUserIds: number[] = [];
 
       for (let i = 0; i < users.length; i += this.concurrentEmailsPerBatch) {
         const chunk = users.slice(i, i + this.concurrentEmailsPerBatch);
@@ -114,7 +117,7 @@ export class InactiveUsersEmailTask {
         results.forEach((result, index) => {
           if (result.status === 'fulfilled') {
             processedCount++;
-            successfulUuids.push(chunk[index].uuid);
+            successfulUserIds.push(chunk[index].id);
           } else {
             errorCount++;
             this.logger.error(
@@ -124,17 +127,25 @@ export class InactiveUsersEmailTask {
         });
       }
 
-      const batchCompletedAt = new Date();
-
-      if (successfulUuids.length > 0) {
-        await this.userRepository.bulkUpdateBy(
-          { uuid: { [Op.in]: successfulUuids } },
-          { inactiveEmailSentAt: batchCompletedAt },
+      if (successfulUserIds.length > 0) {
+        await Promise.all(
+          successfulUserIds.map((userId) =>
+            this.mailLimitRepository.findOrCreate(
+              { userId, mailType: MailTypes.InactiveUsers },
+              {
+                userId,
+                mailType: MailTypes.InactiveUsers,
+                attemptsCount: 1,
+                attemptsLimit: 1,
+                lastMailSent: new Date(),
+              },
+            ),
+          ),
         );
       }
 
       this.logger.log(
-        `Batch processed: ${successfulUuids.length}/${users.length} emails sent successfully`,
+        `Batch processed: ${successfulUserIds.length}/${users.length} emails sent successfully`,
       );
     }
 
@@ -148,11 +159,18 @@ export class InactiveUsersEmailTask {
   ): AsyncGenerator<User[]> {
     let offset = 0;
 
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const excludedDomains = ['@inxt.com', '@internxt.com'];
+
     while (true) {
       const users = await this.userRepository.getInactiveUsersForEmail(
         offset,
         this.batchSize,
         tierId,
+        thirtyDaysAgo,
+        excludedDomains,
       );
 
       if (users.length === 0) {

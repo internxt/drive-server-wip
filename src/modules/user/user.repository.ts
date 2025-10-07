@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOrCreateOptions, Op, Transaction, WhereOptions } from 'sequelize';
+import { FindOrCreateOptions, Op, Transaction } from 'sequelize';
 
 import { Folder } from '../folder/folder.domain';
 
@@ -46,6 +46,8 @@ export interface UserRepository {
     offset: number,
     limit: number,
     tierId: string,
+    inactiveSince: Date,
+    excludeEmailPatterns: string[],
   ): Promise<User[]>;
 }
 
@@ -181,13 +183,6 @@ export class SequelizeUserRepository implements UserRepository {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
-  async bulkUpdateBy(
-    where: WhereOptions<UserAttributes>,
-    update: Partial<User>,
-  ): Promise<void> {
-    await this.modelUser.update(update, { where });
-  }
-
   async deleteBy(where: Partial<User>): Promise<void> {
     await this.modelUser.destroy({ where });
   }
@@ -293,22 +288,25 @@ export class SequelizeUserRepository implements UserRepository {
     offset: number,
     limit: number,
     tierId: string,
+    inactiveSince: Date,
+    excludeEmailPatterns: string[],
   ): Promise<User[]> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const emailConditions = excludeEmailPatterns.map((pattern) => ({
+      [Op.notLike]: `%${pattern}`,
+    }));
 
     const users = await this.modelUser.findAll({
       where: {
         tierId,
         emailVerified: true,
-        updatedAt: { [Op.lt]: thirtyDaysAgo },
-        [Op.or]: [
-          { inactiveEmailSentAt: null },
-          { inactiveEmailSentAt: { [Op.lt]: sixtyDaysAgo } },
-        ],
+        updatedAt: { [Op.lt]: inactiveSince },
+        email: { [Op.and]: emailConditions },
+        id: {
+          [Op.notIn]: this.modelUser.sequelize.literal(`(
+            SELECT user_id FROM mail_limits
+            WHERE mail_type = 'inactive_users'
+          )`),
+        },
       },
       order: [['updatedAt', 'ASC']],
       limit,

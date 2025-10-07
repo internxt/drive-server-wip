@@ -26,7 +26,6 @@ export interface UserAttributes {
   sharedWorkspace: boolean;
   avatar: string;
   lastPasswordChangedAt?: Date;
-  inactiveEmailSentAt?: Date;
   tierId?: string;
   emailVerified: boolean;
   updatedAt?: Date;

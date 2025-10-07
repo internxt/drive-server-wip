@@ -125,10 +125,6 @@ export class UserModel extends Model implements UserAttributes {
 
   @AllowNull
   @Column
-  inactiveEmailSentAt: Date;
-
-  @AllowNull
-  @Column
   updatedAt: Date;
 
   @AllowNull

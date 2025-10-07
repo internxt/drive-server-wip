@@ -11,6 +11,8 @@ import { User } from '../../user/user.domain';
 import { INACTIVE_USERS_EMAIL_CONFIG } from '../constants';
 import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { Tier } from '../../feature-limit/domain/tier.domain';
+import { SequelizeMailLimitRepository } from '../../security/mail-limit/mail-limit.repository';
+import { MailTypes } from '../../security/mail-limit/mailTypes';
 
 describe('InactiveUsersEmailTask', () => {
   let task: InactiveUsersEmailTask;
@@ -19,6 +21,7 @@ describe('InactiveUsersEmailTask', () => {
   let redisService: DeepMocked<RedisService>;
   let configService: DeepMocked<ConfigService>;
   let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
+  let mailLimitRepository: DeepMocked<SequelizeMailLimitRepository>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -34,6 +37,7 @@ describe('InactiveUsersEmailTask', () => {
     redisService = moduleRef.get(RedisService);
     configService = moduleRef.get(ConfigService);
     featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
+    mailLimitRepository = moduleRef.get(SequelizeMailLimitRepository);
   });
 
   it('When initialized, then service should be defined', () => {
@@ -109,11 +113,7 @@ describe('InactiveUsersEmailTask', () => {
       );
       userRepository.getInactiveUsersForEmail.mockRejectedValue(error);
 
-      try {
-        await task.scheduleInactiveUsersEmail();
-      } catch (e) {
-        // Expected
-      }
+      await task.scheduleInactiveUsersEmail();
 
       expect(redisService.releaseLock).toHaveBeenCalledWith(
         'job:inactive-users-email',
@@ -197,18 +197,20 @@ describe('InactiveUsersEmailTask', () => {
         0,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
         'tier-uuid-123',
+        expect.any(Date),
+        ['@inxt.com', '@internxt.com'],
       );
       expect(mailerService.sendDriveInactiveUsersEmail).not.toHaveBeenCalled();
-      expect(userRepository.bulkUpdateBy).not.toHaveBeenCalled();
+      expect(mailLimitRepository.findOrCreate).not.toHaveBeenCalled();
     });
 
-    it('When inactive users exist, then it should send emails and bulk update timestamps', async () => {
+    it('When inactive users exist, then it should send emails and mark as sent', async () => {
       userRepository.getInactiveUsersForEmail
         .mockResolvedValueOnce([mockUser])
         .mockResolvedValueOnce([]);
 
       mailerService.sendDriveInactiveUsersEmail.mockResolvedValue();
-      userRepository.bulkUpdateBy.mockResolvedValue();
+      mailLimitRepository.findOrCreate.mockResolvedValue([null, true]);
 
       await task.scheduleInactiveUsersEmail();
 
@@ -216,9 +218,15 @@ describe('InactiveUsersEmailTask', () => {
         'inactive@example.com',
       );
 
-      expect(userRepository.bulkUpdateBy).toHaveBeenCalledWith(
-        { uuid: { [Op.in]: ['user-uuid-123'] } },
-        { inactiveEmailSentAt: expect.any(Date) },
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledWith(
+        { userId: mockUser.id, mailType: MailTypes.InactiveUsers },
+        {
+          userId: mockUser.id,
+          mailType: MailTypes.InactiveUsers,
+          attemptsCount: 1,
+          attemptsLimit: 1,
+          lastMailSent: expect.any(Date),
+        },
       );
     });
 
@@ -234,7 +242,7 @@ describe('InactiveUsersEmailTask', () => {
         .mockResolvedValueOnce([]);
 
       mailerService.sendDriveInactiveUsersEmail.mockResolvedValue();
-      userRepository.bulkUpdateBy.mockResolvedValue();
+      mailLimitRepository.findOrCreate.mockResolvedValue([null, true]);
 
       await task.scheduleInactiveUsersEmail();
 
@@ -244,23 +252,29 @@ describe('InactiveUsersEmailTask', () => {
         0,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
         'tier-uuid-123',
+        expect.any(Date),
+        ['@inxt.com', '@internxt.com'],
       );
       expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
         2,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
         'tier-uuid-123',
+        expect.any(Date),
+        ['@inxt.com', '@internxt.com'],
       );
       expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
         3,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE * 2,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
         'tier-uuid-123',
+        expect.any(Date),
+        ['@inxt.com', '@internxt.com'],
       );
       expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledTimes(
         800,
       );
-      expect(userRepository.bulkUpdateBy).toHaveBeenCalledTimes(2);
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledTimes(800);
     });
 
     it('When email fails for one user, then it should continue with next user and only update successful ones', async () => {
@@ -283,16 +297,37 @@ describe('InactiveUsersEmailTask', () => {
         .mockRejectedValueOnce(new Error('SendGrid API failed'))
         .mockResolvedValueOnce();
 
-      userRepository.bulkUpdateBy.mockResolvedValue();
+      mailLimitRepository.findOrCreate.mockResolvedValue([null, true]);
 
       await task.scheduleInactiveUsersEmail();
 
       expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledTimes(
         2,
       );
-      expect(userRepository.bulkUpdateBy).toHaveBeenCalledWith(
-        { uuid: { [Op.in]: ['user-uuid-2'] } },
-        { inactiveEmailSentAt: expect.any(Date) },
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledTimes(1);
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledWith(
+        { userId: user2.id, mailType: MailTypes.InactiveUsers },
+        {
+          userId: user2.id,
+          mailType: MailTypes.InactiveUsers,
+          attemptsCount: 1,
+          attemptsLimit: 1,
+          lastMailSent: expect.any(Date),
+        },
+      );
+    });
+
+    it('When checking inactive users, then it should exclude internal emails (@inxt.com and @internxt.com)', async () => {
+      userRepository.getInactiveUsersForEmail.mockResolvedValue([]);
+
+      await task.scheduleInactiveUsersEmail();
+
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledWith(
+        0,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+        'tier-uuid-123',
+        expect.any(Date),
+        ['@inxt.com', '@internxt.com'],
       );
     });
   });

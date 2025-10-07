@@ -27,7 +27,6 @@ export class User implements UserAttributes {
   sharedWorkspace: boolean;
   avatar: string;
   lastPasswordChangedAt: Date;
-  inactiveEmailSentAt: Date;
   tierId: string;
   emailVerified: boolean;
   updatedAt: Date;
@@ -60,7 +59,6 @@ export class User implements UserAttributes {
     sharedWorkspace,
     avatar,
     lastPasswordChangedAt,
-    inactiveEmailSentAt,
     tierId,
     emailVerified,
     updatedAt,
@@ -92,7 +90,6 @@ export class User implements UserAttributes {
     this.sharedWorkspace = sharedWorkspace;
     this.avatar = avatar;
     this.lastPasswordChangedAt = lastPasswordChangedAt;
-    this.inactiveEmailSentAt = inactiveEmailSentAt;
     this.tierId = tierId;
     this.emailVerified = emailVerified;
     this.updatedAt = updatedAt;
