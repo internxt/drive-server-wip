@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
-import { LimitLabels } from './limits.enum';
+import { PlatformAccessLimits } from './limits.enum';
 import { PlatformName } from '../../common/constants';
 
 @Injectable()
@@ -12,8 +12,8 @@ export class FeatureLimitService {
   ) {}
 
   async canUserAccessPlatform(tierId: string, platform: string) {
-    const platformLimitLabelsMap: Record<PlatformName, LimitLabels> = {
-      [PlatformName.CLI]: LimitLabels.CliAccess,
+    const platformLimitLabelsMap: Record<PlatformName, PlatformAccessLimits> = {
+      [PlatformName.CLI]: PlatformAccessLimits.CliAccess,
     };
 
     const limit = await this.limitsRepository.findLimitByLabelAndTier(

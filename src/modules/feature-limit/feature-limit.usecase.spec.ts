@@ -4,7 +4,7 @@ import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { newFeatureLimit, newUser } from '../../../test/fixtures';
-import { LimitLabels, LimitTypes } from './limits.enum';
+import { AllLimits, LimitTypes } from './limits.enum';
 import { Sharing } from '../sharing/sharing.domain';
 import { InternalServerErrorException } from '@nestjs/common';
 
@@ -34,7 +34,7 @@ describe('FeatureLimitUsecases', () => {
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
 
       await expect(
-        service.enforceLimit('' as LimitLabels, user, {}),
+        service.enforceLimit('' as AllLimits, user, {}),
       ).rejects.toThrow(PaymentRequiredException);
     });
 
@@ -47,7 +47,7 @@ describe('FeatureLimitUsecases', () => {
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
 
       const enforceLimit = await service.enforceLimit(
-        '' as LimitLabels,
+        '' as AllLimits,
         user,
         {},
       );
@@ -65,7 +65,7 @@ describe('FeatureLimitUsecases', () => {
       jest.spyOn(service, 'checkCounterLimit').mockResolvedValueOnce(true);
 
       await expect(
-        service.enforceLimit('' as LimitLabels, user, {}),
+        service.enforceLimit('' as AllLimits, user, {}),
       ).rejects.toThrow(PaymentRequiredException);
     });
 
@@ -79,7 +79,7 @@ describe('FeatureLimitUsecases', () => {
       jest.spyOn(service, 'checkCounterLimit').mockResolvedValueOnce(false);
 
       const enforceLimit = await service.enforceLimit(
-        '' as LimitLabels,
+        '' as AllLimits,
         user,
         {},
       );
@@ -222,7 +222,7 @@ describe('FeatureLimitUsecases', () => {
 
     it('When checkfunction is not defined, then it should throw', async () => {
       const limit = newFeatureLimit({
-        label: 'notExistentLabel' as LimitLabels,
+        label: 'notExistentLabel' as AllLimits,
         type: LimitTypes.Counter,
         value: '3',
       });
@@ -240,7 +240,7 @@ describe('FeatureLimitUsecases', () => {
 
     it('When checkfunction is defined, then it should be called with passed data', async () => {
       const limit = newFeatureLimit({
-        label: 'limitLabel' as LimitLabels,
+        label: 'limitLabel' as AllLimits,
         type: LimitTypes.Counter,
         value: '3',
       });
