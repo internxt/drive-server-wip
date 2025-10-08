@@ -284,8 +284,8 @@ export class AuthController {
 
       const canUserAccess =
         await this.featureLimitService.canUserAccessPlatform(
-          result.user.tierId,
           PlatformName.CLI,
+          result.user.uuid,
         );
 
       if (!canUserAccess)

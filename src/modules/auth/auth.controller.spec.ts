@@ -383,8 +383,8 @@ describe('AuthController', () => {
         platform: PlatformName.CLI,
       });
       expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
-        mockUser.tierId,
         PlatformName.CLI,
+        mockUser.uuid,
       );
       expect(result).toEqual(mockLoginResult);
     });
@@ -416,8 +416,8 @@ describe('AuthController', () => {
       ).rejects.toThrow(PaymentRequiredException);
 
       expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
-        mockUser.tierId,
         PlatformName.CLI,
+        mockUser.uuid,
       );
     });
 
