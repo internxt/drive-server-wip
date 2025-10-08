@@ -134,7 +134,7 @@ describe('SequelizeUserRepository', () => {
 
       expect(userModel.findAll).toHaveBeenCalledWith({
         where: { uuid: { [Op.in]: uuids } },
-        attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+        attributes: ['uuid', 'email', 'name', 'lastname', 'avatar', 'tierId'],
       });
       expect(result).toHaveLength(3);
       expect(result[0]).toBeInstanceOf(User);
@@ -149,7 +149,7 @@ describe('SequelizeUserRepository', () => {
 
       expect(userModel.findAll).toHaveBeenCalledWith({
         where: { uuid: { [Op.in]: uuids } },
-        attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+        attributes: ['uuid', 'email', 'name', 'lastname', 'avatar', 'tierId'],
       });
       expect(result).toEqual([]);
     });
