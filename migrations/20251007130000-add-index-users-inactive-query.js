@@ -1,11 +1,11 @@
 'use strict';
 
-const indexName = 'idx_users_inactive_query';
+const indexName = 'idx_users_updated_at';
 
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.sequelize.query(
-      `CREATE INDEX CONCURRENTLY IF NOT EXISTS ${indexName} ON users (tier_id, email_verified, updated_at)`,
+      `CREATE INDEX CONCURRENTLY IF NOT EXISTS ${indexName} ON users (updated_at)`,
     );
   },
 
