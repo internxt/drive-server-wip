@@ -17,6 +17,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AuthUsecases } from './auth.usecase';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     forwardRef(() => WorkspacesModule),
     CacheManagerModule,
     FeatureLimitModule,
+    AuditLogsModule,
   ],
   providers: [
     CaptchaService,
