@@ -8,6 +8,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FolderModule } from '../folder/folder.module';
+import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FolderModule } from '../folder/folder.module';
     FeatureLimitModule,
     FolderModule,
     MailerModule,
+    AuditLogsModule,
   ],
   controllers: [GatewayController],
   providers: [GatewayUseCases],

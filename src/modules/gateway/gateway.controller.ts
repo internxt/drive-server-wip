@@ -34,6 +34,12 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { FailedPaymentDto } from './dto/failed-payment.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { GetUserCredentialsDto } from './dto/get-user-credentials.dto';
+import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditPerformerType,
+} from '../../common/audit-logs/audit-logs.attributes';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -53,6 +59,18 @@ export class GatewayController {
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
   @ApiOkResponse({ description: 'Returns the workspace created' })
+  @AuditLog({
+    action: AuditAction.WorkspaceCreated,
+    entityType: AuditEntityType.Workspace,
+    entityId: (req, res) => res.workspace.id,
+    performerId: 'body.ownerId',
+    performerType: AuditPerformerType.Gateway,
+    metadata: (req) => ({
+      maxSpaceBytes: req.body.maxSpaceBytes,
+      numberOfSeats: req.body.numberOfSeats,
+      tierId: req.body.tierId,
+    }),
+  })
   async initializeWorkspace(
     @Body() initializeWorkspaceDto: InitializeWorkspaceDto,
   ) {
@@ -141,6 +159,13 @@ export class GatewayController {
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
   @ApiOkResponse({ description: 'Delete workspace by owner id' })
+  @AuditLog({
+    action: AuditAction.WorkspaceDeleted,
+    entityType: AuditEntityType.Workspace,
+    entityId: (req, res) => res.workspaceId,
+    performerId: 'body.ownerId',
+    performerType: AuditPerformerType.Gateway,
+  })
   async destroyWorkspace(@Body() deleteWorkspaceDto: DeleteWorkspaceDto) {
     return this.gatewayUseCases.destroyWorkspace(deleteWorkspaceDto.ownerId);
   }

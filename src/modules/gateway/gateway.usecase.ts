@@ -16,6 +16,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 @Injectable()
 export class GatewayUseCases {
@@ -31,7 +32,9 @@ export class GatewayUseCases {
     private readonly folderRepository: SequelizeFolderRepository,
   ) {}
 
-  async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
+  async initializeWorkspace(
+    initializeWorkspaceDto: InitializeWorkspaceDto,
+  ): Promise<{ workspace: Workspace }> {
     Logger.log(
       `Initializing workspace with owner id: ${initializeWorkspaceDto.ownerId}`,
     );
@@ -52,7 +55,7 @@ export class GatewayUseCases {
     }
 
     try {
-      return await this.workspaceUseCases.initiateWorkspace(
+      const result = await this.workspaceUseCases.initiateWorkspace(
         ownerId,
         maxSpaceBytes,
         {
@@ -62,6 +65,7 @@ export class GatewayUseCases {
           tierId,
         },
       );
+      return result;
     } catch (error) {
       Logger.error('[GATEWAY/WORKSPACE] Error initializing workspace', error);
       throw error;
@@ -191,7 +195,7 @@ export class GatewayUseCases {
     );
   }
 
-  async destroyWorkspace(ownerId: string): Promise<void> {
+  async destroyWorkspace(ownerId: string): Promise<{ workspaceId: string }> {
     const owner = await this.userRepository.findByUuid(ownerId);
     if (!owner) {
       throw new BadRequestException();
@@ -213,6 +217,8 @@ export class GatewayUseCases {
         clientId: 'gateway',
       });
     });
+
+    return { workspaceId: workspace.id };
   }
 
   async getUserByEmail(email: string): Promise<User> {
