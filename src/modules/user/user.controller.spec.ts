@@ -37,6 +37,12 @@ import {
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
+import { AuditLogService } from '../../common/audit-logs/audit-log.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditPerformerType,
+} from '../../common/audit-logs/audit-logs.attributes';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -78,6 +84,7 @@ describe('User Controller', () => {
   let notificationService: DeepMocked<NotificationService>;
   let keyServerUseCases: DeepMocked<KeyServerUseCases>;
   let cryptoService: DeepMocked<CryptoService>;
+  let auditLogService: DeepMocked<AuditLogService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -91,6 +98,7 @@ describe('User Controller', () => {
     notificationService = moduleRef.get(NotificationService);
     keyServerUseCases = moduleRef.get(KeyServerUseCases);
     cryptoService = moduleRef.get(CryptoService);
+    auditLogService = moduleRef.get(AuditLogService);
   });
 
   it('should be defined', () => {
@@ -1202,6 +1210,42 @@ describe('User Controller', () => {
         },
       );
     });
+
+    it('When account recovery succeeds, then the action is logged as expected', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'false',
+        },
+        mockRecoverAccountDto,
+      );
+
+      expect(auditLogService.log).toHaveBeenCalledWith({
+        entityType: AuditEntityType.User,
+        entityId: mockUser.uuid,
+        action: AuditAction.AccountRecovery,
+        performerType: AuditPerformerType.User,
+        performerId: mockUser.uuid,
+      });
+    });
+
+    it('When account reset succeeds, then the action is logged as expected', async () => {
+      await userController.recoverAccount(
+        {
+          token: validToken,
+          reset: 'true',
+        },
+        mockRecoverAccountNoKeys,
+      );
+
+      expect(auditLogService.log).toHaveBeenCalledWith({
+        entityType: AuditEntityType.User,
+        entityId: mockUser.uuid,
+        action: AuditAction.AccountReset,
+        performerType: AuditPerformerType.User,
+        performerId: mockUser.uuid,
+      });
+    });
   });
 
   describe('PUT /recover-account-v2', () => {
@@ -1393,6 +1437,42 @@ describe('User Controller', () => {
         },
         false,
       );
+    });
+
+    it('When account recovery succeeds, then the action is logged as expected', async () => {
+      await userController.recoverAccountV2(
+        {
+          token: validToken,
+          reset: 'false',
+        },
+        mockRecoverAccountDto,
+      );
+
+      expect(auditLogService.log).toHaveBeenCalledWith({
+        entityType: AuditEntityType.User,
+        entityId: mockUser.uuid,
+        action: AuditAction.AccountRecovery,
+        performerType: AuditPerformerType.User,
+        performerId: mockUser.uuid,
+      });
+    });
+
+    it('When account reset succeeds, then the action is logged as expected', async () => {
+      await userController.recoverAccountV2(
+        {
+          token: validToken,
+          reset: 'true',
+        },
+        mockRecoverAccountNoKeys,
+      );
+
+      expect(auditLogService.log).toHaveBeenCalledWith({
+        entityType: AuditEntityType.User,
+        entityId: mockUser.uuid,
+        action: AuditAction.AccountReset,
+        performerType: AuditPerformerType.User,
+        performerId: mockUser.uuid,
+      });
     });
   });
 

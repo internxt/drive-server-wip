@@ -75,6 +75,13 @@ import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditPerformerType,
+} from '../../common/audit-logs/audit-logs.attributes';
+import { AuditLogService } from '../../common/audit-logs/audit-log.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { Client } from '../../common/decorators/client.decorator';
@@ -104,6 +111,7 @@ export class UserController {
     private readonly keyServerUseCases: KeyServerUseCases,
     private readonly cryptoService: CryptoService,
     private readonly sharingService: SharingService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -555,6 +563,7 @@ export class UserController {
   @Patch('password')
   @ApiBearerAuth()
   @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
+  @AuditLog({ action: AuditAction.PasswordChanged })
   async updatePassword(
     @Body() updatePasswordDto: UpdatePasswordDto,
     @UserDecorator() user: User,
@@ -775,11 +784,12 @@ export class UserController {
     if (reset && reset !== 'true' && reset !== 'false') {
       throw new BadRequestException('Invalid value for parameter "reset"');
     }
+    const shouldResetAccount = reset === 'true';
 
     const userUuid = decodedContent.payload.uuid;
 
     try {
-      if (reset === 'true') {
+      if (shouldResetAccount) {
         await this.userUseCases.updateCredentialsOld(
           userUuid,
           {
@@ -799,6 +809,16 @@ export class UserController {
           privateKey: deprecatedRecoverAccountDto.privateKey,
         });
       }
+
+      await this.auditLogService.log({
+        entityType: AuditEntityType.User,
+        entityId: userUuid,
+        action: shouldResetAccount
+          ? AuditAction.AccountReset
+          : AuditAction.AccountRecovery,
+        performerType: AuditPerformerType.User,
+        performerId: userUuid,
+      });
     } catch (err) {
       this.logger.error(
         `[RECOVER_ACCOUNT] ERROR: ${
@@ -888,6 +908,16 @@ export class UserController {
       this.logger.log(
         `[RECOVER_ACCOUNT] Account recovered successfully for user: ${userUuid}`,
       );
+
+      await this.auditLogService.log({
+        entityType: AuditEntityType.User,
+        entityId: userUuid,
+        action: shouldResetAccount
+          ? AuditAction.AccountReset
+          : AuditAction.AccountRecovery,
+        performerType: AuditPerformerType.User,
+        performerId: userUuid,
+      });
     } catch (err) {
       this.logger.error(
         `[RECOVER_ACCOUNT] ERROR: ${
@@ -996,6 +1026,7 @@ export class UserController {
 
   @HttpCode(201)
   @Post('/attempt-change-email/:encryptedAttemptChangeEmailId/accept')
+  @AuditLog({ action: AuditAction.EmailChanged })
   async acceptAttemptChangeEmail(
     @Param('encryptedAttemptChangeEmailId') id: string,
   ) {

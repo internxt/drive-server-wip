@@ -38,6 +38,8 @@ import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attributes';
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
+import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
+import { AuditAction } from '../../common/audit-logs/audit-logs.attributes';
 import { LoginAccessResponseDto } from './dto/responses/login-access-response.dto';
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
@@ -184,6 +186,7 @@ export class AuthController {
   @ApiOkResponse({
     description: 'two-factor authentication',
   })
+  @AuditLog({ action: AuditAction.TfaEnabled })
   async putTfa(
     @UserDecorator() user: User,
     @Body() updateTfaDto: UpdateTfaDto,
@@ -212,6 +215,7 @@ export class AuthController {
   @ApiOkResponse({
     description: 'two-factor authentication',
   })
+  @AuditLog({ action: AuditAction.TfaDisabled })
   async deleteTfa(
     @UserDecorator() user: User,
     @Body() deleteTfaDto: DeleteTfaDto,
