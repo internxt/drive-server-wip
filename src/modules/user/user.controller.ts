@@ -1230,6 +1230,7 @@ export class UserController {
   @Post('/deactivation/confirm')
   @UseGuards(ThrottlerGuard)
   @ApiBearerAuth()
+  @AuditLog({ action: AuditAction.AccountDeactivated })
   @ApiOperation({
     summary: 'Confirm user deactivation',
   })
