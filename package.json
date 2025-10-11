@@ -18,7 +18,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "cross-env NODE_ENV=test jest --config ./test/jest-e2e.json",
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules cross-env NODE_ENV=test jest --config ./test/jest-e2e.json",
     "test:e2e:watch": "cross-env NODE_ENV=test jest --config ./test/jest-e2e.json --watchAll",
     "migrate": "cross-env NODE_ENV=development sequelize db:migrate",
     "migrate:undo": "cross-env NODE_ENV=development sequelize db:migrate:undo",

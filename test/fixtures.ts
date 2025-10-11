@@ -85,7 +85,7 @@ export const newFolder = (params?: NewFolderParams): Folder => {
   const randomCreatedAt = randomDataGenerator.date();
 
   const folder = Folder.build({
-    id: randomDataGenerator.natural({ min: 1 }),
+    id: randomDataGenerator.natural({ min: 1, max: 99999 }),
     uuid: v4(),
     name: randomDataGenerator.string({
       length: 20,
@@ -135,8 +135,10 @@ export const newFile = (params?: NewFilesParams): File => {
   const folder = params?.folder || newFolder();
 
   const file = File.build({
-    fileId: v4(),
-    id: randomDataGenerator.natural({ min: 1 }),
+    fileId: randomDataGenerator.hash({
+      length: constants.BUCKET_ID_LENGTH,
+    }),
+    id: randomDataGenerator.natural({ min: 1, max: 9999999 }),
     uuid: v4(),
     name: randomDataGenerator.string({
       length: 20,
