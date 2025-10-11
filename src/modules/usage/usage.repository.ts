@@ -84,6 +84,55 @@ export class SequelizeUsageRepository {
     return newUsage ? this.toDomain(newUsage) : null;
   }
 
+  async getUserUsage(userUuid: string) {
+    const query = `
+    WITH years_with_yearly AS (
+      SELECT DISTINCT date_trunc('year', period) AS year
+        FROM public.usages
+        WHERE type = 'yearly' AND user_id = :userUuid
+    ),
+    aggregated_data AS (
+        -- Aggregate yearly data where it exists
+        SELECT
+            date_trunc('year', period) AS year,
+            SUM(delta) AS total_delta
+        FROM public.usages
+        WHERE type = 'yearly' AND user_id = :userUuid
+        GROUP BY date_trunc('year', period)
+        
+        UNION ALL
+        
+        -- Aggregate monthly + daily data for years without yearly data
+        SELECT
+            date_trunc('year', period) AS year,
+            SUM(delta) AS total_delta
+        FROM public.usages
+        WHERE type IN ('monthly', 'daily')
+          AND user_id = :userUuid
+          AND date_trunc('year', period) NOT IN (SELECT year FROM years_with_yearly)
+        GROUP BY date_trunc('year', period)
+    )
+    SELECT
+        SUM(CASE WHEN year < date_trunc('year', CURRENT_DATE) THEN total_delta ELSE 0 END) AS previous_years_total,
+        SUM(CASE WHEN year = date_trunc('year', CURRENT_DATE) THEN total_delta ELSE 0 END) AS current_year_total
+    FROM aggregated_data;
+    `;
+
+    const [result] = (await this.usageModel.sequelize.query(query, {
+      replacements: { userUuid },
+    })) as unknown as [
+      {
+        previous_years_total: number;
+        current_year_total: number;
+      }[],
+    ];
+
+    return (
+      Number(result[0].previous_years_total || 0) +
+      Number(result[0].current_year_total || 0)
+    );
+  }
+
   toDomain(model: UsageModel): Usage {
     return Usage.build({
       ...model.toJSON(),
