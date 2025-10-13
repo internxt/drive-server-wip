@@ -23,6 +23,9 @@ import { ClientEnum } from '../../common/enums/platform.enum';
 import { CreateFileDto } from './dto/create-file.dto';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { GetFilesDto } from './dto/get-files.dto';
+import { FileStatusQuery } from '../../common/enums/file-status-query.enum';
+import { SortOrder } from '../../common/order.type';
 
 describe('FileController', () => {
   let fileController: FileController;
@@ -649,16 +652,17 @@ describe('FileController', () => {
         .spyOn(fileUseCases, 'getNotTrashedFilesUpdatedAfter')
         .mockResolvedValue(mockFiles);
 
-      const result = await fileController.getFiles(
-        userMocked,
-        validLimit,
-        validOffset,
-        'EXISTS' as any,
-        'test-bucket',
-        'name',
-        'ASC',
-        '2023-01-01T00:00:00.000Z',
-      );
+      const queryParams: GetFilesDto = {
+        limit: validLimit,
+        offset: validOffset,
+        status: FileStatusQuery.EXISTS,
+        bucket: 'test-bucket',
+        sort: 'name',
+        order: SortOrder.ASC,
+        updatedAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      const result = await fileController.getFiles(userMocked, queryParams);
 
       expect(result).toEqual(
         expect.arrayContaining([
@@ -684,61 +688,6 @@ describe('FileController', () => {
       );
     });
 
-    it('When getFiles is called with invalid limit (non-number), then it should throw BadRequestException', async () => {
-      await expect(
-        fileController.getFiles(
-          userMocked,
-          'invalid' as any,
-          validOffset,
-          'EXISTS' as any,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When getFiles is called with invalid offset (non-number), then it should throw BadRequestException', async () => {
-      await expect(
-        fileController.getFiles(
-          userMocked,
-          validLimit,
-          'invalid' as any,
-          'EXISTS' as any,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When getFiles is called with limit out of range (too low), then it should throw BadRequestParamOutOfRangeException', async () => {
-      await expect(
-        fileController.getFiles(
-          userMocked,
-          0, // Below lower bound
-          validOffset,
-          'EXISTS' as any,
-        ),
-      ).rejects.toThrow();
-    });
-
-    it('When getFiles is called with limit out of range (too high), then it should throw BadRequestParamOutOfRangeException', async () => {
-      await expect(
-        fileController.getFiles(
-          userMocked,
-          5001, // Above upper bound assuming default limit is 5000
-          validOffset,
-          'EXISTS' as any,
-        ),
-      ).rejects.toThrow();
-    });
-
-    it('When getFiles is called with offset out of range (too high), then it should throw BadRequestParamOutOfRangeException', async () => {
-      await expect(
-        fileController.getFiles(
-          userMocked,
-          validLimit,
-          1000001, // Above upper bound assuming default is 1000000
-          'EXISTS' as any,
-        ),
-      ).rejects.toThrow();
-    });
-
     it('When getFiles is called with ALL status, then it should handle all statuses', async () => {
       const mockFiles = [
         newFile({ attributes: { size: BigInt(100), fileId: 'file-1' } }),
@@ -748,12 +697,13 @@ describe('FileController', () => {
         .spyOn(fileUseCases, 'getAllFilesUpdatedAfter')
         .mockResolvedValue(mockFiles);
 
-      await fileController.getFiles(
-        userMocked,
-        validLimit,
-        validOffset,
-        'ALL' as any,
-      );
+      const queryParams: GetFilesDto = {
+        limit: validLimit,
+        offset: validOffset,
+        status: FileStatusQuery.ALL,
+      };
+
+      await fileController.getFiles(userMocked, queryParams);
 
       expect(fileUseCases.getAllFilesUpdatedAfter).toHaveBeenCalledWith(
         userMocked.id,
@@ -780,12 +730,13 @@ describe('FileController', () => {
         .spyOn(fileUseCases, 'getTrashedFilesUpdatedAfter')
         .mockResolvedValue(mockFiles);
 
-      await fileController.getFiles(
-        userMocked,
-        validLimit,
-        validOffset,
-        'TRASHED' as any,
-      );
+      const queryParams: GetFilesDto = {
+        limit: validLimit,
+        offset: validOffset,
+        status: FileStatusQuery.TRASHED,
+      };
+
+      await fileController.getFiles(userMocked, queryParams);
 
       expect(fileUseCases.getTrashedFilesUpdatedAfter).toHaveBeenCalledWith(
         userMocked.id,
@@ -796,25 +747,6 @@ describe('FileController', () => {
         }),
         undefined,
       );
-    });
-
-    it('When getFiles is called with invalid updatedAt format, then it should throw BadRequestException', async () => {
-      jest
-        .spyOn(fileUseCases, 'getNotTrashedFilesUpdatedAfter')
-        .mockRejectedValue(new Error('Invalid date'));
-
-      await expect(
-        fileController.getFiles(
-          userMocked,
-          validLimit,
-          validOffset,
-          'EXISTS' as any,
-          undefined,
-          undefined,
-          undefined,
-          'invalid-date',
-        ),
-      ).rejects.toThrow();
     });
   });
 });
