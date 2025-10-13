@@ -1,18 +1,30 @@
-import { IsOptional, IsEnum, IsString, IsDateString } from 'class-validator';
-import { SortableFileAttributes } from '../../file/file.domain';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsDateString,
+  ValidationArguments,
+} from 'class-validator';
+import { FileStatus, SortableFileAttributes } from '../../file/file.domain';
 import { LargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { FileStatusQuery } from '../../../common/enums/file-status-query.enum';
 import { SortOrder } from '../../../common/order.type';
+
+const allowedStatuses = [...Object.values(FileStatus), 'ALL'];
 
 export class GetWorkspaceFilesQueryDto extends LargePaginationDto {
   @IsOptional()
   @ApiProperty({
     required: false,
-    enum: FileStatusQuery,
+    enum: allowedStatuses,
   })
-  @IsEnum(FileStatusQuery)
-  status?: FileStatusQuery;
+  @IsEnum(allowedStatuses, {
+    message: (args: ValidationArguments) =>
+      `Invalid status provided: ${
+        args.value
+      }. Allowed values are: ${allowedStatuses.join(', ')}`,
+  })
+  status?: FileStatus | 'ALL';
 
   @ApiProperty({
     required: false,
