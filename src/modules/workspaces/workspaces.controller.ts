@@ -56,7 +56,7 @@ import {
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { SortableFileAttributes } from '../file/file.domain';
+import { FileStatus, SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
@@ -311,7 +311,6 @@ export class WorkspacesController {
     @Query() query: GetWorkspaceFilesQueryDto,
   ): Promise<FileDto[]> {
     const { limit, offset, status, bucket, sort, order, updatedAt } = query;
-
     const files =
       await this.workspaceUseCases.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
         user.uuid,
@@ -322,7 +321,8 @@ export class WorkspacesController {
           offset,
           sort,
           order,
-          status: status !== 'ALL' ? status : undefined,
+          status:
+            status !== 'ALL' ? (status as unknown as FileStatus) : undefined,
         },
         bucket,
       );

@@ -1,6 +1,8 @@
+import { FileStatus } from '../../modules/file/file.domain';
+
 export enum FileStatusQuery {
   ALL = 'ALL',
-  EXISTS = 'EXISTS',
-  TRASHED = 'TRASHED',
-  DELETED = 'DELETED',
+  EXISTS = FileStatus.EXISTS,
+  TRASHED = FileStatus.TRASHED,
+  DELETED = FileStatus.DELETED,
 }
