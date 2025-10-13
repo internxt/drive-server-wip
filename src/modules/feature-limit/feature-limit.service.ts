@@ -1,39 +1,88 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
+import { SequelizeUserRepository } from '../user/user.repository';
+import { User } from '../user/user.domain';
 
 @Injectable()
 export class FeatureLimitService {
-  private readonly logger = new Logger(FeatureLimitService.name);
+  private readonly logger = new Logger('FEATURE_LIMITS/SERVICE');
 
   constructor(
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
+    private readonly workspaceRepository: SequelizeWorkspaceRepository,
+    private readonly userRepository: SequelizeUserRepository,
   ) {}
 
-  async canUserAccessPlatform(tierId: string, platform: string) {
+  async canUserAccessPlatform(
+    platform: string,
+    userUuid: string,
+  ): Promise<boolean> {
     const platformLimitLabelsMap: Record<PlatformName, LimitLabels> = {
       [PlatformName.CLI]: LimitLabels.CliAccess,
     };
+    const limitLabel = platformLimitLabelsMap[platform];
 
-    const limit = await this.limitsRepository.findLimitByLabelAndTier(
-      tierId,
-      platformLimitLabelsMap[platform],
-    );
-
-    if (!limit) {
+    if (!limitLabel) {
       this.logger.warn(
         {
-          tierId,
           platform,
-          category: 'MISSING-LIMIT',
+          category: 'UNKNOWN_PLATFORM',
+          userUuid,
         },
-        'Missing platform access limit for tier, bypassing access check',
+        'Missing platform configuration bypassing access',
       );
       return true;
     }
 
-    return !limit.shouldLimitBeEnforced();
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) throw new NotFoundException('User not found');
+
+    const workspaceTiersIds = await this.getUserBussinessTiers(user.uuid);
+    const tierIds = [user.tierId, ...workspaceTiersIds];
+    const tierLimits = await this.limitsRepository.findLimitsByLabelAndTiers(
+      tierIds,
+      limitLabel,
+    );
+
+    if (!tierLimits.length) {
+      this.logger.warn(
+        {
+          platform,
+          userUuid,
+          category: 'MISSING_LIMIT',
+        },
+        'Missing platform acccess limit for this user or its workspaces, bypassing access check',
+      );
+      return true;
+    }
+
+    for (const limit of tierLimits) {
+      if (!limit.shouldLimitBeEnforced()) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async getUserBussinessTiers(userUuid: string): Promise<string[]> {
+    const workspaces = await this.workspaceRepository.findByOwner(userUuid);
+    if (workspaces.length === 0) {
+      return [];
+    }
+
+    const workspaceUserIds = workspaces.map((ws) => ws.workspaceUserId);
+    const workspaceUsers =
+      await this.userRepository.findByUuids(workspaceUserIds);
+
+    const workspaceTierIds = workspaceUsers
+      .filter((wu) => wu?.tierId)
+      .map((wu) => wu.tierId);
+
+    return workspaceTierIds;
   }
 
   async getTier(tierId: string) {

@@ -14,6 +14,8 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
+import { JWT_1DAY_EXPIRATION } from '../auth/constants';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 @Injectable()
 export class GatewayUseCases {
@@ -26,14 +28,28 @@ export class GatewayUseCases {
     private readonly featureLimitService: FeatureLimitService,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    private readonly folderRepository: SequelizeFolderRepository,
   ) {}
 
   async initializeWorkspace(initializeWorkspaceDto: InitializeWorkspaceDto) {
     Logger.log(
       `Initializing workspace with owner id: ${initializeWorkspaceDto.ownerId}`,
     );
-    const { ownerId, maxSpaceBytes, address, numberOfSeats, phoneNumber } =
-      initializeWorkspaceDto;
+    const {
+      ownerId,
+      maxSpaceBytes,
+      address,
+      numberOfSeats,
+      phoneNumber,
+      tierId,
+    } = initializeWorkspaceDto;
+
+    if (tierId) {
+      const tier = await this.featureLimitService.getTier(tierId);
+      if (!tier) {
+        throw new BadRequestException(`Tier with ID ${tierId} not found`);
+      }
+    }
 
     try {
       return await this.workspaceUseCases.initiateWorkspace(
@@ -43,6 +59,7 @@ export class GatewayUseCases {
           address,
           numberOfSeats,
           phoneNumber,
+          tierId,
         },
       );
     } catch (error) {
@@ -204,6 +221,43 @@ export class GatewayUseCases {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  async getUserCredentials(email: string) {
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const tokens = await this.userUseCases.getAuthTokens(
+      user,
+      undefined,
+      JWT_1DAY_EXPIRATION,
+    );
+
+    const folder = await this.folderRepository.findById(user.rootFolderId);
+
+    const userResponse = {
+      email: user.email,
+      userId: user.userId,
+      root_folder_id: user.rootFolderId,
+      rootFolderId: folder?.uuid,
+      name: user.name,
+      lastname: user.lastname,
+      uuid: user.uuid,
+      createdAt: user.createdAt,
+      tierId: user.tierId,
+      registerCompleted: user.registerCompleted,
+      username: user.username,
+      bridgeUser: user.bridgeUser,
+      sharedWorkspace: user.sharedWorkspace,
+      backupsBucket: user.backupsBucket,
+      emailVerified: user.emailVerified,
+      lastPasswordChangedAt: user.lastPasswordChangedAt,
+    };
+
+    return { user: userResponse, tokens };
   }
 
   async checkUserStorageExpansion(

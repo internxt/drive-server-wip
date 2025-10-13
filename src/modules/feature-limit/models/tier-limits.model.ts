@@ -1,4 +1,5 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   ForeignKey,
@@ -26,6 +27,9 @@ export class TierLimitsModel extends Model {
   @ForeignKey(() => Limitmodel)
   @Column(DataType.UUIDV4)
   limitId: string;
+
+  @BelongsTo(() => Limitmodel)
+  limit: Limitmodel;
 
   @Column
   createdAt: Date;

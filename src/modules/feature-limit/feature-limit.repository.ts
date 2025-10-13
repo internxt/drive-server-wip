@@ -6,6 +6,7 @@ import { Limit } from './domain/limit.domain';
 import { PaidPlansModel } from './models/paid-plans.model';
 import { Tier } from './domain/tier.domain';
 import { PLAN_FREE_TIER_ID } from './limits.enum';
+import { TierLimitsModel } from './models/tier-limits.model';
 
 @Injectable()
 export class SequelizeFeatureLimitsRepository {
@@ -16,6 +17,8 @@ export class SequelizeFeatureLimitsRepository {
     private readonly tierModel: typeof TierModel,
     @InjectModel(PaidPlansModel)
     private readonly paidPlansModel: typeof PaidPlansModel,
+    @InjectModel(TierLimitsModel)
+    private readonly tierLimitsModel: typeof TierLimitsModel,
   ) {}
 
   async findLimitByLabelAndTier(
@@ -64,5 +67,27 @@ export class SequelizeFeatureLimitsRepository {
   async findTierByLabel(label: string): Promise<Tier | null> {
     const tier = await this.tierModel.findOne({ where: { label } });
     return tier ? Tier.build(tier) : null;
+  }
+
+  async findLimitsByLabelAndTiers(
+    tierIds: string[],
+    label: string,
+  ): Promise<Limit[]> {
+    const tierLimits = await this.tierLimitsModel.findAll({
+      where: {
+        tierId: tierIds,
+      },
+      include: [
+        {
+          model: Limitmodel,
+          where: {
+            label,
+          },
+          required: true,
+        },
+      ],
+    });
+
+    return tierLimits.length ? tierLimits.map((tl) => new Limit(tl.limit)) : [];
   }
 }

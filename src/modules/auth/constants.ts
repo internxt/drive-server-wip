@@ -1,1 +1,2 @@
 export const JWT_7DAYS_EXPIRATION = 604800;
+export const JWT_1DAY_EXPIRATION = 86400;

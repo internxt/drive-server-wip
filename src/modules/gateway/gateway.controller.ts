@@ -33,6 +33,7 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FailedPaymentDto } from './dto/failed-payment.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { GetUserCredentialsDto } from './dto/get-user-credentials.dto';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -156,6 +157,20 @@ export class GatewayController {
   @UseGuards(GatewayGuard)
   async getUserByEmail(@Query('email') email: User['email']) {
     return this.gatewayUseCases.getUserByEmail(email);
+  }
+
+  @Get('/users/credentials')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get user credentials',
+  })
+  @ApiQuery({ name: 'email', type: String, required: true })
+  @ApiOkResponse({
+    description: 'Get user credentials',
+  })
+  @UseGuards(GatewayGuard)
+  async getUserCredentials(@Query() queryDto: GetUserCredentialsDto) {
+    return this.gatewayUseCases.getUserCredentials(queryDto.email);
   }
 
   @Get('/users/storage/stackability')

@@ -77,7 +77,7 @@ export class SequelizeUserRepository implements UserRepository {
   async findByUuids(uuids: string[]): Promise<User[]> {
     const users = await this.modelUser.findAll({
       where: { uuid: { [Op.in]: uuids } },
-      attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+      attributes: ['uuid', 'email', 'name', 'lastname', 'avatar', 'tierId'],
     });
 
     return users.map((user) => this.toDomain(user));

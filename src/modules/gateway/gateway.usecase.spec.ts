@@ -8,6 +8,7 @@ import {
   newWorkspaceTeam,
   newWorkspaceUser,
   newTier,
+  newFolder,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -19,6 +20,7 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -31,6 +33,7 @@ describe('GatewayUseCases', () => {
   let featureLimitService: FeatureLimitService;
   let mailerService: MailerService;
   let configService: ConfigService;
+  let folderRepository: SequelizeFolderRepository;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -53,6 +56,9 @@ describe('GatewayUseCases', () => {
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     mailerService = module.get<MailerService>(MailerService);
     configService = module.get<ConfigService>(ConfigService);
+    folderRepository = module.get<SequelizeFolderRepository>(
+      SequelizeFolderRepository,
+    );
   });
 
   it('should be defined', () => {
@@ -110,6 +116,51 @@ describe('GatewayUseCases', () => {
       await expect(
         service.initializeWorkspace(initializeWorkspaceDto),
       ).resolves.toStrictEqual({ workspace: createdWorkspace });
+    });
+
+    it('When tier id is provided and valid, then it should create workspace successfully', async () => {
+      const tier = newTier();
+      const createdWorkspace = newWorkspace({ owner });
+      jest.spyOn(featureLimitService, 'getTier').mockResolvedValueOnce(tier);
+      jest
+        .spyOn(workspaceUseCases, 'initiateWorkspace')
+        .mockResolvedValueOnce({ workspace: createdWorkspace });
+
+      const initializeWorkspaceDto: InitializeWorkspaceDto = {
+        ownerId: owner.uuid,
+        maxSpaceBytes,
+        address: workspaceAddress,
+        phoneNumber: workspacePhoneNumber,
+        numberOfSeats: 20,
+        tierId: tier.id,
+      };
+
+      await expect(
+        service.initializeWorkspace(initializeWorkspaceDto),
+      ).resolves.toEqual({ workspace: createdWorkspace });
+
+      expect(featureLimitService.getTier).toHaveBeenCalledWith(tier.id);
+    });
+
+    it('When tier id is provided but invalid, then it should throw BadRequestException', async () => {
+      const invalidTierId = v4();
+      jest.spyOn(featureLimitService, 'getTier').mockResolvedValueOnce(null);
+
+      const initializeWorkspaceDto: InitializeWorkspaceDto = {
+        ownerId: owner.uuid,
+        maxSpaceBytes,
+        address: workspaceAddress,
+        phoneNumber: workspacePhoneNumber,
+        numberOfSeats: 20,
+        tierId: invalidTierId,
+      };
+
+      await expect(
+        service.initializeWorkspace(initializeWorkspaceDto),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(featureLimitService.getTier).toHaveBeenCalledWith(invalidTierId);
+      expect(workspaceUseCases.initiateWorkspace).not.toHaveBeenCalled();
     });
 
     describe('updateWorkspaceStorage', () => {
@@ -331,6 +382,68 @@ describe('GatewayUseCases', () => {
         await expect(service.getUserByEmail(user.email)).resolves.toStrictEqual(
           user,
         );
+      });
+    });
+
+    describe('getUserCredentials', () => {
+      const user = newUser();
+      const folder = newFolder();
+      const mockTokens = {
+        token: 'test-token',
+        newToken: 'test-new-token',
+      };
+
+      it('When user is not found, then it should throw', async () => {
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(null);
+
+        await expect(service.getUserCredentials(user.email)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+
+      it('When folder is found, then it includes folder uuid in response', async () => {
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(user);
+        jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValue(mockTokens);
+        jest.spyOn(folderRepository, 'findById').mockResolvedValue(folder);
+
+        const result = await service.getUserCredentials(user.email);
+
+        expect(result.user.rootFolderId).toBe(folder.uuid);
+        expect(folderRepository.findById).toHaveBeenCalledWith(
+          user.rootFolderId,
+        );
+      });
+
+      it('When user is found, then it should return user and tokens', async () => {
+        const mockResponse = {
+          user: {
+            email: user.email,
+            userId: user.userId,
+            root_folder_id: user.rootFolderId,
+            rootFolderId: folder.uuid,
+            name: user.name,
+            lastname: user.lastname,
+            uuid: user.uuid,
+            createdAt: user.createdAt,
+            tierId: user.tierId,
+            registerCompleted: user.registerCompleted,
+            username: user.username,
+            bridgeUser: user.bridgeUser,
+            sharedWorkspace: user.sharedWorkspace,
+            backupsBucket: user.backupsBucket,
+            emailVerified: user.emailVerified,
+            lastPasswordChangedAt: user.lastPasswordChangedAt,
+          },
+          tokens: { token: 'test-token', newToken: 'test-new-token' },
+        };
+
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValue(user);
+        jest.spyOn(userUseCases, 'getAuthTokens').mockResolvedValue(mockTokens);
+        jest.spyOn(folderRepository, 'findById').mockResolvedValue(folder);
+
+        const result = await service.getUserCredentials(user.email);
+
+        expect(result).toEqual(mockResponse);
       });
     });
 
