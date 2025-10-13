@@ -56,7 +56,7 @@ import {
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
@@ -321,8 +321,7 @@ export class WorkspacesController {
           offset,
           sort,
           order,
-          status:
-            status !== 'ALL' ? (status as unknown as FileStatus) : undefined,
+          status: status !== 'ALL' ? status : undefined,
         },
         bucket,
       );

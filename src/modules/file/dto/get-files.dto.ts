@@ -1,49 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
-import { SortableFileAttributes } from '../file.domain';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { FileStatus, SortableFileAttributes } from '../file.domain';
 import { SortOrder } from '../../../common/order.type';
-import { FileStatusQuery } from '../../../common/enums/file-status-query.enum';
+import { RequiredLargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 
-export class GetFilesDto {
-  @ApiProperty({
-    description: 'Number of items per page',
-    example: 50,
-    required: true,
-    minimum: 1,
-    maximum: 1000,
-  })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(1000)
-  limit: number;
+const allowedStatuses = [...Object.values(FileStatus), 'ALL'];
 
-  @ApiProperty({
-    description: 'Offset for pagination',
-    example: 0,
-    required: true,
-    minimum: 0,
-  })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  offset: number;
-
+export class GetFilesDto extends RequiredLargePaginationDto {
   @ApiProperty({
     description: 'File status filter',
-    enum: FileStatusQuery,
+    enum: allowedStatuses,
     required: true,
   })
-  @IsEnum(FileStatusQuery)
-  status: FileStatusQuery;
+  @IsEnum(allowedStatuses)
+  status: FileStatus | 'ALL';
 
   @ApiProperty({
     description: 'Bucket ID filter',

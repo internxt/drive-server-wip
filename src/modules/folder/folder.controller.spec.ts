@@ -9,11 +9,7 @@ import {
   newWorkspace,
 } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
-import {
-  BadRequestInvalidOffsetException,
-  BadRequestOutOfRangeLimitException,
-  FolderController,
-} from './folder.controller';
+import { FolderController } from './folder.controller';
 import { Folder, FolderStatus } from './folder.domain';
 import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
@@ -21,6 +17,7 @@ import { User } from '../user/user.domain';
 import { FileStatus } from '../file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { SortOrder } from '../../common/order.type';
 
 const requester = newUser();
 
@@ -140,10 +137,7 @@ describe('FolderController', () => {
       const result = await folderController.getFolderContentFiles(
         userMocked,
         folder.uuid,
-        50,
-        0,
-        'id',
-        'ASC',
+        { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
       );
       expect(result).toEqual({ files: expectedSubfiles });
     });
@@ -173,105 +167,10 @@ describe('FolderController', () => {
       const result = await folderController.getFolderContentFolders(
         userMocked,
         folder.uuid,
-        50,
-        0,
-        'id',
-        'ASC',
+        { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
       );
 
       expect(result).toEqual({ folders: mappedSubfolders });
-    });
-
-    it('When get folder subfiles are requested by invalid params, then it should throw an error', () => {
-      expect(
-        folderController.getFolderContentFiles(
-          userMocked,
-          'invalidUUID',
-          50,
-          0,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(
-        folderController.getFolderContentFiles(
-          userMocked,
-          folder.uuid,
-          0,
-          0,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-
-      expect(
-        folderController.getFolderContentFiles(
-          userMocked,
-          folder.uuid,
-          51,
-          0,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-
-      expect(
-        folderController.getFolderContentFiles(
-          userMocked,
-          folder.uuid,
-          50,
-          -1,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestInvalidOffsetException);
-    });
-
-    it('When get folder subfolders are requested by invalid folder uuid, then it should throw an error', async () => {
-      expect(
-        folderController.getFolderContentFolders(
-          userMocked,
-          'invalidUUID',
-          50,
-          0,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(
-        folderController.getFolderContentFolders(
-          userMocked,
-          folder.uuid,
-          0,
-          0,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-
-      expect(
-        folderController.getFolderContentFolders(
-          userMocked,
-          folder.uuid,
-          51,
-          0,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-
-      expect(
-        folderController.getFolderContentFolders(
-          userMocked,
-          folder.uuid,
-          50,
-          -1,
-          'id',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestInvalidOffsetException);
     });
   });
 
@@ -854,7 +753,7 @@ describe('FolderController', () => {
     const limit = 20;
     const offset = 0;
 
-    it('When getting folder files with valid params, then it should return files', async () => {
+    it('When getting folder files, then it should return files', async () => {
       const mockFiles = [
         newFile({ attributes: { folderId } }),
         newFile({ attributes: { folderId } }),
@@ -864,10 +763,7 @@ describe('FolderController', () => {
       const result = await folderController.getFolderFiles(
         userMocked,
         folderId,
-        limit,
-        offset,
-        'name',
-        'ASC',
+        { limit, offset, sort: 'name', order: SortOrder.ASC },
       );
 
       expect(result).toEqual({ result: mockFiles });
@@ -876,43 +772,6 @@ describe('FolderController', () => {
         { folderId, status: FileStatus.EXISTS },
         { limit, offset, sort: [['name', 'ASC']] },
       );
-    });
-
-    it('When getting folder files with invalid limit, then it should throw an error', async () => {
-      await expect(
-        folderController.getFolderFiles(
-          userMocked,
-          folderId,
-          0,
-          offset,
-          'name',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-
-      await expect(
-        folderController.getFolderFiles(
-          userMocked,
-          folderId,
-          51,
-          offset,
-          'name',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-    });
-
-    it('When getting folder files with invalid offset, then it should throw an error', async () => {
-      await expect(
-        folderController.getFolderFiles(
-          userMocked,
-          folderId,
-          limit,
-          -1,
-          'name',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestInvalidOffsetException);
     });
   });
 
@@ -975,11 +834,8 @@ describe('FolderController', () => {
 
       const result = await folderController.getFolderFolders(
         userMocked,
-        limit,
-        offset,
         folderId,
-        'name',
-        'ASC',
+        { limit, offset, order: SortOrder.ASC, sort: 'name' },
       );
 
       expect(result).toEqual({
@@ -990,30 +846,6 @@ describe('FolderController', () => {
         { parentId: folderId, deleted: false, removed: false },
         { limit, offset, sort: [['name', 'ASC']] },
       );
-    });
-
-    it('When getting folder subfolders with invalid params, then it should throw an error', async () => {
-      await expect(
-        folderController.getFolderFolders(
-          userMocked,
-          0,
-          offset,
-          folderId,
-          'name',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestOutOfRangeLimitException);
-
-      await expect(
-        folderController.getFolderFolders(
-          userMocked,
-          limit,
-          -1,
-          folderId,
-          'name',
-          'ASC',
-        ),
-      ).rejects.toThrow(BadRequestInvalidOffsetException);
     });
   });
 

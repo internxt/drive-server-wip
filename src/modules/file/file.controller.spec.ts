@@ -24,7 +24,6 @@ import { CreateFileDto } from './dto/create-file.dto';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { GetFilesDto } from './dto/get-files.dto';
-import { FileStatusQuery } from '../../common/enums/file-status-query.enum';
 import { SortOrder } from '../../common/order.type';
 
 describe('FileController', () => {
@@ -655,7 +654,7 @@ describe('FileController', () => {
       const queryParams: GetFilesDto = {
         limit: validLimit,
         offset: validOffset,
-        status: FileStatusQuery.EXISTS,
+        status: FileStatus.EXISTS,
         bucket: 'test-bucket',
         sort: 'name',
         order: SortOrder.ASC,
@@ -700,7 +699,7 @@ describe('FileController', () => {
       const queryParams: GetFilesDto = {
         limit: validLimit,
         offset: validOffset,
-        status: FileStatusQuery.ALL,
+        status: 'ALL',
       };
 
       await fileController.getFiles(userMocked, queryParams);
@@ -733,7 +732,7 @@ describe('FileController', () => {
       const queryParams: GetFilesDto = {
         limit: validLimit,
         offset: validOffset,
-        status: FileStatusQuery.TRASHED,
+        status: FileStatus.TRASHED,
       };
 
       await fileController.getFiles(userMocked, queryParams);
