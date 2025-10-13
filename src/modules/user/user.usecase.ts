@@ -1991,4 +1991,66 @@ export class UserUseCases {
 
     return { success: true };
   }
+
+  async checkAndNotifyStorageThreshold(user: User): Promise<void> {
+    const NOTIFY_THRESHOLD = 80;
+    const COOLDOWN_DAYS = 14;
+    const MAX_EMAILS_PER_MONTH = 2;
+
+    try {
+      const [limit, { total: totalUsage }] = await Promise.all([
+        this.getSpaceLimit(user),
+        this.getUserUsage(user),
+      ]);
+      const usagePercent = (totalUsage / limit) * 100;
+
+      if (usagePercent < NOTIFY_THRESHOLD) {
+        return;
+      }
+
+      const [mailLimit] = await this.mailLimitRepository.findOrCreate(
+        {
+          userId: user.id,
+          mailType: MailTypes.FullStorage,
+        },
+        {
+          attemptsCount: 0,
+          attemptsLimit: MAX_EMAILS_PER_MONTH,
+          lastMailSent: new Date(0),
+        },
+      );
+
+      if (Time.daysSince(mailLimit.lastMailSent) < COOLDOWN_DAYS) {
+        return;
+      }
+
+      if (mailLimit.isLimitForThisMonthReached()) {
+        return;
+      }
+
+      await this.mailerService
+        .sendFullStorageEmail(user.email)
+        .catch((error) => {
+          new Logger('[MAILER/FULL_STORAGE]').error(
+            `Failed to send full storage email to ${user.email}: ${error.message}`,
+          );
+          throw error;
+        });
+
+      mailLimit.increaseMonthAttempts();
+      await this.mailLimitRepository.updateByUserIdAndMailType(
+        user.id,
+        MailTypes.FullStorage,
+        mailLimit,
+      );
+
+      new Logger('[STORAGE/THRESHOLD]').log(
+        `Storage notification sent to user ${user.uuid} (${usagePercent.toFixed(1)}% used, attempt ${mailLimit.attemptsCount}/${MAX_EMAILS_PER_MONTH} this month)`,
+      );
+    } catch (error) {
+      new Logger('[STORAGE/THRESHOLD_CHECK]').error(
+        `Error checking storage threshold for user ${user.uuid}: ${error.message}`,
+      );
+    }
+  }
 }

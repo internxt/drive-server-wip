@@ -283,4 +283,12 @@ export class MailerService {
       context,
     );
   }
+
+  async sendFullStorageEmail(userEmail: User['email']): Promise<void> {
+    await this.send(
+      userEmail,
+      this.configService.get('mailer.templates.fullStorage'),
+      {},
+    );
+  }
 }

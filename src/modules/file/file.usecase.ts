@@ -45,6 +45,7 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import { UserUseCases } from '../user/user.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -62,6 +63,8 @@ export class FileUseCases {
     private readonly usageService: UsageService,
     private readonly mailerService: MailerService,
     private readonly featureLimitService: FeatureLimitService,
+    @Inject(forwardRef(() => UserUseCases))
+    private readonly userUsecases: UserUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -293,6 +296,13 @@ export class FileUseCases {
           });
       }
     }
+
+    this.userUsecases.checkAndNotifyStorageThreshold(user).catch((error) => {
+      new Logger('[STORAGE/THRESHOLD_CHECK]').error(
+        `Failed to check storage threshold for user ${user.uuid}: ${error.message}`,
+      );
+    });
+
     return newFile;
   }
 
@@ -735,6 +745,17 @@ export class FileUseCases {
           `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
         );
       });
+
+    const oldSize = file.size;
+    const fileSizeIncreased = size > oldSize;
+
+    if (fileSizeIncreased) {
+      this.userUsecases.checkAndNotifyStorageThreshold(user).catch((error) => {
+        new Logger('[STORAGE/THRESHOLD_CHECK]').error(
+          `Failed to check storage threshold after replace for user ${user.uuid}: ${error.message}`,
+        );
+      });
+    }
 
     try {
       await this.network.deleteFile(user, bucket, oldFileId);

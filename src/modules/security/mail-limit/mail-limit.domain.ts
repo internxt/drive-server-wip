@@ -42,4 +42,18 @@ export class MailLimit implements MailLimitModelAttributes {
       : 1;
     this.lastMailSent = customSentDate ?? new Date();
   }
+
+  isLimitForThisMonthReached() {
+    return (
+      Time.isThisMonth(this.lastMailSent) &&
+      this.attemptsCount >= this.attemptsLimit
+    );
+  }
+
+  increaseMonthAttempts(customSentDate?: Date) {
+    this.attemptsCount = Time.isThisMonth(this.lastMailSent)
+      ? this.attemptsCount + 1
+      : 1;
+    this.lastMailSent = customSentDate ?? new Date();
+  }
 }
