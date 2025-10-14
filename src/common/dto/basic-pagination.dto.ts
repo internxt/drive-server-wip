@@ -33,5 +33,38 @@ export function createPaginationDto(maxLimit: number) {
   return PaginationDto;
 }
 
+export function createRequiredPaginationDto(maxLimit: number) {
+  class RequiredPaginationDto {
+    @ApiProperty({
+      description: 'Items per page',
+      example: Math.min(50, maxLimit),
+      required: true,
+      minimum: 1,
+      maximum: maxLimit,
+    })
+    @IsNumber()
+    @Type(() => Number)
+    @Min(1)
+    @Max(maxLimit)
+    limit: number;
+
+    @ApiProperty({
+      description: 'Offset for pagination',
+      example: 0,
+      required: true,
+      minimum: 0,
+    })
+    @IsNumber()
+    @Type(() => Number)
+    @Min(0)
+    offset: number;
+  }
+  return RequiredPaginationDto;
+}
+
 export class BasicPaginationDto extends createPaginationDto(50) {}
 export class LargePaginationDto extends createPaginationDto(1000) {}
+export class RequiredPaginationDto extends createRequiredPaginationDto(50) {}
+export class RequiredLargePaginationDto extends createRequiredPaginationDto(
+  1000,
+) {}
