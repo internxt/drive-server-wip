@@ -205,15 +205,14 @@ describe('InactiveUsersEmailTask', () => {
     });
 
     it('When inactive users exist, then it should send emails and mark as sent', async () => {
-      userRepository.getInactiveUsersForEmail
-        .mockResolvedValueOnce([mockUser])
-        .mockResolvedValueOnce([]);
+      userRepository.getInactiveUsersForEmail.mockResolvedValue([mockUser]);
 
       mailerService.sendDriveInactiveUsersEmail.mockResolvedValue();
       mailLimitRepository.findOrCreate.mockResolvedValue([null, true]);
 
       await task.scheduleInactiveUsersEmail();
 
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledTimes(1);
       expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledWith(
         'inactive@example.com',
       );
@@ -230,51 +229,33 @@ describe('InactiveUsersEmailTask', () => {
       );
     });
 
-    it('When multiple batches exist, then it should process all with correct offset', async () => {
-      const user1 = User.build({ ...mockUser, uuid: 'uuid-1' });
-      const user2 = User.build({ ...mockUser, uuid: 'uuid-2' });
-      const batch1 = Array(INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE).fill(user1);
-      const batch2 = Array(300).fill(user2);
+    it('When inactive users exceed the batch limit, then it should only process up to the batch limit', async () => {
+      const users = Array(INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE)
+        .fill(null)
+        .map((_, i) =>
+          User.build({ ...mockUser, uuid: `uuid-${i}`, id: i + 1 }),
+        );
 
-      userRepository.getInactiveUsersForEmail
-        .mockResolvedValueOnce(batch1)
-        .mockResolvedValueOnce(batch2)
-        .mockResolvedValueOnce([]);
-
+      userRepository.getInactiveUsersForEmail.mockResolvedValue(users);
       mailerService.sendDriveInactiveUsersEmail.mockResolvedValue();
       mailLimitRepository.findOrCreate.mockResolvedValue([null, true]);
 
       await task.scheduleInactiveUsersEmail();
 
-      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledTimes(3);
-      expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
-        1,
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledTimes(1);
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledWith(
         0,
         INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
         'tier-uuid-123',
         expect.any(Date),
         ['@inxt.com', '@internxt.com'],
       );
-      expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
-        2,
-        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
-        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
-        'tier-uuid-123',
-        expect.any(Date),
-        ['@inxt.com', '@internxt.com'],
-      );
-      expect(userRepository.getInactiveUsersForEmail).toHaveBeenNthCalledWith(
-        3,
-        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE * 2,
-        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
-        'tier-uuid-123',
-        expect.any(Date),
-        ['@inxt.com', '@internxt.com'],
-      );
       expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledTimes(
-        800,
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
       );
-      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledTimes(800);
+      expect(mailLimitRepository.findOrCreate).toHaveBeenCalledTimes(
+        INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE,
+      );
     });
 
     it('When email fails for one user, then it should continue with next user and only update successful ones', async () => {
@@ -289,9 +270,7 @@ describe('InactiveUsersEmailTask', () => {
         uuid: 'user-uuid-2',
       });
 
-      userRepository.getInactiveUsersForEmail
-        .mockResolvedValueOnce([user1, user2])
-        .mockResolvedValueOnce([]);
+      userRepository.getInactiveUsersForEmail.mockResolvedValue([user1, user2]);
 
       mailerService.sendDriveInactiveUsersEmail
         .mockRejectedValueOnce(new Error('SendGrid API failed'))
@@ -301,6 +280,7 @@ describe('InactiveUsersEmailTask', () => {
 
       await task.scheduleInactiveUsersEmail();
 
+      expect(userRepository.getInactiveUsersForEmail).toHaveBeenCalledTimes(1);
       expect(mailerService.sendDriveInactiveUsersEmail).toHaveBeenCalledTimes(
         2,
       );

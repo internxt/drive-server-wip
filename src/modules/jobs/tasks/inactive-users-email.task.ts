@@ -90,95 +90,71 @@ export class InactiveUsersEmailTask {
       `Using tier: ${freeIndividualTier.label} (${freeIndividualTier.id})`,
     );
 
-    let processedCount = 0;
-    let errorCount = 0;
-
-    for await (const users of this.getInactiveUsersBatches(
-      freeIndividualTier.id,
-    )) {
-      if (users.length === 0) {
-        this.logger.log('No more inactive users to process');
-        break;
-      }
-
-      this.logger.log(`Processing batch of ${users.length} users`);
-
-      const successfulUserIds: number[] = [];
-
-      for (let i = 0; i < users.length; i += this.concurrentEmailsPerBatch) {
-        const chunk = users.slice(i, i + this.concurrentEmailsPerBatch);
-
-        const results = await Promise.allSettled(
-          chunk.map((user) =>
-            this.mailerService.sendDriveInactiveUsersEmail(user.email),
-          ),
-        );
-
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled') {
-            processedCount++;
-            successfulUserIds.push(chunk[index].id);
-          } else {
-            errorCount++;
-            this.logger.error(
-              `Failed to send email to user ${chunk[index].uuid}: ${result.reason.message}`,
-            );
-          }
-        });
-      }
-
-      if (successfulUserIds.length > 0) {
-        await Promise.all(
-          successfulUserIds.map((userId) =>
-            this.mailLimitRepository.findOrCreate(
-              { userId, mailType: MailTypes.InactiveUsers },
-              {
-                userId,
-                mailType: MailTypes.InactiveUsers,
-                attemptsCount: 1,
-                attemptsLimit: 1,
-                lastMailSent: new Date(),
-              },
-            ),
-          ),
-        );
-      }
-
-      this.logger.log(
-        `Batch processed: ${successfulUserIds.length}/${users.length} emails sent successfully`,
-      );
-    }
-
-    this.logger.log(
-      `Inactive users email job completed: ${processedCount} total emails sent, ${errorCount} total errors`,
-    );
-  }
-
-  private async *getInactiveUsersBatches(
-    tierId: string,
-  ): AsyncGenerator<User[]> {
-    let offset = 0;
-
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const excludedDomains = ['@inxt.com', '@internxt.com'];
 
-    while (true) {
-      const users = await this.userRepository.getInactiveUsersForEmail(
-        offset,
-        this.batchSize,
-        tierId,
-        thirtyDaysAgo,
-        excludedDomains,
+    const users = await this.userRepository.getInactiveUsersForEmail(
+      0,
+      this.batchSize,
+      freeIndividualTier.id,
+      thirtyDaysAgo,
+      excludedDomains,
+    );
+
+    if (users.length === 0) {
+      this.logger.log('No inactive users to process');
+      return;
+    }
+
+    this.logger.log(`Processing ${users.length} users`);
+
+    let processedCount = 0;
+    let errorCount = 0;
+    const successfulUserIds: number[] = [];
+
+    for (let i = 0; i < users.length; i += this.concurrentEmailsPerBatch) {
+      const chunk = users.slice(i, i + this.concurrentEmailsPerBatch);
+
+      const results = await Promise.allSettled(
+        chunk.map((user) =>
+          this.mailerService.sendDriveInactiveUsersEmail(user.email),
+        ),
       );
 
-      if (users.length === 0) {
-        break;
-      }
-
-      yield users;
-      offset += this.batchSize;
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          processedCount++;
+          successfulUserIds.push(chunk[index].id);
+        } else {
+          errorCount++;
+          this.logger.error(
+            `Failed to send email to user ${chunk[index].uuid}: ${result.reason.message}`,
+          );
+        }
+      });
     }
+
+    if (successfulUserIds.length > 0) {
+      await Promise.all(
+        successfulUserIds.map((userId) =>
+          this.mailLimitRepository.findOrCreate(
+            { userId, mailType: MailTypes.InactiveUsers },
+            {
+              userId,
+              mailType: MailTypes.InactiveUsers,
+              attemptsCount: 1,
+              attemptsLimit: 1,
+              lastMailSent: new Date(),
+            },
+          ),
+        ),
+      );
+    }
+
+    this.logger.log(
+      `Inactive users email job completed: ${processedCount} emails sent successfully, ${errorCount} errors`,
+    );
   }
 }
