@@ -1026,7 +1026,13 @@ export class UserController {
 
   @HttpCode(201)
   @Post('/attempt-change-email/:encryptedAttemptChangeEmailId/accept')
-  @AuditLog({ action: AuditAction.EmailChanged })
+  @AuditLog({
+    action: AuditAction.EmailChanged,
+    metadata: (_req, res) => ({
+      oldEmail: res.newEmail,
+      newEmail: res.oldEmail,
+    }),
+  })
   async acceptAttemptChangeEmail(
     @Param('encryptedAttemptChangeEmailId') id: string,
   ) {
@@ -1230,7 +1236,10 @@ export class UserController {
   @Post('/deactivation/confirm')
   @UseGuards(ThrottlerGuard)
   @ApiBearerAuth()
-  @AuditLog({ action: AuditAction.AccountDeactivated })
+  @AuditLog({
+    action: AuditAction.AccountDeactivated,
+    metadata: (_req, res) => ({ email: res.deactivatedUser.email }),
+  })
   @ApiOperation({
     summary: 'Confirm user deactivation',
   })
@@ -1242,6 +1251,7 @@ export class UserController {
     this.logger.log(
       `[DEACTIVATION] User account deactivated successfully for user: ${deactivatedUser.uuid}, email: ${deactivatedUser.email}`,
     );
+    return { deactivatedUser };
   }
 
   @Get('/usage')
