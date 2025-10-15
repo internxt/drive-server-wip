@@ -297,12 +297,6 @@ export class FileUseCases {
       }
     }
 
-    this.userUsecases.checkAndNotifyStorageThreshold(user).catch((error) => {
-      new Logger('[STORAGE/THRESHOLD_CHECK]').error(
-        `Failed to check storage threshold for user ${user.uuid}: ${error.message}`,
-      );
-    });
-
     return newFile;
   }
 
@@ -745,17 +739,6 @@ export class FileUseCases {
           `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
         );
       });
-
-    const oldSize = file.size;
-    const fileSizeIncreased = size > oldSize;
-
-    if (fileSizeIncreased) {
-      this.userUsecases.checkAndNotifyStorageThreshold(user).catch((error) => {
-        new Logger('[STORAGE/THRESHOLD_CHECK]').error(
-          `Failed to check storage threshold after replace for user ${user.uuid}: ${error.message}`,
-        );
-      });
-    }
 
     try {
       await this.network.deleteFile(user, bucket, oldFileId);
