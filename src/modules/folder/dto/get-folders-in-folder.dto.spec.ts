@@ -45,6 +45,16 @@ describe('GetFoldersInFoldersDto', () => {
     expect(errors[0].constraints).toHaveProperty('isEnum');
   });
 
+  it('When limit is 0, then it should fail', async () => {
+    const dto = new GetFoldersInFoldersDto();
+    dto.limit = 0;
+    dto.offset = 0;
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].constraints).toHaveProperty('min');
+  });
+
   it('When limit is negative, then it should fail', async () => {
     const dto = new GetFoldersInFoldersDto();
     dto.limit = -1;

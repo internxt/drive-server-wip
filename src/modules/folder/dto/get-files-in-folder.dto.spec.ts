@@ -75,7 +75,16 @@ describe('GetFilesInFoldersDto', () => {
     expect(errors[0].constraints).toHaveProperty('max');
   });
 
-  it('When limit is in valid range, then it should pass', async () => {
+  it('When limit is at minimum valid value, then it should pass', async () => {
+    const dto = new GetFilesInFoldersDto();
+    dto.limit = 1;
+    dto.offset = 0;
+
+    const errors = await validate(dto);
+    expect(errors.length).toBe(0);
+  });
+
+  it('When limit is at maximum valid value (50), then it should pass', async () => {
     const dto = new GetFilesInFoldersDto();
     dto.limit = 50;
     dto.offset = 0;
@@ -92,5 +101,14 @@ describe('GetFilesInFoldersDto', () => {
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].constraints).toHaveProperty('min');
+  });
+
+  it('When offset is at minimum valid value, then it should pass', async () => {
+    const dto = new GetFilesInFoldersDto();
+    dto.limit = 10;
+    dto.offset = 0;
+
+    const errors = await validate(dto);
+    expect(errors.length).toBe(0);
   });
 });
