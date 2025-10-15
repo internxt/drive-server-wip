@@ -1,12 +1,7 @@
 import { User } from '../../src/modules/user/user.domain';
 import { Sign } from '../../src/middlewares/passport';
-import { generateJWT } from '../../src/lib/jwt';
 import getEnv from '../../src/config/configuration';
 
-/**
- * Generate an authentication token for a user using the Sign method
- * This creates a JWT token with all the necessary user claims
- */
 export function generateAuthToken(user: User, jwtSecret?: string): string {
   const secret = jwtSecret || getEnv().secrets.jwt;
 

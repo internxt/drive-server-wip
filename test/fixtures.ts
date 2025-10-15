@@ -191,7 +191,7 @@ export const newUser = (params?: {
   const randomEmail = randomDataGenerator.email();
 
   const user = User.build({
-    id: randomDataGenerator.natural(),
+    id: randomDataGenerator.natural({ max: 999999 }),
     userId: '',
     name: 'John',
     lastname: 'Doe',
@@ -205,7 +205,7 @@ export const newUser = (params?: {
     referralCode: v4(),
     credit: 0,
     hKey: Buffer.from(''),
-    rootFolderId: randomDataGenerator.natural(),
+    rootFolderId: randomDataGenerator.natural({ max: 999999 }),
     errorLoginCount: 0,
     isEmailActivitySended: 0,
     lastResend: randomDataGenerator.date(),
