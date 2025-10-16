@@ -1992,17 +1992,17 @@ export class UserUseCases {
     return { success: true };
   }
 
-  async checkAndNotifyStorageThreshold(user: User): Promise<void> {
+  async checkAndNotifyStorageThreshold(
+    user: User,
+    usage: { drive: number; backup: number; total: number },
+  ): Promise<void> {
     const NOTIFY_THRESHOLD = 80;
     const COOLDOWN_DAYS = 14;
     const MAX_EMAILS_PER_MONTH = 2;
 
     try {
-      const [limit, { total: totalUsage }] = await Promise.all([
-        this.getSpaceLimit(user),
-        this.getUserUsage(user),
-      ]);
-      const usagePercent = (totalUsage / limit) * 100;
+      const limit = await this.getSpaceLimit(user);
+      const usagePercent = (usage.total / limit) * 100;
 
       if (usagePercent < NOTIFY_THRESHOLD) {
         return;

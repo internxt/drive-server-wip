@@ -4140,13 +4140,11 @@ describe('User use cases', () => {
     it('When usage is below threshold, then should not send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 75 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
-      jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailLimitRepository.findOrCreate).not.toHaveBeenCalled();
       expect(mailerService.sendFullStorageEmail).not.toHaveBeenCalled();
@@ -4155,6 +4153,7 @@ describe('User use cases', () => {
     it('When usage is at threshold and first notification, then should send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 20);
 
@@ -4173,9 +4172,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, true]);
       jest
@@ -4185,7 +4181,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
@@ -4199,6 +4195,7 @@ describe('User use cases', () => {
     it('When user reaches storage threshold for first time, then should send notification immediately without cooldown', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
 
       const mockMailLimit = newMailLimit({
         userId: mockUser.id,
@@ -4214,9 +4211,6 @@ describe('User use cases', () => {
       jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
-      jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
 
       const findOrCreateSpy = jest
         .spyOn(mailLimitRepository, 'findOrCreate')
@@ -4229,7 +4223,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(findOrCreateSpy).toHaveBeenCalledWith(
         {
@@ -4254,6 +4248,7 @@ describe('User use cases', () => {
     it('When cooldown is active, then should not send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 5);
 
@@ -4267,13 +4262,10 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).not.toHaveBeenCalled();
     });
@@ -4281,6 +4273,7 @@ describe('User use cases', () => {
     it('When cooldown is exactly 14 days, then should send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 14);
 
@@ -4299,9 +4292,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
       jest
@@ -4311,7 +4301,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
@@ -4322,6 +4312,7 @@ describe('User use cases', () => {
     it('When cooldown is over 14 days, then should send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 20);
 
@@ -4340,9 +4331,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
       jest
@@ -4352,7 +4340,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
@@ -4363,6 +4351,7 @@ describe('User use cases', () => {
     it('When monthly limit is reached, then should not send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 14);
 
@@ -4380,13 +4369,10 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).not.toHaveBeenCalled();
     });
@@ -4394,6 +4380,7 @@ describe('User use cases', () => {
     it('When new month starts with previous attempts, then should reset counter and send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setMonth(lastMailSent.getMonth() - 1);
 
@@ -4412,9 +4399,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
       jest
@@ -4424,7 +4408,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
@@ -4435,6 +4419,7 @@ describe('User use cases', () => {
     it('When second email of month is allowed, then should send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 14);
 
@@ -4453,9 +4438,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
       jest
@@ -4465,7 +4447,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
@@ -4476,6 +4458,7 @@ describe('User use cases', () => {
     it('When mailer service throws error, then should not increment counter', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setDate(lastMailSent.getDate() - 14);
       const mockError = new Error('SendGrid service unavailable');
@@ -4495,16 +4478,13 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
       jest
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockRejectedValue(mockError);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
@@ -4518,6 +4498,7 @@ describe('User use cases', () => {
     it('When new month with day 1, then should reset counter automatically', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
       lastMailSent.setMonth(lastMailSent.getMonth() - 1);
       lastMailSent.setDate(28);
@@ -4537,9 +4518,6 @@ describe('User use cases', () => {
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
       jest
-        .spyOn(userUseCases, 'getUserUsage')
-        .mockResolvedValue({ drive: totalUsage, backup: 0, total: totalUsage });
-      jest
         .spyOn(mailLimitRepository, 'findOrCreate')
         .mockResolvedValue([mockMailLimit, false]);
       jest
@@ -4549,7 +4527,7 @@ describe('User use cases', () => {
         .spyOn(mailerService, 'sendFullStorageEmail')
         .mockResolvedValue(undefined);
 
-      await userUseCases.checkAndNotifyStorageThreshold(mockUser);
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
 
       expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
         mockUser.email,
