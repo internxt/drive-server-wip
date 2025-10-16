@@ -8,6 +8,7 @@ import {
 import { FileStatus, SortableFileAttributes } from '../../file/file.domain';
 import { LargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 import { ApiProperty } from '@nestjs/swagger';
+import { SortOrder } from '../../../common/order.type';
 
 const allowedStatuses = [...Object.values(FileStatus), 'ALL'];
 
@@ -38,12 +39,13 @@ export class GetWorkspaceFilesQueryDto extends LargePaginationDto {
   @IsOptional()
   sort?: SortableFileAttributes;
 
-  @IsOptional()
   @ApiProperty({
     required: false,
+    enum: SortOrder,
   })
-  @IsEnum(['ASC', 'DESC'], { message: 'Invalid order' })
-  order?: 'ASC' | 'DESC';
+  @IsOptional()
+  @IsEnum(SortOrder)
+  order?: SortOrder;
 
   @IsOptional()
   @ApiProperty({

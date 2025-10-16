@@ -28,8 +28,8 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder, SortableFolderAttributes } from './folder.domain';
-import { FileStatus, SortableFileAttributes } from '../file/file.domain';
+import { Folder } from './folder.domain';
+import { FileStatus } from '../file/file.domain';
 import { validate } from 'uuid';
 import API_LIMITS from '../../lib/http/limits';
 import { isNumber } from '../../lib/validators';
@@ -63,6 +63,8 @@ import {
 } from '../file/dto/responses/file.dto';
 import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
+import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
+import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 
 const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
 
@@ -195,27 +197,8 @@ export class FolderController {
   async getFolderContentFiles(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('sort') sort?: SortableFileAttributes,
-    @Query('order') order?: 'ASC' | 'DESC',
+    @Query() query: GetFilesInFoldersDto,
   ): Promise<FilesDto> {
-    if (!validate(folderUuid)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
     const files = await this.fileUseCases.getFiles(
       user.id,
       {
@@ -223,9 +206,9 @@ export class FolderController {
         status: FileStatus.EXISTS,
       },
       {
-        limit,
-        offset,
-        sort: sort && order && [[sort, order]],
+        limit: query.limit,
+        offset: query.offset,
+        sort: query.sort && query.order && [[query.sort, query.order]],
       },
     );
 
@@ -233,37 +216,15 @@ export class FolderController {
   }
 
   @Get(':id/files')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: ResultFilesDto })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
   async getFolderFiles(
     @UserDecorator() user: User,
     @Param('id', ParseIntPipe) folderId: number,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('sort') sort?: SortableFileAttributes,
-    @Query('order') order?: 'ASC' | 'DESC',
+    @Query() query: GetFilesInFoldersDto,
   ): Promise<ResultFilesDto> {
-    if (folderId < 1 || !isNumber(folderId)) {
-      throw new BadRequestWrongFolderIdException();
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
-    if (order && order !== 'ASC' && order !== 'DESC') {
-      throw new BadRequestException('Invalid order parameter');
-    }
-
     const files = await this.fileUseCases.getFiles(
       user.id,
       {
@@ -271,9 +232,9 @@ export class FolderController {
         status: FileStatus.EXISTS,
       },
       {
-        limit,
-        offset,
-        sort: sort && order && [[sort, order]],
+        limit: query.limit,
+        offset: query.offset,
+        sort: query.sort && query.order && [[query.sort, query.order]],
       },
     );
 
@@ -281,6 +242,7 @@ export class FolderController {
   }
 
   @Get(':id/file')
+  @ApiOperation({ deprecated: true })
   async checkFileExistence(
     @UserDecorator() user: User,
     @Param('id', ParseIntPipe) folderId: number,
@@ -323,27 +285,8 @@ export class FolderController {
   async getFolderContentFolders(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('sort') sort?: SortableFolderAttributes,
-    @Query('order') order?: 'ASC' | 'DESC',
+    @Query() query: GetFoldersInFoldersDto,
   ): Promise<FoldersDto> {
-    if (!validate(folderUuid)) {
-      throw new BadRequestException('Invalid UUID provided');
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
     const folders = await this.folderUseCases.getFolders(
       user.id,
       {
@@ -352,9 +295,9 @@ export class FolderController {
         removed: false,
       },
       {
-        limit,
-        offset,
-        sort: sort && order && [[sort, order]],
+        limit: query.limit,
+        offset: query.offset,
+        sort: query.sort && query.order && [[query.sort, query.order]],
       },
     );
 
@@ -540,33 +483,15 @@ export class FolderController {
   }
 
   @Get(':id/folders')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: ResultFoldersDto })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'order', required: false })
   async getFolderFolders(
     @UserDecorator() user: User,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
     @Param('id', ParseIntPipe) folderId: number,
-    @Query('sort') sort?: SortableFolderAttributes,
-    @Query('order') order?: 'ASC' | 'DESC',
+    @Query() query: GetFoldersInFoldersDto,
   ): Promise<ResultFoldersDto> {
-    if (folderId < 1 || !isNumber(folderId)) {
-      throw new BadRequestWrongFolderIdException();
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (limit < 1 || limit > 50) {
-      throw new BadRequestOutOfRangeLimitException();
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
     const folders = await this.folderUseCases.getFolders(
       user.id,
       {
@@ -575,9 +500,9 @@ export class FolderController {
         removed: false,
       },
       {
-        limit,
-        offset,
-        sort: sort && order && [[sort, order]],
+        limit: query.limit,
+        offset: query.offset,
+        sort: query.sort && query.order && [[query.sort, query.order]],
       },
     );
 
@@ -758,6 +683,7 @@ export class FolderController {
   }
 
   @Get('/:id/metadata')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: FolderDto })
   async getFolderById(
     @UserDecorator() user: User,

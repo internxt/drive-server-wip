@@ -21,7 +21,6 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -37,6 +36,7 @@ import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
+import { GetFilesDto } from './dto/get-files.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
@@ -52,15 +52,6 @@ import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
 import { Version } from '../../common/decorators/version.decorator';
-
-const filesStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
-
-enum FileStatusQuery {
-  EXISTS = 'EXISTS',
-  TRASHED = 'TRASHED',
-  DELETED = 'DELETED',
-  ALL = 'ALL',
-}
 
 @ApiTags('File')
 @Controller('files')
@@ -263,52 +254,12 @@ export class FileController {
 
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FileDto })
-  @ApiQuery({ name: 'bucket', required: false })
-  @ApiQuery({ name: 'sort', required: false })
-  @ApiQuery({ name: 'order', required: false })
-  @ApiQuery({ name: 'updatedAt', required: false })
-  @ApiQuery({ name: 'status', enum: FileStatusQuery })
   async getFiles(
     @UserDecorator() user: User,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('status') status: FileStatusQuery,
-    @Query('bucket') bucket?: string,
-    @Query('sort') sort?: string,
-    @Query('order') order?: 'ASC' | 'DESC',
-    @Query('updatedAt') updatedAt?: string,
+    @Query() queryParams: GetFilesDto,
   ): Promise<FileDto[]> {
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestException('Limit or offset are not numbers');
-    }
-
-    if (
-      limit < API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND ||
-      limit > API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND
-    ) {
-      throw new BadRequestParamOutOfRangeException(
-        'limit',
-        API_LIMITS.FILES.GET.LIMIT.LOWER_BOUND,
-        API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
-      );
-    }
-
-    if (
-      offset < API_LIMITS.FILES.GET.OFFSET.LOWER_BOUND ||
-      offset > API_LIMITS.FILES.GET.OFFSET.UPPER_BOUND
-    ) {
-      throw new BadRequestParamOutOfRangeException(
-        'offset',
-        API_LIMITS.FILES.GET.OFFSET.LOWER_BOUND,
-        API_LIMITS.FILES.GET.OFFSET.UPPER_BOUND,
-      );
-    }
-
-    const knownStatus = filesStatuses.includes(status);
-
-    if (!knownStatus) {
-      throw new BadRequestException(`Unknown status "${status.toString()}"`);
-    }
+    const { limit, offset, status, bucket, sort, order, updatedAt } =
+      queryParams;
 
     const fns: Record<string, (...args) => Promise<File[]>> = {
       ALL: this.fileUseCases.getAllFilesUpdatedAfter,
