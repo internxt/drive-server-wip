@@ -220,19 +220,31 @@ export class AuthController {
     @UserDecorator() user: User,
     @Body() deleteTfaDto: DeleteTfaDto,
   ) {
+    if (!deleteTfaDto.pass && !deleteTfaDto.code) {
+      throw new BadRequestException(
+        'At least one of password or TFA code must be provided',
+      );
+    }
+
     if (!user.secret_2FA) {
       throw new NotFoundException('Your account does not have 2FA activated.');
     }
 
-    this.twoFactorAuthService.validateTwoFactorAuthCode(
-      user.secret_2FA,
-      deleteTfaDto.code,
-    );
-    const decryptedPass = this.cryptoService.decryptText(deleteTfaDto.pass);
-
-    if (user.password.toString() !== decryptedPass) {
-      throw new BadRequestException('Invalid password');
+    if (deleteTfaDto.code) {
+      this.twoFactorAuthService.validateTwoFactorAuthCode(
+        user.secret_2FA,
+        deleteTfaDto.code,
+      );
     }
+
+    if (deleteTfaDto.pass) {
+      const decryptedPass = this.cryptoService.decryptText(deleteTfaDto.pass);
+
+      if (user.password.toString() !== decryptedPass) {
+        throw new BadRequestException('Invalid password');
+      }
+    }
+
     await this.userUseCases.updateByUuid(user.uuid, { secret_2FA: null });
     return { message: 'ok' };
   }
