@@ -59,12 +59,13 @@ export class BackupController {
     @UserDecorator() user: User,
     @Query() query: GetDevicesAndFoldersDto,
   ): Promise<DeviceDto[]> {
-    const { platform, key, hostname } = query;
+    const { platform, key, hostname, folderUuid } = query;
 
     const filterBy = {
       ...(platform && { platform }),
       ...(key && { key }),
       ...(hostname && { hostname }),
+      ...(folderUuid && { folderUuid }),
     };
 
     const devices = await this.backupUseCases.getUserDevices(
