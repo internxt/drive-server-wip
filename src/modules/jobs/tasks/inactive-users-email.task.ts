@@ -20,6 +20,7 @@ export class InactiveUsersEmailTask {
   private readonly batchSize = INACTIVE_USERS_EMAIL_CONFIG.BATCH_SIZE;
   private readonly concurrentEmailsPerBatch =
     INACTIVE_USERS_EMAIL_CONFIG.CONCURRENT_EMAILS_PER_BATCH;
+  private readonly dbBatchSize = 20;
 
   constructor(
     private readonly userRepository: SequelizeUserRepository,
@@ -137,20 +138,24 @@ export class InactiveUsersEmailTask {
     }
 
     if (successfulUserIds.length > 0) {
-      await Promise.all(
-        successfulUserIds.map((userId) =>
-          this.mailLimitRepository.findOrCreate(
-            { userId, mailType: MailTypes.InactiveUsers },
-            {
-              userId,
-              mailType: MailTypes.InactiveUsers,
-              attemptsCount: 1,
-              attemptsLimit: 1,
-              lastMailSent: new Date(),
-            },
+      for (let i = 0; i < successfulUserIds.length; i += this.dbBatchSize) {
+        const batch = successfulUserIds.slice(i, i + this.dbBatchSize);
+
+        await Promise.all(
+          batch.map((userId) =>
+            this.mailLimitRepository.findOrCreate(
+              { userId, mailType: MailTypes.InactiveUsers },
+              {
+                userId,
+                mailType: MailTypes.InactiveUsers,
+                attemptsCount: 1,
+                attemptsLimit: 1,
+                lastMailSent: new Date(),
+              },
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     this.logger.log(
