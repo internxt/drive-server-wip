@@ -103,51 +103,34 @@ export class FileUseCases {
     const mostRecentUsage = await this.usageService.getUserMostRecentUsage(
       user.uuid,
     );
-    const noRecordInUsageTable = !mostRecentUsage;
+    const calculateFirstDelta = !mostRecentUsage;
 
-    if (noRecordInUsageTable) {
-      this.handleUserFirstDeltaCreation(user);
-      // TODO: uncomment this
+    if (calculateFirstDelta) {
+      await this.usageService.createFirstUsageCalculation(user.uuid);
+      // TODO: uncomment this when incremental usage calculation is ready
       //return this.fileRepository.sumExistentFileSizes(user.id);
       return;
     }
 
-    const nextPeriodStart = mostRecentUsage.getNextPeriodStartDate();
-    const isUpToDate = Time.isToday(nextPeriodStart);
-
-    if (!isUpToDate) {
-      await this.fillDeltaGapUntilYesteday(user, nextPeriodStart);
+    const nextDeltaStartDate = mostRecentUsage.getNextPeriodStartDate();
+    const isLastDeltaFromYesterday = Time.isToday(nextDeltaStartDate);
+    if (!isLastDeltaFromYesterday) {
+      await this.fillDetaGapUntilPreviousDay(user, nextDeltaStartDate);
     }
 
     // TODO: add calculation of the current day and sum of all the usages
   }
 
-  async handleUserFirstDeltaCreation(user: User) {
-    await this.usageService
-      .createFirstUsageCalculation(user.uuid)
-      .catch((error) =>
-        new Logger('[USAGE/FIRST_CALCULATION]').error(
-          `error while calculating first usage ${JSON.stringify({ message: error.message })}`,
-        ),
-      );
-  }
-
-  async fillDeltaGapUntilYesteday(user: User, calculateFrom: Date) {
+  async fillDetaGapUntilPreviousDay(user: User, startDate: Date) {
     const yesterday = Time.dateWithDaysAdded(-1);
     const yesterdayEndOfDay = Time.endOfDay(yesterday);
 
     const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(
       user.id,
-      calculateFrom,
+      startDate,
       yesterdayEndOfDay,
     );
-    await this.usageService
-      .createMonthlyUsage(user.uuid, yesterday, gapDelta)
-      .catch((error) =>
-        new Logger('[USAGE/FILL_GAP]').error(
-          `error while filling gap in usage ${JSON.stringify({ message: error.message })}`,
-        ),
-      );
+    await this.usageService.createMonthlyUsage(user.uuid, yesterday, gapDelta);
   }
 
   async deleteFilePermanently(
