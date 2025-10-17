@@ -8,4 +8,5 @@ export enum MailTypes {
   PreCreateUser = 'pre_create_user',
   IncompleteCheckout = 'incomplete_checkout',
   InactiveUsers = 'inactive_users',
+  FullStorage = 'full_storage',
 }

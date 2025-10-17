@@ -4,6 +4,8 @@ import { createMock } from '@golevelup/ts-jest';
 import { BackupController } from './backup.controller';
 import { BackupUseCase } from './backup.usecase';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { v4 } from 'uuid';
+import { DevicePlatform } from './device.domain';
 
 describe('BackupController', () => {
   let backupController: BackupController;
@@ -37,6 +39,40 @@ describe('BackupController', () => {
 
       const result = await backupController.activateBackup(userMocked);
       expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('getDevicesAndFolders', () => {
+    it('When is called with filters and pagination params, then it should call usecase with expected values', async () => {
+      const query = {
+        platform: DevicePlatform.LINUX,
+        key: v4(),
+        limit: 50,
+        offset: 0,
+      };
+      jest.spyOn(backupUseCase, 'getUserDevices');
+
+      await backupController.getDevicesAndFolders(userMocked, query);
+
+      expect(backupUseCase.getUserDevices).toHaveBeenCalledWith(
+        userMocked,
+        { platform: query.platform, key: query.key },
+        query.limit,
+        query.offset,
+      );
+    });
+
+    it('When no devices are found, then it should return an empty array', async () => {
+      jest.spyOn(backupUseCase, 'getUserDevices').mockResolvedValue([]);
+
+      const query = { limit: 50, offset: 0 };
+
+      const result = await backupController.getDevicesAndFolders(
+        userMocked,
+        query,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 

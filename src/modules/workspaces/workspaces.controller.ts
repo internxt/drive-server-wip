@@ -311,7 +311,6 @@ export class WorkspacesController {
     @Query() query: GetWorkspaceFilesQueryDto,
   ): Promise<FileDto[]> {
     const { limit, offset, status, bucket, sort, order, updatedAt } = query;
-
     const files =
       await this.workspaceUseCases.getPersonalWorkspaceFilesInWorkspaceUpdatedAfter(
         user.uuid,

@@ -17,6 +17,16 @@ export class Time {
     return dayjs(date).utc().isSame(dayjs().utc(), 'day');
   };
 
+  public static readonly isThisMonth = (date: Date): boolean => {
+    return dayjs(date).utc().isSame(dayjs().utc(), 'month');
+  };
+
+  public static readonly daysSince = (date: Date): number => {
+    const now = dayjs().utc();
+    const past = dayjs(date).utc();
+    return now.diff(past, 'day');
+  };
+
   public static readonly convertTimestampToDate = (timestamp: number): Date => {
     return dayjs(timestamp * 1000).toDate();
   };

@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { DevicePlatform } from '../device.domain';
 import { Transform } from 'class-transformer';
 
@@ -23,6 +29,15 @@ export class GetDevicesAndFoldersDto {
   @IsString()
   @IsOptional()
   key?: string;
+
+  @ApiProperty({
+    description: 'Folder uuid',
+    example: '81CBB42C-73A0-9660-6C7D-2FE94627F3A3',
+    required: false,
+  })
+  @IsUUID()
+  @IsOptional()
+  folderUuid?: string;
 
   @ApiProperty({
     description: 'Device hostname',
