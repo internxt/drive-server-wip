@@ -45,6 +45,7 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import { UserUseCases } from '../user/user.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -62,6 +63,8 @@ export class FileUseCases {
     private readonly usageService: UsageService,
     private readonly mailerService: MailerService,
     private readonly featureLimitService: FeatureLimitService,
+    @Inject(forwardRef(() => UserUseCases))
+    private readonly userUsecases: UserUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -293,6 +296,7 @@ export class FileUseCases {
           });
       }
     }
+
     return newFile;
   }
 

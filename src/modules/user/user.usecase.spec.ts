@@ -4131,4 +4131,408 @@ describe('User use cases', () => {
       expect(mockMailLimit.increaseTodayAttempts).not.toHaveBeenCalled();
     });
   });
+
+  describe('checkAndNotifyStorageThreshold', () => {
+    const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
+    const NOTIFY_THRESHOLD = 80;
+    const MAX_EMAILS_PER_MONTH = 2;
+
+    it('When usage is below threshold, then should not send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 75 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailLimitRepository.findOrCreate).not.toHaveBeenCalled();
+      expect(mailerService.sendFullStorageEmail).not.toHaveBeenCalled();
+    });
+
+    it('When usage is at threshold and first notification, then should send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 20);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 0,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, true]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(mockUser.id, MailTypes.FullStorage, mockMailLimit);
+    });
+
+    it('When user reaches storage threshold for first time, then should send notification immediately without cooldown', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 0,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent: new Date(0),
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+
+      const findOrCreateSpy = jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, true]);
+
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(findOrCreateSpy).toHaveBeenCalledWith(
+        {
+          userId: mockUser.id,
+          mailType: MailTypes.FullStorage,
+        },
+        {
+          attemptsCount: 0,
+          attemptsLimit: MAX_EMAILS_PER_MONTH,
+          lastMailSent: expect.any(Date),
+        },
+      );
+
+      const callArgs = findOrCreateSpy.mock.calls[0][1];
+      expect(callArgs.lastMailSent.getTime()).toBe(0);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+    });
+
+    it('When cooldown is active, then should not send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 5);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 1,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).not.toHaveBeenCalled();
+    });
+
+    it('When cooldown is exactly 14 days, then should send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 14);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 1,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+    });
+
+    it('When cooldown is over 14 days, then should send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 20);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 1,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+    });
+
+    it('When monthly limit is reached, then should not send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 14);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 2,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(true);
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).not.toHaveBeenCalled();
+    });
+
+    it('When new month starts with previous attempts, then should reset counter and send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setMonth(lastMailSent.getMonth() - 1);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 2,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+    });
+
+    it('When second email of month is allowed, then should send email', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 14);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 1,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+    });
+
+    it('When mailer service throws error, then should not increment counter', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setDate(lastMailSent.getDate() - 14);
+      const mockError = new Error('SendGrid service unavailable');
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 1,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockRejectedValue(mockError);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).not.toHaveBeenCalled();
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When new month with day 1, then should reset counter automatically', async () => {
+      const limit = 100 * 1024 * 1024 * 1024;
+      const totalUsage = 85 * 1024 * 1024 * 1024;
+      const usage = { drive: totalUsage, backup: 0, total: totalUsage };
+      const lastMailSent = new Date();
+      lastMailSent.setMonth(lastMailSent.getMonth() - 1);
+      lastMailSent.setDate(28);
+
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        mailType: MailTypes.FullStorage,
+        attemptsCount: 2,
+        attemptsLimit: MAX_EMAILS_PER_MONTH,
+        lastMailSent,
+      });
+
+      jest
+        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
+
+      jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, false]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendFullStorageEmail')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.checkAndNotifyStorageThreshold(mockUser, usage);
+
+      expect(mailerService.sendFullStorageEmail).toHaveBeenCalledWith(
+        mockUser.email,
+      );
+      expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+    });
+  });
 });
