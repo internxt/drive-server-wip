@@ -19,7 +19,7 @@ export class ItemToTrashDto {
   @ApiProperty({
     example: '4',
     description: 'Id of file or folder (deprecated in favor of uuid)',
-    nullable: true,
+    required: false,
     deprecated: true,
   })
   @IsOptional()

@@ -267,7 +267,7 @@ describe('AuthController', () => {
   });
 
   describe('DELETE /tfa', () => {
-    it('When a user requests to delete 2FA, then it should return', async () => {
+    it('When a user requests to delete 2FA with both password and code, then it should validate both and return', async () => {
       const user = newUser();
       user.secret_2FA = 'secret';
       user.password = v4();
@@ -275,9 +275,32 @@ describe('AuthController', () => {
       deleteTfaDto.code = 'code';
       deleteTfaDto.pass = 'pass';
 
-      jest
+      const validateTfaSpy = jest
         .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
         .mockReturnValueOnce(true);
+      const decryptPasswordSpy = jest
+        .spyOn(cryptoService, 'decryptText')
+        .mockReturnValueOnce(user.password);
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
+
+      const result = await authController.deleteTfa(user, deleteTfaDto);
+
+      expect(validateTfaSpy).toHaveBeenCalledWith(user.secret_2FA, 'code');
+      expect(decryptPasswordSpy).toHaveBeenCalled();
+      expect(result).toEqual({ message: 'ok' });
+    });
+
+    it('When a user requests to delete 2FA with only password, then it should validate password only', async () => {
+      const user = newUser();
+      user.secret_2FA = 'secret';
+      user.password = v4();
+      const deleteTfaDto = new DeleteTfaDto();
+      deleteTfaDto.pass = 'pass';
+
+      const validateTfaSpy = jest.spyOn(
+        twoFactorAuthService,
+        'validateTwoFactorAuthCode',
+      );
       jest
         .spyOn(cryptoService, 'decryptText')
         .mockReturnValueOnce(user.password);
@@ -285,12 +308,44 @@ describe('AuthController', () => {
 
       const result = await authController.deleteTfa(user, deleteTfaDto);
 
+      expect(validateTfaSpy).not.toHaveBeenCalled();
       expect(result).toEqual({ message: 'ok' });
+    });
+
+    it('When a user requests to delete 2FA with only TFA code, then it should validate code only', async () => {
+      const user = newUser();
+      user.secret_2FA = 'secret';
+      user.password = v4();
+      const deleteTfaDto = new DeleteTfaDto();
+      deleteTfaDto.code = 'code';
+
+      jest
+        .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
+        .mockReturnValueOnce(true);
+      const decryptPasswordSpy = jest.spyOn(cryptoService, 'decryptText');
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
+
+      const result = await authController.deleteTfa(user, deleteTfaDto);
+
+      expect(decryptPasswordSpy).not.toHaveBeenCalled();
+      expect(result).toEqual({ message: 'ok' });
+    });
+
+    it('When neither password nor code are provided, then it should throw', async () => {
+      const user = newUser();
+      user.secret_2FA = 'secret';
+      const deleteTfaDto = new DeleteTfaDto();
+
+      await expect(
+        authController.deleteTfa(user, deleteTfaDto),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('When a user does not have 2FA activated, Then it should throw a 404 error', async () => {
       const user = newUser();
       const deleteTfaDto = new DeleteTfaDto();
+      deleteTfaDto.code = 'code';
+      deleteTfaDto.pass = 'pass';
 
       await expect(
         authController.deleteTfa(user, deleteTfaDto),
@@ -299,7 +354,7 @@ describe('AuthController', () => {
       );
     });
 
-    it('When the provided password is invalid, then it should throw', async () => {
+    it('When both password and code are provided but password is invalid, then it should throw', async () => {
       const user = newUser();
       user.secret_2FA = 'secret';
       user.password = v4();

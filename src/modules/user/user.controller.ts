@@ -1263,6 +1263,14 @@ export class UserController {
   async getUserUsage(@UserDecorator() user: User): Promise<GetUserUsageDto> {
     const usage = await this.userUseCases.getUserUsage(user);
 
+    this.userUseCases
+      .checkAndNotifyStorageThreshold(user, usage)
+      .catch((error) => {
+        new Logger('[STORAGE/THRESHOLD_CHECK]').error(
+          `Failed to check storage threshold for user ${user.uuid}: ${error.message}`,
+        );
+      });
+
     return usage;
   }
 
