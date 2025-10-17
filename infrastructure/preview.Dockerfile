@@ -6,9 +6,20 @@ COPY package.json ./
 COPY yarn.lock ./
 COPY .npmrc ./
 
-RUN yarn
-COPY . ./
+RUN yarn --ignore-scripts
+
+RUN chown -R node:node /usr/app
+
+USER node
+
+COPY --chown=node:node tsconfig.json ./
+COPY --chown=node:node tsconfig.build.json ./
+COPY --chown=node:node nest-cli.json ./
+COPY --chown=node:node .sequelizerc ./
+COPY --chown=node:node src ./src
+COPY --chown=node:node migrations ./migrations
+COPY --chown=node:node seeders ./seeders
 
 RUN yarn build
 
-CMD yarn migrate && yarn db:seed:test:all && yarn start:dev
+CMD ["sh", "-c", "yarn migrate && yarn db:seed:test:all && yarn start:dev"]
