@@ -909,21 +909,16 @@ export class SequelizeFileRepository implements FileRepository {
         [
           Sequelize.literal(`
           SUM(
-            CASE
+            CASE      
               WHEN status != 'DELETED' THEN size
-              -- Files created in the period but deleted AFTER the period
-              WHEN status = 'DELETED'
-                   AND created_at >= $sinceDate
-                   AND created_at <= $untilDate
-                   AND updated_at >= $untilDate
-                   THEN size
-              -- Files created BEFORE the period but deleted WITHIN the period
-              WHEN status = 'DELETED'
-                   AND created_at < $sinceDate
-                   AND updated_at >= $sinceDate
-                   AND updated_at <= $untilDate 
-                   THEN -size
-              -- Files created AND deleted within the period = 0
+
+              -- Files created BEFORE the period but deleted DURING the period
+              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
+
+              -- Files created DURING the period but deleted AFTER the period
+              WHEN status = 'DELETED' AND updated_at > $untilDate THEN size
+
+              -- Files created and deleted DURING the period
               ELSE 0
             END
           )

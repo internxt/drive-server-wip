@@ -113,15 +113,15 @@ export class FileUseCases {
     }
 
     const nextDeltaStartDate = mostRecentUsage.getNextPeriodStartDate();
-    const isLastDeltaFromYesterday = Time.isToday(nextDeltaStartDate);
-    if (!isLastDeltaFromYesterday) {
-      await this.fillDetaGapUntilPreviousDay(user, nextDeltaStartDate);
+    const hasYesterdaysUsage = Time.isToday(nextDeltaStartDate);
+    if (!hasYesterdaysUsage) {
+      await this.backfillUsageUntilYesterday(user, nextDeltaStartDate);
     }
 
     // TODO: add calculation of the current day and sum of all the usages
   }
 
-  async fillDetaGapUntilPreviousDay(user: User, startDate: Date) {
+  async backfillUsageUntilYesterday(user: User, startDate: Date) {
     const yesterday = Time.dateWithDaysAdded(-1);
     const yesterdayEndOfDay = Time.endOfDay(yesterday);
 
