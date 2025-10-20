@@ -128,7 +128,7 @@ export interface FileRepository {
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
-    untilDate?: Date,
+    untilDate: Date,
   ): Promise<number>;
 }
 
@@ -902,25 +902,27 @@ export class SequelizeFileRepository implements FileRepository {
   async sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
-    untilDate?: Date,
+    untilDate: Date,
   ): Promise<number> {
-    const timeCondition = {
-      [Op.gte]: sinceDate,
-      ...(untilDate ? { [Op.lte]: untilDate } : null),
-    };
-
     const result = await this.fileModel.findAll({
       attributes: [
         [
           Sequelize.literal(`
-            SUM(
-              CASE 
-                WHEN status = 'DELETED' AND date_trunc('day', created_at) = date_trunc('day', updated_at) THEN 0
-                WHEN status = 'DELETED' THEN -size
-                ELSE size
-              END
-            )
-          `),
+          SUM(
+            CASE      
+              WHEN status != 'DELETED' THEN size
+
+              -- Files created BEFORE the period but deleted DURING the period
+              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
+
+              -- Files created DURING the period but deleted AFTER the period
+              WHEN status = 'DELETED' AND updated_at > $untilDate THEN size
+
+              -- Files created and deleted DURING the period
+              ELSE 0
+            END
+          )
+        `),
           'total',
         ],
       ],
@@ -928,20 +930,30 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
         [Op.or]: [
           {
-            status: {
-              [Op.ne]: 'DELETED',
+            createdAt: {
+              [Op.gte]: sinceDate,
+              [Op.lte]: untilDate,
             },
-            createdAt: timeCondition,
           },
           {
-            status: 'DELETED',
-            updatedAt: timeCondition,
+            status: FileStatus.DELETED,
+            createdAt: {
+              [Op.lt]: sinceDate,
+            },
+            updatedAt: {
+              [Op.gte]: sinceDate,
+              [Op.lte]: untilDate,
+            },
           },
         ],
+      },
+      bind: {
+        sinceDate,
+        untilDate,
       },
       raw: true,
     });
 
-    return Number(result[0]['total']) as unknown as number;
+    return Number(result[0]['total']) || 0;
   }
 }
