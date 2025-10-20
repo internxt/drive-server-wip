@@ -16,9 +16,7 @@ COPY --chown=root:root --chmod=755 src ./src
 COPY --chown=root:root --chmod=755 migrations ./migrations
 COPY --chown=root:root --chmod=755 seeders ./seeders
 
-RUN yarn build
-
-RUN chmod -R 755 dist/
+RUN yarn build && chmod -R 755 dist/
 
 USER node
 
