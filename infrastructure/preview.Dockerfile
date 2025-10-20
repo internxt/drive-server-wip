@@ -8,18 +8,18 @@ COPY .npmrc ./
 
 RUN yarn --ignore-scripts
 
-RUN chown -R node:node /usr/app
-
-USER node
-
-COPY --chown=node:node tsconfig.json ./
-COPY --chown=node:node tsconfig.build.json ./
-COPY --chown=node:node nest-cli.json ./
-COPY --chown=node:node .sequelizerc ./
-COPY --chown=node:node src ./src
-COPY --chown=node:node migrations ./migrations
-COPY --chown=node:node seeders ./seeders
+COPY --chown=root:root --chmod=755 tsconfig.json ./
+COPY --chown=root:root --chmod=755 tsconfig.build.json ./
+COPY --chown=root:root --chmod=755 nest-cli.json ./
+COPY --chown=root:root --chmod=755 .sequelizerc ./
+COPY --chown=root:root --chmod=755 src ./src
+COPY --chown=root:root --chmod=755 migrations ./migrations
+COPY --chown=root:root --chmod=755 seeders ./seeders
 
 RUN yarn build
+
+RUN chmod -R 755 dist/
+
+USER node
 
 CMD ["sh", "-c", "yarn migrate && yarn db:seed:test:all && yarn start:dev"]

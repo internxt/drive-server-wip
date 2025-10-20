@@ -9,17 +9,17 @@ COPY .npmrc ./
 
 RUN yarn --ignore-scripts
 
-RUN chown -R node:node /usr/app
-
-USER node
-
-COPY --chown=node:node tsconfig.json ./
-COPY --chown=node:node tsconfig.build.json ./
-COPY --chown=node:node nest-cli.json ./
-COPY --chown=node:node .sequelizerc ./
-COPY --chown=node:node src ./src
-COPY --chown=node:node migrations ./migrations
+COPY --chown=root:root --chmod=755 tsconfig.json ./
+COPY --chown=root:root --chmod=755 tsconfig.build.json ./
+COPY --chown=root:root --chmod=755 nest-cli.json ./
+COPY --chown=root:root --chmod=755 .sequelizerc ./
+COPY --chown=root:root --chmod=755 src ./src
+COPY --chown=root:root --chmod=755 migrations ./migrations
 
 RUN yarn build
+
+RUN chmod -R 755 dist/
+
+USER node
 
 CMD ["yarn", "start:prod"]
