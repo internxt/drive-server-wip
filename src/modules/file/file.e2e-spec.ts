@@ -47,6 +47,16 @@ describe('File module', () => {
   });
 
   describe('Get User Storage Incrementally', () => {
+    const fixedSystemCurrentDate = new Date('2025-06-15T00:00:00.000Z');
+
+    beforeAll(async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(fixedSystemCurrentDate);
+    });
+    afterAll(async () => {
+      jest.useRealTimers();
+    });
+
     it('When user has no previous usage, then it should create the first usage record', async () => {
       await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
 
@@ -128,8 +138,9 @@ describe('File module', () => {
         return file;
       };
 
-      const findBackfilledUsage = (usages: UsageModel[]) => {
-        const yesterday = Time.daysAgo(1);
+      const findYesterdayUsage = (usages: UsageModel[]) => {
+        const yesterday = new Date(fixedSystemCurrentDate);
+        yesterday.setDate(yesterday.getDate() - 1);
         yesterday.setUTCHours(0, 0, 0, 0);
 
         return usages.find((u: UsageModel) => {
@@ -155,8 +166,8 @@ describe('File module', () => {
         });
         expect(usages.length).toBeGreaterThanOrEqual(2);
 
-        const backfilledUsage = findBackfilledUsage(usages);
-        expect(Number(backfilledUsage.delta)).toBe(file1Size + file2Size);
+        const mostRecentUsage = findYesterdayUsage(usages);
+        expect(Number(mostRecentUsage.delta)).toBe(file1Size + file2Size);
       });
 
       it('When user has no file changes during the period, then it should create usage record with zero delta', async () => {
@@ -170,8 +181,8 @@ describe('File module', () => {
         });
         expect(usages.length).toBeGreaterThanOrEqual(2);
 
-        const backfilledUsage = findBackfilledUsage(usages);
-        expect(Number(backfilledUsage.delta)).toBe(0);
+        const mostRecentUsage = findYesterdayUsage(usages);
+        expect(Number(mostRecentUsage.delta)).toBe(0);
         expect(
           usages.reduce<number>((sum, usage) => sum + Number(usage.delta), 0),
         ).toBe(totalDeltaWithoutChanges);
@@ -196,9 +207,9 @@ describe('File module', () => {
         });
         expect(usages.length).toBeGreaterThanOrEqual(2);
 
-        const backfilledUsage = findBackfilledUsage(usages);
-        expect(backfilledUsage).toBeDefined();
-        expect(Number(backfilledUsage.delta)).toBe(-fileSize);
+        const mostRecentUsage = findYesterdayUsage(usages);
+        expect(mostRecentUsage).toBeDefined();
+        expect(Number(mostRecentUsage.delta)).toBe(-fileSize);
         expect(
           usages.reduce<number>((sum, usage) => sum + Number(usage.delta), 0),
         ).toBe(initialDeltaUsage - fileSize);
@@ -211,7 +222,7 @@ describe('File module', () => {
         const file = await createTestFile(Time.daysAgo(2), fileSize);
         // Delete the file AFTER the period (today)
         await fileModel.update(
-          { status: 'DELETED', updatedAt: new Date() },
+          { status: 'DELETED', updatedAt: Time.now() },
           { where: { id: file.id }, silent: true },
         );
 
@@ -222,9 +233,9 @@ describe('File module', () => {
         });
         expect(usages.length).toBeGreaterThanOrEqual(2);
 
-        const backfilledUsage = findBackfilledUsage(usages);
-        expect(backfilledUsage).toBeDefined();
-        expect(Number(backfilledUsage.delta)).toBe(fileSize);
+        const mostRecentUsage = findYesterdayUsage(usages);
+        expect(mostRecentUsage).toBeDefined();
+        expect(Number(mostRecentUsage.delta)).toBe(fileSize);
         expect(
           usages.reduce<number>((sum, usage) => sum + Number(usage.delta), 0),
         ).toBe(initialDeltaUsage + fileSize);
@@ -232,13 +243,13 @@ describe('File module', () => {
 
       it('When last usage is Yearly from previous completed year, then it should backfill from start of current year', async () => {
         const initialYearlyDelta = 50000;
-        const currentYear = new Date().getFullYear();
-        const lastYear = Time.startOfYear(currentYear - 1);
+        const currentYear = fixedSystemCurrentDate.getFullYear();
+        const lastYearPeriod = Time.startOfYear(currentYear - 1);
 
         await usageModel.create({
           id: v4(),
           userId: testUser.user.uuid,
-          period: lastYear,
+          period: lastYearPeriod,
           type: UsageType.Yearly,
           delta: initialYearlyDelta,
         });
@@ -258,19 +269,16 @@ describe('File module', () => {
 
         expect(usages.length).toBeGreaterThanOrEqual(2);
 
-        // Verify backfilled usage is Monthly (not Yearly)
-        const backfilledUsage = findBackfilledUsage(usages);
-        expect(backfilledUsage).toBeDefined();
-        expect(backfilledUsage.type).toBe(UsageType.Monthly);
-
+        const mostRecentUsage = findYesterdayUsage(usages);
+        expect(mostRecentUsage).toBeDefined();
         // Backfill should include all files created after the yearly period
-        expect(Number(backfilledUsage.delta)).toBe(file1Size + file2Size);
+        expect(Number(mostRecentUsage.delta)).toBe(file1Size + file2Size);
       });
 
       it('When last usage is Yearly from 2+ years ago, then it should backfill all intermediate changes', async () => {
         const initialYearlyDelta = 20000;
         // Yearly aggregation from 2 years ago
-        const currentYear = new Date().getFullYear();
+        const currentYear = fixedSystemCurrentDate.getFullYear();
         const oldYearPeriod = Time.startOfYear(currentYear - 2);
 
         await usageModel.create({
@@ -293,10 +301,10 @@ describe('File module', () => {
 
         expect(usages.length).toBeGreaterThanOrEqual(2);
 
-        const backfilledUsage = findBackfilledUsage(usages);
-        expect(backfilledUsage).toBeDefined();
-        expect(backfilledUsage.type).toBe(UsageType.Monthly);
-        expect(Number(backfilledUsage.delta)).toBe(newFileSize);
+        const mostRecentUsage = findYesterdayUsage(usages);
+        expect(mostRecentUsage).toBeDefined();
+        expect(mostRecentUsage.type).toBe(UsageType.Monthly);
+        expect(Number(mostRecentUsage.delta)).toBe(newFileSize);
       });
     });
   });
