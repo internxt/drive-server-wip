@@ -27,6 +27,15 @@ export class Time {
     return now.diff(past, 'day');
   };
 
+  public static daysAgo(days: number): Date {
+    return Time.dateWithDaysAdded(-days);
+  }
+
+  public static startOfYear(year?: number): Date {
+    const targetYear = year ?? dayjs().utc().year();
+    return dayjs().utc().year(targetYear).startOf('year').toDate();
+  }
+
   public static readonly convertTimestampToDate = (timestamp: number): Date => {
     return dayjs(timestamp * 1000).toDate();
   };
