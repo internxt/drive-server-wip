@@ -18,8 +18,10 @@ jobs:
               run: |
                 echo "registry=https://registry.yarnpkg.com/" > .npmrc
                 echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
-                echo //npm.pkg.github.com/:_authToken=${{ secrets.PERSONAL_ACCESS_TOKEN }} >> .npmrc
+                echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc
                 echo "always-auth=true" >> .npmrc
+              env:
+                NPM_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
             - name: Install dependencies
               run: yarn install
             - name: Build
