@@ -70,7 +70,7 @@
     "helmet": "^7.2.0",
     "multer-s3": "^3.0.1",
     "nestjs-pino": "^4.4.0",
-    "newrelic": "^11.23.2",
+    "newrelic": "^13.5.0",
     "node-device-detector": "2.0.17",
     "openpgp": "^5.11.3",
     "passport": "^0.7.0",
