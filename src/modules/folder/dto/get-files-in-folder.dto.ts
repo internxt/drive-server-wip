@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, ValidateIf } from 'class-validator';
 import { SortableFileAttributes } from '../../file/file.domain';
 import { SortOrder } from '../../../common/order.type';
 import { RequiredPaginationDto } from '../../../common/dto/basic-pagination.dto';
@@ -11,6 +11,7 @@ export class GetFilesInFoldersDto extends RequiredPaginationDto {
     required: false,
   })
   @IsOptional()
+  @ValidateIf((o) => o.order !== undefined)
   @IsEnum(['updatedAt', 'size', 'id', 'plainName', 'name'])
   sort?: SortableFileAttributes;
 
