@@ -27,6 +27,7 @@ describe('GetFilesInFoldersDto', () => {
     const dto = new GetFilesInFoldersDto();
     dto.limit = 10;
     dto.offset = 0;
+    dto.order = SortOrder.ASC;
     dto.sort = 'invalidField' as any;
 
     const errors = await validate(dto);
