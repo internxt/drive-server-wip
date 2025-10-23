@@ -131,7 +131,8 @@ export class InactiveUsersEmailTask {
         } else {
           errorCount++;
           this.logger.error(
-            `Failed to send email to user ${chunk[index].uuid}: ${result.reason.message}`,
+            `Failed to send email to user ${chunk[index].uuid}: ${result.reason.message}. ` +
+              `Code: ${result.reason.code}, Body: ${result.reason.response?.body}`,
           );
         }
       });
