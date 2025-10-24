@@ -922,7 +922,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   }> {
     try {
       await FolderModel.sequelize.query(
-        `SET LOCAL statement_timeout = '${FOLDER_STATS_LIMITS.QUERY_TIMEOUT_MS}ms'`,
+        "SET LOCAL statement_timeout = '3000ms'",
       );
 
       const fileStatusCondition = [FileStatus.EXISTS];
