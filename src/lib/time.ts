@@ -59,4 +59,8 @@ export class Time {
     const targetDate = date ? dayjs(date) : dayjs(Time.now());
     return targetDate.utc().endOf('day').toDate();
   }
+
+  public static formatAsDateOnly(date: Date): string {
+    return dayjs(date).utc().format('YYYY-MM-DD');
+  }
 }

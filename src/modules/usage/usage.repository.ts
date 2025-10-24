@@ -43,6 +43,8 @@ export class SequelizeUsageRepository {
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
     const currentDate = Time.startOfDay(Time.now());
     const yesterday = Time.startOfDay(Time.dateWithDaysAdded(-1, currentDate));
+    const periodFormatted = Time.formatAsDateOnly(yesterday);
+
     const selectResult = await this.usageModel.sequelize.query(
       `
       SELECT
@@ -50,7 +52,7 @@ export class SequelizeUsageRepository {
           u.uuid AS user_id,
           COALESCE(
           SUM(CASE
-            WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size 
+            WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size
           	ELSE 0
           END), 0) AS delta,
           :yesterday AS period,
@@ -67,7 +69,7 @@ export class SequelizeUsageRepository {
         replacements: {
           userUuid,
           currentDate: currentDate.toISOString(),
-          yesterday: yesterday.toISOString(),
+          yesterday: periodFormatted,
         },
         type: QueryTypes.SELECT,
       },
@@ -79,13 +81,13 @@ export class SequelizeUsageRepository {
       where: {
         userId: data.user_id,
         type: data.type,
-        period: data.period,
+        period: periodFormatted,
       },
       defaults: {
         id: data.id,
         userId: data.user_id,
         delta: data.delta,
-        period: data.period,
+        period: periodFormatted,
         type: data.type,
       },
     });
