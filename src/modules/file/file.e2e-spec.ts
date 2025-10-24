@@ -306,6 +306,59 @@ describe('File module', () => {
         expect(mostRecentUsage.type).toBe(UsageType.Monthly);
         expect(Number(mostRecentUsage.delta)).toBe(newFileSize);
       });
+
+      describe('First usage calculation (cumulative through end of yesterday)', () => {
+        it('When file was deleted yesterday at 23:59:59, then it should NOT count in the first usage calculation', async () => {
+          const fileSize = 1000;
+          const file = await createTestFile(Time.daysAgo(5), fileSize);
+          // Delete the file yesterday at 23:59:59
+          const yesterdayEnd = Time.endOfDay(Time.daysAgo(1));
+          await fileModel.update(
+            { status: 'DELETED', updatedAt: yesterdayEnd },
+            { where: { id: file.id }, silent: true },
+          );
+
+          await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
+
+          const usages = await usageModel.findAll({
+            where: { userId: testUser.user.uuid },
+          });
+          expect(usages).toHaveLength(1);
+          expect(Number(usages[0].delta)).toBe(0);
+        });
+
+        it('When file was deleted today at 00:00:00, then it should count in the first usage calculation', async () => {
+          const fileSize = 1000;
+          const file = await createTestFile(Time.daysAgo(5), fileSize);
+          // Delete the file today at 00:00:00
+          const todayStart = Time.startOfDay(fixedSystemCurrentDate);
+          await fileModel.update(
+            { status: 'DELETED', updatedAt: todayStart },
+            { where: { id: file.id }, silent: true },
+          );
+
+          await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
+
+          const usages = await usageModel.findAll({
+            where: { userId: testUser.user.uuid },
+          });
+          expect(usages).toHaveLength(1);
+          expect(Number(usages[0].delta)).toBe(fileSize);
+        });
+
+        it('When file was never deleted, then it should count in the first usage calculation', async () => {
+          const fileSize = 2000;
+          await createTestFile(Time.daysAgo(5), fileSize, FileStatus.EXISTS);
+
+          await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
+
+          const usages = await usageModel.findAll({
+            where: { userId: testUser.user.uuid },
+          });
+          expect(usages).toHaveLength(1);
+          expect(Number(usages[0].delta)).toBe(fileSize);
+        });
+      });
     });
   });
 });
