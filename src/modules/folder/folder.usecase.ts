@@ -26,6 +26,7 @@ import { SharingItemType } from '../sharing/sharing.domain';
 import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { v4 } from 'uuid';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { FolderStatsDto } from './dto/responses/folder-stats.dto';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileUseCases } from '../file/file.usecase';
 import { File, FileStatus } from '../file/file.domain';
@@ -957,6 +958,19 @@ export class FolderUseCases {
       folderUuid,
       includeTrashedFiles,
     );
+  }
+
+  async getFolderStats(
+    user: User,
+    folderUuid: Folder['uuid'],
+  ): Promise<FolderStatsDto> {
+    const folder = await this.getFolderByUuidAndUser(folderUuid, user);
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    return this.folderRepository.calculateFolderStats(folderUuid);
   }
 
   async getFolderMetadataByPath(

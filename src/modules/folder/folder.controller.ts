@@ -56,6 +56,7 @@ import {
   FoldersDto,
   ResultFoldersDto,
 } from './dto/responses/folder.dto';
+import { FolderStatsDto } from './dto/responses/folder-stats.dto';
 import {
   ExistentFilesDto,
   FilesDto,
@@ -623,6 +624,38 @@ export class FolderController {
     }
 
     return { ...folder, status: folder.getFolderStatus() };
+  }
+
+  @Get('/:uuid/stats')
+  @ApiOperation({
+    summary: 'Get folder statistics',
+    description:
+      'Calculates the total number of files and total size including all nested subfolders',
+  })
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    description: 'Folder UUID',
+  })
+  @ApiOkResponse({ type: FolderStatsDto })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'folder',
+    },
+  ])
+  @WorkspacesInBehalfValidationFolder()
+  async getFolderStats(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ): Promise<FolderStatsDto> {
+    return this.folderUseCases.getFolderStats(user, uuid);
   }
 
   @Get('/:uuid/ancestors')
