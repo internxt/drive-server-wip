@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOrCreateOptions, Transaction } from 'sequelize/types';
+import { FindOrCreateOptions, Op, Transaction } from 'sequelize';
 
 import { Folder } from '../folder/folder.domain';
 
 import { UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
-import { Op } from 'sequelize';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 
@@ -43,6 +42,13 @@ export interface UserRepository {
   ): Promise<void>;
   getNotificationTokenCount(userId: string): Promise<number>;
   loginFailed(user: User, isFailed: boolean): Promise<void>;
+  getInactiveUsersForEmail(
+    offset: number,
+    limit: number,
+    tierId: string,
+    inactiveSince: Date,
+    excludeEmailPatterns: string[],
+  ): Promise<User[]>;
 }
 
 @Injectable()
@@ -276,6 +282,38 @@ export class SequelizeUserRepository implements UserRepository {
     const { uuid, errorLoginCount } = user;
     const update = { errorLoginCount: isFailed ? errorLoginCount + 1 : 0 };
     await this.modelUser.update(update, { where: { uuid } });
+  }
+
+  async getInactiveUsersForEmail(
+    offset: number,
+    limit: number,
+    tierId: string,
+    inactiveSince: Date,
+    excludeEmailPatterns: string[],
+  ): Promise<User[]> {
+    const emailConditions = excludeEmailPatterns.map((pattern) => ({
+      [Op.notLike]: `%${pattern}`,
+    }));
+
+    const users = await this.modelUser.findAll({
+      where: {
+        tierId,
+        emailVerified: true,
+        updatedAt: { [Op.lt]: inactiveSince },
+        email: { [Op.and]: emailConditions },
+        id: {
+          [Op.notIn]: this.modelUser.sequelize.literal(`(
+            SELECT user_id FROM mail_limits
+            WHERE mail_type = 'inactive_users'
+          )`),
+        },
+      },
+      order: [['updatedAt', 'ASC']],
+      limit,
+      offset,
+    });
+
+    return users.map(this.toDomain.bind(this));
   }
 
   toDomain(model: UserModel): User {

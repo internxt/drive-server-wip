@@ -253,6 +253,14 @@ export class MailerService {
     );
   }
 
+  async sendDriveInactiveUsersEmail(email: string): Promise<void> {
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.driveInactiveUsers'),
+      {},
+    );
+  }
+
   async sendFailedPaymentEmail(userEmail: User['email']): Promise<void> {
     await this.send(
       userEmail,

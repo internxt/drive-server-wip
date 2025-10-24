@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { UsageModel } from './usage.model';
 import { Usage, UsageType } from './usage.domain';
 import { Op, QueryTypes } from 'sequelize';
+import { Time } from '../../lib/time';
 
 @Injectable()
 export class SequelizeUsageRepository {
@@ -40,26 +41,36 @@ export class SequelizeUsageRepository {
   }
 
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
+    const currentDate = Time.startOfDay(Time.now());
+    const yesterday = Time.startOfDay(Time.dateWithDaysAdded(-1, currentDate));
+    const periodFormatted = Time.formatAsDateOnly(yesterday);
+
     const selectResult = await this.usageModel.sequelize.query(
       `
       SELECT
           uuid_generate_v4() as id,
           u.uuid AS user_id,
-          COALESCE(SUM(f.size), 0) AS delta,
-          (CURRENT_DATE - INTERVAL '1 day')::DATE AS period,
+          COALESCE(
+          SUM(CASE
+            WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size
+          	ELSE 0
+          END), 0) AS delta,
+          :yesterday AS period,
           'monthly' AS type
       FROM
           users u
-      LEFT JOIN public.files f ON u.id = f.user_id
-          AND f.status != 'DELETED'
-          AND f.created_at < CURRENT_DATE
+      LEFT JOIN public.files f ON u.id = f.user_id AND f.created_at < :currentDate
       WHERE
           u.uuid = :userUuid
       GROUP BY
           u.uuid
       `,
       {
-        replacements: { userUuid },
+        replacements: {
+          userUuid,
+          currentDate: currentDate.toISOString(),
+          yesterday: periodFormatted,
+        },
         type: QueryTypes.SELECT,
       },
     );
@@ -70,13 +81,13 @@ export class SequelizeUsageRepository {
       where: {
         userId: data.user_id,
         type: data.type,
-        period: data.period,
+        period: periodFormatted,
       },
       defaults: {
         id: data.id,
         userId: data.user_id,
         delta: data.delta,
-        period: data.period,
+        period: periodFormatted,
         type: data.type,
       },
     });

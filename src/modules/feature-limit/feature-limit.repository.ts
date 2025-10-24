@@ -64,6 +64,11 @@ export class SequelizeFeatureLimitsRepository {
     return tier ? Tier.build(tier) : null;
   }
 
+  async findTierByLabel(label: string): Promise<Tier | null> {
+    const tier = await this.tierModel.findOne({ where: { label } });
+    return tier ? Tier.build(tier) : null;
+  }
+
   async findLimitsByLabelAndTiers(
     tierIds: string[],
     label: string,
