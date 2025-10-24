@@ -5,10 +5,16 @@ WORKDIR /usr/app
 COPY package.json ./
 COPY yarn.lock ./
 COPY .npmrc ./
+RUN yarn --ignore-scripts
 
-RUN yarn
-COPY . ./
+COPY tsconfig.json ./
+COPY tsconfig.build.json ./
+COPY nest-cli.json ./
+COPY .sequelizerc ./
+COPY --chmod=755 src ./src
+COPY --chmod=755 migrations ./migrations
+RUN yarn build && chmod -R 755 dist/
 
-RUN yarn build
+USER node
 
-CMD yarn migrate && yarn start:dev
+CMD ["sh", "-c", "yarn migrate && yarn start:dev"]
