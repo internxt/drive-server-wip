@@ -11,6 +11,7 @@ import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
+import { FOLDER_STATS_LIMITS } from './folder.constants';
 
 import { User } from '../user/user.domain';
 import { UserAttributes } from '../user/user.attributes';
@@ -123,6 +124,12 @@ export interface FolderRepository {
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
+  calculateFolderStats(folderUuid: string): Promise<{
+    fileCount: number;
+    isFileCountExact: boolean;
+    totalSize: number;
+    isTotalSizeExact: boolean;
+  }>;
   findUserFoldersByUuid(
     user: User,
     uuids: FolderAttributes['uuid'][],
@@ -898,6 +905,85 @@ export class SequelizeFolderRepository implements FolderRepository {
       );
 
       return +totalsize;
+    } catch (error) {
+      if (error.original?.code === '57014') {
+        throw new CalculateFolderSizeTimeoutException();
+      }
+
+      throw error;
+    }
+  }
+
+  async calculateFolderStats(folderUuid: string): Promise<{
+    fileCount: number;
+    isFileCountExact: boolean;
+    totalSize: number;
+    isTotalSizeExact: boolean;
+  }> {
+    try {
+      await FolderModel.sequelize.query(
+        `SET LOCAL statement_timeout = '${FOLDER_STATS_LIMITS.QUERY_TIMEOUT_MS}ms'`,
+      );
+
+      const fileStatusCondition = [FileStatus.EXISTS];
+
+      const calculateStatsQuery = `
+      WITH RECURSIVE folder_recursive AS (
+        SELECT
+          fl1.uuid,
+          fl1.parent_uuid,
+          1 as depth,
+          fl1.user_id as owner_id
+        FROM folders fl1
+        WHERE fl1.uuid = :folderUuid
+          AND fl1.removed = FALSE
+          AND fl1.deleted = FALSE
+
+        UNION ALL
+
+        SELECT
+          fl2.uuid,
+          fl2.parent_uuid,
+          fr.depth + 1,
+          fr.owner_id
+        FROM folders fl2
+        INNER JOIN folder_recursive fr
+          ON fr.uuid = fl2.parent_uuid
+        WHERE fr.depth < ${FOLDER_STATS_LIMITS.MAX_FOLDER_DEPTH}
+          AND fl2.user_id = fr.owner_id
+          AND fl2.removed = FALSE
+          AND fl2.deleted = FALSE
+      )
+      SELECT
+        COUNT(f.uuid) as file_count,
+        COALESCE(SUM(f.size), 0) as total_size,
+        COUNT(*) as total_rows
+      FROM folder_recursive fr
+      LEFT JOIN files f
+        ON f.folder_uuid = fr.uuid
+        AND f.status IN (:fileStatusCondition)
+      LIMIT ${FOLDER_STATS_LIMITS.MAX_TOTAL_ITEMS + 1};
+      `;
+
+      const [[result]]: any = await FolderModel.sequelize.query(
+        calculateStatsQuery,
+        {
+          replacements: {
+            folderUuid,
+            fileStatusCondition,
+          },
+        },
+      );
+
+      const fileCount = parseInt(result.file_count);
+      const totalRows = parseInt(result.total_rows);
+
+      return {
+        fileCount: Math.min(fileCount, FOLDER_STATS_LIMITS.MAX_FILE_COUNT),
+        isFileCountExact: fileCount <= FOLDER_STATS_LIMITS.MAX_FILE_COUNT,
+        totalSize: parseInt(result.total_size),
+        isTotalSizeExact: totalRows <= FOLDER_STATS_LIMITS.MAX_TOTAL_ITEMS,
+      };
     } catch (error) {
       if (error.original?.code === '57014') {
         throw new CalculateFolderSizeTimeoutException();
