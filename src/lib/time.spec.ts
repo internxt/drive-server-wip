@@ -68,6 +68,48 @@ describe('Time class', () => {
     });
   });
 
+  describe('daysAgo()', () => {
+    it('When days is 0, then returns current date', () => {
+      const result = Time.daysAgo(0);
+
+      expect(result.getUTCFullYear()).toBe(
+        fixedSystemCurrentDate.getUTCFullYear(),
+      );
+      expect(result.getUTCMonth()).toBe(fixedSystemCurrentDate.getUTCMonth());
+      expect(result.getUTCDate()).toBe(fixedSystemCurrentDate.getUTCDate());
+    });
+
+    it('When days is 5, then returns date 5 days ago', () => {
+      const expectedDate = new Date(fixedSystemCurrentDate);
+      expectedDate.setDate(expectedDate.getDate() - 5);
+
+      const result = Time.daysAgo(5);
+
+      expect(result.getUTCDate()).toBe(expectedDate.getUTCDate());
+    });
+  });
+
+  describe('startOfYear()', () => {
+    it('When called without year parameter, then returns start of current year', () => {
+      const result = Time.startOfYear();
+
+      expect(result.getUTCFullYear()).toBe(
+        fixedSystemCurrentDate.getUTCFullYear(),
+      );
+      expect(result.getUTCMonth()).toBe(0);
+      expect(result.getUTCDate()).toBe(1);
+      expect(result.getUTCHours()).toBe(0);
+    });
+
+    it('When called with specific year, then returns start of that year', () => {
+      const result = Time.startOfYear(2025);
+
+      expect(result.getUTCFullYear()).toBe(2025);
+      expect(result.getUTCMonth()).toBe(0);
+      expect(result.getUTCDate()).toBe(1);
+    });
+  });
+
   describe('startOfDay()', () => {
     it('When called without date, then returns current date at start of day', () => {
       const startOfDay = Time.startOfDay();
