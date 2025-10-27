@@ -1910,7 +1910,7 @@ describe('FileUseCases', () => {
       },
     });
 
-    it('When lock can not be acquired due to an error, then it should set the lock to false', async () => {
+    it('When lock can not be acquired due to an error, then it should set the lock to true to allow delta calculation', async () => {
       const lockError = new Error('Redis connection failed');
       jest
         .spyOn(redisService, 'tryAcquireLock')
@@ -1928,7 +1928,7 @@ describe('FileUseCases', () => {
       expect(result).toBeNull();
       expect(
         usageService.addDailyUsageChangeOnFileSizeChange,
-      ).not.toHaveBeenCalled();
+      ).toHaveBeenCalled();
     });
 
     it('When lock is acquired, then it should call the usage service', async () => {

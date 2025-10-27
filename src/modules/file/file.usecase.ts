@@ -942,7 +942,7 @@ export class FileUseCases {
     const lockAcquired = await this.redisService
       .tryAcquireLock(lockKey, 3000)
       .catch((_) => {
-        return false;
+        return true;
       });
 
     if (!lockAcquired) {
