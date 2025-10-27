@@ -37,6 +37,8 @@ import { Time } from '../../lib/time';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
+import { RedisService } from '../../externals/redis/redis.service';
+import { UserUseCases } from '../user/user.usecase';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -53,6 +55,7 @@ describe('FileUseCases', () => {
   let usageService: UsageService;
   let mailerService: MailerService;
   let featureLimitService: FeatureLimitService;
+  let redisService: RedisService;
 
   const userMocked = newUser({
     attributes: {
@@ -78,6 +81,7 @@ describe('FileUseCases', () => {
     usageService = module.get<UsageService>(UsageService);
     mailerService = module.get<MailerService>(MailerService);
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    redisService = module.get<RedisService>(RedisService);
   });
 
   afterEach(() => {
@@ -1888,6 +1892,66 @@ describe('FileUseCases', () => {
         yesterday,
         mockGapDelta,
       );
+    });
+  });
+
+  describe('addDailyUsageChangeOnFileSizeChange', () => {
+    const mockUser = newUser();
+    const oldFile = newFile({
+      attributes: {
+        fileId: v4(),
+        size: BigInt(100),
+      },
+    });
+    const newFileData = newFile({
+      attributes: {
+        fileId: v4(),
+        size: BigInt(200),
+      },
+    });
+
+    it('When lock can not be acquired due to an error, then it should set the lock to false', async () => {
+      const lockError = new Error('Redis connection failed');
+      jest
+        .spyOn(redisService, 'tryAcquireLock')
+        .mockRejectedValueOnce(lockError);
+      jest
+        .spyOn(usageService, 'addDailyUsageChangeOnFileSizeChange')
+        .mockResolvedValueOnce(null);
+
+      const result = await service.addDailyUsageChangeOnFileSizeChange(
+        mockUser,
+        oldFile,
+        newFileData,
+      );
+
+      expect(result).toBeNull();
+      expect(
+        usageService.addDailyUsageChangeOnFileSizeChange,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When lock is acquired, then it should call the usage service', async () => {
+      const mockUsage = newUsage();
+      jest.spyOn(redisService, 'tryAcquireLock').mockResolvedValueOnce(true);
+      jest
+        .spyOn(usageService, 'addDailyUsageChangeOnFileSizeChange')
+        .mockResolvedValueOnce(mockUsage);
+
+      const result = await service.addDailyUsageChangeOnFileSizeChange(
+        mockUser,
+        oldFile,
+        newFileData,
+      );
+
+      expect(result).toEqual(mockUsage);
+      expect(redisService.tryAcquireLock).toHaveBeenCalledWith(
+        `file-size-change:${newFileData.fileId}`,
+        3000,
+      );
+      expect(
+        usageService.addDailyUsageChangeOnFileSizeChange,
+      ).toHaveBeenCalledWith(mockUser, oldFile, newFileData);
     });
   });
 });

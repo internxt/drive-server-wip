@@ -46,6 +46,8 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
 import { UserUseCases } from '../user/user.usecase';
+import { RedisService } from '../../externals/redis/redis.service';
+import { Usage } from '../usage/usage.domain';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -65,6 +67,7 @@ export class FileUseCases {
     private readonly featureLimitService: FeatureLimitService,
     @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
+    private readonly redisService: RedisService,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -710,18 +713,20 @@ export class FileUseCases {
     });
 
     const newFile = File.build({ ...file, size, fileId });
-    await this.usageService
-      .addDailyUsageChangeOnFileSizeChange(user, file, newFile)
-      .catch((error) => {
+
+    await this.addDailyUsageChangeOnFileSizeChange(user, file, newFile).catch(
+      (error) => {
         const errorObject = {
           name: error.name,
           message: error.message,
           stack: error.stack,
         };
-        new Logger('addDailyUsageChangeOnFileSizeChange').error(
-          `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
-        );
-      });
+        new Logger('USAGE/DAILY').error({
+          error: errorObject,
+          msg: 'There was an error calculating the user usage incrementally',
+        });
+      },
+    );
 
     try {
       await this.network.deleteFile(user, bucket, oldFileId);
@@ -926,5 +931,28 @@ export class FileUseCases {
   async hasUploadedFiles(user: User) {
     const file = await this.fileRepository.findOneBy({ userId: user.id });
     return file !== null;
+  }
+
+  async addDailyUsageChangeOnFileSizeChange(
+    user: User,
+    oldFileData: File,
+    newFileData: File,
+  ): Promise<Usage | null> {
+    const lockKey = `file-size-change:${newFileData.fileId}`;
+    const lockAcquired = await this.redisService
+      .tryAcquireLock(lockKey, 3000)
+      .catch((_) => {
+        return false;
+      });
+
+    if (!lockAcquired) {
+      return null;
+    }
+
+    return this.usageService.addDailyUsageChangeOnFileSizeChange(
+      user,
+      oldFileData,
+      newFileData,
+    );
   }
 }
