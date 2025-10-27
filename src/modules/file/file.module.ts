@@ -16,6 +16,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 import { UsageModule } from '../usage/usage.module';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { RedisService } from '../../externals/redis/redis.service';
 
 @Module({
   imports: [
@@ -32,7 +33,12 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     FeatureLimitModule,
   ],
   controllers: [FileController],
-  providers: [SequelizeFileRepository, FileUseCases, MailerService],
+  providers: [
+    SequelizeFileRepository,
+    FileUseCases,
+    MailerService,
+    RedisService,
+  ],
   exports: [FileUseCases, SequelizeModule, SequelizeFileRepository],
 })
 export class FileModule {}
