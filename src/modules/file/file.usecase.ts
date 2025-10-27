@@ -706,13 +706,25 @@ export class FileUseCases {
     const { fileId: oldFileId, bucket } = file;
     const { fileId, size, modificationTime } = newFileData;
 
-    await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-      fileId,
-      size,
-      ...(modificationTime ? { modificationTime } : null),
-    });
+    const newFile = await this.fileRepository.updateByUuidAndUserId(
+      fileUuid,
+      user.id,
+      {
+        fileId,
+        size,
+        ...(modificationTime ? { modificationTime } : null),
+      },
+    );
 
-    const newFile = File.build({ ...file, size, fileId });
+    new Logger('FILE/REPLACE').log({
+      user: { email: user.email, uuid: user.uuid },
+      newFile: {
+        newFileId: newFile.fileId,
+        size: newFile.size,
+        createdAt: newFile.createdAt,
+      },
+      oldFile: { oldFileId, size: file.size, createdAt: file.createdAt },
+    });
 
     await this.addDailyUsageChangeOnFileSizeChange(user, file, newFile).catch(
       (error) => {

@@ -91,7 +91,7 @@ export interface FileRepository {
     uuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
     update: Partial<File>,
-  ): Promise<void>;
+  ): Promise<File | null>;
   updateManyByFieldIdAndUserId(
     fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
@@ -707,13 +707,15 @@ export class SequelizeFileRepository implements FileRepository {
     uuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
     update: Partial<File>,
-  ): Promise<void> {
-    await this.fileModel.update(update, {
+  ): Promise<File | null> {
+    const [_, updatedFile] = await this.fileModel.update(update, {
       where: {
         userId,
         uuid,
       },
+      returning: true,
     });
+    return updatedFile[0] ? this.toDomain(updatedFile[0]) : null;
   }
 
   async getFilesWhoseFolderIdDoesNotExist(
