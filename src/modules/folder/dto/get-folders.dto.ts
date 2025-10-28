@@ -37,14 +37,12 @@ export class GetFoldersQueryDto extends RequiredLargePaginationDto {
 
   @ApiProperty({
     description: 'Field to sort by',
-    enum: ['uuid', 'plainName'],
+    enum: ['uuid', 'plainName', 'updatedAt'],
     required: false,
   })
   @IsOptional()
   @ValidateIf((o) => o.order !== undefined)
-  @IsEnum(['uuid', 'plainName'], {
-    message: 'Invalid sort field. Allowed values are: uuid, plainName',
-  })
+  @IsEnum(['uuid', 'plainName', 'updatedAt'])
   sort?: SortableFolderAttributes;
 
   @ApiProperty({
