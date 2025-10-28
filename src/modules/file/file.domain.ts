@@ -7,7 +7,7 @@ import type { FileDto } from './dto/file.dto';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
-  'updatedAt' | 'size' | 'id' | 'plainName' | 'name'
+  'updatedAt' | 'size' | 'id' | 'plainName' | 'name' | 'uuid'
 >;
 
 export enum FileStatus {

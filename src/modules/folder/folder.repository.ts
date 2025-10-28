@@ -108,6 +108,13 @@ export interface FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder>>;
+  findAllCursorWhereUpdatedAfter(
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FolderAttributes, string]>,
+  ): Promise<Array<Folder>>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
