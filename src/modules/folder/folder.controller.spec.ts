@@ -862,19 +862,22 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'decryptFolderName')
         .mockImplementation((f) => f);
 
-      const result = await folderController.getFolders(
-        userMocked,
+      const result = await folderController.getFolders(userMocked, {
         limit,
         offset,
-        'EXISTS' as any,
-      );
+        status: FolderStatus.EXISTS,
+      });
 
       expect(result).toEqual(
         mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
       );
       expect(
         folderUseCases.getNotTrashedFoldersUpdatedAfter,
-      ).toHaveBeenCalledWith(userMocked.id, new Date(1), { limit, offset });
+      ).toHaveBeenCalledWith(userMocked.id, new Date(1), {
+        limit,
+        offset,
+        sort: undefined,
+      });
     });
 
     it('When getting folders with TRASHED status, then it should return deleted folders', async () => {
@@ -886,12 +889,11 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'decryptFolderName')
         .mockImplementation((f) => f);
 
-      const result = await folderController.getFolders(
-        userMocked,
+      const result = await folderController.getFolders(userMocked, {
         limit,
         offset,
-        'TRASHED' as any,
-      );
+        status: FolderStatus.TRASHED,
+      });
 
       expect(result).toEqual(
         mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
@@ -899,7 +901,7 @@ describe('FolderController', () => {
       expect(folderUseCases.getTrashedFoldersUpdatedAfter).toHaveBeenCalledWith(
         userMocked.id,
         new Date(1),
-        { limit, offset },
+        { limit, offset, sort: undefined },
       );
     });
 
@@ -913,13 +915,12 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'decryptFolderName')
         .mockImplementation((f) => f);
 
-      const result = await folderController.getFolders(
-        userMocked,
+      const result = await folderController.getFolders(userMocked, {
         limit,
         offset,
-        'EXISTS' as any,
+        status: FolderStatus.EXISTS,
         updatedAt,
-      );
+      });
 
       expect(result).toEqual(
         mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
@@ -929,6 +930,7 @@ describe('FolderController', () => {
       ).toHaveBeenCalledWith(userMocked.id, new Date(updatedAt), {
         limit,
         offset,
+        sort: undefined,
       });
     });
   });

@@ -31,7 +31,6 @@ import { FileUseCases } from '../file/file.usecase';
 import { Folder } from './folder.domain';
 import { FileStatus } from '../file/file.domain';
 import { validate } from 'uuid';
-import API_LIMITS from '../../lib/http/limits';
 import { isNumber } from '../../lib/validators';
 import { MoveFolderDto } from './dto/move-folder.dto';
 
@@ -65,48 +64,13 @@ import { GetFolderContentDto } from './dto/responses/get-folder-content.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
-
-const foldersStatuses = ['ALL', 'EXISTS', 'TRASHED', 'DELETED'] as const;
-
-enum FolderStatusQuery {
-  EXISTS = 'EXISTS',
-  TRASHED = 'TRASHED',
-  DELETED = 'DELETED',
-  ALL = 'ALL',
-}
+import { GetFoldersQueryDto } from './dto/get-folders.dto';
 
 export class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
     super('Folder id should be a number and higher than 0');
 
     Object.setPrototypeOf(this, BadRequestWrongFolderIdException.prototype);
-  }
-}
-
-export class BadRequestWrongOffsetOrLimitException extends BadRequestException {
-  constructor() {
-    super('Offset and limit should be numbers higher than 0');
-
-    Object.setPrototypeOf(
-      this,
-      BadRequestWrongOffsetOrLimitException.prototype,
-    );
-  }
-}
-
-export class BadRequestOutOfRangeLimitException extends BadRequestException {
-  constructor(upperLimit: number = 50) {
-    super(`Limit should be between 1 and ${upperLimit}`);
-
-    Object.setPrototypeOf(this, BadRequestOutOfRangeLimitException.prototype);
-  }
-}
-
-export class BadRequestInvalidOffsetException extends BadRequestException {
-  constructor() {
-    super('Offset should be higher than 0');
-
-    Object.setPrototypeOf(this, BadRequestInvalidOffsetException.prototype);
   }
 }
 
@@ -516,47 +480,10 @@ export class FolderController {
 
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FolderDto })
-  @ApiQuery({ name: 'updatedAt', required: false })
-  @ApiQuery({ name: 'status', enum: FolderStatusQuery })
-  @ApiQuery({ name: 'offset', type: Number })
-  @ApiQuery({ name: 'limit', type: Number })
   async getFolders(
     @UserDecorator() user: User,
-    @Query('limit') limit: number,
-    @Query('offset') offset: number,
-    @Query('status') status: FolderStatusQuery,
-    @Query('updatedAt') updatedAt?: string,
+    @Query() query: GetFoldersQueryDto,
   ): Promise<FolderDto[]> {
-    if (!status) {
-      throw new BadRequestException('Missing "status" query param');
-    }
-    if (!limit || (!offset && offset !== 0)) {
-      throw new BadRequestException('Missing "offset" or "limit" param');
-    }
-
-    const knownStatus = foldersStatuses.includes(status);
-
-    if (!knownStatus) {
-      throw new BadRequestException(`Unknown status "${status.toString()}"`);
-    }
-
-    if (!isNumber(limit) || !isNumber(offset)) {
-      throw new BadRequestWrongOffsetOrLimitException();
-    }
-
-    if (
-      limit < API_LIMITS.FOLDERS.GET.ALL.LIMIT.LOWER_BOUND ||
-      limit > API_LIMITS.FOLDERS.GET.ALL.LIMIT.UPPER_BOUND
-    ) {
-      throw new BadRequestOutOfRangeLimitException(
-        API_LIMITS.FOLDERS.GET.ALL.LIMIT.UPPER_BOUND,
-      );
-    }
-
-    if (offset < 0) {
-      throw new BadRequestInvalidOffsetException();
-    }
-
     try {
       const fns: Record<string, (...args) => Promise<Folder[]>> = {
         ALL: this.folderUseCases.getAllFoldersUpdatedAfter,
@@ -565,11 +492,18 @@ export class FolderController {
         DELETED: this.folderUseCases.getRemovedFoldersUpdatedAfter,
       };
 
-      const folders: Folder[] = await fns[status].bind(this.folderUseCases)(
-        user.id,
-        new Date(updatedAt || 1),
-        { limit, offset },
-      );
+      const sort =
+        query.sort && query.order ? [[query.sort, query.order]] : undefined;
+
+      const options = {
+        limit: query.limit,
+        offset: query.offset,
+        sort,
+      };
+
+      const folders: Folder[] = await fns[query.status].bind(
+        this.folderUseCases,
+      )(user.id, new Date(query.updatedAt || 1), options);
 
       return folders.map((f) => {
         if (!f.plainName) {

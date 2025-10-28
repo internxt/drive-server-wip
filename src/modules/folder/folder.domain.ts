@@ -5,7 +5,7 @@ import type { FolderAttributes } from './folder.attributes';
 
 export type SortableFolderAttributes = keyof Pick<
   FolderAttributes,
-  'id' | 'name' | 'plainName' | 'updatedAt'
+  'id' | 'name' | 'plainName' | 'updatedAt' | 'uuid'
 >;
 
 export enum FolderStatus {
@@ -13,6 +13,13 @@ export enum FolderStatus {
   TRASHED = 'TRASHED',
   DELETED = 'DELETED',
 }
+
+export const FOLDER_STATUS_QUERY_VALUES = [
+  'ALL',
+  ...Object.values(FolderStatus),
+] as const;
+export type FolderStatusQuery = (typeof FOLDER_STATUS_QUERY_VALUES)[number];
+
 export interface FolderOptions {
   deleted: FolderAttributes['deleted'];
   removed?: FolderAttributes['removed'];
