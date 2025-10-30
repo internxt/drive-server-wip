@@ -27,14 +27,37 @@ describe('Time class', () => {
     });
   });
 
-  describe('dateWithDaysAdded()', () => {
+  describe('dateWithTimeAdded()', () => {
     it('When days are added, then returns correct current date and days added', () => {
       const systemFutureDate = new Date(fixedSystemCurrentDate);
       systemFutureDate.setDate(systemFutureDate.getDate() + 5);
 
-      const futureDate = Time.dateWithDaysAdded(5);
+      const futureDate = Time.dateWithTimeAdded(5, 'day');
 
       expect(futureDate.getUTCDate()).toBe(systemFutureDate.getUTCDate());
+    });
+
+    it('When months are added, then returns correct date with months added', () => {
+      const futureDate = Time.dateWithTimeAdded(3, 'month');
+      console.log({ futureDate });
+      expect(futureDate.getUTCMonth()).toBe(
+        Time.dateWithTimeAdded(
+          3,
+          'month',
+          fixedSystemCurrentDate,
+        ).getUTCMonth(),
+      );
+    });
+
+    it('When years are added, then returns correct date with years added', () => {
+      const systemFutureDate = new Date(fixedSystemCurrentDate);
+      systemFutureDate.setFullYear(systemFutureDate.getFullYear() + 2);
+
+      const futureDate = Time.dateWithTimeAdded(2, 'year');
+
+      expect(futureDate.getUTCFullYear()).toBe(
+        systemFutureDate.getUTCFullYear(),
+      );
     });
   });
 
@@ -157,6 +180,31 @@ describe('Time class', () => {
       expect(endOfDay.getUTCMinutes()).toBe(59);
       expect(endOfDay.getUTCSeconds()).toBe(59);
       expect(endOfDay.getUTCMilliseconds()).toBe(999);
+    });
+  });
+
+  describe('startOfMonth()', () => {
+    it('When called without date, then returns current date at start of month', () => {
+      const startOfMonth = Time.startOfMonth();
+
+      expect(startOfMonth.getUTCDate()).toBe(1);
+      expect(startOfMonth.getUTCHours()).toBe(0);
+      expect(startOfMonth.getUTCMinutes()).toBe(0);
+      expect(startOfMonth.getUTCSeconds()).toBe(0);
+      expect(startOfMonth.getUTCMilliseconds()).toBe(0);
+    });
+
+    it('When called with specific date, then returns that date at start of month', () => {
+      const specificDate = Time.now('2023-05-15T14:30:45.123Z');
+
+      const startOfMonth = Time.startOfMonth(specificDate);
+
+      expect(startOfMonth.getUTCMonth()).toBe(4);
+      expect(startOfMonth.getUTCDate()).toBe(1);
+      expect(startOfMonth.getUTCHours()).toBe(0);
+      expect(startOfMonth.getUTCMinutes()).toBe(0);
+      expect(startOfMonth.getUTCSeconds()).toBe(0);
+      expect(startOfMonth.getUTCMilliseconds()).toBe(0);
     });
   });
 });
