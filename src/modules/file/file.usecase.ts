@@ -125,7 +125,7 @@ export class FileUseCases {
   }
 
   async backfillUsageUntilYesterday(user: User, startDate: Date) {
-    const yesterday = Time.dateWithDaysAdded(-1);
+    const yesterday = Time.dateWithTimeAdded(-1, 'day');
     const yesterdayEndOfDay = Time.endOfDay(yesterday);
 
     const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(

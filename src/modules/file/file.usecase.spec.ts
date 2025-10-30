@@ -1859,7 +1859,7 @@ describe('FileUseCases', () => {
     it('When user has recent usage but needs update, then it should calculate gap delta and create monthly usage', async () => {
       const mockUser = newUser();
       const today = new Date('2024-01-04T10:00:00Z');
-      const yesterday = Time.dateWithDaysAdded(-1, today);
+      const yesterday = Time.dateWithTimeAdded(-1, 'day', today);
       const mockUsage = newUsage({
         attributes: { period: new Date('2024-01-01T00:00:00Z') },
       });

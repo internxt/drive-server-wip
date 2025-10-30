@@ -34,7 +34,7 @@ export class AttemptChangeEmailModel
   @Column(DataType.STRING)
   newEmail: AttemptChangeEmailAttributes['newEmail'];
 
-  @Default(Time.dateWithDaysAdded(7))
+  @Default(Time.dateWithTimeAdded(7, 'day'))
   @Column(DataType.DATE)
   expiresAt: Date;
 
