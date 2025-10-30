@@ -3332,7 +3332,7 @@ describe('User use cases', () => {
 
       await expect(
         userUseCases.createAttemptChangeEmail(user, newEmail),
-      ).rejects.toThrow(UserEmailAlreadyInUseException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('When new email is the same as current email, then it should throw', async () => {
