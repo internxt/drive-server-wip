@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 
 dayjs.extend(utc);
+dayjs.extend(isSameOrBefore);
 
 export class Time {
   public static now(initialDate?: string | Date | number): Date {
@@ -62,5 +64,12 @@ export class Time {
 
   public static formatAsDateOnly(date: Date): string {
     return dayjs(date).utc().format('YYYY-MM-DD');
+  }
+  public static isSameOrBefore(
+    date1: Date,
+    date2: Date,
+    unit: dayjs.UnitType = 'day',
+  ): boolean {
+    return dayjs(date1).utc().isSameOrBefore(dayjs(date2).utc(), unit);
   }
 }

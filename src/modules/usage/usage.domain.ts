@@ -1,3 +1,5 @@
+import { Time } from '../../lib/time';
+
 export enum UsageType {
   Daily = 'daily',
   Monthly = 'monthly',
@@ -71,5 +73,13 @@ export class Usage implements UsageAttributes {
     }
 
     return nextPeriod;
+  }
+
+  isAtOrBeforePeriod(date: Date): boolean {
+    if (this.isYearly()) {
+      return Time.isSameOrBefore(date, this.period, 'year');
+    }
+
+    return Time.isSameOrBefore(date, this.period, 'day');
   }
 }
