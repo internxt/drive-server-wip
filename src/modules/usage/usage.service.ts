@@ -4,7 +4,6 @@ import { File } from '../file/file.domain';
 import { User } from '../user/user.domain';
 import { Usage, UsageType } from './usage.domain';
 import { v4 } from 'uuid';
-import { Time } from '../../lib/time';
 
 @Injectable()
 export class UsageService {
@@ -60,17 +59,13 @@ export class UsageService {
   ): Promise<Usage | null> {
     const delta = Number(newFileData.size) - Number(oldFileData.size);
 
-    // Files created the same day do not need a daily usage entry, they will be included in the next monthly usage
-    const isFileCreatedToday = Time.isToday(newFileData.createdAt);
-
-    if (delta === 0 || isFileCreatedToday) {
-      return null;
-    }
-
-    const doesUserHasAnyUsageCalculation =
+    const recentUsage =
       await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(user.uuid);
 
-    if (!doesUserHasAnyUsageCalculation) {
+    if (!recentUsage || delta === 0) {
+      return null;
+    }
+    if (!recentUsage.isAtOrBeforePeriod(newFileData.createdAt)) {
       return null;
     }
 
