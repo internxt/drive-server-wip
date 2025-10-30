@@ -7,7 +7,6 @@ import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
 import { SequelizeJobExecutionRepository } from './repositories/job-execution.repository';
 import { JobExecutionModel } from './models/job-execution.model';
-import { RetroActiveDeleteItemsCleanupTask } from './tasks/retroactive-items-cleanup.task';
 import { RedisService } from '../../externals/redis/redis.service';
 import { InactiveUsersEmailTask } from './tasks/inactive-users-email.task';
 import { MailerModule } from '../../externals/mailer/mailer.module';
@@ -29,7 +28,6 @@ import { SecurityModule } from '../security/security.module';
     DeletedItemsCleanupTask,
     RedisService,
     SequelizeJobExecutionRepository,
-    RetroActiveDeleteItemsCleanupTask,
     InactiveUsersEmailTask,
   ],
 })

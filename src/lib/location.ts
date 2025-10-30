@@ -1,6 +1,6 @@
 import geoip from 'geoip-lite';
 
-export type Location = {
+type Location = {
   country: string;
   region: string;
   city: string;
