@@ -3,14 +3,27 @@ import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
 
+export type TimeUnit =
+  | 'year'
+  | 'month'
+  | 'week'
+  | 'day'
+  | 'hour'
+  | 'minute'
+  | 'second';
+
 export class Time {
   public static now(initialDate?: string | Date | number): Date {
     return dayjs(initialDate).utc().toDate();
   }
 
-  public static dateWithDaysAdded(days: number, initialDate?: Date): Date {
+  public static dateWithTimeAdded(
+    amount: number,
+    unit: TimeUnit,
+    initialDate?: Date,
+  ): Date {
     const date = dayjs(initialDate ?? Time.now()).utc();
-    return date.add(days, 'day').toDate();
+    return date.add(amount, unit).toDate();
   }
 
   public static readonly isToday = (date: Date): boolean => {
@@ -28,7 +41,7 @@ export class Time {
   };
 
   public static daysAgo(days: number): Date {
-    return Time.dateWithDaysAdded(-days);
+    return Time.dateWithTimeAdded(-days, 'day');
   }
 
   public static startOfYear(year?: number): Date {
@@ -58,6 +71,11 @@ export class Time {
   public static endOfDay(date?: Date): Date {
     const targetDate = date ? dayjs(date) : dayjs(Time.now());
     return targetDate.utc().endOf('day').toDate();
+  }
+
+  public static startOfMonth(date?: Date): Date {
+    const targetDate = date ? dayjs(date) : dayjs(Time.now());
+    return targetDate.utc().startOf('month').toDate();
   }
 
   public static formatAsDateOnly(date: Date): string {

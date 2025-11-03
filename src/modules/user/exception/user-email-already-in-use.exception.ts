@@ -1,12 +1,7 @@
-import { HttpStatus } from '@nestjs/common';
-import { UserException } from './user.exception';
+import { ConflictException, HttpStatus } from '@nestjs/common';
 
-export class UserEmailAlreadyInUseException extends UserException {
+export class UserEmailAlreadyInUseException extends ConflictException {
   constructor(email?: string) {
-    super(
-      `${email} email already in use`,
-      HttpStatus.BAD_REQUEST,
-      'USER_EMAIL_ALREADY_IN_USE',
-    );
+    super(HttpStatus.BAD_REQUEST, `${email} email already in use`);
   }
 }

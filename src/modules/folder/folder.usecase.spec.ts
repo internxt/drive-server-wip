@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { Folder, FolderOptions } from './folder.domain';
+import { FolderAttributes } from './folder.attributes';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -1796,6 +1797,183 @@ describe('FolderUseCases', () => {
       await expect(
         service.getFolderStats(userMocked, folderUuid),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getFoldersUpdatedAfter', () => {
+    const userId = 1;
+    const updatedAfter = new Date('2024-01-01T00:00:00Z');
+    const limit = 50;
+    const offset = 0;
+
+    it('When getting folders updated after a date with default sort, then it should use default sort order', async () => {
+      const whereClause = { deleted: false, removed: false };
+      const folders = [newFolder(), newFolder()];
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersUpdatedAfter(
+        userId,
+        whereClause,
+        updatedAfter,
+        { limit, offset },
+      );
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        { ...whereClause, userId },
+        updatedAfter,
+        limit,
+        offset,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(folders);
+    });
+
+    it('When getting folders updated after a date with custom sort, then it should use custom sort order', async () => {
+      const whereClause = { deleted: false };
+      const folders = [newFolder(), newFolder()];
+      const customSort: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
+        ['plainName', 'DESC'],
+        ['updatedAt', 'ASC'],
+      ];
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersUpdatedAfter(
+        userId,
+        whereClause,
+        updatedAfter,
+        { limit, offset, sort: customSort },
+      );
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        { ...whereClause, userId },
+        updatedAfter,
+        limit,
+        offset,
+        customSort,
+      );
+      expect(result).toEqual(folders);
+    });
+
+    it('When getting folders with empty where clause, then it should only include userId', async () => {
+      const folders = [newFolder()];
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersUpdatedAfter(
+        userId,
+        {},
+        updatedAfter,
+        { limit, offset },
+      );
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith({ userId }, updatedAfter, limit, offset, [
+        ['updatedAt', 'ASC'],
+      ]);
+      expect(result).toEqual(folders);
+    });
+
+    it('When getting folders with multiple where conditions, then it should merge all conditions with userId', async () => {
+      const whereClause = {
+        deleted: false,
+        removed: false,
+        parentId: 123,
+      };
+      const folders = [newFolder()];
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersUpdatedAfter(
+        userId,
+        whereClause,
+        updatedAfter,
+        { limit, offset },
+      );
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        { ...whereClause, userId },
+        updatedAfter,
+        limit,
+        offset,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(folders);
+    });
+
+    it('When getting folders with different pagination options, then it should pass correct limit and offset', async () => {
+      const whereClause = { deleted: false };
+      const folders = [newFolder()];
+      const customLimit = 100;
+      const customOffset = 50;
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersUpdatedAfter(
+        userId,
+        whereClause,
+        updatedAfter,
+        { limit: customLimit, offset: customOffset },
+      );
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        { ...whereClause, userId },
+        updatedAfter,
+        customLimit,
+        customOffset,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(folders);
+    });
+
+    it('When getting folders with uuid sort, then it should pass uuid sort to repository', async () => {
+      const whereClause = { deleted: false };
+      const folders = [newFolder()];
+      const uuidSort: Array<[keyof FolderAttributes, 'ASC' | 'DESC']> = [
+        ['uuid', 'ASC'],
+      ];
+
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce(folders);
+
+      const result = await service.getFoldersUpdatedAfter(
+        userId,
+        whereClause,
+        updatedAfter,
+        { limit, offset, sort: uuidSort },
+      );
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        { ...whereClause, userId },
+        updatedAfter,
+        limit,
+        offset,
+        uuidSort,
+      );
+      expect(result).toEqual(folders);
     });
   });
 });

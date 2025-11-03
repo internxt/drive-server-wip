@@ -25,11 +25,11 @@ export class GetFilesDto extends RequiredLargePaginationDto {
 
   @ApiProperty({
     description: 'Field to sort by',
-    enum: ['updatedAt', 'size', 'id', 'plainName', 'name'],
+    enum: ['updatedAt', 'size', 'id', 'plainName', 'name', 'uuid'],
     required: false,
   })
   @IsOptional()
-  @IsEnum(['updatedAt', 'size', 'id', 'plainName', 'name'])
+  @IsEnum(['updatedAt', 'size', 'id', 'plainName', 'name', 'uuid'])
   sort?: SortableFileAttributes;
 
   @ApiProperty({
