@@ -1169,12 +1169,11 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '0',
         total_size: '0',
-        total_rows: '1',
+        total_files_found: '0',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       const result = await repository.calculateFolderStats(folder.uuid);
@@ -1189,12 +1188,11 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '500',
         total_size: '5000000',
-        total_rows: '550',
+        total_files_found: '500',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       const result = await repository.calculateFolderStats(folder.uuid);
@@ -1209,12 +1207,11 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '1000',
         total_size: '10000000',
-        total_rows: '1001',
+        total_files_found: '1000',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       const result = await repository.calculateFolderStats(folder.uuid);
@@ -1227,12 +1224,11 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '1500',
         total_size: '15000000',
-        total_rows: '1600',
+        total_files_found: '1500',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       const result = await repository.calculateFolderStats(folder.uuid);
@@ -1243,14 +1239,13 @@ describe('SequelizeFolderRepository', () => {
 
     it('When folder exceeds maximum total items, then it should mark size as approximate', async () => {
       const mockResult = {
-        file_count: '8000',
+        file_count: '12000',
         total_size: '50000000',
-        total_rows: '12000',
+        total_files_found: '12000',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       const result = await repository.calculateFolderStats(folder.uuid);
@@ -1263,12 +1258,11 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '9973',
         total_size: '27634171904',
-        total_rows: '1001',
+        total_files_found: '9973',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       const result = await repository.calculateFolderStats(folder.uuid);
@@ -1280,14 +1274,11 @@ describe('SequelizeFolderRepository', () => {
     });
 
     it('When stats calculation times out, then it should throw timeout exception', async () => {
-      jest
-        .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
-        .mockRejectedValueOnce({
-          original: {
-            code: TIMEOUT_ERROR_CODE,
-          },
-        });
+      jest.spyOn(FolderModel.sequelize, 'query').mockRejectedValueOnce({
+        original: {
+          code: TIMEOUT_ERROR_CODE,
+        },
+      });
 
       await expect(
         repository.calculateFolderStats(folder.uuid),
@@ -1298,12 +1289,11 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '100',
         total_size: '1000000',
-        total_rows: '120',
+        total_files_found: '100',
       };
 
       jest
         .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValueOnce(undefined as any)
         .mockResolvedValueOnce([[mockResult]] as any);
 
       await repository.calculateFolderStats(folder.uuid);

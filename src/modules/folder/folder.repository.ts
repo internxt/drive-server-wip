@@ -11,11 +11,6 @@ import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
 import { FolderAttributes } from './folder.attributes';
-import { FOLDER_STATS_LIMITS } from './folder.constants';
-
-import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
-import { Pagination } from '../../lib/pagination';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
@@ -28,6 +23,9 @@ import { Literal } from 'sequelize/types/utils';
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileStatus } from '../file/file.domain';
 import { UserModel } from '../user/user.model';
+import { User } from '../user/user.domain';
+import { UserAttributes } from '../user/user.attributes';
+import { Pagination } from '../../lib/pagination';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -921,10 +919,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     isTotalSizeExact: boolean;
   }> {
     try {
-      await FolderModel.sequelize.query(
-        "SET LOCAL statement_timeout = '3000ms'",
-      );
-
       const fileStatusCondition = [FileStatus.EXISTS];
 
       const calculateStatsQuery = `
@@ -949,20 +943,27 @@ export class SequelizeFolderRepository implements FolderRepository {
         FROM folders fl2
         INNER JOIN folder_recursive fr
           ON fr.uuid = fl2.parent_uuid
-        WHERE fr.depth < ${FOLDER_STATS_LIMITS.MAX_FOLDER_DEPTH}
+        WHERE fr.depth < 100000
           AND fl2.user_id = fr.owner_id
           AND fl2.removed = FALSE
           AND fl2.deleted = FALSE
+      ),
+      ranked_files AS (
+        SELECT
+          f.uuid,
+          f.size,
+          ROW_NUMBER() OVER (ORDER BY f.creation_time) as rn
+        FROM folder_recursive fr
+        INNER JOIN files f
+          ON f.folder_uuid = fr.uuid
+          AND f.status IN (:fileStatusCondition)
       )
       SELECT
-        COUNT(f.uuid) as file_count,
-        COALESCE(SUM(f.size), 0) as total_size,
-        COUNT(*) as total_rows
-      FROM folder_recursive fr
-      LEFT JOIN files f
-        ON f.folder_uuid = fr.uuid
-        AND f.status IN (:fileStatusCondition)
-      LIMIT ${FOLDER_STATS_LIMITS.MAX_TOTAL_ITEMS + 1};
+        COUNT(uuid) as file_count,
+        COALESCE(SUM(size), 0) as total_size,
+        MAX(rn) as total_files_found
+      FROM ranked_files
+      WHERE rn <= 10000;
       `;
 
       const [[result]]: any = await FolderModel.sequelize.query(
@@ -975,14 +976,14 @@ export class SequelizeFolderRepository implements FolderRepository {
         },
       );
 
-      const fileCount = parseInt(result.file_count);
-      const totalRows = parseInt(result.total_rows);
+      const fileCount = Number.parseInt(result.file_count);
+      const totalFilesFound = Number.parseInt(result.total_files_found || 0);
 
       return {
-        fileCount: Math.min(fileCount, FOLDER_STATS_LIMITS.MAX_FILE_COUNT),
-        isFileCountExact: fileCount <= FOLDER_STATS_LIMITS.MAX_FILE_COUNT,
-        totalSize: parseInt(result.total_size),
-        isTotalSizeExact: totalRows <= FOLDER_STATS_LIMITS.MAX_TOTAL_ITEMS,
+        fileCount: Math.min(fileCount, 1000),
+        isFileCountExact: totalFilesFound <= 1000,
+        totalSize: Number.parseInt(result.total_size),
+        isTotalSizeExact: totalFilesFound < 10000,
       };
     } catch (error) {
       if (error.original?.code === '57014') {
