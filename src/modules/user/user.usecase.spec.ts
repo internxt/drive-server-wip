@@ -4500,8 +4500,7 @@ describe('User use cases', () => {
       const totalUsage = 85 * 1024 * 1024 * 1024;
       const usage = { drive: totalUsage, backup: 0, total: totalUsage };
       const lastMailSent = new Date();
-      lastMailSent.setMonth(lastMailSent.getMonth() - 1);
-      lastMailSent.setDate(28);
+      lastMailSent.setDate(lastMailSent.getDate() - 20);
 
       const mockMailLimit = newMailLimit({
         userId: mockUser.id,
@@ -4511,9 +4510,6 @@ describe('User use cases', () => {
         lastMailSent,
       });
 
-      jest
-        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
-        .mockReturnValue(false);
       jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
