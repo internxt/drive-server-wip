@@ -46,6 +46,7 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { Version } from '../../common/decorators/version.decorator';
+import { TrashItemType } from './trash.attributes';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -85,10 +86,8 @@ export class TrashController {
     }
 
     try {
-      let result: File[] | Folder[];
-
       if (type === 'files') {
-        result = await this.fileUseCases.getFiles(
+        const files = await this.fileUseCases.getFiles(
           user.id,
           { status: FileStatus.TRASHED },
           {
@@ -97,8 +96,25 @@ export class TrashController {
             sort: sort && order && [[sort, order]],
           },
         );
+
+        const fileUuids = files.map((f) => f.uuid);
+        const trashEntries = await this.trashUseCases.getTrashEntriesByIds(
+          fileUuids,
+          TrashItemType.File,
+        );
+
+        const trashMap = new Map(
+          trashEntries.map((entry) => [entry.itemId, entry.caducityDate]),
+        );
+
+        const result = files.map((file) => ({
+          ...file.toJSON(),
+          caducityDate: trashMap.get(file.uuid) || null,
+        }));
+
+        return { result };
       } else {
-        result = await this.folderUseCases.getFolders(
+        const folders = await this.folderUseCases.getFolders(
           user.id,
           { deleted: true, removed: false },
           {
@@ -107,9 +123,24 @@ export class TrashController {
             sort: sort && order && [[sort as SortableFolderAttributes, order]],
           },
         );
-      }
 
-      return { result };
+        const folderUuids = folders.map((f) => f.uuid);
+        const trashEntries = await this.trashUseCases.getTrashEntriesByIds(
+          folderUuids,
+          TrashItemType.Folder,
+        );
+
+        const trashMap = new Map(
+          trashEntries.map((entry) => [entry.itemId, entry.caducityDate]),
+        );
+
+        const result = folders.map((folder) => ({
+          ...folder.toJSON(),
+          caducityDate: trashMap.get(folder.uuid) || null,
+        }));
+
+        return { result };
+      }
     } catch (error) {
       const { email, uuid } = user;
       new Logger().error(

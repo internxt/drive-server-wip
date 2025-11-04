@@ -31,6 +31,9 @@ import { SharingService } from '../sharing/sharing.service';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FileStatus } from '../file/file.domain';
+import { TrashUseCases } from '../trash/trash.usecase';
+import { TrashItemType } from '../trash/trash.attributes';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 const folderId = 4;
 const user = newUser();
@@ -41,6 +44,8 @@ describe('FolderUseCases', () => {
   let cryptoService: CryptoService;
   let sharingService: SharingService;
   let fileUsecases: FileUseCases;
+  let trashUsecases: TrashUseCases;
+  let featureLimitService: FeatureLimitService;
 
   const userMocked = User.build({
     id: 1,
@@ -85,6 +90,8 @@ describe('FolderUseCases', () => {
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
     fileUsecases = module.get<FileUseCases>(FileUseCases);
+    trashUsecases = module.get<TrashUseCases>(TrashUseCases);
+    featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -186,6 +193,90 @@ describe('FolderUseCases', () => {
       expect(service.getFoldersByIds).toHaveBeenCalledWith(user, [
         mockFolder.id,
       ]);
+    });
+
+    it('When you trash regular folders and backup folders, then only regular folders go to the trash bin', async () => {
+      const rootFolderBucket = 'drive-bucket';
+      const mockDriveFolder = newFolder({
+        attributes: { bucket: rootFolderBucket, parentId: 1 },
+      });
+      const mockBackupFolder = newFolder({
+        attributes: { bucket: 'backup-bucket', parentId: null },
+      });
+      const mockTier = { id: '1', label: 'free_individual' };
+
+      jest
+        .spyOn(service, 'getFoldersByIds')
+        .mockResolvedValue([mockDriveFolder, mockBackupFolder]);
+      jest
+        .spyOn(service, 'getFolder')
+        .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
+      jest
+        .spyOn(featureLimitService, 'getTier')
+        .mockResolvedValueOnce(mockTier);
+      jest.spyOn(trashUsecases, 'addItemsToTrash');
+
+      await service.moveFoldersToTrash(user, [
+        mockDriveFolder.id,
+        mockBackupFolder.id,
+      ]);
+
+      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledTimes(1);
+      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
+        [mockDriveFolder.uuid],
+        TrashItemType.Folder,
+        'free_individual',
+        user.id,
+      );
+    });
+
+    it('When you trash only backup folders, then the trash bin is not updated', async () => {
+      const rootFolderBucket = 'drive-bucket';
+      const mockBackupFolder = newFolder({
+        attributes: { bucket: 'backup-bucket', parentId: null },
+      });
+      const mockTier = { id: '1', label: 'free_individual' };
+
+      jest
+        .spyOn(service, 'getFoldersByIds')
+        .mockResolvedValue([mockBackupFolder]);
+      jest
+        .spyOn(service, 'getFolder')
+        .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
+      jest
+        .spyOn(featureLimitService, 'getTier')
+        .mockResolvedValueOnce(mockTier);
+      jest.spyOn(trashUsecases, 'addItemsToTrash');
+
+      await service.moveFoldersToTrash(user, [mockBackupFolder.id]);
+
+      expect(trashUsecases.addItemsToTrash).not.toHaveBeenCalled();
+    });
+
+    it('When you trash folders, then the retention period is determined by the user tier', async () => {
+      const rootFolderBucket = 'drive-bucket';
+      const mockFolder = newFolder({
+        attributes: { bucket: rootFolderBucket, parentId: 1 },
+      });
+      const mockTier = { id: '1', label: 'essential_individual' };
+
+      jest.spyOn(service, 'getFoldersByIds').mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(service, 'getFolder')
+        .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
+      jest
+        .spyOn(featureLimitService, 'getTier')
+        .mockResolvedValueOnce(mockTier);
+      jest.spyOn(trashUsecases, 'addItemsToTrash');
+
+      await service.moveFoldersToTrash(user, [mockFolder.id]);
+
+      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
+        [mockFolder.uuid],
+        TrashItemType.Folder,
+        'essential_individual',
+        user.id,
+      );
     });
   });
 

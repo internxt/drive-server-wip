@@ -33,6 +33,9 @@ import { File, FileStatus } from '../file/file.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderModel } from './folder.model';
 import { MoveFolderDto } from './dto/move-folder.dto';
+import { TrashItemType } from '../trash/trash.attributes';
+import { TrashUseCases } from '../trash/trash.usecase';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -50,6 +53,9 @@ export class FolderUseCases {
     @Inject(forwardRef(() => FileUseCases))
     private readonly fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
+    @Inject(forwardRef(() => TrashUseCases))
+    private readonly trashUsecases: TrashUseCases,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -476,13 +482,15 @@ export class FolderUseCases {
     folderIds: FolderAttributes['id'][],
     folderUuids: FolderAttributes['uuid'][] = [],
   ): Promise<void> {
-    const [foldersById, driveRootFolder, foldersByUuid] = await Promise.all([
-      this.getFoldersByIds(user, folderIds),
-      this.getFolder(user.rootFolderId),
-      folderUuids.length > 0
-        ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
-        : Promise.resolve<Folder[]>([]),
-    ]);
+    const [foldersById, driveRootFolder, foldersByUuid, tier] =
+      await Promise.all([
+        this.getFoldersByIds(user, folderIds),
+        this.getFolder(user.rootFolderId),
+        folderUuids.length > 0
+          ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
+          : Promise.resolve<Folder[]>([]),
+        this.featureLimitService.getTier(user.tierId),
+      ]);
 
     const folders = foldersById.concat(foldersByUuid);
 
@@ -490,6 +498,8 @@ export class FolderUseCases {
     const driveFolders = folders.filter(
       (f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId,
     );
+
+    const tierLabel = tier?.label;
 
     await Promise.all([
       driveFolders.length > 0
@@ -517,6 +527,14 @@ export class FolderUseCases {
         folders.map((folder) => folder.uuid),
         SharingItemType.Folder,
       ),
+      driveFolders.length > 0
+        ? this.trashUsecases.addItemsToTrash(
+            driveFolders.map((f) => f.uuid),
+            TrashItemType.Folder,
+            tierLabel,
+            user.id,
+          )
+        : Promise.resolve(),
     ]);
   }
 
@@ -899,10 +917,20 @@ export class FolderUseCases {
       deletedAt: null,
     };
 
+    const wasTrashed = folder.deleted === true;
+
     const updatedFolder = await this.folderRepository.updateByFolderId(
       folder.id,
       updateData,
     );
+
+    if (wasTrashed && this.trashUsecases) {
+      await this.trashUsecases.removeItemsFromTrash(
+        [folderUuid],
+        TrashItemType.Folder,
+      );
+    }
+
     return updatedFolder;
   }
 
