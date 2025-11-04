@@ -48,7 +48,7 @@ export class SendLinkListener {
     const sizeFormated = pretty(size);
     try {
       const encodedId = stringUtils.encodeV4Uuid(id);
-      const downloadURL = `/d/${encodedId}/${plainCode}`;
+      const downloadURL = `d/${encodedId}/${plainCode}`;
 
       await this.mailer.send(
         sender,
