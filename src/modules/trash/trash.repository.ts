@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { TrashModel } from './trash.model';
 import { Trash } from './trash.domain';
 import { TrashItemType } from './trash.attributes';
-import { Op, QueryTypes } from 'sequelize';
+import { Op } from 'sequelize';
 
 export interface TrashRepository {
   create(trash: Trash): Promise<void>;
