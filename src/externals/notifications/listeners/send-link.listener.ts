@@ -4,6 +4,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { MailerService } from '../../mailer/mailer.service';
 import { SendLinkCreatedEvent } from '../events/send-link-created.event';
 import pretty from 'prettysize';
+import { stringUtils } from '@internxt/lib';
 
 @Injectable()
 export class SendLinkListener {
@@ -46,6 +47,9 @@ export class SendLinkListener {
       });
     const sizeFormated = pretty(size);
     try {
+      const encodedId = stringUtils.encodeV4Uuid(id);
+      const downloadURL = `/d/${encodedId}/${plainCode}`;
+
       await this.mailer.send(
         sender,
         this.configService.get('mailer.templates.sendLinkCreateSender'),
@@ -58,7 +62,7 @@ export class SendLinkListener {
           message: subject,
           expirationDate: expirationAt,
           size: sizeFormated,
-          token: id + '?code=' + plainCode,
+          token: downloadURL,
         },
       );
 
@@ -74,7 +78,7 @@ export class SendLinkListener {
             message: subject,
             expirationDate: expirationAt,
             size: sizeFormated,
-            token: id + '?code=' + plainCode,
+            token: downloadURL,
           },
         );
       }
