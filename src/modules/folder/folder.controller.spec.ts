@@ -1054,4 +1054,55 @@ describe('FolderController', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('get folder stats', () => {
+    it('When folder belongs to user, then return folder statistics', async () => {
+      const folderUuid = v4();
+      const mockStats = {
+        fileCount: 500,
+        isFileCountExact: true,
+        totalSize: 5000000,
+        isTotalSizeExact: true,
+      };
+
+      jest
+        .spyOn(folderUseCases, 'getFolderStats')
+        .mockResolvedValueOnce(mockStats);
+
+      const result = await folderController.getFolderStats(
+        userMocked,
+        folderUuid,
+      );
+
+      expect(folderUseCases.getFolderStats).toHaveBeenCalledWith(
+        userMocked,
+        folderUuid,
+      );
+      expect(result).toEqual(mockStats);
+    });
+
+    it('When folder does not exist, then it should throw a not found error', async () => {
+      const folderUuid = v4();
+
+      jest
+        .spyOn(folderUseCases, 'getFolderStats')
+        .mockRejectedValueOnce(new NotFoundException());
+
+      await expect(
+        folderController.getFolderStats(userMocked, folderUuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder does not belong to user, then it should throw a not found error', async () => {
+      const folderUuid = v4();
+
+      jest
+        .spyOn(folderUseCases, 'getFolderStats')
+        .mockRejectedValueOnce(new NotFoundException());
+
+      await expect(
+        folderController.getFolderStats(userMocked, folderUuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

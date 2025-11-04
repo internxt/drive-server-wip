@@ -1163,4 +1163,150 @@ describe('SequelizeFolderRepository', () => {
       );
     });
   });
+
+  describe('calculateFolderStats', () => {
+    it('When folder is empty, then it should return zero for both count and size', async () => {
+      const mockResult = {
+        file_count: '0',
+        total_size: '0',
+        total_files_found: '0',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      const result = await repository.calculateFolderStats(folder.uuid);
+
+      expect(result.fileCount).toBe(0);
+      expect(result.totalSize).toBe(0);
+      expect(result.isFileCountExact).toBe(true);
+      expect(result.isTotalSizeExact).toBe(true);
+    });
+
+    it('When folder has normal amount of files, then it should return exact count and size', async () => {
+      const mockResult = {
+        file_count: '500',
+        total_size: '5000000',
+        total_files_found: '500',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      const result = await repository.calculateFolderStats(folder.uuid);
+
+      expect(result.fileCount).toBe(500);
+      expect(result.totalSize).toBe(5000000);
+      expect(result.isFileCountExact).toBe(true);
+      expect(result.isTotalSizeExact).toBe(true);
+    });
+
+    it('When folder reaches maximum file count, then it should return exact count at boundary', async () => {
+      const mockResult = {
+        file_count: '1000',
+        total_size: '10000000',
+        total_files_found: '1000',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      const result = await repository.calculateFolderStats(folder.uuid);
+
+      expect(result.fileCount).toBe(1000);
+      expect(result.isFileCountExact).toBe(true);
+    });
+
+    it('When folder exceeds maximum file count, then it should cap count and mark as approximate', async () => {
+      const mockResult = {
+        file_count: '1500',
+        total_size: '15000000',
+        total_files_found: '1500',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      const result = await repository.calculateFolderStats(folder.uuid);
+
+      expect(result.fileCount).toBe(1000);
+      expect(result.isFileCountExact).toBe(false);
+    });
+
+    it('When folder exceeds maximum total items, then it should mark size as approximate', async () => {
+      const mockResult = {
+        file_count: '12000',
+        total_size: '50000000',
+        total_files_found: '12000',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      const result = await repository.calculateFolderStats(folder.uuid);
+
+      expect(result.isTotalSizeExact).toBe(false);
+      expect(result.isFileCountExact).toBe(false);
+    });
+
+    it('When folder has deep hierarchy, then it should include files from all nested levels', async () => {
+      const mockResult = {
+        file_count: '9973',
+        total_size: '27634171904',
+        total_files_found: '9973',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      const result = await repository.calculateFolderStats(folder.uuid);
+
+      expect(result.fileCount).toBe(1000);
+      expect(result.totalSize).toBe(27634171904);
+      expect(result.isFileCountExact).toBe(false);
+      expect(result.isTotalSizeExact).toBe(true);
+    });
+
+    it('When stats calculation times out, then it should throw timeout exception', async () => {
+      jest.spyOn(FolderModel.sequelize, 'query').mockRejectedValueOnce({
+        original: {
+          code: TIMEOUT_ERROR_CODE,
+        },
+      });
+
+      await expect(
+        repository.calculateFolderStats(folder.uuid),
+      ).rejects.toThrow(CalculateFolderSizeTimeoutException);
+    });
+
+    it('When folder stats are requested, then only existent files are counted', async () => {
+      const mockResult = {
+        file_count: '100',
+        total_size: '1000000',
+        total_files_found: '100',
+      };
+
+      jest
+        .spyOn(FolderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[mockResult]] as any);
+
+      await repository.calculateFolderStats(folder.uuid);
+
+      expect(FolderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        {
+          replacements: {
+            folderUuid: folder.uuid,
+            fileStatusCondition: [FileStatus.EXISTS],
+          },
+        },
+      );
+    });
+  });
 });
