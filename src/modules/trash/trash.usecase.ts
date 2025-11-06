@@ -9,12 +9,16 @@ import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { SequelizeTrashRepository } from './trash.repository';
 import { TrashItemType } from './trash.attributes';
 import { Trash } from './trash.domain';
+import { Time, TimeUnit } from '../../lib/time';
 
-const TRASH_RETENTION_BY_TIER: Record<string, number> = {
-  free_individual: 24 * 60 * 60 * 1000,
-  essential_individual: 7 * 24 * 60 * 60 * 1000,
-  premium_individual: 14 * 24 * 60 * 60 * 1000,
-  ultimate_individual: 30 * 24 * 60 * 60 * 1000,
+const TRASH_RETENTION_BY_TIER: Record<
+  string,
+  { amount: number; unit: TimeUnit }
+> = {
+  free_individual: { amount: 1, unit: 'day' },
+  essential_individual: { amount: 7, unit: 'day' },
+  premium_individual: { amount: 14, unit: 'day' },
+  ultimate_individual: { amount: 30, unit: 'day' },
 };
 
 export interface EmptyTrashResult {
@@ -166,11 +170,15 @@ export class TrashUseCases {
     tierLabel: string,
     deletedAt: Date = new Date(),
   ): Date | null {
-    const retentionPeriod = TRASH_RETENTION_BY_TIER[tierLabel];
-    if (!retentionPeriod) {
+    const retentionConfig = TRASH_RETENTION_BY_TIER[tierLabel];
+    if (!retentionConfig) {
       return null;
     }
-    return new Date(deletedAt.getTime() + retentionPeriod);
+    return Time.dateWithTimeAdded(
+      retentionConfig.amount,
+      retentionConfig.unit,
+      deletedAt,
+    );
   }
 
   async addItemsToTrash(

@@ -668,13 +668,13 @@ export class FileUseCases {
         allFileUuids,
         SharingItemType.File,
       ),
-      this.trashUsecases.addItemsToTrash(
-        allFileUuids,
-        TrashItemType.File,
-        tierLabel,
-        user.id,
-      ),
     ]);
+
+    this.trashUsecases
+      .addItemsToTrash(allFileUuids, TrashItemType.File, tierLabel, user.id)
+      .catch((err) =>
+        Logger.error(`[TRASH] Error adding files to trash: ${err.message}`),
+      );
   }
 
   async getEncryptionKeyFromFile(

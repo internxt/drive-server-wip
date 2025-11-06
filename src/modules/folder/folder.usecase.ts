@@ -527,15 +527,20 @@ export class FolderUseCases {
         folders.map((folder) => folder.uuid),
         SharingItemType.Folder,
       ),
-      driveFolders.length > 0
-        ? this.trashUsecases.addItemsToTrash(
-            driveFolders.map((f) => f.uuid),
-            TrashItemType.Folder,
-            tierLabel,
-            user.id,
-          )
-        : Promise.resolve(),
     ]);
+
+    if (driveFolders.length > 0) {
+      this.trashUsecases
+        .addItemsToTrash(
+          driveFolders.map((f) => f.uuid),
+          TrashItemType.Folder,
+          tierLabel,
+          user.id,
+        )
+        .catch((err) =>
+          Logger.error(`[TRASH] Error adding folders to trash: ${err.message}`),
+        );
+    }
   }
 
   async getFoldersByParentId(
