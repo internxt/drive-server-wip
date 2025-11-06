@@ -64,7 +64,7 @@ describe('File module', () => {
         where: { userId: testUser.user.uuid },
       });
       expect(usages).toHaveLength(1);
-      expect(usages[0].type).toBe(UsageType.Monthly);
+      expect(usages[0].type).toBe(UsageType.Daily);
       expect(usages[0].delta).toBe('0');
     });
 
@@ -74,7 +74,7 @@ describe('File module', () => {
         id: v4(),
         userId: testUser.user.uuid,
         period: yesterday,
-        type: UsageType.Monthly,
+        type: UsageType.Daily,
         delta: 1000,
       });
 
@@ -112,7 +112,7 @@ describe('File module', () => {
           id: v4(),
           userId: testUser.user.uuid,
           period: date,
-          type: UsageType.Monthly,
+          type: UsageType.Daily,
           delta,
         });
       };
@@ -144,14 +144,14 @@ describe('File module', () => {
         yesterday.setUTCHours(0, 0, 0, 0);
 
         return usages.find((u: UsageModel) => {
-          if (u.type !== UsageType.Monthly) return false;
+          if (u.type !== UsageType.Daily) return false;
           const usagePeriod = new Date(u.period);
           usagePeriod.setUTCHours(0, 0, 0, 0);
           return usagePeriod.getTime() === yesterday.getTime();
         });
       };
 
-      it('When backfilling is triggered, then it should create monthly usage with delta equal to sum of new files', async () => {
+      it('When backfilling is triggered, then it should create daily usage with delta equal to sum of new files', async () => {
         await createUsageRecord(Time.daysAgo(3), 1000);
 
         const file1Size = 500;
@@ -303,7 +303,7 @@ describe('File module', () => {
 
         const mostRecentUsage = findYesterdayUsage(usages);
         expect(mostRecentUsage).toBeDefined();
-        expect(mostRecentUsage.type).toBe(UsageType.Monthly);
+        expect(mostRecentUsage.type).toBe(UsageType.Daily);
         expect(Number(mostRecentUsage.delta)).toBe(newFileSize);
       });
 

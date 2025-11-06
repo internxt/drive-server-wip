@@ -52,7 +52,7 @@ describe('SequelizeUsageRepository', () => {
     });
   });
 
-  describe('getMostRecentMonthlyOrYearlyUsage', () => {
+  describe('getLatestTemporalUsage', () => {
     it('When called, then should query with expected arguments', async () => {
       const userUuid = v4();
       const mockUsageModel = {
@@ -63,12 +63,16 @@ describe('SequelizeUsageRepository', () => {
         .spyOn(usageModel, 'findOne')
         .mockResolvedValue(mockUsageModel as any);
 
-      await repository.getMostRecentMonthlyOrYearlyUsage(userUuid);
+      await repository.getLatestTemporalUsage(userUuid);
 
       expect(usageModel.findOne).toHaveBeenCalledWith({
         where: {
           userId: userUuid,
-          [Op.or]: [{ type: UsageType.Monthly }, { type: UsageType.Yearly }],
+          [Op.or]: [
+            { type: UsageType.Monthly },
+            { type: UsageType.Yearly },
+            { type: UsageType.Daily },
+          ],
         },
         order: [['period', 'DESC']],
       });
@@ -79,8 +83,7 @@ describe('SequelizeUsageRepository', () => {
 
       jest.spyOn(usageModel, 'findOne').mockResolvedValue(null);
 
-      const result =
-        await repository.getMostRecentMonthlyOrYearlyUsage(userUuid);
+      const result = await repository.getLatestTemporalUsage(userUuid);
 
       expect(result).toBeNull();
     });

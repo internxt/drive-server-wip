@@ -1814,18 +1814,18 @@ describe('FileUseCases', () => {
       jest.setSystemTime(today);
 
       jest
-        .spyOn(usageService, 'getUserMostRecentUsage')
+        .spyOn(usageService, 'getMostRecentTemporalUsage')
         .mockResolvedValue(null);
       jest
-        .spyOn(usageService, 'createFirstUsageCalculation')
+        .spyOn(usageService, 'calculateFirstTemporalUsage')
         .mockResolvedValue(mockFirstUsage);
 
       await service.getUserUsedStorageIncrementally(mockUser);
 
-      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+      expect(usageService.getMostRecentTemporalUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(usageService.createFirstUsageCalculation).toHaveBeenCalledWith(
+      expect(usageService.calculateFirstTemporalUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
     });
@@ -1842,15 +1842,15 @@ describe('FileUseCases', () => {
       jest.setSystemTime(today);
 
       jest
-        .spyOn(usageService, 'getUserMostRecentUsage')
+        .spyOn(usageService, 'getMostRecentTemporalUsage')
         .mockResolvedValue(mockUsage);
 
       await service.getUserUsedStorageIncrementally(mockUser);
 
-      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+      expect(usageService.getMostRecentTemporalUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
-      expect(usageService.createMonthlyUsage).not.toHaveBeenCalled();
+      expect(usageService.createDailyUsage).not.toHaveBeenCalled();
       expect(
         fileRepository.sumFileSizeDeltaBetweenDates,
       ).not.toHaveBeenCalled();
@@ -1868,18 +1868,16 @@ describe('FileUseCases', () => {
       // Set today to a date after the next period start date according to mockUsage
       jest.setSystemTime(today);
       jest
-        .spyOn(usageService, 'getUserMostRecentUsage')
+        .spyOn(usageService, 'getMostRecentTemporalUsage')
         .mockResolvedValue(mockUsage);
       jest
         .spyOn(fileRepository, 'sumFileSizeDeltaBetweenDates')
         .mockResolvedValue(mockGapDelta);
-      jest
-        .spyOn(usageService, 'createMonthlyUsage')
-        .mockResolvedValue(undefined);
+      jest.spyOn(usageService, 'createDailyUsage').mockResolvedValue(undefined);
 
       await service.getUserUsedStorageIncrementally(mockUser);
 
-      expect(usageService.getUserMostRecentUsage).toHaveBeenCalledWith(
+      expect(usageService.getMostRecentTemporalUsage).toHaveBeenCalledWith(
         mockUser.uuid,
       );
       expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
@@ -1887,7 +1885,7 @@ describe('FileUseCases', () => {
         mockUsage.getNextPeriodStartDate(),
         Time.endOfDay(yesterday),
       );
-      expect(usageService.createMonthlyUsage).toHaveBeenCalledWith(
+      expect(usageService.createDailyUsage).toHaveBeenCalledWith(
         mockUser.uuid,
         yesterday,
         mockGapDelta,
@@ -1895,7 +1893,7 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('addDailyUsageChangeOnFileSizeChange', () => {
+  describe('addFileReplacementDelta', () => {
     const mockUser = newUser();
     const oldFile = newFile({
       attributes: {
@@ -1916,29 +1914,27 @@ describe('FileUseCases', () => {
         .spyOn(redisService, 'tryAcquireLock')
         .mockRejectedValueOnce(lockError);
       jest
-        .spyOn(usageService, 'addDailyUsageChangeOnFileSizeChange')
+        .spyOn(usageService, 'addFileReplacementDelta')
         .mockResolvedValueOnce(null);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         mockUser,
         oldFile,
         newFileData,
       );
 
       expect(result).toBeNull();
-      expect(
-        usageService.addDailyUsageChangeOnFileSizeChange,
-      ).toHaveBeenCalled();
+      expect(usageService.addFileReplacementDelta).toHaveBeenCalled();
     });
 
     it('When lock is acquired, then it should call the usage service', async () => {
       const mockUsage = newUsage();
       jest.spyOn(redisService, 'tryAcquireLock').mockResolvedValueOnce(true);
       jest
-        .spyOn(usageService, 'addDailyUsageChangeOnFileSizeChange')
+        .spyOn(usageService, 'addFileReplacementDelta')
         .mockResolvedValueOnce(mockUsage);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         mockUser,
         oldFile,
         newFileData,
@@ -1949,9 +1945,11 @@ describe('FileUseCases', () => {
         `file-size-change:${newFileData.fileId}`,
         3000,
       );
-      expect(
-        usageService.addDailyUsageChangeOnFileSizeChange,
-      ).toHaveBeenCalledWith(mockUser, oldFile, newFileData);
+      expect(usageService.addFileReplacementDelta).toHaveBeenCalledWith(
+        mockUser,
+        oldFile,
+        newFileData,
+      );
     });
   });
 });

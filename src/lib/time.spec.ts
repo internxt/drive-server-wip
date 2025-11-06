@@ -39,7 +39,6 @@ describe('Time class', () => {
 
     it('When months are added, then returns correct date with months added', () => {
       const futureDate = Time.dateWithTimeAdded(3, 'month');
-      console.log({ futureDate });
       expect(futureDate.getUTCMonth()).toBe(
         Time.dateWithTimeAdded(
           3,

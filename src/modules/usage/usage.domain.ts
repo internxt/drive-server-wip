@@ -1,7 +1,10 @@
 export enum UsageType {
+  // Temporal Types
   Daily = 'daily',
   Monthly = 'monthly',
   Yearly = 'yearly',
+  // Events Types
+  Replacement = 'replacement',
 }
 export interface UsageAttributes {
   id: string;

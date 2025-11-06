@@ -31,7 +31,7 @@ describe('UsageService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('addDailyUsageChangeOnFileSizeChange', () => {
+  describe('addFileReplacementDelta', () => {
     const user = newUser();
     const oldFile = newFile({ attributes: { size: BigInt(100) } });
 
@@ -39,19 +39,19 @@ describe('UsageService', () => {
       const newFileData = newFile({ attributes: { size: BigInt(200) } });
 
       jest
-        .spyOn(usageRepository, 'getMostRecentMonthlyOrYearlyUsage')
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
         .mockResolvedValue(null);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         user,
         oldFile,
         newFileData,
       );
 
       expect(result).toBeNull();
-      expect(
-        usageRepository.getMostRecentMonthlyOrYearlyUsage,
-      ).toHaveBeenCalledWith(user.uuid);
+      expect(usageRepository.getLatestTemporalUsage).toHaveBeenCalledWith(
+        user.uuid,
+      );
     });
 
     it('When file size delta is zero, then should return null', async () => {
@@ -59,10 +59,10 @@ describe('UsageService', () => {
       const sameFile = newFile({ attributes: { size: BigInt(100) } });
 
       jest
-        .spyOn(usageRepository, 'getMostRecentMonthlyOrYearlyUsage')
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
         .mockResolvedValue(existingUsage);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         user,
         oldFile,
         sameFile,
@@ -81,10 +81,10 @@ describe('UsageService', () => {
       });
 
       jest
-        .spyOn(usageRepository, 'getMostRecentMonthlyOrYearlyUsage')
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
         .mockResolvedValue(existingUsage);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         user,
         oldFile,
         todayFile,
@@ -93,7 +93,7 @@ describe('UsageService', () => {
       expect(result).toBeNull();
     });
 
-    it('When file size increased and not created today, then should create daily usage with positive delta', async () => {
+    it('When file size increased and not created today, then should create replacement usage with positive delta', async () => {
       const existingUsage = newUsage();
       const yesterdayFile = newFile({
         attributes: {
@@ -105,16 +105,16 @@ describe('UsageService', () => {
         attributes: {
           userId: user.uuid,
           delta: 100,
-          type: UsageType.Daily,
+          type: UsageType.Replacement,
         },
       });
 
       jest
-        .spyOn(usageRepository, 'getMostRecentMonthlyOrYearlyUsage')
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
         .mockResolvedValue(existingUsage);
       jest.spyOn(usageRepository, 'create').mockResolvedValue(expectedUsage);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         user,
         oldFile,
         yesterdayFile,
@@ -125,12 +125,12 @@ describe('UsageService', () => {
         expect.objectContaining({
           userId: user.uuid,
           delta: 100,
-          type: UsageType.Daily,
+          type: UsageType.Replacement,
         }),
       );
     });
 
-    it('When file size decreased and not created today, then should create daily usage with negative delta', async () => {
+    it('When file size decreased and not created today, then should create replacement usage with negative delta', async () => {
       const existingUsage = newUsage();
       const yesterdayFile = newFile({
         attributes: {
@@ -142,16 +142,16 @@ describe('UsageService', () => {
         attributes: {
           userId: user.uuid,
           delta: -50,
-          type: UsageType.Daily,
+          type: UsageType.Replacement,
         },
       });
 
       jest
-        .spyOn(usageRepository, 'getMostRecentMonthlyOrYearlyUsage')
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
         .mockResolvedValue(existingUsage);
       jest.spyOn(usageRepository, 'create').mockResolvedValue(expectedUsage);
 
-      const result = await service.addDailyUsageChangeOnFileSizeChange(
+      const result = await service.addFileReplacementDelta(
         user,
         oldFile,
         yesterdayFile,
@@ -162,27 +162,27 @@ describe('UsageService', () => {
         expect.objectContaining({
           userId: user.uuid,
           delta: -50,
-          type: UsageType.Daily,
+          type: UsageType.Replacement,
         }),
       );
     });
   });
 
-  describe('getUserMostRecentUsage', () => {
+  describe('getMostRecentTemporalUsage', () => {
     it('When called, then it should return the most recent usage', async () => {
       const user = newUser();
       const usage = newUsage();
 
       jest
-        .spyOn(usageRepository, 'getMostRecentMonthlyOrYearlyUsage')
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
         .mockResolvedValue(usage);
 
-      const result = await service.getUserMostRecentUsage(user.uuid);
+      const result = await service.getMostRecentTemporalUsage(user.uuid);
 
       expect(result).toEqual(usage);
-      expect(
-        usageRepository.getMostRecentMonthlyOrYearlyUsage,
-      ).toHaveBeenCalledWith(user.uuid);
+      expect(usageRepository.getLatestTemporalUsage).toHaveBeenCalledWith(
+        user.uuid,
+      );
     });
   });
 
@@ -195,59 +195,11 @@ describe('UsageService', () => {
         .spyOn(usageRepository, 'createFirstUsageCalculation')
         .mockResolvedValue(usage);
 
-      const result = await service.createFirstUsageCalculation(user.uuid);
+      const result = await service.calculateFirstTemporalUsage(user.uuid);
 
       expect(result).toEqual(usage);
       expect(usageRepository.createFirstUsageCalculation).toHaveBeenCalledWith(
         user.uuid,
-      );
-    });
-  });
-
-  describe('createMonthlyUsage', () => {
-    it('When called, then it should create the monthly usage with expected arguments', async () => {
-      const userId = v4();
-      const period = new Date();
-      const delta = 1000;
-      const usage = newUsage({ attributes: { type: UsageType.Monthly } });
-
-      jest
-        .spyOn(usageRepository, 'createMonthlyUsage')
-        .mockResolvedValue(usage);
-
-      const result = await service.createMonthlyUsage(userId, period, delta);
-
-      expect(result).toEqual(usage);
-      expect(usageRepository.createMonthlyUsage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId,
-          period,
-          delta,
-          type: UsageType.Monthly,
-        }),
-      );
-    });
-  });
-
-  describe('createDailyUsage', () => {
-    it('When called, then it should create daily usage with expected arguments', async () => {
-      const userId = 'user-id';
-      const period = new Date();
-      const delta = 500;
-      const usage = newUsage({ attributes: { type: UsageType.Daily } });
-
-      jest.spyOn(usageRepository, 'create').mockResolvedValue(usage);
-
-      const result = await service.createDailyUsage(userId, period, delta);
-
-      expect(result).toEqual(usage);
-      expect(usageRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId,
-          period,
-          delta,
-          type: UsageType.Daily,
-        }),
       );
     });
   });
