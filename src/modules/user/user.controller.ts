@@ -88,7 +88,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
-import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
+import { UserCredentialsDto } from './dto/responses/user-credentials.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
@@ -432,116 +432,33 @@ export class UserController {
   @ApiOperation({ summary: 'Get user credentials' })
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
+    type: UserCredentialsDto,
   })
   async getUserCredentials(
     @UserDecorator() user: User,
     @Param('uuid') uuid: string,
-  ) {
+  ): Promise<UserCredentialsDto> {
     if (uuid !== user.uuid) {
       throw new ForbiddenException();
     }
 
-    const [{ token, newToken }, avatar, rootFolder, keys] = await Promise.all([
-      this.userUseCases.getAuthTokens(user),
-      this.userUseCases.getAvatarUrl(user.avatar),
-      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
-      this.keyServerUseCases.findUserKeys(user.id),
-    ]);
-
-    const userResponse = {
-      email: user.email,
-      userId: user.userId,
-      mnemonic: user.mnemonic.toString(),
-      root_folder_id: rootFolder.id,
-      rootFolderId: rootFolder.uuid,
-      name: user.name,
-      lastname: user.lastname,
-      uuid: user.uuid,
-      credit: user.credit,
-      createdAt: user.createdAt,
-      privateKey: keys.ecc?.privateKey ?? null,
-      publicKey: keys.ecc?.publicKey ?? null,
-      revocateKey: keys.ecc?.revocationKey ?? null,
-      keys: {
-        ecc: {
-          privateKey: keys.ecc?.privateKey ?? null,
-          publicKey: keys.ecc?.publicKey ?? null,
-        },
-        kyber: {
-          privateKey: keys.kyber?.privateKey ?? null,
-          publicKey: keys.kyber?.publicKey ?? null,
-        },
-      },
-      bucket: rootFolder.bucket,
-      registerCompleted: user.registerCompleted,
-      teams: false,
-      username: user.username,
-      bridgeUser: user.bridgeUser,
-      sharedWorkspace: user.sharedWorkspace,
-      appSumoDetails: null,
-      hasReferralsProgram: false,
-      backupsBucket: user.backupsBucket,
-      emailVerified: user.emailVerified,
-      lastPasswordChangedAt: user.lastPasswordChangedAt,
-      avatar,
-    };
-
-    return {
-      user: userResponse,
-      oldToken: token,
-      newToken: newToken,
-    };
+    const userCredentials = await this.userUseCases.getUserCredentials(user);
+    return userCredentials;
   }
 
   @Get('/refresh')
   @HttpCode(200)
-  @ApiOperation({
-    summary: 'Refresh session token',
-  })
+  @ApiOperation({ summary: 'Refresh session token' })
   @ApiOkResponse({
-    description: 'Returns a new token',
-    type: RefreshTokenResponseDto,
+    description: 'Returns the user metadata, and the authentication tokens',
+    type: UserCredentialsDto,
   })
-  async refreshToken(
-    @UserDecorator() user: User,
-  ): Promise<RefreshTokenResponseDto> {
-    const tokens = await this.userUseCases.getAuthTokens(
+  async refreshToken(@UserDecorator() user: User): Promise<UserCredentialsDto> {
+    const userCredentials = await this.userUseCases.getUserCredentials(
       user,
-      undefined,
       JWT_7DAYS_EXPIRATION,
     );
-
-    const [avatar, rootFolder] = await Promise.all([
-      user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,
-      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
-    ]);
-
-    const userData = {
-      email: user.email,
-      userId: user.userId,
-      mnemonic: user.mnemonic.toString(),
-      root_folder_id: rootFolder?.id,
-      rootFolderId: rootFolder?.uuid,
-      name: user.name,
-      lastname: user.lastname,
-      uuid: user.uuid,
-      bucket: rootFolder?.bucket,
-      credit: user.credit,
-      createdAt: user.createdAt,
-      registerCompleted: user.registerCompleted,
-      teams: false,
-      username: user.username,
-      bridgeUser: user.bridgeUser,
-      sharedWorkspace: user.sharedWorkspace,
-      appSumoDetails: null,
-      hasReferralsProgram: false,
-      backupsBucket: user.backupsBucket,
-      avatar,
-      emailVerified: user.emailVerified,
-      lastPasswordChangedAt: user.lastPasswordChangedAt,
-    };
-
-    return { ...tokens, user: userData };
+    return userCredentials;
   }
 
   @Get('/avatar/refresh')

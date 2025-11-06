@@ -90,6 +90,10 @@ import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
+import {
+  UserCredentialsDto,
+  UserResponseDto,
+} from './dto/responses/user-credentials.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -2052,5 +2056,62 @@ export class UserUseCases {
         `Error checking storage threshold for user ${user.uuid}: ${error.message}`,
       );
     }
+  }
+
+  async getUserCredentials(
+    user: User,
+    tokenExpirationTime?: string | number,
+  ): Promise<UserCredentialsDto> {
+    const [{ token: oldToken, newToken }, avatar, rootFolder, keys] =
+      await Promise.all([
+        this.getAuthTokens(user, undefined, tokenExpirationTime),
+        this.getAvatarUrl(user.avatar),
+        this.getOrCreateUserRootFolderAndBucket(user),
+        this.keyServerUseCases.findUserKeys(user.id),
+      ]);
+
+    const userResponse: UserResponseDto = {
+      email: user.email,
+      userId: user.userId,
+      mnemonic: user.mnemonic.toString(),
+      root_folder_id: rootFolder.id,
+      rootFolderId: rootFolder.uuid,
+      name: user.name,
+      lastname: user.lastname,
+      uuid: user.uuid,
+      credit: user.credit,
+      createdAt: user.createdAt,
+      privateKey: keys.ecc?.privateKey ?? null,
+      publicKey: keys.ecc?.publicKey ?? null,
+      revocateKey: keys.ecc?.revocationKey ?? null,
+      keys: {
+        ecc: {
+          privateKey: keys.ecc?.privateKey ?? null,
+          publicKey: keys.ecc?.publicKey ?? null,
+        },
+        kyber: {
+          privateKey: keys.kyber?.privateKey ?? null,
+          publicKey: keys.kyber?.publicKey ?? null,
+        },
+      },
+      bucket: rootFolder.bucket,
+      registerCompleted: user.registerCompleted,
+      teams: false,
+      username: user.username,
+      bridgeUser: user.bridgeUser,
+      sharedWorkspace: user.sharedWorkspace,
+      hasReferralsProgram: false,
+      backupsBucket: user.backupsBucket,
+      emailVerified: user.emailVerified,
+      lastPasswordChangedAt: user.lastPasswordChangedAt,
+      avatar,
+    };
+
+    return {
+      user: userResponse,
+      oldToken: oldToken,
+      token: oldToken,
+      newToken: newToken,
+    };
   }
 }
