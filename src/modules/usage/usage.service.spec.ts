@@ -71,36 +71,24 @@ describe('UsageService', () => {
       expect(result).toBeNull();
     });
 
-    it('When file is created today, then should return null', async () => {
-      const existingUsage = newUsage();
-      const todayFile = newFile({
+    it('When file was created before or within usage period and size increased, then should create replacement usage with positive delta', async () => {
+      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
+      const dateBeforeUsage = new Date('2024-06-10T00:00:00.000Z');
+
+      const existingUsage = newUsage({
         attributes: {
-          size: BigInt(200),
-          createdAt: new Date(),
+          period: usagePeriod,
+          type: UsageType.Monthly,
         },
       });
 
-      jest
-        .spyOn(usageRepository, 'getLatestTemporalUsage')
-        .mockResolvedValue(existingUsage);
-
-      const result = await service.addFileReplacementDelta(
-        user,
-        oldFile,
-        todayFile,
-      );
-
-      expect(result).toBeNull();
-    });
-
-    it('When file size increased and not created today, then should create replacement usage with positive delta', async () => {
-      const existingUsage = newUsage();
-      const yesterdayFile = newFile({
+      const fileWithIncreasedSize = newFile({
         attributes: {
           size: BigInt(200),
-          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          createdAt: dateBeforeUsage,
         },
       });
+
       const expectedUsage = newUsage({
         attributes: {
           userId: user.uuid,
@@ -117,7 +105,7 @@ describe('UsageService', () => {
       const result = await service.addFileReplacementDelta(
         user,
         oldFile,
-        yesterdayFile,
+        fileWithIncreasedSize,
       );
 
       expect(result).toEqual(expectedUsage);
@@ -130,14 +118,24 @@ describe('UsageService', () => {
       );
     });
 
-    it('When file size decreased and not created today, then should create replacement usage with negative delta', async () => {
-      const existingUsage = newUsage();
-      const yesterdayFile = newFile({
+    it('When file was created before or within usage period and size decreased, then should create replacement usage with negative delta', async () => {
+      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
+      const dateBeforeUsage = new Date('2024-06-10T00:00:00.000Z');
+
+      const existingUsage = newUsage({
         attributes: {
-          size: BigInt(50),
-          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          period: usagePeriod,
+          type: UsageType.Daily,
         },
       });
+
+      const fileWithDecreasedSize = newFile({
+        attributes: {
+          size: BigInt(50),
+          createdAt: dateBeforeUsage,
+        },
+      });
+
       const expectedUsage = newUsage({
         attributes: {
           userId: user.uuid,
@@ -154,7 +152,7 @@ describe('UsageService', () => {
       const result = await service.addFileReplacementDelta(
         user,
         oldFile,
-        yesterdayFile,
+        fileWithDecreasedSize,
       );
 
       expect(result).toEqual(expectedUsage);
@@ -162,6 +160,132 @@ describe('UsageService', () => {
         expect.objectContaining({
           userId: user.uuid,
           delta: -50,
+          type: UsageType.Replacement,
+        }),
+      );
+    });
+
+    it('When latest usage is yearly and file was created within same year, then should create replacement usage', async () => {
+      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
+      const dateInSameYear = new Date('2024-01-10T00:00:00.000Z');
+
+      const existingYearlyUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Yearly,
+        },
+      });
+
+      const fileWithIncreasedSize = newFile({
+        attributes: {
+          size: BigInt(300),
+          createdAt: dateInSameYear,
+        },
+      });
+
+      const expectedNewUsage = newUsage({
+        attributes: {
+          userId: user.uuid,
+          delta: 200,
+          type: UsageType.Replacement,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingYearlyUsage);
+      jest.spyOn(usageRepository, 'create').mockResolvedValue(expectedNewUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        fileWithIncreasedSize,
+      );
+
+      expect(result).toEqual(expectedNewUsage);
+      expect(usageRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: user.uuid,
+          delta: 200,
+          type: UsageType.Replacement,
+        }),
+      );
+    });
+
+    it('When file was created after the usage period, then should return null', async () => {
+      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
+      const dateAfterUsage = new Date('2024-06-20T00:00:00.000Z');
+
+      const existingUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Monthly,
+        },
+      });
+
+      const newFileData = newFile({
+        attributes: {
+          size: BigInt(200),
+          createdAt: dateAfterUsage,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        newFileData,
+      );
+
+      expect(result).toBeNull();
+      expect(usageRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When file was created within usage period, then should create replacement usage', async () => {
+      const usagePeriod = new Date('2024-06-15T08:00:00.000Z');
+      const dateSameDayAsUsage = new Date('2024-06-15T14:30:00.000Z');
+
+      const existingUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Daily,
+        },
+      });
+
+      const newFileData = newFile({
+        attributes: {
+          size: BigInt(200),
+          createdAt: dateSameDayAsUsage,
+        },
+      });
+
+      const expectedUsage = newUsage({
+        attributes: {
+          userId: user.uuid,
+          delta: 100,
+          type: UsageType.Replacement,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingUsage);
+      jest.spyOn(usageRepository, 'create').mockResolvedValue(expectedUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        newFileData,
+      );
+
+      expect(result).toEqual(expectedUsage);
+      expect(usageRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: user.uuid,
+          delta: 100,
           type: UsageType.Replacement,
         }),
       );

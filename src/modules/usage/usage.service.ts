@@ -44,16 +44,13 @@ export class UsageService {
     const delta = Number(newFileData.size) - Number(oldFileData.size);
 
     // Files created the same day do not need a daily usage entry, they will be included in the next monthly usage
-    const isFileCreatedToday = Time.isToday(newFileData.createdAt);
-
-    if (delta === 0 || isFileCreatedToday) {
-      return null;
-    }
-
-    const anyTemporalUsage = await this.usageRepository.getLatestTemporalUsage(
+    const latestUsage = await this.usageRepository.getLatestTemporalUsage(
       user.uuid,
     );
-    if (!anyTemporalUsage) {
+    if (!latestUsage || delta === 0) {
+      return null;
+    }
+    if (!latestUsage.isAtOrBeforePeriod(newFileData.createdAt)) {
       return null;
     }
 

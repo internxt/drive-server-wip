@@ -243,8 +243,11 @@ describe('File module', () => {
 
       it('When last usage is Yearly from previous completed year, then it should backfill from start of current year', async () => {
         const initialYearlyDelta = 50000;
-        const currentYear = fixedSystemCurrentDate.getFullYear();
-        const lastYearPeriod = Time.startOfYear(currentYear - 1);
+        const lastYearPeriod = Time.dateWithTimeAdded(
+          -1,
+          'year',
+          fixedSystemCurrentDate,
+        );
 
         await usageModel.create({
           id: v4(),
@@ -278,8 +281,10 @@ describe('File module', () => {
       it('When last usage is Yearly from 2+ years ago, then it should backfill all intermediate changes', async () => {
         const initialYearlyDelta = 20000;
         // Yearly aggregation from 2 years ago
-        const currentYear = fixedSystemCurrentDate.getFullYear();
-        const oldYearPeriod = Time.startOfYear(currentYear - 2);
+        const oldYearPeriod = Time.startOf(
+          Time.dateWithTimeAdded(-2, 'year', fixedSystemCurrentDate),
+          'year',
+        );
 
         await usageModel.create({
           id: v4(),
@@ -331,7 +336,7 @@ describe('File module', () => {
           const fileSize = 1000;
           const file = await createTestFile(Time.daysAgo(5), fileSize);
           // Delete the file today at 00:00:00
-          const todayStart = Time.startOfDay(fixedSystemCurrentDate);
+          const todayStart = Time.startOf(fixedSystemCurrentDate, 'day');
           await fileModel.update(
             { status: 'DELETED', updatedAt: todayStart },
             { where: { id: file.id }, silent: true },

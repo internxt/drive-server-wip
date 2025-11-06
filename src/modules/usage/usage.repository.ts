@@ -35,8 +35,8 @@ export class SequelizeUsageRepository {
   }
 
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
-    const currentDate = Time.startOfDay(Time.now());
-    const yesterday = Time.startOfDay(Time.dateWithTimeAdded(-1, 'day'));
+    const currentDate = Time.startOf(Time.now(), 'day');
+    const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
     const periodFormatted = Time.formatAsDateOnly(yesterday);
 
     const selectResult = await this.usageModel.sequelize.query(

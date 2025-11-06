@@ -1,15 +1,16 @@
 import { v4 } from 'uuid';
 import { Usage, UsageType } from './usage.domain';
+import { Time } from '../../lib/time';
 
 describe('Usage Domain', () => {
   const usageAttributes = {
     id: v4(),
     userId: v4(),
     delta: 100,
-    period: new Date(),
+    period: Time.now(),
     type: UsageType.Daily,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: Time.now(),
+    updatedAt: Time.now(),
   };
 
   it('When Usage type is Yearly, then isYearly should return true', () => {
@@ -29,38 +30,38 @@ describe('Usage Domain', () => {
     expect(usage.period).toBeInstanceOf(Date);
   });
 
-  it('When usage is daily, then getNextPeriodStartDate should return next day', () => {
+  it('When usage is daily, then it should return next day', () => {
     const usage = Usage.build({
       ...usageAttributes,
       type: UsageType.Daily,
-      period: new Date('2024-01-15T00:00:00.000Z'),
+      period: Time.now('2024-01-15T00:00:00.000Z'),
     });
 
     const nextPeriod = usage.getNextPeriodStartDate();
 
-    expect(nextPeriod).toEqual(new Date('2024-01-16T00:00:00.000Z'));
+    expect(nextPeriod).toEqual(Time.now('2024-01-16T00:00:00.000Z'));
   });
 
-  it('When usage is yearly, then getNextPeriodStartDate should return next year', () => {
+  it('When usage is yearly, then should return next start of next year', () => {
     const usage = Usage.build({
       ...usageAttributes,
       type: UsageType.Yearly,
-      period: new Date('2024-01-15T00:00:00.000Z'),
+      period: Time.now('2024-01-15T00:00:00.000Z'),
     });
 
     const nextPeriod = usage.getNextPeriodStartDate();
 
-    expect(nextPeriod).toEqual(new Date('2025-01-15T00:00:00.000Z'));
+    expect(nextPeriod).toEqual(Time.now('2025-01-01T00:00:00.000Z'));
   });
 
   it('When usage is previous day to target, then isPreviousDayTo should return true', () => {
     const usage = Usage.build({
       ...usageAttributes,
       type: UsageType.Daily,
-      period: new Date('2024-01-15T00:00:00.000Z'),
+      period: Time.now('2024-01-15T00:00:00.000Z'),
     });
 
-    const result = usage.isPreviousDayTo(new Date('2024-01-16T00:00:00.000Z'));
+    const result = usage.isPreviousDayTo(Time.now('2024-01-16T00:00:00.000Z'));
 
     expect(result).toBe(true);
   });
@@ -69,11 +70,113 @@ describe('Usage Domain', () => {
     const usage = Usage.build({
       ...usageAttributes,
       type: UsageType.Yearly,
-      period: new Date('2024-01-15T00:00:00.000Z'),
+      period: Time.now('2024-01-15T00:00:00.000Z'),
     });
 
-    const result = usage.isPreviousDayTo(new Date('2025-01-15T00:00:00.000Z'));
+    const result = usage.isPreviousDayTo(Time.now('2025-01-15T00:00:00.000Z'));
 
     expect(result).toBe(false);
+  });
+
+  describe('isAtOrBeforePeriod', () => {
+    const yearlyPeriod = Time.now('2024-01-01T00:00:00.000Z');
+    const monthlyPeriod = Time.now('2024-06-15T00:00:00.000Z');
+
+    it('When usage is yearly and date is within the same year, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Yearly,
+        period: yearlyPeriod,
+      });
+
+      const dateInMiddleOfYear = Time.now('2024-06-15T00:00:00.000Z');
+      const dateAtStartOfYear = Time.now('2024-01-01T00:00:00.000Z');
+      const dateAtEndOfYear = Time.now('2024-12-31T23:59:59.999Z');
+
+      expect(usage.isAtOrBeforePeriod(dateInMiddleOfYear)).toBe(true);
+      expect(usage.isAtOrBeforePeriod(dateAtStartOfYear)).toBe(true);
+      expect(usage.isAtOrBeforePeriod(dateAtEndOfYear)).toBe(true);
+    });
+
+    it('When usage is yearly and  date is before the period year, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Yearly,
+        period: yearlyPeriod,
+      });
+
+      const dateAtEndOfPreviousYear = Time.now('2023-12-31T00:00:00.000Z');
+      const dateAtStartOfPreviousYear = Time.now('2023-01-01T00:00:00.000Z');
+
+      expect(usage.isAtOrBeforePeriod(dateAtEndOfPreviousYear)).toBe(true);
+      expect(usage.isAtOrBeforePeriod(dateAtStartOfPreviousYear)).toBe(true);
+    });
+
+    it('When usage is yearly and  date is after the period year, then should return false', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Yearly,
+        period: yearlyPeriod,
+      });
+
+      const dateAtStartOfNextYear = Time.now('2025-01-01T00:00:00.000Z');
+      const dateInMiddleOfNextYear = Time.now('2025-06-15T00:00:00.000Z');
+
+      expect(usage.isAtOrBeforePeriod(dateAtStartOfNextYear)).toBe(false);
+      expect(usage.isAtOrBeforePeriod(dateInMiddleOfNextYear)).toBe(false);
+    });
+
+    it('When usage is monthly or daily and date equals the period, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Monthly,
+        period: monthlyPeriod,
+      });
+
+      const dateSameAsPeriod = Time.now('2024-06-15T00:00:00.000Z');
+
+      expect(usage.isAtOrBeforePeriod(dateSameAsPeriod)).toBe(true);
+    });
+
+    it('When usage is monthly or daily and date is before the period, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Monthly,
+        period: monthlyPeriod,
+      });
+
+      const dateDayBefore = Time.now('2024-06-14T00:00:00.000Z');
+      const dateMonthsBefore = Time.now('2024-01-01T00:00:00.000Z');
+
+      expect(usage.isAtOrBeforePeriod(dateDayBefore)).toBe(true);
+      expect(usage.isAtOrBeforePeriod(dateMonthsBefore)).toBe(true);
+    });
+
+    it('When date is after the period, then should return false', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Monthly,
+        period: monthlyPeriod,
+      });
+
+      const dateDayAfter = Time.now('2024-06-16T00:00:00.000Z');
+      const dateMonthsAfter = Time.now('2024-12-31T00:00:00.000Z');
+
+      expect(usage.isAtOrBeforePeriod(dateDayAfter)).toBe(false);
+      expect(usage.isAtOrBeforePeriod(dateMonthsAfter)).toBe(false);
+    });
+
+    it('When usage is monthly or daily and date has different time but same day, then should return true', () => {
+      const periodWithTime = Time.now('2024-06-15T10:30:00.000Z');
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Monthly,
+        period: periodWithTime,
+      });
+
+      const sameDayDifferentTime = Time.now('2024-06-15T23:59:59.999Z');
+
+      expect(usage.isAtOrBeforePeriod(sameDayDifferentTime)).toBe(true);
+    });
   });
 });
