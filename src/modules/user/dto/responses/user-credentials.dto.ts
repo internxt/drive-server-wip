@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { KeysDto } from '../../../../modules/keyserver/dto/keys.dto';
 
-export class RefreshTokenUserResponseDto {
+export class UserResponseDto {
   @ApiProperty()
   email: string;
 
@@ -41,6 +42,9 @@ export class RefreshTokenUserResponseDto {
   bridgeUser: string;
 
   @ApiProperty()
+  bucket: string;
+
+  @ApiProperty()
   backupsBucket: string;
 
   @ApiProperty()
@@ -50,15 +54,46 @@ export class RefreshTokenUserResponseDto {
   emailVerified: boolean;
 
   @ApiProperty()
+  sharedWorkspace: boolean;
+
+  @ApiProperty({ deprecated: true })
+  hasReferralsProgram: boolean;
+
+  @ApiProperty({ deprecated: true })
+  teams: boolean;
+
+  @ApiProperty()
   lastPasswordChangedAt: Date;
+
+  @ApiProperty()
+  keys: KeysDto;
+
+  @ApiProperty({ deprecated: true })
+  privateKey: KeysDto['ecc']['privateKey'];
+
+  @ApiProperty({ deprecated: true })
+  publicKey: KeysDto['ecc']['publicKey'];
+
+  @ApiProperty({ deprecated: true })
+  revocateKey: KeysDto['ecc']['revocationKey'];
 }
 
-export class RefreshTokenResponseDto {
+export class UserCredentialsDto {
   @ApiProperty({
     description: 'The old token that has been replaced',
-    example: 'newToken1234567890',
+    example: 'oldToken1234567890',
+    deprecated: true,
+    required: false,
   })
-  token: string;
+  token?: string;
+
+  @ApiProperty({
+    description: 'The old token that has been replaced',
+    example: 'oldToken1234567890',
+    deprecated: true,
+    required: false,
+  })
+  oldToken?: string;
 
   @ApiProperty({
     description: 'The new token to be used for authentication',
@@ -68,7 +103,7 @@ export class RefreshTokenResponseDto {
 
   @ApiProperty({
     description: 'User information',
-    type: RefreshTokenUserResponseDto,
+    type: UserResponseDto,
   })
-  user: RefreshTokenUserResponseDto;
+  user: UserResponseDto;
 }
