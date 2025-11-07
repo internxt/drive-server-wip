@@ -786,7 +786,9 @@ describe('FileUseCases', () => {
           .spyOn(mailerService, 'sendFirstUploadEmail')
           .mockResolvedValueOnce(undefined);
 
-        await service.createFile(userMocked, newFileDto, 'free_individual');
+        await service.createFile(userMocked, newFileDto, {
+          label: 'free_individual',
+        });
 
         expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(
           userMocked.email,
@@ -846,11 +848,9 @@ describe('FileUseCases', () => {
           .spyOn(mailerService, 'sendFirstUploadEmail')
           .mockRejectedValueOnce(new Error('Email service failed'));
 
-        const result = await service.createFile(
-          userMocked,
-          newFileDto,
-          'free_individual',
-        );
+        const result = await service.createFile(userMocked, newFileDto, {
+          label: 'free_individual',
+        });
 
         expect(result).toEqual(createdFile);
         expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(

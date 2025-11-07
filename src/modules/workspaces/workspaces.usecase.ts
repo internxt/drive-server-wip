@@ -866,7 +866,7 @@ export class WorkspacesUsecases {
     member: User,
     workspaceId: string,
     createFileDto: CreateWorkspaceFileDto,
-    tierLabel?: string,
+    tier?,
   ) {
     const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
       memberId: member.uuid,
@@ -909,7 +909,7 @@ export class WorkspacesUsecases {
       {
         ...createFileDto,
       },
-      tierLabel,
+      tier,
     );
 
     const createdItemFile = await this.workspaceRepository.createItem({

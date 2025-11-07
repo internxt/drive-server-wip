@@ -24,7 +24,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { TierLabel } from '../auth/decorators/tier-label.decorator';
+import { UserTier } from '../auth/decorators/tier-label.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
@@ -77,13 +77,9 @@ export class FileController {
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
     @Client() clientId: string,
-    @TierLabel() tierLabel?: string,
+    @UserTier() tier,
   ): Promise<FileDto> {
-    const file = await this.fileUseCases.createFile(
-      user,
-      createFileDto,
-      tierLabel,
-    );
+    const file = await this.fileUseCases.createFile(user, createFileDto, tier);
 
     this.storageNotificationService.fileCreated({
       payload: file,
