@@ -783,13 +783,10 @@ describe('FileUseCases', () => {
           .mockResolvedValueOnce(null);
         jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
         jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce({ label: 'free_individual' } as Tier);
-        jest
           .spyOn(mailerService, 'sendFirstUploadEmail')
           .mockResolvedValueOnce(undefined);
 
-        await service.createFile(userMocked, newFileDto);
+        await service.createFile(userMocked, newFileDto, 'free_individual');
 
         expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(
           userMocked.email,
@@ -846,13 +843,14 @@ describe('FileUseCases', () => {
           .mockResolvedValueOnce(null);
         jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
         jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce({ label: 'free_individual' } as Tier);
-        jest
           .spyOn(mailerService, 'sendFirstUploadEmail')
           .mockRejectedValueOnce(new Error('Email service failed'));
 
-        const result = await service.createFile(userMocked, newFileDto);
+        const result = await service.createFile(
+          userMocked,
+          newFileDto,
+          'free_individual',
+        );
 
         expect(result).toEqual(createdFile);
         expect(mailerService.sendFirstUploadEmail).toHaveBeenCalledWith(

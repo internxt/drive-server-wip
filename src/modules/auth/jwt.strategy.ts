@@ -11,6 +11,7 @@ import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { Time } from '../../lib/time';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 export interface JwtPayload {
   email: string;
@@ -18,6 +19,7 @@ export interface JwtPayload {
 }
 export interface JwtAuthInfo {
   platform?: string;
+  tierLabel?: string;
 }
 
 const strategyId = 'jwt.standard';
@@ -29,6 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
     @Inject(UserUseCases)
     private readonly userUseCases: UserUseCases,
     private readonly cacheManagerService: CacheManagerService,
+    private readonly featureLimitService: FeatureLimitService,
     configService: ConfigService,
   ) {
     super({
@@ -72,7 +75,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
         throw new UnauthorizedException();
       }
 
-      const authInfo = { platform };
+      let tierLabel: string | undefined;
+      if (user.tierId) {
+        const tier = await this.featureLimitService.getTier(user.tierId);
+        tierLabel = tier?.label;
+      }
+
+      const authInfo = { platform, tierLabel };
 
       if (user.isGuestOnSharedWorkspace()) {
         //  Legacy shared workspaces. It is not the current workspaces implementation.

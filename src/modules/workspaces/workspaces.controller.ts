@@ -29,6 +29,7 @@ import { WorkspacesUsecases } from './workspaces.usecase';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
+import { TierLabel } from '../auth/decorators/tier-label.decorator';
 import { User } from '../user/user.domain';
 import { isUUID } from 'class-validator';
 import { EditTeamDto } from './dto/edit-team-data.dto';
@@ -659,11 +660,13 @@ export class WorkspacesController {
     @UserDecorator() user: User,
     @Client() clientId: string,
     @Body() createFileDto: CreateWorkspaceFileDto,
+    @TierLabel() tierLabel?: string,
   ): Promise<FileDto> {
     const file = await this.workspaceUseCases.createFile(
       user,
       workspaceId,
       createFileDto,
+      tierLabel,
     );
 
     this.storageNotificationService.fileCreated({

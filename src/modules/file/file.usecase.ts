@@ -212,7 +212,7 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids);
   }
 
-  async createFile(user: User, newFileDto: CreateFileDto) {
+  async createFile(user: User, newFileDto: CreateFileDto, tierLabel?: string) {
     const [hadFilesBeforeUpload, folder] = await Promise.all([
       this.hasUploadedFiles(user),
       this.folderUsecases.getByUuid(newFileDto.folderUuid),
@@ -268,9 +268,7 @@ export class FileUseCases {
     });
 
     if (!hadFilesBeforeUpload) {
-      const userTier = await this.featureLimitService.getTier(user.tierId);
-      const isUserFreeTier =
-        userTier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
+      const isUserFreeTier = tierLabel === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 
       if (isUserFreeTier) {
         await this.mailerService

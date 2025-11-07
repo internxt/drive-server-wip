@@ -721,6 +721,7 @@ describe('Workspace Controller', () => {
         user,
         workspaceId,
         createFileDto,
+        undefined,
       );
     });
   });

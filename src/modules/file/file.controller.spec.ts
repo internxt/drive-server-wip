@@ -474,6 +474,7 @@ describe('FileController', () => {
       expect(fileUseCases.createFile).toHaveBeenCalledWith(
         userMocked,
         createFileDto,
+        undefined,
       );
       expect(storageNotificationService.fileCreated).toHaveBeenCalledWith({
         payload: createdFile,
