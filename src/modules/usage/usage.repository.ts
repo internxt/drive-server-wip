@@ -18,31 +18,25 @@ export class SequelizeUsageRepository {
     return this.toDomain(newUsage);
   }
 
-  public async createMonthlyUsage(usage: Usage) {
-    const newUsage = await this.usageModel.create({
-      ...usage,
-    });
-
-    return this.toDomain(newUsage);
-  }
-
-  public async getMostRecentMonthlyOrYearlyUsage(
-    userUuid: string,
-  ): Promise<Usage | null> {
-    const mostRecentUsage = await this.usageModel.findOne({
+  public async getLatestTemporalUsage(userUuid: string): Promise<Usage | null> {
+    const latestUsage = await this.usageModel.findOne({
       where: {
         userId: userUuid,
-        [Op.or]: [{ type: UsageType.Monthly }, { type: UsageType.Yearly }],
+        [Op.or]: [
+          { type: UsageType.Monthly },
+          { type: UsageType.Yearly },
+          { type: UsageType.Daily },
+        ],
       },
       order: [['period', 'DESC']],
     });
 
-    return mostRecentUsage ? this.toDomain(mostRecentUsage) : null;
+    return latestUsage ? this.toDomain(latestUsage) : null;
   }
 
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
-    const currentDate = Time.startOfDay(Time.now());
-    const yesterday = Time.startOfDay(Time.dateWithTimeAdded(-1, 'day'));
+    const currentDate = Time.startOf(Time.now(), 'day');
+    const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
     const periodFormatted = Time.formatAsDateOnly(yesterday);
 
     const selectResult = await this.usageModel.sequelize.query(
@@ -56,7 +50,7 @@ export class SequelizeUsageRepository {
           	ELSE 0
           END), 0) AS delta,
           :yesterday AS period,
-          'monthly' AS type
+          'daily' AS type
       FROM
           users u
       LEFT JOIN public.files f ON u.id = f.user_id AND f.created_at < :currentDate
