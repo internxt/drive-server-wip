@@ -24,7 +24,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
-import { UserTier } from '../auth/decorators/tier-label.decorator';
+import { UserTier } from '../auth/decorators/user-tier.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';

@@ -1,5 +1,5 @@
 import { ExecutionContext } from '@nestjs/common';
-import { userTierFactory } from './tier-label.decorator';
+import { userTierFactory } from './user-tier.decorator';
 import { v4 } from 'uuid';
 
 describe('userTierFactory', () => {
