@@ -80,7 +80,7 @@ describe('Usage Domain', () => {
 
   describe('isAtOrBeforePeriod', () => {
     const yearlyPeriod = Time.now('2024-01-01T00:00:00.000Z');
-    const monthlyPeriod = Time.now('2024-06-15T00:00:00.000Z');
+    const dailyPeriod = Time.now('2024-06-15T00:00:00.000Z');
 
     it('When usage is yearly and date is within the same year, then should return true', () => {
       const usage = Usage.build({
@@ -130,7 +130,7 @@ describe('Usage Domain', () => {
       const usage = Usage.build({
         ...usageAttributes,
         type: UsageType.Monthly,
-        period: monthlyPeriod,
+        period: dailyPeriod,
       });
 
       const dateSameAsPeriod = Time.now('2024-06-15T00:00:00.000Z');
@@ -142,7 +142,7 @@ describe('Usage Domain', () => {
       const usage = Usage.build({
         ...usageAttributes,
         type: UsageType.Monthly,
-        period: monthlyPeriod,
+        period: dailyPeriod,
       });
 
       const dateDayBefore = Time.now('2024-06-14T00:00:00.000Z');
@@ -155,12 +155,12 @@ describe('Usage Domain', () => {
     it('When date is after the period, then should return false', () => {
       const usage = Usage.build({
         ...usageAttributes,
-        type: UsageType.Monthly,
-        period: monthlyPeriod,
+        type: UsageType.Daily,
+        period: dailyPeriod,
       });
 
-      const dateDayAfter = Time.now('2024-06-16T00:00:00.000Z');
-      const dateMonthsAfter = Time.now('2024-12-31T00:00:00.000Z');
+      const dateDayAfter = Time.dateWithTimeAdded(1, 'day', dailyPeriod);
+      const dateMonthsAfter = Time.dateWithTimeAdded(1, 'month', dailyPeriod);
 
       expect(usage.isAtOrBeforePeriod(dateDayAfter)).toBe(false);
       expect(usage.isAtOrBeforePeriod(dateMonthsAfter)).toBe(false);

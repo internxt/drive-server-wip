@@ -102,9 +102,9 @@ export class Usage implements UsageAttributes {
   isAtOrBeforePeriod(date: Date): boolean {
     switch (this.type) {
       case UsageType.Daily:
-        return Time.isSameOrBefore(date, this.period, 'month');
-      case UsageType.Monthly:
         return Time.isSameOrBefore(date, this.period, 'day');
+      case UsageType.Monthly:
+        return Time.isSameOrBefore(date, this.period, 'month');
       case UsageType.Yearly:
         return Time.isSameOrBefore(date, this.period, 'year');
       default:

@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { v4 } from 'uuid';
 import { createMock } from '@golevelup/ts-jest';
 import { UsageService } from './usage.service';
 import { SequelizeUsageRepository } from './usage.repository';
@@ -213,9 +212,121 @@ describe('UsageService', () => {
       );
     });
 
-    it('When file was created after the usage period, then should return null', async () => {
+    it('When latest usage is daily and file was created within same day, then should create replacement usage', async () => {
+      const usagePeriod = Time.now('2024-01-01T00:00:00.000Z');
+      const dateInSameDay = Time.dateWithTimeAdded(2, 'hour', usagePeriod);
+
+      const existingYearlyUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Daily,
+        },
+      });
+
+      const fileWithIncreasedSize = newFile({
+        attributes: {
+          size: BigInt(300),
+          createdAt: dateInSameDay,
+        },
+      });
+
+      const expectedNewUsage = newUsage({
+        attributes: {
+          userId: user.uuid,
+          delta: 200,
+          type: UsageType.Replacement,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingYearlyUsage);
+      jest.spyOn(usageRepository, 'create').mockResolvedValue(expectedNewUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        fileWithIncreasedSize,
+      );
+
+      expect(result).toEqual(expectedNewUsage);
+    });
+
+    it('When latest usage is monthly and file was created within same month, then should create replacement usage', async () => {
+      const usagePeriod = Time.now('2024-01-01T00:00:00.000Z');
+      const dateInSameMonth = Time.dateWithTimeAdded(2, 'day', usagePeriod);
+
+      const existingYearlyUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Monthly,
+        },
+      });
+
+      const fileWithIncreasedSize = newFile({
+        attributes: {
+          size: BigInt(300),
+          createdAt: dateInSameMonth,
+        },
+      });
+
+      const expectedNewUsage = newUsage({
+        attributes: {
+          userId: user.uuid,
+          delta: 200,
+          type: UsageType.Replacement,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingYearlyUsage);
+      jest.spyOn(usageRepository, 'create').mockResolvedValue(expectedNewUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        fileWithIncreasedSize,
+      );
+
+      expect(result).toEqual(expectedNewUsage);
+    });
+
+    it('When latest usage is daily and file was created after the day, then should not create a replacement usage', async () => {
       const usagePeriod = Time.now('2024-06-15T00:00:00.000Z');
-      const dateAfterUsage = Time.dateWithTimeAdded(2, 'day', usagePeriod);
+      const dayAfterUsage = Time.dateWithTimeAdded(2, 'day', usagePeriod);
+
+      const existingUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Daily,
+        },
+      });
+
+      const newFileData = newFile({
+        attributes: {
+          size: BigInt(200),
+          createdAt: dayAfterUsage,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        newFileData,
+      );
+
+      expect(result).toBeNull();
+      expect(usageRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When latest usage is monthy and file was created after the month, then should not create a replacement usage', async () => {
+      const usagePeriod = Time.now('2024-06-15T00:00:00.000Z');
+      const monthAfterUsage = Time.dateWithTimeAdded(2, 'month', usagePeriod);
 
       const existingUsage = newUsage({
         attributes: {
@@ -227,7 +338,39 @@ describe('UsageService', () => {
       const newFileData = newFile({
         attributes: {
           size: BigInt(200),
-          createdAt: dateAfterUsage,
+          createdAt: monthAfterUsage,
+        },
+      });
+
+      jest
+        .spyOn(usageRepository, 'getLatestTemporalUsage')
+        .mockResolvedValue(existingUsage);
+
+      const result = await service.addFileReplacementDelta(
+        user,
+        oldFile,
+        newFileData,
+      );
+
+      expect(result).toBeNull();
+      expect(usageRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When latest usage is yearly and file was created after the year, then should not create a replacement usage', async () => {
+      const usagePeriod = Time.now('2024-06-15T00:00:00.000Z');
+      const yearAfterUsage = Time.dateWithTimeAdded(1, 'year', usagePeriod);
+
+      const existingUsage = newUsage({
+        attributes: {
+          period: usagePeriod,
+          type: UsageType.Yearly,
+        },
+      });
+
+      const newFileData = newFile({
+        attributes: {
+          size: BigInt(200),
+          createdAt: yearAfterUsage,
         },
       });
 
