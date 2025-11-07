@@ -5,6 +5,7 @@ import { UsageService } from './usage.service';
 import { SequelizeUsageRepository } from './usage.repository';
 import { newUser, newFile, newUsage } from '../../../test/fixtures';
 import { UsageType } from './usage.domain';
+import { Time } from '../../lib/time';
 
 describe('UsageService', () => {
   let service: UsageService;
@@ -72,8 +73,8 @@ describe('UsageService', () => {
     });
 
     it('When file was created before or within usage period and size increased, then should create replacement usage with positive delta', async () => {
-      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
-      const dateBeforeUsage = new Date('2024-06-10T00:00:00.000Z');
+      const usagePeriod = Time.now('2024-06-15T00:00:00.000Z');
+      const dateBeforeUsage = Time.dateWithTimeAdded(-2, 'day', usagePeriod);
 
       const existingUsage = newUsage({
         attributes: {
@@ -119,8 +120,8 @@ describe('UsageService', () => {
     });
 
     it('When file was created before or within usage period and size decreased, then should create replacement usage with negative delta', async () => {
-      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
-      const dateBeforeUsage = new Date('2024-06-10T00:00:00.000Z');
+      const usagePeriod = Time.now('2024-06-15T00:00:00.000Z');
+      const dateBeforeUsage = Time.dateWithTimeAdded(-2, 'day', usagePeriod);
 
       const existingUsage = newUsage({
         attributes: {
@@ -166,8 +167,8 @@ describe('UsageService', () => {
     });
 
     it('When latest usage is yearly and file was created within same year, then should create replacement usage', async () => {
-      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
-      const dateInSameYear = new Date('2024-01-10T00:00:00.000Z');
+      const usagePeriod = Time.now('2024-01-01T00:00:00.000Z');
+      const dateInSameYear = Time.dateWithTimeAdded(2, 'month', usagePeriod);
 
       const existingYearlyUsage = newUsage({
         attributes: {
@@ -213,8 +214,8 @@ describe('UsageService', () => {
     });
 
     it('When file was created after the usage period, then should return null', async () => {
-      const usagePeriod = new Date('2024-06-15T00:00:00.000Z');
-      const dateAfterUsage = new Date('2024-06-20T00:00:00.000Z');
+      const usagePeriod = Time.now('2024-06-15T00:00:00.000Z');
+      const dateAfterUsage = Time.dateWithTimeAdded(2, 'day', usagePeriod);
 
       const existingUsage = newUsage({
         attributes: {
@@ -245,8 +246,8 @@ describe('UsageService', () => {
     });
 
     it('When file was created within usage period, then should create replacement usage', async () => {
-      const usagePeriod = new Date('2024-06-15T08:00:00.000Z');
-      const dateSameDayAsUsage = new Date('2024-06-15T14:30:00.000Z');
+      const usagePeriod = Time.now('2024-06-15T08:00:00.000Z');
+      const dateSameDayAsUsage = Time.now(usagePeriod);
 
       const existingUsage = newUsage({
         attributes: {

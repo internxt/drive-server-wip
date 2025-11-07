@@ -9,7 +9,11 @@ export enum UsageType {
   Replacement = 'replacement',
 }
 
-const temporalUsage = [UsageType.Daily, UsageType.Monthly, UsageType.Yearly];
+const temporalUsage = new Set([
+  UsageType.Daily,
+  UsageType.Monthly,
+  UsageType.Yearly,
+]);
 
 export interface UsageAttributes {
   id: string;
@@ -68,7 +72,7 @@ export class Usage implements UsageAttributes {
     return nextPeriodStart.getTime() === normalizedTarget.getTime();
   }
   isTemporal(): boolean {
-    return temporalUsage.includes(this.type);
+    return temporalUsage.has(this.type);
   }
 
   getNextPeriodStartDate(): Date {
