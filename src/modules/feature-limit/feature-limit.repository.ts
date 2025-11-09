@@ -7,6 +7,7 @@ import { PaidPlansModel } from './models/paid-plans.model';
 import { Tier } from './domain/tier.domain';
 import { PLAN_FREE_TIER_ID } from './limits.enum';
 import { TierLimitsModel } from './models/tier-limits.model';
+import { UserOverriddenLimitModel } from './models/user-overridden-limit.model';
 
 @Injectable()
 export class SequelizeFeatureLimitsRepository {
@@ -19,6 +20,8 @@ export class SequelizeFeatureLimitsRepository {
     private readonly paidPlansModel: typeof PaidPlansModel,
     @InjectModel(TierLimitsModel)
     private readonly tierLimitsModel: typeof TierLimitsModel,
+    @InjectModel(UserOverriddenLimitModel)
+    private readonly userOverriddenLimitModel: typeof UserOverriddenLimitModel,
   ) {}
 
   async findLimitByLabelAndTier(
@@ -89,5 +92,64 @@ export class SequelizeFeatureLimitsRepository {
     });
 
     return tierLimits.length ? tierLimits.map((tl) => new Limit(tl.limit)) : [];
+  }
+
+  async findUserOverriddenLimit(
+    userId: string,
+    limitLabel: string,
+  ): Promise<Limit | null> {
+    const userOverriddenLimit = await this.userOverriddenLimitModel.findOne({
+      where: { userId },
+      include: [
+        {
+          model: Limitmodel,
+          where: { label: limitLabel },
+          required: true,
+        },
+      ],
+    });
+
+    return userOverriddenLimit?.limit
+      ? Limit.build(userOverriddenLimit.limit)
+      : null;
+  }
+
+  async findAllUserOverriddenLimits(userId: string): Promise<Limit[]> {
+    const userOverriddenLimits = await this.userOverriddenLimitModel.findAll({
+      where: { userId },
+      include: [{ model: Limitmodel, required: true }],
+    });
+
+    return userOverriddenLimits.map((uol) => Limit.build(uol.limit));
+  }
+
+  async assignOverriddenLimitToUser(
+    userId: string,
+    limitId: string,
+  ): Promise<void> {
+    await this.userOverriddenLimitModel.upsert({
+      id: undefined,
+      userId,
+      limitId,
+    });
+  }
+
+  async removeOverriddenLimitFromUser(
+    userId: string,
+    limitId: string,
+  ): Promise<void> {
+    await this.userOverriddenLimitModel.destroy({
+      where: { userId, limitId },
+    });
+  }
+
+  async findLimitById(limitId: string): Promise<Limit | null> {
+    const limit = await this.limitModel.findByPk(limitId);
+    return limit ? Limit.build(limit) : null;
+  }
+
+  async findLimitByLabel(label: string): Promise<Limit | null> {
+    const limit = await this.limitModel.findOne({ where: { label } });
+    return limit ? Limit.build(limit) : null;
   }
 }

@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 
 @Injectable()
 export class GatewayUseCases {
@@ -30,6 +31,7 @@ export class GatewayUseCases {
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
+    private readonly limitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   async initializeWorkspace(
@@ -342,5 +344,48 @@ export class GatewayUseCases {
 
     await this.mailerService.sendFailedPaymentEmail(user.email);
     return { success: true };
+  }
+
+  async getUserLimitOverrides(userUuid: string) {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.limitsRepository.findAllUserOverriddenLimits(user.uuid);
+  }
+
+  async overrideUserLimit(userUuid: string, limitId: string): Promise<void> {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const limit = await this.limitsRepository.findLimitById(limitId);
+    if (!limit) {
+      throw new NotFoundException('Limit not found');
+    }
+
+    await this.limitsRepository.assignOverriddenLimitToUser(user.uuid, limitId);
+  }
+
+  async removeOverriddenLimit(
+    userUuid: string,
+    limitId: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const limit = await this.limitsRepository.findLimitById(limitId);
+    if (!limit) {
+      throw new NotFoundException('Limit not found');
+    }
+
+    await this.limitsRepository.removeOverriddenLimitFromUser(
+      user.uuid,
+      limit.id,
+    );
   }
 }

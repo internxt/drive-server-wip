@@ -40,10 +40,17 @@ export class FeatureLimitUsecases {
     user: User,
     data: LimitTypeMapping[T],
   ): Promise<boolean> {
-    const limit = await this.limitsRepository.findLimitByLabelAndTier(
-      user.tierId,
+    let limit = await this.limitsRepository.findUserOverriddenLimit(
+      user.uuid,
       limitLabel,
     );
+
+    if (!limit) {
+      limit = await this.limitsRepository.findLimitByLabelAndTier(
+        user.tierId,
+        limitLabel,
+      );
+    }
 
     if (!limit) {
       new Logger().error(

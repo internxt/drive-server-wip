@@ -6,10 +6,11 @@ import { GatewayUseCases } from './gateway.usecase';
 import { GatewayController } from './gateway.controller';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
-import { newUser, newWorkspace } from '../../../test/fixtures';
+import { newFeatureLimit, newUser, newWorkspace } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Test } from '@nestjs/testing';
+import { UserLimitResponseDto } from './dto/user-limit-response.dto';
 
 describe('Gateway Controller', () => {
   let gatewayController: GatewayController;
@@ -377,6 +378,67 @@ describe('Gateway Controller', () => {
         maxSpaceBytes: updateWorkspaceAllFieldsDto.maxSpaceBytes,
         numberOfSeats: updateWorkspaceAllFieldsDto.numberOfSeats,
       });
+    });
+  });
+
+  describe('GET /users/:uuid/limits', () => {
+    const userUuid = v4();
+    const mockLimits = [newFeatureLimit(), newFeatureLimit()];
+
+    it('When user has limit overrides, then it should return them', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'getUserLimitOverrides')
+        .mockResolvedValueOnce(mockLimits);
+
+      const result = await gatewayController.getUserLimitOverrides(userUuid);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual(new UserLimitResponseDto({ ...mockLimits[0] }));
+      expect(result[1]).toEqual(new UserLimitResponseDto({ ...mockLimits[1] }));
+      expect(gatewayUsecases.getUserLimitOverrides).toHaveBeenCalledWith(
+        userUuid,
+      );
+    });
+  });
+
+  describe('POST /users/:uuid/limits', () => {
+    const userUuid = v4();
+    const limitId = v4();
+    const overrideDto = { limitId };
+
+    it('When limit override is assigned successfully, then it should return', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'overrideUserLimit')
+        .mockResolvedValueOnce(undefined);
+
+      const result = await gatewayController.overrideUserLimit(
+        userUuid,
+        overrideDto,
+      );
+
+      expect(result).toStrictEqual({ success: true });
+      expect(gatewayUsecases.overrideUserLimit).toHaveBeenCalledWith(
+        userUuid,
+        limitId,
+      );
+    });
+  });
+
+  describe('DELETE /users/:uuid/limits/:limitId', () => {
+    const userUuid = v4();
+    const limitId = v4();
+
+    it('When limit override is being removed, then it should call service as expected', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'removeOverriddenLimit')
+        .mockResolvedValueOnce(undefined);
+
+      await gatewayController.removeOverriddenLimit(userUuid, limitId);
+
+      expect(gatewayUsecases.removeOverriddenLimit).toHaveBeenCalledWith(
+        userUuid,
+        limitId,
+      );
     });
   });
 });

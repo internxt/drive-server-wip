@@ -9,6 +9,7 @@ import {
   newWorkspaceUser,
   newTier,
   newFolder,
+  newFeatureLimit,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -21,6 +22,8 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -34,6 +37,7 @@ describe('GatewayUseCases', () => {
   let mailerService: MailerService;
   let configService: ConfigService;
   let folderRepository: SequelizeFolderRepository;
+  let limitsRepository: SequelizeFeatureLimitsRepository;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -58,6 +62,9 @@ describe('GatewayUseCases', () => {
     configService = module.get<ConfigService>(ConfigService);
     folderRepository = module.get<SequelizeFolderRepository>(
       SequelizeFolderRepository,
+    );
+    limitsRepository = module.get<SequelizeFeatureLimitsRepository>(
+      SequelizeFeatureLimitsRepository,
     );
   });
 
@@ -970,6 +977,116 @@ describe('GatewayUseCases', () => {
       await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
         error,
       );
+    });
+  });
+
+  describe('getUserLimitOverrides', () => {
+    const user = newUser();
+    const limit1 = newFeatureLimit({
+      type: LimitTypes.Counter,
+      value: '10',
+      label: LimitLabels.MaxSharedItems,
+    });
+    const limit2 = newFeatureLimit({
+      type: LimitTypes.Boolean,
+      value: 'true',
+      label: LimitLabels.CliAccess,
+    });
+    const overriddenLimits = [limit1, limit2];
+
+    it('When user is not found, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(service.getUserLimitOverrides(user.uuid)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When user exists, then it should return all overridden limits for the user', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(limitsRepository, 'findAllUserOverriddenLimits')
+        .mockResolvedValue(overriddenLimits);
+
+      const result = await service.getUserLimitOverrides(user.uuid);
+
+      expect(result).toEqual(overriddenLimits);
+    });
+  });
+
+  describe('overrideUserLimit', () => {
+    const user = newUser();
+    const limit = newFeatureLimit({
+      type: LimitTypes.Counter,
+      value: '100',
+      label: LimitLabels.MaxSharedItems,
+    });
+
+    it('When user is not found, then it should throw ', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.overrideUserLimit(user.uuid, limit.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When limit is not found, then it should throw NotFoundException', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(null);
+
+      await expect(
+        service.overrideUserLimit(user.uuid, limit.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user and limit exist, then it should assign overridden limit to user', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(limit);
+      jest
+        .spyOn(limitsRepository, 'assignOverriddenLimitToUser')
+        .mockResolvedValue(undefined);
+
+      await expect(
+        service.overrideUserLimit(user.uuid, limit.id),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('removeOverriddenLimit', () => {
+    const user = newUser();
+    const limit = newFeatureLimit({
+      type: LimitTypes.Counter,
+      value: '100',
+      label: LimitLabels.MaxSharedItems,
+    });
+
+    it('When user is not found, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.removeOverriddenLimit(user.uuid, limit.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When limit is not found, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(null);
+
+      await expect(
+        service.removeOverriddenLimit(user.uuid, limit.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When user and limit exist, then it should remove overridden limit from user', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(limit);
+      jest
+        .spyOn(limitsRepository, 'removeOverriddenLimitFromUser')
+        .mockResolvedValue(undefined);
+
+      await expect(
+        service.removeOverriddenLimit(user.uuid, limit.id),
+      ).resolves.not.toThrow();
     });
   });
 });

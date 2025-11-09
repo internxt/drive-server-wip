@@ -6,6 +6,7 @@ import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { FeatureLimit } from './feature-limits.guard';
 import { TierLimitsModel } from './models/tier-limits.model';
+import { UserOverriddenLimitModel } from './models/user-overridden-limit.model';
 import { SharingModule } from '../sharing/sharing.module';
 import { FeatureLimitsMigrationService } from './feature-limit-migration.service';
 import { UserModule } from '../user/user.module';
@@ -22,7 +23,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
       TierModel,
       Limitmodel,
       TierLimitsModel,
-      TierLimitsModel,
+      UserOverriddenLimitModel,
       PaidPlansModel,
     ]),
     HttpClientModule,

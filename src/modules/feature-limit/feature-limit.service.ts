@@ -4,7 +4,6 @@ import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { User } from '../user/user.domain';
 
 @Injectable()
 export class FeatureLimitService {
@@ -39,6 +38,16 @@ export class FeatureLimitService {
 
     const user = await this.userRepository.findByUuid(userUuid);
     if (!user) throw new NotFoundException('User not found');
+
+    const userOverriddenLimit =
+      await this.limitsRepository.findUserOverriddenLimit(
+        user.uuid,
+        limitLabel,
+      );
+
+    if (userOverriddenLimit) {
+      return !userOverriddenLimit.shouldLimitBeEnforced();
+    }
 
     const workspaceTiersIds = await this.getUserBussinessTiers(user.uuid);
     const tierIds = [user.tierId, ...workspaceTiersIds];
