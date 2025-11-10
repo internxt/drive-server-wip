@@ -432,7 +432,10 @@ export class UserController {
 
   @Get('/c/:uuid')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Get user credentials' })
+  @ApiOperation({
+    summary: 'Get user credentials',
+    deprecated: true,
+  })
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
     type: RefreshUserCredentialsDto,
