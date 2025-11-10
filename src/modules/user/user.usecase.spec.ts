@@ -89,10 +89,8 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
-import { Environment } from '@internxt/inxt-js';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
-import { UserCredentialsDto } from './dto/responses/user-credentials.dto';
 
 const TEST_MNEMONIC =
   'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
@@ -4552,7 +4550,7 @@ describe('User use cases', () => {
         } as { kyber: KeyServer; ecc: KeyServer };
         const authTokens = { token: 'old-token', newToken: 'new-token' };
 
-        const expectedCredentials: UserCredentialsDto = {
+        const expectedCredentials = {
           oldToken: authTokens.token,
           token: authTokens.token,
           newToken: authTokens.newToken,

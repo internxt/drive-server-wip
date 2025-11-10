@@ -88,7 +88,10 @@ import { Client } from '../../common/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
-import { UserCredentialsDto } from './dto/responses/user-credentials.dto';
+import {
+  RefreshUserCredentialsDto,
+  RefreshUserTokensDto,
+} from './dto/responses/user-credentials.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
@@ -432,12 +435,12 @@ export class UserController {
   @ApiOperation({ summary: 'Get user credentials' })
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
-    type: UserCredentialsDto,
+    type: RefreshUserCredentialsDto,
   })
   async getUserCredentials(
     @UserDecorator() user: User,
     @Param('uuid') uuid: string,
-  ): Promise<UserCredentialsDto> {
+  ): Promise<RefreshUserCredentialsDto> {
     if (uuid !== user.uuid) {
       throw new ForbiddenException();
     }
@@ -450,10 +453,12 @@ export class UserController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Refresh session token' })
   @ApiOkResponse({
-    description: 'Returns the user metadata, and the authentication tokens',
-    type: UserCredentialsDto,
+    description: 'Returns the user metadata and the authentication tokens',
+    type: RefreshUserTokensDto,
   })
-  async refreshToken(@UserDecorator() user: User): Promise<UserCredentialsDto> {
+  async refreshToken(
+    @UserDecorator() user: User,
+  ): Promise<RefreshUserTokensDto> {
     const userCredentials = await this.userUseCases.getUserCredentials(
       user,
       JWT_7DAYS_EXPIRATION,

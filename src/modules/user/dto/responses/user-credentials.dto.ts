@@ -78,7 +78,7 @@ export class UserResponseDto {
   revocateKey: KeysDto['ecc']['revocationKey'];
 }
 
-export class UserCredentialsDto {
+export class RefreshUserCredentialsDto {
   @ApiProperty({
     description: 'The old token that has been replaced',
     example: 'oldToken1234567890',
@@ -87,6 +87,20 @@ export class UserCredentialsDto {
   })
   token?: string;
 
+  @ApiProperty({
+    description: 'The new token to be used for authentication',
+    example: 'oldToken1234567890',
+  })
+  newToken: string;
+
+  @ApiProperty({
+    description: 'User information',
+    type: UserResponseDto,
+  })
+  user: UserResponseDto;
+}
+
+export class RefreshUserTokensDto {
   @ApiProperty({
     description: 'The old token that has been replaced',
     example: 'oldToken1234567890',

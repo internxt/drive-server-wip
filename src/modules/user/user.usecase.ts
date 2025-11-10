@@ -90,10 +90,7 @@ import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
-import {
-  UserCredentialsDto,
-  UserResponseDto,
-} from './dto/responses/user-credentials.dto';
+import { UserResponseDto } from './dto/responses/user-credentials.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -2058,10 +2055,7 @@ export class UserUseCases {
     }
   }
 
-  async getUserCredentials(
-    user: User,
-    tokenExpirationTime?: string | number,
-  ): Promise<UserCredentialsDto> {
+  async getUserCredentials(user: User, tokenExpirationTime?: string | number) {
     const [{ token: oldToken, newToken }, avatar, rootFolder, keys] =
       await Promise.all([
         this.getAuthTokens(user, undefined, tokenExpirationTime),
