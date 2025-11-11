@@ -1245,13 +1245,25 @@ export class UserController {
   })
   async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
     const { token } = body;
-
-    const deactivatedUser = await this.userUseCases.confirmDeactivation(token);
-
     this.logger.log(
-      `[DEACTIVATION] User account deactivated successfully for user: ${deactivatedUser.uuid}, email: ${deactivatedUser.email}`,
+      { token },
+      '[DEACTIVATION] User account deactivation confirmation started',
     );
-    return { deactivatedUser };
+
+    try {
+      const deactivatedUser =
+        await this.userUseCases.confirmDeactivation(token);
+      this.logger.log(
+        `[DEACTIVATION] User account deactivated successfully for user: ${deactivatedUser.uuid}, email: ${deactivatedUser.email}`,
+      );
+      return { deactivatedUser };
+    } catch (err) {
+      this.logger.error(
+        { err, token },
+        `[DEACTIVATION] Error confirming deactivation`,
+      );
+      throw err;
+    }
   }
 
   @Get('/usage')

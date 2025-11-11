@@ -297,10 +297,10 @@ export class BridgeService {
 
       return response.data.email;
     } catch (error) {
-      Logger.error(`
-        [BRIDGE_SERVICE/DEACTIVATE_USER]: There was an error while trying to deactivate user Error: ${JSON.stringify(
-          error,
-        )}`);
+      Logger.error(
+        { error, token },
+        '[BRIDGE_SERVICE/DEACTIVATE_USER]: There was an error while trying to deactivate user',
+      );
       throw error;
     }
   }
