@@ -31,6 +31,7 @@ describe('FeatureLimitUsecases', () => {
         type: LimitTypes.Boolean,
         value: 'false',
       });
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
 
       await expect(
@@ -43,7 +44,7 @@ describe('FeatureLimitUsecases', () => {
         type: LimitTypes.Boolean,
         value: 'true',
       });
-
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
 
       const enforceLimit = await service.enforceLimit(
@@ -56,6 +57,7 @@ describe('FeatureLimitUsecases', () => {
     });
 
     it('When limit is counter and is surprassed, then limit should be enforced', async () => {
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(
         newFeatureLimit({
           type: LimitTypes.Counter,
@@ -76,6 +78,7 @@ describe('FeatureLimitUsecases', () => {
           value: '4',
         }),
       );
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       jest.spyOn(service, 'checkCounterLimit').mockResolvedValueOnce(false);
 
       const enforceLimit = await service.enforceLimit(
@@ -84,6 +87,94 @@ describe('FeatureLimitUsecases', () => {
         {},
       );
 
+      expect(enforceLimit).toBeFalsy();
+    });
+
+    it('When user has an override for a boolean limit, then it should use the override instead of tier limit', async () => {
+      const tierLimit = newFeatureLimit({
+        type: LimitTypes.Boolean,
+        value: 'false',
+      });
+      const userOverrideLimit = newFeatureLimit({
+        type: LimitTypes.Boolean,
+        value: 'true',
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(
+        userOverrideLimit,
+      );
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(tierLimit);
+
+      const enforceLimit = await service.enforceLimit(
+        LimitLabels.CliAccess,
+        user,
+        {},
+      );
+
+      expect(limitsRepository.findUserOverriddenLimit).toHaveBeenCalledWith(
+        user.uuid,
+        LimitLabels.CliAccess,
+      );
+      expect(enforceLimit).toBeFalsy();
+    });
+
+    it('When user has no override, then it should fall back to tier limit', async () => {
+      const tierLimit = newFeatureLimit({
+        type: LimitTypes.Boolean,
+        value: 'true',
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(tierLimit);
+
+      const enforceLimit = await service.enforceLimit(
+        LimitLabels.CliAccess,
+        user,
+        {},
+      );
+
+      expect(limitsRepository.findUserOverriddenLimit).toHaveBeenCalledWith(
+        user.uuid,
+        LimitLabels.CliAccess,
+      );
+      expect(limitsRepository.findLimitByLabelAndTier).toHaveBeenCalledWith(
+        user.tierId,
+        LimitLabels.CliAccess,
+      );
+      expect(enforceLimit).toBeFalsy();
+    });
+
+    it('When user has an override for a counter limit, then it should use the override value', async () => {
+      const tierLimit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '100',
+      });
+      const userOverrideLimit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '50',
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(
+        userOverrideLimit,
+      );
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(tierLimit);
+      jest.spyOn(service, 'checkCounterLimit').mockResolvedValueOnce(false);
+
+      const enforceLimit = await service.enforceLimit(
+        LimitLabels.MaxSharedItemInvites,
+        user,
+        {},
+      );
+
+      expect(limitsRepository.findUserOverriddenLimit).toHaveBeenCalledWith(
+        user.uuid,
+        LimitLabels.MaxSharedItemInvites,
+      );
+      expect(service.checkCounterLimit).toHaveBeenCalledWith(
+        user,
+        userOverrideLimit,
+        {},
+      );
       expect(enforceLimit).toBeFalsy();
     });
   });

@@ -6,10 +6,11 @@ import { GatewayUseCases } from './gateway.usecase';
 import { GatewayController } from './gateway.controller';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
-import { newUser, newWorkspace } from '../../../test/fixtures';
+import { newFeatureLimit, newUser, newWorkspace } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Test } from '@nestjs/testing';
+import { UserLimitResponseDto } from './dto/user-limit-response.dto';
 
 describe('Gateway Controller', () => {
   let gatewayController: GatewayController;
@@ -377,6 +378,26 @@ describe('Gateway Controller', () => {
         maxSpaceBytes: updateWorkspaceAllFieldsDto.maxSpaceBytes,
         numberOfSeats: updateWorkspaceAllFieldsDto.numberOfSeats,
       });
+    });
+  });
+
+  describe('GET /users/:uuid/limits/overrides', () => {
+    const userUuid = v4();
+    const mockLimits = [newFeatureLimit(), newFeatureLimit()];
+
+    it('When user has limit overrides, then it should return them', async () => {
+      jest
+        .spyOn(gatewayUsecases, 'getUserLimitOverrides')
+        .mockResolvedValueOnce(mockLimits);
+
+      const result = await gatewayController.getUserLimitOverrides(userUuid);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual(new UserLimitResponseDto({ ...mockLimits[0] }));
+      expect(result[1]).toEqual(new UserLimitResponseDto({ ...mockLimits[1] }));
+      expect(gatewayUsecases.getUserLimitOverrides).toHaveBeenCalledWith(
+        userUuid,
+      );
     });
   });
 });

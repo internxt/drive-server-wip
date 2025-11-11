@@ -33,6 +33,7 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FailedPaymentDto } from './dto/failed-payment.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { UserLimitResponseDto } from './dto/user-limit-response.dto';
 import { GetUserCredentialsDto } from './dto/get-user-credentials.dto';
 import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
 import {
@@ -40,6 +41,7 @@ import {
   AuditEntityType,
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
+import { OverrideUserLimitDto } from './dto/override-user-limit.dto';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -294,5 +296,68 @@ export class GatewayController {
   })
   async handleFailedPayment(@Body() dto: FailedPaymentDto) {
     return this.gatewayUseCases.handleFailedPayment(dto.userId);
+  }
+
+  @Get('/users/:uuid/limits/overrides')
+  @ApiOperation({
+    summary: 'Get user limit overrides',
+    description:
+      'Returns all limit overrides assigned to a specific user. These overrides take precedence over tier limits.',
+  })
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'User UUID',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description: 'List of user limit overrides',
+    type: [UserLimitResponseDto],
+  })
+  async getUserLimitOverrides(
+    @Param('uuid', ValidateUUIDPipe) userUuid: string,
+  ) {
+    const limits = await this.gatewayUseCases.getUserLimitOverrides(userUuid);
+    return limits.map((limit) => new UserLimitResponseDto({ ...limit }));
+  }
+
+  @Put('/users/:uuid/limits/overrides')
+  @AuditLog({
+    action: AuditAction.UserLimitOverridden,
+    entityType: AuditEntityType.User,
+    entityId: (req) => req.params.uuid,
+    performerId: 'params.uuid',
+    performerType: AuditPerformerType.Gateway,
+    metadata: (req) => ({
+      feature: req.body.feature,
+      value: req.body.value,
+    }),
+  })
+  @ApiOperation({
+    description: 'Overrides a specific feature for a user.',
+  })
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'User UUID',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description: 'Limit successfully set for user',
+  })
+  async overrideUserLimit(
+    @Param('uuid', ValidateUUIDPipe) userUuid: string,
+    @Body() dto: OverrideUserLimitDto,
+  ) {
+    await this.gatewayUseCases.overrideLimitForUser(
+      userUuid,
+      dto.feature,
+      dto.value,
+    );
+    return { success: true };
   }
 }
