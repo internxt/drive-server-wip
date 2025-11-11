@@ -18,6 +18,8 @@ import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { Limit } from '../feature-limit/domain/limit.domain';
+import { FeatureNameLimitMap } from './constants';
 
 @Injectable()
 export class GatewayUseCases {
@@ -355,37 +357,44 @@ export class GatewayUseCases {
     return this.limitsRepository.findAllUserOverriddenLimits(user.uuid);
   }
 
-  async overrideUserLimit(userUuid: string, limitId: string): Promise<void> {
-    const user = await this.userRepository.findByUuid(userUuid);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+  async findLimitByLabelAndValue(
+    label: string,
+    value: string,
+  ): Promise<Limit | null> {
+    const limit = await this.limitsRepository.findLimitByLabelAndValue(
+      label,
+      value,
+    );
 
-    const limit = await this.limitsRepository.findLimitById(limitId);
-    if (!limit) {
-      throw new NotFoundException('Limit not found');
-    }
-
-    await this.limitsRepository.assignOverriddenLimitToUser(user.uuid, limitId);
+    return limit;
   }
 
-  async removeOverriddenLimit(
+  async overrideLimitForUser(
     userUuid: string,
-    limitId: string,
+    externalLimitName: string,
+    value: string,
   ): Promise<void> {
     const user = await this.userRepository.findByUuid(userUuid);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const limit = await this.limitsRepository.findLimitById(limitId);
-    if (!limit) {
-      throw new NotFoundException('Limit not found');
+    const label = FeatureNameLimitMap[externalLimitName];
+    if (!label) {
+      throw new BadRequestException(`Not valid feature '${externalLimitName}'`);
     }
 
-    await this.limitsRepository.removeOverriddenLimitFromUser(
-      user.uuid,
-      limit.id,
+    const limit = await this.limitsRepository.findLimitByLabelAndValue(
+      label,
+      value,
     );
+
+    if (!limit) {
+      throw new BadRequestException(
+        `It seems the value '${value}' is not valid for feature '${externalLimitName}'`,
+      );
+    }
+
+    await this.limitsRepository.createOverridenLimit(user.uuid, limit.id);
   }
 }

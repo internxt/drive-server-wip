@@ -123,23 +123,11 @@ export class SequelizeFeatureLimitsRepository {
     return userOverriddenLimits.map((uol) => Limit.build(uol.limit));
   }
 
-  async assignOverriddenLimitToUser(
-    userId: string,
-    limitId: string,
-  ): Promise<void> {
+  async createOverridenLimit(userId: string, limitId: string): Promise<void> {
     await this.userOverriddenLimitModel.upsert({
       id: undefined,
       userId,
       limitId,
-    });
-  }
-
-  async removeOverriddenLimitFromUser(
-    userId: string,
-    limitId: string,
-  ): Promise<void> {
-    await this.userOverriddenLimitModel.destroy({
-      where: { userId, limitId },
     });
   }
 
@@ -150,6 +138,14 @@ export class SequelizeFeatureLimitsRepository {
 
   async findLimitByLabel(label: string): Promise<Limit | null> {
     const limit = await this.limitModel.findOne({ where: { label } });
+    return limit ? Limit.build(limit) : null;
+  }
+
+  async findLimitByLabelAndValue(
+    label: string,
+    value: string,
+  ): Promise<Limit | null> {
+    const limit = await this.limitModel.findOne({ where: { label, value } });
     return limit ? Limit.build(limit) : null;
   }
 }

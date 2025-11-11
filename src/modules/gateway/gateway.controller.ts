@@ -298,7 +298,7 @@ export class GatewayController {
     return this.gatewayUseCases.handleFailedPayment(dto.userId);
   }
 
-  @Get('/users/:uuid/limits')
+  @Get('/users/:uuid/limits/overrides')
   @ApiOperation({
     summary: 'Get user limit overrides',
     description:
@@ -323,11 +323,20 @@ export class GatewayController {
     return limits.map((limit) => new UserLimitResponseDto({ ...limit }));
   }
 
-  @Post('/users/:uuid/limits')
+  @Put('/users/:uuid/limits/overrides')
+  @AuditLog({
+    action: AuditAction.UserLimitOverridden,
+    entityType: AuditEntityType.User,
+    entityId: (req) => req.params.uuid,
+    performerId: 'params.uuid',
+    performerType: AuditPerformerType.Gateway,
+    metadata: (req) => ({
+      feature: req.body.feature,
+      value: req.body.value,
+    }),
+  })
   @ApiOperation({
-    summary: 'Assign limit override to user',
-    description:
-      'Assigns an existing limit to a user. This limit will override the tier limit for this specific user.',
+    description: 'Overrides a specific feature for a user.',
   })
   @ApiParam({
     name: 'uuid',
@@ -338,42 +347,17 @@ export class GatewayController {
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
   @ApiOkResponse({
-    description: 'Limit successfully assigned to user',
+    description: 'Limit successfully set for user',
   })
   async overrideUserLimit(
     @Param('uuid', ValidateUUIDPipe) userUuid: string,
     @Body() dto: OverrideUserLimitDto,
   ) {
-    await this.gatewayUseCases.overrideUserLimit(userUuid, dto.limitId);
+    await this.gatewayUseCases.overrideLimitForUser(
+      userUuid,
+      dto.feature,
+      dto.value,
+    );
     return { success: true };
-  }
-
-  @Delete('/users/:uuid/limits/:limitId')
-  @ApiOperation({
-    summary: 'Remove limit override from user',
-    description: 'Removes a limit override from a user.',
-  })
-  @ApiParam({
-    name: 'uuid',
-    type: String,
-    required: true,
-    description: 'User UUID',
-  })
-  @ApiParam({
-    name: 'limitId',
-    type: String,
-    required: true,
-    description: 'Limit id',
-  })
-  @ApiBearerAuth('gateway')
-  @UseGuards(GatewayGuard)
-  @ApiOkResponse({
-    description: 'Limit override successfully removed',
-  })
-  async removeOverriddenLimit(
-    @Param('uuid', ValidateUUIDPipe) userUuid: string,
-    @Param('limitId', ValidateUUIDPipe) limitId: string,
-  ) {
-    await this.gatewayUseCases.removeOverriddenLimit(userUuid, limitId);
   }
 }

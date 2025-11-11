@@ -34,6 +34,7 @@ export enum AuditAction {
   WorkspaceCreated = 'workspace-created',
   WorkspaceDeleted = 'workspace-deleted',
   WorkspaceStorageChanged = 'workspace-storage-changed',
+  UserLimitOverridden = 'user-limit-overridden',
 }
 
 export const AUDIT_ENTITY_ACTIONS: Record<AuditEntityType, AuditAction[]> = {

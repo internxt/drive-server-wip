@@ -1014,79 +1014,103 @@ describe('GatewayUseCases', () => {
     });
   });
 
-  describe('overrideUserLimit', () => {
-    const user = newUser();
+  describe('findLimitByLabelAndValue', () => {
     const limit = newFeatureLimit({
-      type: LimitTypes.Counter,
-      value: '100',
-      label: LimitLabels.MaxSharedItems,
+      type: LimitTypes.Boolean,
+      value: 'true',
+      label: LimitLabels.CliAccess,
     });
 
-    it('When user is not found, then it should throw ', async () => {
-      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
-
-      await expect(
-        service.overrideUserLimit(user.uuid, limit.id),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When limit is not found, then it should throw NotFoundException', async () => {
-      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
-      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(null);
-
-      await expect(
-        service.overrideUserLimit(user.uuid, limit.id),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When user and limit exist, then it should assign overridden limit to user', async () => {
-      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
-      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(limit);
+    it('When limit exists, then it should return the limit', async () => {
       jest
-        .spyOn(limitsRepository, 'assignOverriddenLimitToUser')
-        .mockResolvedValue(undefined);
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(limit);
 
-      await expect(
-        service.overrideUserLimit(user.uuid, limit.id),
-      ).resolves.not.toThrow();
+      const result = await service.findLimitByLabelAndValue(
+        LimitLabels.CliAccess,
+        'true',
+      );
+
+      expect(result).toEqual(limit);
+      expect(limitsRepository.findLimitByLabelAndValue).toHaveBeenCalledWith(
+        LimitLabels.CliAccess,
+        'true',
+      );
+    });
+
+    it('When limit does not exist, then it should return null', async () => {
+      jest
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(null);
+
+      const result = await service.findLimitByLabelAndValue(
+        LimitLabels.CliAccess,
+        'false',
+      );
+
+      expect(result).toBeNull();
+      expect(limitsRepository.findLimitByLabelAndValue).toHaveBeenCalledWith(
+        LimitLabels.CliAccess,
+        'false',
+      );
     });
   });
 
-  describe('removeOverriddenLimit', () => {
+  describe('overrideLimitForUser', () => {
     const user = newUser();
-    const limit = newFeatureLimit({
-      type: LimitTypes.Counter,
-      value: '100',
-      label: LimitLabels.MaxSharedItems,
+    const cliLimit = newFeatureLimit({
+      type: LimitTypes.Boolean,
+      value: 'true',
+      label: LimitLabels.CliAccess,
     });
 
-    it('When user is not found, then it should throw', async () => {
+    it('When user is not found, then it should throws', async () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
 
       await expect(
-        service.removeOverriddenLimit(user.uuid, limit.id),
+        service.overrideLimitForUser(user.uuid, 'cli', 'true'),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When limit is not found, then it should throw', async () => {
+    it('When feature name is invalid, then it should throw', async () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
-      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(null);
 
       await expect(
-        service.removeOverriddenLimit(user.uuid, limit.id),
-      ).rejects.toThrow(NotFoundException);
+        service.overrideLimitForUser(user.uuid, 'invalid-feature', 'true'),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('When user and limit exist, then it should remove overridden limit from user', async () => {
+    it('When limit is not found for label and value combination, then it should throw', async () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
-      jest.spyOn(limitsRepository, 'findLimitById').mockResolvedValue(limit);
       jest
-        .spyOn(limitsRepository, 'removeOverriddenLimitFromUser')
-        .mockResolvedValue(undefined);
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(null);
 
       await expect(
-        service.removeOverriddenLimit(user.uuid, limit.id),
+        service.overrideLimitForUser(user.uuid, 'cli', 'invalid-value'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When all validations pass, then it should create override successfully', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(cliLimit);
+      jest.spyOn(limitsRepository, 'createOverridenLimit');
+
+      await expect(
+        service.overrideLimitForUser(user.uuid, 'cli', 'true'),
       ).resolves.not.toThrow();
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(user.uuid);
+      expect(limitsRepository.findLimitByLabelAndValue).toHaveBeenCalledWith(
+        LimitLabels.CliAccess,
+        'true',
+      );
+      expect(limitsRepository.createOverridenLimit).toHaveBeenCalledWith(
+        user.uuid,
+        cliLimit.id,
+      );
     });
   });
 });
