@@ -123,7 +123,7 @@ export class SequelizeFeatureLimitsRepository {
     return userOverriddenLimits.map((uol) => Limit.build(uol.limit));
   }
 
-  async createOverridenLimit(userId: string, limitId: string): Promise<void> {
+  async upsertOverridenLimit(userId: string, limitId: string): Promise<void> {
     await this.userOverriddenLimitModel.upsert({
       id: undefined,
       userId,

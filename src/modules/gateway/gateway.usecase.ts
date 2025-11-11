@@ -395,6 +395,6 @@ export class GatewayUseCases {
       );
     }
 
-    await this.limitsRepository.createOverridenLimit(user.uuid, limit.id);
+    await this.limitsRepository.upsertOverridenLimit(user.uuid, limit.id);
   }
 }

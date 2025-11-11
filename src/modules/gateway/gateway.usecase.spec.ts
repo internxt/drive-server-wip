@@ -1096,7 +1096,7 @@ describe('GatewayUseCases', () => {
       jest
         .spyOn(limitsRepository, 'findLimitByLabelAndValue')
         .mockResolvedValue(cliLimit);
-      jest.spyOn(limitsRepository, 'createOverridenLimit');
+      jest.spyOn(limitsRepository, 'upsertOverridenLimit');
 
       await expect(
         service.overrideLimitForUser(user.uuid, 'cli', 'true'),
@@ -1107,7 +1107,7 @@ describe('GatewayUseCases', () => {
         LimitLabels.CliAccess,
         'true',
       );
-      expect(limitsRepository.createOverridenLimit).toHaveBeenCalledWith(
+      expect(limitsRepository.upsertOverridenLimit).toHaveBeenCalledWith(
         user.uuid,
         cliLimit.id,
       );

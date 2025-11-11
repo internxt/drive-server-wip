@@ -46,7 +46,7 @@ export class FeatureLimitService {
       );
 
     if (userOverriddenLimit) {
-      return !userOverriddenLimit.shouldLimitBeEnforced();
+      return userOverriddenLimit.isFeatureEnabled();
     }
 
     const workspaceTiersIds = await this.getUserBussinessTiers(user.uuid);
@@ -69,7 +69,7 @@ export class FeatureLimitService {
     }
 
     for (const limit of tierLimits) {
-      if (!limit.shouldLimitBeEnforced()) {
+      if (limit.isFeatureEnabled()) {
         return true;
       }
     }
