@@ -66,7 +66,10 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import {
+  KeyServer,
+  UserKeysEncryptVersions,
+} from '../keyserver/key-server.domain';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
@@ -86,7 +89,6 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
-import { Environment } from '@internxt/inxt-js';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
 
@@ -4529,6 +4531,138 @@ describe('User use cases', () => {
         mockUser.email,
       );
       expect(mockMailLimit.increaseMonthAttempts).toHaveBeenCalled();
+    });
+
+    describe('getUserCredentials', () => {
+      it('When called with custom tokenExpirationTime, then it should return all properties', async () => {
+        const testUser = newUser();
+        const folder = newFolder({ attributes: { bucket: 'user-bucket' } });
+        const keys = {
+          ecc: {
+            privateKey: 'ecc-priv',
+            publicKey: 'ecc-pub',
+            revocationKey: 'ecc-rev',
+          },
+          kyber: {
+            privateKey: 'kyber-priv',
+            publicKey: 'kyber-pub',
+          },
+        } as { kyber: KeyServer; ecc: KeyServer };
+        const authTokens = { token: 'old-token', newToken: 'new-token' };
+
+        const expectedCredentials = {
+          oldToken: authTokens.token,
+          token: authTokens.token,
+          newToken: authTokens.newToken,
+          user: expect.objectContaining({
+            email: testUser.email,
+            uuid: testUser.uuid,
+            bucket: folder.bucket,
+            root_folder_id: folder.id,
+            rootFolderId: folder.uuid,
+            privateKey: keys.ecc.privateKey,
+            publicKey: keys.ecc.publicKey,
+            revocateKey: keys.ecc.revocationKey,
+            keys: {
+              ecc: {
+                privateKey: keys.ecc.privateKey,
+                publicKey: keys.ecc.publicKey,
+              },
+              kyber: {
+                privateKey: keys.kyber.privateKey,
+                publicKey: keys.kyber.publicKey,
+              },
+            },
+            avatar: 'https://cdn.example.com/avatar.png',
+          }),
+        };
+
+        jest
+          .spyOn(userUseCases, 'getAuthTokens')
+          .mockResolvedValueOnce(authTokens as any);
+        jest
+          .spyOn(userUseCases, 'getAvatarUrl')
+          .mockResolvedValueOnce('https://cdn.example.com/avatar.png' as any);
+        jest
+          .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
+          .mockResolvedValueOnce(folder);
+        jest
+          .spyOn(keyServerUseCases, 'findUserKeys')
+          .mockResolvedValueOnce(keys);
+
+        const result = await userUseCases.getUserCredentials(testUser, '7d');
+
+        expect(userUseCases.getAuthTokens).toHaveBeenCalledWith(
+          testUser,
+          undefined,
+          '7d',
+        );
+        expect(userUseCases.getAvatarUrl).toHaveBeenCalledWith(testUser.avatar);
+        expect(
+          userUseCases.getOrCreateUserRootFolderAndBucket,
+        ).toHaveBeenCalledWith(testUser);
+        expect(keyServerUseCases.findUserKeys).toHaveBeenCalledWith(
+          testUser.id,
+        );
+
+        expect(result).toMatchObject(expectedCredentials);
+      });
+
+      it('When avatar is missing, then avatar in response should be null', async () => {
+        const testUser = newUser({ attributes: { avatar: null } });
+        const folder = newFolder({ attributes: { bucket: 'bucket-x' } });
+        const keys = { ecc: null, kyber: null } as {
+          kyber: KeyServer;
+          ecc: KeyServer;
+        };
+
+        jest
+          .spyOn(userUseCases, 'getAuthTokens')
+          .mockResolvedValueOnce({ token: 't', newToken: 'nt' });
+        jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValueOnce(null);
+        jest
+          .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
+          .mockResolvedValueOnce(folder);
+        jest
+          .spyOn(keyServerUseCases, 'findUserKeys')
+          .mockResolvedValueOnce(keys);
+
+        const result = await userUseCases.getUserCredentials(testUser);
+
+        expect(result.user.avatar).toBeNull();
+        expect(result.user.keys).toEqual({
+          ecc: { privateKey: null, publicKey: null },
+          kyber: { privateKey: null, publicKey: null },
+        });
+      });
+
+      it('When key server returns null keys, then keys fields should be null in user response', async () => {
+        const testUser = newUser();
+        const folder = newFolder({ attributes: { bucket: 'bucket-y' } });
+
+        jest
+          .spyOn(userUseCases, 'getAuthTokens')
+          .mockResolvedValueOnce({ token: 't2', newToken: 'nt2' } as any);
+        jest
+          .spyOn(userUseCases, 'getAvatarUrl')
+          .mockResolvedValueOnce(null as any);
+        jest
+          .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
+          .mockResolvedValueOnce(folder as any);
+        jest
+          .spyOn(keyServerUseCases, 'findUserKeys')
+          .mockResolvedValueOnce({ ecc: null, kyber: null } as any);
+
+        const result = await userUseCases.getUserCredentials(testUser);
+
+        expect(result.user.privateKey).toBeNull();
+        expect(result.user.publicKey).toBeNull();
+        expect(result.user.revocateKey).toBeNull();
+        expect(result.user.keys).toEqual({
+          ecc: { privateKey: null, publicKey: null },
+          kyber: { privateKey: null, publicKey: null },
+        });
+      });
     });
   });
 });
