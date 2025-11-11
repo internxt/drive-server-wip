@@ -17,6 +17,9 @@ import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { Limit } from '../feature-limit/domain/limit.domain';
+import { FeatureNameLimitMap } from './constants';
 
 @Injectable()
 export class GatewayUseCases {
@@ -30,6 +33,7 @@ export class GatewayUseCases {
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
+    private readonly limitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   async initializeWorkspace(
@@ -342,5 +346,55 @@ export class GatewayUseCases {
 
     await this.mailerService.sendFailedPaymentEmail(user.email);
     return { success: true };
+  }
+
+  async getUserLimitOverrides(userUuid: string) {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.limitsRepository.findAllUserOverriddenLimits(user.uuid);
+  }
+
+  async findLimitByLabelAndValue(
+    label: string,
+    value: string,
+  ): Promise<Limit | null> {
+    const limit = await this.limitsRepository.findLimitByLabelAndValue(
+      label,
+      value,
+    );
+
+    return limit;
+  }
+
+  async overrideLimitForUser(
+    userUuid: string,
+    externalLimitName: string,
+    value: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const label = FeatureNameLimitMap[externalLimitName];
+    if (!label) {
+      throw new BadRequestException(`Not valid feature '${externalLimitName}'`);
+    }
+
+    const limit = await this.limitsRepository.findLimitByLabelAndValue(
+      label,
+      value,
+    );
+
+    if (!limit) {
+      throw new BadRequestException(
+        `It seems the value '${value}' is not valid for feature '${externalLimitName}'`,
+      );
+    }
+
+    await this.limitsRepository.upsertOverridenLimit(user.uuid, limit.id);
   }
 }

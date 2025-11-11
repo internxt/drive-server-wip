@@ -26,7 +26,7 @@ export class Limit {
     return this.type === LimitTypes.Boolean;
   }
 
-  private isFeatureEnabled() {
+  isFeatureEnabled() {
     return this.isBooleanLimit() && this.value === 'true';
   }
 
