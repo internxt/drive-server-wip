@@ -23,11 +23,13 @@ import {
   MoveItemsToTrashDto,
 } from './dto/controllers/move-items-to-trash.dto';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
+import { UserTier } from '../auth/decorators/user-tier.decorator';
 import { Client } from '../../common/decorators/client.decorator';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { UserUseCases } from '../user/user.usecase';
 import { User } from '../user/user.domain';
+import { Tier } from '../feature-limit/domain/tier.domain';
 import { TrashUseCases } from './trash.usecase';
 import {
   DeleteItemsDto,
@@ -169,6 +171,7 @@ export class TrashController {
   async moveItemsToTrash(
     @Body() moveItemsDto: MoveItemsToTrashDto,
     @UserDecorator() user: User,
+    @UserTier() tier: Tier,
     @Client() clientId: string,
     @Version() version: string,
     @Requester() requester: User,
@@ -213,11 +216,24 @@ export class TrashController {
           `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/add`,
         );
       }
+
+      const tierLabel = tier?.label;
+
       await Promise.all([
         fileIds.length > 0 || fileUuids.length > 0
-          ? this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids)
+          ? this.fileUseCases.moveFilesToTrash(
+              user,
+              fileIds,
+              fileUuids,
+              tierLabel,
+            )
           : Promise.resolve(),
-        this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
+        this.folderUseCases.moveFoldersToTrash(
+          user,
+          folderIds,
+          folderUuids,
+          tierLabel,
+        ),
       ]);
 
       this.userUseCases

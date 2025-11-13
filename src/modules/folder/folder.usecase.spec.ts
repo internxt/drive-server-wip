@@ -203,7 +203,6 @@ describe('FolderUseCases', () => {
       const mockBackupFolder = newFolder({
         attributes: { bucket: 'backup-bucket', parentId: null },
       });
-      const mockTier = { id: '1', label: 'free_individual' };
 
       jest
         .spyOn(service, 'getFoldersByIds')
@@ -211,15 +210,14 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(service, 'getFolder')
         .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValueOnce(mockTier);
       jest.spyOn(trashUsecases, 'addItemsToTrash');
 
-      await service.moveFoldersToTrash(user, [
-        mockDriveFolder.id,
-        mockBackupFolder.id,
-      ]);
+      await service.moveFoldersToTrash(
+        user,
+        [mockDriveFolder.id, mockBackupFolder.id],
+        [],
+        'free_individual',
+      );
 
       expect(trashUsecases.addItemsToTrash).toHaveBeenCalledTimes(1);
       expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
@@ -258,18 +256,19 @@ describe('FolderUseCases', () => {
       const mockFolder = newFolder({
         attributes: { bucket: rootFolderBucket, parentId: 1 },
       });
-      const mockTier = { id: '1', label: 'essential_individual' };
 
       jest.spyOn(service, 'getFoldersByIds').mockResolvedValue([mockFolder]);
       jest
         .spyOn(service, 'getFolder')
         .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValueOnce(mockTier);
       jest.spyOn(trashUsecases, 'addItemsToTrash');
 
-      await service.moveFoldersToTrash(user, [mockFolder.id]);
+      await service.moveFoldersToTrash(
+        user,
+        [mockFolder.id],
+        [],
+        'essential_individual',
+      );
 
       expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
         [mockFolder.uuid],

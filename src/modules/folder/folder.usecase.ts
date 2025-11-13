@@ -481,16 +481,15 @@ export class FolderUseCases {
     user: User,
     folderIds: FolderAttributes['id'][],
     folderUuids: FolderAttributes['uuid'][] = [],
+    tierLabel?: string,
   ): Promise<void> {
-    const [foldersById, driveRootFolder, foldersByUuid, tier] =
-      await Promise.all([
-        this.getFoldersByIds(user, folderIds),
-        this.getFolder(user.rootFolderId),
-        folderUuids.length > 0
-          ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
-          : Promise.resolve<Folder[]>([]),
-        this.featureLimitService.getTier(user.tierId),
-      ]);
+    const [foldersById, driveRootFolder, foldersByUuid] = await Promise.all([
+      this.getFoldersByIds(user, folderIds),
+      this.getFolder(user.rootFolderId),
+      folderUuids.length > 0
+        ? this.folderRepository.findUserFoldersByUuid(user, folderUuids)
+        : Promise.resolve<Folder[]>([]),
+    ]);
 
     const folders = foldersById.concat(foldersByUuid);
 
@@ -498,8 +497,6 @@ export class FolderUseCases {
     const driveFolders = folders.filter(
       (f) => !f.isBackup(driveRootFolder) && f.id !== user.rootFolderId,
     );
-
-    const tierLabel = tier?.label;
 
     await Promise.all([
       driveFolders.length > 0

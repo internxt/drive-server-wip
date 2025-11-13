@@ -157,17 +157,18 @@ describe('FileUseCases', () => {
     it('When you trash files, then the retention period is determined by the user tier', async () => {
       const fileIds = [fileId];
       const fileUuids = [mockFile.uuid];
-      const mockTier = { id: '1', label: 'premium_individual' };
 
       jest
         .spyOn(fileRepository, 'findByFileIds')
         .mockResolvedValueOnce([mockFile]);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValueOnce(mockTier);
       jest.spyOn(trashUsecases, 'addItemsToTrash');
 
-      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+      await service.moveFilesToTrash(
+        userMocked,
+        fileIds,
+        fileUuids,
+        'premium_individual',
+      );
 
       expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
         expect.arrayContaining(fileUuids),

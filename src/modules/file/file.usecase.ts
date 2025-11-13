@@ -647,15 +647,13 @@ export class FileUseCases {
     user: User,
     fileIds: FileAttributes['fileId'][],
     fileUuids: FileAttributes['uuid'][] = [],
+    tierLabel?: string,
   ): Promise<void> {
-    const [files, tier] = await Promise.all([
-      this.fileRepository.findByFileIds(user.id, fileIds),
-      this.featureLimitService.getTier(user.tierId),
-    ]);
+    const files = await this.fileRepository.findByFileIds(user.id, fileIds);
 
     const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
 
-    const tierLabel = tier?.label || PLAN_FREE_INDIVIDUAL_TIER_LABEL;
+    tierLabel = tierLabel || PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 
     await Promise.all([
       this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
