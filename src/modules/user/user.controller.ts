@@ -31,6 +31,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPaymentRequiredResponse,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -88,7 +89,10 @@ import { Client } from '../../common/decorators/client.decorator';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { ConfirmAccountDeactivationDto } from './dto/confirm-deactivation.dto';
 import { GetUserUsageDto } from './dto/responses/get-user-usage.dto';
-import { RefreshTokenResponseDto } from './dto/responses/refresh-token.dto';
+import {
+  RefreshUserCredentialsDto,
+  RefreshUserTokensDto,
+} from './dto/responses/user-credentials.dto';
 import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
@@ -99,6 +103,9 @@ import { RefreshUserAvatarDto } from './dto/responses/refresh-avatar.dto';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { TimingConsistency } from '../auth/decorators/timing-consistency.decorator';
 import { TimingConsistencyInterceptor } from '../auth/interceptors/timing-consistency.interceptor';
+import { PlatformName } from '../../common/constants';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 @ApiTags('User')
 @Controller('users')
@@ -112,6 +119,7 @@ export class UserController {
     private readonly cryptoService: CryptoService,
     private readonly sharingService: SharingService,
     private readonly auditLogService: AuditLogService,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -429,119 +437,93 @@ export class UserController {
 
   @Get('/c/:uuid')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Get user credentials' })
+  @ApiOperation({
+    summary: 'Get user credentials',
+    deprecated: true,
+  })
   @ApiOkResponse({
     description: 'Returns the user metadata and the authentication tokens',
+    type: RefreshUserCredentialsDto,
   })
   async getUserCredentials(
     @UserDecorator() user: User,
     @Param('uuid') uuid: string,
-  ) {
+  ): Promise<RefreshUserCredentialsDto> {
     if (uuid !== user.uuid) {
       throw new ForbiddenException();
     }
 
-    const [{ token, newToken }, avatar, rootFolder, keys] = await Promise.all([
-      this.userUseCases.getAuthTokens(user),
-      this.userUseCases.getAvatarUrl(user.avatar),
-      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
-      this.keyServerUseCases.findUserKeys(user.id),
-    ]);
-
-    const userResponse = {
-      email: user.email,
-      userId: user.userId,
-      mnemonic: user.mnemonic.toString(),
-      root_folder_id: rootFolder.id,
-      rootFolderId: rootFolder.uuid,
-      name: user.name,
-      lastname: user.lastname,
-      uuid: user.uuid,
-      credit: user.credit,
-      createdAt: user.createdAt,
-      privateKey: keys.ecc?.privateKey ?? null,
-      publicKey: keys.ecc?.publicKey ?? null,
-      revocateKey: keys.ecc?.revocationKey ?? null,
-      keys: {
-        ecc: {
-          privateKey: keys.ecc?.privateKey ?? null,
-          publicKey: keys.ecc?.publicKey ?? null,
-        },
-        kyber: {
-          privateKey: keys.kyber?.privateKey ?? null,
-          publicKey: keys.kyber?.publicKey ?? null,
-        },
-      },
-      bucket: rootFolder.bucket,
-      registerCompleted: user.registerCompleted,
-      teams: false,
-      username: user.username,
-      bridgeUser: user.bridgeUser,
-      sharedWorkspace: user.sharedWorkspace,
-      appSumoDetails: null,
-      hasReferralsProgram: false,
-      backupsBucket: user.backupsBucket,
-      emailVerified: user.emailVerified,
-      lastPasswordChangedAt: user.lastPasswordChangedAt,
-      avatar,
-    };
-
-    return {
-      user: userResponse,
-      oldToken: token,
-      newToken: newToken,
-    };
+    const userCredentials = await this.userUseCases.getUserCredentials(user);
+    return userCredentials;
   }
 
   @Get('/refresh')
   @HttpCode(200)
-  @ApiOperation({
-    summary: 'Refresh session token',
-  })
+  @ApiOperation({ summary: 'Refresh session token' })
   @ApiOkResponse({
-    description: 'Returns a new token',
-    type: RefreshTokenResponseDto,
+    description: 'Returns the user metadata and the authentication tokens',
+    type: RefreshUserTokensDto,
   })
   async refreshToken(
     @UserDecorator() user: User,
-  ): Promise<RefreshTokenResponseDto> {
-    const tokens = await this.userUseCases.getAuthTokens(
+  ): Promise<RefreshUserTokensDto> {
+    const userCredentials = await this.userUseCases.getUserCredentials(
       user,
-      undefined,
       JWT_7DAYS_EXPIRATION,
     );
+    return userCredentials;
+  }
 
-    const [avatar, rootFolder] = await Promise.all([
-      user.avatar ? this.userUseCases.getAvatarUrl(user.avatar) : null,
-      this.userUseCases.getOrCreateUserRootFolderAndBucket(user),
-    ]);
+  @UseGuards(ThrottlerGuard)
+  @Get('/cli/refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'CLI platform refresh session token',
+  })
+  @ApiOkResponse({
+    description: 'Returns the user metadata and the authentication tokens',
+    type: RefreshUserTokensDto,
+  })
+  @ApiPaymentRequiredResponse({
+    description: 'This user current tier does not allow CLI access',
+  })
+  @Public()
+  async cliRefresh(@UserDecorator() user: User): Promise<RefreshUserTokensDto> {
+    this.logger.log(
+      { email: user.email, category: 'CLI-USER-REFRESH' },
+      'Attempting CLI user refresh',
+    );
+    try {
+      const canUserAccess =
+        await this.featureLimitService.canUserAccessPlatform(
+          PlatformName.CLI,
+          user.uuid,
+        );
 
-    const userData = {
-      email: user.email,
-      userId: user.userId,
-      mnemonic: user.mnemonic.toString(),
-      root_folder_id: rootFolder?.id,
-      rootFolderId: rootFolder?.uuid,
-      name: user.name,
-      lastname: user.lastname,
-      uuid: user.uuid,
-      bucket: rootFolder?.bucket,
-      credit: user.credit,
-      createdAt: user.createdAt,
-      registerCompleted: user.registerCompleted,
-      teams: false,
-      username: user.username,
-      bridgeUser: user.bridgeUser,
-      sharedWorkspace: user.sharedWorkspace,
-      appSumoDetails: null,
-      hasReferralsProgram: false,
-      backupsBucket: user.backupsBucket,
-      avatar,
-      emailVerified: user.emailVerified,
-      lastPasswordChangedAt: user.lastPasswordChangedAt,
-    };
+      if (!canUserAccess) {
+        throw new PaymentRequiredException(
+          'CLI access not allowed for this user tier',
+        );
+      }
 
-    return { ...tokens, user: userData };
+      const userCredentials = await this.userUseCases.getUserCredentials(
+        user,
+        JWT_7DAYS_EXPIRATION,
+      );
+
+      this.logger.log(
+        { email: user.email, category: 'CLI-USER-REFRESH' },
+        'Successful CLI user refresh',
+      );
+
+      return userCredentials;
+    } catch (error) {
+      this.logger.error(
+        { email: user.email, category: 'CLI-USER-REFRESH', error },
+        'Failed CLI user refresh attempt',
+      );
+      throw error;
+    }
   }
 
   @Get('/avatar/refresh')
@@ -1245,13 +1227,25 @@ export class UserController {
   })
   async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
     const { token } = body;
-
-    const deactivatedUser = await this.userUseCases.confirmDeactivation(token);
-
     this.logger.log(
-      `[DEACTIVATION] User account deactivated successfully for user: ${deactivatedUser.uuid}, email: ${deactivatedUser.email}`,
+      { token },
+      '[DEACTIVATION] User account deactivation confirmation started',
     );
-    return { deactivatedUser };
+
+    try {
+      const deactivatedUser =
+        await this.userUseCases.confirmDeactivation(token);
+      this.logger.log(
+        `[DEACTIVATION] User account deactivated successfully for user: ${deactivatedUser.uuid}, email: ${deactivatedUser.email}`,
+      );
+      return { deactivatedUser };
+    } catch (err) {
+      this.logger.error(
+        { err, token },
+        `[DEACTIVATION] Error confirming deactivation`,
+      );
+      throw err;
+    }
   }
 
   @Get('/usage')

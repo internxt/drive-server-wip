@@ -1,8 +1,20 @@
+import { Time } from '../../lib/time';
+
 export enum UsageType {
+  // Temporal Types
   Daily = 'daily',
   Monthly = 'monthly',
   Yearly = 'yearly',
+  // Events Types
+  Replacement = 'replacement',
 }
+
+const temporalUsage = new Set([
+  UsageType.Daily,
+  UsageType.Monthly,
+  UsageType.Yearly,
+]);
+
 export interface UsageAttributes {
   id: string;
   userId: string;
@@ -59,17 +71,46 @@ export class Usage implements UsageAttributes {
 
     return nextPeriodStart.getTime() === normalizedTarget.getTime();
   }
+  isTemporal(): boolean {
+    return temporalUsage.has(this.type);
+  }
 
   getNextPeriodStartDate(): Date {
-    const nextPeriod = new Date(this.period);
-
-    if (this.isYearly()) {
-      nextPeriod.setUTCFullYear(nextPeriod.getUTCFullYear() + 1);
-    } else {
-      nextPeriod.setUTCDate(nextPeriod.getUTCDate() + 1);
-      nextPeriod.setUTCHours(0, 0, 0, 0);
+    switch (this.type) {
+      case UsageType.Daily:
+        return Time.startOf(
+          Time.dateWithTimeAdded(1, 'day', this.period),
+          'day',
+        );
+      case UsageType.Monthly:
+        return Time.startOf(
+          Time.dateWithTimeAdded(1, 'month', this.period),
+          'month',
+        );
+      case UsageType.Yearly:
+        return Time.startOf(
+          Time.dateWithTimeAdded(1, 'year', this.period),
+          'year',
+        );
+      default:
+        throw new Error(
+          `Cannot get next period start date for non-temporal usage of type ${this.type}`,
+        );
     }
+  }
 
-    return nextPeriod;
+  isAtOrBeforePeriod(date: Date): boolean {
+    switch (this.type) {
+      case UsageType.Daily:
+        return Time.isSameOrBefore(date, this.period, 'day');
+      case UsageType.Monthly:
+        return Time.isSameOrBefore(date, this.period, 'month');
+      case UsageType.Yearly:
+        return Time.isSameOrBefore(date, this.period, 'year');
+      default:
+        throw new Error(
+          `Cannot check period comparison for non-temporal usage of type ${this.type}`,
+        );
+    }
   }
 }

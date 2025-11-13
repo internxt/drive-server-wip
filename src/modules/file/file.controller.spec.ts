@@ -468,12 +468,14 @@ describe('FileController', () => {
         userMocked,
         createFileDto,
         clientId,
+        undefined,
       );
 
       expect(result).toEqual(createdFile);
       expect(fileUseCases.createFile).toHaveBeenCalledWith(
         userMocked,
         createFileDto,
+        undefined,
       );
       expect(storageNotificationService.fileCreated).toHaveBeenCalledWith({
         payload: createdFile,
@@ -488,7 +490,12 @@ describe('FileController', () => {
         .mockRejectedValue(new BadRequestException('Invalid folder'));
 
       await expect(
-        fileController.createFile(userMocked, createFileDto, clientId),
+        fileController.createFile(
+          userMocked,
+          createFileDto,
+          clientId,
+          undefined,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });

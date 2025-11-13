@@ -5,7 +5,6 @@ import { FeatureLimitService } from './feature-limit.service';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { LimitLabels, LimitTypes } from './limits.enum';
 import { PlatformName } from '../../common/constants';
-import { Limit } from './domain/limit.domain';
 import { v4 } from 'uuid';
 import {
   newFeatureLimit,
@@ -42,11 +41,14 @@ describe('FeatureLimitService', () => {
       const userUuid = v4();
       const platform = PlatformName.CLI;
       const user = newUser({ attributes: { uuid: userUuid, tierId } });
-      const mockLimit = createMock<Limit>();
-      mockLimit.shouldLimitBeEnforced.mockReturnValueOnce(false);
+      const mockLimit = newFeatureLimit({
+        value: 'true',
+        type: LimitTypes.Boolean,
+      });
 
       userRepository.findByUuid.mockResolvedValueOnce(user);
       workspaceRepository.findByOwner.mockResolvedValueOnce([]);
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitsByLabelAndTiers.mockResolvedValueOnce([
         mockLimit,
       ]);
@@ -58,6 +60,25 @@ describe('FeatureLimitService', () => {
         [tierId],
         LimitLabels.CliAccess,
       );
+      expect(result).toBe(true);
+    });
+
+    it.skip('When limit is overriden and allows access, then it should return true', async () => {
+      const tierId = v4();
+      const userUuid = v4();
+      const platform = PlatformName.CLI;
+      const user = newUser({ attributes: { uuid: userUuid, tierId } });
+      const mockLimit = newFeatureLimit({
+        value: 'true',
+        type: LimitTypes.Boolean,
+      });
+
+      userRepository.findByUuid.mockResolvedValueOnce(user);
+      workspaceRepository.findByOwner.mockResolvedValueOnce([]);
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(mockLimit);
+
+      const result = await service.canUserAccessPlatform(platform, userUuid);
+
       expect(result).toBe(true);
     });
 
@@ -74,6 +95,7 @@ describe('FeatureLimitService', () => {
 
       userRepository.findByUuid.mockResolvedValueOnce(user);
       workspaceRepository.findByOwner.mockResolvedValueOnce([]);
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitsByLabelAndTiers.mockResolvedValueOnce([
         mockLimit,
       ]);
@@ -94,6 +116,7 @@ describe('FeatureLimitService', () => {
       const user = newUser({ attributes: { uuid: userUuid, tierId } });
 
       userRepository.findByUuid.mockResolvedValueOnce(user);
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       workspaceRepository.findByOwner.mockResolvedValueOnce([]);
       limitsRepository.findLimitsByLabelAndTiers.mockResolvedValueOnce([]);
 
@@ -147,7 +170,7 @@ describe('FeatureLimitService', () => {
         label: LimitLabels.CliAccess,
         value: 'true',
       });
-
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       userRepository.findByUuid.mockResolvedValueOnce(user);
       workspaceRepository.findByOwner.mockResolvedValueOnce([workspace]);
       userRepository.findByUuids.mockResolvedValueOnce([workspaceUser]);

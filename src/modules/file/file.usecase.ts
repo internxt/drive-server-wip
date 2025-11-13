@@ -107,19 +107,18 @@ export class FileUseCases {
   }
 
   async getUserUsedStorageIncrementally(user: User) {
-    const mostRecentUsage = await this.usageService.getUserMostRecentUsage(
-      user.uuid,
-    );
-    const calculateFirstDelta = !mostRecentUsage;
+    const lastTemporalUsage =
+      await this.usageService.getMostRecentTemporalUsage(user.uuid);
+    const calculateFirstDelta = !lastTemporalUsage;
 
     if (calculateFirstDelta) {
-      await this.usageService.createFirstUsageCalculation(user.uuid);
+      await this.usageService.calculateFirstTemporalUsage(user.uuid);
       // TODO: uncomment this when incremental usage calculation is ready
       //return this.fileRepository.sumExistentFileSizes(user.id);
       return;
     }
 
-    const nextDeltaStartDate = mostRecentUsage.getNextPeriodStartDate();
+    const nextDeltaStartDate = lastTemporalUsage.getNextPeriodStartDate();
     const hasYesterdaysUsage = Time.isToday(nextDeltaStartDate);
     if (!hasYesterdaysUsage) {
       await this.backfillUsageUntilYesterday(user, nextDeltaStartDate);
@@ -137,7 +136,7 @@ export class FileUseCases {
       startDate,
       yesterdayEndOfDay,
     );
-    await this.usageService.createMonthlyUsage(user.uuid, yesterday, gapDelta);
+    await this.usageService.createDailyUsage(user.uuid, yesterday, gapDelta);
   }
 
   async deleteFilePermanently(
@@ -216,7 +215,7 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids);
   }
 
-  async createFile(user: User, newFileDto: CreateFileDto) {
+  async createFile(user: User, newFileDto: CreateFileDto, tier?) {
     const [hadFilesBeforeUpload, folder] = await Promise.all([
       this.hasUploadedFiles(user),
       this.folderUsecases.getByUuid(newFileDto.folderUuid),
@@ -272,9 +271,7 @@ export class FileUseCases {
     });
 
     if (!hadFilesBeforeUpload) {
-      const userTier = await this.featureLimitService.getTier(user.tierId);
-      const isUserFreeTier =
-        userTier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
+      const isUserFreeTier = tier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 
       if (isUserFreeTier) {
         await this.mailerService
@@ -730,19 +727,17 @@ export class FileUseCases {
 
     const newFile = File.build({ ...file, size, fileId });
 
-    await this.addDailyUsageChangeOnFileSizeChange(user, file, newFile).catch(
-      (error) => {
-        const errorObject = {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-        };
-        new Logger('USAGE/DAILY').error({
-          error: errorObject,
-          msg: 'There was an error calculating the user usage incrementally',
-        });
-      },
-    );
+    await this.addFileReplacementDelta(user, file, newFile).catch((error) => {
+      const errorObject = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      };
+      new Logger('USAGE/DAILY').error({
+        error: errorObject,
+        msg: 'There was an error calculating the user usage incrementally',
+      });
+    });
 
     try {
       await this.network.deleteFile(user, bucket, oldFileId);
@@ -958,7 +953,7 @@ export class FileUseCases {
     return file !== null;
   }
 
-  async addDailyUsageChangeOnFileSizeChange(
+  async addFileReplacementDelta(
     user: User,
     oldFileData: File,
     newFileData: File,
@@ -974,7 +969,7 @@ export class FileUseCases {
       return null;
     }
 
-    return this.usageService.addDailyUsageChangeOnFileSizeChange(
+    return this.usageService.addFileReplacementDelta(
       user,
       oldFileData,
       newFileData,

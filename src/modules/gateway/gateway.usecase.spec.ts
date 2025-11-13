@@ -9,6 +9,7 @@ import {
   newWorkspaceUser,
   newTier,
   newFolder,
+  newFeatureLimit,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -21,6 +22,8 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -34,6 +37,7 @@ describe('GatewayUseCases', () => {
   let mailerService: MailerService;
   let configService: ConfigService;
   let folderRepository: SequelizeFolderRepository;
+  let limitsRepository: SequelizeFeatureLimitsRepository;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -58,6 +62,9 @@ describe('GatewayUseCases', () => {
     configService = module.get<ConfigService>(ConfigService);
     folderRepository = module.get<SequelizeFolderRepository>(
       SequelizeFolderRepository,
+    );
+    limitsRepository = module.get<SequelizeFeatureLimitsRepository>(
+      SequelizeFeatureLimitsRepository,
     );
   });
 
@@ -969,6 +976,140 @@ describe('GatewayUseCases', () => {
 
       await expect(service.handleFailedPayment(testUserId)).rejects.toThrow(
         error,
+      );
+    });
+  });
+
+  describe('getUserLimitOverrides', () => {
+    const user = newUser();
+    const limit1 = newFeatureLimit({
+      type: LimitTypes.Counter,
+      value: '10',
+      label: LimitLabels.MaxSharedItems,
+    });
+    const limit2 = newFeatureLimit({
+      type: LimitTypes.Boolean,
+      value: 'true',
+      label: LimitLabels.CliAccess,
+    });
+    const overriddenLimits = [limit1, limit2];
+
+    it('When user is not found, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(service.getUserLimitOverrides(user.uuid)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When user exists, then it should return all overridden limits for the user', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(limitsRepository, 'findAllUserOverriddenLimits')
+        .mockResolvedValue(overriddenLimits);
+
+      const result = await service.getUserLimitOverrides(user.uuid);
+
+      expect(result).toEqual(overriddenLimits);
+    });
+  });
+
+  describe('findLimitByLabelAndValue', () => {
+    const limit = newFeatureLimit({
+      type: LimitTypes.Boolean,
+      value: 'true',
+      label: LimitLabels.CliAccess,
+    });
+
+    it('When limit exists, then it should return the limit', async () => {
+      jest
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(limit);
+
+      const result = await service.findLimitByLabelAndValue(
+        LimitLabels.CliAccess,
+        'true',
+      );
+
+      expect(result).toEqual(limit);
+      expect(limitsRepository.findLimitByLabelAndValue).toHaveBeenCalledWith(
+        LimitLabels.CliAccess,
+        'true',
+      );
+    });
+
+    it('When limit does not exist, then it should return null', async () => {
+      jest
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(null);
+
+      const result = await service.findLimitByLabelAndValue(
+        LimitLabels.CliAccess,
+        'false',
+      );
+
+      expect(result).toBeNull();
+      expect(limitsRepository.findLimitByLabelAndValue).toHaveBeenCalledWith(
+        LimitLabels.CliAccess,
+        'false',
+      );
+    });
+  });
+
+  describe('overrideLimitForUser', () => {
+    const user = newUser();
+    const cliLimit = newFeatureLimit({
+      type: LimitTypes.Boolean,
+      value: 'true',
+      label: LimitLabels.CliAccess,
+    });
+
+    it('When user is not found, then it should throws', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.overrideLimitForUser(user.uuid, 'cli', 'true'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When feature name is invalid, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+
+      await expect(
+        service.overrideLimitForUser(user.uuid, 'invalid-feature', 'true'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When limit is not found for label and value combination, then it should throw', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.overrideLimitForUser(user.uuid, 'cli', 'invalid-value'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When all validations pass, then it should create override successfully', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(limitsRepository, 'findLimitByLabelAndValue')
+        .mockResolvedValue(cliLimit);
+      jest.spyOn(limitsRepository, 'upsertOverridenLimit');
+
+      await expect(
+        service.overrideLimitForUser(user.uuid, 'cli', 'true'),
+      ).resolves.not.toThrow();
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(user.uuid);
+      expect(limitsRepository.findLimitByLabelAndValue).toHaveBeenCalledWith(
+        LimitLabels.CliAccess,
+        'true',
+      );
+      expect(limitsRepository.upsertOverridenLimit).toHaveBeenCalledWith(
+        user.uuid,
+        cliLimit.id,
       );
     });
   });

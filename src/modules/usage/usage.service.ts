@@ -10,33 +10,13 @@ import { Time } from '../../lib/time';
 export class UsageService {
   constructor(private readonly usageRepository: SequelizeUsageRepository) {}
 
-  async getUserMostRecentUsage(userId: User['uuid']): Promise<Usage | null> {
+  async getMostRecentTemporalUsage(
+    userId: User['uuid'],
+  ): Promise<Usage | null> {
     const mostRecentUsage =
-      await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(userId);
+      await this.usageRepository.getLatestTemporalUsage(userId);
     return mostRecentUsage;
   }
-
-  async createFirstUsageCalculation(userUuid: User['uuid']) {
-    return this.usageRepository.createFirstUsageCalculation(userUuid);
-  }
-
-  async createMonthlyUsage(userId: User['uuid'], period: Date, delta: number) {
-    const monthlyUsage = Usage.build({
-      id: v4(),
-      userId: userId,
-      period,
-      delta,
-      type: UsageType.Monthly,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const createMonthlyUsage =
-      await this.usageRepository.createMonthlyUsage(monthlyUsage);
-
-    return createMonthlyUsage;
-  }
-
   async createDailyUsage(userUuid: User['uuid'], period: Date, delta: number) {
     const dailyUsage = Usage.build({
       id: v4(),
@@ -52,8 +32,11 @@ export class UsageService {
 
     return createdDailyUsage;
   }
+  async calculateFirstTemporalUsage(userUuid: User['uuid']) {
+    return this.usageRepository.createFirstUsageCalculation(userUuid);
+  }
 
-  async addDailyUsageChangeOnFileSizeChange(
+  async addFileReplacementDelta(
     user: User,
     oldFileData: File,
     newFileData: File,
@@ -61,19 +44,26 @@ export class UsageService {
     const delta = Number(newFileData.size) - Number(oldFileData.size);
 
     // Files created the same day do not need a daily usage entry, they will be included in the next monthly usage
-    const isFileCreatedToday = Time.isToday(newFileData.createdAt);
-
-    if (delta === 0 || isFileCreatedToday) {
+    const latestUsage = await this.usageRepository.getLatestTemporalUsage(
+      user.uuid,
+    );
+    if (!latestUsage || delta === 0) {
+      return null;
+    }
+    if (!latestUsage.isAtOrBeforePeriod(newFileData.createdAt)) {
       return null;
     }
 
-    const doesUserHasAnyUsageCalculation =
-      await this.usageRepository.getMostRecentMonthlyOrYearlyUsage(user.uuid);
-
-    if (!doesUserHasAnyUsageCalculation) {
-      return null;
-    }
-
-    return this.createDailyUsage(user.uuid, new Date(), delta);
+    const currentDate = Time.now();
+    const newUsage = Usage.build({
+      id: v4(),
+      userId: user.uuid,
+      period: currentDate,
+      delta,
+      type: UsageType.Replacement,
+      createdAt: currentDate,
+      updatedAt: currentDate,
+    });
+    return this.usageRepository.create(newUsage);
   }
 }
