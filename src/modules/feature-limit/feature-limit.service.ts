@@ -39,7 +39,7 @@ export class FeatureLimitService {
     const user = await this.userRepository.findByUuid(userUuid);
     if (!user) throw new NotFoundException('User not found');
 
-    const userOverriddenLimit =
+    /* const userOverriddenLimit =
       await this.limitsRepository.findUserOverriddenLimit(
         user.uuid,
         limitLabel,
@@ -47,7 +47,7 @@ export class FeatureLimitService {
 
     if (userOverriddenLimit) {
       return userOverriddenLimit.isFeatureEnabled();
-    }
+    } */
 
     const workspaceTiersIds = await this.getUserBussinessTiers(user.uuid);
     const tierIds = [user.tierId, ...workspaceTiersIds];
