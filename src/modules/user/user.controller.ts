@@ -453,7 +453,9 @@ export class UserController {
       throw new ForbiddenException();
     }
 
-    const userCredentials = await this.userUseCases.getUserCredentials(user);
+    const userCredentials = await this.userUseCases.getUserCredentials(
+      user.uuid,
+    );
     return userCredentials;
   }
 
@@ -468,7 +470,7 @@ export class UserController {
     @UserDecorator() user: User,
   ): Promise<RefreshUserTokensDto> {
     const userCredentials = await this.userUseCases.getUserCredentials(
-      user,
+      user.uuid,
       JWT_7DAYS_EXPIRATION,
     );
     return userCredentials;
@@ -507,7 +509,7 @@ export class UserController {
       }
 
       const userCredentials = await this.userUseCases.getUserCredentials(
-        user,
+        user.uuid,
         JWT_7DAYS_EXPIRATION,
       );
 

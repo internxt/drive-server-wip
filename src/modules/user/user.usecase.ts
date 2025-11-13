@@ -2055,7 +2055,15 @@ export class UserUseCases {
     }
   }
 
-  async getUserCredentials(user: User, tokenExpirationTime?: string | number) {
+  async getUserCredentials(
+    userUuid: string,
+    tokenExpirationTime?: string | number,
+  ) {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
     const [{ token: oldToken, newToken }, avatar, rootFolder, keys] =
       await Promise.all([
         this.getAuthTokens(user, undefined, tokenExpirationTime),
