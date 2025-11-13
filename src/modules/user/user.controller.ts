@@ -31,6 +31,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPaymentRequiredResponse,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -102,6 +103,9 @@ import { RefreshUserAvatarDto } from './dto/responses/refresh-avatar.dto';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { TimingConsistency } from '../auth/decorators/timing-consistency.decorator';
 import { TimingConsistencyInterceptor } from '../auth/interceptors/timing-consistency.interceptor';
+import { PlatformName } from '../../common/constants';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 @ApiTags('User')
 @Controller('users')
@@ -115,6 +119,7 @@ export class UserController {
     private readonly cryptoService: CryptoService,
     private readonly sharingService: SharingService,
     private readonly auditLogService: AuditLogService,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -467,6 +472,58 @@ export class UserController {
       JWT_7DAYS_EXPIRATION,
     );
     return userCredentials;
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('/cli/refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'CLI platform refresh session token',
+  })
+  @ApiOkResponse({
+    description: 'Returns the user metadata and the authentication tokens',
+    type: RefreshUserTokensDto,
+  })
+  @ApiPaymentRequiredResponse({
+    description: 'This user current tier does not allow CLI access',
+  })
+  @Public()
+  async cliRefresh(@UserDecorator() user: User): Promise<RefreshUserTokensDto> {
+    this.logger.log(
+      { email: user.email, category: 'CLI-USER-REFRESH' },
+      'Attempting CLI user refresh',
+    );
+    try {
+      const canUserAccess =
+        await this.featureLimitService.canUserAccessPlatform(
+          PlatformName.CLI,
+          user.uuid,
+        );
+
+      if (!canUserAccess) {
+        throw new PaymentRequiredException(
+          'CLI access not allowed for this user tier',
+        );
+      }
+
+      const userCredentials = await this.userUseCases.getUserCredentials(
+        user,
+        JWT_7DAYS_EXPIRATION,
+      );
+
+      this.logger.log(
+        { email: user.email, category: 'CLI-USER-REFRESH' },
+        'Successful CLI user refresh',
+      );
+
+      return userCredentials;
+    } catch (error) {
+      this.logger.error(
+        { email: user.email, category: 'CLI-USER-REFRESH', error },
+        'Failed CLI user refresh attempt',
+      );
+      throw error;
+    }
   }
 
   @Get('/avatar/refresh')
