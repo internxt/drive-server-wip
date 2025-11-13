@@ -475,7 +475,7 @@ export class UserController {
   }
 
   @UseGuards(ThrottlerGuard)
-  @Post('/cli/refresh')
+  @Get('/cli/refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'CLI platform refresh session token',
