@@ -11,6 +11,8 @@ import { UserModule } from '../user/user.module';
 import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
+import { TrashModule } from '../trash/trash.module';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { NotificationModule } from '../../externals/notifications/notifications.
     forwardRef(() => SharingModule),
     forwardRef(() => WorkspacesModule),
     NotificationModule,
+    forwardRef(() => TrashModule),
+    FeatureLimitModule,
   ],
   controllers: [FolderController],
   providers: [SequelizeFolderRepository, CryptoService, FolderUseCases],

@@ -39,6 +39,8 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
+import { TrashUseCases } from '../trash/trash.usecase';
+import { TrashItemType } from '../trash/trash.attributes';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -56,6 +58,7 @@ describe('FileUseCases', () => {
   let mailerService: MailerService;
   let featureLimitService: FeatureLimitService;
   let redisService: RedisService;
+  let trashUsecases: TrashUseCases;
 
   const userMocked = newUser({
     attributes: {
@@ -82,6 +85,7 @@ describe('FileUseCases', () => {
     mailerService = module.get<MailerService>(MailerService);
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     redisService = module.get<RedisService>(RedisService);
+    trashUsecases = module.get<TrashUseCases>(TrashUseCases);
   });
 
   afterEach(() => {
@@ -120,8 +124,17 @@ describe('FileUseCases', () => {
     it('When you try to trash files with id and uuid, then functions are called with respective values', async () => {
       const fileIds = [fileId];
       const fileUuids = [mockFile.uuid];
+      const mockTier = { id: '1', label: 'free_individual' };
+
+      jest
+        .spyOn(fileRepository, 'findByFileIds')
+        .mockResolvedValueOnce([mockFile]);
+      jest
+        .spyOn(featureLimitService, 'getTier')
+        .mockResolvedValueOnce(mockTier);
       jest.spyOn(fileRepository, 'updateFilesStatusToTrashed');
       jest.spyOn(fileRepository, 'updateFilesStatusToTrashedByUuid');
+      jest.spyOn(trashUsecases, 'addItemsToTrash');
       await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
       expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledTimes(
         1,
@@ -133,6 +146,36 @@ describe('FileUseCases', () => {
       expect(
         fileRepository.updateFilesStatusToTrashedByUuid,
       ).toHaveBeenCalledWith(userMocked, fileUuids);
+      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
+        expect.arrayContaining(fileUuids),
+        TrashItemType.File,
+        'free_individual',
+        userMocked.id,
+      );
+    });
+
+    it('When you trash files, then the retention period is determined by the user tier', async () => {
+      const fileIds = [fileId];
+      const fileUuids = [mockFile.uuid];
+
+      jest
+        .spyOn(fileRepository, 'findByFileIds')
+        .mockResolvedValueOnce([mockFile]);
+      jest.spyOn(trashUsecases, 'addItemsToTrash');
+
+      await service.moveFilesToTrash(
+        userMocked,
+        fileIds,
+        fileUuids,
+        'premium_individual',
+      );
+
+      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
+        expect.arrayContaining(fileUuids),
+        TrashItemType.File,
+        'premium_individual',
+        userMocked.id,
+      );
     });
 
     it('When you try to trash files, then it stops sharing those files', async () => {
