@@ -4577,9 +4577,6 @@ describe('User use cases', () => {
           }),
         };
 
-        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-        userFindByUuidSpy.mockResolvedValueOnce(testUser);
-
         jest
           .spyOn(userUseCases, 'getAuthTokens')
           .mockResolvedValueOnce(authTokens as any);
@@ -4593,10 +4590,7 @@ describe('User use cases', () => {
           .spyOn(keyServerUseCases, 'findUserKeys')
           .mockResolvedValueOnce(keys);
 
-        const result = await userUseCases.getUserCredentials(
-          testUser.uuid,
-          '7d',
-        );
+        const result = await userUseCases.getUserCredentials(testUser, '7d');
 
         expect(userUseCases.getAuthTokens).toHaveBeenCalledWith(
           testUser,
@@ -4610,7 +4604,6 @@ describe('User use cases', () => {
         expect(keyServerUseCases.findUserKeys).toHaveBeenCalledWith(
           testUser.id,
         );
-        expect(userFindByUuidSpy).toHaveBeenCalledWith(testUser.uuid);
 
         expect(result).toMatchObject(expectedCredentials);
       });
@@ -4623,9 +4616,6 @@ describe('User use cases', () => {
           ecc: KeyServer;
         };
 
-        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-        userFindByUuidSpy.mockResolvedValueOnce(testUser);
-
         jest
           .spyOn(userUseCases, 'getAuthTokens')
           .mockResolvedValueOnce({ token: 't', newToken: 'nt' });
@@ -4637,22 +4627,18 @@ describe('User use cases', () => {
           .spyOn(keyServerUseCases, 'findUserKeys')
           .mockResolvedValueOnce(keys);
 
-        const result = await userUseCases.getUserCredentials(testUser.uuid);
+        const result = await userUseCases.getUserCredentials(testUser);
 
         expect(result.user.avatar).toBeNull();
         expect(result.user.keys).toEqual({
           ecc: { privateKey: null, publicKey: null },
           kyber: { privateKey: null, publicKey: null },
         });
-        expect(userFindByUuidSpy).toHaveBeenCalledWith(testUser.uuid);
       });
 
       it('When key server returns null keys, then keys fields should be null in user response', async () => {
         const testUser = newUser();
         const folder = newFolder({ attributes: { bucket: 'bucket-y' } });
-
-        const userFindByUuidSpy = jest.spyOn(userRepository, 'findByUuid');
-        userFindByUuidSpy.mockResolvedValueOnce(testUser);
 
         jest
           .spyOn(userUseCases, 'getAuthTokens')
@@ -4667,9 +4653,8 @@ describe('User use cases', () => {
           .spyOn(keyServerUseCases, 'findUserKeys')
           .mockResolvedValueOnce({ ecc: null, kyber: null } as any);
 
-        const result = await userUseCases.getUserCredentials(testUser.uuid);
+        const result = await userUseCases.getUserCredentials(testUser);
 
-        expect(userFindByUuidSpy).toHaveBeenCalledWith(testUser.uuid);
         expect(result.user.privateKey).toBeNull();
         expect(result.user.publicKey).toBeNull();
         expect(result.user.revocateKey).toBeNull();
