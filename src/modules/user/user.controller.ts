@@ -487,7 +487,6 @@ export class UserController {
   @ApiPaymentRequiredResponse({
     description: 'This user current tier does not allow CLI access',
   })
-  @Public()
   async cliRefresh(@UserDecorator() user: User): Promise<RefreshUserTokensDto> {
     this.logger.log(
       { email: user.email, category: 'CLI-USER-REFRESH' },
