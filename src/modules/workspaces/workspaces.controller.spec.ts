@@ -715,12 +715,14 @@ describe('Workspace Controller', () => {
         user,
         'clientId',
         createFileDto,
+        undefined,
       );
 
       expect(workspacesUsecases.createFile).toHaveBeenCalledWith(
         user,
         workspaceId,
         createFileDto,
+        undefined,
       );
     });
   });
