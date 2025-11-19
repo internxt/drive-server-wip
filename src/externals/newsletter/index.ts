@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
 import { UserAttributes } from '../../modules/user/user.attributes';
 import { HttpClient } from '../http/http.service';
 
@@ -13,18 +12,38 @@ export class NewsletterService {
   ) {}
 
   async subscribe(email: UserAttributes['email']): Promise<void> {
-    const groupId: string = this.configService.get('newsletter.groupId');
+    const listId: string = this.configService.get('newsletter.groupId');
     const apiKey: string = this.configService.get('newsletter.apiKey');
-    await this.httpClient.post(
-      `https://connect.mailerlite.com/api/subscribers`,
-      { email, groups: [groupId] },
+
+    const profileResponse = await this.httpClient.post(
+      'https://a.klaviyo.com/api/profiles/',
+      {
+        data: {
+          type: 'profile',
+          attributes: { email },
+        },
+      },
       {
         headers: {
           Accept: 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Klaviyo-API-Key ${apiKey}`,
           'Content-Type': 'application/json',
-          // The following (X-Version) locks up the version of the API (https://developers.mailerlite.com/docs/#versioning)
-          'X-Version': '2022-01-01',
+          revision: '2024-10-15',
+        },
+      },
+    );
+
+    const profileId = profileResponse.data.data.id;
+
+    await this.httpClient.post(
+      `https://a.klaviyo.com/api/lists/${listId}/relationships/profiles/`,
+      { data: [{ type: 'profile', id: profileId }] },
+      {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Klaviyo-API-Key ${apiKey}`,
+          'Content-Type': 'application/json',
+          revision: '2024-10-15',
         },
       },
     );
