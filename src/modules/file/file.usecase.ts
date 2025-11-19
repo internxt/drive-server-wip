@@ -45,6 +45,14 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import { Tier } from '../feature-limit/domain/tier.domain';
+import {
+  VERSIONABLE_FILE_EXTENSIONS,
+  VERSIONABLE_TIER_LABELS,
+  CONFIG,
+  TierLabel,
+  VersionableFileExtension,
+} from './file-version.constants';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -949,5 +957,26 @@ export class FileUseCases {
       oldFileData,
       newFileData,
     );
+  }
+
+  private isFileVersionable(
+    fileType: VersionableFileExtension,
+    fileSize: bigint,
+    tier?: Tier,
+  ): boolean {
+    if (!VERSIONABLE_FILE_EXTENSIONS.includes(fileType)) {
+      return false;
+    }
+
+    const tierLabel = tier?.label as TierLabel;
+    if (!tier || !VERSIONABLE_TIER_LABELS.includes(tierLabel)) {
+      return false;
+    }
+
+    if (fileSize > CONFIG[tierLabel].maxFileSize) {
+      return false;
+    }
+
+    return true;
   }
 }

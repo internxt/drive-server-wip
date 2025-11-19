@@ -39,6 +39,7 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
+import { VersionableFileExtensionEnum } from './file-version.constants';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -1948,6 +1949,87 @@ describe('FileUseCases', () => {
         oldFile,
         newFileData,
       );
+    });
+  });
+
+  describe('isFileVersionable', () => {
+    it('When file has valid extension, then it is versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'premium_individual' });
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(1024),
+        tier,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('When file has unsupported extension, then it is not versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'premium_individual' });
+      const result = service['isFileVersionable'](
+        'jpg' as any,
+        BigInt(1024),
+        tier,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('When user tier is not provided, then file is not versionable', () => {
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(1024),
+        undefined,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('When user has free tier, then file is not versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'free_individual' });
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(1024),
+        tier,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('When user has versionable tier, then file is versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'premium_individual' });
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(500 * 1024),
+        tier,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('When file size is at tier limit, then it is versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'premium_individual' });
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(10 * 1024 * 1024),
+        tier,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('When file size exceeds tier limit, then it is not versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'premium_individual' });
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(11 * 1024 * 1024),
+        tier,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('When all conditions are valid, then file is versionable', () => {
+      const tier = Tier.build({ id: '1', label: 'premium_individual' });
+      const result = service['isFileVersionable'](
+        VersionableFileExtensionEnum.PDF,
+        BigInt(5 * 1024 * 1024),
+        tier,
+      );
+      expect(result).toBe(true);
     });
   });
 });
