@@ -1167,4 +1167,46 @@ export class FileUseCases {
 
     return { versionable: true, limits };
   }
+
+  private async applyRetentionPolicy(
+    fileUuid: string,
+    tierLabel: string,
+  ): Promise<{ availableSlots: number }> {
+    const config = CONFIG[tierLabel as TierLabel];
+
+    if (!config) {
+      return { availableSlots: 0 };
+    }
+
+    const { retentionDays, maxVersions } = config;
+
+    const cutoffDate = Time.daysAgo(retentionDays);
+
+    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    const versionsByAge = versions.filter(
+      (version) => version.createdAt < cutoffDate,
+    );
+
+    const remainingVersions = versions
+      .filter((version) => version.createdAt >= cutoffDate)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const versionsByCount = remainingVersions.slice(maxVersions);
+
+    const versionsToDelete = [...versionsByAge, ...versionsByCount];
+
+    if (versionsToDelete.length > 0) {
+      const idsToDelete = versionsToDelete.map((v) => v.id);
+      await this.fileVersionRepository.updateStatusBatch(
+        idsToDelete,
+        FileVersionStatus.DELETED,
+      );
+    }
+
+    const remainingCount = versions.length - versionsToDelete.length;
+    const availableSlots = maxVersions - remainingCount;
+
+    return { availableSlots };
+  }
 }
