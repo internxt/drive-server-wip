@@ -11,9 +11,13 @@ export interface FileVersionRepository {
   create(
     version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<FileVersion>;
+  findOrCreate(
+    version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<FileVersion>;
   findAllByFileId(fileId: string): Promise<FileVersion[]>;
   findById(id: string): Promise<FileVersion | null>;
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
+  updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
 }
 
@@ -35,6 +39,23 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     });
 
     return FileVersion.build(createdVersion.toJSON());
+  }
+
+  async findOrCreate(
+    version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<FileVersion> {
+    const [instance] = await this.model.findOrCreate({
+      where: {
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+      },
+      defaults: {
+        size: version.size,
+        status: version.status || FileVersionStatus.EXISTS,
+      },
+    });
+
+    return FileVersion.build(instance.toJSON());
   }
 
   async findAllByFileId(fileId: string): Promise<FileVersion[]> {
@@ -64,6 +85,18 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       { status },
       {
         where: { id },
+      },
+    );
+  }
+
+  async updateStatusBatch(
+    ids: string[],
+    status: FileVersionStatus,
+  ): Promise<void> {
+    await this.model.update(
+      { status },
+      {
+        where: { id: ids },
       },
     );
   }
