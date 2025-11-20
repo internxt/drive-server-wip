@@ -2039,28 +2039,25 @@ describe('FileUseCases', () => {
   });
 
   describe('applyRetentionPolicy', () => {
-    it('When tier has no config, then it returns 0 available slots', async () => {
-      const result = await service['applyRetentionPolicy'](
-        'file-uuid',
-        'invalid_tier',
-      );
-      expect(result.availableSlots).toBe(0);
+    it('When tier has no config, then it returns early', async () => {
+      await service['applyRetentionPolicy']('file-uuid', 'invalid_tier');
     });
 
-    it('When no versions exist, then all slots are available', async () => {
+    it('When no versions exist, then no versions are deleted', async () => {
       jest
         .spyOn(fileVersionRepository, 'findAllByFileId')
         .mockResolvedValue([]);
 
-      const result = await service['applyRetentionPolicy'](
-        'file-uuid',
-        'premium_individual',
-      );
+      const updateStatusBatchSpy = jest
+        .spyOn(fileVersionRepository, 'updateStatusBatch')
+        .mockResolvedValue(undefined);
 
-      expect(result.availableSlots).toBe(10);
+      await service['applyRetentionPolicy']('file-uuid', 'premium_individual');
+
+      expect(updateStatusBatchSpy).not.toHaveBeenCalled();
     });
 
-    it('When versions exist within retention period and under limit, then correct slots are available', async () => {
+    it('When versions exist within retention period and under limit, then no versions are deleted', async () => {
       const mockVersions = [
         {
           id: '1',
@@ -2078,18 +2075,19 @@ describe('FileUseCases', () => {
         .spyOn(fileVersionRepository, 'findAllByFileId')
         .mockResolvedValue(mockVersions as any);
 
-      const result = await service['applyRetentionPolicy'](
-        'file-uuid',
-        'premium_individual',
-      );
+      const updateStatusBatchSpy = jest
+        .spyOn(fileVersionRepository, 'updateStatusBatch')
+        .mockResolvedValue(undefined);
 
-      expect(result.availableSlots).toBe(8);
+      await service['applyRetentionPolicy']('file-uuid', 'premium_individual');
+
+      expect(updateStatusBatchSpy).not.toHaveBeenCalled();
     });
 
-    it('When limit is reached with recent versions, then 0 slots are available', async () => {
+    it('When limit is reached with recent versions, then oldest is deleted', async () => {
       const mockVersions = Array.from({ length: 10 }, (_, i) => ({
         id: `${i + 1}`,
-        createdAt: new Date(),
+        createdAt: new Date(Date.now() - i * 1000),
         status: 'EXISTS',
       }));
 
@@ -2097,15 +2095,16 @@ describe('FileUseCases', () => {
         .spyOn(fileVersionRepository, 'findAllByFileId')
         .mockResolvedValue(mockVersions as any);
 
-      const result = await service['applyRetentionPolicy'](
-        'file-uuid',
-        'premium_individual',
-      );
+      const updateStatusBatchSpy = jest
+        .spyOn(fileVersionRepository, 'updateStatusBatch')
+        .mockResolvedValue(undefined);
 
-      expect(result.availableSlots).toBe(0);
+      await service['applyRetentionPolicy']('file-uuid', 'premium_individual');
+
+      expect(updateStatusBatchSpy).toHaveBeenCalledWith(['10'], 'DELETED');
     });
 
-    it('When versions exceed limit, then old versions are deleted and slots calculated', async () => {
+    it('When versions exceed limit, then excess versions are deleted', async () => {
       const now = new Date();
       const mockVersions = Array.from({ length: 12 }, (_, i) => ({
         id: `${i + 1}`,
@@ -2120,13 +2119,9 @@ describe('FileUseCases', () => {
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
 
-      const result = await service['applyRetentionPolicy'](
-        'file-uuid',
-        'premium_individual',
-      );
+      await service['applyRetentionPolicy']('file-uuid', 'premium_individual');
 
       expect(updateStatusBatchSpy).toHaveBeenCalled();
-      expect(result.availableSlots).toBe(0);
     });
   });
 });

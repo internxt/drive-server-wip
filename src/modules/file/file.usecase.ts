@@ -986,11 +986,11 @@ export class FileUseCases {
   private async applyRetentionPolicy(
     fileUuid: string,
     tierLabel: string,
-  ): Promise<{ availableSlots: number }> {
+  ): Promise<void> {
     const config = CONFIG[tierLabel as TierLabel];
 
     if (!config) {
-      return { availableSlots: 0 };
+      return;
     }
 
     const { retentionDays, maxVersions } = config;
@@ -1011,6 +1011,20 @@ export class FileUseCases {
 
     const versionsToDelete = [...versionsByAge, ...versionsByCount];
 
+    const remainingCount = versions.length - versionsToDelete.length;
+    if (remainingCount >= maxVersions) {
+      const versionsNotDeleted = versions.filter(
+        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
+      );
+      const oldestVersion = versionsNotDeleted.sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      )[0];
+
+      if (oldestVersion) {
+        versionsToDelete.push(oldestVersion);
+      }
+    }
+
     if (versionsToDelete.length > 0) {
       const idsToDelete = versionsToDelete.map((v) => v.id);
       await this.fileVersionRepository.updateStatusBatch(
@@ -1018,10 +1032,5 @@ export class FileUseCases {
         FileVersionStatus.DELETED,
       );
     }
-
-    const remainingCount = versions.length - versionsToDelete.length;
-    const availableSlots = maxVersions - remainingCount;
-
-    return { availableSlots };
   }
 }
