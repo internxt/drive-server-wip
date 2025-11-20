@@ -45,6 +45,16 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import { Tier } from '../feature-limit/domain/tier.domain';
+import {
+  VERSIONABLE_FILE_EXTENSIONS,
+  VERSIONABLE_TIER_LABELS,
+  CONFIG,
+  TierLabel,
+  VersionableFileExtension,
+} from './file-version.constants';
+import { SequelizeFileVersionRepository } from './file-version.repository';
+import { FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -55,6 +65,7 @@ export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private readonly fileRepository: SequelizeFileRepository,
+    private readonly fileVersionRepository: SequelizeFileVersionRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
@@ -949,5 +960,77 @@ export class FileUseCases {
       oldFileData,
       newFileData,
     );
+  }
+
+  private isFileVersionable(
+    fileType: VersionableFileExtension,
+    fileSize: bigint,
+    tier?: Tier,
+  ): boolean {
+    if (!VERSIONABLE_FILE_EXTENSIONS.includes(fileType)) {
+      return false;
+    }
+
+    const tierLabel = tier?.label as TierLabel;
+    if (!tier || !VERSIONABLE_TIER_LABELS.includes(tierLabel)) {
+      return false;
+    }
+
+    if (fileSize > CONFIG[tierLabel].maxFileSize) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private async applyRetentionPolicy(
+    fileUuid: string,
+    tierLabel: string,
+  ): Promise<void> {
+    const config = CONFIG[tierLabel as TierLabel];
+
+    if (!config) {
+      return;
+    }
+
+    const { retentionDays, maxVersions } = config;
+
+    const cutoffDate = Time.daysAgo(retentionDays);
+
+    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    const versionsByAge = versions.filter(
+      (version) => version.createdAt < cutoffDate,
+    );
+
+    const remainingVersions = versions
+      .filter((version) => version.createdAt >= cutoffDate)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const versionsByCount = remainingVersions.slice(maxVersions);
+
+    const versionsToDelete = [...versionsByAge, ...versionsByCount];
+
+    const remainingCount = versions.length - versionsToDelete.length;
+    if (remainingCount >= maxVersions) {
+      const versionsNotDeleted = versions.filter(
+        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
+      );
+      const oldestVersion = versionsNotDeleted.sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      )[0];
+
+      if (oldestVersion) {
+        versionsToDelete.push(oldestVersion);
+      }
+    }
+
+    if (versionsToDelete.length > 0) {
+      const idsToDelete = versionsToDelete.map((v) => v.id);
+      await this.fileVersionRepository.updateStatusBatch(
+        idsToDelete,
+        FileVersionStatus.DELETED,
+      );
+    }
   }
 }
