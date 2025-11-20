@@ -700,6 +700,7 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     newFileData: ReplaceFileDto,
+    tier?: Tier,
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
@@ -709,6 +710,51 @@ export class FileUseCases {
 
     if (file.status != FileStatus.EXISTS) {
       throw new BadRequestException(`${file.status} files can not be replaced`);
+    }
+
+    const shouldVersion = this.isFileVersionable(
+      file.type as VersionableFileExtension,
+      newFileData.size,
+      tier,
+    );
+
+    if (shouldVersion) {
+      await this.applyRetentionPolicy(fileUuid, tier.label);
+
+      const { fileId, size, modificationTime } = newFileData;
+
+      await Promise.all([
+        this.fileVersionRepository.findOrCreate({
+          fileId: file.uuid,
+          networkFileId: file.fileId,
+          size: file.size,
+          status: FileVersionStatus.EXISTS,
+        }),
+        this.createFileVersion(file, {
+          networkFileId: fileId,
+          size: size,
+        }),
+        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+          fileId,
+          size,
+          updatedAt: new Date(),
+          ...(modificationTime ? { modificationTime } : null),
+        }),
+      ]);
+
+      const newFile = File.build({ ...file, size, fileId });
+
+      await this.addFileReplacementDelta(user, file, newFile).catch((error) => {
+        new Logger('[USAGE/DAILY]').error(
+          `There was an error calculating the user usage incrementally: ${error.message}`,
+        );
+      });
+
+      return {
+        ...file.toJSON(),
+        fileId,
+        size,
+      };
     }
 
     const { fileId: oldFileId, bucket } = file;
@@ -1032,5 +1078,17 @@ export class FileUseCases {
         FileVersionStatus.DELETED,
       );
     }
+  }
+
+  private async createFileVersion(
+    file: File,
+    versionData: { networkFileId: string; size: bigint },
+  ): Promise<void> {
+    await this.fileVersionRepository.create({
+      fileId: file.uuid,
+      networkFileId: versionData.networkFileId,
+      size: versionData.size,
+      status: FileVersionStatus.EXISTS,
+    });
   }
 }
