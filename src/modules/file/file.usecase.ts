@@ -45,6 +45,16 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import { Tier } from '../feature-limit/domain/tier.domain';
+import {
+  VERSIONABLE_FILE_EXTENSIONS,
+  VERSIONABLE_TIER_LABELS,
+  CONFIG,
+  TierLabel,
+  VersionableFileExtension,
+} from './file-version.constants';
+import { SequelizeFileVersionRepository } from './file-version.repository';
+import { FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -55,6 +65,7 @@ export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private readonly fileRepository: SequelizeFileRepository,
+    private readonly fileVersionRepository: SequelizeFileVersionRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
@@ -521,22 +532,17 @@ export class FileUseCases {
       offset: 0,
     },
   ): Promise<File[]> {
-    let filesWithMaybePlainName;
-    if (options?.withoutThumbnails)
-      filesWithMaybePlainName = await this.fileRepository.findAllCursor(
+    const filesWithMaybePlainName =
+      await this.fileRepository.findAllCursorWithVersions(
         { ...where, userId },
         options.limit,
         options.offset,
         options.sort,
+        {
+          withThumbnails: !options.withoutThumbnails,
+          withSharings: !options.withoutThumbnails,
+        },
       );
-    else
-      filesWithMaybePlainName =
-        await this.fileRepository.findAllCursorWithThumbnails(
-          { ...where, userId },
-          options.limit,
-          options.offset,
-          options.sort,
-        );
 
     const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
       this.addOldAttributes(file),
@@ -689,6 +695,7 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     newFileData: ReplaceFileDto,
+    tier?: Tier,
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
@@ -698,6 +705,51 @@ export class FileUseCases {
 
     if (file.status != FileStatus.EXISTS) {
       throw new BadRequestException(`${file.status} files can not be replaced`);
+    }
+
+    const shouldVersion = this.isFileVersionable(
+      file.type as VersionableFileExtension,
+      newFileData.size,
+      tier,
+    );
+
+    if (shouldVersion) {
+      await this.applyRetentionPolicy(fileUuid, tier.label);
+
+      const { fileId, size, modificationTime } = newFileData;
+
+      await Promise.all([
+        this.fileVersionRepository.findOrCreate({
+          fileId: file.uuid,
+          networkFileId: file.fileId,
+          size: file.size,
+          status: FileVersionStatus.EXISTS,
+        }),
+        this.createFileVersion(file, {
+          networkFileId: fileId,
+          size: size,
+        }),
+        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+          fileId,
+          size,
+          updatedAt: new Date(),
+          ...(modificationTime ? { modificationTime } : null),
+        }),
+      ]);
+
+      const newFile = File.build({ ...file, size, fileId });
+
+      await this.addFileReplacementDelta(user, file, newFile).catch((error) => {
+        new Logger('[USAGE/DAILY]').error(
+          `There was an error calculating the user usage incrementally: ${error.message}`,
+        );
+      });
+
+      return {
+        ...file.toJSON(),
+        fileId,
+        size,
+      };
     }
 
     const { fileId: oldFileId, bucket } = file;
@@ -949,5 +1001,89 @@ export class FileUseCases {
       oldFileData,
       newFileData,
     );
+  }
+
+  private isFileVersionable(
+    fileType: VersionableFileExtension,
+    fileSize: bigint,
+    tier?: Tier,
+  ): boolean {
+    if (!VERSIONABLE_FILE_EXTENSIONS.includes(fileType)) {
+      return false;
+    }
+
+    const tierLabel = tier?.label as TierLabel;
+    if (!tier || !VERSIONABLE_TIER_LABELS.includes(tierLabel)) {
+      return false;
+    }
+
+    if (fileSize > CONFIG[tierLabel].maxFileSize) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private async applyRetentionPolicy(
+    fileUuid: string,
+    tierLabel: string,
+  ): Promise<void> {
+    const config = CONFIG[tierLabel as TierLabel];
+
+    if (!config) {
+      return;
+    }
+
+    const { retentionDays, maxVersions } = config;
+
+    const cutoffDate = Time.daysAgo(retentionDays);
+
+    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    const versionsByAge = versions.filter(
+      (version) => version.createdAt < cutoffDate,
+    );
+
+    const remainingVersions = versions
+      .filter((version) => version.createdAt >= cutoffDate)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const versionsByCount = remainingVersions.slice(maxVersions);
+
+    const versionsToDelete = [...versionsByAge, ...versionsByCount];
+
+    const remainingCount = versions.length - versionsToDelete.length;
+    if (remainingCount >= maxVersions) {
+      const versionsNotDeleted = versions.filter(
+        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
+      );
+      const oldestVersion = versionsNotDeleted.sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      )[0];
+
+      if (oldestVersion) {
+        versionsToDelete.push(oldestVersion);
+      }
+    }
+
+    if (versionsToDelete.length > 0) {
+      const idsToDelete = versionsToDelete.map((v) => v.id);
+      await this.fileVersionRepository.updateStatusBatch(
+        idsToDelete,
+        FileVersionStatus.DELETED,
+      );
+    }
+  }
+
+  private async createFileVersion(
+    file: File,
+    versionData: { networkFileId: string; size: bigint },
+  ): Promise<void> {
+    await this.fileVersionRepository.create({
+      fileId: file.uuid,
+      networkFileId: versionData.networkFileId,
+      size: versionData.size,
+      status: FileVersionStatus.EXISTS,
+    });
   }
 }
