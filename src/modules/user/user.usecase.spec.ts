@@ -4511,9 +4511,6 @@ describe('User use cases', () => {
         lastMailSent,
       });
 
-      jest
-        .spyOn(mockMailLimit, 'isLimitForThisMonthReached')
-        .mockReturnValue(false);
       jest.spyOn(mockMailLimit, 'increaseMonthAttempts');
 
       jest.spyOn(userUseCases, 'getSpaceLimit').mockResolvedValue(limit);
