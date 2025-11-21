@@ -48,6 +48,8 @@ import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
+import { TrashItemType } from '../trash/trash.attributes';
+import { TrashUseCases } from '../trash/trash.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -59,6 +61,8 @@ export class FileUseCases {
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
     private readonly sharingUsecases: SharingService,
+    @Inject(forwardRef(() => TrashUseCases))
+    private readonly trashUsecases: TrashUseCases,
     private readonly network: BridgeService,
     private readonly cryptoService: CryptoService,
     private readonly thumbnailUsecases: ThumbnailUseCases,
@@ -643,9 +647,13 @@ export class FileUseCases {
     user: User,
     fileIds: FileAttributes['fileId'][],
     fileUuids: FileAttributes['uuid'][] = [],
+    tierLabel?: string,
   ): Promise<void> {
     const files = await this.fileRepository.findByFileIds(user.id, fileIds);
+
     const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
+
+    tierLabel = tierLabel || PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 
     await Promise.all([
       this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
@@ -656,6 +664,12 @@ export class FileUseCases {
         SharingItemType.File,
       ),
     ]);
+
+    this.trashUsecases
+      .addItemsToTrash(allFileUuids, TrashItemType.File, tierLabel, user.id)
+      .catch((err) =>
+        Logger.error(`[TRASH] Error adding files to trash: ${err.message}`),
+      );
   }
 
   async getEncryptionKeyFromFile(
@@ -817,11 +831,20 @@ export class FileUseCases {
       type: file.type,
     };
 
+    const wasTrashed = file.status === FileStatus.TRASHED;
+
     await this.fileRepository.updateByUuidAndUserId(
       fileUuid,
       user.id,
       updateData,
     );
+
+    if (wasTrashed && this.trashUsecases) {
+      await this.trashUsecases.removeItemsFromTrash(
+        [fileUuid],
+        TrashItemType.File,
+      );
+    }
 
     return Object.assign(file, updateData);
   }
