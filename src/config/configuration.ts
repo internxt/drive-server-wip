@@ -129,6 +129,9 @@ export default () => ({
     apiKey: process.env.KLAVIYO_PRIVATE_API_KEY,
     groupId: process.env.KLAVIYO_LIST_ID,
   },
+  klaviyo: {
+    baseUrl: process.env.KLAVIYO_URL,
+  },
   sentry: {
     dsn: process.env.SENTRY_DSN,
   },
