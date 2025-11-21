@@ -9,6 +9,8 @@ import { FolderModule } from '../folder/folder.module';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { FileModel } from './file.model';
+import { FileVersionModel } from './file-version.model';
+import { SequelizeFileVersionRepository } from './file-version.repository';
 import { SharingModule } from '../sharing/sharing.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UserModule } from '../user/user.module';
@@ -21,7 +23,7 @@ import { TrashModule } from '../trash/trash.module';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FileModel, ThumbnailModel]),
+    SequelizeModule.forFeature([FileModel, FileVersionModel, ThumbnailModel]),
     forwardRef(() => FolderModule),
     forwardRef(() => ThumbnailModule),
     forwardRef(() => SharingModule),
@@ -37,10 +39,16 @@ import { TrashModule } from '../trash/trash.module';
   controllers: [FileController],
   providers: [
     SequelizeFileRepository,
+    SequelizeFileVersionRepository,
     FileUseCases,
     MailerService,
     RedisService,
   ],
-  exports: [FileUseCases, SequelizeModule, SequelizeFileRepository],
+  exports: [
+    FileUseCases,
+    SequelizeModule,
+    SequelizeFileRepository,
+    SequelizeFileVersionRepository,
+  ],
 })
 export class FileModule {}
