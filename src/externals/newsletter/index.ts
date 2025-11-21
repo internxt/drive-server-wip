@@ -12,7 +12,7 @@ export class NewsletterService {
   ) {}
 
   async subscribe(email: UserAttributes['email']): Promise<void> {
-    const listId: string = this.configService.get('newsletter.groupId');
+    const listId: string = this.configService.get('newsletter.listId');
     const apiKey: string = this.configService.get('newsletter.apiKey');
     const baseUrl: string = this.configService.get('klaviyo.baseUrl');
 
