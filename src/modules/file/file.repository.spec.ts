@@ -896,4 +896,706 @@ describe('FileRepository', () => {
       expect(response).toBe(0);
     });
   });
+
+  describe('findAllCursorWithVersions', () => {
+    const userId = 1;
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FileModel, string]> = [['createdAt', 'DESC']];
+
+    beforeEach(() => {
+      const mockSequelize = {
+        getQueryInterface: jest.fn(() => ({
+          queryGenerator: {
+            quoteIdentifier: jest.fn((identifier: string) => `"${identifier}"`),
+          },
+        })),
+        query: jest.fn(),
+      };
+
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: mockSequelize,
+        writable: true,
+        configurable: true,
+      });
+
+      fileModel.getAttributes = jest.fn(() => ({
+        id: { field: 'id' },
+        uuid: { field: 'uuid' },
+        fileId: { field: 'file_id' },
+        userId: { field: 'user_id' },
+        size: { field: 'size' },
+        status: { field: 'status' },
+        createdAt: { field: 'created_at' },
+      })) as any;
+    });
+
+    it('When file has versions, then it should return fileId from latest version and size as sum of all versions', async () => {
+      const mockResults = [
+        {
+          id: 1,
+          uuid: 'file-uuid-1',
+          fileId: 'version_file-uuid-1_5',
+          userId: 1,
+          size: '150000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-15'),
+        },
+      ];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockResults as any);
+
+      const result = await repository.findAllCursorWithVersions(
+        { userId, status: 'EXISTS' },
+        limit,
+        offset,
+        order,
+        { withThumbnails: false, withSharings: false },
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'COALESCE(latest_version.network_file_id, pf.file_id) as "fileId"',
+        ),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            limit,
+            offset,
+          }),
+          type: QueryTypes.SELECT,
+          raw: true,
+        }),
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'COALESCE(latest_version.total_size, pf.size) as "size"',
+        ),
+        expect.any(Object),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].fileId).toBe('version_file-uuid-1_5');
+      expect(result[0].size).toBe('150000000');
+    });
+
+    it('When file has no versions, then it should return original fileId and size from files table', async () => {
+      const mockResults = [
+        {
+          id: 2,
+          uuid: 'file-uuid-2',
+          fileId: 'original_file_id',
+          userId: 1,
+          size: '50000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-10'),
+        },
+      ];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockResults as any);
+
+      const result = await repository.findAllCursorWithVersions(
+        { userId, status: 'EXISTS' },
+        limit,
+        offset,
+        order,
+        { withThumbnails: false, withSharings: false },
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].fileId).toBe('original_file_id');
+      expect(result[0].size).toBe('50000000');
+    });
+
+    it('When withThumbnails is true, then it should include thumbnails in the query', async () => {
+      const mockResults = [
+        {
+          id: 1,
+          uuid: 'file-uuid-1',
+          fileId: 'version_file-uuid-1_5',
+          userId: 1,
+          size: '150000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-15'),
+          thumbnails: [{ id: 1, type: 'png', size: 1024 }],
+        },
+      ];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockResults as any);
+
+      const result = await repository.findAllCursorWithVersions(
+        { userId, status: 'EXISTS' },
+        limit,
+        offset,
+        order,
+        { withThumbnails: true, withSharings: false },
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('thumbnails_agg.thumbnails'),
+        expect.any(Object),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].thumbnails).toBeDefined();
+    });
+
+    it('When withSharings is true, then it should include sharings in the query', async () => {
+      const mockResults = [
+        {
+          id: 1,
+          uuid: 'file-uuid-1',
+          fileId: 'version_file-uuid-1_5',
+          userId: 1,
+          size: '150000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-15'),
+          sharings: [{ id: 1, type: 'public' }],
+        },
+      ];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockResults as any);
+
+      const result = await repository.findAllCursorWithVersions(
+        { userId, status: 'EXISTS' },
+        limit,
+        offset,
+        order,
+        { withThumbnails: false, withSharings: true },
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('sharings_agg.sharings'),
+        expect.any(Object),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].sharings).toBeDefined();
+    });
+
+    it('When multiple files are returned, then all should have correct fileId and size', async () => {
+      const mockResults = [
+        {
+          id: 1,
+          uuid: 'file-uuid-1',
+          fileId: 'version_file-uuid-1_5',
+          userId: 1,
+          size: '150000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-15'),
+        },
+        {
+          id: 2,
+          uuid: 'file-uuid-2',
+          fileId: 'original_file_id_2',
+          userId: 1,
+          size: '50000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-10'),
+        },
+        {
+          id: 3,
+          uuid: 'file-uuid-3',
+          fileId: 'version_file-uuid-3_2',
+          userId: 1,
+          size: '200000000',
+          status: 'EXISTS',
+          createdAt: new Date('2024-01-05'),
+        },
+      ];
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(mockResults as any);
+
+      const result = await repository.findAllCursorWithVersions(
+        { userId, status: 'EXISTS' },
+        limit,
+        offset,
+        order,
+        { withThumbnails: false, withSharings: false },
+      );
+
+      expect(result).toHaveLength(3);
+      expect(result[0].fileId).toBe('version_file-uuid-1_5');
+      expect(result[0].size).toBe('150000000');
+      expect(result[1].fileId).toBe('original_file_id_2');
+      expect(result[1].size).toBe('50000000');
+      expect(result[2].fileId).toBe('version_file-uuid-3_2');
+      expect(result[2].size).toBe('200000000');
+    });
+  });
+
+  describe('buildWhereClause (private method)', () => {
+    let mockSequelize: any;
+    let mockQueryGen: any;
+
+    beforeEach(() => {
+      mockQueryGen = {
+        quoteIdentifier: jest.fn((identifier: string) => `"${identifier}"`),
+      };
+
+      mockSequelize = {
+        getQueryInterface: jest.fn(() => ({
+          queryGenerator: mockQueryGen,
+        })),
+      };
+
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: mockSequelize,
+        writable: true,
+        configurable: true,
+      });
+
+      fileModel.getAttributes = jest.fn(() => ({
+        id: { field: 'id' },
+        uuid: { field: 'uuid' },
+        userId: { field: 'user_id' },
+        folderId: { field: 'folder_id' },
+        folderUuid: { field: 'folder_uuid' },
+        status: { field: 'status' },
+        type: { field: 'type' },
+        createdAt: { field: 'created_at' },
+        updatedAt: { field: 'updated_at' },
+      })) as any;
+    });
+
+    it('should return empty string when where object is empty', () => {
+      const replacements = {};
+      const result = (repository as any).buildWhereClause(
+        {},
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe('');
+      expect(replacements).toEqual({});
+    });
+
+    it('should build simple equality WHERE clause with single condition', () => {
+      const replacements = {};
+      const where = { uuid: 'test-uuid-123' };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe('WHERE "uuid" = :where_uuid_eq_0');
+      expect(replacements).toEqual({ where_uuid_eq_0: 'test-uuid-123' });
+    });
+
+    it('should build WHERE clause with multiple equality conditions', () => {
+      const replacements = {};
+      const where = { uuid: 'test-uuid-123', userId: 2, status: 'EXISTS' };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe(
+        'WHERE "uuid" = :where_uuid_eq_0 AND "user_id" = :where_userId_eq_1 AND "status" = :where_status_eq_2',
+      );
+      expect(replacements).toEqual({
+        where_uuid_eq_0: 'test-uuid-123',
+        where_userId_eq_1: 2,
+        where_status_eq_2: 'EXISTS',
+      });
+    });
+
+    it('should build WHERE clause with table alias', () => {
+      const replacements = {};
+      const where = { uuid: 'test-uuid-123', userId: 2 };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel, tableAlias: 'f' },
+        replacements,
+      );
+
+      expect(result).toBe(
+        'WHERE f."uuid" = :where_uuid_eq_0 AND f."user_id" = :where_userId_eq_1',
+      );
+      expect(replacements).toEqual({
+        where_uuid_eq_0: 'test-uuid-123',
+        where_userId_eq_1: 2,
+      });
+    });
+
+    it('should build WHERE clause without WHERE keyword when includeWhereKeyword is false', () => {
+      const replacements = {};
+      const where = { uuid: 'test-uuid-123', userId: 2 };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel, tableAlias: 'f', includeWhereKeyword: false },
+        replacements,
+      );
+
+      expect(result).toBe(
+        'f."uuid" = :where_uuid_eq_0 AND f."user_id" = :where_userId_eq_1',
+      );
+      expect(replacements).toEqual({
+        where_uuid_eq_0: 'test-uuid-123',
+        where_userId_eq_1: 2,
+      });
+    });
+
+    it('should handle null values with IS NULL clause', () => {
+      const replacements = {};
+      const where = { userId: 2, deletedAt: null };
+
+      fileModel.getAttributes = jest.fn(() => ({
+        userId: { field: 'user_id' },
+        deletedAt: { field: 'deleted_at' },
+      })) as any;
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe(
+        'WHERE "user_id" = :where_userId_eq_0 AND "deleted_at" IS NULL',
+      );
+      expect(replacements).toEqual({
+        where_userId_eq_0: 2,
+      });
+    });
+
+    it('should handle Op.gt operator for greater than comparisons', () => {
+      const replacements = {};
+      const testDate = new Date('2024-01-15');
+      const where = { userId: 2, updatedAt: { [Op.gt]: testDate } };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe(
+        'WHERE "user_id" = :where_userId_eq_0 AND "updated_at" > :where_updatedAt_gt_1',
+      );
+      expect(replacements).toEqual({
+        where_userId_eq_0: 2,
+        where_updatedAt_gt_1: testDate,
+      });
+    });
+
+    it('should handle Op.gt with table alias', () => {
+      const replacements = {};
+      const testDate = new Date('2024-01-15');
+      const where = { updatedAt: { [Op.gt]: testDate } };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel, tableAlias: 'f' },
+        replacements,
+      );
+
+      expect(result).toBe('WHERE f."updated_at" > :where_updatedAt_gt_0');
+      expect(replacements).toEqual({
+        where_updatedAt_gt_0: testDate,
+      });
+    });
+
+    it('should respect existing replacements counter when populating new params', () => {
+      const replacements = {
+        existingParam1: 'value1',
+        existingParam2: 'value2',
+      };
+      const where = { uuid: 'test-uuid', userId: 2 };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe(
+        'WHERE "uuid" = :where_uuid_eq_2 AND "user_id" = :where_userId_eq_3',
+      );
+      expect(replacements).toEqual({
+        existingParam1: 'value1',
+        existingParam2: 'value2',
+        where_uuid_eq_2: 'test-uuid',
+        where_userId_eq_3: 2,
+      });
+    });
+
+    it('should convert camelCase field names to snake_case when no field mapping exists', () => {
+      fileModel.getAttributes = jest.fn(() => ({
+        folderId: {},
+      })) as any;
+
+      const replacements = {};
+      const where = { folderId: 123 };
+
+      const result = (repository as any).buildWhereClause(
+        where,
+        { model: fileModel },
+        replacements,
+      );
+
+      expect(result).toBe('WHERE "folder_id" = :where_folderId_eq_0');
+      expect(replacements).toEqual({
+        where_folderId_eq_0: 123,
+      });
+    });
+  });
+
+  describe('buildOrderClause (private method)', () => {
+    let mockSequelize: any;
+    let mockQueryGen: any;
+
+    beforeEach(() => {
+      mockQueryGen = {
+        quoteIdentifier: jest.fn((identifier: string) => `"${identifier}"`),
+      };
+
+      mockSequelize = {
+        getQueryInterface: jest.fn(() => ({
+          queryGenerator: mockQueryGen,
+        })),
+      };
+
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: mockSequelize,
+        writable: true,
+        configurable: true,
+      });
+
+      fileModel.getAttributes = jest.fn(() => ({
+        id: { field: 'id' },
+        createdAt: { field: 'created_at' },
+        updatedAt: { field: 'updated_at' },
+        plainName: { field: 'plain_name' },
+      })) as any;
+    });
+
+    it('should return default order when order array is empty', () => {
+      const result = (repository as any).buildOrderClause([], {
+        model: fileModel,
+      });
+
+      expect(result).toBe('created_at DESC');
+    });
+
+    it('should return custom default order when provided', () => {
+      const result = (repository as any).buildOrderClause([], {
+        model: fileModel,
+        defaultOrder: 'id ASC',
+      });
+
+      expect(result).toBe('id ASC');
+    });
+
+    it('should build ORDER BY clause with single field', () => {
+      const order: Array<[string, string]> = [['createdAt', 'DESC']];
+
+      const result = (repository as any).buildOrderClause(order, {
+        model: fileModel,
+      });
+
+      expect(result).toBe('"created_at" DESC');
+    });
+
+    it('should build ORDER BY clause with multiple fields', () => {
+      const order: Array<[string, string]> = [
+        ['createdAt', 'DESC'],
+        ['id', 'ASC'],
+      ];
+
+      const result = (repository as any).buildOrderClause(order, {
+        model: fileModel,
+      });
+
+      expect(result).toBe('"created_at" DESC, "id" ASC');
+    });
+
+    it('should build ORDER BY clause with table alias', () => {
+      const order: Array<[string, string]> = [['createdAt', 'DESC']];
+
+      const result = (repository as any).buildOrderClause(order, {
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toBe('f."created_at" DESC');
+    });
+
+    it('should handle Sequelize Literal in order array', () => {
+      const literalOrder = {
+        toString: () => 'RAND()',
+      };
+      const order = [literalOrder] as any;
+
+      const result = (repository as any).buildOrderClause(order, {
+        model: fileModel,
+      });
+
+      expect(result).toBe('RAND()');
+    });
+
+    it('should convert camelCase field names to snake_case', () => {
+      const order: Array<[string, string]> = [['plainName', 'ASC']];
+
+      const result = (repository as any).buildOrderClause(order, {
+        model: fileModel,
+      });
+
+      expect(result).toBe('"plain_name" ASC');
+    });
+
+    it('should handle mixed field types with table alias', () => {
+      const order: Array<[string, string]> = [
+        ['updatedAt', 'DESC'],
+        ['plainName', 'ASC'],
+      ];
+
+      const result = (repository as any).buildOrderClause(order, {
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toBe('f."updated_at" DESC, f."plain_name" ASC');
+    });
+  });
+
+  describe('buildSelectFields (private method)', () => {
+    let mockSequelize: any;
+    let mockQueryGen: any;
+
+    beforeEach(() => {
+      mockQueryGen = {
+        quoteIdentifier: jest.fn((identifier: string) => `"${identifier}"`),
+      };
+
+      mockSequelize = {
+        getQueryInterface: jest.fn(() => ({
+          queryGenerator: mockQueryGen,
+        })),
+      };
+
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: mockSequelize,
+        writable: true,
+        configurable: true,
+      });
+
+      fileModel.getAttributes = jest.fn(() => ({
+        id: { field: 'id' },
+        uuid: { field: 'uuid' },
+        userId: { field: 'user_id' },
+        fileId: { field: 'file_id' },
+        plainName: { field: 'plain_name' },
+        size: { field: 'size' },
+        status: { field: 'status' },
+        createdAt: { field: 'created_at' },
+      })) as any;
+    });
+
+    it('should build SELECT fields for all model attributes', () => {
+      const result = (repository as any).buildSelectFields({
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toContain('f.id');
+      expect(result).toContain('f.uuid');
+      expect(result).toContain('f.user_id as "userId"');
+      expect(result).toContain('f.file_id as "fileId"');
+      expect(result).toContain('f.plain_name as "plainName"');
+      expect(result).toContain('f.size');
+      expect(result).toContain('f.status');
+      expect(result).toContain('f.created_at as "createdAt"');
+    });
+
+    it('should exclude specified fields', () => {
+      const result = (repository as any).buildSelectFields({
+        model: fileModel,
+        tableAlias: 'f',
+        excludeFields: ['fileId', 'size'],
+      });
+
+      expect(result).not.toContain('file_id');
+      expect(result).not.toContain('f.size');
+      expect(result).toContain('f.uuid');
+      expect(result).toContain('f.user_id as "userId"');
+    });
+
+    it('should handle fields where column name equals field name (no alias needed)', () => {
+      fileModel.getAttributes = jest.fn(() => ({
+        id: { field: 'id' },
+        uuid: { field: 'uuid' },
+      })) as any;
+
+      const result = (repository as any).buildSelectFields({
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toBe('f.id,\n    f.uuid');
+    });
+
+    it('should handle fields with camelCase to snake_case conversion', () => {
+      fileModel.getAttributes = jest.fn(() => ({
+        userId: { field: 'user_id' },
+        createdAt: { field: 'created_at' },
+      })) as any;
+
+      const result = (repository as any).buildSelectFields({
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toBe(
+        'f.user_id as "userId",\n    f.created_at as "createdAt"',
+      );
+    });
+
+    it('should join fields with comma and newline for readability', () => {
+      fileModel.getAttributes = jest.fn(() => ({
+        id: { field: 'id' },
+        uuid: { field: 'uuid' },
+        status: { field: 'status' },
+      })) as any;
+
+      const result = (repository as any).buildSelectFields({
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toBe('f.id,\n    f.uuid,\n    f.status');
+    });
+
+    it('should handle attributes without field mapping (fallback to snake_case)', () => {
+      fileModel.getAttributes = jest.fn(() => ({
+        userId: {},
+        createdAt: {},
+      })) as any;
+
+      const result = (repository as any).buildSelectFields({
+        model: fileModel,
+        tableAlias: 'f',
+      });
+
+      expect(result).toBe(
+        'f.user_id as "userId",\n    f.created_at as "createdAt"',
+      );
+    });
+  });
 });

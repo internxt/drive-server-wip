@@ -532,22 +532,17 @@ export class FileUseCases {
       offset: 0,
     },
   ): Promise<File[]> {
-    let filesWithMaybePlainName;
-    if (options?.withoutThumbnails)
-      filesWithMaybePlainName = await this.fileRepository.findAllCursor(
+    const filesWithMaybePlainName =
+      await this.fileRepository.findAllCursorWithVersions(
         { ...where, userId },
         options.limit,
         options.offset,
         options.sort,
+        {
+          withThumbnails: !options.withoutThumbnails,
+          withSharings: !options.withoutThumbnails,
+        },
       );
-    else
-      filesWithMaybePlainName =
-        await this.fileRepository.findAllCursorWithThumbnails(
-          { ...where, userId },
-          options.limit,
-          options.offset,
-          options.sort,
-        );
 
     const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
       this.addOldAttributes(file),
