@@ -62,6 +62,7 @@ describe('TrashController', () => {
             ],
           },
           user,
+          undefined,
           'anyid',
           '1.0.0',
           requester,
@@ -73,7 +74,14 @@ describe('TrashController', () => {
       const body = { items: [] };
       jest.spyOn(fileUseCases, 'moveFilesToTrash');
 
-      await controller.moveItemsToTrash(body, user, '', '1.0.0', requester);
+      await controller.moveItemsToTrash(
+        body,
+        user,
+        undefined,
+        '',
+        '1.0.0',
+        requester,
+      );
       expect(fileUseCases.moveFilesToTrash).not.toHaveBeenCalled();
     });
 
@@ -110,6 +118,7 @@ describe('TrashController', () => {
           items: [...fileItems, ...folderItems],
         },
         user,
+        undefined,
         '',
         '1.0.0',
         requester,
@@ -119,11 +128,13 @@ describe('TrashController', () => {
         user,
         [fileItems[1].id],
         [fileItems[0].uuid],
+        undefined,
       );
       expect(folderUseCases.moveFoldersToTrash).toHaveBeenCalledWith(
         user,
         [parseInt(folderItems[0].id)],
         [folderItems[1].uuid],
+        undefined,
       );
     });
 
@@ -147,6 +158,7 @@ describe('TrashController', () => {
             items: fileItems,
           },
           user,
+          undefined,
           'clientId',
           '1.0.0',
           requester,
@@ -175,6 +187,7 @@ describe('TrashController', () => {
             items: fileItems,
           },
           user,
+          undefined,
           'clientId',
           '1.0.0',
           requester,
@@ -328,6 +341,7 @@ describe('TrashController', () => {
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
+      jest.spyOn(trashUseCases, 'getTrashEntriesByIds').mockResolvedValue([]);
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -344,7 +358,12 @@ describe('TrashController', () => {
           sort: undefined,
         },
       );
-      expect(result).toEqual({ result: mockFiles });
+      expect(result).toEqual({
+        result: mockFiles.map((file) => ({
+          ...file.toJSON(),
+          caducityDate: null,
+        })),
+      });
     });
 
     it('When type is folders, then it should return trashed folders', async () => {
@@ -352,6 +371,7 @@ describe('TrashController', () => {
         newFolder({ attributes: { deleted: true, removed: false } }),
       ];
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
+      jest.spyOn(trashUseCases, 'getTrashEntriesByIds').mockResolvedValue([]);
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -368,7 +388,12 @@ describe('TrashController', () => {
           sort: undefined,
         },
       );
-      expect(result).toEqual({ result: mockFolders });
+      expect(result).toEqual({
+        result: mockFolders.map((folder) => ({
+          ...folder.toJSON(),
+          caducityDate: null,
+        })),
+      });
     });
 
     it('When sort and order are provided for files, then it should include sort in options', async () => {
@@ -376,6 +401,7 @@ describe('TrashController', () => {
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
+      jest.spyOn(trashUseCases, 'getTrashEntriesByIds').mockResolvedValue([]);
 
       await controller.getTrashedFilesPaginated(
         user,
