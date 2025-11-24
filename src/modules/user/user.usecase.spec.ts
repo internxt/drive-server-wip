@@ -63,6 +63,7 @@ import { v4 } from 'uuid';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { KlaviyoTrackingService } from '../../externals/mailer/klaviyo-tracking.service';
 import { LoginAccessDto } from '../auth/dto/login-access.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
@@ -122,6 +123,7 @@ describe('User use cases', () => {
   let mailLimitRepository: SequelizeMailLimitRepository;
   let workspaceRepository: SequelizeWorkspaceRepository;
   let mailerService: MailerService;
+  let klaviyoService: KlaviyoTrackingService;
   let avatarService: AvatarService;
   let keyServerUseCases: KeyServerUseCases;
   let appSumoUseCases: AppSumoUseCase;
@@ -208,6 +210,9 @@ describe('User use cases', () => {
       SequelizeWorkspaceRepository,
     );
     mailerService = moduleRef.get<MailerService>(MailerService);
+    klaviyoService = moduleRef.get<KlaviyoTrackingService>(
+      KlaviyoTrackingService,
+    );
     avatarService = moduleRef.get<AvatarService>(AvatarService);
     keyServerUseCases = moduleRef.get<KeyServerUseCases>(KeyServerUseCases);
 
@@ -4017,6 +4022,8 @@ describe('User use cases', () => {
     const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
     const mockIncompleteCheckoutDto: IncompleteCheckoutDto = {
       completeCheckoutUrl: 'https://drive.internxt.com/checkout/complete',
+      planName: 'Premium',
+      price: 725,
     };
 
     it('When valid user and dto are provided and limit not reached, then should send email successfully', async () => {
@@ -4131,6 +4138,100 @@ describe('User use cases', () => {
         mockIncompleteCheckoutDto.completeCheckoutUrl,
       );
       expect(mockMailLimit.increaseTodayAttempts).not.toHaveBeenCalled();
+    });
+
+    it('When Klaviyo tracking fails, then should still send email successfully', async () => {
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        attemptsCount: 1,
+        attemptsLimit: 5,
+      });
+      jest
+        .spyOn(mockMailLimit, 'isLimitForTodayReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseTodayAttempts');
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, true]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendIncompleteCheckoutEmail')
+        .mockResolvedValue(undefined);
+
+      const klaviyoError = new Error('Klaviyo API error');
+      jest
+        .spyOn(klaviyoService, 'trackCheckoutStarted')
+        .mockRejectedValue(klaviyoError);
+
+      const result = await userUseCases.handleIncompleteCheckoutEvent(
+        mockUser,
+        mockIncompleteCheckoutDto,
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(klaviyoService.trackCheckoutStarted).toHaveBeenCalledWith(
+        mockUser.email,
+        {
+          checkoutUrl: mockIncompleteCheckoutDto.completeCheckoutUrl,
+          planName: mockIncompleteCheckoutDto.planName,
+          price: mockIncompleteCheckoutDto.price,
+        },
+      );
+      expect(mailerService.sendIncompleteCheckoutEmail).toHaveBeenCalledWith(
+        mockUser.email,
+        mockIncompleteCheckoutDto.completeCheckoutUrl,
+      );
+      expect(mockMailLimit.increaseTodayAttempts).toHaveBeenCalled();
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to track checkout in Klaviyo'),
+      );
+    });
+
+    it('When Klaviyo tracking succeeds, then should track event with correct data', async () => {
+      const mockMailLimit = newMailLimit({
+        userId: mockUser.id,
+        attemptsCount: 1,
+        attemptsLimit: 5,
+      });
+      jest
+        .spyOn(mockMailLimit, 'isLimitForTodayReached')
+        .mockReturnValue(false);
+      jest.spyOn(mockMailLimit, 'increaseTodayAttempts');
+
+      jest
+        .spyOn(mailLimitRepository, 'findOrCreate')
+        .mockResolvedValue([mockMailLimit, true]);
+      jest
+        .spyOn(mailLimitRepository, 'updateByUserIdAndMailType')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(mailerService, 'sendIncompleteCheckoutEmail')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(klaviyoService, 'trackCheckoutStarted')
+        .mockResolvedValue(undefined);
+
+      const result = await userUseCases.handleIncompleteCheckoutEvent(
+        mockUser,
+        mockIncompleteCheckoutDto,
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(klaviyoService.trackCheckoutStarted).toHaveBeenCalledWith(
+        mockUser.email,
+        {
+          checkoutUrl: mockIncompleteCheckoutDto.completeCheckoutUrl,
+          planName: mockIncompleteCheckoutDto.planName,
+          price: mockIncompleteCheckoutDto.price,
+        },
+      );
+      expect(mailerService.sendIncompleteCheckoutEmail).toHaveBeenCalledWith(
+        mockUser.email,
+        mockIncompleteCheckoutDto.completeCheckoutUrl,
+      );
     });
   });
 

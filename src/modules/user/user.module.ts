@@ -40,6 +40,7 @@ import { SharingModule } from '../sharing/sharing.module';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
+import { KlaviyoTrackingService } from '../../externals/mailer/klaviyo-tracking.service';
 import { SecurityModule } from '../security/security.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
@@ -99,6 +100,7 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     NewsletterService,
     AvatarService,
     MailerService,
+    KlaviyoTrackingService,
   ],
   exports: [
     UserUseCases,
