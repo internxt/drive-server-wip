@@ -716,8 +716,11 @@ export class FileUseCases {
         name: error.name,
         message: error.message,
         stack: error.stack,
+        user: { email: user.email, uuid: user.uuid, userId: user.id },
+        newFileData: { size: newFile.size, fileId: newFile.fileId },
+        oldFileData: { size: file.size, fileId: file.fileId },
       };
-      new Logger('USAGE/DAILY').error({
+      new Logger('USAGE/REPLACEMENT').error({
         error: errorObject,
         msg: 'There was an error calculating the user usage incrementally',
       });
@@ -937,6 +940,15 @@ export class FileUseCases {
     const lockAcquired = await this.redisService
       .tryAcquireLock(lockKey, 3000)
       .catch((_) => {
+        new Logger('USAGE/REPLACEMENT').warn(
+          {
+            lockKey,
+            user: { email: user.email, uuid: user.uuid, userId: user.id },
+            newFileData: { size: newFileData.size, fileId: newFileData.fileId },
+            oldFileData: { size: oldFileData.size, fileId: oldFileData.fileId },
+          },
+          'Could not acquire lock for adding file replacement delta',
+        );
         return true;
       });
 
