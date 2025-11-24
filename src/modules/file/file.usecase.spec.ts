@@ -3,6 +3,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
+import { FileVersion, FileVersionStatus } from './file-version.domain';
 import {
   BadRequestException,
   ConflictException,
@@ -1502,6 +1503,48 @@ describe('FileUseCases', () => {
 
       await expect(
         service.getFileMetadata(userMocked, 'non-existent-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getFileVersions', () => {
+    it('When file exists, then it should return versions', async () => {
+      const mockFile = newFile();
+      const mockVersions = [
+        FileVersion.build({
+          id: v4(),
+          fileId: mockFile.uuid,
+          networkFileId: 'network-1',
+          size: BigInt(100),
+          status: FileVersionStatus.EXISTS,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ];
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue(mockVersions);
+
+      const result = await service.getFileVersions(userMocked, mockFile.uuid);
+
+      expect(result).toEqual(mockVersions);
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {},
+      );
+      expect(fileVersionRepository.findAllByFileId).toHaveBeenCalledWith(
+        mockFile.uuid,
+      );
+    });
+
+    it('When file does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.getFileVersions(userMocked, 'non-existent-uuid'),
       ).rejects.toThrow(NotFoundException);
     });
   });
