@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -26,6 +27,7 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { UserTier } from '../auth/decorators/user-tier.decorator';
 import { User } from '../user/user.domain';
+import { Tier } from '../feature-limit/domain/tier.domain';
 import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
@@ -47,6 +49,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
+import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
@@ -150,6 +153,89 @@ export class FileController {
     }
   }
 
+  @Get('/:uuid/versions')
+  @ApiOperation({
+    summary: 'Get file versions',
+  })
+  @ApiOkResponse({ isArray: true, type: FileVersionDto })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async getFileVersions(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+  ): Promise<FileVersionDto[]> {
+    const versions = await this.fileUseCases.getFileVersions(user, fileUuid);
+    return versions.map((v) => v.toJSON());
+  }
+
+  @Delete('/:uuid/versions/:versionId')
+  @ApiOperation({
+    summary: 'Delete a file version',
+  })
+  @ApiNoContentResponse({ description: 'Version deleted successfully' })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async deleteFileVersion(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+    @Param('versionId', ValidateUUIDPipe) versionId: string,
+  ): Promise<void> {
+    await this.fileUseCases.deleteVersion(user, fileUuid, versionId);
+  }
+
+  @Post('/:uuid/versions/:versionId/restore')
+  @ApiOperation({
+    summary: 'Restore a file version',
+  })
+  @ApiOkResponse({ type: FileVersionDto })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async restoreFileVersion(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+    @Param('versionId', ValidateUUIDPipe) versionId: string,
+  ): Promise<FileVersionDto> {
+    const version = await this.fileUseCases.restoreVersion(
+      user,
+      fileUuid,
+      versionId,
+    );
+    return version.toJSON();
+  }
+
   @Put('/:uuid')
   @GetDataFromRequest([
     {
@@ -170,12 +256,14 @@ export class FileController {
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
+    @UserTier() tier: Tier,
   ): Promise<FileDto> {
     try {
       const file = await this.fileUseCases.replaceFile(
         user,
         fileUuid,
         fileData,
+        tier,
       );
 
       this.storageNotificationService.fileUpdated({
