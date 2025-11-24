@@ -1549,6 +1549,127 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('restoreVersion', () => {
+    it('When restoring a version, then it should delete all newer versions', async () => {
+      const mockFile = newFile({ attributes: { userId: userMocked.id } });
+      const version1 = FileVersion.build({
+        id: v4(),
+        fileId: mockFile.uuid,
+        networkFileId: 'network-1',
+        size: BigInt(100),
+        status: FileVersionStatus.EXISTS,
+        createdAt: new Date('2025-11-10T10:00:00Z'),
+        updatedAt: new Date('2025-11-10T10:00:00Z'),
+      });
+      const version2 = FileVersion.build({
+        id: v4(),
+        fileId: mockFile.uuid,
+        networkFileId: 'network-2',
+        size: BigInt(200),
+        status: FileVersionStatus.EXISTS,
+        createdAt: new Date('2025-11-11T10:00:00Z'),
+        updatedAt: new Date('2025-11-11T10:00:00Z'),
+      });
+      const version3 = FileVersion.build({
+        id: v4(),
+        fileId: mockFile.uuid,
+        networkFileId: 'network-3',
+        size: BigInt(300),
+        status: FileVersionStatus.EXISTS,
+        createdAt: new Date('2025-11-12T10:00:00Z'),
+        updatedAt: new Date('2025-11-12T10:00:00Z'),
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest.spyOn(fileVersionRepository, 'findById').mockResolvedValue(version1);
+      jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue([version1, version2, version3]);
+      jest
+        .spyOn(fileVersionRepository, 'updateStatusBatch')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(fileRepository, 'updateByUuidAndUserId')
+        .mockResolvedValue(undefined);
+
+      const result = await service.restoreVersion(
+        userMocked,
+        mockFile.uuid,
+        version1.id,
+      );
+
+      expect(result).toEqual(version1);
+      expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
+        [version2.id, version3.id],
+        FileVersionStatus.DELETED,
+      );
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: version1.networkFileId,
+          size: version1.size,
+          updatedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('When version does not exist, then it should throw NotFoundException', async () => {
+      const mockFile = newFile({ attributes: { userId: userMocked.id } });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest.spyOn(fileVersionRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.restoreVersion(userMocked, mockFile.uuid, 'non-existent-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When trying to restore a deleted version, then it should throw BadRequestException', async () => {
+      const mockFile = newFile({ attributes: { userId: userMocked.id } });
+      const deletedVersion = FileVersion.build({
+        id: v4(),
+        fileId: mockFile.uuid,
+        networkFileId: 'network-1',
+        size: BigInt(100),
+        status: FileVersionStatus.DELETED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(fileVersionRepository, 'findById')
+        .mockResolvedValue(deletedVersion);
+
+      await expect(
+        service.restoreVersion(userMocked, mockFile.uuid, deletedVersion.id),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user does not own file, then it should throw ForbiddenException', async () => {
+      const mockFile = newFile({ attributes: { userId: 999 } });
+      const mockVersion = FileVersion.build({
+        id: v4(),
+        fileId: mockFile.uuid,
+        networkFileId: 'network-1',
+        size: BigInt(100),
+        status: FileVersionStatus.EXISTS,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(fileVersionRepository, 'findById')
+        .mockResolvedValue(mockVersion);
+
+      await expect(
+        service.restoreVersion(userMocked, mockFile.uuid, mockVersion.id),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
   describe('replaceFile', () => {
     it('When file exists, then it should replace file data and delete old file from network', async () => {
       const mockFile = newFile({
