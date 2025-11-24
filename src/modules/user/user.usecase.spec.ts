@@ -4501,8 +4501,7 @@ describe('User use cases', () => {
       const limit = 100 * 1024 * 1024 * 1024;
       const totalUsage = 85 * 1024 * 1024 * 1024;
       const usage = { drive: totalUsage, backup: 0, total: totalUsage };
-      const lastMailSent = new Date();
-      lastMailSent.setDate(lastMailSent.getDate() - 20);
+      const lastMailSent = new Date('2024-10-01T00:00:00Z');
 
       const mockMailLimit = newMailLimit({
         userId: mockUser.id,
