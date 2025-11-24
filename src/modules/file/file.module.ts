@@ -19,6 +19,7 @@ import { UsageModule } from '../usage/usage.module';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { RedisService } from '../../externals/redis/redis.service';
+import { TrashModule } from '../trash/trash.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RedisService } from '../../externals/redis/redis.service';
     NotificationModule,
     UsageModule,
     FeatureLimitModule,
+    forwardRef(() => TrashModule),
   ],
   controllers: [FileController],
   providers: [
