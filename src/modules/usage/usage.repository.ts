@@ -89,6 +89,68 @@ export class SequelizeUsageRepository {
     return newUsage ? this.toDomain(newUsage) : null;
   }
 
+  public async calculateAggregatedUsage(userUuid: string): Promise<number> {
+    const query = `
+      WITH yearly_years AS (
+        SELECT DISTINCT date_trunc('year', period) AS year
+        FROM public.usages
+        WHERE type = 'yearly' AND user_id = :userUuid
+      ),
+      monthly_months AS (
+        SELECT DISTINCT date_trunc('month', period) AS month
+        FROM public.usages
+        WHERE type = 'monthly'
+          AND user_id = :userUuid
+          AND date_trunc('year', period) NOT IN (SELECT year FROM yearly_years)
+      ),
+      aggregated_usage_data AS (
+        -- Yearly values
+        SELECT 
+          delta,
+          period
+        FROM public.usages
+        WHERE type = 'yearly' AND user_id = :userUuid
+
+        UNION ALL
+
+        -- Monthly values (exclude years with yearly)
+        SELECT 
+          delta,
+          period
+        FROM public.usages
+        WHERE type = 'monthly'
+          AND user_id = :userUuid
+          AND date_trunc('year', period) NOT IN (SELECT year FROM yearly_years)
+
+        UNION ALL
+
+        -- Daily/replacement (exclude years with yearly AND months with monthly)
+        SELECT 
+          delta,
+          period
+        FROM public.usages
+        WHERE type IN ('daily', 'replacement')
+          AND user_id = :userUuid
+          AND date_trunc('year', period) NOT IN (SELECT year FROM yearly_years)
+          AND date_trunc('month', period) NOT IN (SELECT month FROM monthly_months)
+      )
+      SELECT
+        COALESCE(SUM(delta), 0) AS calculated_total
+      FROM aggregated_usage_data;
+    `;
+
+    const result = (await this.usageModel.sequelize.query(query, {
+      replacements: { userUuid },
+      type: QueryTypes.SELECT,
+    })) as unknown as [
+      {
+        calculated_total: number;
+      }[],
+    ];
+
+    return Number((result[0] as any).calculated_total);
+  }
+
   toDomain(model: UsageModel): Usage {
     return Usage.build({
       ...model.toJSON(),

@@ -93,38 +93,56 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    this.getUserUsedStorageIncrementally(user).catch((error) => {
-      const errorObject = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      };
-      new Logger('[USAGE/CALCULATE_USAGE').error(
-        `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
-      );
-    });
-    return this.fileRepository.sumExistentFileSizes(user.id);
+    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+
+    return usageCalculation || 0;
   }
 
-  async getUserUsedStorageIncrementally(user: User) {
+  async getUserUsedStorageIncrementally(user: User): Promise<number> {
     const lastTemporalUsage =
       await this.usageService.getMostRecentTemporalUsage(user.uuid);
     const calculateFirstDelta = !lastTemporalUsage;
 
     if (calculateFirstDelta) {
-      await this.usageService.calculateFirstTemporalUsage(user.uuid);
-      // TODO: uncomment this when incremental usage calculation is ready
-      //return this.fileRepository.sumExistentFileSizes(user.id);
-      return;
+      const firstUsage = await this.usageService.calculateFirstTemporalUsage(
+        user.uuid,
+      );
+      const today = Time.dateWithTimeAdded(1, 'day', firstUsage.period);
+      const deltaChangeToday =
+        await this.fileRepository.sumFileSizeDeltaFromDate(user.id, today);
+
+      return firstUsage.delta + deltaChangeToday;
     }
 
+    const aggregatedUsage = await this.usageService.calculateAggregatedUsage(
+      user.uuid,
+    );
     const nextDeltaStartDate = lastTemporalUsage.getNextPeriodStartDate();
+    const deltaChangeSinceLastUsage =
+      await this.fileRepository.sumFileSizeDeltaFromDate(
+        user.id,
+        nextDeltaStartDate,
+      );
+
+    //  Backfill missing daily usages until yesterday.
+    // TODO: This should be done in a background job (Triggered event) instead of during user usage calculation
     const hasYesterdaysUsage = Time.isToday(nextDeltaStartDate);
     if (!hasYesterdaysUsage) {
-      await this.backfillUsageUntilYesterday(user, nextDeltaStartDate);
+      await this.backfillUsageUntilYesterday(user, nextDeltaStartDate).catch(
+        (error) => {
+          new Logger('[USAGE/BACKFILL]').error(
+            {
+              user: { email: user.email, uuid: user.uuid, userId: user.id },
+              nextDeltaStartDate,
+              error,
+            },
+            'There was an error backfilling user usage',
+          );
+        },
+      );
     }
 
-    // TODO: add calculation of the current day and sum of all the usages
+    return aggregatedUsage + deltaChangeSinceLastUsage;
   }
 
   async backfillUsageUntilYesterday(user: User, startDate: Date) {
