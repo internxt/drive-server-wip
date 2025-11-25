@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import {
   FindOptions,
+  Model,
+  ModelStatic,
   Op,
   QueryTypes,
   Sequelize,
@@ -59,6 +61,16 @@ export interface FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWithVersions(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    },
   ): Promise<Array<File> | []>;
   findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
   findByUuid(
@@ -312,7 +324,7 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
-    const files = await this.findAllCursor(
+    const files = await this.findAllCursorWithVersions(
       {
         ...where,
         updatedAt: { [Op.gt]: updatedAtAfter },
@@ -322,7 +334,7 @@ export class SequelizeFileRepository implements FileRepository {
       additionalOrders,
     );
 
-    return files.map(this.toDomain.bind(this));
+    return files;
   }
 
   async findAllNotDeleted(
@@ -370,6 +382,152 @@ export class SequelizeFileRepository implements FileRepository {
     return newOrder;
   }
 
+  private toSnakeCase(str: string): string {
+    return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  }
+
+  private buildWhereClause<TModel extends Model>(
+    where: Record<string, any>,
+    options: {
+      model: ModelStatic<TModel>;
+      tableAlias?: string;
+      includeWhereKeyword?: boolean;
+    },
+    replacements: Record<string, any> = {},
+  ): string {
+    const { model, tableAlias, includeWhereKeyword = true } = options;
+
+    if (!where || Object.keys(where).length === 0) {
+      return '';
+    }
+
+    const modelAttributes = model.getAttributes();
+    const queryGen = model.sequelize.getQueryInterface().queryGenerator as {
+      quoteIdentifier: (identifier: string) => string;
+    };
+    const quote = (identifier: string) => queryGen.quoteIdentifier(identifier);
+
+    const getColumnName = (fieldName: string): string => {
+      const attr = modelAttributes[fieldName];
+      return attr?.field || this.toSnakeCase(fieldName);
+    };
+
+    const operatorMap = [{ op: Op.gt, symbol: '>', name: 'gt' }];
+
+    const conditions: string[] = [];
+    let paramCounter = Object.keys(replacements).length;
+
+    for (const [key, value] of Object.entries(where)) {
+      const columnName = getColumnName(key);
+      const quotedColumn = tableAlias
+        ? `${tableAlias}.${quote(columnName)}`
+        : quote(columnName);
+
+      if (value === null) {
+        conditions.push(`${quotedColumn} IS NULL`);
+        continue;
+      }
+
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        let handled = false;
+
+        for (const { op, symbol, name } of operatorMap) {
+          if (value[op] !== undefined) {
+            const paramName = `where_${key}_${name}_${paramCounter++}`;
+            replacements[paramName] = value[op];
+            conditions.push(`${quotedColumn} ${symbol} :${paramName}`);
+            handled = true;
+            break;
+          }
+        }
+
+        if (handled) {
+          continue;
+        }
+      }
+
+      const paramName = `where_${key}_eq_${paramCounter++}`;
+      replacements[paramName] = value;
+      conditions.push(`${quotedColumn} = :${paramName}`);
+    }
+
+    const whereSql = conditions.join(' AND ');
+    return whereSql && includeWhereKeyword ? `WHERE ${whereSql}` : whereSql;
+  }
+
+  private buildOrderClause<TModel extends Model>(
+    order: Array<[string, string] | Literal> = [],
+    options: {
+      model: ModelStatic<TModel>;
+      tableAlias?: string;
+      defaultOrder?: string;
+    },
+  ): string {
+    const { model, tableAlias, defaultOrder = 'created_at DESC' } = options;
+
+    if (order.length === 0) {
+      return defaultOrder;
+    }
+
+    const queryGen = model.sequelize.getQueryInterface().queryGenerator as {
+      quoteIdentifier: (identifier: string) => string;
+    };
+    const quote = (identifier: string) => queryGen.quoteIdentifier(identifier);
+    const modelAttributes = model.getAttributes();
+
+    const getColumnName = (fieldName: string): string => {
+      const attr = modelAttributes[fieldName];
+      return attr?.field || this.toSnakeCase(fieldName);
+    };
+
+    return order
+      .map((orderItem) => {
+        if (!Array.isArray(orderItem)) {
+          return orderItem.toString();
+        }
+
+        const [field, direction] = orderItem;
+        if (typeof field !== 'string') {
+          return orderItem.toString();
+        }
+
+        const columnName = getColumnName(field);
+        const quotedColumn = tableAlias
+          ? `${tableAlias}.${quote(columnName)}`
+          : quote(columnName);
+
+        return `${quotedColumn} ${direction}`;
+      })
+      .join(', ');
+  }
+
+  private buildSelectFields<TModel extends Model>(options: {
+    model: ModelStatic<TModel>;
+    tableAlias: string;
+    excludeFields?: string[];
+  }): string {
+    const { model, tableAlias, excludeFields = [] } = options;
+    const modelAttributes = model.getAttributes();
+    const queryGen = model.sequelize.getQueryInterface().queryGenerator as {
+      quoteIdentifier: (identifier: string) => string;
+    };
+    const quote = (identifier: string) => queryGen.quoteIdentifier(identifier);
+
+    return Object.entries(modelAttributes)
+      .filter(([field]) => !excludeFields.includes(field))
+      .map(([field, attr]) => {
+        const column = attr.field || this.toSnakeCase(field);
+        const quotedColumn = `${tableAlias}.${column}`;
+
+        if (field === column) {
+          return quotedColumn;
+        }
+
+        return `${quotedColumn} as ${quote(field)}`;
+      })
+      .join(',\n    ');
+  }
+
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -387,6 +545,113 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorWithVersions(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+    options: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    } = {},
+  ): Promise<Array<File> | []> {
+    const replacements: Record<string, any> = { limit, offset };
+    const whereClause = this.buildWhereClause(
+      where,
+      {
+        model: this.fileModel,
+      },
+      replacements,
+    );
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+    const orderClause = this.buildOrderClause(appliedOrder, {
+      model: this.fileModel,
+    });
+
+    const thumbnailsSelect = options.withThumbnails
+      ? `, thumbnails_agg.thumbnails`
+      : ``;
+
+    const sharingsSelect = options.withSharings
+      ? `, sharings_agg.sharings`
+      : ``;
+
+    const thumbnailsJoin = options.withThumbnails
+      ? `LEFT JOIN LATERAL (
+          SELECT json_agg(
+            json_build_object(
+              'id', t.id,
+              'type', t.type,
+              'size', t.size,
+              'bucketId', t.bucket_id,
+              'bucketFile', t.bucket_file,
+              'encryptVersion', t.encrypt_version,
+              'createdAt', t.created_at,
+              'updatedAt', t.updated_at
+            )
+          ) as thumbnails
+          FROM thumbnails t
+          WHERE t.file_uuid = pf.uuid
+        ) thumbnails_agg ON true`
+      : ``;
+
+    const sharingsJoin = options.withSharings
+      ? `LEFT JOIN LATERAL (
+          SELECT json_agg(
+            json_build_object(
+              'id', s.id,
+              'type', s.type
+            )
+          ) as sharings
+          FROM sharings s
+          WHERE s.item_id = pf.uuid AND s.item_type = 'file'
+        ) sharings_agg ON true`
+      : ``;
+
+    const query = `
+      WITH paginated_files AS (
+        SELECT *
+        FROM files
+        ${whereClause}
+        ORDER BY ${orderClause}
+        LIMIT :limit OFFSET :offset
+      )
+      SELECT
+        ${this.buildSelectFields({
+          model: this.fileModel,
+          tableAlias: 'pf',
+          excludeFields: ['fileId', 'size'],
+        })},
+        COALESCE(latest_version.network_file_id, pf.file_id) as "fileId",
+        COALESCE(latest_version.total_size, pf.size) as "size"
+        ${thumbnailsSelect}
+        ${sharingsSelect}
+      FROM paginated_files pf
+      LEFT JOIN LATERAL (
+        SELECT
+          network_file_id,
+          size,
+          (SELECT SUM(size)
+           FROM file_versions fv2
+           WHERE fv2.file_id = pf.uuid AND fv2.status = 'EXISTS') as total_size
+        FROM file_versions
+        WHERE file_id = pf.uuid AND status = 'EXISTS'
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest_version ON true
+      ${thumbnailsJoin}
+      ${sharingsJoin}
+    `;
+
+    const results = (await this.fileModel.sequelize.query(query, {
+      replacements,
+      type: QueryTypes.SELECT,
+      raw: true,
+    })) as FileAttributes[];
+
+    return results.map((row) => this.fromRaw(row));
   }
 
   async findAllCursorWhereUpdatedAfterInWorkspace(
@@ -875,6 +1140,18 @@ export class SequelizeFileRepository implements FileRepository {
       folder: model.folder ? Folder.build(model.folder) : null,
       user: buildUser(model.user || model.workspaceUser?.creator),
     });
+    return file;
+  }
+
+  private fromRaw(data: FileAttributes): File {
+    const file = File.build({
+      ...data,
+      folder: data.folder ? Folder.build(data.folder) : null,
+      user: data.user ? User.build(data.user) : null,
+      thumbnails: data.thumbnails || [],
+      sharings: data.sharings || [],
+    } as FileAttributes);
+
     return file;
   }
 
