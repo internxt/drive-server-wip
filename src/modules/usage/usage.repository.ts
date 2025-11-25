@@ -91,52 +91,54 @@ export class SequelizeUsageRepository {
 
   public async calculateAggregatedUsage(userUuid: string): Promise<number> {
     const query = `
-      WITH yearly_years AS (
-        SELECT DISTINCT date_trunc('year', period) AS year
-        FROM public.usages
-        WHERE type = 'yearly' AND user_id = :userUuid
+      WITH 
+      has_yearly AS (
+        SELECT EXTRACT(YEAR FROM period)::int AS year
+        FROM usages
+        WHERE user_id = :userUuid AND type = 'yearly'
       ),
-      monthly_months AS (
-        SELECT DISTINCT date_trunc('month', period) AS month
-        FROM public.usages
-        WHERE type = 'monthly'
-          AND user_id = :userUuid
-          AND date_trunc('year', period) NOT IN (SELECT year FROM yearly_years)
+      has_monthly AS (
+        SELECT 
+          EXTRACT(YEAR FROM period)::int AS year,
+          EXTRACT(MONTH FROM period)::int AS month
+        FROM usages
+        WHERE user_id = :userUuid AND type = 'monthly'
       ),
-      aggregated_usage_data AS (
-        -- Yearly values
-        SELECT 
-          delta,
-          period
-        FROM public.usages
-        WHERE type = 'yearly' AND user_id = :userUuid
-
+      combined_deltas AS (
+        -- Always include yearly
+        SELECT delta 
+        FROM usages
+        WHERE user_id = :userUuid AND type = 'yearly'
+        
         UNION ALL
-
-        -- Monthly values (exclude years with yearly)
-        SELECT 
-          delta,
-          period
-        FROM public.usages
-        WHERE type = 'monthly'
-          AND user_id = :userUuid
-          AND date_trunc('year', period) NOT IN (SELECT year FROM yearly_years)
-
+        
+        -- Monthly only if no yearly for that year
+        SELECT delta 
+        FROM usages m
+        WHERE user_id = :userUuid AND type = 'monthly'
+          AND NOT EXISTS (
+            SELECT 1 FROM has_yearly 
+            WHERE year = EXTRACT(YEAR FROM m.period)::int
+          )
+        
         UNION ALL
-
-        -- Daily/replacement (exclude years with yearly AND months with monthly)
-        SELECT 
-          delta,
-          period
-        FROM public.usages
-        WHERE type IN ('daily', 'replacement')
-          AND user_id = :userUuid
-          AND date_trunc('year', period) NOT IN (SELECT year FROM yearly_years)
-          AND date_trunc('month', period) NOT IN (SELECT month FROM monthly_months)
+        
+        -- Daily/replacement only if no monthly or yearly for that period
+        SELECT delta 
+        FROM usages d
+        WHERE user_id = :userUuid AND type IN ('daily', 'replacement')
+          AND NOT EXISTS (
+            SELECT 1 FROM has_yearly 
+            WHERE year = EXTRACT(YEAR FROM d.period)::int
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM has_monthly 
+            WHERE year = EXTRACT(YEAR FROM d.period)::int
+              AND month = EXTRACT(MONTH FROM d.period)::int
+          )
       )
-      SELECT
-        COALESCE(SUM(delta), 0) AS calculated_total
-      FROM aggregated_usage_data;
+      SELECT SUM(delta) AS calculated_total
+      FROM combined_deltas;
     `;
 
     const result = (await this.usageModel.sequelize.query(query, {
