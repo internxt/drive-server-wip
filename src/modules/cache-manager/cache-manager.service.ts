@@ -9,6 +9,8 @@ export class CacheManagerService {
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly AVATAR_KEY_PREFIX = 'avatar:';
   private readonly TTL_10_MINUTES = 10000 * 60;
+  private readonly TTL_1_MINUTE = 1000 * 60;
+
   private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
@@ -31,7 +33,7 @@ export class CacheManagerService {
     const cachedUsage = await this.cacheManager.set(
       `${this.USAGE_KEY_PREFIX}${userUuid}`,
       { usage },
-      this.TTL_10_MINUTES,
+      this.TTL_1_MINUTE * 3,
     );
 
     return cachedUsage;
