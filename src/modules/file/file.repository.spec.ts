@@ -14,6 +14,7 @@ import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { Time } from '../../lib/time';
 
 describe('FileRepository', () => {
   let repository: FileRepository;
@@ -891,6 +892,49 @@ describe('FileRepository', () => {
         userId,
         sinceDate,
         untilDate,
+      );
+
+      expect(response).toBe(0);
+    });
+  });
+
+  describe('sumFileSizeDeltaFromDate', () => {
+    const userId = 123;
+    const sinceDate = Time.now('2024-01-01');
+
+    it('When files have size delta, then it should return the total delta', async () => {
+      const totalDelta = 1500;
+      const result = [{ total: totalDelta }];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(result as any);
+
+      const response = await repository.sumFileSizeDeltaFromDate(
+        userId,
+        sinceDate,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId,
+          }),
+          bind: {
+            sinceDate,
+          },
+          raw: true,
+        }),
+      );
+      expect(response).toBe(totalDelta);
+    });
+
+    it('When no files are found or total is null, then it should return 0', async () => {
+      const result = [{ total: null }];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(result as any);
+
+      const response = await repository.sumFileSizeDeltaFromDate(
+        userId,
+        sinceDate,
       );
 
       expect(response).toBe(0);

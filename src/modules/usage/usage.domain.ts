@@ -45,7 +45,7 @@ export class Usage implements UsageAttributes {
   }: UsageAttributes) {
     this.id = id;
     this.userId = userId;
-    this.delta = delta;
+    this.delta = Number(delta);
     this.period = new Date(period);
     this.type = type;
     this.createdAt = createdAt;
@@ -54,22 +54,6 @@ export class Usage implements UsageAttributes {
 
   static build(usage: UsageAttributes): Usage {
     return new Usage(usage);
-  }
-
-  isYearly(): boolean {
-    return this.type === UsageType.Yearly;
-  }
-
-  isPreviousDayTo(targetDate: Date): boolean {
-    if (this.isYearly()) {
-      return false;
-    }
-
-    const nextPeriodStart = this.getNextPeriodStartDate();
-    const normalizedTarget = new Date(targetDate);
-    normalizedTarget.setUTCHours(0, 0, 0, 0);
-
-    return nextPeriodStart.getTime() === normalizedTarget.getTime();
   }
   isTemporal(): boolean {
     return temporalUsage.has(this.type);

@@ -89,6 +89,70 @@ export class SequelizeUsageRepository {
     return newUsage ? this.toDomain(newUsage) : null;
   }
 
+  public async calculateAggregatedUsage(userUuid: string): Promise<number> {
+    const query = `
+      WITH 
+      has_yearly AS (
+        SELECT EXTRACT(YEAR FROM period)::int AS year
+        FROM usages
+        WHERE user_id = :userUuid AND type = 'yearly'
+      ),
+      has_monthly AS (
+        SELECT 
+          EXTRACT(YEAR FROM period)::int AS year,
+          EXTRACT(MONTH FROM period)::int AS month
+        FROM usages
+        WHERE user_id = :userUuid AND type = 'monthly'
+      ),
+      combined_deltas AS (
+        -- Always include yearly
+        SELECT delta 
+        FROM usages
+        WHERE user_id = :userUuid AND type = 'yearly'
+        
+        UNION ALL
+        
+        -- Monthly only if no yearly for that year
+        SELECT delta 
+        FROM usages m
+        WHERE user_id = :userUuid AND type = 'monthly'
+          AND NOT EXISTS (
+            SELECT 1 FROM has_yearly 
+            WHERE year = EXTRACT(YEAR FROM m.period)::int
+          )
+        
+        UNION ALL
+        
+        -- Daily/replacement only if no monthly or yearly for that period
+        SELECT delta 
+        FROM usages d
+        WHERE user_id = :userUuid AND type IN ('daily', 'replacement')
+          AND NOT EXISTS (
+            SELECT 1 FROM has_yearly 
+            WHERE year = EXTRACT(YEAR FROM d.period)::int
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM has_monthly 
+            WHERE year = EXTRACT(YEAR FROM d.period)::int
+              AND month = EXTRACT(MONTH FROM d.period)::int
+          )
+      )
+      SELECT SUM(delta) AS calculated_total
+      FROM combined_deltas;
+    `;
+
+    const result = (await this.usageModel.sequelize.query(query, {
+      replacements: { userUuid },
+      type: QueryTypes.SELECT,
+    })) as unknown as [
+      {
+        calculated_total: number;
+      }[],
+    ];
+
+    return Number((result[0] as any).calculated_total);
+  }
+
   toDomain(model: UsageModel): Usage {
     return Usage.build({
       ...model.toJSON(),
