@@ -47,6 +47,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
+import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
@@ -148,6 +149,32 @@ export class FileController {
         })} STACK: ${err.stack || 'NO STACK'}`,
       );
     }
+  }
+
+  @Get('/:uuid/versions')
+  @ApiOperation({
+    summary: 'Get file versions',
+  })
+  @ApiOkResponse({ isArray: true, type: FileVersionDto })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async getFileVersions(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+  ): Promise<FileVersionDto[]> {
+    const versions = await this.fileUseCases.getFileVersions(user, fileUuid);
+    return versions.map((v) => v.toJSON());
   }
 
   @Put('/:uuid')

@@ -53,6 +53,8 @@ import {
   TierLabel,
   VersionableFileExtension,
 } from './file-version.constants';
+import { SequelizeFileVersionRepository } from './file-version.repository';
+import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -65,6 +67,7 @@ export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private readonly fileRepository: SequelizeFileRepository,
+    private readonly fileVersionRepository: SequelizeFileVersionRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
@@ -235,6 +238,16 @@ export class FileUseCases {
     }
 
     return this.decrypFileName(file);
+  }
+
+  async getFileVersions(user: User, fileUuid: string): Promise<FileVersion[]> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return this.fileVersionRepository.findAllByFileId(fileUuid);
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
@@ -729,6 +742,7 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     newFileData: ReplaceFileDto,
+    tier?: Tier,
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
@@ -738,6 +752,51 @@ export class FileUseCases {
 
     if (file.status != FileStatus.EXISTS) {
       throw new BadRequestException(`${file.status} files can not be replaced`);
+    }
+
+    const shouldVersion = this.isFileVersionable(
+      file.type as VersionableFileExtension,
+      newFileData.size,
+      tier,
+    );
+
+    if (shouldVersion) {
+      await this.applyRetentionPolicy(fileUuid, tier.label);
+
+      const { fileId, size, modificationTime } = newFileData;
+
+      await Promise.all([
+        this.fileVersionRepository.findOrCreate({
+          fileId: file.uuid,
+          networkFileId: file.fileId,
+          size: file.size,
+          status: FileVersionStatus.EXISTS,
+        }),
+        this.createFileVersion(file, {
+          networkFileId: fileId,
+          size: size,
+        }),
+        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+          fileId,
+          size,
+          updatedAt: new Date(),
+          ...(modificationTime ? { modificationTime } : null),
+        }),
+      ]);
+
+      const newFile = File.build({ ...file, size, fileId });
+
+      await this.addFileReplacementDelta(user, file, newFile).catch((error) => {
+        new Logger('[USAGE/DAILY]').error(
+          `There was an error calculating the user usage incrementally: ${error.message}`,
+        );
+      });
+
+      return {
+        ...file.toJSON(),
+        fileId,
+        size,
+      };
     }
 
     const { fileId: oldFileId, bucket } = file;
@@ -1031,5 +1090,68 @@ export class FileUseCases {
     }
 
     return true;
+  }
+
+  private async applyRetentionPolicy(
+    fileUuid: string,
+    tierLabel: string,
+  ): Promise<void> {
+    const config = CONFIG[tierLabel as TierLabel];
+
+    if (!config) {
+      return;
+    }
+
+    const { retentionDays, maxVersions } = config;
+
+    const cutoffDate = Time.daysAgo(retentionDays);
+
+    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    const versionsByAge = versions.filter(
+      (version) => version.createdAt < cutoffDate,
+    );
+
+    const remainingVersions = versions
+      .filter((version) => version.createdAt >= cutoffDate)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const versionsByCount = remainingVersions.slice(maxVersions);
+
+    const versionsToDelete = [...versionsByAge, ...versionsByCount];
+
+    const remainingCount = versions.length - versionsToDelete.length;
+    if (remainingCount >= maxVersions) {
+      const versionsNotDeleted = versions.filter(
+        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
+      );
+      const oldestVersion = versionsNotDeleted.sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      )[0];
+
+      if (oldestVersion) {
+        versionsToDelete.push(oldestVersion);
+      }
+    }
+
+    if (versionsToDelete.length > 0) {
+      const idsToDelete = versionsToDelete.map((v) => v.id);
+      await this.fileVersionRepository.updateStatusBatch(
+        idsToDelete,
+        FileVersionStatus.DELETED,
+      );
+    }
+  }
+
+  private async createFileVersion(
+    file: File,
+    versionData: { networkFileId: string; size: bigint },
+  ): Promise<void> {
+    await this.fileVersionRepository.create({
+      fileId: file.uuid,
+      networkFileId: versionData.networkFileId,
+      size: versionData.size,
+      status: FileVersionStatus.EXISTS,
+    });
   }
 }
