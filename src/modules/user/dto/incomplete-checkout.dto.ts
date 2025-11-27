@@ -19,7 +19,7 @@ export class IncompleteCheckoutDto {
 
   @ApiPropertyOptional({
     description: 'Price of the plan in euros',
-    example: 320.0,
+    example: 320,
   })
   @IsOptional()
   @IsNumber()

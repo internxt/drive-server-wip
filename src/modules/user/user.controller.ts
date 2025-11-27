@@ -106,6 +106,7 @@ import { TimingConsistencyInterceptor } from '../auth/interceptors/timing-consis
 import { PlatformName } from '../../common/constants';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 
 @ApiTags('User')
 @Controller('users')
@@ -120,6 +121,7 @@ export class UserController {
     private readonly sharingService: SharingService,
     private readonly auditLogService: AuditLogService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly klaviyoService: KlaviyoTrackingService,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -1321,7 +1323,6 @@ export class UserController {
     const mnemonic = await this.userUseCases.generateMnemonic();
     return { mnemonic };
   }
-
   @Post('/payments/incomplete-checkout')
   @ApiBearerAuth()
   @ApiOperation({
@@ -1336,6 +1337,21 @@ export class UserController {
     @UserDecorator() user: User,
     @Body() dto: IncompleteCheckoutDto,
   ) {
-    return this.userUseCases.handleIncompleteCheckoutEvent(user, dto);
+    const result = await this.userUseCases.handleIncompleteCheckoutEvent(
+      user,
+      dto,
+    );
+    try {
+      await this.klaviyoService.trackCheckoutStarted(user.email, {
+        checkoutUrl: dto.completeCheckoutUrl,
+        planName: dto.planName,
+        price: dto.price,
+      });
+    } catch (error) {
+      Logger.error(
+        `[KLAVIYO] Failed to track checkout started for ${user.email}: ${error.message}`,
+      );
+    }
+    return result;
   }
 }

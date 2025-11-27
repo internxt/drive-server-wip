@@ -43,7 +43,6 @@ import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { KlaviyoTrackingService } from '../../externals/mailer/klaviyo-tracking.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
 import { UpdatePasswordDto } from './dto/update-password.dto';
@@ -162,7 +161,6 @@ export class UserUseCases {
     private readonly keyServerRepository: SequelizeKeyServerRepository,
     private readonly avatarService: AvatarService,
     private readonly mailerService: MailerService,
-    private readonly klaviyoTrackingService: KlaviyoTrackingService,
     private readonly mailLimitRepository: SequelizeMailLimitRepository,
     private readonly featureLimitRepository: SequelizeFeatureLimitsRepository,
     private readonly keyServerUseCases: KeyServerUseCases,
@@ -1977,18 +1975,6 @@ export class UserUseCases {
     if (mailLimit.isLimitForTodayReached()) {
       throw new BadRequestException(
         'Daily limit for incomplete checkout emails reached',
-      );
-    }
-
-    try {
-      await this.klaviyoTrackingService.trackCheckoutStarted(user.email, {
-        checkoutUrl: dto.completeCheckoutUrl,
-        planName: dto.planName,
-        price: dto.price,
-      });
-    } catch (err) {
-      Logger.error(
-        `Failed to track checkout in Klaviyo for ${user.email}: ${err.message}`,
       );
     }
 

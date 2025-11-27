@@ -40,7 +40,6 @@ import { SharingModule } from '../sharing/sharing.module';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { KlaviyoTrackingService } from '../../externals/mailer/klaviyo-tracking.service';
 import { SecurityModule } from '../security/security.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
@@ -50,6 +49,7 @@ import { BackupModule } from '../backups/backup.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
+import { KlaviyoModule } from '../..//externals/klaviyo/klaviyo.module';
 
 @Module({
   imports: [
@@ -81,6 +81,7 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     CacheManagerModule,
     AsymmetricEncryptionModule,
     AuditLogsModule,
+    KlaviyoModule,
   ],
   controllers: [UserController],
   providers: [
@@ -100,7 +101,6 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     NewsletterService,
     AvatarService,
     MailerService,
-    KlaviyoTrackingService,
   ],
   exports: [
     UserUseCases,
