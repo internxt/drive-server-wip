@@ -11,7 +11,7 @@ export interface FileVersionRepository {
   create(
     version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<FileVersion>;
-  findOrCreate(
+  upsert(
     version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<FileVersion>;
   findAllByFileId(fileId: string): Promise<FileVersion[]>;
@@ -41,19 +41,21 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     return FileVersion.build(createdVersion.toJSON());
   }
 
-  async findOrCreate(
+  async upsert(
     version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<FileVersion> {
-    const [instance] = await this.model.findOrCreate({
-      where: {
+    const [instance] = await this.model.upsert(
+      {
         fileId: version.fileId,
         networkFileId: version.networkFileId,
-      },
-      defaults: {
         size: version.size,
         status: version.status || FileVersionStatus.EXISTS,
+        updatedAt: new Date(),
       },
-    });
+      {
+        conflictFields: ['file_id', 'network_file_id'],
+      },
+    );
 
     return FileVersion.build(instance.toJSON());
   }

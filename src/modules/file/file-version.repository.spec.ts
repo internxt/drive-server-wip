@@ -296,6 +296,79 @@ describe('SequelizeFileVersionRepository', () => {
     });
   });
 
+  describe('upsert', () => {
+    it('When upserting a version, then it should return a FileVersion instance', async () => {
+      const versionData = {
+        fileId: 'file-uuid',
+        networkFileId: 'network-id',
+        size: BigInt(1024),
+        status: FileVersionStatus.EXISTS,
+      };
+
+      const mockUpsertedVersion = {
+        id: 'version-id',
+        ...versionData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        toJSON: jest.fn().mockReturnValue({
+          id: 'version-id',
+          ...versionData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      };
+
+      jest
+        .spyOn(fileVersionModel, 'upsert')
+        .mockResolvedValue([mockUpsertedVersion as any, true]);
+
+      const result = await repository.upsert(versionData);
+
+      expect(result).toBeInstanceOf(FileVersion);
+      expect(fileVersionModel.upsert).toHaveBeenCalledWith({
+        fileId: versionData.fileId,
+        networkFileId: versionData.networkFileId,
+        size: versionData.size,
+        status: versionData.status,
+      });
+    });
+
+    it('When upserting without status, then it defaults to EXISTS', async () => {
+      const versionData = {
+        fileId: 'file-uuid',
+        networkFileId: 'network-id',
+        size: BigInt(1024),
+      };
+
+      const mockUpsertedVersion = {
+        id: 'version-id',
+        ...versionData,
+        status: FileVersionStatus.EXISTS,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        toJSON: jest.fn().mockReturnValue({
+          id: 'version-id',
+          ...versionData,
+          status: FileVersionStatus.EXISTS,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      };
+
+      jest
+        .spyOn(fileVersionModel, 'upsert')
+        .mockResolvedValue([mockUpsertedVersion as any, true]);
+
+      await repository.upsert(versionData as any);
+
+      expect(fileVersionModel.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: FileVersionStatus.EXISTS,
+        }),
+      );
+    });
+  });
+
   describe('findById', () => {
     it('When version exists, then it returns the FileVersion', async () => {
       const versionId = 'version-id';
