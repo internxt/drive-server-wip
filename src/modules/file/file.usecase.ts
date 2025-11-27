@@ -868,7 +868,7 @@ export class FileUseCases {
 
     const shouldVersion = this.isFileVersionable(
       file.type as VersionableFileExtension,
-      newFileData.size,
+      file.size,
       tier,
     );
 
@@ -878,15 +878,11 @@ export class FileUseCases {
       const { fileId, size, modificationTime } = newFileData;
 
       await Promise.all([
-        this.fileVersionRepository.findOrCreate({
+        this.fileVersionRepository.upsert({
           fileId: file.uuid,
           networkFileId: file.fileId,
           size: file.size,
           status: FileVersionStatus.EXISTS,
-        }),
-        this.createFileVersion(file, {
-          networkFileId: fileId,
-          size: size,
         }),
         this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
           fileId,
@@ -895,14 +891,6 @@ export class FileUseCases {
           ...(modificationTime ? { modificationTime } : null),
         }),
       ]);
-
-      const newFile = File.build({ ...file, size, fileId });
-
-      await this.addFileReplacementDelta(user, file, newFile).catch((error) => {
-        new Logger('[USAGE/DAILY]').error(
-          `There was an error calculating the user usage incrementally: ${error.message}`,
-        );
-      });
 
       return {
         ...file.toJSON(),

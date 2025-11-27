@@ -1944,12 +1944,9 @@ describe('FileUseCases', () => {
       const applyRetentionSpy = jest
         .spyOn(service as any, 'applyRetentionPolicy')
         .mockResolvedValue(undefined);
-      const findOrCreateSpy = jest
-        .spyOn(fileVersionRepository, 'findOrCreate')
+      const upsertSpy = jest
+        .spyOn(fileVersionRepository, 'upsert')
         .mockResolvedValue({} as any);
-      const createFileVersionSpy = jest
-        .spyOn(service as any, 'createFileVersion')
-        .mockResolvedValue(undefined);
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       const deleteFileSpy = jest.spyOn(bridgeService, 'deleteFile');
 
@@ -1964,15 +1961,11 @@ describe('FileUseCases', () => {
         mockFile.uuid,
         mockTier.label,
       );
-      expect(findOrCreateSpy).toHaveBeenCalledWith({
+      expect(upsertSpy).toHaveBeenCalledWith({
         fileId: mockFile.uuid,
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: 'EXISTS',
-      });
-      expect(createFileVersionSpy).toHaveBeenCalledWith(mockFile, {
-        networkFileId: replaceData.fileId,
-        size: replaceData.size,
       });
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalled();
       expect(deleteFileSpy).not.toHaveBeenCalled();
@@ -2004,7 +1997,7 @@ describe('FileUseCases', () => {
         service as any,
         'applyRetentionPolicy',
       );
-      const findOrCreateSpy = jest.spyOn(fileVersionRepository, 'findOrCreate');
+      const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
 
@@ -2016,7 +2009,7 @@ describe('FileUseCases', () => {
       );
 
       expect(applyRetentionSpy).not.toHaveBeenCalled();
-      expect(findOrCreateSpy).not.toHaveBeenCalled();
+      expect(upsertSpy).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).toHaveBeenCalledWith(
         userMocked,
         mockFile.bucket,
@@ -2045,7 +2038,7 @@ describe('FileUseCases', () => {
         service as any,
         'applyRetentionPolicy',
       );
-      const findOrCreateSpy = jest.spyOn(fileVersionRepository, 'findOrCreate');
+      const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
 
@@ -2057,7 +2050,7 @@ describe('FileUseCases', () => {
       );
 
       expect(applyRetentionSpy).not.toHaveBeenCalled();
-      expect(findOrCreateSpy).not.toHaveBeenCalled();
+      expect(upsertSpy).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).toHaveBeenCalledWith(
         userMocked,
         mockFile.bucket,
