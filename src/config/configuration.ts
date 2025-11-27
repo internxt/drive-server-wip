@@ -130,6 +130,7 @@ export default () => ({
     listId: process.env.KLAVIYO_LIST_ID,
   },
   klaviyo: {
+    apiKey: process.env.KLAVIYO_MAILER_API_KEY,
     baseUrl: process.env.KLAVIYO_URL,
   },
   sentry: {
