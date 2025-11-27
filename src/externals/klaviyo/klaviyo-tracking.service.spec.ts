@@ -8,6 +8,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('KlaviyoTrackingService', () => {
   let service: KlaviyoTrackingService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let configService: ConfigService;
 
   const mockApiKey = 'test-klaviyo-api-key';
