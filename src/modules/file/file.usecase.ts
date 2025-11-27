@@ -1184,7 +1184,7 @@ export class FileUseCases {
 
     const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
 
-    const versionsByAge = versions.filter(
+    const versionsToDeleteByAge = versions.filter(
       (version) => version.createdAt < cutoffDate,
     );
 
@@ -1192,9 +1192,12 @@ export class FileUseCases {
       .filter((version) => version.createdAt >= cutoffDate)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    const versionsByCount = remainingVersions.slice(maxVersions);
+    const versionsToDeleteByCount = remainingVersions.slice(maxVersions);
 
-    const versionsToDelete = [...versionsByAge, ...versionsByCount];
+    const versionsToDelete = [
+      ...versionsToDeleteByAge,
+      ...versionsToDeleteByCount,
+    ];
 
     const remainingCount = versions.length - versionsToDelete.length;
     if (remainingCount >= maxVersions) {
