@@ -8,8 +8,6 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('KlaviyoTrackingService', () => {
   let service: KlaviyoTrackingService;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let configService: ConfigService;
 
   const mockApiKey = 'test-klaviyo-api-key';
   const mockBaseUrl = 'https://a.klaviyo.com/api/';
@@ -34,7 +32,6 @@ describe('KlaviyoTrackingService', () => {
     }).compile();
 
     service = module.get<KlaviyoTrackingService>(KlaviyoTrackingService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
