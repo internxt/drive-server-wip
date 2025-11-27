@@ -14,6 +14,7 @@ export interface FileVersionRepository {
   findAllByFileId(fileId: string): Promise<FileVersion[]>;
   findById(id: string): Promise<FileVersion | null>;
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
+  updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
 }
 
@@ -64,6 +65,18 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       { status },
       {
         where: { id },
+      },
+    );
+  }
+
+  async updateStatusBatch(
+    ids: string[],
+    status: FileVersionStatus,
+  ): Promise<void> {
+    await this.model.update(
+      { status },
+      {
+        where: { id: ids },
       },
     );
   }
