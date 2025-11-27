@@ -325,12 +325,15 @@ describe('SequelizeFileVersionRepository', () => {
       const result = await repository.upsert(versionData);
 
       expect(result).toBeInstanceOf(FileVersion);
-      expect(fileVersionModel.upsert).toHaveBeenCalledWith({
-        fileId: versionData.fileId,
-        networkFileId: versionData.networkFileId,
-        size: versionData.size,
-        status: versionData.status,
-      });
+      expect(fileVersionModel.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fileId: versionData.fileId,
+          networkFileId: versionData.networkFileId,
+          size: versionData.size,
+          status: versionData.status,
+        }),
+        { conflictFields: ['file_id', 'network_file_id'] },
+      );
     });
 
     it('When upserting without status, then it defaults to EXISTS', async () => {
@@ -365,6 +368,7 @@ describe('SequelizeFileVersionRepository', () => {
         expect.objectContaining({
           status: FileVersionStatus.EXISTS,
         }),
+        { conflictFields: ['file_id', 'network_file_id'] },
       );
     });
   });
