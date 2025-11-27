@@ -36,6 +36,10 @@ export class UsageService {
     return this.usageRepository.createFirstUsageCalculation(userUuid);
   }
 
+  async calculateAggregatedUsage(userUuid: User['uuid']) {
+    return this.usageRepository.calculateAggregatedUsage(userUuid);
+  }
+
   async addFileReplacementDelta(
     user: User,
     oldFileData: File,

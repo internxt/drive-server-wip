@@ -130,6 +130,10 @@ export interface FileRepository {
     sinceDate: Date,
     untilDate: Date,
   ): Promise<number>;
+  sumFileSizeDeltaFromDate(
+    userId: FileAttributes['userId'],
+    sinceDate: Date,
+  ): Promise<number>;
 }
 
 @Injectable()
@@ -950,6 +954,55 @@ export class SequelizeFileRepository implements FileRepository {
       bind: {
         sinceDate,
         untilDate,
+      },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) || 0;
+  }
+
+  async sumFileSizeDeltaFromDate(
+    userId: FileAttributes['userId'],
+    sinceDate: Date,
+  ): Promise<number> {
+    const result = await this.fileModel.findAll({
+      attributes: [
+        [
+          Sequelize.literal(`
+          SUM(
+            CASE      
+              WHEN status != 'DELETED' THEN size
+              
+              -- Files created BEFORE the period but deleted DURING the period
+              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
+
+              -- Files created and deleted DURING the period does not affect delta
+              ELSE 0
+            END
+          )
+        `),
+          'total',
+        ],
+      ],
+      where: {
+        userId,
+        [Op.or]: [
+          {
+            status: { [Op.ne]: FileStatus.DELETED },
+            createdAt: {
+              [Op.gte]: sinceDate,
+            },
+          },
+          {
+            status: FileStatus.DELETED,
+            updatedAt: {
+              [Op.gte]: sinceDate,
+            },
+          },
+        ],
+      },
+      bind: {
+        sinceDate,
       },
       raw: true,
     });

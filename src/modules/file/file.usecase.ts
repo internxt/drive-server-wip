@@ -58,6 +58,8 @@ import { FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
+import { TrashItemType } from '../trash/trash.attributes';
+import { TrashUseCases } from '../trash/trash.usecase';
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -70,6 +72,8 @@ export class FileUseCases {
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
     private readonly sharingUsecases: SharingService,
+    @Inject(forwardRef(() => TrashUseCases))
+    private readonly trashUsecases: TrashUseCases,
     private readonly network: BridgeService,
     private readonly cryptoService: CryptoService,
     private readonly thumbnailUsecases: ThumbnailUseCases,
@@ -100,38 +104,56 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    this.getUserUsedStorageIncrementally(user).catch((error) => {
-      const errorObject = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      };
-      new Logger('[USAGE/CALCULATE_USAGE').error(
-        `There was an error calculating the user usage incrementally ${JSON.stringify({ errorObject })}`,
-      );
-    });
-    return this.fileRepository.sumExistentFileSizes(user.id);
+    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+
+    return usageCalculation || 0;
   }
 
-  async getUserUsedStorageIncrementally(user: User) {
+  async getUserUsedStorageIncrementally(user: User): Promise<number> {
     const lastTemporalUsage =
       await this.usageService.getMostRecentTemporalUsage(user.uuid);
     const calculateFirstDelta = !lastTemporalUsage;
 
     if (calculateFirstDelta) {
-      await this.usageService.calculateFirstTemporalUsage(user.uuid);
-      // TODO: uncomment this when incremental usage calculation is ready
-      //return this.fileRepository.sumExistentFileSizes(user.id);
-      return;
+      const firstUsage = await this.usageService.calculateFirstTemporalUsage(
+        user.uuid,
+      );
+      const today = Time.dateWithTimeAdded(1, 'day', firstUsage.period);
+      const deltaChangeToday =
+        await this.fileRepository.sumFileSizeDeltaFromDate(user.id, today);
+
+      return firstUsage.delta + deltaChangeToday;
     }
 
+    const aggregatedUsage = await this.usageService.calculateAggregatedUsage(
+      user.uuid,
+    );
     const nextDeltaStartDate = lastTemporalUsage.getNextPeriodStartDate();
+    const deltaChangeSinceLastUsage =
+      await this.fileRepository.sumFileSizeDeltaFromDate(
+        user.id,
+        nextDeltaStartDate,
+      );
+
+    //  Backfill missing daily usages until yesterday.
+    // TODO: This should be done in a background job (Triggered event) instead of during user usage calculation
     const hasYesterdaysUsage = Time.isToday(nextDeltaStartDate);
     if (!hasYesterdaysUsage) {
-      await this.backfillUsageUntilYesterday(user, nextDeltaStartDate);
+      await this.backfillUsageUntilYesterday(user, nextDeltaStartDate).catch(
+        (error) => {
+          new Logger('[USAGE/BACKFILL]').error(
+            {
+              user: { email: user.email, uuid: user.uuid, userId: user.id },
+              nextDeltaStartDate,
+              error,
+            },
+            'There was an error backfilling user usage',
+          );
+        },
+      );
     }
 
-    // TODO: add calculation of the current day and sum of all the usages
+    return aggregatedUsage + deltaChangeSinceLastUsage;
   }
 
   async backfillUsageUntilYesterday(user: User, startDate: Date) {
@@ -654,9 +676,13 @@ export class FileUseCases {
     user: User,
     fileIds: FileAttributes['fileId'][],
     fileUuids: FileAttributes['uuid'][] = [],
+    tierLabel?: string,
   ): Promise<void> {
     const files = await this.fileRepository.findByFileIds(user.id, fileIds);
+
     const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
+
+    tierLabel = tierLabel || PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 
     await Promise.all([
       this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
@@ -667,6 +693,12 @@ export class FileUseCases {
         SharingItemType.File,
       ),
     ]);
+
+    this.trashUsecases
+      .addItemsToTrash(allFileUuids, TrashItemType.File, tierLabel, user.id)
+      .catch((err) =>
+        Logger.error(`[TRASH] Error adding files to trash: ${err.message}`),
+      );
   }
 
   async getEncryptionKeyFromFile(
@@ -773,8 +805,11 @@ export class FileUseCases {
         name: error.name,
         message: error.message,
         stack: error.stack,
+        user: { email: user.email, uuid: user.uuid, userId: user.id },
+        newFileData: { size: newFile.size, fileId: newFile.fileId },
+        oldFileData: { size: file.size, fileId: file.fileId },
       };
-      new Logger('USAGE/DAILY').error({
+      new Logger('USAGE/REPLACEMENT').error({
         error: errorObject,
         msg: 'There was an error calculating the user usage incrementally',
       });
@@ -874,11 +909,20 @@ export class FileUseCases {
       type: file.type,
     };
 
+    const wasTrashed = file.status === FileStatus.TRASHED;
+
     await this.fileRepository.updateByUuidAndUserId(
       fileUuid,
       user.id,
       updateData,
     );
+
+    if (wasTrashed && this.trashUsecases) {
+      await this.trashUsecases.removeItemsFromTrash(
+        [fileUuid],
+        TrashItemType.File,
+      );
+    }
 
     return Object.assign(file, updateData);
   }
@@ -994,6 +1038,15 @@ export class FileUseCases {
     const lockAcquired = await this.redisService
       .tryAcquireLock(lockKey, 3000)
       .catch((_) => {
+        new Logger('USAGE/REPLACEMENT').warn(
+          {
+            lockKey,
+            user: { email: user.email, uuid: user.uuid, userId: user.id },
+            newFileData: { size: newFileData.size, fileId: newFileData.fileId },
+            oldFileData: { size: oldFileData.size, fileId: oldFileData.fileId },
+          },
+          'Could not acquire lock for adding file replacement delta',
+        );
         return true;
       });
 
