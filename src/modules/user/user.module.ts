@@ -49,6 +49,7 @@ import { BackupModule } from '../backups/backup.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
+import { KlaviyoModule } from '../..//externals/klaviyo/klaviyo.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     CacheManagerModule,
     AsymmetricEncryptionModule,
     AuditLogsModule,
+    KlaviyoModule,
   ],
   controllers: [UserController],
   providers: [
