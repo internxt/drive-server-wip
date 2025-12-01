@@ -6,6 +6,7 @@ export enum FileVersionStatus {
 export interface FileVersionAttributes {
   id: string;
   fileId: string;
+  userId: number;
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
@@ -16,6 +17,7 @@ export interface FileVersionAttributes {
 export class FileVersion implements FileVersionAttributes {
   id: string;
   fileId: string;
+  userId: number;
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
@@ -25,6 +27,7 @@ export class FileVersion implements FileVersionAttributes {
   private constructor(attributes: FileVersionAttributes) {
     this.id = attributes.id;
     this.fileId = attributes.fileId;
+    this.userId = attributes.userId;
     this.networkFileId = attributes.networkFileId;
     this.size = attributes.size;
     this.status = attributes.status;
@@ -48,6 +51,7 @@ export class FileVersion implements FileVersionAttributes {
     return {
       id: this.id,
       fileId: this.fileId,
+      userId: this.userId,
       networkFileId: this.networkFileId,
       size: this.size,
       status: this.status,

@@ -1345,32 +1345,57 @@ describe('FileUseCases', () => {
   });
 
   describe('getUserUsedStorage', () => {
-    it('When called, it should return the user total used space', async () => {
+    it('When called, it should return the user total used space including versions', async () => {
+      const totalUsage = 1000;
+      const versionsSize = 500;
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(totalUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsSize);
+
+      const result = await service.getUserUsedStorage(userMocked);
+      expect(result).toEqual(totalUsage + versionsSize);
+    });
+
+    it('When getUserUsedStorageIncrementally returns null, it should return only versions size', async () => {
+      const versionsSize = 200;
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsSize);
+
+      const result = await service.getUserUsedStorage(userMocked);
+      expect(result).toEqual(versionsSize);
+    });
+
+    it('When getUserUsedStorageIncrementally returns undefined, it should return only versions size', async () => {
+      const versionsSize = 300;
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsSize);
+
+      const result = await service.getUserUsedStorage(userMocked);
+      expect(result).toEqual(versionsSize);
+    });
+
+    it('When user has no versions, it should return only incremental usage', async () => {
       const totalUsage = 1000;
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
         .mockResolvedValueOnce(totalUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(0);
 
       const result = await service.getUserUsedStorage(userMocked);
       expect(result).toEqual(totalUsage);
-    });
-
-    it('When getUserUsedStorageIncrementally returns null, it should return 0', async () => {
-      jest
-        .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(null);
-
-      const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(0);
-    });
-
-    it('When getUserUsedStorageIncrementally returns undefined, it should return 0', async () => {
-      jest
-        .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(undefined);
-
-      const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(0);
     });
   });
 
@@ -1704,6 +1729,7 @@ describe('FileUseCases', () => {
       );
       expect(upsertSpy).toHaveBeenCalledWith({
         fileId: mockFile.uuid,
+        userId: userMocked.id,
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: 'EXISTS',
