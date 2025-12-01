@@ -1120,16 +1120,4 @@ export class FileUseCases {
       );
     }
   }
-
-  private async createFileVersion(
-    file: File,
-    versionData: { networkFileId: string; size: bigint },
-  ): Promise<void> {
-    await this.fileVersionRepository.create({
-      fileId: file.uuid,
-      networkFileId: versionData.networkFileId,
-      size: versionData.size,
-      status: FileVersionStatus.EXISTS,
-    });
-  }
 }
