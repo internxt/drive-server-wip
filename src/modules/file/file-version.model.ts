@@ -9,6 +9,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { FileModel } from './file.model';
+import { UserModel } from '../user/user.model';
 import {
   FileVersionAttributes,
   FileVersionStatus,
@@ -32,6 +33,13 @@ export class FileVersionModel extends Model implements FileVersionAttributes {
 
   @BelongsTo(() => FileModel, 'fileId')
   file: FileModel;
+
+  @ForeignKey(() => UserModel)
+  @Column(DataType.INTEGER)
+  userId: number;
+
+  @BelongsTo(() => UserModel, 'userId')
+  user: UserModel;
 
   @Column(DataType.STRING)
   networkFileId: string;
