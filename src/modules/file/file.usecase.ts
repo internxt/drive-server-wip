@@ -53,6 +53,8 @@ import {
   TierLabel,
   VersionableFileExtension,
 } from './file-version.constants';
+import { SequelizeFileVersionRepository } from './file-version.repository';
+import { FileVersion } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -65,6 +67,7 @@ export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private readonly fileRepository: SequelizeFileRepository,
+    private readonly fileVersionRepository: SequelizeFileVersionRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
@@ -235,6 +238,16 @@ export class FileUseCases {
     }
 
     return this.decrypFileName(file);
+  }
+
+  async getFileVersions(user: User, fileUuid: string): Promise<FileVersion[]> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return this.fileVersionRepository.findAllByFileId(fileUuid);
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
