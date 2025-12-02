@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   Param,
@@ -175,6 +176,32 @@ export class FileController {
   ): Promise<FileVersionDto[]> {
     const versions = await this.fileUseCases.getFileVersions(user, fileUuid);
     return versions.map((v) => v.toJSON());
+  }
+
+  @Delete('/:uuid/versions/:versionId')
+  @ApiOperation({
+    summary: 'Delete a file version',
+  })
+  @HttpCode(204)
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async deleteFileVersion(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+    @Param('versionId', ValidateUUIDPipe) versionId: string,
+  ): Promise<void> {
+    await this.fileUseCases.deleteFileVersion(user, fileUuid, versionId);
   }
 
   @Put('/:uuid')

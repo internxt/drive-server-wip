@@ -54,7 +54,7 @@ import {
   VersionableFileExtension,
 } from './file-version.constants';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion } from './file-version.domain';
+import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -248,6 +248,58 @@ export class FileUseCases {
     }
 
     return this.fileVersionRepository.findAllByFileId(fileUuid);
+  }
+
+  async deleteFileVersion(
+    user: User,
+    fileUuid: string,
+    versionId: string,
+  ): Promise<void> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('You do not own this file');
+    }
+
+    const version = await this.fileVersionRepository.findById(versionId);
+
+    if (!version) {
+      throw new NotFoundException('Version not found');
+    }
+
+    if (version.fileId !== fileUuid) {
+      throw new BadRequestException('Version does not belong to this file');
+    }
+
+    const allVersions =
+      await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    if (allVersions.length === 1) {
+      throw new BadRequestException('Cannot delete the last version of a file');
+    }
+
+    await this.fileVersionRepository.updateStatus(
+      versionId,
+      FileVersionStatus.DELETED,
+    );
+
+    const remainingVersions = allVersions
+      .filter(
+        (v) => v.id !== versionId && v.status === FileVersionStatus.EXISTS,
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const latestVersion = remainingVersions[0];
+
+    await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+      fileId: latestVersion.networkFileId,
+      size: latestVersion.size,
+      updatedAt: new Date(),
+    });
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
