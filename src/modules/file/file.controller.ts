@@ -177,6 +177,37 @@ export class FileController {
     return versions.map((v) => v.toJSON());
   }
 
+  @Post('/:uuid/versions/:versionId/restore')
+  @ApiOperation({
+    summary: 'Restore a file version',
+  })
+  @ApiOkResponse({ type: FileVersionDto })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async restoreFileVersion(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+    @Param('versionId', ValidateUUIDPipe) versionId: string,
+  ): Promise<FileVersionDto> {
+    const version = await this.fileUseCases.restoreFileVersion(
+      user,
+      fileUuid,
+      versionId,
+    );
+    return version.toJSON();
+  }
+
   @Put('/:uuid')
   @GetDataFromRequest([
     {
