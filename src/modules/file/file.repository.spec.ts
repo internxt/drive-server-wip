@@ -756,21 +756,31 @@ describe('FileRepository', () => {
   });
 
   describe('deleteUserTrashedFilesBatch', () => {
-    it('When deleting trashed files in batch, then it should use correct SQL replacements', async () => {
+    const setupQueryMock = (returnValue: { uuid: string }[]) => {
+      const queryMock = jest.fn().mockResolvedValue(returnValue);
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: { query: queryMock },
+        configurable: true,
+      });
+      return queryMock;
+    };
+
+    it('When deleting trashed files in batch, then it should return deleted UUIDs', async () => {
       const userId = 12345;
       const limit = 100;
-      const mockQueryResult: [unknown[], unknown] = [[], 5];
-
-      jest
-        .spyOn(fileModel.sequelize, 'query')
-        .mockResolvedValueOnce(mockQueryResult);
+      const mockUuids = [
+        { uuid: 'uuid-1' },
+        { uuid: 'uuid-2' },
+        { uuid: 'uuid-3' },
+      ];
+      const queryMock = setupQueryMock(mockUuids);
 
       const result = await repository.deleteUserTrashedFilesBatch(
         userId,
         limit,
       );
 
-      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+      expect(queryMock).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE files'),
         {
           replacements: {
@@ -779,35 +789,46 @@ describe('FileRepository', () => {
             deletedStatus: FileStatus.DELETED,
             trashedStatus: FileStatus.TRASHED,
           },
-          type: QueryTypes.UPDATE,
+          type: QueryTypes.SELECT,
         },
       );
-      expect(result).toBe(5);
+      expect(result).toEqual(['uuid-1', 'uuid-2', 'uuid-3']);
     });
 
     it('When deleting trashed files with different parameters, then replacements should match input', async () => {
       const userId = 99999;
       const limit = 50;
-      const mockQueryResult: [unknown[], unknown] = [[], 3];
+      const mockUuids = [{ uuid: 'uuid-a' }, { uuid: 'uuid-b' }];
+      const queryMock = setupQueryMock(mockUuids);
 
-      jest
-        .spyOn(fileModel.sequelize, 'query')
-        .mockResolvedValueOnce(mockQueryResult);
-
-      await repository.deleteUserTrashedFilesBatch(userId, limit);
-
-      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
-        expect.any(String),
-        {
-          replacements: {
-            userId: userId,
-            limit,
-            deletedStatus: FileStatus.DELETED,
-            trashedStatus: FileStatus.TRASHED,
-          },
-          type: QueryTypes.UPDATE,
-        },
+      const result = await repository.deleteUserTrashedFilesBatch(
+        userId,
+        limit,
       );
+
+      expect(queryMock).toHaveBeenCalledWith(expect.any(String), {
+        replacements: {
+          userId: userId,
+          limit,
+          deletedStatus: FileStatus.DELETED,
+          trashedStatus: FileStatus.TRASHED,
+        },
+        type: QueryTypes.SELECT,
+      });
+      expect(result).toEqual(['uuid-a', 'uuid-b']);
+    });
+
+    it('When no trashed files exist, then it should return empty array', async () => {
+      const userId = 12345;
+      const limit = 100;
+      setupQueryMock([]);
+
+      const result = await repository.deleteUserTrashedFilesBatch(
+        userId,
+        limit,
+      );
+
+      expect(result).toEqual([]);
     });
   });
 

@@ -657,4 +657,40 @@ describe('SequelizeFileVersionRepository', () => {
       );
     });
   });
+
+  describe('deleteAllByFileIds', () => {
+    it('When deleting all versions by file IDs, then it marks them as DELETED', async () => {
+      const fileIds = ['file-uuid-1', 'file-uuid-2'];
+
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([3] as any);
+
+      await repository.deleteAllByFileIds(fileIds);
+
+      expect(fileVersionModel.update).toHaveBeenCalledWith(
+        { status: FileVersionStatus.DELETED },
+        expect.objectContaining({
+          where: expect.objectContaining({
+            fileId: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('When no versions exist for files, then update returns 0 affected rows', async () => {
+      const fileIds = ['non-existent-file'];
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([0] as any);
+
+      await repository.deleteAllByFileIds(fileIds);
+
+      expect(fileVersionModel.update).toHaveBeenCalled();
+    });
+
+    it('When empty array is passed, then it does not trigger update', async () => {
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([0] as any);
+
+      await repository.deleteAllByFileIds([]);
+
+      expect(fileVersionModel.update).not.toHaveBeenCalled();
+    });
+  });
 });

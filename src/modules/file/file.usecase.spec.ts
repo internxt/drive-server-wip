@@ -299,6 +299,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
         .mockResolvedValueOnce();
+      jest
+        .spyOn(fileVersionRepository, 'deleteAllByFileId')
+        .mockResolvedValueOnce();
       jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValueOnce();
 
       const { id, uuid } = await service.deleteFilePermanently(mockUser, {
@@ -313,6 +316,10 @@ describe('FileUseCases', () => {
 
       expect(thumbnailUseCases.deleteThumbnailByFileUuid).toHaveBeenCalledWith(
         mockUser,
+        mockFile.uuid,
+      );
+
+      expect(fileVersionRepository.deleteAllByFileId).toHaveBeenCalledWith(
         mockFile.uuid,
       );
 
@@ -1416,6 +1423,9 @@ describe('FileUseCases', () => {
         .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
         .mockResolvedValue(undefined);
       jest
+        .spyOn(fileVersionRepository, 'deleteAllByFileId')
+        .mockResolvedValue(undefined);
+      jest
         .spyOn(fileRepository, 'deleteFilesByUser')
         .mockResolvedValue(undefined);
 
@@ -1435,6 +1445,9 @@ describe('FileUseCases', () => {
       );
       expect(thumbnailUseCases.deleteThumbnailByFileUuid).toHaveBeenCalledWith(
         userMocked,
+        mockFile.uuid,
+      );
+      expect(fileVersionRepository.deleteAllByFileId).toHaveBeenCalledWith(
         mockFile.uuid,
       );
       expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
@@ -1943,16 +1956,63 @@ describe('FileUseCases', () => {
   });
 
   describe('deleteByUser', () => {
-    it('When called with files, then it should delete files by user', async () => {
+    it('When called with files, then it should delete versions and files by user', async () => {
       const files = [newFile(), newFile()];
+      jest
+        .spyOn(fileVersionRepository, 'deleteAllByFileIds')
+        .mockResolvedValue();
       jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValue();
 
       await service.deleteByUser(userMocked, files);
 
+      expect(fileVersionRepository.deleteAllByFileIds).toHaveBeenCalledWith(
+        files.map((f) => f.uuid),
+      );
       expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(
         userMocked,
         files,
       );
+    });
+  });
+
+  describe('deleteUserTrashedFilesBatch', () => {
+    it('When called, then it should delete files and their versions', async () => {
+      const deletedUuids = ['uuid-1', 'uuid-2', 'uuid-3'];
+      jest
+        .spyOn(fileRepository, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValue(deletedUuids);
+      jest
+        .spyOn(fileVersionRepository, 'deleteAllByFileIds')
+        .mockResolvedValue();
+
+      const result = await service.deleteUserTrashedFilesBatch(userMocked, 100);
+
+      expect(fileRepository.deleteUserTrashedFilesBatch).toHaveBeenCalledWith(
+        userMocked.id,
+        100,
+      );
+      expect(fileVersionRepository.deleteAllByFileIds).toHaveBeenCalledWith(
+        deletedUuids,
+      );
+      expect(result).toBe(3);
+    });
+
+    it('When no files are deleted, then it should not call deleteAllByFileIds', async () => {
+      jest
+        .spyOn(fileRepository, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValue([]);
+      jest
+        .spyOn(fileVersionRepository, 'deleteAllByFileIds')
+        .mockResolvedValue();
+
+      const result = await service.deleteUserTrashedFilesBatch(userMocked, 100);
+
+      expect(fileRepository.deleteUserTrashedFilesBatch).toHaveBeenCalledWith(
+        userMocked.id,
+        100,
+      );
+      expect(fileVersionRepository.deleteAllByFileIds).not.toHaveBeenCalled();
+      expect(result).toBe(0);
     });
   });
 

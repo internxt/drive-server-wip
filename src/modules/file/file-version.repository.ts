@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { FileVersionModel } from './file-version.model';
 import {
   FileVersion,
@@ -20,6 +20,7 @@ export interface FileVersionRepository {
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
   updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
+  deleteAllByFileIds(fileIds: string[]): Promise<void>;
   sumExistingSizesByUser(userId: number): Promise<number>;
 }
 
@@ -112,6 +113,17 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       { status: FileVersionStatus.DELETED },
       {
         where: { fileId },
+      },
+    );
+  }
+
+  async deleteAllByFileIds(fileIds: string[]): Promise<void> {
+    if (fileIds.length === 0) return;
+
+    await this.model.update(
+      { status: FileVersionStatus.DELETED },
+      {
+        where: { fileId: { [Op.in]: fileIds } },
       },
     );
   }
