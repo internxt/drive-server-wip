@@ -1568,6 +1568,48 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getFileVersions', () => {
+    it('When file exists, then it should return versions', async () => {
+      const mockFile = newFile();
+      const mockVersions = [
+        FileVersion.build({
+          id: v4(),
+          fileId: mockFile.uuid,
+          networkFileId: 'network-1',
+          size: BigInt(100),
+          status: FileVersionStatus.EXISTS,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ];
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue(mockVersions);
+
+      const result = await service.getFileVersions(userMocked, mockFile.uuid);
+
+      expect(result).toEqual(mockVersions);
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {},
+      );
+      expect(fileVersionRepository.findAllByFileId).toHaveBeenCalledWith(
+        mockFile.uuid,
+      );
+    });
+
+    it('When file does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        service.getFileVersions(userMocked, 'non-existent-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('restoreFileVersion', () => {
     it('When file and version exist, then it should restore the version', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });

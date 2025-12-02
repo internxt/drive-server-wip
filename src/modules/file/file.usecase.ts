@@ -240,6 +240,16 @@ export class FileUseCases {
     return this.decrypFileName(file);
   }
 
+  async getFileVersions(user: User, fileUuid: string): Promise<FileVersion[]> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return this.fileVersionRepository.findAllByFileId(fileUuid);
+  }
+
   async restoreFileVersion(
     user: User,
     fileUuid: string,
