@@ -196,6 +196,7 @@ export class FileUseCases {
         SharingItemType.File,
       ),
       this.thumbnailUsecases.deleteThumbnailByFileUuid(user, uuid),
+      this.fileVersionRepository.deleteAllByFileId(uuid),
     ]);
 
     await this.fileRepository.deleteFilesByUser(user, [file]);
@@ -727,6 +728,8 @@ export class FileUseCases {
    * @param files Files to be deleted
    */
   async deleteByUser(user: User, files: File[]): Promise<void> {
+    const fileUuids = files.map((file) => file.uuid);
+    await this.fileVersionRepository.deleteAllByFileIds(fileUuids);
     await this.fileRepository.deleteFilesByUser(user, files);
   }
 
@@ -828,7 +831,16 @@ export class FileUseCases {
     user: User,
     limit: number,
   ): Promise<number> {
-    return this.fileRepository.deleteUserTrashedFilesBatch(user.id, limit);
+    const deletedUuids = await this.fileRepository.deleteUserTrashedFilesBatch(
+      user.id,
+      limit,
+    );
+
+    if (deletedUuids.length > 0) {
+      await this.fileVersionRepository.deleteAllByFileIds(deletedUuids);
+    }
+
+    return deletedUuids.length;
   }
 
   async moveFile(

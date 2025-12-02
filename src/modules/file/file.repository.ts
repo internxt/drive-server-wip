@@ -124,7 +124,7 @@ export interface FileRepository {
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
-  deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
+  deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<string[]>;
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
@@ -818,18 +818,19 @@ export class SequelizeFileRepository implements FileRepository {
   async deleteUserTrashedFilesBatch(
     userId: number,
     limit: number,
-  ): Promise<number> {
+  ): Promise<string[]> {
     const result = await this.fileModel.sequelize.query(
       `
-      UPDATE files 
+      UPDATE files
       SET status = :deletedStatus, updated_at = NOW()
       WHERE uuid IN (
-        SELECT uuid 
-        FROM files 
-        WHERE user_id = :userId 
-          AND status = :trashedStatus 
+        SELECT uuid
+        FROM files
+        WHERE user_id = :userId
+          AND status = :trashedStatus
         LIMIT :limit
       )
+      RETURNING uuid
     `,
       {
         replacements: {
@@ -838,10 +839,10 @@ export class SequelizeFileRepository implements FileRepository {
           deletedStatus: FileStatus.DELETED,
           trashedStatus: FileStatus.TRASHED,
         },
-        type: QueryTypes.UPDATE,
+        type: QueryTypes.SELECT,
       },
     );
-    return result[1];
+    return result.map((row: { uuid: string }) => row.uuid);
   }
 
   async markFilesInFolderAsRemoved(
