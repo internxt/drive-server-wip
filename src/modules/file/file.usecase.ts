@@ -53,6 +53,8 @@ import {
   TierLabel,
   VersionableFileExtension,
 } from './file-version.constants';
+import { SequelizeFileVersionRepository } from './file-version.repository';
+import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -65,6 +67,7 @@ export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 export class FileUseCases {
   constructor(
     private readonly fileRepository: SequelizeFileRepository,
+    private readonly fileVersionRepository: SequelizeFileVersionRepository,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     @Inject(forwardRef(() => SharingService))
@@ -235,6 +238,65 @@ export class FileUseCases {
     }
 
     return this.decrypFileName(file);
+  }
+
+  async restoreFileVersion(
+    user: User,
+    fileUuid: string,
+    versionId: string,
+  ): Promise<FileVersion> {
+    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (!file.isOwnedBy(user)) {
+      throw new ForbiddenException('You do not own this file');
+    }
+
+    const versionToRestore =
+      await this.fileVersionRepository.findById(versionId);
+
+    if (!versionToRestore) {
+      throw new NotFoundException('Version not found');
+    }
+
+    if (versionToRestore.fileId !== fileUuid) {
+      throw new BadRequestException('Version does not belong to this file');
+    }
+
+    if (versionToRestore.status !== FileVersionStatus.EXISTS) {
+      throw new BadRequestException('Cannot restore a deleted version');
+    }
+
+    const allVersions =
+      await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    const newerVersions = allVersions.filter(
+      (v) =>
+        v.createdAt > versionToRestore.createdAt &&
+        v.status === FileVersionStatus.EXISTS,
+    );
+
+    const idsToDelete = [
+      ...newerVersions.map((v) => v.id),
+      versionToRestore.id,
+    ];
+
+    await Promise.all([
+      this.fileVersionRepository.updateStatusBatch(
+        idsToDelete,
+        FileVersionStatus.DELETED,
+      ),
+      this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+        fileId: versionToRestore.networkFileId,
+        size: versionToRestore.size,
+        updatedAt: new Date(),
+      }),
+    ]);
+
+    return versionToRestore;
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {

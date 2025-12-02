@@ -47,6 +47,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
+import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
@@ -148,6 +149,37 @@ export class FileController {
         })} STACK: ${err.stack || 'NO STACK'}`,
       );
     }
+  }
+
+  @Post('/:uuid/versions/:versionId/restore')
+  @ApiOperation({
+    summary: 'Restore a file version',
+  })
+  @ApiOkResponse({ type: FileVersionDto })
+  @ApiBearerAuth()
+  @GetDataFromRequest([
+    {
+      sourceKey: 'params',
+      fieldName: 'uuid',
+      newFieldName: 'itemId',
+    },
+    {
+      fieldName: 'itemType',
+      value: 'file',
+    },
+  ])
+  @WorkspacesInBehalfValidationFile()
+  async restoreFileVersion(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) fileUuid: string,
+    @Param('versionId', ValidateUUIDPipe) versionId: string,
+  ): Promise<FileVersionDto> {
+    const version = await this.fileUseCases.restoreFileVersion(
+      user,
+      fileUuid,
+      versionId,
+    );
+    return version.toJSON();
   }
 
   @Put('/:uuid')
