@@ -1745,6 +1745,7 @@ describe('FileUseCases', () => {
         userId: userMocked.id,
         networkFileId: mockFile.fileId,
         size: mockFile.size,
+        folderUuid: mockFile.folderUuid,
         status: 'EXISTS',
       });
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalled();

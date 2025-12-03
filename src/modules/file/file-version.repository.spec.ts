@@ -45,6 +45,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(fileVersionModel.create).toHaveBeenCalledWith({
         fileId: versionData.fileId,
         userId: versionData.userId,
+        folderUuid: undefined,
         networkFileId: versionData.networkFileId,
         size: versionData.size,
         status: versionData.status,
@@ -597,6 +598,66 @@ describe('SequelizeFileVersionRepository', () => {
         { status: FileVersionStatus.DELETED },
         expect.any(Object),
       );
+    });
+  });
+
+  describe('deleteAllByFolderUuids', () => {
+    it('When deleting all versions by folder UUIDs, then it marks them as DELETED', async () => {
+      const folderUuids = ['folder-uuid-1', 'folder-uuid-2'];
+
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([3] as any);
+
+      await repository.deleteAllByFolderUuids(folderUuids);
+
+      expect(fileVersionModel.update).toHaveBeenCalledWith(
+        { status: FileVersionStatus.DELETED },
+        expect.objectContaining({
+          where: expect.objectContaining({
+            folderUuid: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('When no versions exist for folders, then update returns 0 affected rows', async () => {
+      const folderUuids = ['non-existent-folder'];
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([0] as any);
+
+      await repository.deleteAllByFolderUuids(folderUuids);
+
+      expect(fileVersionModel.update).toHaveBeenCalled();
+    });
+
+    it('When deleting versions for specific folders, then it targets those folders', async () => {
+      const folderUuids = ['folder-1', 'folder-2', 'folder-3'];
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([5] as any);
+
+      await repository.deleteAllByFolderUuids(folderUuids);
+
+      expect(fileVersionModel.update).toHaveBeenCalledWith(
+        { status: FileVersionStatus.DELETED },
+        expect.any(Object),
+      );
+    });
+
+    it('When deleting all versions by folders, then all are marked as deleted', async () => {
+      const folderUuids = ['folder-uuid'];
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([10] as any);
+
+      await repository.deleteAllByFolderUuids(folderUuids);
+
+      expect(fileVersionModel.update).toHaveBeenCalledWith(
+        { status: FileVersionStatus.DELETED },
+        expect.any(Object),
+      );
+    });
+
+    it('When empty array is passed, then it does not trigger update', async () => {
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([0] as any);
+
+      await repository.deleteAllByFolderUuids([]);
+
+      expect(fileVersionModel.update).not.toHaveBeenCalled();
     });
   });
 

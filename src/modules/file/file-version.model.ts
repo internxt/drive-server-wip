@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { FileModel } from './file.model';
 import { UserModel } from '../user/user.model';
+import { FolderModel } from '../folder/folder.model';
 import {
   FileVersionAttributes,
   FileVersionStatus,
@@ -40,6 +41,13 @@ export class FileVersionModel extends Model implements FileVersionAttributes {
 
   @BelongsTo(() => UserModel, 'userId')
   user: UserModel;
+
+  @ForeignKey(() => FolderModel)
+  @Column(DataType.UUIDV4)
+  folderUuid: string;
+
+  @BelongsTo(() => FolderModel, 'folderUuid')
+  folder: FolderModel;
 
   @Column(DataType.STRING)
   networkFileId: string;

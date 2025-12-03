@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DeletedItemsCleanupTask } from './tasks/deleted-items-cleanup.task';
+import { OrphanVersionsCleanupTask } from './tasks/orphan-versions-cleanup.task';
 import { FileModule } from '../file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
@@ -27,6 +28,7 @@ import { SecurityModule } from '../security/security.module';
   ],
   providers: [
     DeletedItemsCleanupTask,
+    OrphanVersionsCleanupTask,
     RedisService,
     SequelizeJobExecutionRepository,
     RetroActiveDeleteItemsCleanupTask,
