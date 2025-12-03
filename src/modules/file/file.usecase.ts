@@ -766,6 +766,7 @@ export class FileUseCases {
           userId: user.id,
           networkFileId: file.fileId,
           size: file.size,
+          folderUuid: file.folderUuid,
           status: FileVersionStatus.EXISTS,
         }),
         this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {

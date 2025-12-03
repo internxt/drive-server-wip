@@ -21,7 +21,9 @@ export interface FileVersionRepository {
   updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
   deleteAllByFileIds(fileIds: string[]): Promise<void>;
+  deleteAllByFolderUuids(folderUuids: string[]): Promise<void>;
   sumExistingSizesByUser(userId: number): Promise<number>;
+  getOrphanVersionFolderUuids(options: { limit: number }): Promise<string[]>;
 }
 
 @Injectable()
@@ -37,6 +39,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     const createdVersion = await this.model.create({
       fileId: version.fileId,
       userId: version.userId,
+      folderUuid: version.folderUuid,
       networkFileId: version.networkFileId,
       size: version.size,
       status: version.status || FileVersionStatus.EXISTS,
@@ -52,6 +55,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       {
         fileId: version.fileId,
         userId: version.userId,
+        folderUuid: version.folderUuid,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status || FileVersionStatus.EXISTS,
@@ -128,6 +132,17 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     );
   }
 
+  async deleteAllByFolderUuids(folderUuids: string[]): Promise<void> {
+    if (folderUuids.length === 0) return;
+
+    await this.model.update(
+      { status: FileVersionStatus.DELETED },
+      {
+        where: { folderUuid: { [Op.in]: folderUuids } },
+      },
+    );
+  }
+
   async sumExistingSizesByUser(userId: number): Promise<number> {
     const result = await this.model.findAll({
       attributes: [[Sequelize.fn('SUM', Sequelize.col('size')), 'total']],
@@ -139,5 +154,33 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     });
 
     return Number(result[0]?.['total']) || 0;
+  }
+
+  async getOrphanVersionFolderUuids(options: {
+    limit: number;
+  }): Promise<string[]> {
+    const versions = await this.model.findAll({
+      attributes: [
+        [
+          Sequelize.fn(
+            'DISTINCT',
+            Sequelize.col('FileVersionModel.folder_uuid'),
+          ),
+          'folderUuid',
+        ],
+      ],
+      where: {
+        status: FileVersionStatus.EXISTS,
+        fileId: {
+          [Op.in]: Sequelize.literal(
+            '(SELECT uuid FROM files WHERE removed = true)',
+          ),
+        },
+      },
+      limit: options.limit,
+      raw: true,
+    });
+
+    return versions.map((v) => v.folderUuid);
   }
 }

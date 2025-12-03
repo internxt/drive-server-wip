@@ -7,6 +7,7 @@ export interface FileVersionAttributes {
   id: string;
   fileId: string;
   userId: number;
+  folderUuid?: string;
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
@@ -18,6 +19,7 @@ export class FileVersion implements FileVersionAttributes {
   id: string;
   fileId: string;
   userId: number;
+  folderUuid?: string;
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
@@ -28,6 +30,7 @@ export class FileVersion implements FileVersionAttributes {
     this.id = attributes.id;
     this.fileId = attributes.fileId;
     this.userId = attributes.userId;
+    this.folderUuid = attributes.folderUuid;
     this.networkFileId = attributes.networkFileId;
     this.size = attributes.size;
     this.status = attributes.status;
@@ -52,6 +55,7 @@ export class FileVersion implements FileVersionAttributes {
       id: this.id,
       fileId: this.fileId,
       userId: this.userId,
+      folderUuid: this.folderUuid,
       networkFileId: this.networkFileId,
       size: this.size,
       status: this.status,
