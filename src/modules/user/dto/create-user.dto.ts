@@ -1,4 +1,9 @@
-import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserAttributes } from '../user.attributes';
 import { Type } from 'class-transformer';
@@ -26,6 +31,7 @@ class KeysDto {
 
 export class CreateUserDto {
   @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example: 'Internxt',
     description: 'Name of the new user',
@@ -33,6 +39,7 @@ export class CreateUserDto {
   name: UserAttributes['name'];
 
   @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example: 'Lastname',
     description: 'Last name of the new user',
@@ -47,6 +54,7 @@ export class CreateUserDto {
   email: UserAttributes['email'];
 
   @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example: '$2a$08$4SN2l.8dM0fSUTzni3i61u047Sr/R3ocJYxbxmKdEmGJcVOj1sHIi',
     description: 'Hashed password',
@@ -54,6 +62,7 @@ export class CreateUserDto {
   password: UserAttributes['password'];
 
   @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example:
       'test test test test test test test test test test test test test test test test test test test test test test test test',
@@ -62,6 +71,7 @@ export class CreateUserDto {
   mnemonic: UserAttributes['mnemonic'];
 
   @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example: 'salt',
     description: 'Salt',
