@@ -97,4 +97,52 @@ export class FeatureLimitService {
   async getTier(tierId: string) {
     return this.limitsRepository.findTierById(tierId);
   }
+
+  async getFileVersioningLimits(userUuid: string): Promise<{
+    enabled: boolean;
+    maxFileSize: number;
+    retentionDays: number;
+    maxVersions: number;
+  }> {
+    const fileVersioningLabels = [
+      LimitLabels.FileVersionEnable,
+      LimitLabels.FileVersionMaxSize,
+      LimitLabels.FileVersionRetentionDays,
+      LimitLabels.FileVersionMaxNumber,
+    ];
+
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const userOverriddenLimits =
+      await this.limitsRepository.findUserOverriddenLimitsByLabels(
+        user.uuid,
+        fileVersioningLabels,
+      );
+
+    const tierLimits = await this.limitsRepository.findLimitsByLabelsAndTier(
+      user.tierId,
+      fileVersioningLabels,
+    );
+
+    const limitsMap = new Map<string, string>();
+
+    for (const limit of tierLimits) {
+      limitsMap.set(limit.label, limit.value);
+    }
+
+    for (const limit of userOverriddenLimits) {
+      limitsMap.set(limit.label, limit.value);
+    }
+
+    return {
+      enabled: limitsMap.get(LimitLabels.FileVersionEnable) === 'true' || false,
+      maxFileSize: Number(limitsMap.get(LimitLabels.FileVersionMaxSize)) || 0,
+      retentionDays:
+        Number(limitsMap.get(LimitLabels.FileVersionRetentionDays)) || 0,
+      maxVersions: Number(limitsMap.get(LimitLabels.FileVersionMaxNumber)) || 0,
+    };
+  }
 }
