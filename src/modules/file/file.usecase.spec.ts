@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
-import { FileUseCases } from './file.usecase';
+import { FileUseCases, VersionableFileExtension } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
@@ -41,7 +41,6 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
-import { VersionableFileExtension } from './file.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
 
