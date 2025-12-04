@@ -415,9 +415,7 @@ export class FolderUseCases {
     });
 
     if (!parentFolder) {
-      throw new BadRequestException(
-        'Parent folder does not exist or is not yours',
-      );
+      throw new NotFoundException('Parent folder does not exist');
     }
 
     if (

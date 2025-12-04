@@ -865,6 +865,39 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
+    const { versionable: shouldVersion } = await this.isFileVersionable(
+      user.uuid,
+      file.type as VersionableFileExtension,
+      file.size,
+    );
+
+    if (shouldVersion) {
+      await this.applyRetentionPolicy(fileUuid, user.uuid);
+
+      const { fileId, size, modificationTime } = newFileData;
+
+      await Promise.all([
+        this.fileVersionRepository.upsert({
+          fileId: file.uuid,
+          networkFileId: file.fileId,
+          size: file.size,
+          status: FileVersionStatus.EXISTS,
+        }),
+        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+          fileId,
+          size,
+          updatedAt: new Date(),
+          ...(modificationTime ? { modificationTime } : null),
+        }),
+      ]);
+
+      return {
+        ...file.toJSON(),
+        fileId,
+        size,
+      };
+    }
+
     const { fileId: oldFileId, bucket } = file;
     const { fileId, size, modificationTime } = newFileData;
 
