@@ -1170,15 +1170,16 @@ export class FileUseCases {
 
   private async applyRetentionPolicy(
     fileUuid: string,
-    tierLabel: string,
+    userUuid: string,
   ): Promise<void> {
-    const config = CONFIG[tierLabel as TierLabel];
+    const limits =
+      await this.featureLimitService.getFileVersioningLimits(userUuid);
 
-    if (!config) {
+    if (!limits.enabled) {
       return;
     }
 
-    const { retentionDays, maxVersions } = config;
+    const { retentionDays, maxVersions } = limits;
 
     const cutoffDate = Time.daysAgo(retentionDays);
 
