@@ -880,7 +880,7 @@ describe('FolderUseCases', () => {
           plainName: folderName,
           parentFolderUuid: parentFolder.uuid,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When the folder name is invalid, then it should throw', async () => {
