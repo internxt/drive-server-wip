@@ -45,14 +45,6 @@ import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
-import { Tier } from '../feature-limit/domain/tier.domain';
-import {
-  VERSIONABLE_FILE_EXTENSIONS,
-  VERSIONABLE_TIER_LABELS,
-  CONFIG,
-  TierLabel,
-  VersionableFileExtension,
-} from './file-version.constants';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
@@ -60,6 +52,15 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
+
+export enum VersionableFileExtension {
+  PDF = 'pdf',
+  DOCX = 'docx',
+  XLSX = 'xlsx',
+  CSV = 'csv',
+}
+
+const VERSIONABLE_FILE_EXTENSIONS = Object.values(VersionableFileExtension);
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
@@ -1136,24 +1137,34 @@ export class FileUseCases {
     );
   }
 
-  private isFileVersionable(
+  async isFileVersionable(
+    userUuid: string,
     fileType: VersionableFileExtension,
     fileSize: bigint,
-    tier?: Tier,
-  ): boolean {
+  ): Promise<{
+    versionable: boolean;
+    limits: {
+      enabled: boolean;
+      maxFileSize: number;
+      retentionDays: number;
+      maxVersions: number;
+    } | null;
+  }> {
     if (!VERSIONABLE_FILE_EXTENSIONS.includes(fileType)) {
-      return false;
+      return { versionable: false, limits: null };
     }
 
-    const tierLabel = tier?.label as TierLabel;
-    if (!tier || !VERSIONABLE_TIER_LABELS.includes(tierLabel)) {
-      return false;
+    const limits =
+      await this.featureLimitService.getFileVersioningLimits(userUuid);
+
+    if (!limits.enabled) {
+      return { versionable: false, limits };
     }
 
-    if (fileSize > CONFIG[tierLabel].maxFileSize) {
-      return false;
+    if (fileSize > BigInt(limits.maxFileSize)) {
+      return { versionable: false, limits };
     }
 
-    return true;
+    return { versionable: true, limits };
   }
 }

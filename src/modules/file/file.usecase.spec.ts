@@ -41,7 +41,7 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
-import { VersionableFileExtensionEnum } from './file-version.constants';
+import { VersionableFileExtension } from './file.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
 
@@ -2358,83 +2358,104 @@ describe('FileUseCases', () => {
   });
 
   describe('isFileVersionable', () => {
-    it('When file has valid extension, then it is versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'premium_individual' });
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
+    const userUuid = 'user-uuid';
+    const premiumLimits = {
+      enabled: true,
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      retentionDays: 15,
+      maxVersions: 10,
+    };
+    const freeLimits = {
+      enabled: false,
+      maxFileSize: 0,
+      retentionDays: 0,
+      maxVersions: 0,
+    };
+
+    it('When file has valid extension and user has premium tier, then it is versionable', async () => {
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValueOnce(premiumLimits);
+
+      const result = await service.isFileVersionable(
+        userUuid,
+        VersionableFileExtension.PDF,
         BigInt(1024),
-        tier,
       );
-      expect(result).toBe(true);
+
+      expect(result.versionable).toBe(true);
+      expect(result.limits).toEqual(premiumLimits);
     });
 
-    it('When file has unsupported extension, then it is not versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'premium_individual' });
-      const result = service['isFileVersionable'](
+    it('When file has unsupported extension, then it is not versionable', async () => {
+      const result = await service.isFileVersionable(
+        userUuid,
         'jpg' as any,
         BigInt(1024),
-        tier,
       );
-      expect(result).toBe(false);
+
+      expect(result.versionable).toBe(false);
+      expect(result.limits).toBeNull();
     });
 
-    it('When user tier is not provided, then file is not versionable', () => {
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
+    it('When user has free tier (versioning disabled), then file is not versionable', async () => {
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValueOnce(freeLimits);
+
+      const result = await service.isFileVersionable(
+        userUuid,
+        VersionableFileExtension.PDF,
         BigInt(1024),
-        undefined,
       );
-      expect(result).toBe(false);
+
+      expect(result.versionable).toBe(false);
+      expect(result.limits).toEqual(freeLimits);
     });
 
-    it('When user has free tier, then file is not versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'free_individual' });
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
-        BigInt(1024),
-        tier,
-      );
-      expect(result).toBe(false);
-    });
+    it('When file size is at tier limit, then it is versionable', async () => {
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValueOnce(premiumLimits);
 
-    it('When user has versionable tier, then file is versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'premium_individual' });
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
-        BigInt(500 * 1024),
-        tier,
-      );
-      expect(result).toBe(true);
-    });
-
-    it('When file size is at tier limit, then it is versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'premium_individual' });
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
+      const result = await service.isFileVersionable(
+        userUuid,
+        VersionableFileExtension.PDF,
         BigInt(10 * 1024 * 1024),
-        tier,
       );
-      expect(result).toBe(true);
+
+      expect(result.versionable).toBe(true);
+      expect(result.limits).toEqual(premiumLimits);
     });
 
-    it('When file size exceeds tier limit, then it is not versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'premium_individual' });
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
+    it('When file size exceeds tier limit, then it is not versionable', async () => {
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValueOnce(premiumLimits);
+
+      const result = await service.isFileVersionable(
+        userUuid,
+        VersionableFileExtension.PDF,
         BigInt(11 * 1024 * 1024),
-        tier,
       );
-      expect(result).toBe(false);
+
+      expect(result.versionable).toBe(false);
+      expect(result.limits).toEqual(premiumLimits);
     });
 
-    it('When all conditions are valid, then file is versionable', () => {
-      const tier = Tier.build({ id: '1', label: 'premium_individual' });
-      const result = service['isFileVersionable'](
-        VersionableFileExtensionEnum.PDF,
+    it('When all conditions are valid, then file is versionable with limits', async () => {
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValueOnce(premiumLimits);
+
+      const result = await service.isFileVersionable(
+        userUuid,
+        VersionableFileExtension.PDF,
         BigInt(5 * 1024 * 1024),
-        tier,
       );
-      expect(result).toBe(true);
+
+      expect(result.versionable).toBe(true);
+      expect(result.limits).toEqual(premiumLimits);
     });
   });
 });
