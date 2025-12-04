@@ -74,7 +74,7 @@ describe('Folder module', () => {
 
       await makeRequest('post', `/folders/`)
         .send(createFolderDto)
-        .expect(HttpStatus.BAD_REQUEST);
+        .expect(HttpStatus.NOT_FOUND);
     });
   });
 
