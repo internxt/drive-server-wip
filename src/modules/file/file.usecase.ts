@@ -854,7 +854,6 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     newFileData: ReplaceFileDto,
-    tier?: Tier,
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
@@ -866,14 +865,14 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
-    const shouldVersion = this.isFileVersionable(
+    const { versionable: shouldVersion } = await this.isFileVersionable(
+      user.uuid,
       file.type as VersionableFileExtension,
       file.size,
-      tier,
     );
 
     if (shouldVersion) {
-      await this.applyRetentionPolicy(fileUuid, tier.label);
+      await this.applyRetentionPolicy(fileUuid, user.uuid);
 
       const { fileId, size, modificationTime } = newFileData;
 
@@ -1233,57 +1232,6 @@ export class FileUseCases {
       ...versionsToDeleteByAge,
       ...versionsToDeleteByCount,
     ];
-
-    const remainingCount = versions.length - versionsToDelete.length;
-    if (remainingCount >= maxVersions) {
-      const versionsNotDeleted = versions.filter(
-        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
-      );
-      const oldestVersion = versionsNotDeleted.sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      )[0];
-
-      if (oldestVersion) {
-        versionsToDelete.push(oldestVersion);
-      }
-    }
-
-    if (versionsToDelete.length > 0) {
-      const idsToDelete = versionsToDelete.map((v) => v.id);
-      await this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
-        FileVersionStatus.DELETED,
-      );
-    }
-  }
-
-  private async applyRetentionPolicy(
-    fileUuid: string,
-    tierLabel: string,
-  ): Promise<void> {
-    const config = CONFIG[tierLabel as TierLabel];
-
-    if (!config) {
-      return;
-    }
-
-    const { retentionDays, maxVersions } = config;
-
-    const cutoffDate = Time.daysAgo(retentionDays);
-
-    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    const versionsByAge = versions.filter(
-      (version) => version.createdAt < cutoffDate,
-    );
-
-    const remainingVersions = versions
-      .filter((version) => version.createdAt >= cutoffDate)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const versionsByCount = remainingVersions.slice(maxVersions);
-
-    const versionsToDelete = [...versionsByAge, ...versionsByCount];
 
     const remainingCount = versions.length - versionsToDelete.length;
     if (remainingCount >= maxVersions) {

@@ -616,7 +616,6 @@ describe('FileController', () => {
         replaceFileDto,
         clientId,
         requester,
-        tier,
       );
 
       expect(result).toEqual(replacedFile);
@@ -624,7 +623,6 @@ describe('FileController', () => {
         userMocked,
         validUuid,
         replaceFileDto,
-        tier,
       );
       expect(storageNotificationService.fileUpdated).toHaveBeenCalledWith({
         payload: replacedFile,
@@ -644,7 +642,6 @@ describe('FileController', () => {
           replaceFileDto,
           clientId,
           requester,
-          tier,
         ),
       ).rejects.toThrow(error);
     });

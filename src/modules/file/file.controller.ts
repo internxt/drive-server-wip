@@ -256,14 +256,12 @@ export class FileController {
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
-    @UserTier() tier: Tier,
   ): Promise<FileDto> {
     try {
       const file = await this.fileUseCases.replaceFile(
         user,
         fileUuid,
         fileData,
-        tier,
       );
 
       this.storageNotificationService.fileUpdated({
