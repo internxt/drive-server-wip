@@ -148,4 +148,44 @@ export class SequelizeFeatureLimitsRepository {
     const limit = await this.limitModel.findOne({ where: { label, value } });
     return limit ? Limit.build(limit) : null;
   }
+
+  async findLimitsByLabelsAndTier(
+    tierId: string,
+    labels: string[],
+  ): Promise<Limit[]> {
+    const limits = await this.limitModel.findAll({
+      where: {
+        label: labels,
+      },
+      include: [
+        {
+          model: TierModel,
+          where: {
+            id: tierId,
+          },
+          required: true,
+        },
+      ],
+    });
+
+    return limits.map((limit) => Limit.build(limit));
+  }
+
+  async findUserOverriddenLimitsByLabels(
+    userId: string,
+    labels: string[],
+  ): Promise<Limit[]> {
+    const userOverriddenLimits = await this.userOverriddenLimitModel.findAll({
+      where: { userId },
+      include: [
+        {
+          model: Limitmodel,
+          where: { label: labels },
+          required: true,
+        },
+      ],
+    });
+
+    return userOverriddenLimits.map((uol) => Limit.build(uol.limit));
+  }
 }
