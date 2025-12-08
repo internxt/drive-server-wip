@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBooleanString,
+  IsEmail,
   IsNotEmpty,
   IsOptional,
   ValidateNested,
@@ -99,5 +100,6 @@ export class RequestRecoverAccountDto {
     example: 'hello@internxt.com',
     description: 'User email',
   })
+  @IsEmail()
   email: string;
 }
