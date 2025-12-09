@@ -206,7 +206,7 @@ describe('FeatureLimitService', () => {
       const tierLimits = [
         newFeatureLimit({
           type: LimitTypes.Boolean,
-          label: LimitLabels.FileVersionEnable,
+          label: LimitLabels.FileVersionEnabled,
           value: 'true',
         }),
         newFeatureLimit({
@@ -252,7 +252,7 @@ describe('FeatureLimitService', () => {
       const tierLimits = [
         newFeatureLimit({
           type: LimitTypes.Boolean,
-          label: LimitLabels.FileVersionEnable,
+          label: LimitLabels.FileVersionEnabled,
           value: 'true',
         }),
         newFeatureLimit({
@@ -321,7 +321,7 @@ describe('FeatureLimitService', () => {
       const tierLimits = [
         newFeatureLimit({
           type: LimitTypes.Boolean,
-          label: LimitLabels.FileVersionEnable,
+          label: LimitLabels.FileVersionEnabled,
           value: 'false',
         }),
         newFeatureLimit({
