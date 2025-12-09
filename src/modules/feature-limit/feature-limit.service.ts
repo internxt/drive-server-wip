@@ -105,7 +105,7 @@ export class FeatureLimitService {
     maxVersions: number;
   }> {
     const fileVersioningLabels = [
-      LimitLabels.FileVersionEnable,
+      LimitLabels.FileVersionEnabled,
       LimitLabels.FileVersionMaxSize,
       LimitLabels.FileVersionRetentionDays,
       LimitLabels.FileVersionMaxNumber,
@@ -138,7 +138,8 @@ export class FeatureLimitService {
     }
 
     return {
-      enabled: limitsMap.get(LimitLabels.FileVersionEnable) === 'true' || false,
+      enabled:
+        limitsMap.get(LimitLabels.FileVersionEnabled) === 'true' || false,
       maxFileSize: Number(limitsMap.get(LimitLabels.FileVersionMaxSize)) || 0,
       retentionDays:
         Number(limitsMap.get(LimitLabels.FileVersionRetentionDays)) || 0,
