@@ -3,7 +3,7 @@
 const { v4: uuidv4 } = require('uuid');
 
 const FILE_VERSION_LABELS = {
-  ENABLE: 'file-version-enable',
+  ENABLED: 'file-version-enabled',
   MAX_SIZE: 'file-version-max-size',
   RETENTION_DAYS: 'file-version-retention-days',
   MAX_NUMBER: 'file-version-max-number',
@@ -13,7 +13,7 @@ const TIER_CONFIGS = [
   {
     tierLabel: 'free_individual',
     limits: [
-      { label: FILE_VERSION_LABELS.ENABLE, type: 'boolean', value: 'false' },
+      { label: FILE_VERSION_LABELS.ENABLED, type: 'boolean', value: 'false' },
       { label: FILE_VERSION_LABELS.MAX_SIZE, type: 'counter', value: '0' },
       { label: FILE_VERSION_LABELS.RETENTION_DAYS, type: 'counter', value: '0' },
       { label: FILE_VERSION_LABELS.MAX_NUMBER, type: 'counter', value: '0' },
@@ -22,7 +22,7 @@ const TIER_CONFIGS = [
   {
     tierLabel: 'essential_individual',
     limits: [
-      { label: FILE_VERSION_LABELS.ENABLE, type: 'boolean', value: 'true' },
+      { label: FILE_VERSION_LABELS.ENABLED, type: 'boolean', value: 'true' },
       { label: FILE_VERSION_LABELS.MAX_SIZE, type: 'counter', value: String(1 * 1024 * 1024) },
       { label: FILE_VERSION_LABELS.RETENTION_DAYS, type: 'counter', value: '10' },
       { label: FILE_VERSION_LABELS.MAX_NUMBER, type: 'counter', value: '1' },
@@ -31,7 +31,7 @@ const TIER_CONFIGS = [
   {
     tierLabel: 'premium_individual',
     limits: [
-      { label: FILE_VERSION_LABELS.ENABLE, type: 'boolean', value: 'true' },
+      { label: FILE_VERSION_LABELS.ENABLED, type: 'boolean', value: 'true' },
       { label: FILE_VERSION_LABELS.MAX_SIZE, type: 'counter', value: String(10 * 1024 * 1024) },
       { label: FILE_VERSION_LABELS.RETENTION_DAYS, type: 'counter', value: '15' },
       { label: FILE_VERSION_LABELS.MAX_NUMBER, type: 'counter', value: '10' },
@@ -40,7 +40,7 @@ const TIER_CONFIGS = [
   {
     tierLabel: 'ultimate_individual',
     limits: [
-      { label: FILE_VERSION_LABELS.ENABLE, type: 'boolean', value: 'true' },
+      { label: FILE_VERSION_LABELS.ENABLED, type: 'boolean', value: 'true' },
       { label: FILE_VERSION_LABELS.MAX_SIZE, type: 'counter', value: String(20 * 1024 * 1024) },
       { label: FILE_VERSION_LABELS.RETENTION_DAYS, type: 'counter', value: '30' },
       { label: FILE_VERSION_LABELS.MAX_NUMBER, type: 'counter', value: '20' },
@@ -49,7 +49,7 @@ const TIER_CONFIGS = [
   {
     tierLabel: 'standard_business',
     limits: [
-      { label: FILE_VERSION_LABELS.ENABLE, type: 'boolean', value: 'true' },
+      { label: FILE_VERSION_LABELS.ENABLED, type: 'boolean', value: 'true' },
       { label: FILE_VERSION_LABELS.MAX_SIZE, type: 'counter', value: String(10 * 1024 * 1024) },
       { label: FILE_VERSION_LABELS.RETENTION_DAYS, type: 'counter', value: '15' },
       { label: FILE_VERSION_LABELS.MAX_NUMBER, type: 'counter', value: '10' },
@@ -58,7 +58,7 @@ const TIER_CONFIGS = [
   {
     tierLabel: 'pro_business',
     limits: [
-      { label: FILE_VERSION_LABELS.ENABLE, type: 'boolean', value: 'true' },
+      { label: FILE_VERSION_LABELS.ENABLED, type: 'boolean', value: 'true' },
       { label: FILE_VERSION_LABELS.MAX_SIZE, type: 'counter', value: String(20 * 1024 * 1024) },
       { label: FILE_VERSION_LABELS.RETENTION_DAYS, type: 'counter', value: '30' },
       { label: FILE_VERSION_LABELS.MAX_NUMBER, type: 'counter', value: '20' },
