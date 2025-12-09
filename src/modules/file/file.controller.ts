@@ -27,7 +27,6 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { UserTier } from '../auth/decorators/user-tier.decorator';
 import { User } from '../user/user.domain';
-import { Tier } from '../feature-limit/domain/tier.domain';
 import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';

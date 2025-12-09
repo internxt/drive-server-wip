@@ -25,7 +25,6 @@ import { ReplaceFileDto } from './dto/replace-file.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { GetFilesDto } from './dto/get-files.dto';
 import { SortOrder } from '../../common/order.type';
-import { Tier } from '../feature-limit/domain/tier.domain';
 
 describe('FileController', () => {
   let fileController: FileController;
@@ -595,8 +594,6 @@ describe('FileController', () => {
       fileId: 'new-file-id',
       size: BigInt(200),
     };
-    const tier = Tier.build({ id: '1', label: 'premium_individual' });
-
     it('When replaceFile is called with valid data, then it should replace file and send notification', async () => {
       const replacedFile = newFile({
         attributes: {

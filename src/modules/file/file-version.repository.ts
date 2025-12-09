@@ -7,13 +7,14 @@ import {
   FileVersionStatus,
 } from './file-version.domain';
 
+export type CreateFileVersionData = Omit<
+  FileVersionAttributes,
+  'id' | 'createdAt' | 'updatedAt'
+>;
+
 export interface FileVersionRepository {
-  create(
-    version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<FileVersion>;
-  upsert(
-    version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<FileVersion>;
+  create(version: CreateFileVersionData): Promise<FileVersion>;
+  upsert(version: CreateFileVersionData): Promise<FileVersion>;
   findAllByFileId(fileId: string): Promise<FileVersion[]>;
   findById(id: string): Promise<FileVersion | null>;
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
@@ -28,9 +29,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     private readonly model: typeof FileVersionModel,
   ) {}
 
-  async create(
-    version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<FileVersion> {
+  async create(version: CreateFileVersionData): Promise<FileVersion> {
     const createdVersion = await this.model.create({
       fileId: version.fileId,
       networkFileId: version.networkFileId,
@@ -41,9 +40,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     return FileVersion.build(createdVersion.toJSON());
   }
 
-  async upsert(
-    version: Omit<FileVersionAttributes, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<FileVersion> {
+  async upsert(version: CreateFileVersionData): Promise<FileVersion> {
     const [instance] = await this.model.upsert(
       {
         fileId: version.fileId,
