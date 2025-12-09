@@ -116,16 +116,16 @@ export class FeatureLimitService {
       throw new NotFoundException('User not found');
     }
 
-    const userOverriddenLimits =
-      await this.limitsRepository.findUserOverriddenLimitsByLabels(
+    const [userOverriddenLimits, tierLimits] = await Promise.all([
+      this.limitsRepository.findUserOverriddenLimitsByLabels(
         user.uuid,
         fileVersioningLabels,
-      );
-
-    const tierLimits = await this.limitsRepository.findLimitsByLabelsAndTier(
-      user.tierId,
-      fileVersioningLabels,
-    );
+      ),
+      this.limitsRepository.findLimitsByLabelsAndTier(
+        user.tierId,
+        fileVersioningLabels,
+      ),
+    ]);
 
     const limitsMap = new Map<string, string>();
 
