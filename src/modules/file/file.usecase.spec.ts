@@ -1750,7 +1750,9 @@ describe('FileUseCases', () => {
         versionId,
       );
 
-      expect(result).toEqual(mockVersion);
+      expect(result.uuid).toEqual(mockFile.uuid);
+      expect(result.fileId).toEqual(mockVersion.networkFileId);
+      expect(result.size).toEqual(mockVersion.size);
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalled();
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,

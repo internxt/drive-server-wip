@@ -307,7 +307,7 @@ export class FileUseCases {
     user: User,
     fileUuid: string,
     versionId: string,
-  ): Promise<FileVersion> {
+  ): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
 
     if (!file) {
@@ -359,7 +359,10 @@ export class FileUseCases {
       }),
     ]);
 
-    return versionToRestore;
+    file.fileId = versionToRestore.networkFileId;
+    file.size = versionToRestore.size;
+
+    return file;
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
