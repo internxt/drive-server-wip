@@ -186,8 +186,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) fileUuid: string,
   ): Promise<FileVersionDto[]> {
-    const versions = await this.fileUseCases.getFileVersions(user, fileUuid);
-    return versions.map((v) => v.toJSON());
+    return this.fileUseCases.getFileVersions(user, fileUuid);
   }
 
   @Delete('/:uuid/versions/:versionId')
