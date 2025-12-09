@@ -1,7 +1,9 @@
 import {
+  IsEmail,
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -32,6 +34,7 @@ class KeysDto {
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100, { message: 'Name must be at most 100 characters long.' })
   @ApiProperty({
     example: 'Internxt',
     description: 'Name of the new user',
@@ -40,6 +43,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100, { message: 'Lastname must be at most 100 characters long.' })
   @ApiProperty({
     example: 'Lastname',
     description: 'Last name of the new user',
@@ -47,6 +51,7 @@ export class CreateUserDto {
   lastname: UserAttributes['lastname'];
 
   @IsNotEmpty()
+  @IsEmail()
   @ApiProperty({
     example: 'myaccount@internxt.com',
     description: 'Email of the new account',
