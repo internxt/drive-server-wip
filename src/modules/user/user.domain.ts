@@ -31,6 +31,7 @@ export class User implements UserAttributes {
   emailVerified: boolean;
   updatedAt: Date;
   createdAt: Date;
+  isOpaqueEnabled: boolean;
 
   constructor({
     id,
@@ -63,6 +64,7 @@ export class User implements UserAttributes {
     emailVerified,
     updatedAt,
     createdAt,
+    isOpaqueEnabled,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -94,6 +96,7 @@ export class User implements UserAttributes {
     this.emailVerified = emailVerified;
     this.updatedAt = updatedAt;
     this.createdAt = createdAt;
+    this.isOpaqueEnabled = isOpaqueEnabled;
   }
 
   static build(user: UserAttributes): User {
@@ -132,6 +135,7 @@ export class User implements UserAttributes {
       sharedWorkspace: this.sharedWorkspace,
       avatar: this.avatar,
       lastPasswordChangedAt: this.lastPasswordChangedAt,
+      isOpaqueEnabled: this.isOpaqueEnabled,
     };
   }
 }

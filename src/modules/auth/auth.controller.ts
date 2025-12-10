@@ -92,6 +92,7 @@ export class AuthController {
         tfa: required2FA,
         hasKyberKeys: !!keys.kyber,
         hasEccKeys: !!keys.ecc,
+        useOpaqueLogin: user.isOpaqueEnabled ?? false,
       };
     } catch (err) {
       if (!(err instanceof HttpException)) {
