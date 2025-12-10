@@ -197,6 +197,179 @@ describe('FeatureLimitService', () => {
     });
   });
 
+  describe('getFileVersioningLimits', () => {
+    it('When user exists and has tier limits, then it should return versioning limits', async () => {
+      const userUuid = v4();
+      const tierId = v4();
+      const user = newUser({ attributes: { uuid: userUuid, tierId } });
+
+      const tierLimits = [
+        newFeatureLimit({
+          type: LimitTypes.Boolean,
+          label: LimitLabels.FileVersionEnabled,
+          value: 'true',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxSize,
+          value: '10485760',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionRetentionDays,
+          value: '15',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxNumber,
+          value: '10',
+        }),
+      ];
+
+      userRepository.findByUuid.mockResolvedValueOnce(user);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce(
+        [],
+      );
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce(
+        tierLimits,
+      );
+
+      const result = await service.getFileVersioningLimits(userUuid);
+
+      expect(result).toEqual({
+        enabled: true,
+        maxFileSize: 10485760,
+        retentionDays: 15,
+        maxVersions: 10,
+      });
+    });
+
+    it('When user has overridden limits, then overrides should take precedence', async () => {
+      const userUuid = v4();
+      const tierId = v4();
+      const user = newUser({ attributes: { uuid: userUuid, tierId } });
+
+      const tierLimits = [
+        newFeatureLimit({
+          type: LimitTypes.Boolean,
+          label: LimitLabels.FileVersionEnabled,
+          value: 'true',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxSize,
+          value: '10485760',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionRetentionDays,
+          value: '15',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxNumber,
+          value: '10',
+        }),
+      ];
+
+      const overriddenLimits = [
+        newFeatureLimit({
+          type: LimitTypes.Boolean,
+          label: LimitLabels.FileVersionEnabled,
+          value: 'false',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxSize,
+          value: '20971520',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionRetentionDays,
+          value: '30',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxNumber,
+          value: '20',
+        }),
+      ];
+
+      userRepository.findByUuid.mockResolvedValueOnce(user);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce(
+        overriddenLimits,
+      );
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce(
+        tierLimits,
+      );
+
+      const result = await service.getFileVersioningLimits(userUuid);
+
+      expect(result).toEqual({
+        enabled: overriddenLimits[0].value === 'true',
+        maxFileSize: Number(overriddenLimits[1].value),
+        retentionDays: Number(overriddenLimits[2].value),
+        maxVersions: Number(overriddenLimits[3].value),
+      });
+    });
+
+    it('When user does not exist, then it should throw NotFoundException', async () => {
+      const userUuid = v4();
+
+      userRepository.findByUuid.mockResolvedValueOnce(null);
+
+      await expect(service.getFileVersioningLimits(userUuid)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('When versioning is disabled, then enabled should be false', async () => {
+      const userUuid = v4();
+      const tierId = v4();
+      const user = newUser({ attributes: { uuid: userUuid, tierId } });
+
+      const tierLimits = [
+        newFeatureLimit({
+          type: LimitTypes.Boolean,
+          label: LimitLabels.FileVersionEnabled,
+          value: 'false',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxSize,
+          value: '0',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionRetentionDays,
+          value: '0',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionMaxNumber,
+          value: '0',
+        }),
+      ];
+
+      userRepository.findByUuid.mockResolvedValueOnce(user);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce(
+        [],
+      );
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce(
+        tierLimits,
+      );
+
+      const result = await service.getFileVersioningLimits(userUuid);
+
+      expect(result).toEqual({
+        enabled: false,
+        maxFileSize: 0,
+        retentionDays: 0,
+        maxVersions: 0,
+      });
+    });
+  });
+
   describe('getTier', () => {
     it('When tier exists, then it should return the tier', async () => {
       const tierId = v4();

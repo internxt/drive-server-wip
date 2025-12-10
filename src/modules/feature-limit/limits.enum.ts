@@ -3,7 +3,7 @@ export enum LimitLabels {
   MaxSharedItemInvites = 'max-shared-invites',
   CliAccess = 'cli-access',
   PlatformAccess = 'platform-access',
-  FileVersionEnable = 'file-version-enable',
+  FileVersionEnabled = 'file-version-enabled',
   FileVersionMaxSize = 'file-version-max-size',
   FileVersionRetentionDays = 'file-version-retention-days',
   FileVersionMaxNumber = 'file-version-max-number',
