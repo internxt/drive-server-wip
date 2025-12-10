@@ -594,7 +594,6 @@ describe('FileController', () => {
       fileId: 'new-file-id',
       size: BigInt(200),
     };
-
     it('When replaceFile is called with valid data, then it should replace file and send notification', async () => {
       const replacedFile = newFile({
         attributes: {
