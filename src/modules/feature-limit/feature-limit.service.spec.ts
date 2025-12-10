@@ -274,9 +274,19 @@ describe('FeatureLimitService', () => {
 
       const overriddenLimits = [
         newFeatureLimit({
+          type: LimitTypes.Boolean,
+          label: LimitLabels.FileVersionEnabled,
+          value: 'false',
+        }),
+        newFeatureLimit({
           type: LimitTypes.Counter,
           label: LimitLabels.FileVersionMaxSize,
           value: '20971520',
+        }),
+        newFeatureLimit({
+          type: LimitTypes.Counter,
+          label: LimitLabels.FileVersionRetentionDays,
+          value: '30',
         }),
         newFeatureLimit({
           type: LimitTypes.Counter,
@@ -296,10 +306,10 @@ describe('FeatureLimitService', () => {
       const result = await service.getFileVersioningLimits(userUuid);
 
       expect(result).toEqual({
-        enabled: true,
-        maxFileSize: 20971520,
-        retentionDays: 15,
-        maxVersions: 20,
+        enabled: overriddenLimits[0].value === 'true',
+        maxFileSize: Number(overriddenLimits[1].value),
+        retentionDays: Number(overriddenLimits[2].value),
+        maxVersions: Number(overriddenLimits[3].value),
       });
     });
 
