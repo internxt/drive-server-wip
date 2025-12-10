@@ -1990,19 +1990,17 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
       jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue([]);
+      jest
         .spyOn(service, 'isFileVersionable')
         .mockResolvedValue({ versionable: false, limits: null });
-      const applyRetentionSpy = jest.spyOn(
-        service as any,
-        'applyRetentionPolicy',
-      );
       const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
 
       await service.replaceFile(userMocked, mockFile.uuid, replaceData);
 
-      expect(applyRetentionSpy).not.toHaveBeenCalled();
       expect(upsertSpy).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).toHaveBeenCalledWith(
         userMocked,
@@ -2026,19 +2024,17 @@ describe('FileUseCases', () => {
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
       jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue([]);
+      jest
         .spyOn(service, 'isFileVersionable')
         .mockResolvedValue({ versionable: false, limits: null });
-      const applyRetentionSpy = jest.spyOn(
-        service as any,
-        'applyRetentionPolicy',
-      );
       const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
 
       await service.replaceFile(userMocked, mockFile.uuid, replaceData);
 
-      expect(applyRetentionSpy).not.toHaveBeenCalled();
       expect(upsertSpy).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).toHaveBeenCalledWith(
         userMocked,
@@ -2592,29 +2588,18 @@ describe('FileUseCases', () => {
       maxVersions: 10,
     };
 
-    it('When versioning is disabled, then it returns early', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue({ ...premiumLimits, enabled: false });
-
-      const findAllByFileIdSpy = jest.spyOn(
-        fileVersionRepository,
-        'findAllByFileId',
-      );
-
-      await service['applyRetentionPolicy']('file-uuid', userUuid);
-
-      expect(findAllByFileIdSpy).not.toHaveBeenCalled();
-    });
-
-    it('When no versions exist, then no versions are deleted', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(premiumLimits);
+    it('When versioning is disabled and versions exist, then all versions are deleted', async () => {
+      const mockVersions = [
+        { id: '1', createdAt: new Date(), status: 'EXISTS' },
+        { id: '2', createdAt: new Date(), status: 'EXISTS' },
+      ];
 
       jest
         .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue([]);
+        .mockResolvedValue(mockVersions as any);
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue({ ...premiumLimits, enabled: false });
 
       const updateStatusBatchSpy = jest
         .spyOn(fileVersionRepository, 'updateStatusBatch')
@@ -2622,6 +2607,28 @@ describe('FileUseCases', () => {
 
       await service['applyRetentionPolicy']('file-uuid', userUuid);
 
+      expect(updateStatusBatchSpy).toHaveBeenCalledWith(
+        ['1', '2'],
+        FileVersionStatus.DELETED,
+      );
+    });
+
+    it('When no versions exist, then no versions are deleted', async () => {
+      jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue([]);
+
+      const getLimitsSpy = jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(premiumLimits);
+
+      const updateStatusBatchSpy = jest
+        .spyOn(fileVersionRepository, 'updateStatusBatch')
+        .mockResolvedValue(undefined);
+
+      await service['applyRetentionPolicy']('file-uuid', userUuid);
+
+      expect(getLimitsSpy).not.toHaveBeenCalled();
       expect(updateStatusBatchSpy).not.toHaveBeenCalled();
     });
 

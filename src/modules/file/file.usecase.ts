@@ -865,6 +865,8 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
+    await this.applyRetentionPolicy(fileUuid, user.uuid);
+
     const { versionable: shouldVersion } = await this.isFileVersionable(
       user.uuid,
       file.type as VersionableFileExtension,
@@ -872,8 +874,6 @@ export class FileUseCases {
     );
 
     if (shouldVersion) {
-      await this.applyRetentionPolicy(fileUuid, user.uuid);
-
       const { fileId, size, modificationTime } = newFileData;
 
       await Promise.all([
@@ -1205,18 +1205,27 @@ export class FileUseCases {
     fileUuid: string,
     userUuid: string,
   ): Promise<void> {
+    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
+
+    if (versions.length === 0) {
+      return;
+    }
+
     const limits =
       await this.featureLimitService.getFileVersioningLimits(userUuid);
 
     if (!limits.enabled) {
+      const idsToDelete = versions.map((v) => v.id);
+      await this.fileVersionRepository.updateStatusBatch(
+        idsToDelete,
+        FileVersionStatus.DELETED,
+      );
       return;
     }
 
     const { retentionDays, maxVersions } = limits;
 
     const cutoffDate = Time.daysAgo(retentionDays);
-
-    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
 
     const versionsToDeleteByAge = versions.filter(
       (version) => version.createdAt < cutoffDate,
