@@ -2706,7 +2706,7 @@ describe('FileUseCases', () => {
   });
 
   describe('getVersioningLimits', () => {
-    it('When called with valid userUuid, then it should return versioning limits from featureLimitService', async () => {
+    it('When called with a valid user id, then the versioning limits are returned', async () => {
       const userUuid = v4();
       const expectedLimits = newVersioningLimits();
 
@@ -2722,26 +2722,7 @@ describe('FileUseCases', () => {
       );
     });
 
-    it('When user has free tier, then it should return disabled limits', async () => {
-      const userUuid = v4();
-      const freeLimits = newVersioningLimits({
-        enabled: false,
-        maxFileSize: 0,
-        retentionDays: 0,
-        maxVersions: 0,
-      });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(freeLimits);
-
-      const result = await service.getVersioningLimits(userUuid);
-
-      expect(result.enabled).toBe(false);
-      expect(result.maxVersions).toBe(0);
-    });
-
-    it('When featureLimitService throws, then it should propagate the error', async () => {
+    it('When an error occurs, then it should propagate the error', async () => {
       const userUuid = v4();
       const error = new NotFoundException('User not found');
 
