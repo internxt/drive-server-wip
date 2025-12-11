@@ -12,7 +12,6 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Environment } from '@internxt/inxt-js';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -45,7 +44,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdatePasswordDto, UserKeysDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
@@ -1322,6 +1321,53 @@ export class UserUseCases {
     await this.userRepository.updateById(user.id, {
       password: newPassword,
       hKey: Buffer.from(newSalt),
+      mnemonic,
+      lastPasswordChangedAt: new Date(),
+    });
+
+    for (const [version, key] of Object.entries(keysToUpdate)) {
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey: key },
+        );
+      }
+    }
+  }
+
+  async getSessionKey(sessionID: string): Promise<string> {
+    return this.cacheManager.getSessionKey(sessionID);
+  }
+
+  async setLoginState(
+    sessionID: string,
+    serverLoginState: string,
+  ): Promise<void> {
+    this.cacheManager.setLoginState(sessionID, serverLoginState);
+  }
+
+  async updatePasswordOpaque(
+    user: User,
+    mnemonic: string,
+    registrationRecord: string,
+    keys: UserKeysDto,
+  ): Promise<void> {
+    const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
+      ecc: keys.ecc.privateKey,
+      kyber: keys.kyber.privateKey,
+    };
+
+    const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+    if (userKeys.kyber?.privateKey && !keysToUpdate.kyber) {
+      throw new BadRequestException(
+        'User has kyber keys, you need to send kyber keys to update user password',
+      );
+    }
+
+    await this.userRepository.updateById(user.id, {
+      registrationRecord,
       mnemonic,
       lastPasswordChangedAt: new Date(),
     });

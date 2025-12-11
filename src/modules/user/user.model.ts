@@ -62,6 +62,9 @@ export class UserModel extends Model implements UserAttributes {
   rootFolder: FolderModel;
 
   @Column
+  registrationRecord: string;
+
+  @Column
   hKey: Buffer;
 
   @Column

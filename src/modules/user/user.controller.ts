@@ -49,7 +49,11 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import {
+  UpdatePasswordDto,
+  UpdatePasswordOpaqueStartDto,
+  UpdatePasswordOpaqueFinishDto,
+} from './dto/update-password.dto';
 import {
   RecoverAccountDto,
   RecoverAccountQueryDto,
@@ -596,6 +600,161 @@ export class UserController {
         `[AUTH/UPDATEPASSWORD] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
+    }
+  }
+
+  @Patch('password-opaque/start')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPasswordOpaqueStart)
+  @AuditLog({ action: AuditAction.PasswordChangedOpaqueStart })
+  async updatePasswordOpaqueStart(
+    @Body() updatePasswordOpaqueStartDto: UpdatePasswordOpaqueStartDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+      const { registrationRequest, sessionID, hmac } =
+        updatePasswordOpaqueStartDto;
+
+      const sessionKey = await this.userUseCases.getSessionKey(sessionID);
+
+      if (!sessionKey) {
+        throw new BadRequestException('No session key found');
+      }
+
+      const sessionKeyBytes = this.cryptoService.sessionIDtoBytes(sessionKey);
+      const registrationRequestBytes =
+        this.cryptoService.safeBase64ToBytes(registrationRequest);
+      const sessionIDBytes = this.cryptoService.sessionIDtoBytes(sessionID);
+      const mac = this.cryptoService.computeMac(sessionKeyBytes, [
+        registrationRequestBytes,
+        sessionIDBytes,
+      ]);
+
+      if (mac !== hmac) {
+        throw new BadRequestException('Hmac is not correct');
+      }
+
+      const registrationResponse =
+        await this.cryptoService.createRegistrationResponseOpaque(
+          registrationRequest,
+          user.id,
+        );
+
+      return { status: 'success', registrationResponse };
+    } catch (err) {
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD_OPAQUE_START] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordOpaqueStartDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
+    }
+  }
+
+  @Patch('password-opaque/finish')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPasswordOpaqueFinish)
+  @AuditLog({ action: AuditAction.PasswordChangedOpaqueFinished })
+  async updatePasswordOpaqueFinish(
+    @Body() updatePasswordOpaqueFinishDto: UpdatePasswordOpaqueFinishDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+      const {
+        keys,
+        mnemonic,
+        registrationRecord,
+        startLoginRequest,
+        sessionID,
+        hmac,
+      } = updatePasswordOpaqueFinishDto;
+
+      const sessionKey = await this.userUseCases.getSessionKey(sessionID);
+
+      if (!sessionKey) {
+        throw new BadRequestException('No session key found');
+      }
+
+      const sessionKeyBytes = this.cryptoService.sessionIDtoBytes(sessionKey);
+      const mnemonicBytes = this.cryptoService.base64toBytes(mnemonic);
+      const eccPrivateKeyBytes = this.cryptoService.base64toBytes(
+        keys.ecc.privateKey,
+      );
+      const eccPublicKeyBytes = this.cryptoService.base64toBytes(
+        keys.ecc.publicKey,
+      );
+      const kyberPrivateKeyBytes = this.cryptoService.base64toBytes(
+        keys.kyber.privateKey,
+      );
+      const kyberPublicKeyBytes = this.cryptoService.base64toBytes(
+        keys.kyber.publicKey,
+      );
+      const registrationRecordBytes =
+        this.cryptoService.safeBase64ToBytes(registrationRecord);
+      const startLoginRequestBytes =
+        this.cryptoService.safeBase64ToBytes(startLoginRequest);
+      const sessionIDBytes = this.cryptoService.sessionIDtoBytes(sessionID);
+      const mac = this.cryptoService.computeMac(sessionKeyBytes, [
+        sessionIDBytes,
+        registrationRecordBytes,
+        mnemonicBytes,
+        eccPrivateKeyBytes,
+        eccPublicKeyBytes,
+        kyberPrivateKeyBytes,
+        kyberPublicKeyBytes,
+        startLoginRequestBytes,
+      ]);
+
+      if (mac !== hmac) {
+        throw new BadRequestException('Hmac is not correct');
+      }
+
+      await this.userUseCases.updatePasswordOpaque(
+        user,
+        mnemonic,
+        registrationRecord,
+        keys,
+      );
+
+      const { loginResponse, serverLoginState } =
+        await this.cryptoService.startLoginOpaque(
+          user.email,
+          registrationRecord,
+          startLoginRequest,
+        );
+
+      await this.userUseCases.setLoginState(sessionID, serverLoginState);
+
+      return { status: 'success', loginResponse };
+    } catch (err) {
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD_OPAQUE_FINISH] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordOpaqueFinishDto)}, STACK: ${
           (err as Error).stack
         }`,
       );

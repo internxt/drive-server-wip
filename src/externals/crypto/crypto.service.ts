@@ -4,6 +4,9 @@ import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { server } from '@serenity-kit/opaque';
+import { computeMac } from 'internxt-crypto/hash';
+import { base64ToUint8Array, uuidToBytes } from 'internxt-crypto/utils';
 
 export enum AsymmetricEncryptionAlgorithms {
   EllipticCurve = 'ed25519',
@@ -14,9 +17,11 @@ export class CryptoService {
   private readonly configService: ConfigService;
   private readonly aesService: AesService;
   private readonly cryptoSecret: string;
+  private readonly serverSetup: string;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
+    this.serverSetup = this.configService.get('secrets.serverSetup');
     this.aesService = new AesService(
       this.configService.get('secrets.magicIv'),
       this.configService.get('secrets.magicSalt'),
@@ -169,5 +174,51 @@ export class CryptoService {
 
       return null;
     }
+  }
+
+  createRegistrationResponseOpaque(
+    registrationRequest: string,
+    uid: number,
+  ): string {
+    const { registrationResponse } = server.createRegistrationResponse({
+      serverSetup: this.serverSetup,
+      userIdentifier: uid.toString(),
+      registrationRequest,
+    });
+
+    return registrationResponse;
+  }
+
+  startLoginOpaque(
+    email: string,
+    registrationRecord: string,
+    startLoginRequest: string,
+  ): { loginResponse: string; serverLoginState: string } {
+    const { loginResponse, serverLoginState } = server.startLogin({
+      userIdentifier: email,
+      registrationRecord,
+      serverSetup: this.serverSetup,
+      startLoginRequest,
+    });
+
+    return { loginResponse, serverLoginState };
+  }
+
+  computeMac(keyBytes: Uint8Array, data: Uint8Array[]): string {
+    return computeMac(keyBytes, data);
+  }
+
+  safeBase64ToBytes(urlSafeBase64: string): Uint8Array {
+    const base64 = urlSafeBase64.replaceAll('-', '+').replaceAll('_', '/');
+    const padding = (4 - (base64.length % 4)) % 4;
+    return base64ToUint8Array(base64 + '='.repeat(padding));
+  }
+
+  sessionIDtoBytes(sessionID: string): Uint8Array {
+    return uuidToBytes(sessionID);
+  }
+
+  base64toBytes(str: string): Uint8Array {
+    return base64ToUint8Array(str);
   }
 }

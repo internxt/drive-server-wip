@@ -31,4 +31,5 @@ export interface UserAttributes {
   updatedAt?: Date;
   createdAt?: Date;
   isOpaqueEnabled?: boolean;
+  registrationRecord?: string;
 }
