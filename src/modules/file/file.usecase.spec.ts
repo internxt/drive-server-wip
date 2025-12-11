@@ -26,6 +26,7 @@ import {
   newUser,
   newWorkspace,
   newUsage,
+  newVersioningLimits,
 } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
@@ -2701,6 +2702,37 @@ describe('FileUseCases', () => {
       await service['applyRetentionPolicy']('file-uuid', userUuid);
 
       expect(updateStatusBatchSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('getVersioningLimits', () => {
+    it('When called with a valid user id, then the versioning limits are returned', async () => {
+      const userUuid = v4();
+      const expectedLimits = newVersioningLimits();
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(expectedLimits);
+
+      const result = await service.getVersioningLimits(userUuid);
+
+      expect(result).toEqual(expectedLimits);
+      expect(featureLimitService.getFileVersioningLimits).toHaveBeenCalledWith(
+        userUuid,
+      );
+    });
+
+    it('When an error occurs, then it should propagate the error', async () => {
+      const userUuid = v4();
+      const error = new NotFoundException('User not found');
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockRejectedValue(error);
+
+      await expect(service.getVersioningLimits(userUuid)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
