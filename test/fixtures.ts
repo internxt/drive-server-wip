@@ -778,3 +778,19 @@ export const newFileVersion = (params?: {
 
   return fileVersion;
 };
+
+export type VersioningLimits = {
+  enabled: boolean;
+  maxFileSize: number;
+  retentionDays: number;
+  maxVersions: number;
+};
+
+export const newVersioningLimits = (
+  params?: Partial<VersioningLimits>,
+): VersioningLimits => ({
+  enabled: params?.enabled ?? true,
+  maxFileSize: params?.maxFileSize ?? 10 * 1024 * 1024,
+  retentionDays: params?.retentionDays ?? 15,
+  maxVersions: params?.maxVersions ?? 10,
+});

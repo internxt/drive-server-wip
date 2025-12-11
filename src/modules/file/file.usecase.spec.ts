@@ -26,6 +26,7 @@ import {
   newUser,
   newWorkspace,
   newUsage,
+  newVersioningLimits,
 } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
@@ -2701,6 +2702,56 @@ describe('FileUseCases', () => {
       await service['applyRetentionPolicy']('file-uuid', userUuid);
 
       expect(updateStatusBatchSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('getVersioningLimits', () => {
+    it('When called with valid userUuid, then it should return versioning limits from featureLimitService', async () => {
+      const userUuid = v4();
+      const expectedLimits = newVersioningLimits();
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(expectedLimits);
+
+      const result = await service.getVersioningLimits(userUuid);
+
+      expect(result).toEqual(expectedLimits);
+      expect(featureLimitService.getFileVersioningLimits).toHaveBeenCalledWith(
+        userUuid,
+      );
+    });
+
+    it('When user has free tier, then it should return disabled limits', async () => {
+      const userUuid = v4();
+      const freeLimits = newVersioningLimits({
+        enabled: false,
+        maxFileSize: 0,
+        retentionDays: 0,
+        maxVersions: 0,
+      });
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(freeLimits);
+
+      const result = await service.getVersioningLimits(userUuid);
+
+      expect(result.enabled).toBe(false);
+      expect(result.maxVersions).toBe(0);
+    });
+
+    it('When featureLimitService throws, then it should propagate the error', async () => {
+      const userUuid = v4();
+      const error = new NotFoundException('User not found');
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockRejectedValue(error);
+
+      await expect(service.getVersioningLimits(userUuid)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

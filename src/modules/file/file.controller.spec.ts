@@ -7,7 +7,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newFolder, newUser } from '../../../test/fixtures';
+import {
+  newFile,
+  newFolder,
+  newUser,
+  newVersioningLimits,
+} from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
 import { User } from '../user/user.domain';
 import { File, FileStatus } from './file.domain';
@@ -751,6 +756,48 @@ describe('FileController', () => {
           offset: validOffset,
         }),
         undefined,
+      );
+    });
+  });
+
+  describe('getLimits', () => {
+    it('When getLimits is called, then it should return versioning limits for the user', async () => {
+      const versioningLimits = newVersioningLimits();
+      jest
+        .spyOn(fileUseCases, 'getVersioningLimits')
+        .mockResolvedValue(versioningLimits);
+
+      const result = await fileController.getLimits(userMocked);
+
+      expect(result).toEqual({ versioning: versioningLimits });
+      expect(fileUseCases.getVersioningLimits).toHaveBeenCalledWith(
+        userMocked.uuid,
+      );
+    });
+
+    it('When user has free tier, then it should return disabled versioning limits', async () => {
+      const freeLimits = newVersioningLimits({
+        enabled: false,
+        maxFileSize: 0,
+        retentionDays: 0,
+        maxVersions: 0,
+      });
+      jest
+        .spyOn(fileUseCases, 'getVersioningLimits')
+        .mockResolvedValue(freeLimits);
+
+      const result = await fileController.getLimits(userMocked);
+
+      expect(result).toEqual({ versioning: freeLimits });
+      expect(result.versioning.enabled).toBe(false);
+    });
+
+    it('When getVersioningLimits throws an error, then it should propagate the error', async () => {
+      const error = new NotFoundException('User not found');
+      jest.spyOn(fileUseCases, 'getVersioningLimits').mockRejectedValue(error);
+
+      await expect(fileController.getLimits(userMocked)).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

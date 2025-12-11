@@ -1255,4 +1255,13 @@ export class FileUseCases {
       );
     }
   }
+
+  async getVersioningLimits(userUuid: string): Promise<{
+    enabled: boolean;
+    maxFileSize: number;
+    retentionDays: number;
+    maxVersions: number;
+  }> {
+    return this.featureLimitService.getFileVersioningLimits(userUuid);
+  }
 }
