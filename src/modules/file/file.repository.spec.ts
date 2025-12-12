@@ -940,4 +940,29 @@ describe('FileRepository', () => {
       expect(response).toBe(0);
     });
   });
+
+  describe('getZeroSizeFilesCountByUser', () => {
+    it('When user zero-size files are requested, then it should make the query with expected parameters', async () => {
+      const userId = 123;
+      const count = 2;
+
+      jest.spyOn(fileModel, 'findAndCountAll').mockResolvedValueOnce({
+        rows: [],
+        count,
+      } as any);
+
+      const result = await repository.getZeroSizeFilesCountByUser(userId);
+
+      expect(fileModel.findAndCountAll).toHaveBeenCalledWith({
+        where: {
+          userId,
+          size: 0,
+          status: {
+            [Op.not]: FileStatus.DELETED,
+          },
+        },
+      });
+      expect(result).toBe(count);
+    });
+  });
 });

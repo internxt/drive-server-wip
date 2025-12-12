@@ -1,10 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   IsUUID,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateFileDto {
@@ -16,11 +20,15 @@ export class CreateFileDto {
   bucket: string;
 
   @ApiProperty({
-    description: 'The ID of the file',
+    description: 'The ID of the file (required when size > 0)',
     example: 'file12345',
+    required: false,
   })
-  @IsString()
-  fileId: string;
+  @ValidateIf((o) => o.size > 0)
+  @IsNotEmpty({ message: 'fileId is required when size is greater than 0' })
+  // Max varchar length in the database is 24
+  @MaxLength(24)
+  fileId?: string;
 
   @ApiProperty({
     description: 'The encryption version used for the file',
@@ -44,6 +52,7 @@ export class CreateFileDto {
     format: 'bigint',
     example: 123456789,
   })
+  @IsPositive()
   @IsNumber()
   size: bigint;
 

@@ -4,6 +4,8 @@ import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { Limit } from './domain/limit.domain';
+import { User } from '../user/user.domain';
 
 @Injectable()
 export class FeatureLimitService {
@@ -145,5 +147,14 @@ export class FeatureLimitService {
         Number(limitsMap.get(LimitLabels.FileVersionRetentionDays)) || 0,
       maxVersions: Number(limitsMap.get(LimitLabels.FileVersionMaxNumber)) || 0,
     };
+  }
+
+  async getUserLimitByLabel(label: LimitLabels, user: User): Promise<Limit> {
+    const [userOverriddenLimits, tierLimits] = await Promise.all([
+      this.limitsRepository.findUserOverriddenLimit(user.uuid, label),
+      this.limitsRepository.findLimitByLabelAndTier(user.tierId, label),
+    ]);
+
+    return userOverriddenLimits ?? tierLimits;
   }
 }
