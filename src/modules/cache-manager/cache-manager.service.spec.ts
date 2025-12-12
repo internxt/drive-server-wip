@@ -93,6 +93,16 @@ describe('CacheManagerService', () => {
     });
   });
 
+  describe('expireUserUsage', () => {
+    it('When called, then it should expire the cached usage', async () => {
+      const userUuid = v4();
+      jest.spyOn(cacheManager, 'del').mockResolvedValue(true);
+      await cacheManagerService.expireUserUsage(userUuid);
+
+      expect(cacheManager.del).toHaveBeenCalledWith(`usage:${userUuid}`);
+    });
+  });
+
   describe('setUserStorageLimit', () => {
     it('When setting user storage limit, then it should store the limit with correct key and expiration', async () => {
       const userUuid = v4();
