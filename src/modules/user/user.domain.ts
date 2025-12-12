@@ -32,6 +32,7 @@ export class User implements UserAttributes {
   updatedAt: Date;
   createdAt: Date;
   isOpaqueEnabled: boolean;
+  registrationRecord?: string;
 
   constructor({
     id,
@@ -65,6 +66,7 @@ export class User implements UserAttributes {
     updatedAt,
     createdAt,
     isOpaqueEnabled,
+    registrationRecord,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -97,6 +99,7 @@ export class User implements UserAttributes {
     this.updatedAt = updatedAt;
     this.createdAt = createdAt;
     this.isOpaqueEnabled = isOpaqueEnabled;
+    this.registrationRecord = registrationRecord;
   }
 
   static build(user: UserAttributes): User {

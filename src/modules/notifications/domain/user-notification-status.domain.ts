@@ -8,9 +8,7 @@ export interface UserNotificationStatusAttributes {
   updatedAt: Date;
 }
 
-export class UserNotificationStatus
-  implements UserNotificationStatusAttributes
-{
+export class UserNotificationStatus implements UserNotificationStatusAttributes {
   id: string;
   userId: string;
   notificationId: string;

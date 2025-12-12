@@ -113,19 +113,13 @@ export class CacheManagerService {
     );
   }
 
-  async getLoginState(sessionID: string): Promise<string | null> {
-    return this.cacheManager.get<string>(
-      `${this.LOGIN_STATE_PREFIX}${sessionID}`,
-    );
+  async getLoginState(email: string): Promise<string | null> {
+    return this.cacheManager.get<string>(`${this.LOGIN_STATE_PREFIX}${email}`);
   }
 
-  async setLoginState(
-    sessionID: string,
-    serverLoginState: string,
-    ttl?: number,
-  ) {
+  async setLoginState(email: string, serverLoginState: string, ttl?: number) {
     return this.cacheManager.set(
-      `${this.LOGIN_STATE_PREFIX}${sessionID}`,
+      `${this.LOGIN_STATE_PREFIX}${email}`,
       serverLoginState,
       ttl ?? this.TTL_10_MINUTES,
     );

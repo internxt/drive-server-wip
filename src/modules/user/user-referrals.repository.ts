@@ -78,9 +78,7 @@ export interface UserReferralsRepository {
 }
 
 @Injectable()
-export class SequelizeUserReferralsRepository
-  implements UserReferralsRepository
-{
+export class SequelizeUserReferralsRepository implements UserReferralsRepository {
   private readonly logger = new Logger(SequelizeUserReferralsRepository.name);
 
   constructor(

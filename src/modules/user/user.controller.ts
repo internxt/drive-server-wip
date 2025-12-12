@@ -747,7 +747,7 @@ export class UserController {
           startLoginRequest,
         );
 
-      await this.userUseCases.setLoginState(sessionID, serverLoginState);
+      await this.userUseCases.setLoginState(user.email, serverLoginState);
 
       return { status: 'success', loginResponse };
     } catch (err) {

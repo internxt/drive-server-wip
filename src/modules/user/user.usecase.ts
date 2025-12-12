@@ -1340,11 +1340,16 @@ export class UserUseCases {
     return this.cacheManager.getSessionKey(sessionID);
   }
 
-  async setLoginState(
-    sessionID: string,
-    serverLoginState: string,
-  ): Promise<void> {
-    this.cacheManager.setLoginState(sessionID, serverLoginState);
+  async setSessionKey(sessionID: string, sessionKey: string): Promise<void> {
+    await this.cacheManager.setSessionKey(sessionID, sessionKey);
+  }
+
+  async setLoginState(email: string, serverLoginState: string): Promise<void> {
+    this.cacheManager.setLoginState(email, serverLoginState);
+  }
+
+  async getLoginState(email: string): Promise<string> {
+    return this.cacheManager.getLoginState(email);
   }
 
   async updatePasswordOpaque(
@@ -1586,6 +1591,82 @@ export class UserUseCases {
 
   getUserNotificationTokens(user: User): Promise<UserNotificationTokens[]> {
     return this.userRepository.getNotificationTokens(user.uuid);
+  }
+
+  async loginAccessOpaque(email: string, tfa: string) {
+    const MAX_LOGIN_FAIL_ATTEMPTS = 10;
+
+    const userData = await this.findByEmail(email.toLowerCase());
+
+    if (!userData) {
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    const loginAttemptsLimitReached =
+      userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
+
+    if (loginAttemptsLimitReached) {
+      throw new ForbiddenException(
+        'Your account has been blocked for security reasons. Please reach out to us',
+      );
+    }
+
+    const twoFactorEnabled =
+      userData.secret_2FA && userData.secret_2FA.length > 0;
+    if (twoFactorEnabled) {
+      const tfaResult = speakeasy.totp.verifyDelta({
+        secret: userData.secret_2FA,
+        token: tfa,
+        encoding: 'base32',
+        window: 2,
+      });
+
+      if (!tfaResult) {
+        throw new UnauthorizedException('Wrong 2-factor auth code');
+      }
+    }
+    const { newToken } = await this.getAuthTokens(userData, undefined, '3d');
+    await this.userRepository.loginFailed(userData, false);
+
+    this.updateByUuid(userData.uuid, { updatedAt: new Date() });
+
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
+
+    const userBucket = rootFolder?.bucket;
+
+    const keys = await this.keyServerUseCases.findUserKeys(userData.id);
+
+    const user = {
+      email: userData.email,
+      userId: userData.userId,
+      mnemonic: userData.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: userData.name,
+      lastname: userData.lastname,
+      uuid: userData.uuid,
+      credit: userData.credit,
+      createdAt: userData.createdAt,
+      tierId: userData.tierId,
+      privateKey: null,
+      publicKey: null,
+      revocateKey: null,
+      keys: keys,
+      bucket: userBucket,
+      registerCompleted: userData.registerCompleted,
+      teams: false,
+      username: userData.username,
+      bridgeUser: userData.bridgeUser,
+      sharedWorkspace: userData.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: userData.backupsBucket,
+      avatar: userData.avatar ? await this.getAvatarUrl(userData.avatar) : null,
+      emailVerified: userData.emailVerified,
+      lastPasswordChangedAt: userData.lastPasswordChangedAt,
+    };
+
+    return { user, token: newToken };
   }
 
   async loginAccess(

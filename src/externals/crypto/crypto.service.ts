@@ -6,7 +6,12 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { server } from '@serenity-kit/opaque';
 import { computeMac } from 'internxt-crypto/hash';
-import { base64ToUint8Array, uuidToBytes } from 'internxt-crypto/utils';
+import {
+  base64ToUint8Array,
+  uuidToBytes,
+  generateID,
+} from 'internxt-crypto/utils';
+import { p } from 'node_modules/internxt-crypto/dist/emailKeys-Dly8fZJB';
 
 export enum AsymmetricEncryptionAlgorithms {
   EllipticCurve = 'ed25519',
@@ -204,6 +209,16 @@ export class CryptoService {
     return { loginResponse, serverLoginState };
   }
 
+  finishLoginOpaque(
+    finishLoginRequest: string,
+    serverLoginState: string,
+  ): { sessionKey: string } {
+    return server.finishLogin({
+      finishLoginRequest,
+      serverLoginState,
+    });
+  }
+
   computeMac(keyBytes: Uint8Array, data: Uint8Array[]): string {
     return computeMac(keyBytes, data);
   }
@@ -220,5 +235,9 @@ export class CryptoService {
 
   base64toBytes(str: string): Uint8Array {
     return base64ToUint8Array(str);
+  }
+
+  generateSessionID(): string {
+    return generateID();
   }
 }
