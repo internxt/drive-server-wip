@@ -52,6 +52,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -84,6 +85,7 @@ export class FileUseCases {
     @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
+    private readonly cacheManagerService: CacheManagerService,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -419,6 +421,12 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
       modificationTime: newFileDto.modificationTime || new Date(),
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
+    });
+
+    await this.cacheManagerService.expireUserUsage(user.uuid).catch((err) => {
+      new Logger('[UPLOAD_FILE/USAGE_CACHE]').error(
+        `Error while cleaning usage cache for user ${user.uuid}: ${err.message}`,
+      );
     });
 
     if (!hadFilesBeforeUpload) {
