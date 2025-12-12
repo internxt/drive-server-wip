@@ -36,7 +36,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  CreateUserDto,
+  CreateUserOpaqueDto,
+  RegisterUserOpaqueDto,
+} from './dto/create-user.dto';
 import { Response, Request } from 'express';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -49,7 +53,11 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import {
+  UpdatePasswordDto,
+  UpdatePasswordOpaqueStartDto,
+  UpdatePasswordOpaqueFinishDto,
+} from './dto/update-password.dto';
 import {
   RecoverAccountDto,
   RecoverAccountQueryDto,
@@ -218,6 +226,152 @@ export class UserController {
 
       this.logger.error(
         `[AUTH/REGISTER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/register-opaque/start')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Start opaque registration of a user',
+  })
+  @ApiOkResponse({ description: 'Starts opaque registration of a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async createUserOpaqueStart(@Body() registerUserDto: RegisterUserOpaqueDto) {
+    try {
+      const email = registerUserDto.email.toLowerCase();
+      const user = await this.userUseCases.getUserByUsername(email);
+
+      if (user) {
+        throw new UserAlreadyRegisteredError(registerUserDto.email);
+      }
+
+      const registrationResponse =
+        await this.cryptoService.createRegistrationResponseOpaque(
+          registerUserDto.registrationRequest,
+          registerUserDto.email,
+        );
+
+      return registrationResponse;
+    } catch (err) {
+      if (err instanceof InvalidReferralCodeError) {
+        throw new BadRequestException(err.message);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        throw new ConflictException(err.message);
+      }
+
+      this.logger.error(
+        `[AUTH/REGISTER-OPAQUE-START] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(registerUserDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/register-opaque/finish')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Start opaque registration of a user',
+  })
+  @ApiOkResponse({ description: 'Starts opaque registration of a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async createUserOpaqueFinish(
+    @Body() createUserDto: CreateUserOpaqueDto,
+    @Req() req: Request,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    try {
+      const response = await this.userUseCases.createUserOpaque(createUserDto);
+
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+      );
+
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        response.user.id,
+        {
+          kyber,
+          ecc,
+        },
+      );
+
+      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+        await this.userUseCases.replacePreCreatedUser(
+          response.user.email,
+          response.user.uuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+      }
+
+      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
+
+      // TODO: Move to EventBus
+      this.userUseCases
+        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
+          userUuid: response.uuid,
+        })
+        .catch((err) => {
+          this.logger.error(
+            `[AUTH/REGISTER-OPAQUE-FINISH/SENDWELCOMEEMAIL] ERROR: ${
+              (err as Error).message
+            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+              (err as Error).stack
+            }`,
+          );
+        });
+
+      return {
+        ...response,
+        user: {
+          ...response.user,
+          root_folder_id: response.user.rootFolderId,
+          ...(isDriveWeb
+            ? { rootFolderId: response.user.rootFolderUuid }
+            : null),
+          keys: keys,
+        },
+        token: response.token,
+        newToken: response.newToken,
+        uuid: response.uuid,
+      };
+    } catch (err) {
+      if (err instanceof InvalidReferralCodeError) {
+        throw new BadRequestException(err.message);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        throw new ConflictException(err.message);
+      }
+
+      this.logger.error(
+        `[AUTH/REGISTER-OPAQUE-FINISH] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
           (err as Error).stack
@@ -596,6 +750,161 @@ export class UserController {
         `[AUTH/UPDATEPASSWORD] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
+    }
+  }
+
+  @Patch('password-opaque/start')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPasswordOpaqueStart)
+  @AuditLog({ action: AuditAction.PasswordChangedOpaqueStart })
+  async updatePasswordOpaqueStart(
+    @Body() updatePasswordOpaqueStartDto: UpdatePasswordOpaqueStartDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+      const { registrationRequest, sessionID, hmac } =
+        updatePasswordOpaqueStartDto;
+
+      const sessionKey = await this.userUseCases.getSessionKey(sessionID);
+
+      if (!sessionKey) {
+        throw new BadRequestException('No session key found');
+      }
+
+      const sessionKeyBytes = this.cryptoService.sessionIDtoBytes(sessionKey);
+      const registrationRequestBytes =
+        this.cryptoService.safeBase64ToBytes(registrationRequest);
+      const sessionIDBytes = this.cryptoService.sessionIDtoBytes(sessionID);
+      const mac = this.cryptoService.computeMac(sessionKeyBytes, [
+        registrationRequestBytes,
+        sessionIDBytes,
+      ]);
+
+      if (mac !== hmac) {
+        throw new BadRequestException('Hmac is not correct');
+      }
+
+      const registrationResponse =
+        await this.cryptoService.createRegistrationResponseOpaque(
+          registrationRequest,
+          user.email,
+        );
+
+      return { status: 'success', registrationResponse };
+    } catch (err) {
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD_OPAQUE_START] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordOpaqueStartDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
+    }
+  }
+
+  @Patch('password-opaque/finish')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPasswordOpaqueFinish)
+  @AuditLog({ action: AuditAction.PasswordChangedOpaqueFinished })
+  async updatePasswordOpaqueFinish(
+    @Body() updatePasswordOpaqueFinishDto: UpdatePasswordOpaqueFinishDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+      const {
+        keys,
+        mnemonic,
+        registrationRecord,
+        startLoginRequest,
+        sessionID,
+        hmac,
+      } = updatePasswordOpaqueFinishDto;
+
+      const sessionKey = await this.userUseCases.getSessionKey(sessionID);
+
+      if (!sessionKey) {
+        throw new BadRequestException('No session key found');
+      }
+
+      const sessionKeyBytes = this.cryptoService.sessionIDtoBytes(sessionKey);
+      const mnemonicBytes = this.cryptoService.base64toBytes(mnemonic);
+      const eccPrivateKeyBytes = this.cryptoService.base64toBytes(
+        keys.ecc.privateKey,
+      );
+      const eccPublicKeyBytes = this.cryptoService.base64toBytes(
+        keys.ecc.publicKey,
+      );
+      const kyberPrivateKeyBytes = this.cryptoService.base64toBytes(
+        keys.kyber.privateKey,
+      );
+      const kyberPublicKeyBytes = this.cryptoService.base64toBytes(
+        keys.kyber.publicKey,
+      );
+      const registrationRecordBytes =
+        this.cryptoService.safeBase64ToBytes(registrationRecord);
+      const startLoginRequestBytes =
+        this.cryptoService.safeBase64ToBytes(startLoginRequest);
+      const sessionIDBytes = this.cryptoService.sessionIDtoBytes(sessionID);
+      const mac = this.cryptoService.computeMac(sessionKeyBytes, [
+        sessionIDBytes,
+        registrationRecordBytes,
+        mnemonicBytes,
+        eccPrivateKeyBytes,
+        eccPublicKeyBytes,
+        kyberPrivateKeyBytes,
+        kyberPublicKeyBytes,
+        startLoginRequestBytes,
+      ]);
+
+      if (mac !== hmac) {
+        throw new BadRequestException('Hmac is not correct');
+      }
+
+      await this.userUseCases.updatePasswordOpaque(
+        user,
+        mnemonic,
+        registrationRecord,
+        keys,
+      );
+
+      const { loginResponse, serverLoginState } =
+        await this.cryptoService.startLoginOpaque(
+          user.email,
+          registrationRecord,
+          startLoginRequest,
+        );
+
+      await this.userUseCases.setLoginState(user.email, serverLoginState);
+
+      return { status: 'success', loginResponse };
+    } catch (err) {
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD_OPAQUE_FINISH] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(updatePasswordOpaqueFinishDto)}, STACK: ${
           (err as Error).stack
         }`,
       );

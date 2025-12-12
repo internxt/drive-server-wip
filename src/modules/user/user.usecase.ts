@@ -12,7 +12,6 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Environment } from '@internxt/inxt-js';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -45,7 +44,7 @@ import { PaymentsService } from '../../externals/payments/payments.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdatePasswordDto, UserKeysDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
@@ -132,6 +131,14 @@ type NewUser = Pick<
   'email' | 'name' | 'lastname' | 'mnemonic' | 'password'
 > & {
   salt: string;
+  referrer?: UserAttributes['referrer'];
+  registerCompleted?: UserAttributes['registerCompleted'];
+};
+
+type NewUserOpaque = Pick<
+  UserAttributes,
+  'email' | 'name' | 'lastname' | 'mnemonic' | 'registrationRecord'
+> & {
   referrer?: UserAttributes['referrer'];
   registerCompleted?: UserAttributes['registerCompleted'];
 };
@@ -422,6 +429,110 @@ export class UserUseCases {
       email: referredEmail,
       uuid: referredUuid,
     });
+  }
+
+  async createUserOpaque(newUser: NewUserOpaque) {
+    const email = newUser.email.toLowerCase();
+
+    const maybeExistentUser = await this.userRepository.findByUsername(email);
+    const userAlreadyExists = !!maybeExistentUser;
+
+    if (userAlreadyExists) {
+      throw new UserAlreadyRegisteredError(newUser.email);
+    }
+
+    const { userId: networkPass, uuid: userUuid } =
+      await this.networkService.createUser(email);
+
+    const notifySignUpError = (err: Error) =>
+      this.notificationService.add(
+        new SignUpErrorEvent({ email, uuid: userUuid }, err),
+      );
+
+    const freeTier = await this.featureLimitRepository.getFreeTier();
+
+    const user = await this.userRepository.create({
+      email,
+      name: newUser.name,
+      lastname: newUser.lastname,
+      referrer: newUser.referrer,
+      referralCode: v4(),
+      uuid: userUuid,
+      userId: networkPass,
+      credit: 0,
+      welcomePack: true,
+      registerCompleted: newUser.registerCompleted,
+      username: email,
+      bridgeUser: email,
+      mnemonic: newUser.mnemonic,
+      tierId: freeTier?.id,
+      registrationRecord: newUser.registrationRecord,
+    });
+
+    let rootFolder: Folder;
+
+    try {
+      const bucket = await this.networkService.createBucket(email, networkPass);
+      const [createdRootFolder] = await this.createInitialFolders(
+        user,
+        bucket.id,
+      );
+      rootFolder = createdRootFolder;
+
+      const hasReferrer = !!newUser.referrer;
+      if (hasReferrer) {
+        this.applyReferralIfHasReferrer(
+          userUuid,
+          email,
+          newUser.referrer,
+        ).catch(notifySignUpError);
+      }
+
+      const { newToken, token } = await this.getAuthTokens(
+        user,
+        undefined,
+        '3d',
+      );
+
+      return {
+        token,
+        newToken,
+        user: {
+          ...user.toJSON(),
+          hKey: user.hKey.toString(),
+          password: user.password.toString(),
+          mnemonic: user.mnemonic.toString(),
+          rootFolderId: rootFolder.id,
+          rootFolderUuid: rootFolder.uuid,
+          bucket: bucket.id,
+          uuid: userUuid,
+          userId: networkPass,
+          hasReferralsProgram: false,
+        } as unknown as User & { rootFolderUuid: string },
+        uuid: userUuid,
+      };
+    } catch (err) {
+      const error = {
+        message: err.message,
+        stack: err.stack ?? 'NO STACK',
+        body: newUser,
+      };
+
+      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${JSON.stringify(error)}`);
+      notifySignUpError(err);
+
+      if (user) {
+        Logger.warn(
+          `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
+        );
+        await this.userRepository.deleteBy({ uuid: user.uuid });
+        if (rootFolder) {
+          await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
+        }
+      }
+
+      throw err;
+    }
   }
 
   async createUser(newUser: NewUser) {
@@ -1337,6 +1448,58 @@ export class UserUseCases {
     }
   }
 
+  async getSessionKey(sessionID: string): Promise<string> {
+    return this.cacheManager.getSessionKey(sessionID);
+  }
+
+  async setSessionKey(sessionID: string, sessionKey: string): Promise<void> {
+    await this.cacheManager.setSessionKey(sessionID, sessionKey);
+  }
+
+  async setLoginState(email: string, serverLoginState: string): Promise<void> {
+    this.cacheManager.setLoginState(email, serverLoginState);
+  }
+
+  async getLoginState(email: string): Promise<string> {
+    return this.cacheManager.getLoginState(email);
+  }
+
+  async updatePasswordOpaque(
+    user: User,
+    mnemonic: string,
+    registrationRecord: string,
+    keys: UserKeysDto,
+  ): Promise<void> {
+    const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
+      ecc: keys.ecc.privateKey,
+      kyber: keys.kyber.privateKey,
+    };
+
+    const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+    if (userKeys.kyber?.privateKey && !keysToUpdate.kyber) {
+      throw new BadRequestException(
+        'User has kyber keys, you need to send kyber keys to update user password',
+      );
+    }
+
+    await this.userRepository.updateById(user.id, {
+      registrationRecord,
+      mnemonic,
+      lastPasswordChangedAt: new Date(),
+    });
+
+    for (const [version, key] of Object.entries(keysToUpdate)) {
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey: key },
+        );
+      }
+    }
+  }
+
   async getAvatarUrl(avatarKey: string) {
     if (!avatarKey) return null;
 
@@ -1540,6 +1703,82 @@ export class UserUseCases {
 
   getUserNotificationTokens(user: User): Promise<UserNotificationTokens[]> {
     return this.userRepository.getNotificationTokens(user.uuid);
+  }
+
+  async loginAccessOpaque(email: string, tfa: string) {
+    const MAX_LOGIN_FAIL_ATTEMPTS = 10;
+
+    const userData = await this.findByEmail(email.toLowerCase());
+
+    if (!userData) {
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    const loginAttemptsLimitReached =
+      userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
+
+    if (loginAttemptsLimitReached) {
+      throw new ForbiddenException(
+        'Your account has been blocked for security reasons. Please reach out to us',
+      );
+    }
+
+    const twoFactorEnabled =
+      userData.secret_2FA && userData.secret_2FA.length > 0;
+    if (twoFactorEnabled) {
+      const tfaResult = speakeasy.totp.verifyDelta({
+        secret: userData.secret_2FA,
+        token: tfa,
+        encoding: 'base32',
+        window: 2,
+      });
+
+      if (!tfaResult) {
+        throw new UnauthorizedException('Wrong 2-factor auth code');
+      }
+    }
+    const { newToken } = await this.getAuthTokens(userData, undefined, '3d');
+    await this.userRepository.loginFailed(userData, false);
+
+    this.updateByUuid(userData.uuid, { updatedAt: new Date() });
+
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
+
+    const userBucket = rootFolder?.bucket;
+
+    const keys = await this.keyServerUseCases.findUserKeys(userData.id);
+
+    const user = {
+      email: userData.email,
+      userId: userData.userId,
+      mnemonic: userData.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: userData.name,
+      lastname: userData.lastname,
+      uuid: userData.uuid,
+      credit: userData.credit,
+      createdAt: userData.createdAt,
+      tierId: userData.tierId,
+      privateKey: null,
+      publicKey: null,
+      revocateKey: null,
+      keys: keys,
+      bucket: userBucket,
+      registerCompleted: userData.registerCompleted,
+      teams: false,
+      username: userData.username,
+      bridgeUser: userData.bridgeUser,
+      sharedWorkspace: userData.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: userData.backupsBucket,
+      avatar: userData.avatar ? await this.getAvatarUrl(userData.avatar) : null,
+      emailVerified: userData.emailVerified,
+      lastPasswordChangedAt: userData.lastPasswordChangedAt,
+    };
+
+    return { user, token: newToken };
   }
 
   async loginAccess(

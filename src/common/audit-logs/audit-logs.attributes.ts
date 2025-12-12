@@ -25,6 +25,8 @@ export enum AuditAction {
   StorageChanged = 'storage-changed',
   EmailChanged = 'email-changed',
   PasswordChanged = 'password-changed',
+  PasswordChangedOpaqueStart = 'password-changed-opaque-start',
+  PasswordChangedOpaqueFinished = 'password-changed-opaque-finished',
   TfaEnabled = '2fa-enabled',
   TfaDisabled = '2fa-disabled',
   AccountReset = 'account-reset',

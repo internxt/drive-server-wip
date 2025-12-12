@@ -77,3 +77,46 @@ export class LoginAccessDto {
   })
   keys?: OptionalKeyGroup;
 }
+
+export class LoginAccessOpaqueStartDto {
+  @ApiProperty({
+    example: 'user@internxt.com',
+    description: 'The email of the user',
+  })
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({
+    example: 'startLoginRequest',
+    description: 'The request to start opaque login',
+  })
+  @IsNotEmpty()
+  startLoginRequest: string;
+}
+
+export class LoginAccessOpaqueFinishDto {
+  @ApiProperty({
+    example: 'user@internxt.com',
+    description: 'The email of the user',
+  })
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({
+    example: 'finishLoginRequest',
+    description: 'The request to finish opaque login',
+  })
+  @IsNotEmpty()
+  finishLoginRequest: string;
+
+  @ApiProperty({
+    example: 'two_factor_authentication_code',
+    description: 'TFA',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  tfa?: string;
+}
