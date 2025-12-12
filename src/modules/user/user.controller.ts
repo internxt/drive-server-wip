@@ -36,7 +36,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  CreateUserDto,
+  CreateUserOpaqueDto,
+  RegisterUserOpaqueDto,
+} from './dto/create-user.dto';
 import { Response, Request } from 'express';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -222,6 +226,152 @@ export class UserController {
 
       this.logger.error(
         `[AUTH/REGISTER] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/register-opaque/start')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Start opaque registration of a user',
+  })
+  @ApiOkResponse({ description: 'Starts opaque registration of a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async createUserOpaqueStart(@Body() registerUserDto: RegisterUserOpaqueDto) {
+    try {
+      const email = registerUserDto.email.toLowerCase();
+      const user = await this.userUseCases.getUserByUsername(email);
+
+      if (user) {
+        throw new UserAlreadyRegisteredError(registerUserDto.email);
+      }
+
+      const registrationResponse =
+        await this.cryptoService.createRegistrationResponseOpaque(
+          registerUserDto.registrationRequest,
+          registerUserDto.email,
+        );
+
+      return registrationResponse;
+    } catch (err) {
+      if (err instanceof InvalidReferralCodeError) {
+        throw new BadRequestException(err.message);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        throw new ConflictException(err.message);
+      }
+
+      this.logger.error(
+        `[AUTH/REGISTER-OPAQUE-START] ERROR: ${
+          (err as Error).message
+        }, BODY ${JSON.stringify(registerUserDto)}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/register-opaque/finish')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Start opaque registration of a user',
+  })
+  @ApiOkResponse({ description: 'Starts opaque registration of a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async createUserOpaqueFinish(
+    @Body() createUserDto: CreateUserOpaqueDto,
+    @Req() req: Request,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    try {
+      const response = await this.userUseCases.createUserOpaque(createUserDto);
+
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+      );
+
+      const keys = await this.keyServerUseCases.addKeysToUser(
+        response.user.id,
+        {
+          kyber,
+          ecc,
+        },
+      );
+
+      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+        await this.userUseCases.replacePreCreatedUser(
+          response.user.email,
+          response.user.uuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+      }
+
+      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
+
+      // TODO: Move to EventBus
+      this.userUseCases
+        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
+          userUuid: response.uuid,
+        })
+        .catch((err) => {
+          this.logger.error(
+            `[AUTH/REGISTER-OPAQUE-FINISH/SENDWELCOMEEMAIL] ERROR: ${
+              (err as Error).message
+            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+              (err as Error).stack
+            }`,
+          );
+        });
+
+      return {
+        ...response,
+        user: {
+          ...response.user,
+          root_folder_id: response.user.rootFolderId,
+          ...(isDriveWeb
+            ? { rootFolderId: response.user.rootFolderUuid }
+            : null),
+          keys: keys,
+        },
+        token: response.token,
+        newToken: response.newToken,
+        uuid: response.uuid,
+      };
+    } catch (err) {
+      if (err instanceof InvalidReferralCodeError) {
+        throw new BadRequestException(err.message);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        throw new ConflictException(err.message);
+      }
+
+      this.logger.error(
+        `[AUTH/REGISTER-OPAQUE-FINISH] ERROR: ${
           (err as Error).message
         }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
           (err as Error).stack
@@ -650,7 +800,7 @@ export class UserController {
       const registrationResponse =
         await this.cryptoService.createRegistrationResponseOpaque(
           registrationRequest,
-          user.id,
+          user.email,
         );
 
       return { status: 'success', registrationResponse };

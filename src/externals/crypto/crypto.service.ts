@@ -183,11 +183,11 @@ export class CryptoService {
 
   createRegistrationResponseOpaque(
     registrationRequest: string,
-    uid: number,
+    email: string,
   ): string {
     const { registrationResponse } = server.createRegistrationResponse({
       serverSetup: this.serverSetup,
-      userIdentifier: uid.toString(),
+      userIdentifier: email,
       registrationRequest,
     });
 

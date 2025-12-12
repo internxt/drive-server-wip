@@ -131,3 +131,89 @@ export class CreateUserDto {
   })
   keys?: KeysDto;
 }
+
+export class RegisterUserOpaqueDto {
+  @IsNotEmpty()
+  @IsEmail()
+  @MaxLength(100, { message: 'Email must be at most 100 characters long.' })
+  @ApiProperty({
+    example: 'myaccount@internxt.com',
+    description: 'Email of the new account',
+  })
+  email: UserAttributes['email'];
+
+  @ApiProperty({
+    example: 'registrationRequest',
+    description: 'Opaque user registration request',
+  })
+  registrationRequest: string;
+}
+
+export class CreateUserOpaqueDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100, { message: 'Name must be at most 100 characters long.' })
+  @ApiProperty({
+    example: 'Internxt',
+    description: 'Name of the new user',
+  })
+  name: UserAttributes['name'];
+
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100, { message: 'Lastname must be at most 100 characters long.' })
+  @ApiProperty({
+    example: 'Lastname',
+    description: 'Last name of the new user',
+  })
+  lastname: UserAttributes['lastname'];
+
+  @IsNotEmpty()
+  @IsEmail()
+  @MaxLength(100, { message: 'Email must be at most 100 characters long.' })
+  @ApiProperty({
+    example: 'myaccount@internxt.com',
+    description: 'Email of the new account',
+  })
+  email: UserAttributes['email'];
+
+  @IsNotEmpty()
+  @IsEmail()
+  @ApiProperty({
+    example: 'registrationRecord',
+    description: 'Opaque registration record',
+  })
+  registrationRecord: UserAttributes['registrationRecord'];
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty({
+    example:
+      'test test test test test test test test test test test test test test test test test test test test test test test test',
+    description: 'The mnemonic used to derive encryption keys',
+  })
+  mnemonic: UserAttributes['mnemonic'];
+
+  @Type(() => KeysDto)
+  @ValidateNested()
+  @ApiProperty({
+    type: KeysDto,
+    description:
+      'Keys, if provided, will update the user keys. This object replaces the need for privateKey and encryptVersion.',
+  })
+  keys: KeysDto;
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+  })
+  referrer?: UserAttributes['referrer'];
+
+  @IsOptional()
+  @ApiProperty({
+    example: '',
+    description: '',
+  })
+  registerCompleted?: UserAttributes['registerCompleted'];
+}
