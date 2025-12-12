@@ -99,6 +99,7 @@ export interface FileRepository {
   ): Promise<void>;
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
+  getZeroSizeFilesCountByUser(userId: User['id']): Promise<number>;
   updateFilesStatusToTrashed(
     user: User,
     fileIds: File['fileId'][],
@@ -740,6 +741,20 @@ export class SequelizeFileRepository implements FileRepository {
 
   async getFilesCountWhere(where: Partial<File>): Promise<number> {
     const { count } = await this.fileModel.findAndCountAll({ where });
+
+    return count;
+  }
+
+  async getZeroSizeFilesCountByUser(userId: User['id']): Promise<number> {
+    const { count } = await this.fileModel.findAndCountAll({
+      where: {
+        userId,
+        size: 0,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+    });
 
     return count;
   }

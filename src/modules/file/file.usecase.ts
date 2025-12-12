@@ -44,7 +44,11 @@ import { Time } from '../../lib/time';
 import { MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import {
+  PLAN_FREE_INDIVIDUAL_TIER_LABEL,
+  LimitLabels,
+} from '../feature-limit/limits.enum';
+import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { UserUseCases } from '../user/user.usecase';
@@ -82,6 +86,7 @@ export class FileUseCases {
     private readonly usageService: UsageService,
     private readonly mailerService: MailerService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly featureLimitUsecases: FeatureLimitUsecases,
     @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
@@ -400,6 +405,14 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
+    const isFileEmpty = newFileDto.size === BigInt(0);
+
+    if (isFileEmpty) {
+      await this.checkEmptyFilesLimit(user);
+    }
+
+    const newFileId = isFileEmpty ? null : newFileDto.fileId;
+
     const newFile = await this.fileRepository.create({
       uuid: v4(),
       name: cryptoFileName,
@@ -407,7 +420,7 @@ export class FileUseCases {
       type: newFileDto.type,
       size: newFileDto.size,
       folderId: folder.id,
-      fileId: newFileDto.fileId,
+      fileId: newFileId,
       bucket: newFileDto.bucket,
       encryptVersion: newFileDto.encryptVersion,
       userId: user.id,
@@ -454,6 +467,23 @@ export class FileUseCases {
       folder.uuid,
       searchFilter,
     );
+  }
+
+  async checkEmptyFilesLimit(user: User) {
+    const [limit, emptyFilesCount] = await Promise.all([
+      this.featureLimitService.getUserLimitByLabel(
+        LimitLabels.MaxZeroSizeFiles,
+        user,
+      ),
+      this.fileRepository.getZeroSizeFilesCountByUser(user.id),
+    ]);
+
+    if (
+      !limit ||
+      limit.shouldLimitBeEnforced({ currentCount: emptyFilesCount })
+    ) {
+      throw new BadRequestException('You can not have more empty files');
+    }
   }
 
   async updateFileMetaData(
@@ -873,6 +903,14 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
+    const isFileEmpty = newFileData.size === BigInt(0);
+
+    if (isFileEmpty) {
+      await this.checkEmptyFilesLimit(user);
+    }
+
+    const newFileId = isFileEmpty ? null : newFileData.fileId;
+
     const { versionable: shouldVersion } = await this.isFileVersionable(
       user.uuid,
       file.type as VersionableFileExtension,
@@ -892,7 +930,7 @@ export class FileUseCases {
           status: FileVersionStatus.EXISTS,
         }),
         this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-          fileId,
+          fileId: newFileId,
           size,
           updatedAt: new Date(),
           ...(modificationTime ? { modificationTime } : null),
@@ -901,21 +939,21 @@ export class FileUseCases {
 
       return {
         ...file.toJSON(),
-        fileId,
+        fileId: newFileId,
         size,
       };
     }
 
     const { fileId: oldFileId, bucket } = file;
-    const { fileId, size, modificationTime } = newFileData;
+    const { size, modificationTime } = newFileData;
 
     await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-      fileId,
+      fileId: newFileId,
       size,
       ...(modificationTime ? { modificationTime } : null),
     });
 
-    const newFile = File.build({ ...file, size, fileId });
+    const newFile = File.build({ ...file, size, fileId: newFileId });
 
     await this.addFileReplacementDelta(user, file, newFile).catch((error) => {
       const errorObject = {
@@ -932,20 +970,22 @@ export class FileUseCases {
       });
     });
 
-    try {
-      await this.network.deleteFile(user, bucket, oldFileId);
-    } catch (error) {
-      new Logger('FILE/REPLACE').error(
-        `Error while replacing old file ${JSON.stringify({
-          user: { email: user.email, uuid: user.uuid },
-          oldFileId,
-        })}}, STACK: ${error.stack || 'No stack trace'}`,
-      );
+    if (oldFileId) {
+      try {
+        await this.network.deleteFile(user, bucket, oldFileId);
+      } catch (error) {
+        new Logger('FILE/REPLACE').error(
+          `Error while replacing old file ${JSON.stringify({
+            user: { email: user.email, uuid: user.uuid },
+            oldFileId,
+          })}}, STACK: ${error.stack || 'No stack trace'}`,
+        );
+      }
     }
 
     return {
       ...file.toJSON(),
-      fileId,
+      fileId: newFileId,
       size,
     };
   }
@@ -1151,7 +1191,9 @@ export class FileUseCases {
     oldFileData: File,
     newFileData: File,
   ): Promise<Usage | null> {
-    const lockKey = `file-size-change:${newFileData.fileId}`;
+    const lockFileId =
+      newFileData.fileId || oldFileData.fileId || newFileData.uuid;
+    const lockKey = `file-size-change:${lockFileId}`;
     const lockAcquired = await this.redisService
       .tryAcquireLock(lockKey, 3000)
       .catch((_) => {
