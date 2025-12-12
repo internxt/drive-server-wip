@@ -425,7 +425,7 @@ export class FileUseCases {
 
     await this.cacheManagerService.expireUserUsage(user.uuid).catch((err) => {
       new Logger('[UPLOAD_FILE/USAGE_CACHE]').error(
-        `Error while cleaning limit cache for user ${user.uuid}: ${err.message}`,
+        `Error while cleaning usage cache for user ${user.uuid}: ${err.message}`,
       );
     });
 
