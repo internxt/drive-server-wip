@@ -423,6 +423,12 @@ export class FileUseCases {
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
     });
 
+    await this.cacheManagerService.expireLimit(user.uuid).catch((err) => {
+      new Logger('[UPLOAD_FILE/LIMIT_CACHE]').error(
+        `Error while cleaning limit cache for user ${user.uuid}: ${err.message}`,
+      );
+    });
+
     if (!hadFilesBeforeUpload) {
       const isUserFreeTier = tier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
 

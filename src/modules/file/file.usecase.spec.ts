@@ -44,6 +44,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -63,6 +64,7 @@ describe('FileUseCases', () => {
   let featureLimitService: FeatureLimitService;
   let redisService: RedisService;
   let trashUsecases: TrashUseCases;
+  let cacheManagerService: CacheManagerService;
 
   const userMocked = newUser({
     attributes: {
@@ -93,6 +95,7 @@ describe('FileUseCases', () => {
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     redisService = module.get<RedisService>(RedisService);
     trashUsecases = module.get<TrashUseCases>(TrashUseCases);
+    cacheManagerService = module.get<CacheManagerService>(CacheManagerService);
   });
 
   afterEach(() => {
@@ -784,13 +787,45 @@ describe('FileUseCases', () => {
       );
     });
 
-    it('When file is created successfully, then it should return the new file', async () => {
+    it('When file is created successfully, then it should return the new file and clear the limit cache', async () => {
       const folder = newFolder({ attributes: { userId: userMocked.id } });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
+      const cacheLimitSpy = jest.spyOn(cacheManagerService, 'expireLimit');
+
+      const createdFile = newFile({
+        attributes: {
+          ...newFileDto,
+          id: 1,
+          folderId: folder.id,
+          folderUuid: folder.uuid,
+          userId: userMocked.id,
+          uuid: v4(),
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+      const result = await service.createFile(userMocked, newFileDto);
+
+      expect(result).toEqual(createdFile);
+      expect(cacheLimitSpy).toHaveBeenCalledWith(userMocked.uuid);
+    });
+
+    it('When creating a file and the cache fails to be expired, then it still returns succesfully', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(cacheManagerService, 'expireLimit')
+        .mockRejectedValue(new Error('Cache failed'));
 
       const createdFile = newFile({
         attributes: {
