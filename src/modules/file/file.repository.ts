@@ -661,7 +661,9 @@ export class SequelizeFileRepository implements FileRepository {
     if (searchFilter.length) {
       where[Op.or] = searchFilter.map((criteria) => ({
         plainName: criteria.plainName,
-        ...(criteria.type ? { type: criteria.type } : {}),
+        ...(criteria.type
+          ? { type: criteria.type }
+          : { type: { [Op.or]: [null, ''] } }),
       }));
     }
 
