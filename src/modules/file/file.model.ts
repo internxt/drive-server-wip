@@ -38,6 +38,7 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.UUIDV4)
   uuid: string;
 
+  @AllowNull
   @Column(DataType.STRING(24))
   fileId: string;
 
