@@ -26,6 +26,7 @@ import {
   newUser,
   newWorkspace,
   newUsage,
+  newVersioningLimits,
 } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
@@ -43,6 +44,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -62,6 +64,7 @@ describe('FileUseCases', () => {
   let featureLimitService: FeatureLimitService;
   let redisService: RedisService;
   let trashUsecases: TrashUseCases;
+  let cacheManagerService: CacheManagerService;
 
   const userMocked = newUser({
     attributes: {
@@ -92,6 +95,7 @@ describe('FileUseCases', () => {
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     redisService = module.get<RedisService>(RedisService);
     trashUsecases = module.get<TrashUseCases>(TrashUseCases);
+    cacheManagerService = module.get<CacheManagerService>(CacheManagerService);
   });
 
   afterEach(() => {
@@ -783,13 +787,45 @@ describe('FileUseCases', () => {
       );
     });
 
-    it('When file is created successfully, then it should return the new file', async () => {
+    it('When file is created successfully, then it should return the new file and clear the limit cache', async () => {
       const folder = newFolder({ attributes: { userId: userMocked.id } });
 
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
+      const expireUsageSpy = jest.spyOn(cacheManagerService, 'expireUserUsage');
+
+      const createdFile = newFile({
+        attributes: {
+          ...newFileDto,
+          id: 1,
+          folderId: folder.id,
+          folderUuid: folder.uuid,
+          userId: userMocked.id,
+          uuid: v4(),
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+      const result = await service.createFile(userMocked, newFileDto);
+
+      expect(result).toEqual(createdFile);
+      expect(expireUsageSpy).toHaveBeenCalledWith(userMocked.uuid);
+    });
+
+    it('When creating a file and the cached usage fails to be expired, then it still returns succesfully', async () => {
+      const folder = newFolder({ attributes: { userId: userMocked.id } });
+
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(cacheManagerService, 'expireUserUsage')
+        .mockRejectedValue(new Error('Cache failed'));
 
       const createdFile = newFile({
         attributes: {
@@ -1923,6 +1959,130 @@ describe('FileUseCases', () => {
         }),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('When file is versionable, then it should create versions and not delete from network', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: 'old-file-id',
+          bucket: 'test-bucket',
+          type: 'pdf',
+          size: BigInt(100),
+        },
+      });
+      const replaceData = {
+        fileId: 'new-file-id',
+        size: BigInt(200),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValue({ versionable: true, limits: null });
+      const applyRetentionSpy = jest
+        .spyOn(service as any, 'applyRetentionPolicy')
+        .mockResolvedValue(undefined);
+      const upsertSpy = jest
+        .spyOn(fileVersionRepository, 'upsert')
+        .mockResolvedValue({} as any);
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      const deleteFileSpy = jest.spyOn(bridgeService, 'deleteFile');
+
+      const result = await service.replaceFile(
+        userMocked,
+        mockFile.uuid,
+        replaceData,
+      );
+
+      expect(applyRetentionSpy).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.uuid,
+      );
+      expect(upsertSpy).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: 'EXISTS',
+      });
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalled();
+      expect(deleteFileSpy).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        ...mockFile.toJSON(),
+        fileId: replaceData.fileId,
+        size: replaceData.size,
+      });
+    });
+
+    it('When file is not versionable due to limits, then it should use standard flow', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: 'old-file-id',
+          bucket: 'test-bucket',
+          type: 'pdf',
+        },
+      });
+      const replaceData = {
+        fileId: 'new-file-id',
+        size: BigInt(200),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValue({ versionable: false, limits: null });
+      const applyRetentionSpy = jest.spyOn(
+        service as any,
+        'applyRetentionPolicy',
+      );
+      const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+      await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+      expect(applyRetentionSpy).not.toHaveBeenCalled();
+      expect(upsertSpy).not.toHaveBeenCalled();
+      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.bucket,
+        mockFile.fileId,
+      );
+    });
+
+    it('When file is not versionable due to extension, then it should use standard flow', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: 'old-file-id',
+          bucket: 'test-bucket',
+          type: 'zip',
+        },
+      });
+      const replaceData = {
+        fileId: 'new-file-id',
+        size: BigInt(200),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValue({ versionable: false, limits: null });
+      const applyRetentionSpy = jest.spyOn(
+        service as any,
+        'applyRetentionPolicy',
+      );
+      const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+      await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+      expect(applyRetentionSpy).not.toHaveBeenCalled();
+      expect(upsertSpy).not.toHaveBeenCalled();
+      expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.bucket,
+        mockFile.fileId,
+      );
+    });
   });
 
   describe('addOldAttributes', () => {
@@ -2579,6 +2739,37 @@ describe('FileUseCases', () => {
       await service['applyRetentionPolicy']('file-uuid', userUuid);
 
       expect(updateStatusBatchSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('getVersioningLimits', () => {
+    it('When called with a valid user id, then the versioning limits are returned', async () => {
+      const userUuid = v4();
+      const expectedLimits = newVersioningLimits();
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(expectedLimits);
+
+      const result = await service.getVersioningLimits(userUuid);
+
+      expect(result).toEqual(expectedLimits);
+      expect(featureLimitService.getFileVersioningLimits).toHaveBeenCalledWith(
+        userUuid,
+      );
+    });
+
+    it('When an error occurs, then it should propagate the error', async () => {
+      const userUuid = v4();
+      const error = new NotFoundException('User not found');
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockRejectedValue(error);
+
+      await expect(service.getVersioningLimits(userUuid)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

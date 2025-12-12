@@ -2,6 +2,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import { FileVersionModel } from './file-version.model';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
+import { newFileVersion } from '../../../test/fixtures';
 
 describe('SequelizeFileVersionRepository', () => {
   let repository: SequelizeFileVersionRepository;
@@ -12,70 +13,49 @@ describe('SequelizeFileVersionRepository', () => {
     repository = new SequelizeFileVersionRepository(fileVersionModel);
   });
 
+  const createMockModel = (version: FileVersion) => ({
+    ...version,
+    toJSON: jest.fn().mockReturnValue(version.toJSON()),
+  });
+
   describe('create', () => {
     it('When creating a version, then it should return a FileVersion instance', async () => {
-      const versionData = {
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(1024),
-        status: FileVersionStatus.EXISTS,
-      };
-
-      const mockCreatedVersion = {
-        id: 'version-id',
-        ...versionData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: 'version-id',
-          ...versionData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion();
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'create')
-        .mockResolvedValue(mockCreatedVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      const result = await repository.create(versionData);
+      const result = await repository.create({
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        status: version.status,
+      });
 
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.create).toHaveBeenCalledWith({
-        fileId: versionData.fileId,
-        networkFileId: versionData.networkFileId,
-        size: versionData.size,
-        status: versionData.status,
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        status: version.status,
       });
     });
 
     it('When creating a version without status, then it defaults to EXISTS', async () => {
-      const versionData = {
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(1024),
-      };
-
-      const mockCreatedVersion = {
-        id: 'version-id',
-        ...versionData,
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: 'version-id',
-          ...versionData,
-          status: FileVersionStatus.EXISTS,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion();
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'create')
-        .mockResolvedValue(mockCreatedVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      await repository.create(versionData as any);
+      await repository.create({
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+      } as any);
 
       expect(fileVersionModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -85,62 +65,40 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When creating a version as deleted, then it creates with deleted status', async () => {
-      const versionData = {
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(1024),
-        status: FileVersionStatus.DELETED,
-      };
-
-      const mockCreatedVersion = {
-        id: 'version-id',
-        ...versionData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: 'version-id',
-          ...versionData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion({
+        attributes: { status: FileVersionStatus.DELETED },
+      });
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'create')
-        .mockResolvedValue(mockCreatedVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      const result = await repository.create(versionData);
+      const result = await repository.create({
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        status: version.status,
+      });
 
       expect(result.status).toBe(FileVersionStatus.DELETED);
     });
 
     it('When creating a version with large bigint size, then it handles it correctly', async () => {
       const largeSize = BigInt('9223372036854775807');
-      const versionData = {
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: largeSize,
-        status: FileVersionStatus.EXISTS,
-      };
-
-      const mockCreatedVersion = {
-        id: 'version-id',
-        ...versionData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: 'version-id',
-          ...versionData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion({ attributes: { size: largeSize } });
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'create')
-        .mockResolvedValue(mockCreatedVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      const result = await repository.create(versionData);
+      const result = await repository.create({
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        status: version.status,
+      });
 
       expect(result.size).toBe(largeSize);
     });
@@ -149,44 +107,20 @@ describe('SequelizeFileVersionRepository', () => {
   describe('findAllByFileId', () => {
     it('When finding versions by file ID, then it returns versions ordered by creation date', async () => {
       const fileId = 'file-uuid';
-      const mockVersions = [
-        {
-          id: 'version-2',
+      const version1 = newFileVersion({
+        attributes: {
           fileId,
-          networkFileId: 'network-2',
-          size: BigInt(2048),
-          status: FileVersionStatus.EXISTS,
-          createdAt: new Date('2025-11-11T11:00:00Z'),
-          updatedAt: new Date('2025-11-11T11:00:00Z'),
-          toJSON: jest.fn().mockReturnValue({
-            id: 'version-2',
-            fileId,
-            networkFileId: 'network-2',
-            size: BigInt(2048),
-            status: FileVersionStatus.EXISTS,
-            createdAt: new Date('2025-11-11T11:00:00Z'),
-            updatedAt: new Date('2025-11-11T11:00:00Z'),
-          }),
-        },
-        {
-          id: 'version-1',
-          fileId,
-          networkFileId: 'network-1',
-          size: BigInt(1024),
-          status: FileVersionStatus.EXISTS,
           createdAt: new Date('2025-11-11T10:00:00Z'),
-          updatedAt: new Date('2025-11-11T10:00:00Z'),
-          toJSON: jest.fn().mockReturnValue({
-            id: 'version-1',
-            fileId,
-            networkFileId: 'network-1',
-            size: BigInt(1024),
-            status: FileVersionStatus.EXISTS,
-            createdAt: new Date('2025-11-11T10:00:00Z'),
-            updatedAt: new Date('2025-11-11T10:00:00Z'),
-          }),
         },
-      ];
+      });
+      const version2 = newFileVersion({
+        attributes: {
+          fileId,
+          createdAt: new Date('2025-11-11T11:00:00Z'),
+        },
+      });
+
+      const mockVersions = [version2, version1].map(createMockModel);
 
       jest
         .spyOn(fileVersionModel, 'findAll')
@@ -230,44 +164,11 @@ describe('SequelizeFileVersionRepository', () => {
 
     it('When multiple versions exist, then all are returned as FileVersion instances', async () => {
       const fileId = 'file-uuid';
-      const mockVersions = [
-        {
-          id: 'v1',
-          fileId,
-          networkFileId: 'n1',
-          size: BigInt(100),
-          status: FileVersionStatus.EXISTS,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          toJSON: jest.fn().mockReturnValue({
-            id: 'v1',
-            fileId,
-            networkFileId: 'n1',
-            size: BigInt(100),
-            status: FileVersionStatus.EXISTS,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-        },
-        {
-          id: 'v2',
-          fileId,
-          networkFileId: 'n2',
-          size: BigInt(200),
-          status: FileVersionStatus.EXISTS,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          toJSON: jest.fn().mockReturnValue({
-            id: 'v2',
-            fileId,
-            networkFileId: 'n2',
-            size: BigInt(200),
-            status: FileVersionStatus.EXISTS,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-        },
+      const versions = [
+        newFileVersion({ attributes: { fileId } }),
+        newFileVersion({ attributes: { fileId } }),
       ];
+      const mockVersions = versions.map(createMockModel);
 
       jest
         .spyOn(fileVersionModel, 'findAll')
@@ -296,36 +197,70 @@ describe('SequelizeFileVersionRepository', () => {
     });
   });
 
+  describe('upsert', () => {
+    it('When upserting a version, then it should return a FileVersion instance', async () => {
+      const version = newFileVersion();
+      const mockModel = createMockModel(version);
+
+      jest
+        .spyOn(fileVersionModel, 'upsert')
+        .mockResolvedValue([mockModel as any, true]);
+
+      const result = await repository.upsert({
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        status: version.status,
+      });
+
+      expect(result).toBeInstanceOf(FileVersion);
+      expect(fileVersionModel.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fileId: version.fileId,
+          networkFileId: version.networkFileId,
+          size: version.size,
+          status: version.status,
+        }),
+        { conflictFields: ['file_id', 'network_file_id'] },
+      );
+    });
+
+    it('When upserting without status, then it defaults to EXISTS', async () => {
+      const version = newFileVersion();
+      const mockModel = createMockModel(version);
+
+      jest
+        .spyOn(fileVersionModel, 'upsert')
+        .mockResolvedValue([mockModel as any, true]);
+
+      await repository.upsert({
+        fileId: version.fileId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+      } as any);
+
+      expect(fileVersionModel.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: FileVersionStatus.EXISTS,
+        }),
+        { conflictFields: ['file_id', 'network_file_id'] },
+      );
+    });
+  });
+
   describe('findById', () => {
     it('When version exists, then it returns the FileVersion', async () => {
-      const versionId = 'version-id';
-      const mockVersion = {
-        id: versionId,
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(1024),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: versionId,
-          fileId: 'file-uuid',
-          networkFileId: 'network-id',
-          size: BigInt(1024),
-          status: FileVersionStatus.EXISTS,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion();
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'findByPk')
-        .mockResolvedValue(mockVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      const result = await repository.findById(versionId);
+      const result = await repository.findById(version.id);
 
       expect(result).toBeInstanceOf(FileVersion);
-      expect(fileVersionModel.findByPk).toHaveBeenCalledWith(versionId);
+      expect(fileVersionModel.findByPk).toHaveBeenCalledWith(version.id);
     });
 
     it('When version does not exist, then it returns null', async () => {
@@ -346,64 +281,32 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When deleted version is searched, then it returns the version', async () => {
-      const versionId = 'deleted-version-id';
-      const mockDeletedVersion = {
-        id: versionId,
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(1024),
-        status: FileVersionStatus.DELETED,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: versionId,
-          fileId: 'file-uuid',
-          networkFileId: 'network-id',
-          size: BigInt(1024),
-          status: FileVersionStatus.DELETED,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion({
+        attributes: { status: FileVersionStatus.DELETED },
+      });
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'findByPk')
-        .mockResolvedValue(mockDeletedVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      const result = await repository.findById(versionId);
+      const result = await repository.findById(version.id);
 
       expect(result).toBeInstanceOf(FileVersion);
       expect(result?.status).toBe(FileVersionStatus.DELETED);
     });
 
     it('When version is found, then it converts model to domain with toJSON', async () => {
-      const versionId = 'version-id';
-      const mockVersion = {
-        id: versionId,
-        fileId: 'file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(1024),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        toJSON: jest.fn().mockReturnValue({
-          id: versionId,
-          fileId: 'file-uuid',
-          networkFileId: 'network-id',
-          size: BigInt(1024),
-          status: FileVersionStatus.EXISTS,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
+      const version = newFileVersion();
+      const mockModel = createMockModel(version);
 
       jest
         .spyOn(fileVersionModel, 'findByPk')
-        .mockResolvedValue(mockVersion as any);
+        .mockResolvedValue(mockModel as any);
 
-      await repository.findById(versionId);
+      await repository.findById(version.id);
 
-      expect(mockVersion.toJSON).toHaveBeenCalled();
+      expect(mockModel.toJSON).toHaveBeenCalled();
     });
   });
 

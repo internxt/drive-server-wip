@@ -55,6 +55,11 @@ import {
 } from '../src/common/audit-logs/audit-logs.attributes';
 import { Trash } from '../src/modules/trash/trash.domain';
 import { TrashItemType } from '../src/modules/trash/trash.attributes';
+import {
+  FileVersion,
+  FileVersionAttributes,
+  FileVersionStatus,
+} from '../src/modules/file/file-version.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -748,3 +753,44 @@ export const newTrash = (params?: {
     userId: params?.userId || 1,
   });
 };
+
+export const newFileVersion = (params?: {
+  attributes?: Partial<FileVersionAttributes>;
+}): FileVersion => {
+  const randomCreatedAt = randomDataGenerator.date();
+
+  const fileVersion = FileVersion.build({
+    id: v4(),
+    fileId: v4(),
+    networkFileId: randomDataGenerator.hash({
+      length: constants.BUCKET_ID_LENGTH,
+    }),
+    size: BigInt(randomDataGenerator.natural({ min: 1 })),
+    status: FileVersionStatus.EXISTS,
+    createdAt: randomCreatedAt,
+    updatedAt: new Date(
+      randomDataGenerator.date({
+        min: randomCreatedAt,
+      }),
+    ),
+    ...params?.attributes,
+  });
+
+  return fileVersion;
+};
+
+export type VersioningLimits = {
+  enabled: boolean;
+  maxFileSize: number;
+  retentionDays: number;
+  maxVersions: number;
+};
+
+export const newVersioningLimits = (
+  params?: Partial<VersioningLimits>,
+): VersioningLimits => ({
+  enabled: params?.enabled ?? true,
+  maxFileSize: params?.maxFileSize ?? 10 * 1024 * 1024,
+  retentionDays: params?.retentionDays ?? 15,
+  maxVersions: params?.maxVersions ?? 10,
+});
