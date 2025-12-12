@@ -41,6 +41,12 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
   ) {
     this.actionHandler = {
+      [WorkspaceLogType.ChangedPasswordOpaqueStart]:
+        this.changedPasswordOpaqueStart.bind(this),
+      [WorkspaceLogType.ChangedPasswordOpaqueFinish]:
+        this.changedPasswordOpaqueFinish.bind(this),
+      [WorkspaceLogType.LoginOpaqueStart]: this.loginOpaqueStart.bind(this),
+      [WorkspaceLogType.LoginOpaqueFinish]: this.loginOpaqueFinish.bind(this),
       [WorkspaceLogType.Login]: this.logIn.bind(this),
       [WorkspaceLogType.ChangedPassword]: this.changedPassword.bind(this),
       [WorkspaceLogType.Logout]: this.logout.bind(this),
@@ -103,10 +109,54 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
     await this.handleUserAction(platform, WorkspaceLogType.Login, req, res);
   }
 
+  async loginOpaqueStart(platform: WorkspaceLogPlatform, req: any, res: any) {
+    await this.handleUserAction(
+      platform,
+      WorkspaceLogType.LoginOpaqueStart,
+      req,
+      res,
+    );
+  }
+
+  async loginOpaqueFinish(platform: WorkspaceLogPlatform, req: any, res: any) {
+    await this.handleUserAction(
+      platform,
+      WorkspaceLogType.LoginOpaqueFinish,
+      req,
+      res,
+    );
+  }
+
   async changedPassword(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserAction(
       platform,
       WorkspaceLogType.ChangedPassword,
+      req,
+      res,
+    );
+  }
+
+  async changedPasswordOpaqueStart(
+    platform: WorkspaceLogPlatform,
+    req: any,
+    res: any,
+  ) {
+    await this.handleUserAction(
+      platform,
+      WorkspaceLogType.ChangedPasswordOpaqueStart,
+      req,
+      res,
+    );
+  }
+
+  async changedPasswordOpaqueFinish(
+    platform: WorkspaceLogPlatform,
+    req: any,
+    res: any,
+  ) {
+    await this.handleUserAction(
+      platform,
+      WorkspaceLogType.ChangedPasswordOpaqueFinish,
       req,
       res,
     );
