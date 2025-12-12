@@ -1604,8 +1604,11 @@ describe('FileUseCases', () => {
   });
 
   describe('getFileVersions', () => {
-    it('When file exists, then it should return versions', async () => {
+    const mockLimits = newVersioningLimits({ retentionDays: 30 });
+
+    it('When file exists, then it should return versions with expiresAt', async () => {
       const mockFile = newFile();
+      const createdAt = new Date('2025-01-01');
       const mockVersions = [
         FileVersion.build({
           id: v4(),
@@ -1613,7 +1616,7 @@ describe('FileUseCases', () => {
           networkFileId: 'network-1',
           size: BigInt(100),
           status: FileVersionStatus.EXISTS,
-          createdAt: new Date(),
+          createdAt,
           updatedAt: new Date(),
         }),
       ];
@@ -1622,10 +1625,19 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileVersionRepository, 'findAllByFileId')
         .mockResolvedValue(mockVersions);
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(mockLimits);
 
       const result = await service.getFileVersions(userMocked, mockFile.uuid);
 
-      expect(result).toEqual(mockVersions);
+      const expectedExpiresAt = new Date(createdAt);
+      expectedExpiresAt.setDate(
+        expectedExpiresAt.getDate() + mockLimits.retentionDays,
+      );
+
+      expect(result[0].expiresAt).toEqual(expectedExpiresAt);
+      expect(result[0].id).toEqual(mockVersions[0].id);
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
