@@ -48,6 +48,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
+import { GetFileLimitsDto } from './dto/get-file-limits.dto';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UploadGuard } from './guards/upload.guard';
 import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
@@ -112,6 +113,17 @@ export class FileController {
     }
 
     return { count };
+  }
+
+  @Get('/limits')
+  @ApiOperation({
+    summary: 'Get file limits based on user tier',
+  })
+  @ApiOkResponse({ type: GetFileLimitsDto })
+  @ApiBearerAuth()
+  async getLimits(@UserDecorator() user: User): Promise<GetFileLimitsDto> {
+    const versioning = await this.fileUseCases.getVersioningLimits(user.uuid);
+    return { versioning };
   }
 
   @Get('/:uuid/meta')

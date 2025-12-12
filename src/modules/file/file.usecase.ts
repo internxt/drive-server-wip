@@ -52,6 +52,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -84,6 +85,7 @@ export class FileUseCases {
     @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
+    private readonly cacheManagerService: CacheManagerService,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -419,6 +421,12 @@ export class FileUseCases {
       status: FileStatus.EXISTS,
       modificationTime: newFileDto.modificationTime || new Date(),
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
+    });
+
+    await this.cacheManagerService.expireUserUsage(user.uuid).catch((err) => {
+      new Logger('[UPLOAD_FILE/USAGE_CACHE]').error(
+        `Error while cleaning usage cache for user ${user.uuid}: ${err.message}`,
+      );
     });
 
     if (!hadFilesBeforeUpload) {
@@ -865,6 +873,39 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
+    const { versionable: shouldVersion } = await this.isFileVersionable(
+      user.uuid,
+      file.type as VersionableFileExtension,
+      file.size,
+    );
+
+    if (shouldVersion) {
+      await this.applyRetentionPolicy(fileUuid, user.uuid);
+
+      const { fileId, size, modificationTime } = newFileData;
+
+      await Promise.all([
+        this.fileVersionRepository.upsert({
+          fileId: file.uuid,
+          networkFileId: file.fileId,
+          size: file.size,
+          status: FileVersionStatus.EXISTS,
+        }),
+        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
+          fileId,
+          size,
+          updatedAt: new Date(),
+          ...(modificationTime ? { modificationTime } : null),
+        }),
+      ]);
+
+      return {
+        ...file.toJSON(),
+        fileId,
+        size,
+      };
+    }
+
     const { fileId: oldFileId, bucket } = file;
     const { fileId, size, modificationTime } = newFileData;
 
@@ -1221,5 +1262,14 @@ export class FileUseCases {
         FileVersionStatus.DELETED,
       );
     }
+  }
+
+  async getVersioningLimits(userUuid: string): Promise<{
+    enabled: boolean;
+    maxFileSize: number;
+    retentionDays: number;
+    maxVersions: number;
+  }> {
+    return this.featureLimitService.getFileVersioningLimits(userUuid);
   }
 }

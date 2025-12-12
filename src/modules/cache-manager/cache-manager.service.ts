@@ -39,6 +39,10 @@ export class CacheManagerService {
     return cachedUsage;
   }
 
+  async expireUserUsage(userUuid: string): Promise<void> {
+    await this.cacheManager.del(`${this.USAGE_KEY_PREFIX}${userUuid}`);
+  }
+
   async expireLimit(userUuid: string): Promise<void> {
     await Promise.all([
       // TODO: Remove this line when all clients stop using the old API
