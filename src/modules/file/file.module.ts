@@ -20,6 +20,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { RedisService } from '../../externals/redis/redis.service';
 import { TrashModule } from '../trash/trash.module';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TrashModule } from '../trash/trash.module';
     UsageModule,
     FeatureLimitModule,
     forwardRef(() => TrashModule),
+    CacheManagerModule,
   ],
   controllers: [FileController],
   providers: [
