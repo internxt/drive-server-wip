@@ -121,7 +121,7 @@ describe('FileRepository', () => {
       });
     });
 
-    it('When a file is searched with only plainName, it should handle the missing type', async () => {
+    it('When a file is searched with only plainName, it should find files with null or empty type', async () => {
       const searchCriteria = [{ plainName: 'Report' }];
 
       await repository.findFilesInFolderByName(folderUuid, searchCriteria);
@@ -133,6 +133,7 @@ describe('FileRepository', () => {
           [Op.or]: [
             {
               plainName: 'Report',
+              type: { [Op.or]: [null, ''] },
             },
           ],
         }),
