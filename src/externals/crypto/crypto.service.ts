@@ -11,7 +11,6 @@ import {
   uuidToBytes,
   generateID,
 } from 'internxt-crypto/utils';
-import { p } from 'node_modules/internxt-crypto/dist/emailKeys-Dly8fZJB';
 
 export enum AsymmetricEncryptionAlgorithms {
   EllipticCurve = 'ed25519',
