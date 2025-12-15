@@ -56,10 +56,7 @@ export class SendUseCases {
     expirationAt.setDate(expirationAt.getDate() + 15);
 
     const hashedPassword = plainPassword
-      ? this.cryptoService.deterministicEncryption(
-          plainPassword,
-          getEnv().secrets.magicSalt,
-        )
+      ? this.cryptoService.deterministicEncryption(plainPassword)
       : null;
 
     const sendLink = SendLink.build({
@@ -133,10 +130,7 @@ export class SendUseCases {
       throw new ForbiddenException('Send link protected by password');
     }
 
-    const hashedPassword = this.cryptoService.deterministicEncryption(
-      password,
-      getEnv().secrets.magicSalt,
-    );
+    const hashedPassword = this.cryptoService.deterministicEncryption(password);
 
     if (sendLink.hashedPassword !== hashedPassword) {
       throw new ForbiddenException('Invalid password');

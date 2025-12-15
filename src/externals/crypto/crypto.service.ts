@@ -18,8 +18,6 @@ export class CryptoService {
   constructor(configService: ConfigService) {
     this.configService = configService;
     this.aesService = new AesService(
-      this.configService.get('secrets.magicIv'),
-      this.configService.get('secrets.magicSalt'),
       this.configService.get('secrets.cryptoSecret2'),
     );
     this.cryptoSecret = this.configService.get('secrets.cryptoSecret');
@@ -31,16 +29,15 @@ export class CryptoService {
 
   encryptName(name: string, salt?: number | string) {
     if (salt) {
-      return this.aesService.encrypt(name, salt, salt === undefined);
+      return this.aesService.encrypt(name, salt);
     }
     return this.probabilisticEncryption(name);
   }
 
-  deterministicEncryption(content, salt) {
+  deterministicEncryption(content) {
     try {
       const key = CryptoJS.enc.Hex.parse(this.cryptoSecret);
-      const iv = salt ? CryptoJS.enc.Hex.parse(salt.toString()) : key;
-
+      const iv = CryptoJS.lib.WordArray.random(16);
       const encrypt = CryptoJS.AES.encrypt(content, key, { iv }).toString();
       const b64 = CryptoJS.enc.Base64.parse(encrypt);
       const eHex = b64.toString(CryptoJS.enc.Hex);
