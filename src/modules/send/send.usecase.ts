@@ -12,7 +12,6 @@ import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import getEnv from '../../config/configuration';
 import { SendLinkItemDto } from './dto/create-send-link.dto';
 
 @Injectable()

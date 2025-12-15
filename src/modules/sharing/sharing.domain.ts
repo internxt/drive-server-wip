@@ -66,8 +66,10 @@ export interface PermissionAttributes {
   name: SharingActionName;
 }
 
-export interface SharingInviteAttributes
-  extends Omit<SharingAttributes, 'ownerId' | 'type' | 'sharedWithType'> {
+export interface SharingInviteAttributes extends Omit<
+  SharingAttributes,
+  'ownerId' | 'type' | 'sharedWithType'
+> {
   id: string;
   type: 'SELF' | 'OWNER';
   roleId: RoleAttributes['id'];
