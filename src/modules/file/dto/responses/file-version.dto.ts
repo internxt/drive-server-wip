@@ -5,8 +5,8 @@ export class FileVersionDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty()
-  fileId: string;
+  @ApiProperty({ nullable: true })
+  fileId: string | null;
 
   @ApiProperty()
   networkFileId: string;

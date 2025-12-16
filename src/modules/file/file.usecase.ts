@@ -462,7 +462,9 @@ export class FileUseCases {
     ]);
 
     if (!limit || limit.value === '0') {
-      throw new PaymentRequiredException('You can not have empty files');
+      throw new PaymentRequiredException(
+        'You can not have empty files, upgrade your plan to get more features',
+      );
     }
 
     if (limit.shouldLimitBeEnforced({ currentCount: emptyFilesCount })) {
