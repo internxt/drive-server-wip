@@ -22,6 +22,11 @@ export class FileVersionDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiProperty({
+    description: 'Date when this version expires based on retention policy',
+  })
+  expiresAt: Date;
 }
 
 export class FileVersionsDto {

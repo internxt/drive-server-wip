@@ -47,6 +47,7 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
+import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { Usage } from '../usage/usage.domain';
@@ -243,14 +244,32 @@ export class FileUseCases {
     return this.decrypFileName(file);
   }
 
-  async getFileVersions(user: User, fileUuid: string): Promise<FileVersion[]> {
+  async getFileVersions(
+    user: User,
+    fileUuid: string,
+  ): Promise<FileVersionDto[]> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
 
     if (!file) {
       throw new NotFoundException('File not found');
     }
 
-    return this.fileVersionRepository.findAllByFileId(fileUuid);
+    const [versions, limits] = await Promise.all([
+      this.fileVersionRepository.findAllByFileId(fileUuid),
+      this.featureLimitService.getFileVersioningLimits(user.uuid),
+    ]);
+
+    const { retentionDays } = limits;
+
+    return versions.map((version) => {
+      const expiresAt = new Date(version.createdAt);
+      expiresAt.setDate(expiresAt.getDate() + retentionDays);
+
+      return {
+        ...version.toJSON(),
+        expiresAt,
+      };
+    });
   }
 
   async deleteFileVersion(
