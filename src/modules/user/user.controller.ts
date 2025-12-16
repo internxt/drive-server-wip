@@ -261,7 +261,7 @@ export class UserController {
       }
 
       const registrationResponse =
-        await this.cryptoService.createRegistrationResponseOpaque(
+        this.cryptoService.createRegistrationResponseOpaque(
           registerUserDto.registrationRequest,
           registerUserDto.email,
         );
@@ -794,7 +794,7 @@ export class UserController {
       }
 
       const registrationResponse =
-        await this.cryptoService.createRegistrationResponseOpaque(
+        this.cryptoService.createRegistrationResponseOpaque(
           registrationRequest,
           user.email,
         );
@@ -868,7 +868,7 @@ export class UserController {
       );
 
       const { loginResponse, serverLoginState } =
-        await this.cryptoService.startLoginOpaque(
+        this.cryptoService.startLoginOpaque(
           user.email,
           registrationRecord,
           startLoginRequest,
