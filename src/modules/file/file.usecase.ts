@@ -108,9 +108,12 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+    const [filesUsage, versionsUsage] = await Promise.all([
+      this.getUserUsedStorageIncrementally(user),
+      this.fileVersionRepository.sumExistingSizesByUser(user.id),
+    ]);
 
-    return usageCalculation || 0;
+    return (filesUsage || 0) + versionsUsage;
   }
 
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
@@ -888,6 +891,7 @@ export class FileUseCases {
       await Promise.all([
         this.fileVersionRepository.upsert({
           fileId: file.uuid,
+          userId: user.id,
           networkFileId: file.fileId,
           size: file.size,
           status: FileVersionStatus.EXISTS,
