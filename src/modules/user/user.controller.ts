@@ -115,24 +115,7 @@ import { PlatformName } from '../../common/constants';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
-
-function processException(endpointName: string, body: string, err: any) {
-  if (err instanceof InvalidReferralCodeError) {
-    throw new BadRequestException(err.message);
-  } else if (err instanceof UserAlreadyRegisteredError) {
-    throw new ConflictException(err.message);
-  } else if (err instanceof NotFoundException) {
-    throw new NotFoundException(err.message);
-  }
-
-  this.logger.error(
-    `[AUTH/${endpointName}] ERROR: ${
-      (err as Error).message
-    }, BODY ${body}, STACK: ${(err as Error).stack}`,
-  );
-
-  throw new InternalServerErrorException();
-}
+import { EccKeysDto, KyberKeysDto } from '../keyserver/dto/keys.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -149,6 +132,66 @@ export class UserController {
     private readonly featureLimitService: FeatureLimitService,
     private readonly klaviyoService: KlaviyoTrackingService,
   ) {}
+
+  processException(endpointName: string, body: string, err: any) {
+    if (err instanceof InvalidReferralCodeError) {
+      throw new BadRequestException(err.message);
+    } else if (err instanceof UserAlreadyRegisteredError) {
+      throw new ConflictException(err.message);
+    } else if (err instanceof NotFoundException) {
+      throw new NotFoundException(err.message);
+    }
+
+    this.logger.error(
+      `[AUTH/${endpointName}] ERROR: ${
+        (err as Error).message
+      }, BODY ${body}, STACK: ${(err as Error).stack}`,
+    );
+
+    throw new InternalServerErrorException();
+  }
+
+  async finishUserProcessing(
+    user: User,
+    kyber: KyberKeysDto,
+    ecc: EccKeysDto,
+    req: Request,
+    uuid: string,
+    createUserDto: CreateUserDto | CreateUserOpaqueDto,
+  ) {
+    const keys = await this.keyServerUseCases.addKeysToUser(user.id, {
+      kyber,
+      ecc,
+    });
+
+    if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+      await this.userUseCases.replacePreCreatedUser(
+        user.email,
+        user.uuid,
+        keys.ecc.publicKey,
+        keys.kyber?.publicKey,
+      );
+    }
+
+    this.notificationsService.add(new SignUpSuccessEvent(user, req));
+
+    // TODO: Move to EventBus
+    this.userUseCases
+      .sendWelcomeVerifyEmailEmail(createUserDto.email, {
+        userUuid: uuid,
+      })
+      .catch((err) => {
+        this.logger.error(
+          `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+      });
+
+    return keys;
+  }
 
   @UseGuards(ThrottlerGuard)
   @Throttle({
@@ -183,41 +226,14 @@ export class UserController {
           revocationKey: createUserDto.revocationKey,
         },
       );
-
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        response.user.id,
-        {
-          kyber,
-          ecc,
-        },
+      const keys = await this.finishUserProcessing(
+        response.user,
+        kyber,
+        ecc,
+        req,
+        response.uuid,
+        createUserDto,
       );
-
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          response.user.email,
-          response.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
-
-      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
-
-      // TODO: Move to EventBus
-      this.userUseCases
-        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
-          userUuid: response.uuid,
-        })
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
-          );
-        });
-
       return {
         ...response,
         user: {
@@ -286,7 +302,7 @@ export class UserController {
 
       return registrationResponse;
     } catch (err) {
-      processException(
+      this.processException(
         'REGISTER-OPAQUE-START',
         JSON.stringify(registerUserDto),
         err,
@@ -323,37 +339,14 @@ export class UserController {
         createUserDto.keys,
       );
 
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        response.user.id,
-        {
-          kyber,
-          ecc,
-        },
+      const keys = await this.finishUserProcessing(
+        response.user,
+        kyber,
+        ecc,
+        req,
+        response.uuid,
+        createUserDto,
       );
-
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          response.user.email,
-          response.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
-
-      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
-
-      // TODO: Move to EventBus
-      this.userUseCases
-        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
-          userUuid: response.uuid,
-        })
-        .catch((err) => {
-          processException(
-            'REGISTER-OPAQUE-FINISH/SENDWELCOMEEMAIL',
-            JSON.stringify(createUserDto),
-            err,
-          );
-        });
 
       return {
         ...response,
@@ -370,7 +363,7 @@ export class UserController {
         uuid: response.uuid,
       };
     } catch (err) {
-      processException(
+      this.processException(
         'REGISTER-OPAQUE-FINISH',
         JSON.stringify(createUserDto),
         err,
@@ -479,41 +472,14 @@ export class UserController {
         },
       );
 
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        userCreated.user.id,
-        {
-          kyber,
-          ecc,
-        },
+      const keys = await this.finishUserProcessing(
+        userCreated.user,
+        kyber,
+        ecc,
+        req,
+        userCreated.uuid,
+        createUserDto,
       );
-
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          userCreated.user.email,
-          userCreated.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
-
-      this.notificationsService.add(
-        new SignUpSuccessEvent(userCreated.user, req),
-      );
-
-      // TODO: Move to EventBus
-      this.userUseCases
-        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
-          userUuid: userCreated.uuid,
-        })
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
-          );
-        });
 
       await this.sharingService
         .acceptInvite(userCreated.user, invitationId, {})
@@ -797,7 +763,7 @@ export class UserController {
 
       return { status: 'success', registrationResponse };
     } catch (err) {
-      processException(
+      this.processException(
         'UPDATEPASSWORD_OPAQUE_START',
         JSON.stringify(updatePasswordOpaqueStartDto),
         err,
@@ -871,7 +837,7 @@ export class UserController {
 
       return { status: 'success', loginResponse };
     } catch (err) {
-      processException(
+      this.processException(
         'UPDATEPASSWORD_OPAQUE_FINISH',
         JSON.stringify(updatePasswordOpaqueFinishDto),
         err,
