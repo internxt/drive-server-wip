@@ -278,38 +278,17 @@ export class FileUseCases {
       throw new BadRequestException('Version does not belong to this file');
     }
 
-    const allVersions =
-      await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    if (allVersions.length === 1) {
-      throw new BadRequestException('Cannot delete the last version of a file');
-    }
-
     await this.fileVersionRepository.updateStatus(
       versionId,
       FileVersionStatus.DELETED,
     );
-
-    const remainingVersions = allVersions
-      .filter(
-        (v) => v.id !== versionId && v.status === FileVersionStatus.EXISTS,
-      )
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const latestVersion = remainingVersions[0];
-
-    await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-      fileId: latestVersion.networkFileId,
-      size: latestVersion.size,
-      updatedAt: new Date(),
-    });
   }
 
   async restoreFileVersion(
     user: User,
     fileUuid: string,
     versionId: string,
-  ): Promise<FileVersion> {
+  ): Promise<File> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
 
     if (!file) {
@@ -361,7 +340,10 @@ export class FileUseCases {
       }),
     ]);
 
-    return versionToRestore;
+    file.fileId = versionToRestore.networkFileId;
+    file.size = versionToRestore.size;
+
+    return file;
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {

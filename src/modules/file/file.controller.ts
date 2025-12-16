@@ -220,7 +220,7 @@ export class FileController {
   @ApiOperation({
     summary: 'Restore a file version',
   })
-  @ApiOkResponse({ type: FileVersionDto })
+  @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
   @GetDataFromRequest([
     {
@@ -238,13 +238,8 @@ export class FileController {
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) fileUuid: string,
     @Param('versionId', ValidateUUIDPipe) versionId: string,
-  ): Promise<FileVersionDto> {
-    const version = await this.fileUseCases.restoreFileVersion(
-      user,
-      fileUuid,
-      versionId,
-    );
-    return version.toJSON();
+  ): Promise<FileDto> {
+    return this.fileUseCases.restoreFileVersion(user, fileUuid, versionId);
   }
 
   @Put('/:uuid')
