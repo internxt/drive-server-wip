@@ -6,7 +6,7 @@ import { FileStatus } from '../file.domain';
 export class FileDto {
   id: number;
   uuid: string;
-  fileId: string;
+  fileId: string | null;
   name: string;
   type: string;
   size: bigint;
