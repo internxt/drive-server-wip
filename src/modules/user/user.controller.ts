@@ -784,13 +784,9 @@ export class UserController {
         throw new BadRequestException('No session key found');
       }
 
-      const sessionKeyBytes = this.cryptoService.sessionIDtoBytes(sessionKey);
-      const registrationRequestBytes =
-        this.cryptoService.safeBase64ToBytes(registrationRequest);
-      const sessionIDBytes = this.cryptoService.sessionIDtoBytes(sessionID);
-      const mac = this.cryptoService.computeMac(sessionKeyBytes, [
-        registrationRequestBytes,
-        sessionIDBytes,
+      const mac = await this.cryptoService.computeMac(sessionKey, [
+        registrationRequest,
+        sessionID,
       ]);
 
       if (mac !== hmac) {
@@ -849,34 +845,15 @@ export class UserController {
         throw new BadRequestException('No session key found');
       }
 
-      const sessionKeyBytes = this.cryptoService.sessionIDtoBytes(sessionKey);
-      const mnemonicBytes = this.cryptoService.base64toBytes(mnemonic);
-      const eccPrivateKeyBytes = this.cryptoService.base64toBytes(
+      const mac = await this.cryptoService.computeMac(sessionKey, [
+        sessionID,
+        registrationRecord,
+        mnemonic,
         keys.ecc.privateKey,
-      );
-      const eccPublicKeyBytes = this.cryptoService.base64toBytes(
         keys.ecc.publicKey,
-      );
-      const kyberPrivateKeyBytes = this.cryptoService.base64toBytes(
         keys.kyber.privateKey,
-      );
-      const kyberPublicKeyBytes = this.cryptoService.base64toBytes(
         keys.kyber.publicKey,
-      );
-      const registrationRecordBytes =
-        this.cryptoService.safeBase64ToBytes(registrationRecord);
-      const startLoginRequestBytes =
-        this.cryptoService.safeBase64ToBytes(startLoginRequest);
-      const sessionIDBytes = this.cryptoService.sessionIDtoBytes(sessionID);
-      const mac = this.cryptoService.computeMac(sessionKeyBytes, [
-        sessionIDBytes,
-        registrationRecordBytes,
-        mnemonicBytes,
-        eccPrivateKeyBytes,
-        eccPublicKeyBytes,
-        kyberPrivateKeyBytes,
-        kyberPublicKeyBytes,
-        startLoginRequestBytes,
+        startLoginRequest,
       ]);
 
       if (mac !== hmac) {

@@ -5,12 +5,8 @@ import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { server } from '@serenity-kit/opaque';
-import { computeMac } from 'internxt-crypto/hash';
-import {
-  base64ToUint8Array,
-  uuidToBytes,
-  generateID,
-} from 'internxt-crypto/utils';
+import { v4 as uuidv4 } from 'uuid';
+import { blake3 } from 'hash-wasm';
 
 export enum AsymmetricEncryptionAlgorithms {
   EllipticCurve = 'ed25519',
@@ -218,25 +214,16 @@ export class CryptoService {
     });
   }
 
-  computeMac(keyBytes: Uint8Array, data: Uint8Array[]): string {
-    return computeMac(keyBytes, data);
-  }
-
-  safeBase64ToBytes(urlSafeBase64: string): Uint8Array {
-    const base64 = urlSafeBase64.replaceAll('-', '+').replaceAll('_', '/');
-    const padding = (4 - (base64.length % 4)) % 4;
-    return base64ToUint8Array(base64 + '='.repeat(padding));
-  }
-
-  sessionIDtoBytes(sessionID: string): Uint8Array {
-    return uuidToBytes(sessionID);
-  }
-
-  base64toBytes(str: string): Uint8Array {
-    return base64ToUint8Array(str);
+  async computeMac(keyMaterial: string, data: string[]): Promise<string> {
+    try {
+      const key = await blake3(keyMaterial, 256);
+      return blake3(data.join(''), 256, key);
+    } catch (error) {
+      throw new Error(`Failed to compute mac ${error}`);
+    }
   }
 
   generateSessionID(): string {
-    return generateID();
+    return uuidv4();
   }
 }

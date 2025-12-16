@@ -67,7 +67,6 @@
     "geoip-lite": "^1.4.8",
     "hash-wasm": "^4.12.0",
     "helmet": "^7.2.0",
-    "internxt-crypto": "https://github.com/internxt/crypto/releases/download/v.0.0.10-alpha/internxt-crypto-0.0.10-alpha.tgz",
     "multer-s3": "^3.0.1",
     "nestjs-pino": "^4.5.0",
     "newrelic": "^13.5.0",
