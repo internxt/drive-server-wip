@@ -60,7 +60,9 @@ export interface SharedWorkspaceRepository {
 }
 
 @Injectable()
-export class SequelizeSharedWorkspaceRepository implements SharedWorkspaceRepository {
+export class SequelizeSharedWorkspaceRepository
+  implements SharedWorkspaceRepository
+{
   constructor(
     @InjectModel(FriendInvitationModel)
     private readonly model: typeof FriendInvitationModel,
