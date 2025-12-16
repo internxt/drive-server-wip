@@ -8,6 +8,7 @@ describe('FileVersion Domain', () => {
   const mockAttributes: FileVersionAttributes = {
     id: 'version-id-123',
     fileId: 'file-id-456',
+    userId: 123,
     networkFileId: 'network-file-id-789',
     size: BigInt(1024),
     status: FileVersionStatus.EXISTS,
@@ -63,6 +64,7 @@ describe('FileVersion Domain', () => {
     expect(json).toEqual({
       id: mockAttributes.id,
       fileId: mockAttributes.fileId,
+      userId: mockAttributes.userId,
       networkFileId: mockAttributes.networkFileId,
       size: mockAttributes.size,
       status: mockAttributes.status,
