@@ -116,6 +116,24 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 
+function processException(endpointName: string, body: string, err: any) {
+  if (err instanceof InvalidReferralCodeError) {
+    throw new BadRequestException(err.message);
+  } else if (err instanceof UserAlreadyRegisteredError) {
+    throw new ConflictException(err.message);
+  } else if (err instanceof NotFoundException) {
+    throw new NotFoundException(err.message);
+  }
+
+  this.logger.error(
+    `[AUTH/${endpointName}] ERROR: ${
+      (err as Error).message
+    }, BODY ${body}, STACK: ${(err as Error).stack}`,
+  );
+
+  throw new InternalServerErrorException();
+}
+
 @ApiTags('User')
 @Controller('users')
 export class UserController {
@@ -268,21 +286,11 @@ export class UserController {
 
       return registrationResponse;
     } catch (err) {
-      if (err instanceof InvalidReferralCodeError) {
-        throw new BadRequestException(err.message);
-      } else if (err instanceof UserAlreadyRegisteredError) {
-        throw new ConflictException(err.message);
-      }
-
-      this.logger.error(
-        `[AUTH/REGISTER-OPAQUE-START] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify(registerUserDto)}, STACK: ${
-          (err as Error).stack
-        }`,
+      processException(
+        'REGISTER-OPAQUE-START',
+        JSON.stringify(registerUserDto),
+        err,
       );
-
-      throw new InternalServerErrorException();
     }
   }
 
@@ -340,12 +348,10 @@ export class UserController {
           userUuid: response.uuid,
         })
         .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER-OPAQUE-FINISH/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
+          processException(
+            'REGISTER-OPAQUE-FINISH/SENDWELCOMEEMAIL',
+            JSON.stringify(createUserDto),
+            err,
           );
         });
 
@@ -364,21 +370,11 @@ export class UserController {
         uuid: response.uuid,
       };
     } catch (err) {
-      if (err instanceof InvalidReferralCodeError) {
-        throw new BadRequestException(err.message);
-      } else if (err instanceof UserAlreadyRegisteredError) {
-        throw new ConflictException(err.message);
-      }
-
-      this.logger.error(
-        `[AUTH/REGISTER-OPAQUE-FINISH] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-          (err as Error).stack
-        }`,
+      processException(
+        'REGISTER-OPAQUE-FINISH',
+        JSON.stringify(createUserDto),
+        err,
       );
-
-      throw new InternalServerErrorException();
     }
   }
 
@@ -801,14 +797,11 @@ export class UserController {
 
       return { status: 'success', registrationResponse };
     } catch (err) {
-      Logger.error(
-        `[AUTH/UPDATEPASSWORD_OPAQUE_START] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify(updatePasswordOpaqueStartDto)}, STACK: ${
-          (err as Error).stack
-        }`,
+      processException(
+        'UPDATEPASSWORD_OPAQUE_START',
+        JSON.stringify(updatePasswordOpaqueStartDto),
+        err,
       );
-      throw err;
     }
   }
 
@@ -878,14 +871,11 @@ export class UserController {
 
       return { status: 'success', loginResponse };
     } catch (err) {
-      Logger.error(
-        `[AUTH/UPDATEPASSWORD_OPAQUE_FINISH] ERROR: ${
-          (err as Error).message
-        }, BODY ${JSON.stringify(updatePasswordOpaqueFinishDto)}, STACK: ${
-          (err as Error).stack
-        }`,
+      processException(
+        'UPDATEPASSWORD_OPAQUE_FINISH',
+        JSON.stringify(updatePasswordOpaqueFinishDto),
+        err,
       );
-      throw err;
     }
   }
 
