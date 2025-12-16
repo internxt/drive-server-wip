@@ -333,7 +333,7 @@ export class UserController {
     const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
-      const response = await this.userUseCases.createUserOpaque(createUserDto);
+      const response = await this.userUseCases.createUser(createUserDto);
 
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
         createUserDto.keys,

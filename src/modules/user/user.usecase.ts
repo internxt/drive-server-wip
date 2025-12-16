@@ -431,7 +431,11 @@ export class UserUseCases {
     });
   }
 
-  async createUserOpaque(newUser: NewUserOpaque) {
+  async createUser(newUser: NewUser | NewUserOpaque) {
+    const password = 'password' in newUser ? newUser.password : '';
+    const salt = 'salt' in newUser ? newUser.salt : '';
+    const registrationRecord =
+      'registrationRecord' in newUser ? newUser.registrationRecord : '';
     const email = newUser.email.toLowerCase();
 
     const maybeExistentUser = await this.userRepository.findByUsername(email);
@@ -441,114 +445,9 @@ export class UserUseCases {
       throw new UserAlreadyRegisteredError(newUser.email);
     }
 
-    const { userId: networkPass, uuid: userUuid } =
-      await this.networkService.createUser(email);
+    const userPass = newUser ? this.cryptoService.decryptText(password) : '';
 
-    const notifySignUpError = (err: Error) =>
-      this.notificationService.add(
-        new SignUpErrorEvent({ email, uuid: userUuid }, err),
-      );
-
-    const freeTier = await this.featureLimitRepository.getFreeTier();
-
-    const user = await this.userRepository.create({
-      email,
-      name: newUser.name,
-      lastname: newUser.lastname,
-      referrer: newUser.referrer,
-      referralCode: v4(),
-      uuid: userUuid,
-      userId: networkPass,
-      credit: 0,
-      welcomePack: true,
-      registerCompleted: newUser.registerCompleted,
-      username: email,
-      bridgeUser: email,
-      mnemonic: newUser.mnemonic,
-      tierId: freeTier?.id,
-      registrationRecord: newUser.registrationRecord,
-    });
-
-    let rootFolder: Folder;
-
-    try {
-      const bucket = await this.networkService.createBucket(email, networkPass);
-      const [createdRootFolder] = await this.createInitialFolders(
-        user,
-        bucket.id,
-      );
-      rootFolder = createdRootFolder;
-
-      const hasReferrer = !!newUser.referrer;
-      if (hasReferrer) {
-        this.applyReferralIfHasReferrer(
-          userUuid,
-          email,
-          newUser.referrer,
-        ).catch(notifySignUpError);
-      }
-
-      const { newToken, token } = await this.getAuthTokens(
-        user,
-        undefined,
-        '3d',
-      );
-
-      return {
-        token,
-        newToken,
-        user: {
-          ...user.toJSON(),
-          hKey: user.hKey.toString(),
-          password: user.password.toString(),
-          mnemonic: user.mnemonic.toString(),
-          rootFolderId: rootFolder.id,
-          rootFolderUuid: rootFolder.uuid,
-          bucket: bucket.id,
-          uuid: userUuid,
-          userId: networkPass,
-          hasReferralsProgram: false,
-        } as unknown as User & { rootFolderUuid: string },
-        uuid: userUuid,
-      };
-    } catch (err) {
-      const error = {
-        message: err.message,
-        stack: err.stack ?? 'NO STACK',
-        body: newUser,
-      };
-
-      Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${JSON.stringify(error)}`);
-      notifySignUpError(err);
-
-      if (user) {
-        Logger.warn(
-          `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
-        );
-        await this.userRepository.deleteBy({ uuid: user.uuid });
-        if (rootFolder) {
-          await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
-        }
-      }
-
-      throw err;
-    }
-  }
-
-  async createUser(newUser: NewUser) {
-    const { email: rawEmail, password, salt } = newUser;
-    const email = rawEmail.toLowerCase();
-
-    const maybeExistentUser = await this.userRepository.findByUsername(email);
-    const userAlreadyExists = !!maybeExistentUser;
-
-    if (userAlreadyExists) {
-      throw new UserAlreadyRegisteredError(newUser.email);
-    }
-
-    const userPass = this.cryptoService.decryptText(password);
-
-    const userSalt = this.cryptoService.decryptText(salt);
+    const userSalt = salt ? this.cryptoService.decryptText(salt) : '';
 
     const { userId: networkPass, uuid: userUuid } =
       await this.networkService.createUser(email);
@@ -577,6 +476,7 @@ export class UserUseCases {
       bridgeUser: email,
       mnemonic: newUser.mnemonic,
       tierId: freeTier?.id,
+      registrationRecord,
     });
 
     let rootFolder: Folder;
