@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize';
 import { FileVersionModel } from './file-version.model';
 import {
   FileVersion,
@@ -20,6 +21,7 @@ export interface FileVersionRepository {
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
   updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
+  sumExistingSizesByUser(userId: number): Promise<number>;
 }
 
 @Injectable()
@@ -32,6 +34,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
   async create(version: CreateFileVersionData): Promise<FileVersion> {
     const createdVersion = await this.model.create({
       fileId: version.fileId,
+      userId: version.userId,
       networkFileId: version.networkFileId,
       size: version.size,
       status: version.status || FileVersionStatus.EXISTS,
@@ -44,6 +47,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     const [instance] = await this.model.upsert(
       {
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status || FileVersionStatus.EXISTS,
@@ -107,5 +111,18 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
         where: { fileId },
       },
     );
+  }
+
+  async sumExistingSizesByUser(userId: number): Promise<number> {
+    const result = await this.model.findAll({
+      attributes: [[Sequelize.fn('SUM', Sequelize.col('size')), 'total']],
+      where: {
+        userId,
+        status: FileVersionStatus.EXISTS,
+      },
+      raw: true,
+    });
+
+    return Number(result[0]?.['total']) || 0;
   }
 }
