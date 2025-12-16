@@ -57,6 +57,7 @@ import { Usage } from '../usage/usage.domain';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -460,10 +461,11 @@ export class FileUseCases {
       this.fileRepository.getZeroSizeFilesCountByUser(user.id),
     ]);
 
-    if (
-      !limit ||
-      limit.shouldLimitBeEnforced({ currentCount: emptyFilesCount })
-    ) {
+    if (!limit || limit.value === '0') {
+      throw new PaymentRequiredException('You can not have empty files');
+    }
+
+    if (limit.shouldLimitBeEnforced({ currentCount: emptyFilesCount })) {
       throw new BadRequestException('You can not have more empty files');
     }
   }

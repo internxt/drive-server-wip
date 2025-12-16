@@ -10,6 +10,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import {
   File,
   FileAttributes,
@@ -956,7 +957,7 @@ describe('FileUseCases', () => {
 
         await expect(
           service.createFile(userMocked, emptyFileDto),
-        ).rejects.toThrow(BadRequestException);
+        ).rejects.toThrow(PaymentRequiredException);
 
         expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
           LimitLabels.MaxZeroSizeFiles,
@@ -1148,7 +1149,7 @@ describe('FileUseCases', () => {
         .mockResolvedValue(5);
 
       await expect(service.checkEmptyFilesLimit(userMocked)).rejects.toThrow(
-        BadRequestException,
+        PaymentRequiredException,
       );
 
       expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
@@ -2434,7 +2435,7 @@ describe('FileUseCases', () => {
 
         await expect(
           service.replaceFile(userMocked, mockFile.uuid, replaceData),
-        ).rejects.toThrow(BadRequestException);
+        ).rejects.toThrow(PaymentRequiredException);
 
         expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
           LimitLabels.MaxZeroSizeFiles,
