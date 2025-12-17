@@ -7,12 +7,15 @@ export enum UsageType {
   Yearly = 'yearly',
   // Events Types
   Replacement = 'replacement',
+  // Version Types
+  Version = 'version',
 }
 
 const temporalUsage = new Set([
   UsageType.Daily,
   UsageType.Monthly,
   UsageType.Yearly,
+  UsageType.Version,
 ]);
 
 export interface UsageAttributes {
@@ -62,6 +65,7 @@ export class Usage implements UsageAttributes {
   getNextPeriodStartDate(): Date {
     switch (this.type) {
       case UsageType.Daily:
+      case UsageType.Version:
         return Time.startOf(
           Time.dateWithTimeAdded(1, 'day', this.period),
           'day',
@@ -86,6 +90,7 @@ export class Usage implements UsageAttributes {
   isAtOrBeforePeriod(date: Date): boolean {
     switch (this.type) {
       case UsageType.Daily:
+      case UsageType.Version:
         return Time.isSameOrBefore(date, this.period, 'day');
       case UsageType.Monthly:
         return Time.isSameOrBefore(date, this.period, 'month');
