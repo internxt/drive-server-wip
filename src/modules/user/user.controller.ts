@@ -36,7 +36,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  CreateUserDto,
+  CreateUserOpaqueDto,
+  RegisterUserOpaqueDto,
+} from './dto/create-user.dto';
 import { Response, Request } from 'express';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -49,7 +53,11 @@ import {
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import {
+  UpdatePasswordDto,
+  UpdatePasswordOpaqueStartDto,
+  UpdatePasswordOpaqueFinishDto,
+} from './dto/update-password.dto';
 import {
   RecoverAccountDto,
   RecoverAccountQueryDto,
@@ -107,6 +115,7 @@ import { PlatformName } from '../../common/constants';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
+import { EccKeysDto, KyberKeysDto } from '../keyserver/dto/keys.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -123,6 +132,66 @@ export class UserController {
     private readonly featureLimitService: FeatureLimitService,
     private readonly klaviyoService: KlaviyoTrackingService,
   ) {}
+
+  processException(endpointName: string, body: string, err: any) {
+    if (err instanceof InvalidReferralCodeError) {
+      throw new BadRequestException(err.message);
+    } else if (err instanceof UserAlreadyRegisteredError) {
+      throw new ConflictException(err.message);
+    } else if (err instanceof NotFoundException) {
+      throw new NotFoundException(err.message);
+    }
+
+    this.logger.error(
+      `[AUTH/${endpointName}] ERROR: ${
+        (err as Error).message
+      }, BODY ${body}, STACK: ${(err as Error).stack}`,
+    );
+
+    throw new InternalServerErrorException();
+  }
+
+  async finishUserProcessing(
+    user: User,
+    kyber: KyberKeysDto,
+    ecc: EccKeysDto,
+    req: Request,
+    uuid: string,
+    createUserDto: CreateUserDto | CreateUserOpaqueDto,
+  ) {
+    const keys = await this.keyServerUseCases.addKeysToUser(user.id, {
+      kyber,
+      ecc,
+    });
+
+    if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+      await this.userUseCases.replacePreCreatedUser(
+        user.email,
+        user.uuid,
+        keys.ecc.publicKey,
+        keys.kyber?.publicKey,
+      );
+    }
+
+    this.notificationsService.add(new SignUpSuccessEvent(user, req));
+
+    // TODO: Move to EventBus
+    this.userUseCases
+      .sendWelcomeVerifyEmailEmail(createUserDto.email, {
+        userUuid: uuid,
+      })
+      .catch((err) => {
+        this.logger.error(
+          `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
+            (err as Error).message
+          }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
+            (err as Error).stack
+          }`,
+        );
+      });
+
+    return keys;
+  }
 
   @UseGuards(ThrottlerGuard)
   @Throttle({
@@ -157,41 +226,14 @@ export class UserController {
           revocationKey: createUserDto.revocationKey,
         },
       );
-
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        response.user.id,
-        {
-          kyber,
-          ecc,
-        },
+      const keys = await this.finishUserProcessing(
+        response.user,
+        kyber,
+        ecc,
+        req,
+        response.uuid,
+        createUserDto,
       );
-
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          response.user.email,
-          response.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
-
-      this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
-
-      // TODO: Move to EventBus
-      this.userUseCases
-        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
-          userUuid: response.uuid,
-        })
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
-          );
-        });
-
       return {
         ...response,
         user: {
@@ -225,6 +267,107 @@ export class UserController {
       );
 
       throw new InternalServerErrorException();
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/register-opaque/start')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Start opaque registration of a user',
+  })
+  @ApiOkResponse({ description: 'Starts opaque registration of a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async createUserOpaqueStart(@Body() registerUserDto: RegisterUserOpaqueDto) {
+    try {
+      const email = registerUserDto.email.toLowerCase();
+      const user = await this.userUseCases.getUserByUsername(email);
+
+      if (user) {
+        throw new UserAlreadyRegisteredError(registerUserDto.email);
+      }
+
+      const registrationResponse =
+        this.cryptoService.createRegistrationResponseOpaque(
+          registerUserDto.registrationRequest,
+          registerUserDto.email,
+        );
+
+      return registrationResponse;
+    } catch (err) {
+      this.processException(
+        'REGISTER-OPAQUE-START',
+        JSON.stringify(registerUserDto),
+        err,
+      );
+    }
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    long: {
+      ttl: 3600,
+      limit: 5,
+    },
+  })
+  @Post('/register-opaque/finish')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Start opaque registration of a user',
+  })
+  @ApiOkResponse({ description: 'Starts opaque registration of a user' })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @Public()
+  async createUserOpaqueFinish(
+    @Body() createUserDto: CreateUserOpaqueDto,
+    @Req() req: Request,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    try {
+      const response = await this.userUseCases.createUser(createUserDto);
+
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
+        createUserDto.keys,
+      );
+
+      const keys = await this.finishUserProcessing(
+        response.user,
+        kyber,
+        ecc,
+        req,
+        response.uuid,
+        createUserDto,
+      );
+
+      return {
+        ...response,
+        user: {
+          ...response.user,
+          root_folder_id: response.user.rootFolderId,
+          ...(isDriveWeb
+            ? { rootFolderId: response.user.rootFolderUuid }
+            : null),
+          keys: keys,
+        },
+        token: response.token,
+        newToken: response.newToken,
+        uuid: response.uuid,
+      };
+    } catch (err) {
+      this.processException(
+        'REGISTER-OPAQUE-FINISH',
+        JSON.stringify(createUserDto),
+        err,
+      );
     }
   }
 
@@ -329,41 +472,14 @@ export class UserController {
         },
       );
 
-      const keys = await this.keyServerUseCases.addKeysToUser(
-        userCreated.user.id,
-        {
-          kyber,
-          ecc,
-        },
+      const keys = await this.finishUserProcessing(
+        userCreated.user,
+        kyber,
+        ecc,
+        req,
+        userCreated.uuid,
+        createUserDto,
       );
-
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          userCreated.user.email,
-          userCreated.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
-
-      this.notificationsService.add(
-        new SignUpSuccessEvent(userCreated.user, req),
-      );
-
-      // TODO: Move to EventBus
-      this.userUseCases
-        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
-          userUuid: userCreated.uuid,
-        })
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
-          );
-        });
 
       await this.sharingService
         .acceptInvite(userCreated.user, invitationId, {})
@@ -600,6 +716,132 @@ export class UserController {
         }`,
       );
       throw err;
+    }
+  }
+
+  @Patch('password-opaque/start')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPasswordOpaqueStart)
+  @AuditLog({ action: AuditAction.PasswordChangedOpaqueStart })
+  async updatePasswordOpaqueStart(
+    @Body() updatePasswordOpaqueStartDto: UpdatePasswordOpaqueStartDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+      const { registrationRequest, sessionID, hmac } =
+        updatePasswordOpaqueStartDto;
+
+      const sessionKey = await this.userUseCases.getSessionKey(sessionID);
+
+      if (!sessionKey) {
+        throw new BadRequestException('No session key found');
+      }
+
+      const mac = await this.cryptoService.computeMac(sessionKey, [
+        registrationRequest,
+        sessionID,
+      ]);
+
+      if (mac !== hmac) {
+        throw new BadRequestException('Hmac is not correct');
+      }
+
+      const registrationResponse =
+        this.cryptoService.createRegistrationResponseOpaque(
+          registrationRequest,
+          user.email,
+        );
+
+      return { status: 'success', registrationResponse };
+    } catch (err) {
+      this.processException(
+        'UPDATEPASSWORD_OPAQUE_START',
+        JSON.stringify(updatePasswordOpaqueStartDto),
+        err,
+      );
+    }
+  }
+
+  @Patch('password-opaque/finish')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPasswordOpaqueFinish)
+  @AuditLog({ action: AuditAction.PasswordChangedOpaqueFinished })
+  async updatePasswordOpaqueFinish(
+    @Body() updatePasswordOpaqueFinishDto: UpdatePasswordOpaqueFinishDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+      const {
+        keys,
+        mnemonic,
+        registrationRecord,
+        startLoginRequest,
+        sessionID,
+        hmac,
+      } = updatePasswordOpaqueFinishDto;
+
+      const sessionKey = await this.userUseCases.getSessionKey(sessionID);
+
+      if (!sessionKey) {
+        throw new BadRequestException('No session key found');
+      }
+
+      const mac = await this.cryptoService.computeMac(sessionKey, [
+        sessionID,
+        registrationRecord,
+        mnemonic,
+        keys.ecc.privateKey,
+        keys.ecc.publicKey,
+        keys.kyber.privateKey,
+        keys.kyber.publicKey,
+        startLoginRequest,
+      ]);
+
+      if (mac !== hmac) {
+        throw new BadRequestException('Hmac is not correct');
+      }
+
+      await this.userUseCases.updatePasswordOpaque(
+        user,
+        mnemonic,
+        registrationRecord,
+        keys,
+      );
+
+      const { loginResponse, serverLoginState } =
+        this.cryptoService.startLoginOpaque(
+          user.email,
+          registrationRecord,
+          startLoginRequest,
+        );
+
+      await this.userUseCases.setLoginState(user.email, serverLoginState);
+
+      return { status: 'success', loginResponse };
+    } catch (err) {
+      this.processException(
+        'UPDATEPASSWORD_OPAQUE_FINISH',
+        JSON.stringify(updatePasswordOpaqueFinishDto),
+        err,
+      );
     }
   }
 

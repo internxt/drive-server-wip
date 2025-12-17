@@ -1,6 +1,10 @@
 export enum WorkspaceLogType {
   Login = 'login',
+  LoginOpaqueStart = 'login-opaque-start',
+  LoginOpaqueFinish = 'login-opaque-finish',
   ChangedPassword = 'changed-password',
+  ChangedPasswordOpaqueStart = 'changed-password-opaque-start',
+  ChangedPasswordOpaqueFinish = 'changed-password-opaque-finish',
   Logout = 'logout',
   ShareFile = 'share-file',
   ShareFolder = 'share-folder',

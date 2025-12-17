@@ -4,6 +4,9 @@ import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { server } from '@serenity-kit/opaque';
+import { v4 as uuidv4 } from 'uuid';
+import { blake3 } from 'hash-wasm';
 
 export enum AsymmetricEncryptionAlgorithms {
   EllipticCurve = 'ed25519',
@@ -14,9 +17,11 @@ export class CryptoService {
   private readonly configService: ConfigService;
   private readonly aesService: AesService;
   private readonly cryptoSecret: string;
+  private readonly serverSetup: string;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
+    this.serverSetup = this.configService.get('secrets.serverSetup');
     this.aesService = new AesService(
       this.configService.get('secrets.magicIv'),
       this.configService.get('secrets.magicSalt'),
@@ -169,5 +174,56 @@ export class CryptoService {
 
       return null;
     }
+  }
+
+  createRegistrationResponseOpaque(
+    registrationRequest: string,
+    email: string,
+  ): string {
+    const { registrationResponse } = server.createRegistrationResponse({
+      serverSetup: this.serverSetup,
+      userIdentifier: email,
+      registrationRequest,
+    });
+
+    return registrationResponse;
+  }
+
+  startLoginOpaque(
+    email: string,
+    registrationRecord: string,
+    startLoginRequest: string,
+  ): { loginResponse: string; serverLoginState: string } {
+    const { loginResponse, serverLoginState } = server.startLogin({
+      userIdentifier: email,
+      registrationRecord,
+      serverSetup: this.serverSetup,
+      startLoginRequest,
+    });
+
+    return { loginResponse, serverLoginState };
+  }
+
+  finishLoginOpaque(
+    finishLoginRequest: string,
+    serverLoginState: string,
+  ): { sessionKey: string } {
+    return server.finishLogin({
+      finishLoginRequest,
+      serverLoginState,
+    });
+  }
+
+  async computeMac(keyMaterial: string, data: string[]): Promise<string> {
+    try {
+      const key = await blake3(keyMaterial, 256);
+      return blake3(data.join(''), 256, key);
+    } catch (error) {
+      throw new Error(`Failed to compute mac ${error}`);
+    }
+  }
+
+  generateSessionID(): string {
+    return uuidv4();
   }
 }
