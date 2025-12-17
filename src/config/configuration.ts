@@ -36,8 +36,6 @@ export default () => ({
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,
   },
   secrets: {
-    magicIv: process.env.MAGIC_IV,
-    magicSalt: process.env.MAGIC_SALT,
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,

@@ -21,38 +21,22 @@
 import crypto from 'crypto';
 
 export class AesService {
-  constructor(
-    private readonly magicIv: string,
-    private readonly magicSalt: string,
-    private readonly cryptoKey: string,
-  ) {
+  constructor(private readonly cryptoKey: string) {
     this.validate();
   }
 
   private validate(): void {
-    if (!this.magicIv) {
-      throw new Error('AES SERVICE: Missing magic IV');
-    }
-
-    if (!this.magicSalt) {
-      throw new Error('AES SERVICE: Missing magic salt');
-    }
-
     if (!this.cryptoKey) {
       throw new Error('AES SERVICE: Missing crytpo key');
     }
   }
 
-  encrypt(text, originalSalt, randomIv = false) {
+  encrypt(text, originalSalt) {
     // random initialization vector
-    const iv = randomIv
-      ? crypto.randomBytes(16)
-      : Buffer.from(this.magicIv, 'hex');
+    const iv = crypto.randomBytes(16);
 
     // random salt
-    const salt = randomIv
-      ? crypto.randomBytes(64)
-      : Buffer.from(this.magicSalt, 'hex');
+    const salt = crypto.randomBytes(64);
 
     // derive encryption key: 32 byte key length
     // in assumption the masterkey is a cryptographic and NOT a password there is no need for
