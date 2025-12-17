@@ -15,4 +15,7 @@ export class LoginResponseDto {
 
   @ApiProperty()
   hasEccKeys: boolean;
+
+  @ApiProperty()
+  useOpaqueLogin: boolean;
 }

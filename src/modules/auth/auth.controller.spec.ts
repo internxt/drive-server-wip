@@ -80,6 +80,7 @@ describe('AuthController', () => {
         hasEccKeys: true,
         sKey: 'encryptedText',
         tfa: true,
+        useOpaqueLogin: false,
       });
     });
 

@@ -2126,6 +2126,11 @@
     "@sendgrid/client" "^8.1.5"
     "@sendgrid/helpers" "^8.0.0"
 
+"@serenity-kit/opaque@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@serenity-kit/opaque/-/opaque-1.0.0.tgz#ef265667cd13977a53f22732f0d204452b5fe59c"
+  integrity sha512-UCu92RBFroWaUOdrIJzjXW8M/wqGGi7/2J8D5BPbCNAYU27iyzr5JDZ0N6wq31IhNhEIr7C/8V3+9aSgXi4F3A==
+
 "@sinclair/typebox@^0.27.8":
   version "0.27.8"
   resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.27.8.tgz#6667fac16c436b5434a387a34dedb013198f6e6e"

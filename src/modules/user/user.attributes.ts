@@ -30,4 +30,6 @@ export interface UserAttributes {
   emailVerified: boolean;
   updatedAt?: Date;
   createdAt?: Date;
+  isOpaqueEnabled?: boolean;
+  registrationRecord?: string;
 }

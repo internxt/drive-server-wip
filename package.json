@@ -53,6 +53,7 @@
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/throttler": "^6.4.0",
     "@sendgrid/mail": "^8.1.6",
+    "@serenity-kit/opaque": "^1.0.0",
     "@types/passport-jwt": "^3.0.13",
     "agentkeepalive": "^4.5.0",
     "axios": "^1.12.0",
