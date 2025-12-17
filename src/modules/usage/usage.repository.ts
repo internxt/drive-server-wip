@@ -34,6 +34,18 @@ export class SequelizeUsageRepository {
     return latestUsage ? this.toDomain(latestUsage) : null;
   }
 
+  public async getLatestVersionUsage(userUuid: string): Promise<Usage | null> {
+    const latestUsage = await this.usageModel.findOne({
+      where: {
+        userId: userUuid,
+        type: UsageType.Version,
+      },
+      order: [['period', 'DESC']],
+    });
+
+    return latestUsage ? this.toDomain(latestUsage) : null;
+  }
+
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
     const currentDate = Time.startOf(Time.now(), 'day');
     const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
@@ -87,6 +99,82 @@ export class SequelizeUsageRepository {
     });
 
     return newUsage ? this.toDomain(newUsage) : null;
+  }
+
+  public async createFirstVersionUsageCalculation(
+    userUuid: string,
+    userId: number,
+  ): Promise<Usage> {
+    const currentDate = Time.startOf(Time.now(), 'day');
+    const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
+    const periodFormatted = Time.formatAsDateOnly(yesterday);
+
+    const selectResult = await this.usageModel.sequelize.query(
+      `
+      SELECT
+          uuid_generate_v4() as id,
+          COALESCE(
+          SUM(CASE
+            WHEN fv.status != 'DELETED' OR (fv.status = 'DELETED' AND fv.updated_at >= :currentDate) THEN fv.size
+            ELSE 0
+          END), 0) AS delta
+      FROM
+          file_versions fv
+      WHERE
+          fv.user_id = :userId
+          AND fv.created_at < :currentDate
+      `,
+      {
+        replacements: {
+          userId,
+          currentDate: currentDate.toISOString(),
+        },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    const data = selectResult[0] as any;
+    const delta = Number(data?.delta) || 0;
+
+    const [newUsage] = await this.usageModel.findOrCreate({
+      where: {
+        userId: userUuid,
+        type: UsageType.Version,
+        period: periodFormatted,
+      },
+      defaults: {
+        id: data.id,
+        userId: userUuid,
+        delta,
+        period: periodFormatted,
+        type: UsageType.Version,
+      },
+    });
+
+    return newUsage ? this.toDomain(newUsage) : null;
+  }
+
+  public async calculateAggregatedVersionUsage(
+    userUuid: string,
+  ): Promise<number> {
+    const result = await this.usageModel.findAll({
+      attributes: [
+        [
+          this.usageModel.sequelize.fn(
+            'SUM',
+            this.usageModel.sequelize.col('delta'),
+          ),
+          'total',
+        ],
+      ],
+      where: {
+        userId: userUuid,
+        type: UsageType.Version,
+      },
+      raw: true,
+    });
+
+    return Number((result[0] as any)?.total) || 0;
   }
 
   public async calculateAggregatedUsage(userUuid: string): Promise<number> {
