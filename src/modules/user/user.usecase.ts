@@ -880,6 +880,44 @@ export class UserUseCases {
     return !hasBeenSubscribed;
   }
 
+  async getNewToken(
+    user: User,
+    tokenExpirationTime: string | number = '3d',
+    platform?: string,
+    customIat?: number,
+  ) {
+    const jti = v4();
+    const availableWorkspaces =
+      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
+
+    const owners = [
+      ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
+    ];
+    const token = Sign(
+      {
+        jti,
+        sub: user.uuid,
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          name: user.name,
+          lastname: user.lastname,
+          username: user.username,
+          sharedWorkspace: true,
+          networkCredentials: {
+            user: user.bridgeUser,
+          },
+          workspaces: { owners },
+          ...(platform && { platform }),
+        },
+        ...(customIat ? { iat: customIat } : null),
+      },
+      this.configService.get('secrets.jwt'),
+      tokenExpirationTime,
+    );
+    return token;
+  }
+
   async getAuthTokens(
     user: User,
     customIat?: number,
@@ -1679,7 +1717,7 @@ export class UserUseCases {
     const userData = await this.getUserData(email);
     this.verify2FAcode(tfa, userData.secret_2FA);
 
-    const { newToken } = await this.getAuthTokens(userData, undefined, '3d');
+    const token = await this.getNewToken(userData);
     await this.userRepository.loginFailed(userData, false);
 
     this.updateByUuid(userData.uuid, { updatedAt: new Date() });
@@ -1720,7 +1758,7 @@ export class UserUseCases {
       lastPasswordChangedAt: userData.lastPasswordChangedAt,
     };
 
-    return { user, token: newToken };
+    return { user, token };
   }
 
   async getOrCreateUserRootFolderAndBucket(user: User) {
