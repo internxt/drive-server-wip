@@ -29,6 +29,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -37,6 +38,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.create).toHaveBeenCalledWith({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -53,6 +55,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
       } as any);
@@ -76,6 +79,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -95,6 +99,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -208,6 +213,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -217,6 +223,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(fileVersionModel.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           fileId: version.fileId,
+          userId: version.userId,
           networkFileId: version.networkFileId,
           size: version.size,
           status: version.status,
@@ -235,6 +242,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
       } as any);
@@ -401,6 +409,190 @@ describe('SequelizeFileVersionRepository', () => {
         { status: FileVersionStatus.DELETED },
         expect.any(Object),
       );
+    });
+  });
+
+  describe('sumVersionSizeDeltaFromDate', () => {
+    it('When user has versions created after sinceDate, then it returns positive delta', async () => {
+      const userId = 123;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const mockResult = [{ total: '2500' }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaFromDate(
+        userId,
+        sinceDate,
+      );
+
+      expect(result).toBe(2500);
+      expect(fileVersionModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId,
+          }),
+          bind: expect.objectContaining({
+            sinceDate,
+          }),
+          raw: true,
+        }),
+      );
+    });
+
+    it('When user has no versions after sinceDate, then it returns 0', async () => {
+      const userId = 456;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const mockResult = [{ total: null }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaFromDate(
+        userId,
+        sinceDate,
+      );
+
+      expect(result).toBe(0);
+    });
+
+    it('When query returns empty array, then it returns 0', async () => {
+      const userId = 789;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+
+      jest.spyOn(fileVersionModel, 'findAll').mockResolvedValue([] as any);
+
+      const result = await repository.sumVersionSizeDeltaFromDate(
+        userId,
+        sinceDate,
+      );
+
+      expect(result).toBe(0);
+    });
+
+    it('When versions were deleted after sinceDate but created before, then it returns negative delta', async () => {
+      const userId = 111;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const mockResult = [{ total: '-1000' }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaFromDate(
+        userId,
+        sinceDate,
+      );
+
+      expect(result).toBe(-1000);
+    });
+  });
+
+  describe('sumVersionSizeDeltaBetweenDates', () => {
+    it('When versions exist in date range, then it returns correct delta', async () => {
+      const userId = 123;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const untilDate = new Date('2024-01-31T23:59:59Z');
+      const mockResult = [{ total: '3500' }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaBetweenDates(
+        userId,
+        sinceDate,
+        untilDate,
+      );
+
+      expect(result).toBe(3500);
+      expect(fileVersionModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId,
+          }),
+          bind: expect.objectContaining({
+            sinceDate,
+            untilDate,
+          }),
+          raw: true,
+        }),
+      );
+    });
+
+    it('When no versions in date range, then it returns 0', async () => {
+      const userId = 456;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const untilDate = new Date('2024-01-31T23:59:59Z');
+      const mockResult = [{ total: null }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaBetweenDates(
+        userId,
+        sinceDate,
+        untilDate,
+      );
+
+      expect(result).toBe(0);
+    });
+
+    it('When query returns empty array, then it returns 0', async () => {
+      const userId = 789;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const untilDate = new Date('2024-01-31T23:59:59Z');
+
+      jest.spyOn(fileVersionModel, 'findAll').mockResolvedValue([] as any);
+
+      const result = await repository.sumVersionSizeDeltaBetweenDates(
+        userId,
+        sinceDate,
+        untilDate,
+      );
+
+      expect(result).toBe(0);
+    });
+
+    it('When version deleted after untilDate but created in range, then it returns positive size', async () => {
+      const userId = 111;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const untilDate = new Date('2024-01-31T23:59:59Z');
+      const mockResult = [{ total: '1500' }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaBetweenDates(
+        userId,
+        sinceDate,
+        untilDate,
+      );
+
+      expect(result).toBe(1500);
+    });
+
+    it('When version created before range but deleted in range, then it returns negative size', async () => {
+      const userId = 222;
+      const sinceDate = new Date('2024-01-01T00:00:00Z');
+      const untilDate = new Date('2024-01-31T23:59:59Z');
+      const mockResult = [{ total: '-2000' }];
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await repository.sumVersionSizeDeltaBetweenDates(
+        userId,
+        sinceDate,
+        untilDate,
+      );
+
+      expect(result).toBe(-2000);
     });
   });
 });

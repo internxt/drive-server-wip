@@ -113,4 +113,163 @@ describe('SequelizeUsageRepository', () => {
       );
     });
   });
+
+  describe('getLatestVersionUsage', () => {
+    it('When called, then should query with type Version', async () => {
+      const userUuid = v4();
+      const mockUsageModel = {
+        toJSON: () => newUsage({ attributes: { type: UsageType.Version } }),
+      };
+
+      jest
+        .spyOn(usageModel, 'findOne')
+        .mockResolvedValue(mockUsageModel as any);
+
+      await repository.getLatestVersionUsage(userUuid);
+
+      expect(usageModel.findOne).toHaveBeenCalledWith({
+        where: {
+          userId: userUuid,
+          type: UsageType.Version,
+        },
+        order: [['period', 'DESC']],
+      });
+    });
+
+    it('When no version usage found, then should return null', async () => {
+      const userUuid = v4();
+
+      jest.spyOn(usageModel, 'findOne').mockResolvedValue(null);
+
+      const result = await repository.getLatestVersionUsage(userUuid);
+
+      expect(result).toBeNull();
+    });
+
+    it('When version usage exists, then should return Usage domain object', async () => {
+      const userUuid = v4();
+      const mockUsage = newUsage({ attributes: { type: UsageType.Version } });
+      const mockUsageModel = {
+        toJSON: () => mockUsage,
+      };
+
+      jest
+        .spyOn(usageModel, 'findOne')
+        .mockResolvedValue(mockUsageModel as any);
+
+      const result = await repository.getLatestVersionUsage(userUuid);
+
+      expect(result).not.toBeNull();
+      expect(result.type).toBe(UsageType.Version);
+    });
+  });
+
+  describe('createFirstVersionUsageCalculation', () => {
+    it('When called, then should execute query with userId', async () => {
+      const userUuid = v4();
+      const userId = 123;
+      const mockSequelize = {
+        query: jest.fn().mockResolvedValue([{ delta: '1000' }]),
+      };
+      const mockUsage = newUsage({ attributes: { type: UsageType.Version } });
+      const mockUsageModel = {
+        toJSON: () => mockUsage,
+      };
+
+      Object.defineProperty(usageModel, 'sequelize', {
+        value: mockSequelize,
+      });
+      jest
+        .spyOn(usageModel, 'findOrCreate')
+        .mockResolvedValue([mockUsageModel as any, true]);
+
+      await repository.createFirstVersionUsageCalculation(userUuid, userId);
+
+      expect(mockSequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            userId,
+          }),
+          type: QueryTypes.SELECT,
+        }),
+      );
+    });
+
+    it('When called, then should create usage with type Version', async () => {
+      const userUuid = v4();
+      const userId = 456;
+      const mockSequelize = {
+        query: jest.fn().mockResolvedValue([{ delta: '500' }]),
+      };
+      const mockUsage = newUsage({ attributes: { type: UsageType.Version } });
+      const mockUsageModel = {
+        toJSON: () => mockUsage,
+      };
+
+      Object.defineProperty(usageModel, 'sequelize', {
+        value: mockSequelize,
+      });
+      jest
+        .spyOn(usageModel, 'findOrCreate')
+        .mockResolvedValue([mockUsageModel as any, true]);
+
+      await repository.createFirstVersionUsageCalculation(userUuid, userId);
+
+      expect(usageModel.findOrCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: userUuid,
+            type: UsageType.Version,
+          }),
+          defaults: expect.objectContaining({
+            type: UsageType.Version,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('calculateAggregatedVersionUsage', () => {
+    it('When called, then should SUM deltas for type Version', async () => {
+      const userUuid = v4();
+      const mockResult = [{ total: '5000' }];
+
+      jest.spyOn(usageModel, 'findAll').mockResolvedValue(mockResult as any);
+
+      const result = await repository.calculateAggregatedVersionUsage(userUuid);
+
+      expect(result).toBe(5000);
+      expect(usageModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: userUuid,
+            type: UsageType.Version,
+          },
+          raw: true,
+        }),
+      );
+    });
+
+    it('When no version usages exist, then should return 0', async () => {
+      const userUuid = v4();
+      const mockResult = [{ total: null }];
+
+      jest.spyOn(usageModel, 'findAll').mockResolvedValue(mockResult as any);
+
+      const result = await repository.calculateAggregatedVersionUsage(userUuid);
+
+      expect(result).toBe(0);
+    });
+
+    it('When query returns empty array, then should return 0', async () => {
+      const userUuid = v4();
+
+      jest.spyOn(usageModel, 'findAll').mockResolvedValue([] as any);
+
+      const result = await repository.calculateAggregatedVersionUsage(userUuid);
+
+      expect(result).toBe(0);
+    });
+  });
 });

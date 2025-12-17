@@ -108,9 +108,12 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+    const [filesUsage, versionsUsage] = await Promise.all([
+      this.getUserUsedStorageIncrementally(user),
+      this.getVersionsUsageIncrementally(user),
+    ]);
 
-    return usageCalculation || 0;
+    return (filesUsage || 0) + (versionsUsage || 0);
   }
 
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
@@ -170,6 +173,69 @@ export class FileUseCases {
       yesterdayEndOfDay,
     );
     await this.usageService.createDailyUsage(user.uuid, yesterday, gapDelta);
+  }
+
+  async getVersionsUsageIncrementally(user: User): Promise<number> {
+    const lastVersionUsage = await this.usageService.getMostRecentVersionUsage(
+      user.uuid,
+    );
+    const calculateFirstDelta = !lastVersionUsage;
+
+    if (calculateFirstDelta) {
+      const firstUsage = await this.usageService.calculateFirstVersionUsage(
+        user.uuid,
+        user.id,
+      );
+      const today = Time.dateWithTimeAdded(1, 'day', firstUsage.period);
+      const deltaChangeToday =
+        await this.fileVersionRepository.sumVersionSizeDeltaFromDate(
+          user.id,
+          today,
+        );
+
+      return firstUsage.delta + deltaChangeToday;
+    }
+
+    const aggregatedUsage =
+      await this.usageService.calculateAggregatedVersionUsage(user.uuid);
+    const nextDeltaStartDate = lastVersionUsage.getNextPeriodStartDate();
+    const deltaChangeSinceLastUsage =
+      await this.fileVersionRepository.sumVersionSizeDeltaFromDate(
+        user.id,
+        nextDeltaStartDate,
+      );
+
+    const hasYesterdaysUsage = Time.isToday(nextDeltaStartDate);
+    if (!hasYesterdaysUsage) {
+      await this.backfillVersionsUsageUntilYesterday(
+        user,
+        nextDeltaStartDate,
+      ).catch((error) => {
+        new Logger('[USAGE/VERSION_BACKFILL]').error(
+          {
+            user: { email: user.email, uuid: user.uuid, userId: user.id },
+            nextDeltaStartDate,
+            error,
+          },
+          'There was an error backfilling user version usage',
+        );
+      });
+    }
+
+    return aggregatedUsage + deltaChangeSinceLastUsage;
+  }
+
+  async backfillVersionsUsageUntilYesterday(user: User, startDate: Date) {
+    const yesterday = Time.dateWithTimeAdded(-1, 'day');
+    const yesterdayEndOfDay = Time.endOfDay(yesterday);
+
+    const gapDelta =
+      await this.fileVersionRepository.sumVersionSizeDeltaBetweenDates(
+        user.id,
+        startDate,
+        yesterdayEndOfDay,
+      );
+    await this.usageService.createVersionUsage(user.uuid, yesterday, gapDelta);
   }
 
   async deleteFilePermanently(
@@ -888,6 +954,7 @@ export class FileUseCases {
       await Promise.all([
         this.fileVersionRepository.upsert({
           fileId: file.uuid,
+          userId: user.id,
           networkFileId: file.fileId,
           size: file.size,
           status: FileVersionStatus.EXISTS,

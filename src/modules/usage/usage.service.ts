@@ -40,6 +40,40 @@ export class UsageService {
     return this.usageRepository.calculateAggregatedUsage(userUuid);
   }
 
+  // Version usage methods
+  async getMostRecentVersionUsage(userId: User['uuid']): Promise<Usage | null> {
+    return this.usageRepository.getLatestVersionUsage(userId);
+  }
+
+  async calculateFirstVersionUsage(userUuid: User['uuid'], userId: number) {
+    return this.usageRepository.createFirstVersionUsageCalculation(
+      userUuid,
+      userId,
+    );
+  }
+
+  async calculateAggregatedVersionUsage(userUuid: User['uuid']) {
+    return this.usageRepository.calculateAggregatedVersionUsage(userUuid);
+  }
+
+  async createVersionUsage(
+    userUuid: User['uuid'],
+    period: Date,
+    delta: number,
+  ) {
+    const versionUsage = Usage.build({
+      id: v4(),
+      userId: userUuid,
+      period,
+      delta,
+      type: UsageType.Version,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return this.usageRepository.create(versionUsage);
+  }
+
   async addFileReplacementDelta(
     user: User,
     oldFileData: File,
