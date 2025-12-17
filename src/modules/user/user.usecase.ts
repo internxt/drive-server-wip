@@ -707,15 +707,9 @@ export class UserUseCases {
     } =
       await this.asymmetricEncryptionService.generateNewKeys(keysCreationDate);
 
-    const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass, {
-      iv: this.configService.get('secrets.magicIv'),
-      salt: this.configService.get('secrets.magicSalt'),
-    });
+    const encPrivateKey = aes.encrypt(privateKeyArmored, defaultPass);
 
-    const encPrivateKyberKey = aes.encrypt(privateKyberKeyBase64, defaultPass, {
-      iv: this.configService.get('secrets.magicIv'),
-      salt: this.configService.get('secrets.magicSalt'),
-    });
+    const encPrivateKyberKey = aes.encrypt(privateKyberKeyBase64, defaultPass);
 
     const user = await this.preCreatedUserRepository.create({
       email,

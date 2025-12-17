@@ -37,8 +37,6 @@ export default () => ({
   },
   secrets: {
     serverSetup: process.env.OPAQUE_SECRET,
-    magicIv: process.env.MAGIC_IV,
-    magicSalt: process.env.MAGIC_SALT,
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,

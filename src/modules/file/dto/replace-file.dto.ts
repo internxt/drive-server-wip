@@ -28,7 +28,7 @@ export class ReplaceFileDto {
     example: '3005',
     description: 'New file size',
   })
-  @IsPositive()
+  @Min(0)
   @IsNumber()
   size: bigint;
 

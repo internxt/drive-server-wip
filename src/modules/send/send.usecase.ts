@@ -12,7 +12,6 @@ import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import getEnv from '../../config/configuration';
 import { SendLinkItemDto } from './dto/create-send-link.dto';
 
 @Injectable()
@@ -56,10 +55,7 @@ export class SendUseCases {
     expirationAt.setDate(expirationAt.getDate() + 15);
 
     const hashedPassword = plainPassword
-      ? this.cryptoService.deterministicEncryption(
-          plainPassword,
-          getEnv().secrets.magicSalt,
-        )
+      ? this.cryptoService.deterministicEncryption(plainPassword)
       : null;
 
     const sendLink = SendLink.build({
@@ -133,10 +129,7 @@ export class SendUseCases {
       throw new ForbiddenException('Send link protected by password');
     }
 
-    const hashedPassword = this.cryptoService.deterministicEncryption(
-      password,
-      getEnv().secrets.magicSalt,
-    );
+    const hashedPassword = this.cryptoService.deterministicEncryption(password);
 
     if (sendLink.hashedPassword !== hashedPassword) {
       throw new ForbiddenException('Invalid password');
