@@ -8,6 +8,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Min,
   ValidateIf,
 } from 'class-validator';
 
@@ -52,7 +53,7 @@ export class CreateFileDto {
     format: 'bigint',
     example: 123456789,
   })
-  @IsPositive()
+  @Min(0)
   @IsNumber()
   size: bigint;
 
