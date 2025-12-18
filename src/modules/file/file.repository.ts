@@ -869,6 +869,9 @@ export class SequelizeFileRepository implements FileRepository {
         removedAt: deletedDate,
         status: FileStatus.DELETED,
         updatedAt: deletedDate,
+        fileId: Sequelize.literal(
+          'CASE WHEN size = 0 THEN NULL ELSE file_id END',
+        ),
       },
       {
         where: {
