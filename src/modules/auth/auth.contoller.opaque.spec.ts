@@ -2,7 +2,10 @@ import { AuthController } from './auth.controller';
 import { UserUseCases } from '../user/user.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 
-import { LoginAccessOpaqueStartDto } from './dto/login-access.dto';
+import {
+  LoginAccessOpaqueFinishDto,
+  LoginAccessOpaqueStartDto,
+} from './dto/login-access.dto';
 import { Logger } from '@nestjs/common';
 import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
@@ -55,23 +58,18 @@ describe('AuthController', () => {
   });
 
   describe('POST /login-opaque', () => {
-    it('Should sucessfully finish 1st phase of the login', async () => {
-      jest
-        .spyOn(cryptoService['configService'], 'get')
-        .mockReturnValue(serverSetupMock);
-      const loginOpaqueDto = new LoginAccessOpaqueStartDto();
-      loginOpaqueDto.email = 'USER_test@gmail.com';
+    it('Should sucessfully finish both phases of the login', async () => {
+      const email = 'USER_test@gmail.com';
       const password = v4();
-      const { startLoginRequest } = opaque.client.startLogin({
+      const { startLoginRequest, clientLoginState } = opaque.client.startLogin({
         password,
       });
-      loginOpaqueDto.startLoginRequest = startLoginRequest;
       const { clientRegistrationState, registrationRequest } =
         opaque.client.startRegistration({ password });
       const { registrationResponse } = opaque.server.createRegistrationResponse(
         {
           serverSetup: serverSetupMock,
-          userIdentifier: loginOpaqueDto.email.toLowerCase(),
+          userIdentifier: email.toLowerCase(),
           registrationRequest,
         },
       );
@@ -81,12 +79,17 @@ describe('AuthController', () => {
           registrationResponse,
           password,
         });
-      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce({
+      const loginOpaqueDto = new LoginAccessOpaqueStartDto();
+      loginOpaqueDto.email = email;
+      loginOpaqueDto.startLoginRequest = startLoginRequest;
+
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue({
         registrationRecord: registrationRecordMock,
       } as any);
       const startLoginOpaqueSpy = jest.spyOn(cryptoService, 'startLoginOpaque');
-
-      const result = await authController.loginOpaqueStart(loginOpaqueDto);
+      const resultPhaseOne =
+        await authController.loginOpaqueStart(loginOpaqueDto);
+      const serverLoginStateValue = userUseCases.setLoginState.mock.calls[0][1];
 
       expect(startLoginOpaqueSpy).toHaveBeenCalledTimes(1);
       expect(startLoginOpaqueSpy).toHaveBeenCalledWith(
@@ -94,10 +97,45 @@ describe('AuthController', () => {
         registrationRecordMock,
         loginOpaqueDto.startLoginRequest,
       );
+      expect(resultPhaseOne.loginResponse).toBeDefined();
+      expect(resultPhaseOne).toEqual({ loginResponse: expect.any(String) });
 
-      expect(result.loginResponse).toBeDefined();
-      expect(result).toEqual({ loginResponse: expect.any(String) });
-      expect(typeof result.loginResponse).toBe('string');
+      const loginOpaqueFinishDto = new LoginAccessOpaqueFinishDto();
+      loginOpaqueFinishDto.email = email;
+
+      jest
+        .spyOn(userUseCases, 'getLoginState')
+        .mockResolvedValue(serverLoginStateValue);
+
+      const { finishLoginRequest, sessionKey } = opaque.client.finishLogin({
+        clientLoginState,
+        loginResponse: resultPhaseOne.loginResponse,
+        password,
+      });
+
+      loginOpaqueFinishDto.finishLoginRequest = finishLoginRequest;
+
+      const finishLoginOpaqueSpy = jest.spyOn(
+        cryptoService,
+        'finishLoginOpaque',
+      );
+
+      const resultPhaseTwo =
+        await authController.loginOpaqueFinish(loginOpaqueFinishDto);
+
+      expect(finishLoginOpaqueSpy).toHaveBeenCalledTimes(1);
+      expect(finishLoginOpaqueSpy).toHaveBeenCalledWith(
+        finishLoginRequest,
+        serverLoginStateValue,
+      );
+
+      expect(resultPhaseTwo.user).toBeDefined();
+      expect(resultPhaseTwo.token).toBeDefined();
+      expect(resultPhaseTwo.sessionID).toBeDefined();
+      expect(userUseCases.setSessionKey).toHaveBeenCalledWith(
+        resultPhaseTwo.sessionID,
+        sessionKey,
+      );
     });
   });
 });

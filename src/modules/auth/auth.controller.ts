@@ -211,7 +211,7 @@ export class AuthController {
     type: LoginAccessResponseOpaqueFinishDto,
   })
   @Public()
-  @WorkspaceLogAction(WorkspaceLogType.LoginOpaqueStart)
+  @WorkspaceLogAction(WorkspaceLogType.LoginOpaqueFinish)
   async loginOpaqueFinish(
     @Body() body: LoginAccessOpaqueFinishDto,
   ): Promise<LoginAccessResponseOpaqueFinishDto> {
