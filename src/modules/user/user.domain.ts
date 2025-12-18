@@ -31,7 +31,6 @@ export class User implements UserAttributes {
   emailVerified: boolean;
   updatedAt: Date;
   createdAt: Date;
-  isOpaqueEnabled: boolean;
   registrationRecord?: string;
 
   constructor({
@@ -65,7 +64,6 @@ export class User implements UserAttributes {
     emailVerified,
     updatedAt,
     createdAt,
-    isOpaqueEnabled,
     registrationRecord,
   }: UserAttributes) {
     this.id = id;
@@ -98,7 +96,6 @@ export class User implements UserAttributes {
     this.emailVerified = emailVerified;
     this.updatedAt = updatedAt;
     this.createdAt = createdAt;
-    this.isOpaqueEnabled = isOpaqueEnabled;
     this.registrationRecord = registrationRecord;
   }
 
@@ -138,7 +135,6 @@ export class User implements UserAttributes {
       sharedWorkspace: this.sharedWorkspace,
       avatar: this.avatar,
       lastPasswordChangedAt: this.lastPasswordChangedAt,
-      isOpaqueEnabled: this.isOpaqueEnabled,
     };
   }
 }

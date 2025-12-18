@@ -14,6 +14,9 @@ const config: JestConfigWithTsJest = {
       },
     ],
   },
+  roots: ['src', 'test'],
+  collectCoverageFrom: ['**/*.(t|j)s'],
+  testRegex: '.*\\.spec\\.ts$',
   transformIgnorePatterns: ['node_modules/(?!@serenity-kit/opaque)'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 };

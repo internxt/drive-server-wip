@@ -93,6 +93,9 @@ export class AuthController {
         user.secret_2FA && user.secret_2FA.length > 0,
       );
       const keys = await this.keyServerUseCases.findUserKeys(user.id);
+      const isOpaqueEnabled = Boolean(
+        user.registrationRecord && user.registrationRecord.length > 0,
+      );
 
       return {
         hasKeys: !!keys.ecc,
@@ -100,7 +103,7 @@ export class AuthController {
         tfa: required2FA,
         hasKyberKeys: !!keys.kyber,
         hasEccKeys: !!keys.ecc,
-        useOpaqueLogin: user.isOpaqueEnabled ?? false,
+        useOpaqueLogin: isOpaqueEnabled,
       };
     } catch (err) {
       if (!(err instanceof HttpException)) {
