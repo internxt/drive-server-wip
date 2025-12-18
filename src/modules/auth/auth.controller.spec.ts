@@ -4,10 +4,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
-import {
-  LoginAccessDto,
-  LoginAccessOpaqueStartDto,
-} from './dto/login-access.dto';
+import { LoginAccessDto } from './dto/login-access.dto';
 import {
   BadRequestException,
   ConflictException,
@@ -26,7 +23,6 @@ import { Test } from '@nestjs/testing';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { PlatformName } from '../../common/constants';
-import * as opaque from '@serenity-kit/opaque';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -36,9 +32,6 @@ describe('AuthController', () => {
   let twoFactorAuthService: DeepMocked<TwoFactorAuthService>;
   let featureLimitService: DeepMocked<FeatureLimitService>;
 
-  beforeAll(async () => {
-    await opaque.ready;
-  });
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
@@ -87,7 +80,6 @@ describe('AuthController', () => {
         hasEccKeys: true,
         sKey: 'encryptedText',
         tfa: true,
-        useOpaqueLogin: false,
       });
     });
 
@@ -112,51 +104,6 @@ describe('AuthController', () => {
       await authController.login(body);
 
       expect(userUseCases.findByEmail).toHaveBeenCalledWith(emailLowerCase);
-    });
-  });
-
-  describe('POST /login-opaque', () => {
-    it('Should sucessfully finish 1st phase of the login', async () => {
-      const loginOpaqueDto = new LoginAccessOpaqueStartDto();
-      loginOpaqueDto.email = 'USER_test@gmail.com';
-      const password = v4();
-      const { startLoginRequest } = opaque.client.startLogin({
-        password,
-      });
-      loginOpaqueDto.startLoginRequest = startLoginRequest;
-      const serverSetupMock = opaque.server.createSetup();
-      jest
-        .spyOn(cryptoService['configService'], 'get')
-        .mockReturnValue(serverSetupMock);
-      const { clientRegistrationState, registrationRequest } =
-        opaque.client.startRegistration({ password });
-      const { registrationResponse } = opaque.server.createRegistrationResponse(
-        {
-          serverSetup: serverSetupMock,
-          userIdentifier: loginOpaqueDto.email.toLowerCase(),
-          registrationRequest,
-        },
-      );
-      const { registrationRecord: registrationRecordMock } =
-        opaque.client.finishRegistration({
-          clientRegistrationState,
-          registrationResponse,
-          password,
-        });
-      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce({
-        registrationRecord: registrationRecordMock,
-      } as any);
-
-      const result = await authController.loginOpaqueStart(loginOpaqueDto);
-
-      expect(cryptoService.startLoginOpaque).toHaveBeenCalledTimes(1);
-      expect(cryptoService.startLoginOpaque).toHaveBeenCalledWith({
-        userIdentifier: loginOpaqueDto.email.toLocaleLowerCase(),
-        registrationRecord: registrationRecordMock,
-        serverSetup: serverSetupMock,
-        startLoginRequest: loginOpaqueDto.startLoginRequest,
-      });
-      expect(result).toEqual({ success: true });
     });
   });
 

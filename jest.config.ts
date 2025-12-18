@@ -1,24 +1,20 @@
 import type { JestConfigWithTsJest } from 'ts-jest';
 
 const config: JestConfigWithTsJest = {
-  preset: 'ts-jest/presets/default-esm',
-
+  preset: 'ts-jest',
   testEnvironment: 'node',
-
-  extensionsToTreatAsEsm: ['.ts'],
-
   transform: {
     '^.+\\.ts$': [
       'ts-jest',
       {
-        useESM: true,
-        tsconfig: 'tsconfig.json',
+        tsconfig: {
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+        },
       },
     ],
   },
-
-  transformIgnorePatterns: ['/node_modules/(?!(?:@serenity-kit/opaque)/)'],
-
+  transformIgnorePatterns: ['node_modules/(?!@serenity-kit/opaque)'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 };
 
