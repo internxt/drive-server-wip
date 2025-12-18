@@ -918,42 +918,17 @@ export class UserUseCases {
     tokenExpirationTime: string | number = '3d',
     platform?: string,
   ): Promise<{ token: string; newToken: string }> {
-    const jti = v4();
-
-    const availableWorkspaces =
-      await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
-
-    const owners = [
-      ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
-    ];
-
     const token = SignEmail(
       user.email,
       this.configService.get('secrets.jwt'),
       tokenExpirationTime,
       customIat,
     );
-    const newToken = Sign(
-      {
-        jti,
-        sub: user.uuid,
-        payload: {
-          uuid: user.uuid,
-          email: user.email,
-          name: user.name,
-          lastname: user.lastname,
-          username: user.username,
-          sharedWorkspace: true,
-          networkCredentials: {
-            user: user.bridgeUser,
-          },
-          workspaces: { owners },
-          ...(platform && { platform }),
-        },
-        ...(customIat ? { iat: customIat } : null),
-      },
-      this.configService.get('secrets.jwt'),
+    const newToken = await this.getNewToken(
+      user,
       tokenExpirationTime,
+      platform,
+      customIat,
     );
 
     return { token, newToken };
