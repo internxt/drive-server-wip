@@ -8,11 +8,13 @@ if (typeof globalThis.BigInt === 'function') {
   }
 }
 
-import { TextEncoder, TextDecoder } from 'util';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = global.TextEncoder || TextEncoder;
 global.TextDecoder = global.TextDecoder || TextDecoder;
 
-import * as opaque from '@serenity-kit/opaque';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const opaque = require('@serenity-kit/opaque');
 
 beforeAll(async () => {
   await opaque.ready;
