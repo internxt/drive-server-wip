@@ -45,6 +45,7 @@ import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { RedisService } from '../../externals/redis/redis.service';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
+import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import {
   DeleteFileVersionAction,
@@ -78,6 +79,7 @@ describe('FileUseCases', () => {
   let createFileVersionAction: CreateFileVersionAction;
   let restoreFileVersionAction: RestoreFileVersionAction;
   let undoFileVersioningAction: UndoFileVersioningAction;
+  let userUsecases: UserUseCases;
 
   const userMocked = newUser({
     attributes: {
@@ -121,10 +123,10 @@ describe('FileUseCases', () => {
     restoreFileVersionAction = module.get<RestoreFileVersionAction>(
       RestoreFileVersionAction,
     );
-    undoFileVersioningAction =
-      module.get<UndoFileVersioningAction>(
-        UndoFileVersioningAction,
-      );
+    undoFileVersioningAction = module.get<UndoFileVersioningAction>(
+      UndoFileVersioningAction,
+    );
+    userUsecases = module.get<UserUseCases>(UserUseCases);
   });
 
   afterEach(() => {
@@ -1256,6 +1258,73 @@ describe('FileUseCases', () => {
       expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
         userMocked.id,
       );
+    });
+  });
+
+  describe('checkWorkspaceEmptyFilesLimit', () => {
+    it('When workspace owner limit is enforced, then it should throw', async () => {
+      const workspaceNetworkUser = newUser();
+      const member = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: workspaceNetworkUser.uuid },
+      });
+      const mockLimit = newFeatureLimit({
+        value: '10',
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+      });
+
+      jest
+        .spyOn(userUsecases, 'findByUuid')
+        .mockResolvedValue(workspaceNetworkUser);
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(mockLimit);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+        .mockResolvedValue(10);
+
+      await expect(
+        service.checkWorkspaceEmptyFilesLimit(member.uuid, workspace),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When workspace owner limit is NOT enforced, then it should not throw', async () => {
+      const workspaceNetworkUser = newUser();
+      const member = newUser();
+      const workspace = newWorkspace({
+        attributes: { ownerId: workspaceNetworkUser.uuid },
+      });
+      const mockLimit = newFeatureLimit({
+        value: '1000',
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+      });
+
+      jest
+        .spyOn(userUsecases, 'findByUuid')
+        .mockResolvedValue(workspaceNetworkUser);
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(mockLimit);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+        .mockResolvedValue(5);
+
+      await expect(
+        service.checkWorkspaceEmptyFilesLimit(member.uuid, workspace),
+      ).resolves.not.toThrow();
+
+      expect(userUsecases.findByUuid).toHaveBeenCalledWith(
+        workspace.workspaceUserId,
+      );
+      expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+        LimitLabels.MaxZeroSizeFiles,
+        workspaceNetworkUser,
+      );
+      expect(
+        fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+      ).toHaveBeenCalledWith(member.uuid, workspace.id);
     });
   });
 
@@ -2422,6 +2491,163 @@ describe('FileUseCases', () => {
         expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
           userMocked.id,
         );
+      });
+    });
+
+    describe('Empty file replacement in workspace', () => {
+      it('When replacing with empty file with workspace options, then it should check workspace limit', async () => {
+        const workspaceOwner = newUser();
+        const member = newUser();
+        const requester = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const mockFile = newFile({
+          owner: member,
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          size: BigInt(0),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: requester.uuid,
+        };
+        const mockLimit = newFeatureLimit({
+          value: '1000',
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(userUsecases, 'findByUuid')
+          .mockResolvedValue(workspaceOwner);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+          .mockResolvedValue(0);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        const updateSpy = jest
+          .spyOn(fileRepository, 'updateByUuidAndUserId')
+          .mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        const result = await service.replaceFile(
+          member,
+          mockFile.uuid,
+          replaceData,
+          workspaceOptions,
+        );
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).toHaveBeenCalledWith(requester.uuid, workspace.id);
+        expect(updateSpy).toHaveBeenCalledWith(
+          mockFile.uuid,
+          member.id,
+          expect.objectContaining({
+            fileId: null,
+            size: BigInt(0),
+          }),
+        );
+        expect(result.fileId).toBeNull();
+        expect(result.size).toBe(BigInt(0));
+      });
+
+      it('When replacing with empty file without workspace options, then it should check individual limit', async () => {
+        const mockFile = newFile({
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          size: BigInt(0),
+        };
+        const mockLimit = newFeatureLimit({
+          value: '1000',
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(0);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When replacing with non-empty file with workspace options, then it should not check limits', async () => {
+        const workspaceOwner = newUser();
+        const member = newUser();
+        const requester = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const mockFile = newFile({
+          owner: member,
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          fileId: 'new-file-id',
+          size: BigInt(1024),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: requester.uuid,
+        };
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        await service.replaceFile(
+          member,
+          mockFile.uuid,
+          replaceData,
+          workspaceOptions,
+        );
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
       });
     });
   });

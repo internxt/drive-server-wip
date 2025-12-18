@@ -105,6 +105,10 @@ export interface FileRepository {
   getFilesWhoseFolderIdDoesNotExist(userId: File['userId']): Promise<number>;
   getFilesCountWhere(where: Partial<File>): Promise<number>;
   getZeroSizeFilesCountByUser(userId: User['id']): Promise<number>;
+  getZeroSizeFilesCountInWorkspaceByMember(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<number>;
   updateFilesStatusToTrashed(
     user: User,
     fileIds: File['fileId'][],
@@ -469,6 +473,32 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async getZeroSizeFilesCountInWorkspaceByMember(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+  ): Promise<number> {
+    const { count } = await this.fileModel.findAndCountAll({
+      where: {
+        size: 0,
+        status: {
+          [Op.not]: FileStatus.DELETED,
+        },
+      },
+      include: [
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+            itemType: WorkspaceItemType.File,
+          },
+        },
+      ],
+    });
+
+    return count;
   }
 
   async getSumSizeOfFilesInWorkspaceByStatuses(

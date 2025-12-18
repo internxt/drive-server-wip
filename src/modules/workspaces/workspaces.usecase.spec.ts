@@ -2688,6 +2688,132 @@ describe('WorkspacesUsecases', () => {
 
       expect(result).toEqual({ ...createdFile, item: createdItemFile });
     });
+
+    it('When creating empty file in workspace and limit not reached, then it should succeed', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: 10240,
+          driveUsage: 0,
+          rootFolderId: 'root-folder-uuid',
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+      const emptyFileDto = {
+        ...createFileDto,
+        size: BigInt(0),
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(fileUseCases, 'checkWorkspaceEmptyFilesLimit')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      jest.spyOn(fileUseCases, 'createFile').mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+
+      const result = await service.createFile(user, workspace.id, emptyFileDto);
+
+      expect(fileUseCases.checkWorkspaceEmptyFilesLimit).toHaveBeenCalledWith(
+        workspaceUser.memberId,
+        workspace,
+      );
+      expect(fileUseCases.createFile).toHaveBeenCalled();
+      expect(result).toEqual({ ...createdFile, item: createdItemFile });
+    });
+
+    it('When creating empty file in workspace and limit reached, then it should throw', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: 10240,
+          driveUsage: 0,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const emptyFileDto = {
+        ...createFileDto,
+        size: BigInt(0),
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(fileUseCases, 'checkWorkspaceEmptyFilesLimit')
+        .mockRejectedValue(
+          new BadRequestException(
+            'You can not have more empty files in this workspace',
+          ),
+        );
+
+      await expect(
+        service.createFile(user, workspace.id, emptyFileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When creating non-empty file in workspace, then it should NOT call empty file check', async () => {
+      const user = newUser();
+      const fileSize = 2000;
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: fileSize + 1,
+          rootFolderId: createFileDto.folderUuid,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      jest.spyOn(fileUseCases, 'createFile').mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+      const checkWorkspaceEmptyFilesLimitSpy = jest.spyOn(
+        fileUseCases,
+        'checkWorkspaceEmptyFilesLimit',
+      );
+
+      await service.createFile(user, workspace.id, {
+        ...createFileDto,
+        size: BigInt(fileSize),
+      });
+
+      expect(checkWorkspaceEmptyFilesLimitSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('getPersonalWorkspaceFoldersInFolder', () => {
