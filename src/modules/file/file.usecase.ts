@@ -407,7 +407,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const isFileEmpty = newFileDto.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
@@ -908,7 +908,7 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
-    const isFileEmpty = newFileData.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileData.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
