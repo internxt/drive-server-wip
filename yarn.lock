@@ -6765,10 +6765,10 @@ nestjs-pino@^4.5.0:
   resolved "https://registry.yarnpkg.com/nestjs-pino/-/nestjs-pino-4.5.0.tgz#c07c71d8a9a3aa73b6e23cae3f426c463df4b7e5"
   integrity sha512-e54ChJMACSGF8gPYaHsuD07RW7l/OVoV6aI8Hqhpp0ZQ4WA8QY3eewL42JX7Z1U6rV7byNU7bGBV9l6d9V6PDQ==
 
-newrelic@^13.5.0:
-  version "13.6.6"
-  resolved "https://registry.yarnpkg.com/newrelic/-/newrelic-13.6.6.tgz#d4b7ebac341d25188f93ad922178bcbf9bdf0a5e"
-  integrity sha512-3wf+HgpY2RpZexcbBVDpuan+C7FGKZmCyO01IMDCcl7/CT0NrRjSOIsOk3jxV8qgwMQ+I/gzvAheGhN/n99X0Q==
+newrelic@^13.8.1:
+  version "13.8.1"
+  resolved "https://registry.yarnpkg.com/newrelic/-/newrelic-13.8.1.tgz#c82a427a2af26c8aea3b36b4afdacf843dc53ef6"
+  integrity sha512-7z0T0B5W/ry89rV2IzTIJKWJxBIlxlXtI8WrEpp+H0aD3j2eyvsNDgqiu/VkYEUUWBWUjJmxsj3/SsiYmAUl4A==
   dependencies:
     "@apm-js-collab/tracing-hooks" "^0.3.1"
     "@grpc/grpc-js" "^1.13.2"
