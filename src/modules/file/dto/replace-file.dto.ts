@@ -1,27 +1,15 @@
-import {
-  IsDateString,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsPositive,
-  IsString,
-  MaxLength,
-  Min,
-  ValidateIf,
-} from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { ValidateFileIdWithSize } from '../../../common/validators/file-id-size.validator';
 
 export class ReplaceFileDto {
   @ApiProperty({
     example: '651300a2da9b27001f63f384',
-    description: 'File id (required when size > 0)',
+    description:
+      'File id (required when size > 0, must not be provided when size = 0)',
     required: false,
   })
-  @ValidateIf((o) => o.size > 0)
-  @IsNotEmpty({ message: 'fileId is required when size is greater than 0' })
-  @IsString()
-  // Max varchar length in the database is 24
-  @MaxLength(24)
+  @ValidateFileIdWithSize()
   fileId?: string;
 
   @ApiProperty({
