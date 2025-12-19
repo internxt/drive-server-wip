@@ -2,6 +2,7 @@ import {
   registerDecorator,
   ValidationOptions,
   ValidationArguments,
+  isEmpty,
 } from 'class-validator';
 
 export function ValidateFileIdWithSize(validationOptions?: ValidationOptions) {
@@ -16,18 +17,17 @@ export function ValidateFileIdWithSize(validationOptions?: ValidationOptions) {
           const obj = args.object as any;
           const sizeNum = Number(obj.size);
           const fileId = value;
-          const isProvided = fileId !== undefined && fileId !== null;
-          const hasValue = isProvided && fileId !== '';
+          const isProvided = !isEmpty(fileId);
 
-          if (sizeNum > 0 && !hasValue) {
+          if (sizeNum > 0 && !isProvided) {
             return false;
           }
 
-          if (sizeNum === 0 && hasValue) {
+          if (sizeNum === 0 && isProvided) {
             return false;
           }
 
-          if (hasValue && fileId.length > 24) {
+          if (isProvided && fileId.length > 24) {
             return false;
           }
 
@@ -37,18 +37,17 @@ export function ValidateFileIdWithSize(validationOptions?: ValidationOptions) {
           const obj = args.object as any;
           const sizeNum = Number(obj.size);
           const fileId = args.value;
-          const isProvided = fileId !== undefined && fileId !== null;
-          const hasValue = isProvided && fileId !== '';
+          const isProvided = !isEmpty(fileId);
 
-          if (sizeNum > 0 && !hasValue) {
+          if (sizeNum > 0 && !isProvided) {
             return 'fileId is required when size is greater than 0';
           }
 
-          if (sizeNum === 0 && hasValue) {
+          if (sizeNum === 0 && isProvided) {
             return 'fileId must not be provided when size is 0';
           }
 
-          if (hasValue && fileId.length > 24) {
+          if (isProvided && fileId.length > 24) {
             return 'fileId must not exceed 24 characters';
           }
 
