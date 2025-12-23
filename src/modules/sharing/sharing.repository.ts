@@ -896,6 +896,56 @@ export class SequelizeSharingRepository implements SharingRepository {
     return invitesWithInviteds.map((i) => i.toJSON<GetInviteDto>());
   }
 
+  async getUserValidInvites(
+    where: Partial<SharingInvite>,
+    limit: number,
+    offset: number,
+  ): Promise<GetInvitesDto> {
+    const invitesWithInviteds = await this.sharingInvites.findAll({
+      where: {
+        ...where,
+        [Op.or]: [
+          {
+            [Op.and]: [
+              { itemType: 'file' },
+              { '$file.status$': FileStatus.EXISTS },
+            ],
+          },
+          {
+            [Op.and]: [
+              { itemType: 'folder' },
+              { '$folder.deleted$': false },
+              { '$folder.removed$': false },
+            ],
+          },
+        ],
+      },
+      limit,
+      offset,
+      include: [
+        {
+          model: FileModel,
+          as: 'file',
+          attributes: [],
+        },
+        {
+          model: FolderModel,
+          as: 'folder',
+          attributes: [],
+        },
+        {
+          model: UserModel,
+          as: 'invited',
+          attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+          required: true,
+        },
+      ],
+      nest: true,
+    });
+
+    return invitesWithInviteds.map((i) => i.toJSON<GetInviteDto>());
+  }
+
   async updateAllUserSharedWith(
     userUuid: PreCreatedUserAttributes['uuid'],
     update: Partial<SharingInvite>,

@@ -403,7 +403,7 @@ export class SharingService {
     limit: number,
     offset: number,
   ): Promise<(GetInviteDto & { item: File | Folder })[]> {
-    const invites = await this.sharingRepository.getInvites(
+    const invites = await this.sharingRepository.getUserValidInvites(
       { sharedWith: user.uuid },
       limit,
       offset,
