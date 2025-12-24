@@ -245,6 +245,43 @@ describe('User Registration E2E', () => {
         createdUserIds.push(createdUser.id);
         expect(createdUser.uuid).toBe(response.body.uuid);
       });
+
+      it('When registration is successful, then user and root folder are linked correctly', async () => {
+        const registrationData = generateValidRegistrationData();
+        const encryptedData = encryptRegistrationData(registrationData);
+
+        await registerUser(encryptedData).expect(HttpStatus.CREATED);
+
+        const createdUser = await userModel.findOne({
+          where: { email: registrationData.email },
+        });
+        createdUserIds.push(createdUser.id);
+
+        const rootFolder = await folderModel.findOne({
+          where: { id: createdUser.rootFolderId },
+        });
+
+        expect(rootFolder).not.toBeNull();
+        expect(rootFolder.userId).toBe(createdUser.id);
+        expect(createdUser.rootFolderId).toBe(rootFolder.id);
+      });
+
+      it('When registration is successful, then referral code is generated', async () => {
+        const registrationData = generateValidRegistrationData();
+        const encryptedData = encryptRegistrationData(registrationData);
+
+        await registerUser(encryptedData).expect(HttpStatus.CREATED);
+
+        const createdUser = await userModel.findOne({
+          where: { email: registrationData.email },
+        });
+        createdUserIds.push(createdUser.id);
+
+        expect(createdUser.referralCode).toBeDefined();
+        expect(createdUser.referralCode).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        );
+      });
     });
   });
 });
