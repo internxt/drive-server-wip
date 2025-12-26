@@ -279,6 +279,79 @@ describe('SharingRepository', () => {
     });
   });
 
+  describe('getUserValidInvites', () => {
+    it('When getting valid invites, then it filters by file and folder validity', async () => {
+      const invite = newSharingInvite();
+      const user = newUser();
+      const where = { sharedWith: user.uuid };
+      const limit = 10;
+      const offset = 0;
+
+      const inviteWithUser = {
+        ...invite,
+        toJSON: jest.fn().mockReturnValue({
+          ...invite,
+          invited: {
+            uuid: user.uuid,
+            email: user.email,
+            name: user.name,
+            lastname: user.lastname,
+            avatar: user.avatar,
+          },
+        }),
+      };
+
+      jest
+        .spyOn(sharingInviteModel, 'findAll')
+        .mockResolvedValue([inviteWithUser] as any);
+
+      const result = await repository.getUserValidInvites(where, limit, offset);
+
+      expect(result).toHaveLength(1);
+      expect(sharingInviteModel.findAll).toHaveBeenCalledWith({
+        where: {
+          ...where,
+          [Op.or]: [
+            {
+              [Op.and]: [
+                { itemType: 'file' },
+                { '$file.status$': FileStatus.EXISTS },
+              ],
+            },
+            {
+              [Op.and]: [
+                { itemType: 'folder' },
+                { '$folder.deleted$': false },
+                { '$folder.removed$': false },
+              ],
+            },
+          ],
+        },
+        limit,
+        offset,
+        include: [
+          {
+            model: FileModel,
+            as: 'file',
+            attributes: [],
+          },
+          {
+            model: FolderModel,
+            as: 'folder',
+            attributes: [],
+          },
+          {
+            model: UserModel,
+            as: 'invited',
+            attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
+            required: true,
+          },
+        ],
+        nest: true,
+      });
+    });
+  });
+
   describe('getInviteById', () => {
     it('When getting invite by id, then it returns invite with role', async () => {
       const invite = newSharingInvite();
