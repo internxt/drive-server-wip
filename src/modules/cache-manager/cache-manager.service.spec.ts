@@ -64,6 +64,29 @@ describe('CacheManagerService', () => {
       );
     });
 
+    it('Should sucessfully set and get session key and login state', async () => {
+      const id = v4();
+      const value = 'test value';
+
+      await cacheManagerService.setSessionKey(id, value);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        `session:${id}`,
+        value,
+        10000 * 60,
+      );
+      await cacheManagerService.getSessionKey(id);
+      expect(cacheManager.get).toHaveBeenCalledWith(`session:${id}`);
+
+      await cacheManagerService.setLoginState(id, value);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        `loginstate:${id}`,
+        value,
+        10000 * 60,
+      );
+      await cacheManagerService.getLoginState(id);
+      expect(cacheManager.get).toHaveBeenCalledWith(`loginstate:${id}`);
+    });
+
     it('When user usage is set, then it should return set value', async () => {
       const userUuid = v4();
       const usage = 1024;

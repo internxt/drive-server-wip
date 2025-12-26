@@ -36,6 +36,7 @@ export default () => ({
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,
   },
   secrets: {
+    serverSetup: process.env.OPAQUE_SECRET,
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
