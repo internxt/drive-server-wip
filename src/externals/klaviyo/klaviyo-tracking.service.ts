@@ -24,46 +24,49 @@ export class KlaviyoTrackingService {
     checkoutData: CheckoutData,
   ): Promise<void> {
     try {
-      await axios.post(
-        `${this.baseUrl}events/`,
-        {
-          data: {
-            type: 'event',
-            attributes: {
-              profile: {
-                data: {
-                  type: 'profile',
-                  attributes: { email },
+      const payload = {
+        data: {
+          type: 'event',
+          attributes: {
+            profile: {
+              data: {
+                type: 'profile',
+                attributes: {
+                  email,
                 },
               },
-              metric: {
-                data: {
-                  type: 'metric',
-                  attributes: { name: 'Started Checkout' },
-                },
-              },
-              properties: {
-                checkout_url: checkoutData.checkoutUrl,
-                plan_name: checkoutData.planName,
-                price: checkoutData.price,
-                $value: checkoutData.price,
-              },
-              time: new Date().toISOString(),
             },
+            metric: {
+              data: {
+                type: 'metric',
+                attributes: {
+                  name: 'Started Checkout',
+                },
+              },
+            },
+            properties: {
+              checkout_url: checkoutData.checkoutUrl,
+              plan_name: checkoutData.planName,
+              price: checkoutData.price,
+              $value: checkoutData.price,
+            },
+            time: new Date().toISOString(),
           },
         },
-        {
-          headers: {
-            Authorization: `Klaviyo-API-Key ${this.apiKey}`,
-            'Content-Type': 'application/json',
-            revision: '2024-10-15',
-          },
+      };
+
+      await axios.post(`${this.baseUrl}/events/`, payload, {
+        headers: {
+          Authorization: `Klaviyo-API-Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          revision: '2024-10-15',
         },
-      );
+      });
+
+      this.logger.log(`Checkout event tracked for ${email}`);
     } catch (error) {
       this.logger.error(
         `Failed to track checkout for ${email}: ${error.message}`,
-        error.response?.data,
       );
       throw error;
     }
