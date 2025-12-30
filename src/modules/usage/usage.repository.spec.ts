@@ -165,9 +165,8 @@ describe('SequelizeUsageRepository', () => {
   });
 
   describe('createFirstVersionUsageCalculation', () => {
-    it('When called, then should execute query with userId', async () => {
+    it('When called, then should execute query with userUuid', async () => {
       const userUuid = v4();
-      const userId = 123;
       const mockSequelize = {
         query: jest.fn().mockResolvedValue([{ delta: '1000' }]),
       };
@@ -183,13 +182,13 @@ describe('SequelizeUsageRepository', () => {
         .spyOn(usageModel, 'findOrCreate')
         .mockResolvedValue([mockUsageModel as any, true]);
 
-      await repository.createFirstVersionUsageCalculation(userUuid, userId);
+      await repository.createFirstVersionUsageCalculation(userUuid);
 
       expect(mockSequelize.query).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           replacements: expect.objectContaining({
-            userId,
+            userUuid,
           }),
           type: QueryTypes.SELECT,
         }),
@@ -198,7 +197,6 @@ describe('SequelizeUsageRepository', () => {
 
     it('When called, then should create usage with type Version', async () => {
       const userUuid = v4();
-      const userId = 456;
       const mockSequelize = {
         query: jest.fn().mockResolvedValue([{ delta: '500' }]),
       };
@@ -214,7 +212,7 @@ describe('SequelizeUsageRepository', () => {
         .spyOn(usageModel, 'findOrCreate')
         .mockResolvedValue([mockUsageModel as any, true]);
 
-      await repository.createFirstVersionUsageCalculation(userUuid, userId);
+      await repository.createFirstVersionUsageCalculation(userUuid);
 
       expect(usageModel.findOrCreate).toHaveBeenCalledWith(
         expect.objectContaining({

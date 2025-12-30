@@ -503,7 +503,7 @@ describe('UsageService', () => {
   });
 
   describe('calculateFirstVersionUsage', () => {
-    it('When called, then it should call the repository with userUuid and userId', async () => {
+    it('When called, then it should call the repository with userUuid', async () => {
       const user = newUser();
       const usage = newUsage({ attributes: { type: UsageType.Version } });
 
@@ -511,15 +511,12 @@ describe('UsageService', () => {
         .spyOn(usageRepository, 'createFirstVersionUsageCalculation')
         .mockResolvedValue(usage);
 
-      const result = await service.calculateFirstVersionUsage(
-        user.uuid,
-        user.id,
-      );
+      const result = await service.calculateFirstVersionUsage(user.uuid);
 
       expect(result).toEqual(usage);
       expect(
         usageRepository.createFirstVersionUsageCalculation,
-      ).toHaveBeenCalledWith(user.uuid, user.id);
+      ).toHaveBeenCalledWith(user.uuid);
     });
   });
 

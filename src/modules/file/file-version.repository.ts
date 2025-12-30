@@ -21,9 +21,9 @@ export interface FileVersionRepository {
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
   updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
-  sumVersionSizeDeltaFromDate(userId: number, sinceDate: Date): Promise<number>;
+  sumVersionSizeDeltaFromDate(userId: string, sinceDate: Date): Promise<number>;
   sumVersionSizeDeltaBetweenDates(
-    userId: number,
+    userId: string,
     sinceDate: Date,
     untilDate: Date,
   ): Promise<number>;
@@ -119,7 +119,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
   }
 
   async sumVersionSizeDeltaFromDate(
-    userId: number,
+    userId: string,
     sinceDate: Date,
   ): Promise<number> {
     const result = await this.model.findAll({
@@ -168,7 +168,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
   }
 
   async sumVersionSizeDeltaBetweenDates(
-    userId: number,
+    userId: string,
     sinceDate: Date,
     untilDate: Date,
   ): Promise<number> {
