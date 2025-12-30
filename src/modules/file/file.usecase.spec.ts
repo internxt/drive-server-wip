@@ -2279,7 +2279,7 @@ describe('FileUseCases', () => {
       );
       expect(upsertSpy).toHaveBeenCalledWith({
         fileId: mockFile.uuid,
-        userId: userMocked.id,
+        userId: userMocked.uuid,
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: 'EXISTS',
@@ -2919,12 +2919,11 @@ describe('FileUseCases', () => {
       );
       expect(usageService.calculateFirstVersionUsage).toHaveBeenCalledWith(
         mockUser.uuid,
-        mockUser.id,
       );
       expect(
         fileVersionRepository.sumVersionSizeDeltaFromDate,
       ).toHaveBeenCalledWith(
-        mockUser.id,
+        mockUser.uuid,
         mockFirstUsage.getNextPeriodStartDate(),
       );
       expect(result).toEqual(expectedTotal);
@@ -2963,7 +2962,7 @@ describe('FileUseCases', () => {
       );
       expect(
         fileVersionRepository.sumVersionSizeDeltaFromDate,
-      ).toHaveBeenCalledWith(mockUser.id, mockUsage.getNextPeriodStartDate());
+      ).toHaveBeenCalledWith(mockUser.uuid, mockUsage.getNextPeriodStartDate());
       expect(usageService.createVersionUsage).not.toHaveBeenCalled();
       expect(
         fileVersionRepository.sumVersionSizeDeltaBetweenDates,
@@ -3011,11 +3010,11 @@ describe('FileUseCases', () => {
       );
       expect(
         fileVersionRepository.sumVersionSizeDeltaFromDate,
-      ).toHaveBeenCalledWith(mockUser.id, mockUsage.getNextPeriodStartDate());
+      ).toHaveBeenCalledWith(mockUser.uuid, mockUsage.getNextPeriodStartDate());
       expect(
         fileVersionRepository.sumVersionSizeDeltaBetweenDates,
       ).toHaveBeenCalledWith(
-        mockUser.id,
+        mockUser.uuid,
         mockUsage.getNextPeriodStartDate(),
         Time.endOfDay(yesterday),
       );

@@ -103,7 +103,6 @@ export class SequelizeUsageRepository {
 
   public async createFirstVersionUsageCalculation(
     userUuid: string,
-    userId: number,
   ): Promise<Usage> {
     const currentDate = Time.startOf(Time.now(), 'day');
     const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
@@ -121,12 +120,12 @@ export class SequelizeUsageRepository {
       FROM
           file_versions fv
       WHERE
-          fv.user_id = :userId
+          fv.user_id = :userUuid
           AND fv.created_at < :currentDate
       `,
       {
         replacements: {
-          userId,
+          userUuid,
           currentDate: currentDate.toISOString(),
         },
         type: QueryTypes.SELECT,

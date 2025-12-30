@@ -15,7 +15,6 @@ const temporalUsage = new Set([
   UsageType.Daily,
   UsageType.Monthly,
   UsageType.Yearly,
-  UsageType.Version,
 ]);
 
 export interface UsageAttributes {
