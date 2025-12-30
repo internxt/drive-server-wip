@@ -888,32 +888,36 @@ describe('FileRepository', () => {
 
   describe('sumFileSizeDeltaBetweenDates', () => {
     const userId = 123;
+    const userUuid = v4();
     const sinceDate = new Date('2024-01-01');
     const untilDate = new Date('2024-01-31');
 
-    it('When files have size delta, then it should return the total delta', async () => {
+    it('When files and versions have size delta, then it should return the total delta', async () => {
       const totalDelta = 1500;
       const result = [{ total: totalDelta }];
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(result as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(result as any);
 
       const response = await repository.sumFileSizeDeltaBetweenDates(
         userId,
+        userUuid,
         sinceDate,
         untilDate,
       );
 
-      expect(fileModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('UNION ALL'),
+        {
+          replacements: {
             userId,
-          }),
-          bind: {
-            sinceDate,
-            untilDate,
+            userUuid,
+            sinceDate: sinceDate.toISOString(),
+            untilDate: untilDate.toISOString(),
           },
-          raw: true,
-        }),
+          type: QueryTypes.SELECT,
+        },
       );
       expect(response).toBe(totalDelta);
     });
@@ -921,10 +925,13 @@ describe('FileRepository', () => {
     it('When no files are found or total is null, then it should return 0', async () => {
       const result = [{ total: null }];
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(result as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(result as any);
 
       const response = await repository.sumFileSizeDeltaBetweenDates(
         userId,
+        userUuid,
         sinceDate,
         untilDate,
       );
@@ -935,29 +942,33 @@ describe('FileRepository', () => {
 
   describe('sumFileSizeDeltaFromDate', () => {
     const userId = 123;
-    const sinceDate = Time.now('2024-01-01');
+    const userUuid = v4();
+    const sinceDate = new Date('2024-01-01');
 
-    it('When files have size delta, then it should return the total delta', async () => {
+    it('When files and versions have size delta, then it should return the total delta', async () => {
       const totalDelta = 1500;
       const result = [{ total: totalDelta }];
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(result as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(result as any);
 
       const response = await repository.sumFileSizeDeltaFromDate(
         userId,
+        userUuid,
         sinceDate,
       );
 
-      expect(fileModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('UNION ALL'),
+        {
+          replacements: {
             userId,
-          }),
-          bind: {
-            sinceDate,
+            userUuid,
+            sinceDate: sinceDate.toISOString(),
           },
-          raw: true,
-        }),
+          type: QueryTypes.SELECT,
+        },
       );
       expect(response).toBe(totalDelta);
     });
@@ -965,10 +976,13 @@ describe('FileRepository', () => {
     it('When no files are found or total is null, then it should return 0', async () => {
       const result = [{ total: null }];
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(result as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(result as any);
 
       const response = await repository.sumFileSizeDeltaFromDate(
         userId,
+        userUuid,
         sinceDate,
       );
 

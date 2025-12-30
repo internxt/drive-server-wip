@@ -131,11 +131,13 @@ export interface FileRepository {
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
+    userUuid: User['uuid'],
     sinceDate: Date,
     untilDate: Date,
   ): Promise<number>;
   sumFileSizeDeltaFromDate(
     userId: FileAttributes['userId'],
+    userUuid: User['uuid'],
     sinceDate: Date,
   ): Promise<number>;
 }
@@ -878,108 +880,107 @@ export class SequelizeFileRepository implements FileRepository {
 
   async sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
+    userUuid: User['uuid'],
     sinceDate: Date,
     untilDate: Date,
   ): Promise<number> {
-    const result = await this.fileModel.findAll({
-      attributes: [
-        [
-          Sequelize.literal(`
-          SUM(
-            CASE      
-              WHEN status != 'DELETED' THEN size
-
-              -- Files created BEFORE the period but deleted DURING the period
-              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
-
-              -- Files created DURING the period but deleted AFTER the period
-              WHEN status = 'DELETED' AND updated_at > $untilDate THEN size
-
-              -- Files created and deleted DURING the period
-              ELSE 0
-            END
+    const query = `
+      SELECT COALESCE(SUM(delta), 0) as total FROM (
+        -- Files
+        SELECT
+          CASE
+            WHEN status != 'DELETED' THEN size
+            WHEN status = 'DELETED' AND created_at < :sinceDate THEN -size
+            WHEN status = 'DELETED' AND updated_at > :untilDate THEN size
+            ELSE 0
+          END as delta
+        FROM files
+        WHERE user_id = :userId
+          AND (
+            (created_at >= :sinceDate AND created_at <= :untilDate)
+            OR (status = 'DELETED' AND created_at < :sinceDate AND updated_at >= :sinceDate AND updated_at <= :untilDate)
           )
-        `),
-          'total',
-        ],
-      ],
-      where: {
-        userId,
-        [Op.or]: [
-          {
-            createdAt: {
-              [Op.gte]: sinceDate,
-              [Op.lte]: untilDate,
-            },
-          },
-          {
-            status: FileStatus.DELETED,
-            createdAt: {
-              [Op.lt]: sinceDate,
-            },
-            updatedAt: {
-              [Op.gte]: sinceDate,
-              [Op.lte]: untilDate,
-            },
-          },
-        ],
-      },
-      bind: {
-        sinceDate,
-        untilDate,
-      },
-      raw: true,
-    });
 
-    return Number(result[0]['total']) || 0;
+        UNION ALL
+
+        -- File Versions
+        SELECT
+          CASE
+            WHEN status != 'DELETED' THEN size
+            WHEN status = 'DELETED' AND created_at < :sinceDate THEN -size
+            WHEN status = 'DELETED' AND updated_at > :untilDate THEN size
+            ELSE 0
+          END as delta
+        FROM file_versions
+        WHERE user_id = :userUuid
+          AND (
+            (created_at >= :sinceDate AND created_at <= :untilDate)
+            OR (status = 'DELETED' AND created_at < :sinceDate AND updated_at >= :sinceDate AND updated_at <= :untilDate)
+          )
+      ) combined;
+    `;
+
+    const result = (await this.fileModel.sequelize.query(query, {
+      replacements: {
+        userId,
+        userUuid,
+        sinceDate: sinceDate.toISOString(),
+        untilDate: untilDate.toISOString(),
+      },
+      type: QueryTypes.SELECT,
+    })) as [{ total: string }];
+
+    return Number(result[0]?.total) || 0;
   }
 
   async sumFileSizeDeltaFromDate(
     userId: FileAttributes['userId'],
+    userUuid: User['uuid'],
     sinceDate: Date,
   ): Promise<number> {
-    const result = await this.fileModel.findAll({
-      attributes: [
-        [
-          Sequelize.literal(`
-          SUM(
-            CASE      
-              WHEN status != 'DELETED' THEN size
-              
-              -- Files created BEFORE the period but deleted DURING the period
-              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
-
-              -- Files created and deleted DURING the period does not affect delta
-              ELSE 0
-            END
+    const query = `
+      SELECT COALESCE(SUM(delta), 0) as total FROM (
+        -- Files
+        SELECT
+          CASE
+            WHEN status != 'DELETED' THEN size
+            WHEN status = 'DELETED' AND created_at < :sinceDate THEN -size
+            ELSE 0
+          END as delta
+        FROM files
+        WHERE user_id = :userId
+          AND (
+            (status != 'DELETED' AND created_at >= :sinceDate)
+            OR (status = 'DELETED' AND updated_at >= :sinceDate)
           )
-        `),
-          'total',
-        ],
-      ],
-      where: {
-        userId,
-        [Op.or]: [
-          {
-            status: { [Op.ne]: FileStatus.DELETED },
-            createdAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-          {
-            status: FileStatus.DELETED,
-            updatedAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-        ],
-      },
-      bind: {
-        sinceDate,
-      },
-      raw: true,
-    });
 
-    return Number(result[0]['total']) || 0;
+        UNION ALL
+
+        -- File Versions
+        SELECT
+          CASE
+            WHEN status != 'DELETED' THEN size
+            WHEN status = 'DELETED' AND created_at < :sinceDate THEN -size
+            ELSE 0
+          END as delta
+        FROM file_versions
+        WHERE user_id = :userUuid
+          AND (
+            (status != 'DELETED' AND created_at >= :sinceDate)
+            OR (status = 'DELETED' AND updated_at >= :sinceDate)
+          )
+      ) combined;
+    `;
+
+    const result = (await this.fileModel.sequelize.query(query, {
+      replacements: {
+        userId,
+        userUuid,
+        sinceDate: sinceDate.toISOString(),
+      },
+      type: QueryTypes.SELECT,
+    })) as [{ total: string }];
+
+    return Number(result[0]?.total) || 0;
   }
 }

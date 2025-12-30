@@ -40,32 +40,6 @@ export class UsageService {
     return this.usageRepository.calculateAggregatedUsage(userUuid);
   }
 
-  getMostRecentVersionUsage(userId: User['uuid']): Promise<Usage | null> {
-    return this.usageRepository.getLatestVersionUsage(userId);
-  }
-
-  calculateFirstVersionUsage(userUuid: User['uuid']) {
-    return this.usageRepository.createFirstVersionUsageCalculation(userUuid);
-  }
-
-  calculateAggregatedVersionUsage(userUuid: User['uuid']) {
-    return this.usageRepository.calculateAggregatedVersionUsage(userUuid);
-  }
-
-  createVersionUsage(userUuid: User['uuid'], period: Date, delta: number) {
-    const versionUsage = Usage.build({
-      id: v4(),
-      userId: userUuid,
-      period,
-      delta,
-      type: UsageType.Version,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    return this.usageRepository.create(versionUsage);
-  }
-
   async addFileReplacementDelta(
     user: User,
     oldFileData: File,
