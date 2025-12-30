@@ -183,12 +183,11 @@ export class FileUseCases {
     if (calculateFirstDelta) {
       const firstUsage = await this.usageService.calculateFirstVersionUsage(
         user.uuid,
-        user.id,
       );
       const today = Time.dateWithTimeAdded(1, 'day', firstUsage.period);
       const deltaChangeToday =
         await this.fileVersionRepository.sumVersionSizeDeltaFromDate(
-          user.id,
+          user.uuid,
           today,
         );
 
@@ -200,7 +199,7 @@ export class FileUseCases {
     const nextDeltaStartDate = lastVersionUsage.getNextPeriodStartDate();
     const deltaChangeSinceLastUsage =
       await this.fileVersionRepository.sumVersionSizeDeltaFromDate(
-        user.id,
+        user.uuid,
         nextDeltaStartDate,
       );
 
@@ -230,7 +229,7 @@ export class FileUseCases {
 
     const gapDelta =
       await this.fileVersionRepository.sumVersionSizeDeltaBetweenDates(
-        user.id,
+        user.uuid,
         startDate,
         yesterdayEndOfDay,
       );
@@ -972,7 +971,7 @@ export class FileUseCases {
       await Promise.all([
         this.fileVersionRepository.upsert({
           fileId: file.uuid,
-          userId: user.id,
+          userId: user.uuid,
           networkFileId: file.fileId,
           size: file.size,
           status: FileVersionStatus.EXISTS,

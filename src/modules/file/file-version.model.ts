@@ -35,8 +35,8 @@ export class FileVersionModel extends Model implements FileVersionAttributes {
   file: FileModel;
 
   @ForeignKey(() => UserModel)
-  @Column(DataType.INTEGER)
-  userId: number;
+  @Column(DataType.STRING(36))
+  userId: string;
 
   @BelongsTo(() => UserModel, 'userId')
   user: UserModel;

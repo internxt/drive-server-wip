@@ -40,27 +40,19 @@ export class UsageService {
     return this.usageRepository.calculateAggregatedUsage(userUuid);
   }
 
-  // Version usage methods
-  async getMostRecentVersionUsage(userId: User['uuid']): Promise<Usage | null> {
+  getMostRecentVersionUsage(userId: User['uuid']): Promise<Usage | null> {
     return this.usageRepository.getLatestVersionUsage(userId);
   }
 
-  async calculateFirstVersionUsage(userUuid: User['uuid'], userId: number) {
-    return this.usageRepository.createFirstVersionUsageCalculation(
-      userUuid,
-      userId,
-    );
+  calculateFirstVersionUsage(userUuid: User['uuid']) {
+    return this.usageRepository.createFirstVersionUsageCalculation(userUuid);
   }
 
-  async calculateAggregatedVersionUsage(userUuid: User['uuid']) {
+  calculateAggregatedVersionUsage(userUuid: User['uuid']) {
     return this.usageRepository.calculateAggregatedVersionUsage(userUuid);
   }
 
-  async createVersionUsage(
-    userUuid: User['uuid'],
-    period: Date,
-    delta: number,
-  ) {
+  createVersionUsage(userUuid: User['uuid'], period: Date, delta: number) {
     const versionUsage = Usage.build({
       id: v4(),
       userId: userUuid,

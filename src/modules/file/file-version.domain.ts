@@ -6,7 +6,7 @@ export enum FileVersionStatus {
 export interface FileVersionAttributes {
   id: string;
   fileId: string;
-  userId: number;
+  userId: string;
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
@@ -17,7 +17,7 @@ export interface FileVersionAttributes {
 export class FileVersion implements FileVersionAttributes {
   id: string;
   fileId: string;
-  userId: number;
+  userId: string;
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;

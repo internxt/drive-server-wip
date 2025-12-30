@@ -762,7 +762,7 @@ export const newFileVersion = (params?: {
   const fileVersion = FileVersion.build({
     id: v4(),
     fileId: v4(),
-    userId: randomDataGenerator.natural({ min: 1 }),
+    userId: v4(),
     networkFileId: randomDataGenerator.hash({
       length: constants.BUCKET_ID_LENGTH,
     }),
