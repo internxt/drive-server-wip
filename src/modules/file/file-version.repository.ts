@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Sequelize } from 'sequelize';
 import { FileVersionModel } from './file-version.model';
 import {
   FileVersion,
@@ -21,12 +20,6 @@ export interface FileVersionRepository {
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
   updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
-  sumVersionSizeDeltaFromDate(userId: string, sinceDate: Date): Promise<number>;
-  sumVersionSizeDeltaBetweenDates(
-    userId: string,
-    sinceDate: Date,
-    untilDate: Date,
-  ): Promise<number>;
 }
 
 @Injectable()
@@ -116,112 +109,5 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
         where: { fileId },
       },
     );
-  }
-
-  async sumVersionSizeDeltaFromDate(
-    userId: string,
-    sinceDate: Date,
-  ): Promise<number> {
-    const result = await this.model.findAll({
-      attributes: [
-        [
-          Sequelize.literal(`
-          SUM(
-            CASE
-              WHEN status != 'DELETED' THEN size
-
-              -- Versions created BEFORE the period but deleted DURING the period
-              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
-
-              -- Versions created and deleted DURING the period does not affect delta
-              ELSE 0
-            END
-          )
-        `),
-          'total',
-        ],
-      ],
-      where: {
-        userId,
-        [Op.or]: [
-          {
-            status: { [Op.ne]: FileVersionStatus.DELETED },
-            createdAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-          {
-            status: FileVersionStatus.DELETED,
-            updatedAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-        ],
-      },
-      bind: {
-        sinceDate,
-      },
-      raw: true,
-    });
-
-    return Number(result[0]?.['total']) || 0;
-  }
-
-  async sumVersionSizeDeltaBetweenDates(
-    userId: string,
-    sinceDate: Date,
-    untilDate: Date,
-  ): Promise<number> {
-    const result = await this.model.findAll({
-      attributes: [
-        [
-          Sequelize.literal(`
-          SUM(
-            CASE
-              WHEN status != 'DELETED' THEN size
-
-              -- Versions created BEFORE the period but deleted DURING the period
-              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
-
-              -- Versions created DURING the period but deleted AFTER the period
-              WHEN status = 'DELETED' AND updated_at > $untilDate THEN size
-
-              -- Versions created and deleted DURING the period
-              ELSE 0
-            END
-          )
-        `),
-          'total',
-        ],
-      ],
-      where: {
-        userId,
-        [Op.or]: [
-          {
-            createdAt: {
-              [Op.gte]: sinceDate,
-              [Op.lte]: untilDate,
-            },
-          },
-          {
-            status: FileVersionStatus.DELETED,
-            createdAt: {
-              [Op.lt]: sinceDate,
-            },
-            updatedAt: {
-              [Op.gte]: sinceDate,
-              [Op.lte]: untilDate,
-            },
-          },
-        ],
-      },
-      bind: {
-        sinceDate,
-        untilDate,
-      },
-      raw: true,
-    });
-
-    return Number(result[0]?.['total']) || 0;
   }
 }
