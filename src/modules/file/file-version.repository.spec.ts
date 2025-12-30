@@ -414,7 +414,7 @@ describe('SequelizeFileVersionRepository', () => {
 
   describe('sumVersionSizeDeltaFromDate', () => {
     it('When user has versions created after sinceDate, then it returns positive delta', async () => {
-      const userId = 123;
+      const userId = 'user-uuid-123';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const mockResult = [{ total: '2500' }];
 
@@ -442,7 +442,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When user has no versions after sinceDate, then it returns 0', async () => {
-      const userId = 456;
+      const userId = 'user-uuid-456';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const mockResult = [{ total: null }];
 
@@ -459,7 +459,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When query returns empty array, then it returns 0', async () => {
-      const userId = 789;
+      const userId = 'user-uuid-789';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
 
       jest.spyOn(fileVersionModel, 'findAll').mockResolvedValue([] as any);
@@ -473,7 +473,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When versions were deleted after sinceDate but created before, then it returns negative delta', async () => {
-      const userId = 111;
+      const userId = 'user-uuid-111';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const mockResult = [{ total: '-1000' }];
 
@@ -492,7 +492,7 @@ describe('SequelizeFileVersionRepository', () => {
 
   describe('sumVersionSizeDeltaBetweenDates', () => {
     it('When versions exist in date range, then it returns correct delta', async () => {
-      const userId = 123;
+      const userId = 'user-uuid-123';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const untilDate = new Date('2024-01-31T23:59:59Z');
       const mockResult = [{ total: '3500' }];
@@ -523,7 +523,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When no versions in date range, then it returns 0', async () => {
-      const userId = 456;
+      const userId = 'user-uuid-456';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const untilDate = new Date('2024-01-31T23:59:59Z');
       const mockResult = [{ total: null }];
@@ -542,7 +542,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When query returns empty array, then it returns 0', async () => {
-      const userId = 789;
+      const userId = 'user-uuid-789';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const untilDate = new Date('2024-01-31T23:59:59Z');
 
@@ -558,7 +558,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When version deleted after untilDate but created in range, then it returns positive size', async () => {
-      const userId = 111;
+      const userId = 'user-uuid-111';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const untilDate = new Date('2024-01-31T23:59:59Z');
       const mockResult = [{ total: '1500' }];
@@ -577,7 +577,7 @@ describe('SequelizeFileVersionRepository', () => {
     });
 
     it('When version created before range but deleted in range, then it returns negative size', async () => {
-      const userId = 222;
+      const userId = 'user-uuid-222';
       const sinceDate = new Date('2024-01-01T00:00:00Z');
       const untilDate = new Date('2024-01-31T23:59:59Z');
       const mockResult = [{ total: '-2000' }];
