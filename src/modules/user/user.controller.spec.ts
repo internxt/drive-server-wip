@@ -43,7 +43,7 @@ import {
   AuditEntityType,
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
-import { KlaviyoTrackingService } from 'src/externals/klaviyo/klaviyo-tracking.service';
+import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 
 jest.mock('../../config/configuration', () => {
   return {
