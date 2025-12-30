@@ -6,8 +6,8 @@ export class FileDto {
   id: number;
   @ApiProperty()
   uuid: string;
-  @ApiProperty()
-  fileId: string;
+  @ApiProperty({ nullable: true })
+  fileId: string | null;
   @ApiProperty()
   name: string;
   @ApiProperty()

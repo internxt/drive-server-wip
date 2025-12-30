@@ -10,6 +10,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import {
   File,
   FileAttributes,
@@ -27,6 +28,7 @@ import {
   newWorkspace,
   newUsage,
   newVersioningLimits,
+  newFeatureLimit,
 } from '../../../test/fixtures';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
@@ -40,6 +42,7 @@ import { Time } from '../../lib/time';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
+import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
@@ -846,6 +849,165 @@ describe('FileUseCases', () => {
       expect(result).toEqual(createdFile);
     });
 
+    describe('Empty files creation', () => {
+      it('When creating empty file and limit is not reached, then it should create successfully', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+
+        const createdFile = newFile({
+          attributes: {
+            ...emptyFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        const result = await service.createFile(userMocked, emptyFileDto);
+
+        expect(result).toEqual(createdFile);
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+      });
+
+      it('When creating empty file and limit is reached, then it should throw', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(1000);
+
+        await expect(
+          service.createFile(userMocked, emptyFileDto),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+      });
+
+      it('When creating empty file and limit does not exist, then it should throw', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(null);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+
+        await expect(
+          service.createFile(userMocked, emptyFileDto),
+        ).rejects.toThrow(PaymentRequiredException);
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+      });
+
+      it('When creating empty file, then fileId should be set to null', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          fileId: 'some-file-id',
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+
+        const createSpy = jest
+          .spyOn(fileRepository, 'create')
+          .mockResolvedValueOnce({} as any);
+
+        await service.createFile(userMocked, emptyFileDto);
+
+        expect(createSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            fileId: null,
+            size: BigInt(0),
+          }),
+        );
+      });
+    });
+
     describe('first upload email functionality', () => {
       it('When user has no previous files, then should send first upload email', async () => {
         const folder = newFolder({ attributes: { userId: userMocked.id } });
@@ -974,6 +1136,83 @@ describe('FileUseCases', () => {
 
         expect(mailerService.sendFirstUploadEmail).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('checkEmptyFilesLimit', () => {
+    it('When limit is null, then it should throw', async () => {
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+        .mockResolvedValue(5);
+
+      await expect(service.checkEmptyFilesLimit(userMocked)).rejects.toThrow(
+        PaymentRequiredException,
+      );
+
+      expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+        LimitLabels.MaxZeroSizeFiles,
+        userMocked,
+      );
+      expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+        userMocked.id,
+      );
+    });
+
+    it('When limit exists and user has reached the zero-size files limit, then it should throw', async () => {
+      const mockLimit = newFeatureLimit({
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+        value: '1000',
+      });
+
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(mockLimit);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+        .mockResolvedValue(1000);
+
+      await expect(service.checkEmptyFilesLimit(userMocked)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+        LimitLabels.MaxZeroSizeFiles,
+        userMocked,
+      );
+      expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+        userMocked.id,
+      );
+    });
+
+    it('When limit exists and user has not reached the zero-size limit yet, then it should not throw', async () => {
+      const mockLimit = newFeatureLimit({
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+        value: '1000',
+      });
+
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(mockLimit);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+        .mockResolvedValue(5);
+
+      await expect(
+        service.checkEmptyFilesLimit(userMocked),
+      ).resolves.not.toThrow();
+
+      expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+        LimitLabels.MaxZeroSizeFiles,
+        userMocked,
+      );
+      expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+        userMocked.id,
+      );
     });
   });
 
@@ -2081,6 +2320,143 @@ describe('FileUseCases', () => {
         mockFile.bucket,
         mockFile.fileId,
       );
+    });
+
+    describe('Empty file replacement', () => {
+      it('When replacing with empty file and limit has not been reached, then it should replace successfully and set fileId to null', async () => {
+        const mockFile = newFile({
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          fileId: 'new-file-id',
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        const updateSpy = jest
+          .spyOn(fileRepository, 'updateByUuidAndUserId')
+          .mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        const result = await service.replaceFile(
+          userMocked,
+          mockFile.uuid,
+          replaceData,
+        );
+
+        expect(result).toEqual({
+          ...mockFile.toJSON(),
+          fileId: null,
+          size: replaceData.size,
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+          mockFile.uuid,
+          userMocked.id,
+          expect.objectContaining({
+            fileId: null,
+            size: BigInt(0),
+          }),
+        );
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+      });
+
+      it('When replacing with empty file and limit is reached, then it should throw', async () => {
+        const mockFile = newFile({
+          attributes: {
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          fileId: 'new-file-id',
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(1000);
+
+        await expect(
+          service.replaceFile(userMocked, mockFile.uuid, replaceData),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+      });
+
+      it('When replacing with empty file and limit does not exist, then it should throw', async () => {
+        const mockFile = newFile({
+          attributes: {
+            fileId: 'old-file-id',
+            bucket: 'test-bucket',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          fileId: 'new-file-id',
+          size: BigInt(0),
+        };
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(null);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+
+        await expect(
+          service.replaceFile(userMocked, mockFile.uuid, replaceData),
+        ).rejects.toThrow(PaymentRequiredException);
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+      });
     });
   });
 

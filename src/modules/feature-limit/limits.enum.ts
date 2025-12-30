@@ -7,6 +7,7 @@ export enum LimitLabels {
   FileVersionMaxSize = 'file-version-max-size',
   FileVersionRetentionDays = 'file-version-retention-days',
   FileVersionMaxNumber = 'file-version-max-number',
+  MaxZeroSizeFiles = 'max-zero-size-files',
 }
 
 export enum LimitTypes {

@@ -37,15 +37,17 @@ export class NotificationsUseCases {
       ? NotificationTargetType.USER
       : NotificationTargetType.ALL;
 
+    const expirationTime = createNotificationDto.expiresAt
+      ? Time.now(createNotificationDto.expiresAt)
+      : Time.dateWithTimeAdded(10, 'day', Time.now());
+
     const notification = Notification.build({
       id: v4(),
       link: createNotificationDto.link,
       message: createNotificationDto.message,
       targetType: targetType,
       targetValue: targetValue,
-      expiresAt: createNotificationDto.expiresAt
-        ? Time.now(createNotificationDto.expiresAt)
-        : null,
+      expiresAt: expirationTime,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

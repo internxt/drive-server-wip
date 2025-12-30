@@ -3631,8 +3631,6 @@ describe('User use cases', () => {
         .mockResolvedValueOnce(null);
       jest.spyOn(configService, 'get').mockImplementation((key) => {
         if (key === 'users.preCreatedPassword') return defaultPass;
-        if (key === 'secrets.magicIv') return 'test-iv';
-        if (key === 'secrets.magicSalt') return 'test-salt';
         return undefined;
       });
       jest.spyOn(cryptoService, 'passToHash').mockReturnValueOnce(hashObj);

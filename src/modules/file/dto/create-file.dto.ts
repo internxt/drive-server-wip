@@ -5,7 +5,11 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
+  Min,
+  ValidateIf,
 } from 'class-validator';
+import { ValidateFileIdWithSize } from '../../../common/validators/file-id-size.validator';
 
 export class CreateFileDto {
   @ApiProperty({
@@ -16,11 +20,13 @@ export class CreateFileDto {
   bucket: string;
 
   @ApiProperty({
-    description: 'The ID of the file',
+    description:
+      'The ID of the file (required when size > 0, must not be provided when size = 0)',
     example: 'file12345',
+    required: false,
   })
-  @IsString()
-  fileId: string;
+  @ValidateFileIdWithSize()
+  fileId?: string;
 
   @ApiProperty({
     description: 'The encryption version used for the file',
@@ -44,6 +50,7 @@ export class CreateFileDto {
     format: 'bigint',
     example: 123456789,
   })
+  @Min(0)
   @IsNumber()
   size: bigint;
 

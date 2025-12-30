@@ -8,9 +8,8 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('KlaviyoTrackingService', () => {
   let service: KlaviyoTrackingService;
-
   const mockApiKey = 'test-klaviyo-api-key';
-  const mockBaseUrl = 'https://a.klaviyo.com/api/';
+  const mockBaseUrl = 'https://a.klaviyo.com/api';
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -59,7 +58,7 @@ describe('KlaviyoTrackingService', () => {
 
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
       expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${mockBaseUrl}events/`,
+        `${mockBaseUrl}/events/`,
         {
           data: {
             type: 'event',
@@ -112,7 +111,6 @@ describe('KlaviyoTrackingService', () => {
       await service.trackCheckoutStarted(mockEmail, minimalCheckoutData);
 
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-
       const callArgs = mockedAxios.post.mock.calls[0];
       const payload = callArgs[1] as any;
 
@@ -142,6 +140,7 @@ describe('KlaviyoTrackingService', () => {
 
     it('When Klaviyo API is unavailable, then should throw error', async () => {
       const networkError = new Error('Network Error');
+
       mockedAxios.post.mockRejectedValueOnce(networkError);
 
       await expect(
@@ -172,6 +171,7 @@ describe('KlaviyoTrackingService', () => {
 
     it('When tracking checkout, then should use ISO timestamp', async () => {
       const beforeCall = new Date().toISOString();
+
       mockedAxios.post.mockResolvedValueOnce({
         data: { success: true },
         status: 200,
@@ -218,6 +218,7 @@ describe('KlaviyoTrackingService', () => {
 
     it('When email contains special characters, then should handle correctly', async () => {
       const specialEmail = 'test+special@internxt.com';
+
       mockedAxios.post.mockResolvedValueOnce({
         data: { success: true },
         status: 200,
