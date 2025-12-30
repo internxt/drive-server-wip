@@ -6,11 +6,11 @@ const tableName = 'file_versions';
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn(tableName, 'user_id', {
-      type: Sequelize.INTEGER,
+      type: Sequelize.STRING(36),
       allowNull: true,
       references: {
         model: 'users',
-        key: 'id',
+        key: 'uuid',
       },
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
