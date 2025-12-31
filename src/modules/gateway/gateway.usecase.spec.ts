@@ -24,6 +24,7 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
+import { FileUseCases } from '../file/file.usecase';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -38,6 +39,7 @@ describe('GatewayUseCases', () => {
   let configService: ConfigService;
   let folderRepository: SequelizeFolderRepository;
   let limitsRepository: SequelizeFeatureLimitsRepository;
+  let fileUseCases: FileUseCases;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -66,6 +68,7 @@ describe('GatewayUseCases', () => {
     limitsRepository = module.get<SequelizeFeatureLimitsRepository>(
       SequelizeFeatureLimitsRepository,
     );
+    fileUseCases = module.get<FileUseCases>(FileUseCases);
   });
 
   it('should be defined', () => {
@@ -508,6 +511,12 @@ describe('GatewayUseCases', () => {
       const newStorageSpaceBytes = 5000000;
       const validTier = newTier();
 
+      beforeEach(() => {
+        jest
+          .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+          .mockResolvedValue({ deletedCount: 0 });
+      });
+
       describe('when updating storage without tier', () => {
         it('When updating user storage, then it should update the user storage and keep that new storage limit cached', async () => {
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
@@ -715,6 +724,71 @@ describe('GatewayUseCases', () => {
 
           expect(user.tierId).toBe(differentTierId);
           expect(user.tierId).not.toBe(originalTierId);
+        });
+      });
+
+      describe('when applying retention policy', () => {
+        it('When updating user storage, then it should call applyUserRetentionPolicy', async () => {
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+          jest
+            .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+            .mockResolvedValue({ deletedCount: 0 });
+
+          await service.updateUser(user, { newStorageSpaceBytes });
+
+          expect(fileUseCases.applyUserRetentionPolicy).toHaveBeenCalledWith(
+            user.uuid,
+          );
+        });
+
+        it('When retention policy deletes versions, then it should log the count', async () => {
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+          jest
+            .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+            .mockResolvedValue({ deletedCount: 50 });
+
+          await expect(
+            service.updateUser(user, { newStorageSpaceBytes }),
+          ).resolves.not.toThrow();
+
+          expect(fileUseCases.applyUserRetentionPolicy).toHaveBeenCalledWith(
+            user.uuid,
+          );
+        });
+
+        it('When retention policy fails, then it should not block the main flow', async () => {
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+          jest
+            .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+            .mockRejectedValue(new Error('Retention policy error'));
+
+          await expect(
+            service.updateUser(user, { newStorageSpaceBytes }),
+          ).resolves.not.toThrow();
+
+          expect(fileUseCases.applyUserRetentionPolicy).toHaveBeenCalled();
+        });
+
+        it('When no storage update is provided, then it should not call retention policy', async () => {
+          jest
+            .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+            .mockResolvedValue({ deletedCount: 0 });
+
+          await service.updateUser(user, { newStorageSpaceBytes: undefined });
+
+          expect(fileUseCases.applyUserRetentionPolicy).not.toHaveBeenCalled();
         });
       });
     });

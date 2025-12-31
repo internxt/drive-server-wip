@@ -3161,4 +3161,112 @@ describe('FileUseCases', () => {
       );
     });
   });
+
+  describe('applyUserRetentionPolicy', () => {
+    const userUuid = v4();
+
+    it('When versioning is enabled, then it should not delete any versions', async () => {
+      const enabledLimits = newVersioningLimits({ enabled: true });
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(enabledLimits);
+
+      const deleteUserVersionsBatchSpy = jest.spyOn(
+        fileVersionRepository,
+        'deleteUserVersionsBatch',
+      );
+
+      const result = await service.applyUserRetentionPolicy(userUuid);
+
+      expect(result).toEqual({ deletedCount: 0 });
+      expect(deleteUserVersionsBatchSpy).not.toHaveBeenCalled();
+    });
+
+    it('When versioning is disabled, then it should delete all user versions', async () => {
+      const disabledLimits = newVersioningLimits({ enabled: false });
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(disabledLimits);
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(50)
+        .mockResolvedValueOnce(0);
+
+      const result = await service.applyUserRetentionPolicy(userUuid);
+
+      expect(result).toEqual({ deletedCount: 150 });
+      expect(
+        fileVersionRepository.deleteUserVersionsBatch,
+      ).toHaveBeenCalledWith(userUuid, 100);
+    });
+
+    it('When versioning is disabled and user has no versions, then it should return zero deleted', async () => {
+      const disabledLimits = newVersioningLimits({ enabled: false });
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(disabledLimits);
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
+        .mockResolvedValueOnce(0);
+
+      const result = await service.applyUserRetentionPolicy(userUuid);
+
+      expect(result).toEqual({ deletedCount: 0 });
+      expect(
+        fileVersionRepository.deleteUserVersionsBatch,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('When custom batch size is provided, then it should use that batch size', async () => {
+      const disabledLimits = newVersioningLimits({ enabled: false });
+      const customBatchSize = 50;
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(disabledLimits);
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
+        .mockResolvedValueOnce(50)
+        .mockResolvedValueOnce(25)
+        .mockResolvedValueOnce(0);
+
+      const result = await service.applyUserRetentionPolicy(userUuid, {
+        batchSize: customBatchSize,
+      });
+
+      expect(result).toEqual({ deletedCount: 75 });
+      expect(
+        fileVersionRepository.deleteUserVersionsBatch,
+      ).toHaveBeenCalledWith(userUuid, customBatchSize);
+    });
+
+    it('When deleting in batches, then it should continue until batch returns less than batch size', async () => {
+      const disabledLimits = newVersioningLimits({ enabled: false });
+
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(disabledLimits);
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(30);
+
+      const result = await service.applyUserRetentionPolicy(userUuid);
+
+      expect(result).toEqual({ deletedCount: 330 });
+      expect(
+        fileVersionRepository.deleteUserVersionsBatch,
+      ).toHaveBeenCalledTimes(4);
+    });
+  });
 });

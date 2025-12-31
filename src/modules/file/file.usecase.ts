@@ -1282,4 +1282,30 @@ export class FileUseCases {
   }> {
     return this.featureLimitService.getFileVersioningLimits(userUuid);
   }
+
+  async applyUserRetentionPolicy(
+    userUuid: string,
+    options?: { batchSize?: number },
+  ): Promise<{ deletedCount: number }> {
+    const limits =
+      await this.featureLimitService.getFileVersioningLimits(userUuid);
+
+    if (limits.enabled) {
+      return { deletedCount: 0 };
+    }
+
+    const batchSize = options?.batchSize ?? 100;
+    let totalDeleted = 0;
+    let processedCount: number;
+
+    do {
+      processedCount = await this.fileVersionRepository.deleteUserVersionsBatch(
+        userUuid,
+        batchSize,
+      );
+      totalDeleted += processedCount;
+    } while (processedCount === batchSize);
+
+    return { deletedCount: totalDeleted };
+  }
 }
