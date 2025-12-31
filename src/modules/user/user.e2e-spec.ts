@@ -62,7 +62,7 @@ describe('User Registration E2E', () => {
   describe('POST /users - User Registration', () => {
     describe('Users can register successfully with valid data', () => {
       it('When valid registration data is provided, then user is created successfully', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         const response = await registerUser(encryptedData).expect(
@@ -84,7 +84,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When registration is successful, then tokens are returned', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         const response = await registerUser(encryptedData).expect(
@@ -105,35 +105,35 @@ describe('User Registration E2E', () => {
 
     describe('The system properly rejects invalid registration attempts', () => {
       it('When email is missing, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         delete (registrationData as any).email;
 
         await registerUser(registrationData).expect(HttpStatus.BAD_REQUEST);
       });
 
       it('When name is missing, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         delete (registrationData as any).name;
 
         await registerUser(registrationData).expect(HttpStatus.BAD_REQUEST);
       });
 
       it('When password is missing, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         delete (registrationData as any).password;
 
         await registerUser(registrationData).expect(HttpStatus.BAD_REQUEST);
       });
 
       it('When mnemonic is missing, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         delete (registrationData as any).mnemonic;
 
         await registerUser(registrationData).expect(HttpStatus.BAD_REQUEST);
       });
 
       it('When email is invalid format, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData({
+        const registrationData = await generateValidRegistrationData({
           email: 'invalid-email',
         });
 
@@ -141,7 +141,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When email is already registered, then registration fails with 409', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         await registerUser(encryptedData).expect(HttpStatus.CREATED);
@@ -151,7 +151,7 @@ describe('User Registration E2E', () => {
         });
         createdUserIds.push(createdUser.id);
 
-        const duplicateData = generateValidRegistrationData({
+        const duplicateData = await generateValidRegistrationData({
           email: registrationData.email,
         });
         const encryptedDuplicate = encryptRegistrationData(duplicateData);
@@ -160,7 +160,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When name exceeds 100 characters, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData({
+        const registrationData = await generateValidRegistrationData({
           name: 'a'.repeat(101),
         });
 
@@ -168,7 +168,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When lastname exceeds 100 characters, then registration fails with 400', async () => {
-        const registrationData = generateValidRegistrationData({
+        const registrationData = await generateValidRegistrationData({
           lastname: 'a'.repeat(101),
         });
 
@@ -178,7 +178,7 @@ describe('User Registration E2E', () => {
 
     describe('All user resources are created correctly after registration', () => {
       it('When registration is successful, then root folder is created', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         const response = await registerUser(encryptedData).expect(
@@ -201,7 +201,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When registration includes ECC keys, then keys are stored', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         const response = await registerUser(encryptedData).expect(
@@ -227,7 +227,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When registration is successful, then user UUID is generated', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         const response = await registerUser(encryptedData).expect(

@@ -1,5 +1,7 @@
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
+import { generateNewKeys } from '../../src/externals/asymmetric-encryption/openpgp';
+import { importEsmPackage } from '../../src/lib/import-esm-package';
 
 export interface RegisterUserDto {
   name: string;
@@ -22,12 +24,71 @@ export interface RegisterUserDto {
   referrer?: string;
 }
 
-export function generateValidRegistrationData(
+interface EccKeys {
+  publicKey: string;
+  privateKey: string;
+  revocationKey: string;
+}
+
+interface KyberKeys {
+  publicKey: string;
+  privateKey: string;
+}
+
+interface Keys {
+  ecc: EccKeys;
+  kyber: KyberKeys;
+}
+
+let cachedKeys: Keys | null = null;
+
+async function generateEccKeys(): Promise<EccKeys> {
+  const keys = await generateNewKeys();
+  return {
+    publicKey: keys.publicKeyArmored,
+    privateKey: keys.privateKeyArmored,
+    revocationKey: keys.revocationCertificate,
+  };
+}
+
+async function generateKyberKeys(): Promise<KyberKeys> {
+  const kemBuilder = await importEsmPackage<
+    typeof import('@dashlane/pqc-kem-kyber512-node').default
+  >('@dashlane/pqc-kem-kyber512-node');
+  const kem = await kemBuilder();
+  const keys = await kem.keypair();
+  return {
+    publicKey: Buffer.from(keys.publicKey).toString('base64'),
+    privateKey: Buffer.from(keys.privateKey).toString('base64'),
+  };
+}
+
+export async function initializeTestKeys(): Promise<Keys> {
+  if (cachedKeys) {
+    return cachedKeys;
+  }
+
+  const [eccKeys, kyberKeys] = await Promise.all([
+    generateEccKeys(),
+    generateKyberKeys(),
+  ]);
+
+  cachedKeys = {
+    ecc: eccKeys,
+    kyber: kyberKeys,
+  };
+
+  return cachedKeys;
+}
+
+export async function generateValidRegistrationData(
   overrides: Partial<RegisterUserDto> = {},
-): RegisterUserDto {
+): Promise<RegisterUserDto> {
   const timestamp = Date.now();
   const randomSuffix = v4().substring(0, 8);
   const uniqueId = `${timestamp}-${randomSuffix}`;
+
+  const keys = await initializeTestKeys();
 
   return {
     name: 'Test',
@@ -37,15 +98,8 @@ export function generateValidRegistrationData(
     mnemonic: generateMnemonic(256),
     salt: generateSalt(),
     keys: {
-      ecc: {
-        publicKey: `ecc-public-key-test-${uniqueId}`,
-        privateKey: `ecc-private-key-test-${uniqueId}`,
-        revocationKey: `ecc-revocation-key-test-${uniqueId}`,
-      },
-      kyber: {
-        publicKey: `kyber-public-key-test-${uniqueId}`,
-        privateKey: `kyber-private-key-test-${uniqueId}`,
-      },
+      ecc: keys.ecc,
+      kyber: keys.kyber,
     },
     ...overrides,
   };
