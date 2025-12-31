@@ -29,6 +29,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -37,6 +38,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.create).toHaveBeenCalledWith({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -53,6 +55,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
       } as any);
@@ -76,6 +79,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -95,6 +99,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -208,6 +213,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -217,6 +223,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(fileVersionModel.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           fileId: version.fileId,
+          userId: version.userId,
           networkFileId: version.networkFileId,
           size: version.size,
           status: version.status,
@@ -235,6 +242,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
       } as any);

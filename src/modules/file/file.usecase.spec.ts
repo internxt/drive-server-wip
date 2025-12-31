@@ -23,6 +23,7 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import {
   newFile,
+  newFileVersion,
   newFolder,
   newUser,
   newWorkspace,
@@ -1620,31 +1621,27 @@ describe('FileUseCases', () => {
   });
 
   describe('getUserUsedStorage', () => {
-    it('When called, it should return the user total used space', async () => {
-      const totalUsage = 1000;
+    it('When called, it should return the unified usage from files and versions', async () => {
+      const unifiedUsage = 1500;
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(totalUsage);
+        .mockResolvedValueOnce(unifiedUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(totalUsage);
+
+      expect(result).toEqual(unifiedUsage);
+      expect(service.getUserUsedStorageIncrementally).toHaveBeenCalledWith(
+        userMocked,
+      );
     });
 
-    it('When getUserUsedStorageIncrementally returns null, it should return 0', async () => {
+    it('When user has no files and no versions, it should return 0', async () => {
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(null);
+        .mockResolvedValueOnce(0);
 
       const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(0);
-    });
 
-    it('When getUserUsedStorageIncrementally returns undefined, it should return 0', async () => {
-      jest
-        .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(undefined);
-
-      const result = await service.getUserUsedStorage(userMocked);
       expect(result).toEqual(0);
     });
   });
@@ -1849,14 +1846,11 @@ describe('FileUseCases', () => {
       const mockFile = newFile();
       const createdAt = new Date('2025-01-01');
       const mockVersions = [
-        FileVersion.build({
-          id: v4(),
-          fileId: mockFile.uuid,
-          networkFileId: 'network-1',
-          size: BigInt(100),
-          status: FileVersionStatus.EXISTS,
-          createdAt,
-          updatedAt: new Date(),
+        newFileVersion({
+          attributes: {
+            fileId: mockFile.uuid,
+            createdAt,
+          },
         }),
       ];
 
@@ -1900,14 +1894,11 @@ describe('FileUseCases', () => {
     it('When file and version exist, then it should delete the version', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
       const versionId = v4();
-      const mockVersion = FileVersion.build({
-        id: versionId,
-        fileId: mockFile.uuid,
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date(),
+      const mockVersion = newFileVersion({
+        attributes: {
+          id: versionId,
+          fileId: mockFile.uuid,
+        },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -1944,14 +1935,10 @@ describe('FileUseCases', () => {
 
     it('When version does not belong to file, then it should throw BadRequestException', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const mockVersion = FileVersion.build({
-        id: v4(),
-        fileId: 'different-file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const mockVersion = newFileVersion({
+        attributes: {
+          fileId: 'different-file-uuid',
+        },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -1967,14 +1954,11 @@ describe('FileUseCases', () => {
     it('When deleting a version, then file should not be modified', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
       const versionId = v4();
-      const mockVersion = FileVersion.build({
-        id: versionId,
-        fileId: mockFile.uuid,
-        networkFileId: 'old-network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const mockVersion = newFileVersion({
+        attributes: {
+          id: versionId,
+          fileId: mockFile.uuid,
+        },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -1996,14 +1980,13 @@ describe('FileUseCases', () => {
     it('When file and version exist, then it should restore the version', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
       const versionId = v4();
-      const mockVersion = FileVersion.build({
-        id: versionId,
-        fileId: mockFile.uuid,
-        networkFileId: 'old-network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date(),
+      const mockVersion = newFileVersion({
+        attributes: {
+          id: versionId,
+          fileId: mockFile.uuid,
+          networkFileId: 'old-network-id',
+          size: BigInt(100),
+        },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -2058,14 +2041,10 @@ describe('FileUseCases', () => {
 
     it('When version does not belong to file, then it should throw BadRequestException', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const mockVersion = FileVersion.build({
-        id: v4(),
-        fileId: 'different-file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const mockVersion = newFileVersion({
+        attributes: {
+          fileId: 'different-file-uuid',
+        },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -2080,14 +2059,11 @@ describe('FileUseCases', () => {
 
     it('When version is deleted, then it should throw BadRequestException', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const mockVersion = FileVersion.build({
-        id: v4(),
-        fileId: mockFile.uuid,
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.DELETED,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const mockVersion = newFileVersion({
+        attributes: {
+          fileId: mockFile.uuid,
+          status: FileVersionStatus.DELETED,
+        },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -2198,7 +2174,7 @@ describe('FileUseCases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When file is versionable, then it should create versions and not delete from network', async () => {
+    it('When file is versionable, then it should create versions, calculate replacement delta, and not delete from network', async () => {
       const mockFile = newFile({
         attributes: {
           fileId: 'old-file-id',
@@ -2224,6 +2200,9 @@ describe('FileUseCases', () => {
         .mockResolvedValue({} as any);
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       const deleteFileSpy = jest.spyOn(bridgeService, 'deleteFile');
+      const addFileReplacementDeltaSpy = jest
+        .spyOn(service as any, 'addFileReplacementDelta')
+        .mockResolvedValue(undefined);
 
       const result = await service.replaceFile(
         userMocked,
@@ -2237,10 +2216,19 @@ describe('FileUseCases', () => {
       );
       expect(upsertSpy).toHaveBeenCalledWith({
         fileId: mockFile.uuid,
+        userId: userMocked.uuid,
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: 'EXISTS',
       });
+      expect(addFileReplacementDeltaSpy).toHaveBeenCalledWith(
+        userMocked,
+        mockFile,
+        expect.objectContaining({
+          size: replaceData.size,
+          fileId: replaceData.fileId,
+        }),
+      );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalled();
       expect(deleteFileSpy).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -2700,6 +2688,7 @@ describe('FileUseCases', () => {
       );
       expect(fileRepository.sumFileSizeDeltaFromDate).toHaveBeenCalledWith(
         mockUser.id,
+        mockUser.uuid,
         mockFirstUsage.getNextPeriodStartDate(),
       );
       expect(result).toEqual(expectedTotal);
@@ -2739,6 +2728,7 @@ describe('FileUseCases', () => {
       );
       expect(fileRepository.sumFileSizeDeltaFromDate).toHaveBeenCalledWith(
         mockUser.id,
+        mockUser.uuid,
         mockUsage.getNextPeriodStartDate(),
       );
       expect(usageService.createDailyUsage).not.toHaveBeenCalled();
@@ -2787,10 +2777,12 @@ describe('FileUseCases', () => {
       );
       expect(fileRepository.sumFileSizeDeltaFromDate).toHaveBeenCalledWith(
         mockUser.id,
+        mockUser.uuid,
         mockUsage.getNextPeriodStartDate(),
       );
       expect(fileRepository.sumFileSizeDeltaBetweenDates).toHaveBeenCalledWith(
         mockUser.id,
+        mockUser.uuid,
         mockUsage.getNextPeriodStartDate(),
         Time.endOfDay(yesterday),
       );
