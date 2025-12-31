@@ -20,6 +20,7 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
+import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class GatewayUseCases {
@@ -34,6 +35,7 @@ export class GatewayUseCases {
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
+    private readonly fileUseCases: FileUseCases,
   ) {}
 
   async initializeWorkspace(
@@ -336,6 +338,22 @@ export class GatewayUseCases {
         error,
       );
     }
+
+    this.fileUseCases
+      .applyUserRetentionPolicy(user.uuid)
+      .then(({ deletedCount }) => {
+        if (deletedCount > 0) {
+          Logger.log(
+            `[GATEWAY/RETENTION] Deleted ${deletedCount} file versions for user ${user.uuid} due to plan change`,
+          );
+        }
+      })
+      .catch((error) => {
+        Logger.error(
+          `[GATEWAY/RETENTION] Error applying retention policy for user ${user.uuid}`,
+          error,
+        );
+      });
   }
 
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {

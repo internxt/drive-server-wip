@@ -114,9 +114,7 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
-
-    return usageCalculation || 0;
+    return this.getUserUsedStorageIncrementally(user);
   }
 
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
@@ -130,7 +128,11 @@ export class FileUseCases {
       );
       const today = Time.dateWithTimeAdded(1, 'day', firstUsage.period);
       const deltaChangeToday =
-        await this.fileRepository.sumFileSizeDeltaFromDate(user.id, today);
+        await this.fileRepository.sumFileSizeDeltaFromDate(
+          user.id,
+          user.uuid,
+          today,
+        );
 
       return firstUsage.delta + deltaChangeToday;
     }
@@ -142,6 +144,7 @@ export class FileUseCases {
     const deltaChangeSinceLastUsage =
       await this.fileRepository.sumFileSizeDeltaFromDate(
         user.id,
+        user.uuid,
         nextDeltaStartDate,
       );
 
@@ -172,6 +175,7 @@ export class FileUseCases {
 
     const gapDelta = await this.fileRepository.sumFileSizeDeltaBetweenDates(
       user.id,
+      user.uuid,
       startDate,
       yesterdayEndOfDay,
     );
@@ -922,35 +926,19 @@ export class FileUseCases {
       file.size,
     );
 
+    const { size, modificationTime } = newFileData;
+    const { fileId: oldFileId, bucket } = file;
+
     if (shouldVersion) {
       await this.applyRetentionPolicy(fileUuid, user.uuid);
-
-      const { fileId, size, modificationTime } = newFileData;
-
-      await Promise.all([
-        this.fileVersionRepository.upsert({
-          fileId: file.uuid,
-          networkFileId: file.fileId,
-          size: file.size,
-          status: FileVersionStatus.EXISTS,
-        }),
-        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-          fileId: newFileId,
-          size,
-          updatedAt: new Date(),
-          ...(modificationTime ? { modificationTime } : null),
-        }),
-      ]);
-
-      return {
-        ...file.toJSON(),
-        fileId: newFileId,
-        size,
-      };
+      await this.fileVersionRepository.upsert({
+        fileId: file.uuid,
+        userId: user.uuid,
+        networkFileId: file.fileId,
+        size: file.size,
+        status: FileVersionStatus.EXISTS,
+      });
     }
-
-    const { fileId: oldFileId, bucket } = file;
-    const { size, modificationTime } = newFileData;
 
     await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
       fileId: newFileId,
@@ -975,7 +963,7 @@ export class FileUseCases {
       });
     });
 
-    if (oldFileId) {
+    if (!shouldVersion && oldFileId) {
       try {
         await this.network.deleteFile(user, bucket, oldFileId);
       } catch (error) {
@@ -1318,5 +1306,31 @@ export class FileUseCases {
     maxVersions: number;
   }> {
     return this.featureLimitService.getFileVersioningLimits(userUuid);
+  }
+
+  async applyUserRetentionPolicy(
+    userUuid: string,
+    options?: { batchSize?: number },
+  ): Promise<{ deletedCount: number }> {
+    const limits =
+      await this.featureLimitService.getFileVersioningLimits(userUuid);
+
+    if (limits.enabled) {
+      return { deletedCount: 0 };
+    }
+
+    const batchSize = options?.batchSize ?? 100;
+    let totalDeleted = 0;
+    let processedCount: number;
+
+    do {
+      processedCount = await this.fileVersionRepository.deleteUserVersionsBatch(
+        userUuid,
+        batchSize,
+      );
+      totalDeleted += processedCount;
+    } while (processedCount === batchSize);
+
+    return { deletedCount: totalDeleted };
   }
 }

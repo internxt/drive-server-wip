@@ -10,6 +10,12 @@ describe('SequelizeFileVersionRepository', () => {
 
   beforeEach(() => {
     fileVersionModel = createMock<typeof FileVersionModel>();
+
+    Object.defineProperty(fileVersionModel, 'sequelize', {
+      value: { query: jest.fn() },
+      writable: true,
+    });
+
     repository = new SequelizeFileVersionRepository(fileVersionModel);
   });
 
@@ -29,6 +35,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -37,6 +44,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.create).toHaveBeenCalledWith({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -53,6 +61,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
       } as any);
@@ -76,6 +85,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -95,6 +105,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -208,6 +219,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
@@ -217,6 +229,7 @@ describe('SequelizeFileVersionRepository', () => {
       expect(fileVersionModel.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           fileId: version.fileId,
+          userId: version.userId,
           networkFileId: version.networkFileId,
           size: version.size,
           status: version.status,
@@ -235,6 +248,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
       } as any);
@@ -400,6 +414,84 @@ describe('SequelizeFileVersionRepository', () => {
       expect(fileVersionModel.update).toHaveBeenCalledWith(
         { status: FileVersionStatus.DELETED },
         expect.any(Object),
+      );
+    });
+  });
+
+  describe('deleteUserVersionsBatch', () => {
+    it('When deleting user versions in batch, then it executes raw query with correct parameters', async () => {
+      const userId = 'user-uuid-123';
+      const limit = 100;
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValueOnce([null, 5]);
+
+      const result = await repository.deleteUserVersionsBatch(userId, limit);
+
+      expect(result).toBe(5);
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE file_versions'),
+        expect.objectContaining({
+          replacements: {
+            userId,
+            limit,
+            deletedStatus: FileVersionStatus.DELETED,
+            existsStatus: FileVersionStatus.EXISTS,
+          },
+        }),
+      );
+    });
+
+    it('When no versions exist for user, then it returns 0', async () => {
+      const userId = 'user-uuid-456';
+      const limit = 100;
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValueOnce([null, 0]);
+
+      const result = await repository.deleteUserVersionsBatch(userId, limit);
+
+      expect(result).toBe(0);
+    });
+
+    it('When limit is smaller than available versions, then it respects the limit', async () => {
+      const userId = 'user-uuid-789';
+      const limit = 50;
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValueOnce([null, 50]);
+
+      const result = await repository.deleteUserVersionsBatch(userId, limit);
+
+      expect(result).toBe(50);
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({ limit: 50 }),
+        }),
+      );
+    });
+
+    it('When query targets only EXISTS status versions, then it filters correctly', async () => {
+      const userId = 'user-uuid-111';
+      const limit = 100;
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValueOnce([null, 3]);
+
+      await repository.deleteUserVersionsBatch(userId, limit);
+
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('status = :existsStatus'),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            existsStatus: FileVersionStatus.EXISTS,
+          }),
+        }),
       );
     });
   });
