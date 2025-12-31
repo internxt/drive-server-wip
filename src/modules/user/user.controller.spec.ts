@@ -43,6 +43,7 @@ import {
   AuditEntityType,
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
+import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -85,6 +86,7 @@ describe('User Controller', () => {
   let keyServerUseCases: DeepMocked<KeyServerUseCases>;
   let cryptoService: DeepMocked<CryptoService>;
   let auditLogService: DeepMocked<AuditLogService>;
+  let klaviyoService: KlaviyoTrackingService;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -99,6 +101,7 @@ describe('User Controller', () => {
     keyServerUseCases = moduleRef.get(KeyServerUseCases);
     cryptoService = moduleRef.get(CryptoService);
     auditLogService = moduleRef.get(AuditLogService);
+    klaviyoService = moduleRef.get(KlaviyoTrackingService);
   });
 
   it('should be defined', () => {
@@ -1599,16 +1602,17 @@ describe('User Controller', () => {
 
   describe('POST /payments/incomplete-checkout', () => {
     const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
-
     const mockIncompleteCheckoutDto: IncompleteCheckoutDto = {
       completeCheckoutUrl: 'https://drive.internxt.com/checkout/complete',
+      planName: 'Premium',
+      price: 9.99,
     };
 
-    it('When valid user and dto are provided, then should call usecase with correct parameters', async () => {
-      const expectedResult = { success: true };
-      userUseCases.handleIncompleteCheckoutEvent.mockResolvedValue(
-        expectedResult,
-      );
+    it('When valid user and dto are provided, then should return success message', async () => {
+      const expectedResult = {
+        success: true,
+        message: 'Checkout event tracked successfully',
+      };
 
       const result = await userController.handleIncompleteCheckout(
         mockUser,
@@ -1616,20 +1620,16 @@ describe('User Controller', () => {
       );
 
       expect(result).toEqual(expectedResult);
-      expect(userUseCases.handleIncompleteCheckoutEvent).toHaveBeenCalledWith(
-        mockUser,
-        mockIncompleteCheckoutDto,
-      );
     });
 
-    it('When different user is provided, then should pass correct user to usecase', async () => {
+    it('When different user is provided, then should return success message', async () => {
       const differentUser = newUser({
         attributes: { email: 'different@internxt.com' },
       });
-      const expectedResult = { success: true };
-      userUseCases.handleIncompleteCheckoutEvent.mockResolvedValue(
-        expectedResult,
-      );
+      const expectedResult = {
+        success: true,
+        message: 'Checkout event tracked successfully',
+      };
 
       const result = await userController.handleIncompleteCheckout(
         differentUser,
@@ -1637,22 +1637,29 @@ describe('User Controller', () => {
       );
 
       expect(result).toEqual(expectedResult);
-      expect(userUseCases.handleIncompleteCheckoutEvent).toHaveBeenCalledWith(
-        differentUser,
-        mockIncompleteCheckoutDto,
-      );
     });
 
-    it('When usecase throws error, then should propagate error', async () => {
-      const mockError = new Error('SendGrid service unavailable');
-      userUseCases.handleIncompleteCheckoutEvent.mockRejectedValue(mockError);
+    it('When Klaviyo service throws error, then should log error and return success', async () => {
+      const mockError = new Error('Klaviyo service unavailable');
+      jest
+        .spyOn(klaviyoService, 'trackCheckoutStarted')
+        .mockRejectedValue(mockError);
+      const loggerErrorSpy = jest.spyOn(Logger, 'error').mockImplementation();
 
-      await expect(
-        userController.handleIncompleteCheckout(
-          mockUser,
-          mockIncompleteCheckoutDto,
-        ),
-      ).rejects.toThrow(mockError);
+      const result = await userController.handleIncompleteCheckout(
+        mockUser,
+        mockIncompleteCheckoutDto,
+      );
+
+      expect(result).toEqual({
+        success: true,
+        message: 'Checkout event tracked successfully',
+      });
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        `[KLAVIYO] Failed to track checkout for ${mockUser.email}: ${mockError.message}`,
+      );
+
+      loggerErrorSpy.mockRestore();
     });
   });
 });

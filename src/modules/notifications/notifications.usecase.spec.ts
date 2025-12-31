@@ -12,6 +12,7 @@ import {
   newUserNotificationStatus,
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
+import { Time } from '../../lib/time';
 
 const mockSystemDate = new Date('2024-01-01T00:00:00.000Z');
 
@@ -130,6 +131,40 @@ describe('NotificationsUseCases', () => {
       };
 
       const expectedExpirationDate = new Date('2024-12-31T23:59:59.000Z');
+
+      const expectedNotification = newNotification({
+        attributes: {
+          link: createDto.link,
+          message: createDto.message,
+          targetType: NotificationTargetType.ALL,
+          targetValue: null,
+          expiresAt: expectedExpirationDate,
+        },
+      });
+
+      notificationRepository.create.mockResolvedValueOnce(expectedNotification);
+
+      const result = await usecases.createNotification(createDto);
+
+      expect(notificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetType: NotificationTargetType.ALL,
+          expiresAt: expectedExpirationDate,
+        }),
+      );
+      expect(result).toEqual(expectedNotification);
+    });
+
+    it('When creating notification with expiration date, then it should set expiresAt correctly', async () => {
+      const expectedExpirationDate = Time.dateWithTimeAdded(
+        10,
+        'day',
+        mockSystemDate,
+      );
+      const createDto: CreateNotificationDto = {
+        link: 'https://example.com',
+        message: 'Test notification with expiration',
+      };
 
       const expectedNotification = newNotification({
         attributes: {

@@ -1331,16 +1331,12 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Incomplete checkout email sent successfully',
+    description: 'Incomplete checkout processed successfully',
   })
   async handleIncompleteCheckout(
     @UserDecorator() user: User,
     @Body() dto: IncompleteCheckoutDto,
   ) {
-    const result = await this.userUseCases.handleIncompleteCheckoutEvent(
-      user,
-      dto,
-    );
     try {
       await this.klaviyoService.trackCheckoutStarted(user.email, {
         checkoutUrl: dto.completeCheckoutUrl,
@@ -1349,9 +1345,12 @@ export class UserController {
       });
     } catch (error) {
       Logger.error(
-        `[KLAVIYO] Failed to track checkout started for ${user.email}: ${error.message}`,
+        `[KLAVIYO] Failed to track checkout for ${user.email}: ${error.message}`,
       );
     }
-    return result;
+    return {
+      success: true,
+      message: 'Checkout event tracked successfully',
+    };
   }
 }
