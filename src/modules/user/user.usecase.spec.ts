@@ -238,6 +238,7 @@ describe('User use cases', () => {
         deleteFolders: false,
         deleteShares: false,
         deleteWorkspaces: false,
+        deleteBackups: false,
       });
 
       expect(deleteFoldersSpy).not.toHaveBeenCalled();
@@ -254,6 +255,7 @@ describe('User use cases', () => {
           deleteFolders: false,
           deleteShares: true,
           deleteWorkspaces: false,
+          deleteBackups: false,
         });
 
         expect(deleteFoldersSpy).not.toHaveBeenCalled();
@@ -266,6 +268,7 @@ describe('User use cases', () => {
           deleteFolders: false,
           deleteShares: false,
           deleteWorkspaces: true,
+          deleteBackups: false,
         });
 
         expect(
@@ -275,6 +278,22 @@ describe('User use cases', () => {
         expect(
           workspaceUseCases.removeUserFromNonOwnedWorkspaces,
         ).toHaveBeenCalled();
+      });
+
+      it('When delete backups is true, then the user backups are deleted', async () => {
+        const deleteUserBackupsSpy = jest
+          .spyOn(backupUseCases, 'deleteUserBackups')
+          .mockResolvedValue({ deletedBackups: 1, deletedDevices: 1 });
+
+        await userUseCases.resetUser(user, {
+          deleteFiles: false,
+          deleteFolders: false,
+          deleteShares: false,
+          deleteWorkspaces: false,
+          deleteBackups: true,
+        });
+
+        expect(deleteUserBackupsSpy).toHaveBeenCalledWith(user.id);
       });
 
       describe('When resources do not exist', () => {
@@ -290,6 +309,7 @@ describe('User use cases', () => {
             deleteFolders: true,
             deleteShares: false,
             deleteWorkspaces: false,
+            deleteBackups: false,
           });
 
           expect(getFoldersSpy).toHaveBeenCalledWith(
@@ -316,6 +336,7 @@ describe('User use cases', () => {
             deleteFolders: false,
             deleteShares: false,
             deleteWorkspaces: false,
+            deleteBackups: false,
           });
 
           expect(getFilesSpy).toHaveBeenCalledWith(
@@ -344,6 +365,7 @@ describe('User use cases', () => {
             deleteFolders: true,
             deleteShares: false,
             deleteWorkspaces: false,
+            deleteBackups: false,
           });
 
           expect(getFoldersSpy).toHaveBeenCalledWith(
@@ -370,6 +392,7 @@ describe('User use cases', () => {
             deleteFolders: false,
             deleteShares: false,
             deleteWorkspaces: false,
+            deleteBackups: false,
           });
 
           expect(getFilesSpy).toHaveBeenCalledWith(
@@ -2702,6 +2725,7 @@ describe('User use cases', () => {
         deleteFolders: true,
         deleteShares: true,
         deleteWorkspaces: true,
+        deleteBackups: true,
       });
     });
 
@@ -2781,6 +2805,7 @@ describe('User use cases', () => {
         deleteFolders: true,
         deleteShares: true,
         deleteWorkspaces: true,
+        deleteBackups: true,
       });
 
       expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
@@ -3503,6 +3528,7 @@ describe('User use cases', () => {
         deleteFolders: true,
         deleteShares: true,
         deleteWorkspaces: true,
+        deleteBackups: true,
       });
     });
 
