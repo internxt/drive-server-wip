@@ -1059,6 +1059,7 @@ export class UserUseCases {
         deleteFolders: true,
         deleteShares: true,
         deleteWorkspaces: true,
+        deleteBackups: true,
       });
     }
     await this.keyServerRepository.deleteByUserId(user.id);
@@ -1112,6 +1113,7 @@ export class UserUseCases {
         deleteFolders: true,
         deleteShares: true,
         deleteWorkspaces: true,
+        deleteBackups: true,
       });
     }
   }
@@ -1235,6 +1237,7 @@ export class UserUseCases {
       deleteFolders: boolean;
       deleteShares: boolean;
       deleteWorkspaces: boolean;
+      deleteBackups: boolean;
     },
   ): Promise<void> {
     if (options.deleteShares) {
@@ -1290,6 +1293,10 @@ export class UserUseCases {
     if (options.deleteWorkspaces) {
       await this.workspaceUseCases.emptyAllUserOwnedWorkspaces(user);
       await this.workspaceUseCases.removeUserFromNonOwnedWorkspaces(user);
+    }
+
+    if (options.deleteBackups) {
+      await this.backupUseCases.deleteUserBackups(user.id);
     }
   }
 
