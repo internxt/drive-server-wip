@@ -42,6 +42,8 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
   ) {
     this.actionHandler = {
       [WorkspaceLogType.Login]: this.logIn.bind(this),
+      [WorkspaceLogType.LoginOpaqueStart]: this.loginOpaqueStart.bind(this),
+      [WorkspaceLogType.LoginOpaqueFinish]: this.loginOpaqueFinish.bind(this),
       [WorkspaceLogType.ChangedPassword]: this.changedPassword.bind(this),
       [WorkspaceLogType.Logout]: this.logout.bind(this),
       [WorkspaceLogType.DeleteFile]: this.deleteFile.bind(this),
@@ -101,6 +103,24 @@ export class WorkspacesLogsInterceptor implements NestInterceptor {
 
   async logIn(platform: WorkspaceLogPlatform, req: any, res: any) {
     await this.handleUserAction(platform, WorkspaceLogType.Login, req, res);
+  }
+
+  async loginOpaqueStart(platform: WorkspaceLogPlatform, req: any, res: any) {
+    await this.handleUserAction(
+      platform,
+      WorkspaceLogType.LoginOpaqueStart,
+      req,
+      res,
+    );
+  }
+
+  async loginOpaqueFinish(platform: WorkspaceLogPlatform, req: any, res: any) {
+    await this.handleUserAction(
+      platform,
+      WorkspaceLogType.LoginOpaqueFinish,
+      req,
+      res,
+    );
   }
 
   async changedPassword(platform: WorkspaceLogPlatform, req: any, res: any) {

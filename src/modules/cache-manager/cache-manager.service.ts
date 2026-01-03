@@ -8,6 +8,8 @@ export class CacheManagerService {
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly AVATAR_KEY_PREFIX = 'avatar:';
+  private readonly SESSION_KEY_PREFIX = 'session:';
+  private readonly LOGIN_STATE_PREFIX = 'loginstate:';
   private readonly TTL_10_MINUTES = 10000 * 60;
   private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
@@ -99,5 +101,31 @@ export class CacheManagerService {
 
   async deleteUserAvatar(userUuid: string) {
     return this.cacheManager.del(`${this.AVATAR_KEY_PREFIX}${userUuid}`);
+  }
+
+  async getSessionKey(sessionID: string): Promise<string | null> {
+    return this.cacheManager.get<string>(
+      `${this.SESSION_KEY_PREFIX}${sessionID}`,
+    );
+  }
+
+  async setSessionKey(sessionID: string, sessionKey: string, ttl?: number) {
+    return this.cacheManager.set(
+      `${this.SESSION_KEY_PREFIX}${sessionID}`,
+      sessionKey,
+      ttl ?? this.TTL_10_MINUTES,
+    );
+  }
+
+  async getLoginState(email: string): Promise<string | null> {
+    return this.cacheManager.get<string>(`${this.LOGIN_STATE_PREFIX}${email}`);
+  }
+
+  async setLoginState(email: string, serverLoginState: string, ttl?: number) {
+    return this.cacheManager.set(
+      `${this.LOGIN_STATE_PREFIX}${email}`,
+      serverLoginState,
+      ttl ?? this.TTL_10_MINUTES,
+    );
   }
 }

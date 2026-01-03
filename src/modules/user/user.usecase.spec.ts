@@ -1161,6 +1161,35 @@ describe('User use cases', () => {
       expect(result).toHaveProperty('newToken', 'newAuthToken');
     });
 
+    it('When opaque login is successful, then it should return user and token', async () => {
+      const email = 'test@example.com';
+
+      const user = newUser({
+        attributes: {
+          email,
+          errorLoginCount: 0,
+          secret_2FA: null,
+          registrationRecord: 'test value',
+        },
+      });
+      const folder = newFolder({ owner: user, attributes: { bucket: v4() } });
+
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(userUseCases, 'getNewToken').mockResolvedValueOnce('token');
+      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValue(undefined);
+      jest
+        .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
+        .mockResolvedValueOnce(folder);
+      jest.spyOn(keyServerRepository, 'findUserKeys').mockResolvedValue(null);
+
+      const result = await userUseCases.loginAccessOpaque(email, '');
+
+      expect(result).toHaveProperty('user');
+      expect(result.user).toHaveProperty('email', 'test@example.com');
+      expect(result.user).toHaveProperty('bucket', folder.bucket);
+      expect(result).toHaveProperty('token', 'token');
+    });
+
     it('When the 2FA code is wrong, then it should throw', async () => {
       const hashedPassword = v4();
       const loginAccessDto = {
