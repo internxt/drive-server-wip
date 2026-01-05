@@ -247,7 +247,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When registration is successful, then user and root folder are linked correctly', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         await registerUser(encryptedData).expect(HttpStatus.CREATED);
@@ -267,7 +267,7 @@ describe('User Registration E2E', () => {
       });
 
       it('When registration is successful, then referral code is generated', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
 
         await registerUser(encryptedData).expect(HttpStatus.CREATED);
