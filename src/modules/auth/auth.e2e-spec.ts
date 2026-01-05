@@ -81,7 +81,7 @@ describe('User Authentication E2E', () => {
   describe('Security details retrieval on auth login', () => {
     describe('Returns security details for valid email', () => {
       it('When email exists, then returns sKey and security flags', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -99,7 +99,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When user has ECC keys, then hasEccKeys is true', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -111,7 +111,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When user has no 2FA enabled, then tfa is false', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -150,7 +150,7 @@ describe('User Authentication E2E', () => {
   describe('User authentication on login access', () => {
     describe('Returns token and user data with valid credentials', () => {
       it('When credentials are valid, then returns user object', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password } = await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -165,7 +165,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When credentials are valid, then returns both tokens', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password } = await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -182,7 +182,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When credentials are valid, then returns user UUID and root folder', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password } = await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -198,7 +198,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When credentials are valid, then returns user keys', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password } = await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -213,7 +213,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When login is successful, then userTeam is null', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password } = await registerUser(registrationData);
 
         const response = await request(app.getHttpServer())
@@ -227,7 +227,7 @@ describe('User Authentication E2E', () => {
 
     describe('Rejects requests with invalid credentials', () => {
       it('When password is incorrect, then returns 401', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email } = await registerUser(registrationData);
 
         await request(app.getHttpServer())
@@ -254,7 +254,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When password is missing, then returns 400', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email } = await registerUser(registrationData);
 
         await request(app.getHttpServer())
@@ -273,7 +273,7 @@ describe('User Authentication E2E', () => {
 
     describe('Account blocking after failed attempts', () => {
       it('When login fails, then errorLoginCount increments', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, userId } = await registerUser(registrationData);
 
         for (let i = 1; i <= 3; i++) {
@@ -288,7 +288,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When account has 10 failed attempts, then returns 403', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, userId } = await registerUser(registrationData);
 
         await userModel.update(
@@ -303,7 +303,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When login succeeds, then errorLoginCount resets to 0', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password, userId } =
           await registerUser(registrationData);
 
@@ -328,7 +328,7 @@ describe('User Authentication E2E', () => {
         speakeasy.generateSecret().base32.substring(0, 40);
 
       it('When 2FA is enabled and no code provided, then returns 401', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password, userId } =
           await registerUser(registrationData);
 
@@ -345,7 +345,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When 2FA is enabled and wrong code provided, then returns 401', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password, userId } =
           await registerUser(registrationData);
 
@@ -362,7 +362,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When 2FA is enabled and correct code provided, then returns 200', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { email, password, userId } =
           await registerUser(registrationData);
 
@@ -384,7 +384,7 @@ describe('User Authentication E2E', () => {
       });
 
       it('When user has 2FA enabled, then /auth/login returns tfa true', async () => {
-        const registrationData = generateValidRegistrationData();
+        const registrationData = await generateValidRegistrationData();
         const { userId } = await registerUser(registrationData);
 
         const secret = generateTfaSecret();
