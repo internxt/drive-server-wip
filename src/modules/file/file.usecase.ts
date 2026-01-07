@@ -600,7 +600,12 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParamsFile },
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+      lastId?: string;
+    },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = {};
@@ -609,13 +614,13 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    pagination: { limit: number; offset: number; lastId?: string },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
@@ -624,13 +629,13 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    pagination: { limit: number; offset: number; lastId?: string },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
@@ -639,13 +644,13 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    pagination: { limit: number; offset: number; lastId?: string },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
@@ -654,25 +659,31 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   async getFilesUpdatedAfter(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParamsFile },
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+      lastId?: string;
+    },
   ): Promise<File[]> {
-    const additionalOrders: SortParamsFile = options.sort ?? [
+    const additionalOrders: SortParamsFile = pagination.sort ?? [
       ['updatedAt', 'ASC'],
     ];
 
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
-      options.limit,
-      options.offset,
+      pagination.limit,
+      pagination.offset,
       additionalOrders,
+      pagination.lastId,
     );
     return files.map((file) => file.toJSON());
   }
