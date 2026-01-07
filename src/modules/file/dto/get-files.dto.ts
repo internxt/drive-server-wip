@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { FileStatus, SortableFileAttributes } from '../file.domain';
+import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  FileAttributes,
+  FileStatus,
+  SortableFileAttributes,
+} from '../file.domain';
 import { SortOrder } from '../../../common/order.type';
 import { RequiredLargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 
@@ -48,4 +52,12 @@ export class GetFilesDto extends RequiredLargePaginationDto {
   @IsOptional()
   @IsString()
   updatedAt?: string;
+
+  @ApiProperty({
+    description: 'The last file uuid of the provided list in the previous call',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID('4')
+  lastId?: FileAttributes['uuid'];
 }
