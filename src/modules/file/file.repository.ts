@@ -35,6 +35,12 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<Array<File> | []>;
+  findAllCursor(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
   findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -42,6 +48,14 @@ export interface FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWhereUpdatedAfter(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]>,
+    lastId?: FileAttributes['uuid'],
   ): Promise<Array<File> | []>;
   findAllCursorWhereUpdatedAfterInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
@@ -316,14 +330,21 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]> = [],
+    lastId?: FileAttributes['uuid'],
   ): Promise<Array<File> | []> {
+    const whereCondition = {
+      ...where,
+      updatedAt: { [Op.gt]: updatedAtAfter },
+      uuid: lastId
+        ? {
+            [Op.gt]: lastId,
+          }
+        : undefined,
+    };
     const files = await this.findAllCursor(
-      {
-        ...where,
-        updatedAt: { [Op.gt]: updatedAtAfter },
-      },
+      whereCondition,
       limit,
-      offset,
+      lastId ? 0 : offset,
       additionalOrders,
     );
 
