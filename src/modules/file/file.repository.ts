@@ -332,15 +332,16 @@ export class SequelizeFileRepository implements FileRepository {
     additionalOrders: Array<[keyof FileModel, string]> = [],
     lastId?: FileAttributes['uuid'],
   ): Promise<Array<File> | []> {
-    const whereCondition = {
+    let whereCondition: Partial<Record<keyof FileAttributes, any>> = {
       ...where,
       updatedAt: { [Op.gt]: updatedAtAfter },
-      uuid: lastId
-        ? {
-            [Op.gt]: lastId,
-          }
-        : undefined,
     };
+    if (lastId) {
+      whereCondition = {
+        ...whereCondition,
+        uuid: { [Op.gt]: lastId },
+      };
+    }
     const files = await this.findAllCursor(
       whereCondition,
       limit,
