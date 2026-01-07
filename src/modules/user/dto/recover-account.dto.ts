@@ -6,6 +6,7 @@ import {
   IsOptional,
   ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 class PrivateKeysDto {
   @ApiProperty()
@@ -13,6 +14,16 @@ class PrivateKeysDto {
 
   @ApiProperty()
   kyber: string;
+}
+
+class PublicKeysDto {
+  @ApiProperty()
+  @IsOptional()
+  ecc?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  kyber?: string;
 }
 export class RecoverAccountDto {
   @ApiProperty({
@@ -53,6 +64,12 @@ export class RecoverAccountDto {
   @IsOptional()
   @ValidateNested()
   privateKeys?: PrivateKeysDto;
+
+  @ApiProperty()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PublicKeysDto)
+  publicKeys?: PublicKeysDto;
 }
 
 export class DeprecatedRecoverAccountDto {
