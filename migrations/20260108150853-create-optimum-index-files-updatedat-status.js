@@ -8,7 +8,9 @@ module.exports = {
       ON files USING brin (updated_at)
       WHERE status = 'DELETED';
     `);
-    await queryInterface.sequelize.query(`DROP INDEX CONCURRENTLY files_status_updatedat_key;`);
+    await queryInterface.sequelize.query(`
+  DROP INDEX CONCURRENTLY IF EXISTS files_status_updatedat_key;
+`);
   },
 
   async down (queryInterface, Sequelize) {
