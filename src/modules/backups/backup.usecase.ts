@@ -176,14 +176,8 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    const encryptedName = this.cryptoService.encryptName(
-      deviceName,
-      folder.bucket,
-    );
-
     const updatedFolder =
       await this.folderUsecases.updateByFolderIdAndForceUpdatedAt(folder, {
-        name: encryptedName,
         plainName: deviceName,
       });
 
