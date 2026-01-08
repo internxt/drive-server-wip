@@ -129,8 +129,11 @@ export class BackupUseCase {
     if (folder.bucket !== backupsBucket) {
       throw new BadRequestException('Folder is not in the backups bucket');
     }
-
     await this.folderUsecases.deleteByUser(user, [folder]);
+    await this.backupRepository.deleteDevicesBy({
+      userId: user.id,
+      folderUuid: uuid,
+    });
   }
 
   async getDevicesAsFolder(user: User) {
