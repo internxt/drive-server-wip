@@ -100,7 +100,7 @@ export class BackupUseCase {
     const encryptedName = this.cryptoService.encryptName(deviceName, bucket);
     const folders = await this.folderUsecases.getFolders(user.id, {
       bucket,
-      name: encryptedName,
+      plainName: deviceName,
       deleted: false,
       removed: false,
     });

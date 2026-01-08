@@ -2,6 +2,7 @@ import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
+import { TraceMethod } from '../../common/decorators/newrelic-trace-method.decorator';
 
 @Injectable()
 export class AuthGuard extends PassportAuthGuard([JwtStrategy.id]) {
@@ -9,6 +10,7 @@ export class AuthGuard extends PassportAuthGuard([JwtStrategy.id]) {
     super();
   }
 
+  @TraceMethod()
   canActivate(context: ExecutionContext) {
     const handlerContext = context.getHandler();
     const classContext = context.getClass();
