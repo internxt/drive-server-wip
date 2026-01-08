@@ -177,11 +177,6 @@ export class CryptoService {
     registrationRecord: string,
     startLoginRequest: string,
   ): { loginResponse: string; serverLoginState: string } {
-    console.log('SERVER TMP TEST, serverSetup type:', typeof this.serverSetup);
-    console.log('SERVER TMP TEST, start login opaque:', this.serverSetup);
-    console.log('SERVER TMP TEST, login request:', startLoginRequest);
-    console.log('SERVER TMP TEST, registration record:', registrationRecord);
-    console.log('SERVER TMP TEST, email:', email);
     const { loginResponse, serverLoginState } = opaque.server.startLogin({
       userIdentifier: email,
       registrationRecord,
@@ -189,7 +184,6 @@ export class CryptoService {
       startLoginRequest,
     });
 
-    console.log('SERVER TMP TEST, done:', loginResponse);
     return { loginResponse, serverLoginState };
   }
 
