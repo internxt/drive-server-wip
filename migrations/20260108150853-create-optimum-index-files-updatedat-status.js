@@ -15,7 +15,7 @@ module.exports = {
 
   async down (queryInterface, Sequelize) {
     await queryInterface.sequelize.query(`
-      CREATE INDEX CONCURRENTLY files_status_updatedat_key 
+      CREATE INDEX CONCURRENTLY IF NOT EXISTs files_status_updatedat_key 
       ON files (status, updated_at) 
       WHERE status = 'DELETED';
     `);
