@@ -261,9 +261,6 @@ describe('BackupUseCase', () => {
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(mockFolder);
       jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('New Encrypted Name');
-      jest
         .spyOn(folderUseCases, 'updateByFolderIdAndForceUpdatedAt')
         .mockResolvedValue(updatedFolder);
 
