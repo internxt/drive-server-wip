@@ -4,7 +4,7 @@ import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { server } from '@serenity-kit/opaque';
+import * as opaque from '@serenity-kit/opaque';
 import { v4 as uuidv4 } from 'uuid';
 
 export enum AsymmetricEncryptionAlgorithms {
@@ -177,13 +177,19 @@ export class CryptoService {
     registrationRecord: string,
     startLoginRequest: string,
   ): { loginResponse: string; serverLoginState: string } {
-    const { loginResponse, serverLoginState } = server.startLogin({
+    console.log('SERVER TMP TEST, serverSetup type:', typeof this.serverSetup);
+    console.log('SERVER TMP TEST, start login opaque:', this.serverSetup);
+    console.log('SERVER TMP TEST, login request:', startLoginRequest);
+    console.log('SERVER TMP TEST, registration record:', registrationRecord);
+    console.log('SERVER TMP TEST, email:', email);
+    const { loginResponse, serverLoginState } = opaque.server.startLogin({
       userIdentifier: email,
       registrationRecord,
       serverSetup: this.serverSetup,
       startLoginRequest,
     });
 
+    console.log('SERVER TMP TEST, done:', loginResponse);
     return { loginResponse, serverLoginState };
   }
 
@@ -191,7 +197,7 @@ export class CryptoService {
     finishLoginRequest: string,
     serverLoginState: string,
   ): { sessionKey: string } {
-    return server.finishLogin({
+    return opaque.server.finishLogin({
       finishLoginRequest,
       serverLoginState,
     });
