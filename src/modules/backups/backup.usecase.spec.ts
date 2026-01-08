@@ -838,9 +838,6 @@ describe('BackupUseCase', () => {
         .spyOn(backupRepository, 'findOneUserDeviceByName')
         .mockResolvedValue(null);
       jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('encrypted-name');
-      jest
         .spyOn(folderUseCases, 'getFoldersByUserId')
         .mockResolvedValue([existingFolder]);
 
@@ -870,9 +867,6 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(backupRepository, 'findOneUserDeviceByName')
         .mockResolvedValue(null);
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('encrypted-name');
       jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(null);
       jest
@@ -914,9 +908,6 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(backupRepository, 'findOneUserDeviceByName')
         .mockResolvedValue(null);
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('encrypted-name');
       jest.spyOn(folderUseCases, 'getFoldersByUserId').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue(mockFolder);
       jest
@@ -934,10 +925,6 @@ describe('BackupUseCase', () => {
       );
 
       expect(result).toEqual({ ...updatedDevice, folder: mockBackupFolder });
-      expect(cryptoService.encryptName).toHaveBeenCalledWith(
-        updateDeviceDto.name,
-        mockFolder.bucket,
-      );
       expect(backupRepository.updateDeviceName).toHaveBeenCalledWith(
         userMocked,
         1,

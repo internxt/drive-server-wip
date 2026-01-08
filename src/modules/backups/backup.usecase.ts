@@ -352,14 +352,8 @@ export class BackupUseCase {
     let updatedFolder: Folder;
 
     if (folder) {
-      const encryptedName = this.cryptoService.encryptName(
-        updateDeviceDto.name,
-        folder.bucket,
-      );
-
       updatedFolder = await this.folderRepository.updateOneAndReturn(
         {
-          name: encryptedName,
           plainName: updateDeviceDto.name,
         },
         { userId: user.id, uuid: folder.uuid },
