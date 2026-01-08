@@ -326,10 +326,7 @@ export class BackupUseCase {
       user.id,
       {
         bucket: user.backupsBucket,
-        name: this.cryptoService.encryptName(
-          updateDeviceDto.name,
-          user.backupsBucket,
-        ),
+        plainName: updateDeviceDto.name,
         deleted: false,
         removed: false,
       },
