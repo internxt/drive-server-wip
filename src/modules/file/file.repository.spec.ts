@@ -235,6 +235,86 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findAllCursorWhereUpdatedAfter', () => {
+    const updatedAtAfter = new Date();
+    const limit = 10;
+    const offset = 5;
+    const additionalOrders = [['updatedAt', 'ASC']] as Array<
+      [keyof FileModel, string]
+    >;
+    const whereClause: Partial<FileAttributes> = { status: FileStatus.EXISTS };
+
+    it('When sort options are not provided, it should default to none', async () => {
+      jest.spyOn(repository, 'findAllCursor');
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        [],
+      );
+
+      expect(repository.findAllCursor).toHaveBeenCalledWith(
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+        },
+        limit,
+        offset,
+        [],
+      );
+    });
+
+    it('When sort options are provided, it should sort files', async () => {
+      jest.spyOn(repository, 'findAllCursor');
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        additionalOrders,
+      );
+
+      expect(repository.findAllCursor).toHaveBeenCalledWith(
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+        },
+        limit,
+        offset,
+        additionalOrders,
+      );
+    });
+
+    it('When last id is provided, then it is used instead of the offset', async () => {
+      jest.spyOn(repository, 'findAllCursor');
+
+      const lastId = v4();
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        additionalOrders,
+        lastId,
+      );
+
+      expect(repository.findAllCursor).toHaveBeenCalledWith(
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+          uuid: { [Op.gt]: lastId },
+        },
+        limit,
+        0,
+        additionalOrders,
+      );
+    });
+  });
+
   describe('findAllCursorWhereUpdatedAfterInWorkspace', () => {
     const createdBy = v4();
     const workspaceId = v4();
