@@ -122,9 +122,6 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(folderUseCases, 'getFoldersByUserId')
         .mockResolvedValue([mockFolder]);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(mockFolder.plainName as never);
 
       const result = await backupUseCase.getDevicesAsFolder(userMocked);
 
