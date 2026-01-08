@@ -1094,7 +1094,7 @@ export class UserUseCases {
     }
 
     if (!withReset && !publicKeys) {
-      throw new BadRequestException('Invalid backup file');
+      throw new BadRequestException('Invalid keys');
     }
 
     const user = await this.userRepository.findByUuid(userUuid);
@@ -1105,8 +1105,11 @@ export class UserUseCases {
       const kyberMismatch =
         publicKeys.kyber && existingKeys.kyber !== publicKeys.kyber;
 
-      if (eccMismatch || kyberMismatch) {
-        throw new BadRequestException('Invalid backup file');
+      if (eccMismatch) {
+        throw new BadRequestException('Invalid ECC public key');
+      }
+      if (kyberMismatch) {
+        throw new BadRequestException('Invalid Kyber public key');
       }
     }
 

@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  IsString,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -18,13 +19,16 @@ class PrivateKeysDto {
 
 class PublicKeysDto {
   @ApiProperty()
-  @IsOptional()
-  ecc?: string;
+  @IsString()
+  @IsNotEmpty()
+  ecc: string;
 
   @ApiProperty()
-  @IsOptional()
-  kyber?: string;
+  @IsString()
+  @IsNotEmpty()
+  kyber: string;
 }
+
 export class RecoverAccountDto {
   @ApiProperty({
     example: 'some_hashed_pass',
