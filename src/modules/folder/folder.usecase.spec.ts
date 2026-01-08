@@ -530,7 +530,6 @@ describe('FolderUseCases', () => {
       const expectedFolder = newFolder({
         attributes: {
           ...folder,
-          name: 'newencrypted-' + folder.name,
           parentUuid: destinationFolder.uuid,
           parentId: destinationFolder.parentId,
         },
@@ -552,10 +551,6 @@ describe('FolderUseCases', () => {
         .mockReturnValueOnce(folder.plainName);
 
       jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(expectedFolder.name);
-
-      jest
         .spyOn(folderRepository, 'findByNameAndParentUuid')
         .mockResolvedValueOnce(null);
 
@@ -574,7 +569,6 @@ describe('FolderUseCases', () => {
         {
           parentId: destinationFolder.id,
           parentUuid: destinationFolder.uuid,
-          name: expectedFolder.name,
           plainName: expectedFolder.plainName,
           deleted: false,
           deletedAt: null,
@@ -759,7 +753,6 @@ describe('FolderUseCases', () => {
       const expectedFolder = newFolder({
         attributes: {
           ...folder,
-          name: 'newencrypted-' + newName,
           plainName: newName,
           parentUuid: destinationFolder.uuid,
           parentId: destinationFolder.id,
@@ -776,10 +769,6 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(service, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(expectedFolder.name);
 
       jest
         .spyOn(folderRepository, 'findByNameAndParentUuid')
@@ -801,7 +790,6 @@ describe('FolderUseCases', () => {
         {
           parentId: destinationFolder.id,
           parentUuid: destinationFolder.uuid,
-          name: expectedFolder.name,
           plainName: newName,
           deleted: false,
           deletedAt: null,
