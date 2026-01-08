@@ -2087,7 +2087,7 @@ describe('FolderUseCases', () => {
       expect(folderRepository.createFolder).not.toHaveBeenCalled();
     });
 
-    it('When both plain and foilder are given, then it should create a folder', async () => {
+    it('When both plain name and bucket are given, then it should create a folder', async () => {
       const mockFolder = newFolder();
       const mockFolderData: Partial<FolderAttributes> = {
         plainName: 'mock plain name',
