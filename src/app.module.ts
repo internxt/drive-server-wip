@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -30,6 +30,7 @@ import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
+import { NewRelicMiddleware } from './middlewares/newrelic.middleware';
 
 @Module({
   imports: [
@@ -164,4 +165,8 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(NewRelicMiddleware).forRoutes('*');
+  }
+}
