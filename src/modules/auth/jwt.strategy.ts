@@ -13,6 +13,7 @@ import { Time } from '../../lib/time';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
+import { TraceMethod } from '../../common/decorators/newrelic-trace-method.decorator';
 
 export interface JwtPayload {
   email: string;
@@ -41,6 +42,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
     });
   }
 
+  @TraceMethod()
   async validate(payload): Promise<[User, JwtAuthInfo]> {
     try {
       if (!payload.payload?.uuid) {
