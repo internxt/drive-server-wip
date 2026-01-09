@@ -1101,9 +1101,8 @@ export class UserUseCases {
 
     if (publicKeys) {
       const existingKeys = await this.keyServerUseCases.getPublicKeys(user.id);
-      const eccMismatch = publicKeys.ecc && existingKeys.ecc !== publicKeys.ecc;
-      const kyberMismatch =
-        publicKeys.kyber && existingKeys.kyber !== publicKeys.kyber;
+      const eccMismatch = existingKeys.ecc !== publicKeys.ecc;
+      const kyberMismatch = existingKeys.kyber !== publicKeys.kyber;
 
       if (eccMismatch) {
         throw new BadRequestException('Invalid ECC public key');
