@@ -20,7 +20,7 @@ module.exports = {
             SELECT d.id
             FROM devices d
             INNER JOIN folders f ON d.folder_uuid = f.uuid
-            WHERE f.deleted = true
+            WHERE f.deleted = true or f.removed = true
           )
           RETURNING id;
         `);
