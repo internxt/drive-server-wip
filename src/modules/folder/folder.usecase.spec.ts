@@ -527,7 +527,7 @@ describe('FolderUseCases', () => {
       attributes: { userId: userMocked.id },
     });
 
-    it('When folder is moved, then the folder is returned with its updated properties', async () => {
+    it('When folder without plainName is moved, then the folder is returned with its updated properties', async () => {
       const expectedFolder = newFolder({
         attributes: {
           ...folder,
@@ -567,6 +567,65 @@ describe('FolderUseCases', () => {
       expect(folderRepository.updateByFolderId).toHaveBeenCalledTimes(1);
       expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
         folder.id,
+        {
+          parentId: destinationFolder.id,
+          parentUuid: destinationFolder.uuid,
+          plainName: expectedFolder.plainName,
+          deleted: false,
+          deletedAt: null,
+        },
+      );
+    });
+
+    it('When folder with plainName is moved, then the folder is returned with its updated properties', async () => {
+      const plainName = 'Folder Plain Name';
+      const folderWithPlainName = newFolder({
+        attributes: { userId: userMocked.id, plainName },
+      });
+      const expectedFolder = newFolder({
+        attributes: {
+          ...folderWithPlainName,
+          parentUuid: destinationFolder.uuid,
+          parentId: destinationFolder.parentId,
+          plainName,
+        },
+      });
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: false },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(folderWithPlainName);
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(mockParentFolder);
+      jest
+        .spyOn(service, 'getFolderByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest.spyOn(cryptoService, 'decryptName');
+
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(folderRepository, 'updateByFolderId')
+        .mockResolvedValueOnce(expectedFolder);
+
+      const result = await service.moveFolder(
+        userMocked,
+        folderWithPlainName.uuid,
+        {
+          destinationFolder: destinationFolder.uuid,
+        },
+      );
+
+      expect(result).toEqual(expectedFolder);
+      expect(cryptoService.decryptName).not.toHaveBeenCalled();
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledTimes(1);
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
+        folderWithPlainName.id,
         {
           parentId: destinationFolder.id,
           parentUuid: destinationFolder.uuid,
@@ -1666,9 +1725,11 @@ describe('FolderUseCases', () => {
   describe('getByUuid', () => {
     const folderUuid = v4();
 
-    it('When folder exists, then it should decrypt and return the folder', async () => {
-      const folder = newFolder({ attributes: { uuid: folderUuid } });
+    it('When folder exists and no plainName, then it should decrypt and return the folder', async () => {
       const decryptedName = 'Decrypted Name';
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName: undefined },
+      });
 
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
       jest
@@ -1686,6 +1747,24 @@ describe('FolderUseCases', () => {
         folder.parentId,
       );
       expect(result.plainName).toBe(decryptedName);
+    });
+
+    it('When folder exists and there is a plainName, then it should not decrypt and return the folder', async () => {
+      const plainName = 'Plain Name';
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName },
+      });
+
+      jest.spyOn(cryptoService, 'decryptName');
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      const result = await service.getByUuid(folderUuid);
+
+      expect(folderRepository.findByUuid).toHaveBeenCalledWith(
+        folderUuid,
+        false,
+      );
+      expect(cryptoService.decryptName).not.toHaveBeenCalled();
+      expect(result.plainName).toBe(plainName);
     });
 
     it('When folder does not exist, then it should throw NotFoundException', async () => {
