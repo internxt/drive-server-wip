@@ -834,6 +834,9 @@ export class FolderUseCases {
     const { destinationFolder: destinationFolderUuid } = moveFolderDto;
     const newName = moveFolderDto.name;
 
+    console.log('PR: Moving folder to:', destinationFolderUuid);
+    console.log('PR: Moving folder new name:', newName);
+
     if (newName === '' || invalidName.test(newName)) {
       throw new BadRequestException('Invalid folder name');
     }
@@ -932,6 +935,7 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
+    console.log('PR: Renaming folder to:', newName);
     const exists = await this.folderRepository.findByNameAndParentUuid(
       newName,
       folder.parentUuid,
