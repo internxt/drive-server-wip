@@ -4,8 +4,10 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  IsString,
   ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 class PrivateKeysDto {
   @ApiProperty()
@@ -14,6 +16,19 @@ class PrivateKeysDto {
   @ApiProperty()
   kyber: string;
 }
+
+class PublicKeysDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  ecc: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  kyber: string;
+}
+
 export class RecoverAccountDto {
   @ApiProperty({
     example: 'some_hashed_pass',
@@ -53,6 +68,12 @@ export class RecoverAccountDto {
   @IsOptional()
   @ValidateNested()
   privateKeys?: PrivateKeysDto;
+
+  @ApiProperty()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PublicKeysDto)
+  publicKeys?: PublicKeysDto;
 }
 
 export class DeprecatedRecoverAccountDto {
