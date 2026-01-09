@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { FolderUseCases, SortParamsFolder } from './folder.usecase';
-import {
-  SequelizeFolderRepository,
-  FolderRepository,
-} from './folder.repository';
+import { SequelizeFolderRepository } from './folder.repository';
 import {
   BadRequestException,
   ConflictException,
@@ -40,7 +37,7 @@ const user = newUser();
 
 describe('FolderUseCases', () => {
   let service: FolderUseCases;
-  let folderRepository: FolderRepository;
+  let folderRepository: SequelizeFolderRepository;
   let cryptoService: CryptoService;
   let sharingService: SharingService;
   let fileUsecases: FileUseCases;
@@ -86,7 +83,9 @@ describe('FolderUseCases', () => {
       .compile();
 
     service = module.get<FolderUseCases>(FolderUseCases);
-    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    folderRepository = module.get<SequelizeFolderRepository>(
+      SequelizeFolderRepository,
+    );
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
     fileUsecases = module.get<FileUseCases>(FileUseCases);
@@ -2064,6 +2063,46 @@ describe('FolderUseCases', () => {
         uuidSort,
       );
       expect(result).toEqual(folders);
+    });
+  });
+  describe('createFolderDevice', () => {
+    it('When plain name is not given, then it should throw an error', async () => {
+      const mockFolderData: Partial<FolderAttributes> = {
+        bucket: 'mock bucket',
+      };
+      await expect(
+        service.createFolderDevice(userMocked, mockFolderData),
+      ).rejects.toThrow(BadRequestException);
+      expect(folderRepository.createFolder).not.toHaveBeenCalled();
+    });
+
+    it('When bucket is not given, then it should throw an error', async () => {
+      const mockFolderData: Partial<FolderAttributes> = {
+        plainName: 'mock plain name',
+      };
+
+      await expect(
+        service.createFolderDevice(userMocked, mockFolderData),
+      ).rejects.toThrow(BadRequestException);
+      expect(folderRepository.createFolder).not.toHaveBeenCalled();
+    });
+
+    it('When both plain name and bucket are given, then it should create a folder', async () => {
+      const mockFolder = newFolder();
+      const mockFolderData: Partial<FolderAttributes> = {
+        plainName: 'mock plain name',
+        bucket: 'mock bucket',
+      };
+      jest
+        .spyOn(folderRepository, 'createFolder')
+        .mockResolvedValue(mockFolder);
+      const result = await service.createFolderDevice(
+        userMocked,
+        mockFolderData,
+      );
+
+      expect(result).toBe(mockFolder);
+      expect(folderRepository.createFolder).toHaveBeenCalledTimes(1);
     });
   });
 });

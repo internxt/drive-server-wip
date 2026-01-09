@@ -334,7 +334,7 @@ export class FolderUseCases {
   }
 
   async createFolderDevice(user: User, folderData: Partial<FolderAttributes>) {
-    if (!folderData.name || !folderData.bucket) {
+    if (!folderData.plainName || !folderData.bucket) {
       throw new BadRequestException('Folder name and bucket are required');
     }
     return this.folderRepository.createFolder(user.id, folderData);
