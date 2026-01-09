@@ -69,10 +69,11 @@ export class FolderUseCases {
       throw new NotFoundException('Folder not found');
     }
 
-    folder.plainName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    if (!folder.plainName)
+      folder.plainName = this.cryptoService.decryptName(
+        folder.name,
+        folder.parentId,
+      );
 
     return folder;
   }
