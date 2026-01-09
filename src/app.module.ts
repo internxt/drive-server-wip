@@ -30,7 +30,6 @@ import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
-import { NewRelicMiddleware } from './middlewares/newrelic.middleware';
 
 @Module({
   imports: [
@@ -165,8 +164,4 @@ import { NewRelicMiddleware } from './middlewares/newrelic.middleware';
     },
   ],
 })
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(NewRelicMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}
