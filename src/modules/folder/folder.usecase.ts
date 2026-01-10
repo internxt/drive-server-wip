@@ -35,7 +35,7 @@ import { FolderModel } from './folder.model';
 import { MoveFolderDto } from './dto/move-folder.dto';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
-import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -55,7 +55,7 @@ export class FolderUseCases {
     private readonly cryptoService: CryptoService,
     @Inject(forwardRef(() => TrashUseCases))
     private readonly trashUsecases: TrashUseCases,
-    private readonly featureLimitService: FeatureLimitService,
+    private readonly cacheService: CacheManagerService
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -1029,11 +1029,30 @@ export class FolderUseCases {
       throw new NotFoundException('Root Folder not found');
     }
 
-    return this.folderRepository.getFolderByPath(
+    const cachedFolderId = await this.cacheService.getFolderIdByPath(
+      user.uuid,
+      path
+    );
+
+    if (cachedFolderId) {
+      return this.folderRepository.findByUuid(cachedFolderId);
+    }
+
+    const folder = await this.folderRepository.getFolderByPath(
       user.id,
       path,
       rootFolder.uuid,
     );
+
+    if (folder) {
+      await this.cacheService.setFolderIdByPath(
+        user.uuid, 
+        path, 
+        folder.uuid
+      )
+    }
+
+    return folder;
   }
 
   async updateByFolderIdAndForceUpdatedAt(
