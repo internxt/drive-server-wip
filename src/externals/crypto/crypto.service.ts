@@ -4,6 +4,8 @@ import { AesService } from './aes';
 import CryptoJS from 'crypto-js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import * as opaque from '@serenity-kit/opaque';
+import { v4 as uuidv4 } from 'uuid';
 
 export enum AsymmetricEncryptionAlgorithms {
   EllipticCurve = 'ed25519',
@@ -14,9 +16,11 @@ export class CryptoService {
   private readonly configService: ConfigService;
   private readonly aesService: AesService;
   private readonly cryptoSecret: string;
+  private readonly serverSetup: string;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
+    this.serverSetup = this.configService.get('secrets.serverSetup');
     this.aesService = new AesService(
       this.configService.get('secrets.cryptoSecret2'),
     );
@@ -166,5 +170,34 @@ export class CryptoService {
 
       return null;
     }
+  }
+
+  startLoginOpaque(
+    email: string,
+    registrationRecord: string,
+    startLoginRequest: string,
+  ): { loginResponse: string; serverLoginState: string } {
+    const { loginResponse, serverLoginState } = opaque.server.startLogin({
+      userIdentifier: email,
+      registrationRecord,
+      serverSetup: this.serverSetup,
+      startLoginRequest,
+    });
+
+    return { loginResponse, serverLoginState };
+  }
+
+  finishLoginOpaque(
+    finishLoginRequest: string,
+    serverLoginState: string,
+  ): { sessionKey: string } {
+    return opaque.server.finishLogin({
+      finishLoginRequest,
+      serverLoginState,
+    });
+  }
+
+  generateSessionID(): string {
+    return uuidv4();
   }
 }

@@ -31,6 +31,7 @@ export class User implements UserAttributes {
   emailVerified: boolean;
   updatedAt: Date;
   createdAt: Date;
+  registrationRecord?: string;
 
   constructor({
     id,
@@ -63,6 +64,7 @@ export class User implements UserAttributes {
     emailVerified,
     updatedAt,
     createdAt,
+    registrationRecord,
   }: UserAttributes) {
     this.id = id;
     this.userId = userId;
@@ -94,6 +96,7 @@ export class User implements UserAttributes {
     this.emailVerified = emailVerified;
     this.updatedAt = updatedAt;
     this.createdAt = createdAt;
+    this.registrationRecord = registrationRecord;
   }
 
   static build(user: UserAttributes): User {
