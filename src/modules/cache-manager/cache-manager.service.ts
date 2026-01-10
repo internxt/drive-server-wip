@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { Folder } from '../folder/folder.domain';
 
 @Injectable()
 export class CacheManagerService {
@@ -8,6 +9,7 @@ export class CacheManagerService {
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly AVATAR_KEY_PREFIX = 'avatar:';
+  private readonly FOLDER_BY_PATH_PREFIX = 'folder:';
   private readonly TTL_10_MINUTES = 10000 * 60;
   private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
@@ -99,5 +101,24 @@ export class CacheManagerService {
 
   async deleteUserAvatar(userUuid: string) {
     return this.cacheManager.del(`${this.AVATAR_KEY_PREFIX}${userUuid}`);
+  }
+
+  private getFolderIdByPathKey(userId: string, path: string): string {
+    return `${this.FOLDER_BY_PATH_PREFIX}${userId}-${path}`;
+  }
+
+  async setFolderIdByPath(userId: string, path: string, folderId: Folder['uuid']): Promise<void> {
+    await this.cacheManager.set(
+      this.getFolderIdByPathKey(userId, path),
+      folderId,
+      this.TTL_24_HOURS 
+    );
+  }
+
+  async getFolderIdByPath(userId: string, path: string): Promise<Folder['uuid'] | null> {
+    const folderId = await this.cacheManager.get<Folder['uuid'] | null>(
+      this.getFolderIdByPathKey(userId, path),
+    );
+    return folderId;
   }
 }
