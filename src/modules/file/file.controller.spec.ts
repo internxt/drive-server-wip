@@ -625,6 +625,7 @@ describe('FileController', () => {
         userMocked,
         validUuid,
         replaceFileDto,
+        null,
       );
       expect(storageNotificationService.fileUpdated).toHaveBeenCalledWith({
         payload: replacedFile,
